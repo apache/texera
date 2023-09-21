@@ -136,7 +136,7 @@
     "cypress": "9.5.1",
     "eslint": "8.29.0",
     "eslint-plugin-import": "2.26.0",
-    "eslint-plugin-jsdoc": "39.6.4",
+    "eslint-plugin-jsdoc": "46.8.1",
     "eslint-plugin-prefer-arrow": "1.2.3",
     "eslint-plugin-prettier": "4.2.1",
     "eslint-plugin-rxjs": "5.0.2",

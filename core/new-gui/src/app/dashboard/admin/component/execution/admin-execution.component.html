@@ -37,7 +37,7 @@
           { text: 'COMPLETED', value: 'COMPLETED'},
           { text: 'FAILED', value: 'FAILED'},
           { text: 'KILLED', value: 'KILLED'},
-          { text: 'JUST COMPLETED', value: 'JUST COMPLETED'}, 
+          { text: 'JUST COMPLETED', value: 'JUST COMPLETED'},
           { text: 'UNKNOWN', value: 'UNKNOWN'}]"
         [nzFilterFn]="filterByStatus"
         nzWidth="16%">
@@ -67,8 +67,23 @@
       <td>{{ maxStringLength(execution.executionName, 20) }} ({{ execution.executionId }})</td>
       <td>{{ execution.userName }}</td>
       <td [ngStyle]="{ 'color': getStatusColor(execution.executionStatus) }"><b>{{ execution.executionStatus }}</b></td>
-      <td>{{ convertSecondsToTime(execution.executionTime) }}</td>
-      <td>{{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}</td>
+      <td>
+        <div *ngIf="execution.executionTime >= 0; else endTimeNotAvailable">
+          {{ convertSecondsToTime(execution.executionTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
+
+      <td>
+        <div *ngIf="execution.endTime !== 0; else endTimeNotAvailable">
+          {{ convertTimeToTimestamp(execution.executionStatus, execution.endTime) }}
+        </div>
+        <ng-template #endTimeNotAvailable>
+          <div>Not Available</div>
+        </ng-template>
+      </td>
       <td>
         <button
           type="button"
@@ -78,8 +93,7 @@
                         execution.executionStatus === 'FAILED' ||
                         execution.executionStatus === 'KILLED'"
           nz-button
-          nz-tooltip="kill execution {{execution.executionName}} of workflow {{execution.workflowName}}"
-          type="button">
+          nz-tooltip="kill execution {{execution.executionName}} of workflow {{execution.workflowName}}">
           <i
             nz-icon
             nzTheme="outline"
@@ -90,8 +104,7 @@
           (click)="pauseExecution(execution.workflowId)"
           [disabled]="execution.executionStatus !== 'RUNNING'"
           nz-button
-          nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}"
-          type="button">
+          nz-tooltip="pause execution {{execution.executionName}} of workflow {{execution.workflowName}}">
           <i
             nz-icon
             nzTheme="outline"
@@ -102,8 +115,7 @@
           (click)="resumeExecution(execution.workflowId)"
           [disabled]="execution.executionStatus !== 'PAUSED'"
           nz-button
-          nz-tooltip="resume execution {{execution.executionName}} of workflow {{execution.workflowName}}"
-          type="button">
+          nz-tooltip="resume execution {{execution.executionName}} of workflow {{execution.workflowName}}">
           <i
             nz-icon
             nzTheme="outline"
