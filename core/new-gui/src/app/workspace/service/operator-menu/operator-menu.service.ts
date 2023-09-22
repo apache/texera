@@ -49,6 +49,9 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
+  public isViewingResult: boolean = false;
+  public isViewResultClickable: boolean = true;
+
   public readonly COPY_OFFSET = 20;
 
   constructor(
@@ -57,6 +60,7 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
+    this.handleViewResultOperatorStatusChange();
 
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
@@ -111,6 +115,18 @@ export class OperatorMenuService {
     }
   }
 
+  public viewResultHighlightedOperators(): void {
+    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+      op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
+    );
+
+    if (this.isViewingResult) {
+      this.workflowActionService.setViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
+    } else {
+      this.workflowActionService.unsetViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
+    }
+  }
+
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators
@@ -129,6 +145,27 @@ export class OperatorMenuService {
       this.isDisableOperator = !allDisabled;
       this.isDisableOperatorClickable =
         this.effectivelyHighlightedOperators.value.length !== 0 &&
+        this.workflowActionService.checkWorkflowModificationEnabled();
+    });
+  }
+
+  handleViewResultOperatorStatusChange() {
+    merge(
+      this.effectivelyHighlightedOperators,
+      this.workflowActionService.getTexeraGraph().getViewResultOperatorsChangedStream(),
+      this.workflowActionService.getWorkflowModificationEnabledStream()
+    ).subscribe(event => {
+      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+        op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
+      );
+
+      const allViewing = effectiveHighlightedOperatorsExcludeSink.every(op =>
+        this.workflowActionService.getTexeraGraph().isViewingResult(op)
+      );
+
+      this.isViewingResult = !allViewing;
+      this.isViewResultClickable =
+        effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
         this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }
