@@ -89,18 +89,6 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |
-         |        # Define the package name you want to install
-         |        package_name = "wordcloud"
-         |
-         |        # Use subprocess to run the pip install command
-         |        try:
-         |            import subprocess
-         |            subprocess.check_call(["pip", "install", package_name])
-         |        except subprocess.CalledProcessError as e:
-         |            yield {'html-content': self.render_error(f"Error installing {package_name}: {e}")}
-         |            return
-         |
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
