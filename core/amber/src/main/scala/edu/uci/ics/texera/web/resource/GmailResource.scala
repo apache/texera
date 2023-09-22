@@ -33,7 +33,7 @@ class GmailResource {
     transport.connect(
       "smtp.gmail.com",
       587,
-      Files.readString(path.resolve("userEmail")),
+      new String(Files.readAllBytes(path.resolve("userEmail"))),
       accessToken
     )
   }
@@ -43,7 +43,7 @@ class GmailResource {
       new GoogleRefreshTokenRequest(
         new NetHttpTransport(),
         new GsonFactory(),
-        Files.readString(path.resolve("refreshToken")),
+        new String(Files.readAllBytes(path.resolve("refreshToken"))),
         clientId,
         clientSecret
       ).execute().getAccessToken.getBytes
@@ -54,7 +54,7 @@ class GmailResource {
   @RolesAllowed(Array("ADMIN"))
   @Path("/email")
   def getEmail: String = {
-    Files.readString(path.resolve("userEmail"))
+    new String(Files.readAllBytes(path.resolve("userEmail")))
   }
 
   @DELETE
@@ -107,12 +107,12 @@ class GmailResource {
     val transport = session.getTransport("smtp")
     val accessTokenPath = path.resolve("accessToken")
     if (!Files.exists(accessTokenPath)) saveAccessToken()
-    var accessToken = Files.readString(accessTokenPath)
+    var accessToken = new String(Files.readAllBytes(path.resolve("accessTokenPath")))
 
     connect(transport, accessToken)
     if (!transport.isConnected) {
       saveAccessToken()
-      accessToken = Files.readString(accessTokenPath)
+      accessToken = new String(Files.readAllBytes(path.resolve(accessTokenPath)))
       connect(transport, accessToken)
     }
     val email = new MimeMessage(session)
