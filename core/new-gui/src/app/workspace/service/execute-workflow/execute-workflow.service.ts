@@ -113,7 +113,7 @@ export class ExecuteWorkflowService {
             } else {
               return { state: ExecutionState.Paused, currentTuples: {} };
             }
-          case ExecutionState.Aborted:
+          case ExecutionState.Failed:
           case ExecutionState.BreakpointTriggered:
             // for these 2 states, backend will send an additional message after this status event.
             return undefined;
@@ -152,11 +152,11 @@ export class ExecuteWorkflowService {
         Object.entries(event.generalErrors).forEach(entry => {
           errorMessages[entry[0]] = entry[1];
         });
-        return { state: ExecutionState.Aborted, errorMessages: errorMessages };
+        return { state: ExecutionState.Failed, errorMessages: errorMessages };
       // TODO: Merge WorkflowErrorEvent and ErrorEvent
       case "WorkflowExecutionErrorEvent":
         return {
-          state: ExecutionState.Aborted,
+          state: ExecutionState.Failed,
           errorMessages: { WorkflowExecutionError: event.message },
         };
       default:
@@ -169,7 +169,7 @@ export class ExecuteWorkflowService {
   }
 
   public getErrorMessages(): Readonly<Record<string, string>> | undefined {
-    if (this.currentState?.state === ExecutionState.Aborted) {
+    if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;
     }
     return undefined;
@@ -354,7 +354,7 @@ export class ExecuteWorkflowService {
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
     switch (stateInfo.state) {
       case ExecutionState.Completed:
-      case ExecutionState.Aborted:
+      case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
         this.workflowActionService.enableWorkflowModification();
@@ -441,7 +441,11 @@ export class ExecuteWorkflowService {
       ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
     );
 
-    return { operators, links, breakpoints };
+    const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(
+      op => !workflowGraph.isOperatorDisabled(op)
+    );
+
+    return { operators, links, breakpoints, opsToViewResult };
   }
 
   public static transformBreakpoint(

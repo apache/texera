@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{READY, RUNNING}
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -24,14 +25,12 @@ class WorkflowJobService(
     wsInput: WebsocketInput,
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
-    errorHandler: Throwable => Unit,
-    engineVersion: String
+    errorHandler: Throwable => Unit
 ) extends SubscriptionManager
     with LazyLogging {
 
   val stateStore = new JobStateStore()
-  val logicalPlan: LogicalPlan = createLogicalPlan()
-  val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(logicalPlan)
+  val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(LogicalPlan(request.logicalPlan))
   val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
     resultService.opResultStorage
@@ -39,7 +38,7 @@ class WorkflowJobService(
   private val controllerConfig = {
     val conf = ControllerConfig.default
     if (
-      logicalPlan.operators.exists {
+      workflowCompiler.logicalPlan.operators.exists {
         case _: DualInputPortsPythonUDFOpDescV2 => true
         case _: PythonUDFOpDescV2               => true
         case _: PythonUDFSourceOpDescV2         => true
@@ -73,31 +72,21 @@ class WorkflowJobService(
   val jobPythonService =
     new JobPythonService(client, stateStore, wsInput, jobBreakpointService)
 
-  workflowContext.executionID = -1 // for every new execution,
-  // reset it so that the value doesn't carry over across executions
   def startWorkflow(): Unit = {
-    for (pair <- logicalPlan.breakpoints) {
+    for (pair <- workflowCompiler.logicalPlan.breakpoints) {
       Await.result(
         jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
         Duration.fromSeconds(10)
       )
     }
-    resultService.attachToJob(stateStore, logicalPlan, client)
-    if (WorkflowService.userSystemEnabled) {
-      workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
-        workflowContext.wId,
-        workflowContext.userId,
-        request.executionName,
-        engineVersion
-      )
-    }
+    resultService.attachToJob(stateStore, workflowCompiler.logicalPlan, client)
     stateStore.jobMetadataStore.updateState(jobInfo =>
-      jobInfo.withState(READY).withEid(workflowContext.executionID).withError(null)
+      updateWorkflowState(READY, jobInfo.withEid(workflowContext.executionID)).withError(null)
     )
     stateStore.statsStore.updateState(stats => stats.withStartTimeStamp(System.currentTimeMillis()))
     client.sendAsyncWithCallback[Unit](
       StartWorkflow(),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+      _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
     )
   }
 
