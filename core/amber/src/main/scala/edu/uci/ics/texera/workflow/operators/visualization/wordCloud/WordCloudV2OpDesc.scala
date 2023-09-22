@@ -21,6 +21,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.visualization.{
+  ImageUtility,
   VisualizationConstants,
   VisualizationOperator
 }
@@ -37,7 +38,7 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
   var topN: Integer = 100
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("image-binary", AttributeType.BINARY)).build
+    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
   }
 
   override def operatorInfo: OperatorInfo =
@@ -52,16 +53,18 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
   def manipulateTable(): String = {
     s"""
        |        table.dropna(subset = ['$textColumn'], inplace = True) #remove missing values
+       |        table = table[table['$textColumn'].str.contains(r'\\w', regex=True)]
        |""".stripMargin
   }
 
-  def createByte64EncodedImage(): String = {
+  def createWordCloudFigure(): String = {
     s"""
-       |        stopwords = set(STOPWORDS)
        |        text = ' '.join(table['$textColumn'])
-       |        wordcloud = WordCloud(width=1000, height=600, stopwords=stopwords, max_words=$topN, background_color='white').generate(text)
+       |        # Generate an image in a FHD resolution
+       |        wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True).generate(text)
        |        image_stream = BytesIO()
        |        wordcloud.to_image().save(image_stream, format='PNG')
+       |        binary_image_data = image_stream.getvalue()
        |""".stripMargin
   }
 
@@ -72,7 +75,7 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
       s"""
          |from pytexera import *
          |
-         |import plotly.io
+         |import base64
          |from wordcloud import WordCloud, STOPWORDS
          |from io import BytesIO
          |
@@ -80,24 +83,27 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
          |
          |    # Generate custom error message as html string
          |    def render_error(self, error_msg) -> str:
-         |        return '''<h1>Hierarchy chart is not available.</h1>
+         |        return '''<h1>Wordcloud is not available.</h1>
          |                  <p>Reason is: {} </p>
          |               '''.format(error_msg)
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
          |        if table.empty:
-         |           yield {'image-binary': self.render_error("input table is empty.")}
+         |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
          |        ${manipulateTable()}
          |        if table.empty:
-         |           yield {'image-binary': self.render_error("the text column contains missing values only.")}
+         |           yield {'html-content': self.render_error("text column does not contain words or contains only nulls.")}
          |           return
-         |        ${createByte64EncodedImage()}
-         |        yield {'image-binary': image_stream.getvalue()}
+         |        ${createWordCloudFigure()}
+         |        ${ImageUtility.encodeImageToHTML()}
+         |        yield {'html-content': html}
          |""".stripMargin
+
+    print(finalCode)
     finalCode
   }
 
-  override def chartType(): String = VisualizationConstants.WORD_CLOUD
+  override def chartType(): String = VisualizationConstants.HTML_VIZ
 }

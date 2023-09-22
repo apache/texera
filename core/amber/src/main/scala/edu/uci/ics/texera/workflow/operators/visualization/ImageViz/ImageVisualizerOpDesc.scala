@@ -17,6 +17,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.visualization.{
+  ImageUtility,
   VisualizationConstants,
   VisualizationOperator
 }
@@ -70,13 +71,7 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
                        |
                        |        ${createBinaryData()}
                        |
-                       |        try:
-                       |            encoded_image_data = base64.b64encode(binary_image_data)
-                       |            encoded_image_str = encoded_image_data.decode("utf-8")
-                       |        except:
-                       |            yield {'html-content': self.render_error("Binary input is not valid")}
-                       |            return
-                       |        html = f'<img src="data:image;base64,{encoded_image_str}" alt="Image">'
+                       |        ${ImageUtility.encodeImageToHTML()}
                        |        yield {"html-content": html}
                        |""".stripMargin
     finalCode
