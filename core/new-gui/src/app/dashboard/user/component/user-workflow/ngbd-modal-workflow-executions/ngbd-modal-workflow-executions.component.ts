@@ -87,7 +87,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public currentPageIndex: number = 1;
   public pageSize: number = 10;
   public pageSizeOptions: number[] = [5, 10, 20, 30, 40];
-  public numOfExecutions: number = 0;
   public paginatedExecutionEntries: WorkflowExecutionsEntry[] = [];
 
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
@@ -264,10 +263,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
-        this.numOfExecutions = workflowExecutions.length;
-        this.paginatedExecutionEntries = this.changePaginatedExecutions();
-        this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-        this.fuse.setCollection(this.paginatedExecutionEntries);
+        this.updatePaginatedExecutions();
       });
   }
 
@@ -341,8 +337,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .subscribe({
         complete: () => {
           this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-          this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-          this.fuse.setCollection(this.paginatedExecutionEntries);
+          this.handlePaginationAfterDeletingExecutions();
         },
       });
   }
@@ -357,11 +352,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
             this.allExecutionEntries = this.allExecutionEntries?.filter(
               execution => !Array.from(this.setOfExecution).includes(execution)
             );
-            this.paginatedExecutionEntries = this.paginatedExecutionEntries?.filter(
-              execution => !Array.from(this.setOfExecution).includes(execution)
-            );
-            this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-            this.fuse.setCollection(this.paginatedExecutionEntries);
+            this.handlePaginationAfterDeletingExecutions();
             this.setOfEid.clear();
             this.setOfExecution.clear();
           },
@@ -672,17 +663,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /* Assign new page index and change current list */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;
-    this.paginatedExecutionEntries = this.changePaginatedExecutions();
-    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-    this.fuse.setCollection(this.paginatedExecutionEntries);
+    this.updatePaginatedExecutions();
   }
 
   /* Assign new page size and change current list */
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
-    this.paginatedExecutionEntries = this.changePaginatedExecutions();
-    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-    this.fuse.setCollection(this.paginatedExecutionEntries);
+    this.updatePaginatedExecutions();
   }
 
   /**
@@ -722,5 +709,20 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       eIdToNumber++;
     });
     return processTimeData;
+  }
+
+  private updatePaginatedExecutions(): void {
+    this.paginatedExecutionEntries = this.changePaginatedExecutions();
+    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+    this.fuse.setCollection(this.paginatedExecutionEntries);
+  }
+
+  private handlePaginationAfterDeletingExecutions(): void {
+    this.updatePaginatedExecutions();
+    /* If a current page index has 0 number of execution entries after deletion (e.g., deleting all the executions in the last page),
+     * the following code will decrement the current page index by 1. */
+    if (this.currentPageIndex > 1 && this.paginatedExecutionEntries.length === 0) {
+      this.onPageIndexChange(this.currentPageIndex - 1);
+    }
   }
 }
