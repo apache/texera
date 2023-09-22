@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization
 object ImageUtility {
   def encodeImageToHTML(): String = {
     s"""
+       |        import base64
        |        try:
        |            encoded_image_data = base64.b64encode(binary_image_data)
        |            encoded_image_str = encoded_image_data.decode("utf-8")

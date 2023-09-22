@@ -56,7 +56,6 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
     val finalCode = s"""
                        |from pytexera import *
                        |from PIL import Image
-                       |import base64
                        |import numpy as np
                        |
                        |class ProcessTupleOperator(UDFOperatorV2):
@@ -68,9 +67,7 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
                        |
                        |    @overrides
                        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-                       |
                        |        ${createBinaryData()}
-                       |
                        |        ${ImageUtility.encodeImageToHTML()}
                        |        yield {"html-content": html}
                        |""".stripMargin

@@ -60,8 +60,12 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
   def createWordCloudFigure(): String = {
     s"""
        |        text = ' '.join(table['$textColumn'])
+       |
        |        # Generate an image in a FHD resolution
+       |        from wordcloud import WordCloud, STOPWORDS
        |        wordcloud = WordCloud(width=1920, height=1080, stopwords=set(STOPWORDS), max_words=$topN, background_color='white', include_numbers=True).generate(text)
+       |
+       |        from io import BytesIO
        |        image_stream = BytesIO()
        |        wordcloud.to_image().save(image_stream, format='PNG')
        |        binary_image_data = image_stream.getvalue()
@@ -75,10 +79,6 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
       s"""
          |from pytexera import *
          |
-         |import base64
-         |from wordcloud import WordCloud, STOPWORDS
-         |from io import BytesIO
-         |
          |class ProcessTableOperator(UDFTableOperator):
          |
          |    # Generate custom error message as html string
@@ -89,6 +89,18 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
+         |
+         |        # Define the package name you want to install
+         |        package_name = "wordcloud"
+         |
+         |        # Use subprocess to run the pip install command
+         |        try:
+         |            import subprocess
+         |            subprocess.check_call(["pip", "install", package_name])
+         |        except subprocess.CalledProcessError as e:
+         |            yield {'html-content': self.render_error(f"Error installing {package_name}: {e}")}
+         |            return
+         |
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
