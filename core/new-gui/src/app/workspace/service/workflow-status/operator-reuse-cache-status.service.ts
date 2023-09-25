@@ -6,13 +6,12 @@ import { debounceTime, filter } from "rxjs/operators";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { merge } from "rxjs";
 import { JointUIService } from "../joint-ui/joint-ui.service";
-import { environment } from "src/environments/environment";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 
 @Injectable({
   providedIn: "root",
 })
-export class OperatorReuseStatusService {
+export class OperatorReuseCacheStatusService {
   constructor(
     private jointUIService: JointUIService,
     private workflowActionService: WorkflowActionService,

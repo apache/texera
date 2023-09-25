@@ -2,10 +2,10 @@ import { TestBed } from "@angular/core/testing";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
 
-import { OperatorReuseStatusService } from "./operator-cache-status.service";
+import { OperatorReuseCacheStatusService } from "./operator-reuse-cache-status.service";
 
-xdescribe("OperatorCacheStatusService", () => {
-  let service: OperatorReuseStatusService;
+describe("OperatorCacheStatusService", () => {
+  let service: OperatorReuseCacheStatusService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -16,7 +16,7 @@ xdescribe("OperatorCacheStatusService", () => {
         },
       ],
     });
-    service = TestBed.inject(OperatorReuseStatusService);
+    service = TestBed.inject(OperatorReuseCacheStatusService);
   });
 
   it("should be created", () => {

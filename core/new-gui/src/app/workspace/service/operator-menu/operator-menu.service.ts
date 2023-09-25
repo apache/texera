@@ -50,7 +50,7 @@ export class OperatorMenuService {
   public isDisableOperator: boolean = true;
 
   public isToViewResult: boolean = false;
-  public isViewResultClickable: boolean = false;
+  public isToViewResultClickable: boolean = false;
 
   public isReuseResultClickable: boolean = false;
   public isMarkForReuse: boolean = true;
@@ -180,7 +180,7 @@ export class OperatorMenuService {
       );
 
       this.isToViewResult = !allViewing;
-      this.isViewResultClickable =
+      this.isToViewResultClickable =
         effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
         this.workflowActionService.checkWorkflowModificationEnabled();
     });

@@ -70,7 +70,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
   def amberWorkflow(
       workflowId: WorkflowIdentity,
       opResultStorage: OpResultStorage,
-      lastCompletedJob: LogicalPlan = null
+      lastCompletedJob: Option[LogicalPlan] = Option.empty
   ): Workflow = {
     val cacheReuses = new WorkflowCacheChecker(lastCompletedJob, logicalPlan).getValidCacheReuse()
     val opsToReuseCache = cacheReuses.intersect(logicalPlan.opsToReuseCache.toSet)
@@ -78,8 +78,12 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       WorkflowCacheRewriter.transform(logicalPlan, opResultStorage, opsToReuseCache)
     rewrittenLogicalPlan.operatorMap.values.foreach(initOperator)
 
-    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache)
+    // assign sink storage to the logical plan after cache rewrite
+    // as it will be converted to the actual physical plan
     assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache)
+    // also assign sink storage to the original logical plan, as the original logical plan
+    // will be used to be compared to the subsequent runs
+    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache)
 
     val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan
 

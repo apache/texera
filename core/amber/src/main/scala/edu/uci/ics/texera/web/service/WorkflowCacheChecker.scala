@@ -33,7 +33,7 @@ object WorkflowCacheChecker {
 
 }
 
-class WorkflowCacheChecker(oldWorkflow: LogicalPlan, newWorkflow: LogicalPlan) {
+class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: LogicalPlan) {
 
   private val equivalenceClass = new mutable.HashMap[String, Int]()
   private var nextClassId: Int = 0
@@ -47,10 +47,11 @@ class WorkflowCacheChecker(oldWorkflow: LogicalPlan, newWorkflow: LogicalPlan) {
   // returns a set of operator IDs that can be reused
   // the operatorID is also the storage key
   def getValidCacheReuse(): Set[String] = {
-    if (oldWorkflow == null) {
+    if (oldWorkflowOpt.isEmpty) {
       return Set()
     }
 
+    val oldWorkflow = oldWorkflowOpt.get
     // for each operator in the old workflow, add it to its own equivalence class
     oldWorkflow.jgraphtDag
       .iterator()

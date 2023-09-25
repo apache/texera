@@ -85,14 +85,14 @@ class WorkflowService(
     }
   )
 
-  var lastCompletedLogicalPlan: LogicalPlan = null
+  var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
 
   jobService.subscribe { job: WorkflowJobService =>
     {
       job.stateStore.jobMetadataStore.registerDiffHandler { (oldState, newState) =>
         {
           if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-            lastCompletedLogicalPlan = job.workflowCompiler.logicalPlan
+            lastCompletedLogicalPlan = Option.apply(job.workflowCompiler.logicalPlan)
           }
           Iterable.empty
         }

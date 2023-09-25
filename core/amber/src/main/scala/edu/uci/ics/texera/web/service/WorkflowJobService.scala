@@ -26,7 +26,7 @@ class WorkflowJobService(
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
     errorHandler: Throwable => Unit,
-    lastCompletedLogicalPlan: LogicalPlan
+    lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
 

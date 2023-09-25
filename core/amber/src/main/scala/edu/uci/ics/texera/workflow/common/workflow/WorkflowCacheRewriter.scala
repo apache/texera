@@ -47,11 +47,13 @@ object WorkflowCacheRewriter {
       })
     })
 
-    // operators that are no longer reachable by any sink don't need to run
+    // after an operator is replaced with reading from cached result
+    // its upstream operators can be removed if it's not used by other sinks
     val allOperators = resultPlan.operators.map(op => op.operatorID).toSet
     val sinkOps =
       resultPlan.operators.filter(op => op.isInstanceOf[SinkOpDesc]).map(o => o.operatorID)
     val usefulOperators = sinkOps ++ sinkOps.flatMap(o => resultPlan.getAncestorOpIds(o)).toSet
+    // remove operators that are no longer reachable by any sink
     allOperators
       .diff(usefulOperators.toSet)
       .foreach(o => {

@@ -525,10 +525,8 @@ export class JointUIService {
     const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
     const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
 
-    // const cacheIndicatorText = cacheText === "" ? "" : "cache";
-    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
+    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheStatus);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorReuseCacheIconClass}/xlink:href`, cacheIcon);
-    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
     const icon = JointUIService.getOperatorViewResultIcon(operator);
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
   }
@@ -934,7 +932,6 @@ export class JointUIService {
       },
       ".texera-operator-result-reuse-icon": {
         "xlink:href": JointUIService.getOperatorCacheIcon(operator),
-        // title: JointUIService.getOperatorCacheDisplayText(operator),
         width: 40,
         height: 40,
         "ref-x": 75,
@@ -983,14 +980,6 @@ export class JointUIService {
     } else {
       return "assets/svg/operator-reuse-cache-invalid.svg";
     }
-    // if (cacheStatus === "cache valid") {
-    //   return "assets/svg/operator-result-cache-successful.svg";
-    // } else if (cacheStatus === "cache invalid") {
-    //   return "assets/svg/operator-result-cache-invalid.svg";
-    // } else {
-    //   const _exhaustiveCheck: never = cacheStatus;
-    //   return "";
-    // }
   }
 
   public static getOperatorViewResultIcon(operator: OperatorPredicate): string {
