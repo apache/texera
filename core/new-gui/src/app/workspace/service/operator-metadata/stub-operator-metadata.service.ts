@@ -4,8 +4,7 @@ import { mockBreakpointSchema, mockOperatorMetaData } from "./mock-operator-meta
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
 import { IOperatorMetadataService } from "./operator-metadata.service";
 import { BreakpointSchema } from "../../types/workflow-common.interface";
-import { filter, map, shareReplay } from "rxjs/operators";
-import { isDefined } from "../../../common/util/predicate";
+import { shareReplay } from "rxjs/operators";
 
 @Injectable()
 export class StubOperatorMetadataService implements IOperatorMetadataService {
