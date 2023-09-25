@@ -5,13 +5,14 @@ import { AppSettings } from "../../../common/app-setting";
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
 import { BreakpointSchema } from "../../types/workflow-common.interface";
 import { mockBreakpointSchema } from "./mock-operator-metadata.data";
-import { shareReplay, startWith } from "rxjs/operators";
+import { filter, map, shareReplay, startWith } from "rxjs/operators";
+import { isDefined } from "../../../common/util/predicate";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
 
 export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
   operators: [],
-  groups: [],
+  groups: []
 };
 
 const addDictionaryAPIAddress = "/api/resources/dictionary/";
@@ -37,11 +38,10 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
  *
  */
 @Injectable({
-  providedIn: "root",
+  providedIn: "root"
 })
 export class OperatorMetadataService {
   // holds the current version of operator metadata
-  private currentOperatorMetadata: OperatorMetadata | undefined;
   private readonly currentBreakpointSchema: BreakpointSchema | undefined;
 
   private operatorMetadataObservable = this.httpClient
@@ -49,9 +49,6 @@ export class OperatorMetadataService {
     .pipe(startWith(EMPTY_OPERATOR_METADATA), shareReplay(1));
 
   constructor(private httpClient: HttpClient) {
-    this.getOperatorMetadata().subscribe(data => {
-      this.currentOperatorMetadata = data;
-    });
     // At current design, all the links have one fixed breakpoint schema stored in the frontend
     this.currentBreakpointSchema = mockBreakpointSchema;
   }
@@ -69,15 +66,12 @@ export class OperatorMetadataService {
     return this.operatorMetadataObservable;
   }
 
-  public getOperatorSchema(operatorType: string): OperatorSchema {
-    if (!this.currentOperatorMetadata) {
-      throw new Error("operator metadata is undefined");
-    }
-    const operatorSchema = this.currentOperatorMetadata.operators.find(schema => schema.operatorType === operatorType);
-    if (!operatorSchema) {
-      throw new Error(`can\'t find operator schema of type ${operatorType}`);
-    }
-    return operatorSchema;
+  public getOperatorSchema(operatorType: string): Observable<OperatorSchema> {
+    return this.operatorMetadataObservable.pipe(map(operatorMetadata =>
+         operatorMetadata.operators.find(schema => schema.operatorType === operatorType)
+      ),
+      filter(isDefined)
+    );
   }
 
   /**
@@ -93,28 +87,24 @@ export class OperatorMetadataService {
     operatorType: string,
     userFriendlyNameFilter: boolean = false,
     caseInsensitive: boolean = false
-  ): boolean {
-    if (!this.currentOperatorMetadata) {
-      return false;
-    }
-    const operator = this.currentOperatorMetadata.operators.filter(op => {
-      let operatorTypeInMetadata = op.operatorType;
-      let operatorNameInMetadata = op.additionalMetadata.userFriendlyName;
-      if (caseInsensitive) {
-        operatorTypeInMetadata = operatorTypeInMetadata.toLowerCase();
-        operatorNameInMetadata = operatorNameInMetadata.toLowerCase();
-        operatorType = operatorType.toLowerCase();
-      }
-      if (userFriendlyNameFilter) {
-        return operatorTypeInMetadata === operatorType || operatorNameInMetadata === operatorType;
-      } else {
-        return operatorTypeInMetadata === operatorType;
-      }
-    });
-    if (operator.length === 0) {
-      return false;
-    }
-    return true;
+  ): Observable<boolean> {
+    return this.operatorMetadataObservable.pipe(map(operatorMetadata => {
+      const operators = operatorMetadata.operators.filter(op => {
+        let operatorTypeInMetadata = op.operatorType;
+        let operatorNameInMetadata = op.additionalMetadata.userFriendlyName;
+        if (caseInsensitive) {
+          operatorTypeInMetadata = operatorTypeInMetadata.toLowerCase();
+          operatorNameInMetadata = operatorNameInMetadata.toLowerCase();
+          operatorType = operatorType.toLowerCase();
+        }
+        if (userFriendlyNameFilter) {
+          return operatorTypeInMetadata === operatorType || operatorNameInMetadata === operatorType;
+        } else {
+          return operatorTypeInMetadata === operatorType;
+        }
+      });
+      return operators.length !==0;
+    }))
   }
 
   /**

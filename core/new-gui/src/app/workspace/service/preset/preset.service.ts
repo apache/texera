@@ -2,13 +2,13 @@ import { Injectable } from "@angular/core";
 import Ajv from "ajv";
 import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { Observable, of, Subject } from "rxjs";
+import { Observable, iif, of, Subject, forkJoin } from "rxjs";
 import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
 import { asType, isType } from "src/app/common/util/assert";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
-import { first, map } from "rxjs/operators";
+import { first, map, mergeMap } from "rxjs/operators";
 
 /**
  * Preset service enables saving and applying of Presets, which are objects
@@ -34,14 +34,14 @@ const PresetSchema: CustomJSONSchema7 = {
   type: "object",
   additionalProperties: {
     type: "string",
-    pattern: "^\\S.*$",
-  },
+    pattern: "^\\S.*$"
+  }
 };
 
 const PresetArraySchema: CustomJSONSchema7 = {
   type: "array",
   items: PresetSchema,
-  uniqueItems: true,
+  uniqueItems: true
 };
 
 export type Preset = { [key: string]: string | number | boolean };
@@ -49,8 +49,9 @@ export type Preset = { [key: string]: string | number | boolean };
 export type PresetDictionary = {
   [Key: string]: Preset[];
 };
+
 @Injectable({
-  providedIn: "root",
+  providedIn: "root"
 })
 export class PresetService {
   private static DICT_PREFIX = "Preset"; // key prefix when storing data in dictionary service
@@ -258,18 +259,20 @@ export class PresetService {
    * @param operatorID
    * @returns boolean
    */
-  public isValidOperatorPreset(preset: Preset, operatorID: string): boolean {
-    const presetSchema = PresetService.getOperatorPresetSchema(
-      this.operatorMetadataService.getOperatorSchema(
-        this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
-      ).jsonSchema
-    );
-    const fitsSchema = PresetService.ajv.compile(presetSchema)(preset);
-    const noEmptyProperties = Object.keys(preset).every(
-      (key: string) => !isType(preset[key], "string") || (<string>preset[key]).trim().length > 0
-    );
+  public isValidOperatorPreset(preset: Preset, operatorID: string): Observable<boolean> {
+    return this.operatorMetadataService.getOperatorSchema(
+      this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
+    ).pipe(
+      map(schema => schema.jsonSchema),
+      map(jsonSchema => {
+        const presetSchema = PresetService.getOperatorPresetSchema(jsonSchema!);
+        const fitsSchema = PresetService.ajv.compile(presetSchema)(preset);
+        const noEmptyProperties = Object.keys(preset).every(
+          (key: string) => !isType(preset[key], "string") || (<string>preset[key]).trim().length > 0
+        );
 
-    return fitsSchema && noEmptyProperties;
+        return fitsSchema && noEmptyProperties;
+      }));
   }
 
   /**
@@ -280,18 +283,18 @@ export class PresetService {
    * @returns boolean
    */
   public isValidNewOperatorPreset(preset: Preset, operatorID: string): Observable<boolean> {
-    if (!this.isValidOperatorPreset(preset, operatorID)) return of(false);
-
-    return this.getPresets(
-      "operator",
-      this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
-    ).pipe(
-      first(),
-      map(presets => {
-        console.log(!presets.some(existingPreset => isEqual(preset, existingPreset)), "vn");
-        return !presets.some(existingPreset => isEqual(preset, existingPreset));
-      })
-    );
+    return this.isValidOperatorPreset(preset, operatorID).pipe(mergeMap(valid => {
+      return iif(() => valid, this.getPresets(
+        "operator",
+        this.workflowActionService.getTexeraGraph().getOperator(operatorID).operatorType
+      ).pipe(
+        first(),
+        map(presets => {
+          console.log(!presets.some(existingPreset => isEqual(preset, existingPreset)), "vn");
+          return !presets.some(existingPreset => isEqual(preset, existingPreset));
+        })
+      ), of(false));
+    }));
   }
 
   public isValidPreset(preset: any): preset is Preset {
@@ -350,28 +353,32 @@ export class PresetService {
           applyEvent.type === "operator" &&
           this.workflowActionService.getTexeraGraph().hasOperator(applyEvent.target)
         ) {
-          if (this.isValidOperatorPreset(applyEvent.preset, applyEvent.target)) {
-            this.workflowActionService.setOperatorProperty(
-              applyEvent.target,
-              merge(
-                cloneDeep(
-                  this.workflowActionService.getTexeraGraph().getOperator(applyEvent.target).operatorProperties
-                ),
-                applyEvent.preset
-              )
-            );
-          } else {
-            const schema = PresetService.getOperatorPresetSchema(
-              this.operatorMetadataService.getOperatorSchema(
+          this.isValidOperatorPreset(applyEvent.preset, applyEvent.target).subscribe(valid => {
+            if (valid) {
+              this.workflowActionService.setOperatorProperty(
+                applyEvent.target,
+                merge(
+                  cloneDeep(
+                    this.workflowActionService.getTexeraGraph().getOperator(applyEvent.target).operatorProperties
+                  ),
+                  applyEvent.preset
+                )
+              );
+            } else {
+              return this.operatorMetadataService.getOperatorSchema(
                 this.workflowActionService.getTexeraGraph().getOperator(applyEvent.target).operatorType
-              ).jsonSchema
-            );
-            throw new Error(
-              `Error applying preset: preset ${applyEvent.preset} was not a valid preset for ${applyEvent.target} with schema ${schema}`
-            );
-          }
+              ).subscribe(
+                schema => {
+                  let jsonSchema = schema.jsonSchema;
+                  throw new Error(
+                    `Error applying preset: preset ${applyEvent.preset} was not a valid preset for ${applyEvent.target} with schema ${schema}`
+                  );
+                });
+            }
+          });
+
         }
-      },
+      }
     });
   }
 
@@ -395,7 +402,7 @@ export class PresetService {
       type: "object",
       properties: properties,
       required: Object.keys(properties),
-      additionalProperties: false,
+      additionalProperties: false
     };
   }
 
