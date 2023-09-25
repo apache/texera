@@ -4,7 +4,8 @@ import { mockBreakpointSchema, mockOperatorMetaData } from "./mock-operator-meta
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
 import { IOperatorMetadataService } from "./operator-metadata.service";
 import { BreakpointSchema } from "../../types/workflow-common.interface";
-import { shareReplay } from "rxjs/operators";
+import { filter, map, shareReplay } from "rxjs/operators";
+import { isDefined } from "../../../common/util/predicate";
 
 @Injectable()
 export class StubOperatorMetadataService implements IOperatorMetadataService {
@@ -13,24 +14,21 @@ export class StubOperatorMetadataService implements IOperatorMetadataService {
 
   constructor() {}
 
-  public getOperatorSchema(operatorType: string): OperatorSchema {
+  public getOperatorSchema(operatorType: string): Observable<OperatorSchema> {
     const operatorSchema = mockOperatorMetaData.operators.find(schema => schema.operatorType === operatorType);
     if (!operatorSchema) {
       throw new Error(`can\'t find operator schema of type ${operatorType}`);
     }
-    return operatorSchema;
+    return of(operatorSchema);
   }
 
   public getOperatorMetadata(): Observable<OperatorMetadata> {
     return this.operatorMetadataObservable;
   }
 
-  public operatorTypeExists(operatorType: string): boolean {
-    const operator = mockOperatorMetaData.operators.filter(op => op.operatorType === operatorType);
-    if (operator.length === 0) {
-      return false;
-    }
-    return true;
+  public operatorTypeExists(operatorType: string): Observable<boolean> {
+    const operators = mockOperatorMetaData.operators.filter(op => op.operatorType === operatorType);
+    return of(operators.length !== 0);
   }
 
   public getBreakpointSchema(): BreakpointSchema {
