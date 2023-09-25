@@ -190,19 +190,17 @@ export class WorkflowActionService {
     // check that the operator doesn't exist
     this.texeraGraph.assertOperatorNotExists(operator.operatorID);
     // check that the operator type exists
-    this.operatorMetadataService.operatorTypeExists(operator.operatorType).subscribe( exist => {
-      if (!exist){
+    this.operatorMetadataService.operatorTypeExists(operator.operatorType).subscribe(exist => {
+      if (!exist) {
         throw new Error(`operator type ${operator.operatorType} is invalid`);
-      }else{
+      } else {
         this.texeraGraph.bundleActions(() => {
           // add operator to texera graph
           this.texeraGraph.addOperator(operator);
           this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, point);
         });
       }
-    })
-
-
+    });
   }
 
   /**

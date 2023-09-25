@@ -12,7 +12,7 @@ export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
 
 export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
   operators: [],
-  groups: []
+  groups: [],
 };
 
 const addDictionaryAPIAddress = "/api/resources/dictionary/";
@@ -38,7 +38,7 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
  *
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class OperatorMetadataService {
   // holds the current version of operator metadata
@@ -67,9 +67,8 @@ export class OperatorMetadataService {
   }
 
   public getOperatorSchema(operatorType: string): Observable<OperatorSchema> {
-    return this.operatorMetadataObservable.pipe(map(operatorMetadata =>
-         operatorMetadata.operators.find(schema => schema.operatorType === operatorType)
-      ),
+    return this.operatorMetadataObservable.pipe(
+      map(operatorMetadata => operatorMetadata.operators.find(schema => schema.operatorType === operatorType)),
       filter(isDefined)
     );
   }
@@ -88,23 +87,25 @@ export class OperatorMetadataService {
     userFriendlyNameFilter: boolean = false,
     caseInsensitive: boolean = false
   ): Observable<boolean> {
-    return this.operatorMetadataObservable.pipe(map(operatorMetadata => {
-      const operators = operatorMetadata.operators.filter(op => {
-        let operatorTypeInMetadata = op.operatorType;
-        let operatorNameInMetadata = op.additionalMetadata.userFriendlyName;
-        if (caseInsensitive) {
-          operatorTypeInMetadata = operatorTypeInMetadata.toLowerCase();
-          operatorNameInMetadata = operatorNameInMetadata.toLowerCase();
-          operatorType = operatorType.toLowerCase();
-        }
-        if (userFriendlyNameFilter) {
-          return operatorTypeInMetadata === operatorType || operatorNameInMetadata === operatorType;
-        } else {
-          return operatorTypeInMetadata === operatorType;
-        }
-      });
-      return operators.length !==0;
-    }))
+    return this.operatorMetadataObservable.pipe(
+      map(operatorMetadata => {
+        const operators = operatorMetadata.operators.filter(op => {
+          let operatorTypeInMetadata = op.operatorType;
+          let operatorNameInMetadata = op.additionalMetadata.userFriendlyName;
+          if (caseInsensitive) {
+            operatorTypeInMetadata = operatorTypeInMetadata.toLowerCase();
+            operatorNameInMetadata = operatorNameInMetadata.toLowerCase();
+            operatorType = operatorType.toLowerCase();
+          }
+          if (userFriendlyNameFilter) {
+            return operatorTypeInMetadata === operatorType || operatorNameInMetadata === operatorType;
+          } else {
+            return operatorTypeInMetadata === operatorType;
+          }
+        });
+        return operators.length !== 0;
+      })
+    );
   }
 
   /**
