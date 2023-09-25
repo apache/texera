@@ -2,7 +2,7 @@ import { Injectable } from "@angular/core";
 import Ajv from "ajv";
 import { cloneDeep, has, indexOf, isEqual, merge, pickBy } from "lodash";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { Observable, iif, of, Subject, forkJoin } from "rxjs";
+import { Observable, iif, of, Subject } from "rxjs";
 import { UserConfigService } from "src/app/common/service/user/config/user-config.service";
 import { asType, isType } from "src/app/common/util/assert";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
@@ -91,7 +91,7 @@ export class PresetService {
   /**
    * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
    * @param type string, usually "operator"
-   * @param target string, usualy operatorType
+   * @param target string, usually operatorType
    * @param presets Preset[]
    * @param displayMessage message to display when saving presets
    * @param messageType see AlertMessageType, determines icon used in popup message
@@ -115,8 +115,8 @@ export class PresetService {
   /**
    * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
    * @param type string, usually "operator"
-   * @param target string, usualy operatorType
-   * @param presets Preset[]
+   * @param target string, usually operatorType
+   * @param preset
    * @param displayMessage message to display when saving presets
    * @param messageType see AlertMessageType, determines icon used in popup message
    */
@@ -143,8 +143,9 @@ export class PresetService {
   /**
    * broadcast savePresets event and also save preset to presetDict, which is a *view* (in the database sense) of DictionaryService's dictionary that only stores presets
    * @param type string, usually "operator"
-   * @param target string, usualy operatorType
-   * @param presets Preset[]
+   * @param target string, usually operatorType
+   * @param originalPreset
+   * @param replacementPreset
    * @param displayMessage message to display when saving presets
    * @param messageType see AlertMessageType, determines icon used in popup message
    */

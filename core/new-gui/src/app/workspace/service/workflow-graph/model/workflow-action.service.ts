@@ -1,7 +1,7 @@
 import { Injectable } from "@angular/core";
 
 import * as joint from "jointjs";
-import { BehaviorSubject, merge, Observable, Subject, Subscription } from "rxjs";
+import { BehaviorSubject, merge, Observable, Subject } from "rxjs";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { mapToRecord, recordToMap } from "../../../../common/util/map";
 import { WorkflowMetadata } from "../../../../dashboard/user/type/workflow-metadata.interface";
