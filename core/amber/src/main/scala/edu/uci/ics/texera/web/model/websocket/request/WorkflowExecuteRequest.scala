@@ -13,5 +13,6 @@ case class LogicalPlanPojo(
     operators: List[OperatorDescriptor],
     links: List[OperatorLink],
     breakpoints: List[BreakpointInfo],
-    opsToViewResult: List[String]
+    opsToViewResult: List[String],
+    opsToReuseResult: List[String]
 )

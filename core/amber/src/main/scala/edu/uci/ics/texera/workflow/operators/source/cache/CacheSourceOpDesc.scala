@@ -18,7 +18,7 @@ class CacheSourceOpDesc(val targetSinkStorageId: String, opResultStorage: OpResu
   assert(null != targetSinkStorageId)
   assert(null != opResultStorage)
 
-  var schema: Schema = _
+  var schema: Schema = opResultStorage.get(targetSinkStorageId).getSchema
 
   override def sourceSchema(): Schema = schema
 
