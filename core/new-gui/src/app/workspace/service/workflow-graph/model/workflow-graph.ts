@@ -260,7 +260,7 @@ export class WorkflowGraph {
   /**
    * Adds a new operator to the graph.
    * Throws an error the operator has a duplicate operatorID with an existing operator.
-   * @param operator <code>{@link OperatorPredicate}</code> will be converted to a <code>{@link YType}</code> brefore
+   * @param operator <code>{@link OperatorPredicate}</code> will be converted to a <code>{@link YType}</code> before
    * adding to the internal Y-graph.
    */
   public addOperator(operator: OperatorPredicate): void {

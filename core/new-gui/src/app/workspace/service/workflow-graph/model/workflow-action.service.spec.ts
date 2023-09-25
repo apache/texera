@@ -1,8 +1,8 @@
-import { StubOperatorMetadataService } from "./../../operator-metadata/stub-operator-metadata.service";
-import { OperatorMetadataService } from "./../../operator-metadata/operator-metadata.service";
-import { JointUIService } from "./../../joint-ui/joint-ui.service";
+import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
+import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
+import { JointUIService } from "../../joint-ui/joint-ui.service";
 import { WorkflowGraph } from "./workflow-graph";
-import { UndoRedoService } from "./../../undo-redo/undo-redo.service";
+import { UndoRedoService } from "../../undo-redo/undo-redo.service";
 import {
   mockScanPredicate,
   mockResultPredicate,
@@ -18,11 +18,10 @@ import {
 import { TestBed, inject } from "@angular/core/testing";
 
 import { WorkflowActionService } from "./workflow-action.service";
-import { OperatorPredicate, Point } from "../../../types/workflow-common.interface";
-import { g } from "jointjs";
-import { environment } from "./../../../../../environments/environment";
+import { OperatorPredicate } from "../../../types/workflow-common.interface";
+import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
-import { join } from "lodash";
+import { throwError } from "rxjs";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;
@@ -75,15 +74,14 @@ describe("WorkflowActionService", () => {
     }).toThrowError(new RegExp("exists"));
   });
 
-  it("should throw an error when adding an operator with invalid operator type", () => {
+  it("should not add an operator with an invalid type", () => {
     const invalidOperator: OperatorPredicate = {
       ...mockScanPredicate,
       operatorType: "invalidOperatorTypeForTesting",
     };
 
-    expect(() => {
-      service.addOperator(invalidOperator, mockPoint);
-    }).toThrowError(new RegExp("invalid"));
+    service.addOperator(invalidOperator, mockPoint);
+    expect(texeraGraph.hasOperator(mockScanPredicate.operatorID)).toBeFalsy();
   });
 
   it("should delete an operator to both jointjs and texera graph correctly", () => {
