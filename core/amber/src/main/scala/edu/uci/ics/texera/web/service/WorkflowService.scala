@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.service
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
+
 import scala.collection.JavaConverters._
 import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowLifecycleManager}
@@ -10,8 +11,10 @@ import edu.uci.ics.texera.web.model.websocket.request.{WorkflowExecuteRequest, W
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import io.reactivex.rxjava3.disposables.{CompositeDisposable, Disposable}
 import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.jooq.types.UInteger
@@ -82,6 +85,21 @@ class WorkflowService(
     }
   )
 
+  var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
+
+  jobService.subscribe { job: WorkflowJobService =>
+    {
+      job.stateStore.jobMetadataStore.registerDiffHandler { (oldState, newState) =>
+        {
+          if (oldState.state != COMPLETED && newState.state == COMPLETED) {
+            lastCompletedLogicalPlan = Option.apply(job.workflowCompiler.logicalPlan)
+          }
+          Iterable.empty
+        }
+      }
+    }
+  }
+
   addSubscription(
     wsInput.subscribe((evt: WorkflowExecuteRequest, uidOpt) => initJobService(evt, uidOpt))
   )
@@ -144,11 +162,12 @@ class WorkflowService(
     }
 
     val job = new WorkflowJobService(
-      workflowContext,
+      createWorkflowContext(uidOpt),
       wsInput,
       resultService,
       req,
-      errorHandler
+      errorHandler,
+      lastCompletedLogicalPlan
     )
 
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)

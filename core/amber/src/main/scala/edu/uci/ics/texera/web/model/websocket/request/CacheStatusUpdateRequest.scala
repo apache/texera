@@ -7,5 +7,11 @@ case class CacheStatusUpdateRequest(
     operators: List[OperatorDescriptor],
     links: List[OperatorLink],
     breakpoints: List[BreakpointInfo],
-    cachedOperatorIds: List[String]
-) extends TexeraWebSocketRequest
+    opsToViewResult: List[String],
+    opsToReuseResult: List[String]
+) extends TexeraWebSocketRequest {
+
+  def toLogicalPlanPojo() = {
+    LogicalPlanPojo(operators, links, breakpoints, opsToViewResult, opsToReuseResult)
+  }
+}

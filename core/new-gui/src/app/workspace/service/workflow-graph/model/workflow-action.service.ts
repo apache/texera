@@ -546,6 +546,22 @@ export class WorkflowActionService {
     });
   }
 
+  public markReuseResults(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().markReuseResult(op);
+      });
+    });
+  }
+
+  public removeMarkReuseResults(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().removeMarkReuseResult(op);
+      });
+    });
+  }
+
   public setViewOperatorResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
@@ -684,6 +700,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
       this.getTexeraGraph().getViewResultOperatorsChangedStream(),
+      this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),

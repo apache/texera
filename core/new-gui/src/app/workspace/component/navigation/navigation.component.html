@@ -37,7 +37,7 @@
       <label>
         <nz-avatar
           *ngIf="workflowId"
-          [nzText]="workflowId?.toString() || ''"></nz-avatar>
+          [nzText]="workflowId.toString() || ''"></nz-avatar>
         <input
           *ngIf="!displayParticularWorkflowVersion"
           (change)="onWorkflowNameChange()"
@@ -292,6 +292,50 @@
             nz-icon
             nzTheme="twotone"
             nzType="stop"></i>
+        </button>
+        <button
+          *ngIf="(operatorMenu.isToViewResult || ! operatorMenu.isToViewResultClickable)"
+          [disabled]="! operatorMenu.isToViewResultClickable"
+          (click)="operatorMenu.viewResultHighlightedOperators()"
+          nz-button
+          title="view result">
+          <i
+            nz-icon
+            nzType="eye"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          *ngIf="(! operatorMenu.isToViewResult && operatorMenu.isToViewResultClickable)"
+          [disabled]="! operatorMenu.isToViewResultClickable"
+          (click)="operatorMenu.viewResultHighlightedOperators()"
+          nz-button
+          title="click to remove view result">
+          <i
+            nz-icon
+            nzType="eye-invisible"
+            nzTheme="twotone"></i>
+        </button>
+        <button
+          *ngIf="(operatorMenu.isMarkForReuse || ! operatorMenu.isReuseResultClickable)"
+          [disabled]="! operatorMenu.isReuseResultClickable"
+          (click)="operatorMenu.reuseResultHighlightedOperator()"
+          nz-button
+          title="reuse result if possible">
+          <i
+            nz-icon
+            nzType="database"
+            nzTheme="outline"></i>
+        </button>
+        <button
+          *ngIf="(! operatorMenu.isMarkForReuse && operatorMenu.isReuseResultClickable)"
+          [disabled]="! operatorMenu.isReuseResultClickable"
+          (click)="operatorMenu.reuseResultHighlightedOperator()"
+          nz-button
+          title="remove reusing previous result">
+          <i
+            nz-icon
+            nzType="database"
+            nzTheme="twotone"></i>
         </button>
       </nz-button-group>
     </div>

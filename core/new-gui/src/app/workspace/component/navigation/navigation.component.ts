@@ -172,7 +172,6 @@ export class NavigationComponent implements OnInit {
         onClick: () => {},
       };
     }
-    console.log(executionState);
     switch (executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:

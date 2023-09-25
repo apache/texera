@@ -445,7 +445,11 @@ export class ExecuteWorkflowService {
       op => !workflowGraph.isOperatorDisabled(op)
     );
 
-    return { operators, links, breakpoints, opsToViewResult };
+    const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
+      op => !workflowGraph.isOperatorDisabled(op)
+    );
+
+    return { operators, links, breakpoints, opsToViewResult, opsToReuseResult };
   }
 
   public static transformBreakpoint(

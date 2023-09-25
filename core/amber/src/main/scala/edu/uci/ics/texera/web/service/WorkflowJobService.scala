@@ -25,7 +25,8 @@ class WorkflowJobService(
     wsInput: WebsocketInput,
     resultService: JobResultService,
     request: WorkflowExecuteRequest,
-    errorHandler: Throwable => Unit
+    errorHandler: Throwable => Unit,
+    lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -33,7 +34,8 @@ class WorkflowJobService(
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(LogicalPlan(request.logicalPlan))
   val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
-    resultService.opResultStorage
+    resultService.opResultStorage,
+    lastCompletedLogicalPlan
   )
   private val controllerConfig = {
     val conf = ControllerConfig.default
@@ -88,10 +90,6 @@ class WorkflowJobService(
       StartWorkflow(),
       _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
     )
-  }
-
-  private[this] def createLogicalPlan(): LogicalPlan = {
-    LogicalPlan(request.logicalPlan)
   }
 
   private[this] def createWorkflowCompiler(

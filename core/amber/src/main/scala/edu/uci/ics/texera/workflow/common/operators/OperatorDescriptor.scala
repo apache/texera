@@ -204,7 +204,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)
 
-  override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that)
+  override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that, "context")
 
   override def toString: String = ToStringBuilder.reflectionToString(this)
 

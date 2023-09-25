@@ -56,7 +56,7 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(operatorMenu.isViewingResult && operatorMenu.isViewResultClickable)"
+    *ngIf="(operatorMenu.isToViewResult && operatorMenu.isToViewResultClickable)"
     (click)="operatorMenu.viewResultHighlightedOperators()">
     <span
       nz-icon
@@ -66,13 +66,33 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="(! operatorMenu.isViewingResult && operatorMenu.isViewResultClickable)"
+    *ngIf="(! operatorMenu.isToViewResult && operatorMenu.isToViewResultClickable)"
     (click)="operatorMenu.viewResultHighlightedOperators()">
     <span
       nz-icon
       nzType="eye-invisible"
       nzTheme="twotone"></span
     >remove view result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenu.isMarkForReuse && operatorMenu.isReuseResultClickable)"
+    (click)="operatorMenu.reuseResultHighlightedOperator()">
+    <span
+      nz-icon
+      nzType="database"
+      nzTheme="outline"></span
+    >reuse result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(! operatorMenu.isMarkForReuse && operatorMenu.isReuseResultClickable)"
+    (click)="operatorMenu.reuseResultHighlightedOperator()">
+    <span
+      nz-icon
+      nzType="eye-invisible"
+      nzTheme="twotone"></span
+    >remove reusing result
   </li>
   <li
     nz-menu-item

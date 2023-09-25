@@ -275,6 +275,21 @@ export class SharedModelChangeHandler {
                     newUnviewResultOps: [operatorID],
                   });
                 }
+              } else if (contentKey === "markedForReuse") {
+                const newReuseCacheOps = this.texeraGraph.sharedModel.operatorIDMap
+                  .get(operatorID)
+                  ?.get("markedForReuse") as boolean;
+                if (newReuseCacheOps) {
+                  this.texeraGraph.reuseOperatorChangedSubject.next({
+                    newReuseCacheOps: [operatorID],
+                    newUnreuseCacheOps: [],
+                  });
+                } else {
+                  this.texeraGraph.reuseOperatorChangedSubject.next({
+                    newReuseCacheOps: [],
+                    newUnreuseCacheOps: [operatorID],
+                  });
+                }
               } else if (contentKey === "isDisabled") {
                 const newDisabledStatus = this.texeraGraph.sharedModel.operatorIDMap
                   .get(operatorID)

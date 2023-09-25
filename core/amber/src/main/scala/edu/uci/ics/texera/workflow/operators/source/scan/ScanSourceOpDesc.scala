@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import org.apache.commons.lang3.builder.EqualsBuilder
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
@@ -96,4 +97,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   }
 
   def inferSchema(): Schema
+
+  override def equals(that: Any): Boolean =
+    EqualsBuilder.reflectionEquals(this, that, "context", "filePath")
 }

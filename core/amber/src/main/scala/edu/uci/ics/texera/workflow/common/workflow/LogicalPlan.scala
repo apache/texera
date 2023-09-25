@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
-import scala.collection.mutable
+import scala.collection.{JavaConverters, mutable}
 import scala.collection.mutable.ArrayBuffer
 
 case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
@@ -79,6 +79,10 @@ case class LogicalPlan(
 
   def getTerminalOperators: List[String] = this.terminalOperators
 
+  def getAncestorOpIds(operatorID: String): Set[String] = {
+    JavaConverters.asScalaSet(jgraphtDag.getAncestors(operatorID)).toSet
+  }
+
   def getUpstream(operatorID: String): List[OperatorDescriptor] = {
     val upstream = new mutable.MutableList[OperatorDescriptor]
     jgraphtDag
@@ -87,9 +91,24 @@ case class LogicalPlan(
     upstream.toList
   }
 
+  def getUpstreamEdges(operatorID: String): List[OperatorLink] = {
+    links.filter(l => l.destination.operatorID == operatorID)
+  }
+
   // returns a new logical plan with the given operator added
   def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
     this.copy(operators :+ operatorDescriptor, links, breakpoints, opsToReuseCache)
+  }
+
+  def removeOperator(operatorId: String): LogicalPlan = {
+    this.copy(
+      operators.filter(o => o.operatorID != operatorId),
+      links.filter(l =>
+        l.origin.operatorID != operatorId && l.destination.operatorID != operatorId
+      ),
+      breakpoints.filter(b => b.operatorID != operatorId),
+      opsToReuseCache.filter(c => c != operatorId)
+    )
   }
 
   // returns a new logical plan with the given edge added
@@ -130,6 +149,10 @@ case class LogicalPlan(
       .outgoingEdgesOf(operatorID)
       .forEach(e => downstream += operatorMap(e.destination.operatorID))
     downstream.toList
+  }
+
+  def getDownstreamEdges(operatorID: String): List[OperatorLink] = {
+    links.filter(l => l.origin.operatorID == operatorID)
   }
 
   def opSchemaInfo(operatorID: String): OperatorSchemaInfo = {
