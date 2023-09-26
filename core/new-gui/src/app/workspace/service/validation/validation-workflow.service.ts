@@ -61,13 +61,10 @@ export class ValidationWorkflowService {
     private dynamicSchemaService: DynamicSchemaService
   ) {
     // fetch operator schema list
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .pipe(filter(metadata => metadata.operators.length > 0))
-      .subscribe(metadata => {
-        this.operatorSchemaList = metadata.operators;
-        this.initializeValidation();
-      });
+    this.operatorMetadataService.getOperatorMetadata().subscribe(metadata => {
+      this.operatorSchemaList = metadata.operators;
+      this.initializeValidation();
+    });
   }
 
   public getCurrentWorkflowValidationError(): {
