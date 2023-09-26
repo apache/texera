@@ -68,7 +68,6 @@ export class ValidationWorkflowService {
         this.operatorSchemaList = metadata.operators;
         this.initializeValidation();
       });
-    this.getWorkflowValidationErrorStream().subscribe(c => console.log(c));
   }
 
   public getCurrentWorkflowValidationError(): {
