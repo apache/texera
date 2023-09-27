@@ -51,9 +51,10 @@ export class DynamicSchemaService {
       .getTexeraGraph()
       .getOperatorAddStream()
       .subscribe(operator => {
-        this.getInitialDynamicSchema(operator).subscribe(schema => {
+        this.getInitialDynamicSchema(operator).subscribe( schema => {
           this.setDynamicSchema(operator.operatorID, schema);
-        });
+        })
+
       });
 
     // when an operator is deleted, remove it from the dynamic schema map
@@ -161,13 +162,12 @@ export class DynamicSchemaService {
    * @param operator
    */
   private getInitialDynamicSchema(operator: OperatorPredicate): Observable<OperatorSchema> {
-    return this.operatorMetadataService.getOperatorSchema(operator.operatorType).pipe(
-      map(operatorSchema => {
-        let schema = operatorSchema;
-        this.initialSchemaTransformers.forEach(transformer => (schema = transformer(operator, schema)));
-        return schema;
-      })
-    );
+    return this.operatorMetadataService.getOperatorSchema(operator.operatorType).pipe(map( operatorSchema => {
+      let schema = operatorSchema;
+      this.initialSchemaTransformers.forEach(transformer => (schema = transformer(operator, schema)));
+      return schema;
+
+    }))
   }
 
   /**
