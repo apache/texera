@@ -4,12 +4,6 @@
     <nz-button-group
       class="utility-button-group"
       ngbDropdown>
-      <label
-        nz-checkbox
-        (change)="onAllCheckedBoxChange($event)"
-        [nz-tooltip]="allCheckedBoxLabel"
-        nzTooltipPlacement="bottom">
-      </label>
       <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <button
         (click)="onClickCreateNewWorkflowFromDashboard()"
