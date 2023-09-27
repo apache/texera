@@ -220,8 +220,9 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
-            }, // TODO: fix this with notification component
-            error: (err: unknown) => alert(err),
+            },
+            // @ts-ignore // TODO: fix this with notification component
+            error: (err: unknown) => alert(err.error),
           });
       } else {
         // is nested within project section, also add duplicate workflow to project
@@ -235,7 +236,8 @@ export class UserWorkflowComponent implements AfterViewInit {
                 ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
-            }, // TODO: fix this with notification component
+            },
+            // @ts-ignore // TODO: fix this with notification component
             error: (err: unknown) => alert(err),
           });
       }
