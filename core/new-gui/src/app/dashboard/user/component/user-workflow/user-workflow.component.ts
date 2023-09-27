@@ -1,4 +1,4 @@
-import {AfterViewInit, Component, Input, NgModule, ViewChild} from "@angular/core";
+import { AfterViewInit, Component, Input, NgModule, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom } from "rxjs";
@@ -80,7 +80,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   private masterFilterList: ReadonlyArray<string> | null = null;
 
   // allCheckedBox
-  public areAllChecked: boolean = false;
+  private areAllChecked: boolean = false;
   public allCheckedBoxLabel = "Select all workflows";
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid?: number = undefined;
@@ -452,7 +452,8 @@ export class UserWorkflowComponent implements AfterViewInit {
   /***
    * Check or uncheck all workflow entries
    */
-  public onAllCheckedBoxChange(): void {
+  public onAllCheckedBoxChange(event: Event): void {
+    this.areAllChecked = !this.areAllChecked;
     this.allCheckedBoxLabel = this.areAllChecked ? "Unselect all workflows" : "Select all workflows";
     for (const entry of this.searchResultsComponent.entries) {
       entry.checked = this.areAllChecked;
