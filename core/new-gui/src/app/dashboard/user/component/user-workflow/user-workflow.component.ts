@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import {AfterViewInit, Component, Input, NgModule, ViewChild} from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom } from "rxjs";
@@ -10,11 +10,8 @@ import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-proje
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { DashboardEntry } from "../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
-import { UserProjectService } from "../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { concatMap, catchError } from "rxjs/operators";
-import { ShareAccessComponent } from "../share-access/share-access.component";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
@@ -92,7 +89,6 @@ export class UserWorkflowComponent implements AfterViewInit {
 
   constructor(
     private userService: UserService,
-    private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
     private modalService: NgbModal,

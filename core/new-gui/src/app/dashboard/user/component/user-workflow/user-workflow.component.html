@@ -4,13 +4,14 @@
     <nz-button-group
       class="utility-button-group"
       ngbDropdown>
-      <label
+      <input
+        type="checkbox"
         nz-checkbox
-        [(ngModel)]="areAllChecked"
-        (ngModelChange)="onAllCheckedBoxChange()"
+        [checked]="areAllChecked"
+        (change)="onAllCheckedBoxChange()"
         [nz-tooltip]="allCheckedBoxLabel"
-        nzTooltipPlacement="bottom">
-      </label>
+        nzTooltipPlacement="bottom"
+      />
       <texera-sort-button (sortMethodChange)="sortMethod = $event; search()"></texera-sort-button>
       <button
         (click)="onClickCreateNewWorkflowFromDashboard()"
