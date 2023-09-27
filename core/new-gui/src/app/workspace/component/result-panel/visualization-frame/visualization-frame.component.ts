@@ -40,7 +40,41 @@ export class VisualizationFrameComponent {
       nzComponentParams: {
         operatorId: this.operatorId,
       },
+      nzClassName: 'draggable-modal',
     });
+
+    const modalElement = document.querySelector('.ant-modal') as HTMLElement; // Cast to HTMLElement
+    if (modalElement) {
+      modalElement.addEventListener('mousedown', (event) => {
+        this.startDrag(event);
+      });
+    }
+  }
+    
+  // Implement the drag functionality
+  private startDrag(event: MouseEvent): void {
+    const modalElement = document.querySelector('.ant-modal') as HTMLElement;
+    if (!modalElement) {
+      return;
+    }
+
+    const initialX = event.clientX;
+    const initialY = event.clientY;
+
+    const onMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - initialX;
+      const deltaY = e.clientY - initialY;
+
+      modalElement.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+    };
+
+    const onMouseUp = () => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
   }
 
   toggleFullscreen(): void {
