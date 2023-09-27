@@ -4,7 +4,7 @@ import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "./operator-metadata.service";
 import { mockOperatorMetaData } from "./mock-operator-metadata.data";
-import { first, last } from "rxjs/operators";
+import { last } from "rxjs/operators";
 
 describe("OperatorMetadataService", () => {
   let service: OperatorMetadataService;
