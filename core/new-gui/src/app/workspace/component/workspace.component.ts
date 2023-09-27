@@ -208,6 +208,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   registerLoadOperatorMetadata() {
     this.operatorMetadataService
       .getOperatorMetadata()
+      .pipe(filter(metadata => metadata.operators.length !== 0))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let wid = this.route.snapshot.params.id;
