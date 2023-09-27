@@ -7,9 +7,7 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import * as c from "./operator-panel.component";
 import { OperatorPanelComponent } from "./operator-panel.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
-import {
-  OperatorMetadataService,
-} from "../../service/operator-metadata/operator-metadata.service";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { GroupInfo, OperatorSchema } from "../../types/operator-schema.interface";
 import { RouterTestingModule } from "@angular/router/testing";
