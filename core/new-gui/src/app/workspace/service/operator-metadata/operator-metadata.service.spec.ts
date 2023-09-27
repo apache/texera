@@ -1,10 +1,8 @@
 import { TestBed } from "@angular/core/testing";
-
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "./operator-metadata.service";
 import { mockOperatorMetaData } from "./mock-operator-metadata.data";
-import { last } from "rxjs/operators";
 
 describe("OperatorMetadataService", () => {
   let service: OperatorMetadataService;
@@ -27,21 +25,15 @@ describe("OperatorMetadataService", () => {
   });
 
   it("should send http request once", () => {
-    service
-      .getOperatorMetadata()
-      .pipe(last())
-      .subscribe(value => expect(value).toBeTruthy());
+    service.getOperatorMetadata().subscribe(value => expect(value).toBeTruthy());
     httpTestingController.expectOne(request => request.method === "GET");
   });
 
   it("should check if operatorType exists correctly", () => {
-    service
-      .getOperatorMetadata()
-      .pipe(last())
-      .subscribe(() => {
-        expect(service.operatorTypeExists("ScanSource")).toBeTruthy();
-        expect(service.operatorTypeExists("InvalidOperatorType")).toBeFalsy();
-      });
+    service.getOperatorMetadata().subscribe(() => {
+      expect(service.operatorTypeExists("ScanSource")).toBeTruthy();
+      expect(service.operatorTypeExists("InvalidOperatorType")).toBeFalsy();
+    });
     const req = httpTestingController.match(request => request.method === "GET");
     req[0].flush(mockOperatorMetaData);
   });
