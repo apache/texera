@@ -21,6 +21,7 @@ import { WorkflowActionService } from "./workflow-action.service";
 import { OperatorPredicate } from "../../../types/workflow-common.interface";
 import { environment } from "../../../../../environments/environment";
 import { WorkflowUtilService } from "../util/workflow-util.service";
+import { throwError } from "rxjs";
 
 describe("WorkflowActionService", () => {
   let service: WorkflowActionService;

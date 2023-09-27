@@ -46,8 +46,8 @@ describe("OperatorMetadataService", () => {
       .getOperatorMetadata()
       .pipe(last())
       .subscribe(() => {
-        service.operatorTypeExists("ScanSource").subscribe(exist => expect(exist).toBeTruthy())
-        service.operatorTypeExists("InvalidOperatorType").subscribe(exist => expect(exist).toBeFalse())
+        expect(service.operatorTypeExists("ScanSource")).toBeTruthy();
+        expect(service.operatorTypeExists("InvalidOperatorType")).toBeFalsy();
       });
     const req = httpTestingController.match(request => request.method === "GET");
     req[0].flush(mockOperatorMetaData);
