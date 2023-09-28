@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.Cancellable
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowDataMessage.getInMemSize
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowDataMessage, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -77,15 +77,15 @@ class FlowControl {
             .isEmpty
         ) {
           receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - getInMemSize(
-            msg.asInstanceOf[WorkflowDataMessage]
+            msg
           ).intValue()
-          return Some(msg)
+          Some(msg)
         } else {
           dataMessagesAwaitingCredits(receiverId).enqueue(msg)
           receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - getInMemSize(
-            msg.asInstanceOf[WorkflowDataMessage]
+            msg
           ).intValue()
-          return Some(dataMessagesAwaitingCredits(receiverId).dequeue())
+          Some(dataMessagesAwaitingCredits(receiverId).dequeue())
         }
       } else {
         dataMessagesAwaitingCredits(receiverId).enqueue(msg)
@@ -108,13 +108,8 @@ class FlowControl {
     ) {
       val msg = dataMessagesAwaitingCredits(receiverId).dequeue()
       messageBuffer.append(msg)
-      msg match {
-        case dataMsg: WorkflowDataMessage =>
-          receiverIdToCredits(receiverId) =
-            receiverIdToCredits(receiverId) - getInMemSize(dataMsg).intValue()
-        case _ =>
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 200
-      }
+      receiverIdToCredits(receiverId) =
+        receiverIdToCredits(receiverId) - getInMemSize(msg).intValue()
     }
     messageBuffer.toArray
   }
