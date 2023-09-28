@@ -22,7 +22,8 @@ export class VisualizationFrameComponent {
   @ViewChild("modalTitle") modalTitle: TemplateRef<{}>;
   modalRef?: NzModalRef;
   isFullscreen: Boolean = false;
-  startDragHandler = (event: MouseEvent) => {
+
+  private startDragHandler = (event: MouseEvent): void => {
     this.startDrag(event);
   };
 
@@ -43,18 +44,15 @@ export class VisualizationFrameComponent {
       nzComponentParams: {
         operatorId: this.operatorId,
       },
-      nzClassName: 'draggable-modal',
+      nzClassName: "draggable-modal",
     });
 
-    const modalElement = document.querySelector('.ant-modal') as HTMLElement; // Cast to HTMLElement
-    if (modalElement) {
-      modalElement.addEventListener('mousedown', this.startDragHandler);
-    }
+    this.setupDraggableModal();
   }
-    
+
   // Implement the drag functionality
   private startDrag(event: MouseEvent): void {
-    const modalElement = document.querySelector('.ant-modal') as HTMLElement;
+    const modalElement = document.querySelector(".ant-modal") as HTMLElement;
     if (!modalElement) {
       return;
     }
@@ -70,12 +68,12 @@ export class VisualizationFrameComponent {
     };
 
     const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
     };
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
   }
 
   toggleFullscreen(): void {
@@ -88,22 +86,35 @@ export class VisualizationFrameComponent {
         nzStyle: { top: "20px", width: "70vw", height: "78vh" },
         nzBodyStyle: { width: "70vw", height: "74vh" },
       });
-      const modalElement = document.querySelector('.ant-modal') as HTMLElement; // Cast to HTMLElement
-    if (modalElement) {
-      modalElement.addEventListener('mousedown', this.startDragHandler);
-    }
+      this.setupDraggableModal();
     } else {
       this.modalRef.updateConfig({
-        nzStyle: { top: "50%",       // Vertically center the modal
-        left: "0",      // Horizontally center the modal
-        transform: "translate(0, -50%)", // Center using translate
-        width: "100vw", height: "100vh" },
+        nzStyle: {
+          top: "50%", // Vertically center the modal
+          left: "0", // Horizontally center the modal
+          transform: "translate(0, -50%)", // Center using translate
+          width: "100vw",
+          height: "100vh",
+        },
         nzBodyStyle: { width: "98vw", height: "94vh" },
       });
-      const modalElement = document.querySelector('.ant-modal') as HTMLElement; // Cast to HTMLElement
-    if (modalElement) {
-      modalElement.removeEventListener('mousedown', this.startDragHandler);
+      this.removeDraggableModal();
     }
   }
+
+  private setupDraggableModal(): void {
+    const modalElement = document.querySelector(".ant-modal") as HTMLElement;
+
+    if (modalElement) {
+      modalElement.addEventListener("mousedown", this.startDragHandler);
+    }
+  }
+
+  private removeDraggableModal(): void {
+    const modalElement = document.querySelector(".ant-modal") as HTMLElement;
+
+    if (modalElement) {
+      modalElement.removeEventListener("mousedown", this.startDragHandler);
+    }
   }
 }
