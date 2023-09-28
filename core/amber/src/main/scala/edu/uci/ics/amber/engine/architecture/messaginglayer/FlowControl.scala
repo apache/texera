@@ -32,6 +32,8 @@ import scala.collection.mutable.ArrayBuffer
   * because then there is no way for S to know when the data in its congestion control module can be sent. Thus,
   * whenever S receives a credit of 0, it registers a periodic callback that serves as a trigger for it to send
   * credit poll request to R. Then, R responds with a NetworkAck() for the credits.
+  *
+  * 4. In our current design, the term "Credit" refers to the message in memory size in bytes.
   */
 class FlowControl {
   val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
@@ -66,7 +68,7 @@ class FlowControl {
       if (
         receiverIdToCredits.getOrElseUpdate(
           receiverId,
-          Constants.unprocessedBatchesCreditLimitPerSender
+          Constants.unprocessedBatchesSizeLimitPerSender
         ) > 0
       ) {
         if (
@@ -101,7 +103,7 @@ class FlowControl {
         .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
         .nonEmpty && receiverIdToCredits.getOrElseUpdate(
         receiverId,
-        Constants.unprocessedBatchesCreditLimitPerSender
+        Constants.unprocessedBatchesSizeLimitPerSender
       ) > 0
     ) {
       val msg = dataMessagesAwaitingCredits(receiverId).dequeue()
@@ -111,7 +113,7 @@ class FlowControl {
           receiverIdToCredits(receiverId) =
             receiverIdToCredits(receiverId) - getInMemSize(dataMsg).intValue()
         case _ =>
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 200
       }
     }
     messageBuffer.toArray
@@ -127,7 +129,7 @@ class FlowControl {
       .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
       .size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits.getOrElseUpdate(
       receiverId,
-      Constants.unprocessedBatchesCreditLimitPerSender
+      Constants.unprocessedBatchesSizeLimitPerSender
     )
   }
 

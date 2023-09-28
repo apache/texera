@@ -11,7 +11,7 @@ case object WorkflowDataMessage {
   def getInMemSize(msg: WorkflowDataMessage): Long = {
     msg.payload match {
       case df: DataFrame => df.inMemSize
-      case _             => 1L
+      case _             => 200L
     }
   }
 }

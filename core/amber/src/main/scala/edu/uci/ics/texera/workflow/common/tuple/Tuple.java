@@ -48,8 +48,7 @@ public class Tuple implements ITuple, Serializable {
         this.schema = schema;
         this.fields = Collections.unmodifiableList(fields);
 
-        SizeOf sizeOf = SizeOf.newInstance();
-        this.inMemSize = sizeOf.deepSizeOf(this);
+        this.inMemSize = SizeOf.newInstance().deepSizeOf(this);
     }
 
     @Override
