@@ -162,7 +162,7 @@ class WorkflowService(
     }
 
     val job = new WorkflowJobService(
-      createWorkflowContext(uidOpt),
+      workflowContext,
       wsInput,
       resultService,
       req,
