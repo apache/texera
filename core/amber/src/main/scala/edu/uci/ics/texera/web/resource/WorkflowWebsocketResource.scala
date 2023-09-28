@@ -1,17 +1,17 @@
 package edu.uci.ics.texera.web.resource
 
-import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.service.WorkflowService
+import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 
+import java.util.concurrent.atomic.AtomicInteger
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
@@ -71,6 +71,8 @@ class WorkflowWebsocketResource extends LazyLogging {
               jobService.jobReconfigurationService.modifyOperatorLogic(modifyLogicRequest)
             sessionState.send(modifyLogicResponse)
           }
+        case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
+          WorkflowCacheChecker.handleCacheStatusUpdateRequest(session, cacheStatusUpdateRequest)
         case other =>
           workflowStateOpt match {
             case Some(workflow) => workflow.wsInput.onNext(other, uidOpt)

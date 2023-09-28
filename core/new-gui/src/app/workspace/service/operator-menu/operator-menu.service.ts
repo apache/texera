@@ -49,6 +49,12 @@ export class OperatorMenuService {
   public isDisableOperatorClickable: boolean = false;
   public isDisableOperator: boolean = true;
 
+  public isToViewResult: boolean = false;
+  public isToViewResultClickable: boolean = false;
+
+  public isReuseResultClickable: boolean = false;
+  public isMarkForReuse: boolean = true;
+
   public readonly COPY_OFFSET = 20;
 
   constructor(
@@ -57,6 +63,8 @@ export class OperatorMenuService {
     private notificationService: NotificationService
   ) {
     this.handleDisableOperatorStatusChange();
+    this.handleViewResultOperatorStatusChange();
+    this.handleReuseOperatorResultStatusChange();
 
     merge(
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
@@ -111,6 +119,30 @@ export class OperatorMenuService {
     }
   }
 
+  public viewResultHighlightedOperators(): void {
+    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+      op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
+    );
+
+    if (this.isToViewResult) {
+      this.workflowActionService.setViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
+    } else {
+      this.workflowActionService.unsetViewOperatorResults(effectiveHighlightedOperatorsExcludeSink);
+    }
+  }
+
+  public reuseResultHighlightedOperator(): void {
+    const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+      op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
+    );
+
+    if (this.isMarkForReuse) {
+      this.workflowActionService.markReuseResults(effectiveHighlightedOperatorsExcludeSink);
+    } else {
+      this.workflowActionService.removeMarkReuseResults(effectiveHighlightedOperatorsExcludeSink);
+    }
+  }
+
   /**
    * Updates the status of the disable operator icon:
    * If all selected operators are disabled, then click it will re-enable the operators
@@ -129,6 +161,48 @@ export class OperatorMenuService {
       this.isDisableOperator = !allDisabled;
       this.isDisableOperatorClickable =
         this.effectivelyHighlightedOperators.value.length !== 0 &&
+        this.workflowActionService.checkWorkflowModificationEnabled();
+    });
+  }
+
+  handleViewResultOperatorStatusChange() {
+    merge(
+      this.effectivelyHighlightedOperators,
+      this.workflowActionService.getTexeraGraph().getViewResultOperatorsChangedStream(),
+      this.workflowActionService.getWorkflowModificationEnabledStream()
+    ).subscribe(event => {
+      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+        op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
+      );
+
+      const allViewing = effectiveHighlightedOperatorsExcludeSink.every(op =>
+        this.workflowActionService.getTexeraGraph().isViewingResult(op)
+      );
+
+      this.isToViewResult = !allViewing;
+      this.isToViewResultClickable =
+        effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
+        this.workflowActionService.checkWorkflowModificationEnabled();
+    });
+  }
+
+  handleReuseOperatorResultStatusChange() {
+    merge(
+      this.effectivelyHighlightedOperators,
+      this.workflowActionService.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
+      this.workflowActionService.getWorkflowModificationEnabledStream()
+    ).subscribe(event => {
+      const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
+        op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
+      );
+
+      const allMarkedForReuse = effectiveHighlightedOperatorsExcludeSink.every(op =>
+        this.workflowActionService.getTexeraGraph().isMarkedForReuseResult(op)
+      );
+
+      this.isMarkForReuse = !allMarkedForReuse;
+      this.isReuseResultClickable =
+        effectiveHighlightedOperatorsExcludeSink.length !== 0 &&
         this.workflowActionService.checkWorkflowModificationEnabled();
     });
   }
