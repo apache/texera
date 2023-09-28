@@ -79,20 +79,20 @@ class GmailResource {
       "postmessage"
     ).execute()
 
-    val idToken =
-      new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
-        .setAudience(
-          Collections.singletonList(clientId)
-        )
-        .build()
-        .verify(token.getIdToken)
     Files.write(
       path.resolve("refreshToken"),
       token.getRefreshToken.getBytes
     )
+
     Files.write(
       path.resolve("userEmail"),
-      idToken.getPayload.getEmail.getBytes
+      new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
+        .setAudience(Collections.singletonList(clientId))
+        .build()
+        .verify(token.getIdToken)
+        .getPayload
+        .getEmail
+        .getBytes
     )
   }
 
@@ -107,7 +107,7 @@ class GmailResource {
     val transport = session.getTransport("smtp")
     val accessTokenPath = path.resolve("accessToken")
     if (!Files.exists(accessTokenPath)) saveAccessToken()
-    var accessToken = new String(Files.readAllBytes(path.resolve("accessTokenPath")))
+    var accessToken = new String(Files.readAllBytes(path.resolve(accessTokenPath)))
 
     connect(transport, accessToken)
     if (!transport.isConnected) {
