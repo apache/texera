@@ -22,6 +22,9 @@ export class VisualizationFrameComponent {
   @ViewChild("modalTitle") modalTitle: TemplateRef<{}>;
   modalRef?: NzModalRef;
   isFullscreen: Boolean = false;
+  startDragHandler = (event: MouseEvent) => {
+    this.startDrag(event);
+  };
 
   constructor(private modalService: NzModalService) {
     this.modalTitle = {} as TemplateRef<any>;
@@ -45,9 +48,7 @@ export class VisualizationFrameComponent {
 
     const modalElement = document.querySelector('.ant-modal') as HTMLElement; // Cast to HTMLElement
     if (modalElement) {
-      modalElement.addEventListener('mousedown', (event) => {
-        this.startDrag(event);
-      });
+      modalElement.addEventListener('mousedown', this.startDragHandler);
     }
   }
     
@@ -87,11 +88,22 @@ export class VisualizationFrameComponent {
         nzStyle: { top: "20px", width: "70vw", height: "78vh" },
         nzBodyStyle: { width: "70vw", height: "74vh" },
       });
+      const modalElement = document.querySelector('.ant-modal') as HTMLElement; // Cast to HTMLElement
+    if (modalElement) {
+      modalElement.addEventListener('mousedown', this.startDragHandler);
+    }
     } else {
       this.modalRef.updateConfig({
-        nzStyle: { top: "5px", bottom: "0", left: "0", right: "0", width: "100vw", height: "94vh" },
-        nzBodyStyle: { width: "98vw", height: "92vh" },
+        nzStyle: { top: "50%",       // Vertically center the modal
+        left: "0",      // Horizontally center the modal
+        transform: "translate(0, -50%)", // Center using translate
+        width: "100vw", height: "100vh" },
+        nzBodyStyle: { width: "98vw", height: "94vh" },
       });
+      const modalElement = document.querySelector('.ant-modal') as HTMLElement; // Cast to HTMLElement
+    if (modalElement) {
+      modalElement.removeEventListener('mousedown', this.startDragHandler);
     }
+  }
   }
 }
