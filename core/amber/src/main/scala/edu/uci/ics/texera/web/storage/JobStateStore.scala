@@ -18,9 +18,7 @@ object JobStateStore {
       state: WorkflowAggregatedState,
       metadataStore: JobMetadataStore
   ): JobMetadataStore = {
-    if (WorkflowService.userSystemEnabled) {
-      ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.eid, state)
-    }
+    ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.eid, state)
     metadataStore.withState(state)
   }
 }
