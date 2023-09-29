@@ -7,10 +7,7 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import * as c from "./operator-panel.component";
 import { OperatorPanelComponent } from "./operator-panel.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
-import {
-  EMPTY_OPERATOR_METADATA,
-  OperatorMetadataService,
-} from "../../service/operator-metadata/operator-metadata.service";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { GroupInfo, OperatorSchema } from "../../types/operator-schema.interface";
 import { RouterTestingModule } from "@angular/router/testing";
@@ -98,14 +95,6 @@ describe("OperatorPanelComponent", () => {
     expectedResult.set("Source", sourceOperators);
     expectedResult.set("Analysis", analysisOperators);
     expectedResult.set("View Results", resultOperators);
-
-    expect(result).toEqual(expectedResult);
-  });
-
-  it("should generate a map from operator groups to a list operators correctly from an empty list", () => {
-    const opMetadata = EMPTY_OPERATOR_METADATA;
-    const result = c.getOperatorGroupMap(opMetadata);
-    const expectedResult = new Map<string, OperatorSchema[]>();
 
     expect(result).toEqual(expectedResult);
   });

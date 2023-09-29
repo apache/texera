@@ -4,7 +4,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import Ajv from "ajv";
-import { filter, map } from "rxjs/operators";
+import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 
 export type ValidationError = {
@@ -61,13 +61,10 @@ export class ValidationWorkflowService {
     private dynamicSchemaService: DynamicSchemaService
   ) {
     // fetch operator schema list
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .pipe(filter(metadata => metadata.operators.length > 0))
-      .subscribe(metadata => {
-        this.operatorSchemaList = metadata.operators;
-        this.initializeValidation();
-      });
+    this.operatorMetadataService.getOperatorMetadata().subscribe(metadata => {
+      this.operatorSchemaList = metadata.operators;
+      this.initializeValidation();
+    });
   }
 
   public getCurrentWorkflowValidationError(): {
