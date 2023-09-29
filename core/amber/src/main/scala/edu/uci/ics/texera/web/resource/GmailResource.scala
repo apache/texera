@@ -85,7 +85,20 @@ class GmailResource {
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/send")
   def sendEmail(emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
-    val accessToken = getAccessToken
+    val accessTokenPath = path.resolve("accessToken")
+    if (!Files.exists(accessTokenPath)) {
+      Files.write(
+        accessTokenPath,
+        new GoogleRefreshTokenRequest(
+          new NetHttpTransport(),
+          new GsonFactory(),
+          new String(Files.readAllBytes(path.resolve("refreshToken"))),
+          clientId,
+          clientSecret
+        ).execute().getAccessToken.getBytes
+      )
+    }
+    val accessToken = new String(Files.readAllBytes(accessTokenPath))
     val credentials = GoogleCredentials.create(new AccessToken(accessToken, null))
     val service = new Gmail.Builder(
       new NetHttpTransport(),
@@ -105,21 +118,5 @@ class GmailResource {
     val message = new Message()
     message.setRaw(Base64.encodeBase64URLSafeString(buffer.toByteArray))
     service.users().messages().send("me", message).execute()
-  }
-  private def getAccessToken: String = {
-    val accessTokenPath = path.resolve("accessToken")
-    if (!Files.exists(accessTokenPath)) {
-      Files.write(
-        accessTokenPath,
-        new GoogleRefreshTokenRequest(
-          new NetHttpTransport(),
-          new GsonFactory(),
-          new String(Files.readAllBytes(path.resolve("refreshToken"))),
-          clientId,
-          clientSecret
-        ).execute().getAccessToken.getBytes
-      )
-    }
-    new String(Files.readAllBytes(accessTokenPath))
   }
 }
