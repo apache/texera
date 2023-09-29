@@ -7,6 +7,19 @@ sealed trait WorkflowMessage extends Serializable {
   val sequenceNumber: Long
 }
 
+case object WorkflowMessage {
+  def getInMemSize(msg: WorkflowMessage): Long = {
+    msg match {
+      case dataMsg: WorkflowDataMessage =>
+        dataMsg.payload match {
+          case df: DataFrame => df.inMemSize
+          case _             => 200L
+        }
+      case _ => 200L
+    }
+  }
+}
+
 case class WorkflowControlMessage(
     from: ActorVirtualIdentity,
     sequenceNumber: Long,

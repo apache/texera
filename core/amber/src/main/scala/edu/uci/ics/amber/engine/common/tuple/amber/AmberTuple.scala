@@ -36,4 +36,6 @@ class AmberTuple(val data: Array[Any]) extends ITuple {
   override def get(i: Int): Any = data(i)
 
   override def toArray(): Array[Any] = data
+
+  override def inMemSize: Long = 200L
 }

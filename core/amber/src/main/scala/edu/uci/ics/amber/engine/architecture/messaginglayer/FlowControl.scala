@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import akka.actor.Cancellable
 import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowDataMessage, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -31,6 +32,8 @@ import scala.collection.mutable.ArrayBuffer
   * because then there is no way for S to know when the data in its congestion control module can be sent. Thus,
   * whenever S receives a credit of 0, it registers a periodic callback that serves as a trigger for it to send
   * credit poll request to R. Then, R responds with a NetworkAck() for the credits.
+  *
+  * 4. In our current design, the term "Credit" refers to the message in memory size in bytes.
   */
 class FlowControl {
   val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
@@ -65,7 +68,7 @@ class FlowControl {
       if (
         receiverIdToCredits.getOrElseUpdate(
           receiverId,
-          Constants.unprocessedBatchesCreditLimitPerSender
+          Constants.unprocessedBatchesSizeLimitPerSender
         ) > 0
       ) {
         if (
@@ -73,12 +76,16 @@ class FlowControl {
             .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
             .isEmpty
         ) {
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
-          return Some(msg)
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - getInMemSize(
+            msg
+          ).intValue()
+          Some(msg)
         } else {
           dataMessagesAwaitingCredits(receiverId).enqueue(msg)
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
-          return Some(dataMessagesAwaitingCredits(receiverId).dequeue())
+          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - getInMemSize(
+            msg
+          ).intValue()
+          Some(dataMessagesAwaitingCredits(receiverId).dequeue())
         }
       } else {
         dataMessagesAwaitingCredits(receiverId).enqueue(msg)
@@ -96,11 +103,13 @@ class FlowControl {
         .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
         .nonEmpty && receiverIdToCredits.getOrElseUpdate(
         receiverId,
-        Constants.unprocessedBatchesCreditLimitPerSender
+        Constants.unprocessedBatchesSizeLimitPerSender
       ) > 0
     ) {
-      messageBuffer.append(dataMessagesAwaitingCredits(receiverId).dequeue())
-      receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+      val msg = dataMessagesAwaitingCredits(receiverId).dequeue()
+      messageBuffer.append(msg)
+      receiverIdToCredits(receiverId) =
+        receiverIdToCredits(receiverId) - getInMemSize(msg).intValue()
     }
     messageBuffer.toArray
   }
@@ -115,7 +124,7 @@ class FlowControl {
       .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
       .size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits.getOrElseUpdate(
       receiverId,
-      Constants.unprocessedBatchesCreditLimitPerSender
+      Constants.unprocessedBatchesSizeLimitPerSender
     )
   }
 

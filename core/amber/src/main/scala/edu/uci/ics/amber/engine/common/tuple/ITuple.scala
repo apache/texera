@@ -22,6 +22,7 @@ object ITuple {
 }
 
 trait ITuple extends Serializable {
+  def inMemSize: Long
   def size: Int = length
   def length: Int
   def apply(i: Int): Any = get(i)

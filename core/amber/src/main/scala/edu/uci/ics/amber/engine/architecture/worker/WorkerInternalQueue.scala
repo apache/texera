@@ -67,18 +67,19 @@ class WorkerInternalQueue(
   }
 
   def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    (Constants.unprocessedBatchesCreditLimitPerSender * Constants.defaultBatchSize - (inputTuplesPutInQueue
+    (Constants.unprocessedBatchesSizeLimitPerSender - (inputTuplesPutInQueue
       .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
       sender,
       0L
-    )).toInt) / Constants.defaultBatchSize
+    )).toInt)
   }
 
   def appendElement(elem: InternalQueueElement): Unit = {
     if (Constants.flowControlEnabled) {
       elem match {
-        case InputTuple(from, _) =>
-          inputTuplesPutInQueue(from) = inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + 1
+        case InputTuple(from, tuple) =>
+          inputTuplesPutInQueue(from) =
+            inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + tuple.inMemSize
         case _ =>
         // do nothing
       }
@@ -118,9 +119,9 @@ class WorkerInternalQueue(
     }
     if (Constants.flowControlEnabled) {
       elem match {
-        case InputTuple(from, _) =>
+        case InputTuple(from, tuple) =>
           inputTuplesTakenOutOfQueue(from) =
-            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + 1
+            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + tuple.inMemSize
         case _ =>
         // do nothing
       }

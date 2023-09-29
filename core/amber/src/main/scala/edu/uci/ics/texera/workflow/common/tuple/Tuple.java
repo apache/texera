@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.bson.Document;
+import org.ehcache.sizeof.SizeOf;
 
 import java.io.Serializable;
 import java.util.*;
@@ -24,6 +25,8 @@ public class Tuple implements ITuple, Serializable {
 
     private final Schema schema;
     private final List<Object> fields;
+
+    private final Long inMemSize;
 
     public Tuple(Schema schema, Object... fields) {
         this(schema, Arrays.asList(fields));
@@ -44,6 +47,13 @@ public class Tuple implements ITuple, Serializable {
 
         this.schema = schema;
         this.fields = Collections.unmodifiableList(fields);
+
+        this.inMemSize = SizeOf.newInstance().deepSizeOf(this);
+    }
+
+    @Override
+    public long inMemSize() {
+        return this.inMemSize;
     }
 
     @Override

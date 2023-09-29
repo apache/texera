@@ -72,7 +72,7 @@ class PythonWorkflowWorker(
 
   // TODO: Implement credit calculation logic in python worker
   override def getSenderCredits(sender: ActorVirtualIdentity) = {
-    Constants.unprocessedBatchesCreditLimitPerSender
+    Constants.unprocessedBatchesSizeLimitPerSender
   }
 
   override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
