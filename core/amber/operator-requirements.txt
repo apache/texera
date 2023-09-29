@@ -1,0 +1,5 @@
+wordcloud
+plotly
+praw
+pillow
+pybase64
