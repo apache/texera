@@ -1,4 +1,5 @@
 package edu.uci.ics.texera.web.resource
+
 import com.google.api.client.googleapis.auth.oauth2.{
   GoogleAuthorizationCodeTokenRequest,
   GoogleIdTokenVerifier,
@@ -6,21 +7,25 @@ import com.google.api.client.googleapis.auth.oauth2.{
 }
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
+import com.google.api.services.gmail.Gmail
+import com.google.api.services.gmail.model.Message
+import com.google.auth.http.HttpCredentialsAdapter
+import com.google.auth.oauth2.{AccessToken, GoogleCredentials}
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import io.dropwizard.auth.Auth
+import org.apache.commons.codec.binary.Base64
 
+import java.io.ByteArrayOutputStream
 import java.nio.file.Files
 import java.util.{Collections, Properties}
 import javax.annotation.security.RolesAllowed
+import javax.mail.Session
 import javax.mail.internet.{InternetAddress, MimeMessage}
-import javax.mail.{Message, Session, Transport}
 import javax.ws.rs._
 
 case class EmailMessage(email: String, subject: String, content: String)
-
-@RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/gmail")
 class GmailResource {
   final private lazy val path =
@@ -29,27 +34,6 @@ class GmailResource {
   final private lazy val clientSecret =
     AmberUtils.amberConfig.getString("user-sys.google.clientSecret")
 
-  def connect(transport: Transport, accessToken: String): Unit = {
-    transport.connect(
-      "smtp.gmail.com",
-      587,
-      new String(Files.readAllBytes(path.resolve("userEmail"))),
-      accessToken
-    )
-  }
-  private def saveAccessToken(): Unit = {
-    Files.write(
-      path.resolve("accessToken"),
-      new GoogleRefreshTokenRequest(
-        new NetHttpTransport(),
-        new GsonFactory(),
-        new String(Files.readAllBytes(path.resolve("refreshToken"))),
-        clientId,
-        clientSecret
-      ).execute().getAccessToken.getBytes
-    )
-  }
-
   @GET
   @RolesAllowed(Array("ADMIN"))
   @Path("/email")
@@ -57,14 +41,6 @@ class GmailResource {
     new String(Files.readAllBytes(path.resolve("userEmail")))
   }
 
-  @DELETE
-  @RolesAllowed(Array("ADMIN"))
-  @Path("/revoke")
-  def deleteEmail(): Unit = {
-    if (Files.exists(path.resolve("userEmail"))) Files.delete(path.resolve("userEmail"))
-    if (Files.exists(path.resolve("refreshToken"))) Files.delete(path.resolve("refreshToken"))
-    if (Files.exists(path.resolve("accessToken"))) Files.delete(path.resolve("accessToken"))
-  }
   @POST
   @RolesAllowed(Array("ADMIN"))
   @Path("/auth")
@@ -96,33 +72,54 @@ class GmailResource {
     )
   }
 
-  @PUT
-  @Path("/send")
-  def sendEmail(message: EmailMessage, @Auth user: SessionUser): Unit = {
-    val props = new Properties()
-    props.put("mail.smtp.starttls.required", "true")
-    props.put("mail.smtp.sasl.enable", "true")
-    props.put("mail.smtp.sasl.mechanisms", "XOAUTH2")
-    val session = Session.getInstance(props)
-    val transport = session.getTransport("smtp")
-    val accessTokenPath = path.resolve("accessToken")
-    if (!Files.exists(accessTokenPath)) saveAccessToken()
-    var accessToken = new String(Files.readAllBytes(path.resolve(accessTokenPath)))
+  @DELETE
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/revoke")
+  def deleteEmail(): Unit = {
+    if (Files.exists(path.resolve("userEmail"))) Files.delete(path.resolve("userEmail"))
+    if (Files.exists(path.resolve("refreshToken"))) Files.delete(path.resolve("refreshToken"))
+    if (Files.exists(path.resolve("accessToken"))) Files.delete(path.resolve("accessToken"))
+  }
 
-    connect(transport, accessToken)
-    if (!transport.isConnected) {
-      saveAccessToken()
-      accessToken = new String(Files.readAllBytes(path.resolve(accessTokenPath)))
-      connect(transport, accessToken)
-    }
-    val email = new MimeMessage(session)
+  @PUT
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  @Path("/send")
+  def sendEmail(emailMessage: EmailMessage, @Auth user: SessionUser): Unit = {
+    val accessToken = getAccessToken
+    val credentials = GoogleCredentials.create(new AccessToken(accessToken, null))
+    val service = new Gmail.Builder(
+      new NetHttpTransport(),
+      GsonFactory.getDefaultInstance,
+      new HttpCredentialsAdapter(credentials)
+    ).setApplicationName("Gmail samples").build()
+    val email = new MimeMessage(Session.getDefaultInstance(new Properties(), null))
     email.setFrom(new InternetAddress("me"))
     email.addRecipient(
-      Message.RecipientType.TO,
-      new InternetAddress(if (message.email == "") user.getEmail else message.email)
+      javax.mail.Message.RecipientType.TO,
+      new InternetAddress(if (emailMessage.email == "") user.getEmail else emailMessage.email)
     )
-    email.setSubject(message.subject)
-    email.setText(message.content)
-    transport.sendMessage(email, email.getAllRecipients)
+    email.setSubject(emailMessage.subject)
+    email.setText(emailMessage.content)
+    val buffer = new ByteArrayOutputStream()
+    email.writeTo(buffer)
+    val message = new Message()
+    message.setRaw(Base64.encodeBase64URLSafeString(buffer.toByteArray))
+    service.users().messages().send("me", message).execute()
+  }
+  private def getAccessToken: String = {
+    val accessTokenPath = path.resolve("accessToken")
+    if (!Files.exists(accessTokenPath)) {
+      Files.write(
+        accessTokenPath,
+        new GoogleRefreshTokenRequest(
+          new NetHttpTransport(),
+          new GsonFactory(),
+          new String(Files.readAllBytes(path.resolve("refreshToken"))),
+          clientId,
+          clientSecret
+        ).execute().getAccessToken.getBytes
+      )
+    }
+    new String(Files.readAllBytes(accessTokenPath))
   }
 }
