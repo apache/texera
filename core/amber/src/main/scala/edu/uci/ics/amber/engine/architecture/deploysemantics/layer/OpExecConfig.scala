@@ -94,31 +94,31 @@ object OpExecConfig {
 }
 
 case class OpExecConfig(
-    id: LayerIdentity,
-    // function to create an operator executor instance
-    // parameters: 1: worker index, 2: this worker layer object
-    initIOperatorExecutor: OpExecFunc,
-    // preference of parallelism (number of workers)
-    numWorkers: Int = Constants.numWorkerPerNode,
-    // preference of worker placement
-    locationPreference: Option[LocationPreference] = None,
-    // requirement of partition policy (hash/range/single/none) on inputs
-    partitionRequirement: List[Option[PartitionInfo]] = List(),
-    // derive the output partition info given the input partitions
-    // if not specified, by default the output partition is the same as input partition
-    derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
-    // input/output ports of the physical operator
-    // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: List[InputPort] = List(InputPort("")),
-    outputPorts: List[OutputPort] = List(OutputPort("")),
-    // mapping of all input/output operators connected on a specific input/output port index
-    inputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
-    outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
-    // input ports that are blocking
-    blockingInputs: List[Int] = List(),
-    // execution dependency of ports
-    dependency: Map[Int, Int] = Map(),
-    isOneToManyOp: Boolean = false
+                         id: LayerIdentity,
+                         // function to create an operator executor instance
+                         // parameters: 1: worker index, 2: this worker layer object
+                         initIOperatorExecutor: OpExecFunc,
+                         // preference of parallelism (number of workers)
+                         numWorkers: Int = Constants.numWorkerPerNode,
+                         // preference of worker placement
+                         locationPreference: Option[LocationPreference] = None,
+                         // requirement of partition policy (hash/range/single/none) on inputs
+                         partitionRequirement: List[Option[PartitionInfo]] = List(),
+                         // derive the output partition info given the input partitions
+                         // if not specified, by default the output partition is the same as input partition
+                         derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+                         // input/output ports of the physical operator
+                         // for operators with multiple input/output ports: must set these variables properly
+                         inputPorts: List[InputPort] = List(InputPort()),
+                         outputPorts: List[OutputPort] = List(OutputPort()),
+                         // mapping of all input/output operators connected on a specific input/output port index
+                         inputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
+                         outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
+                         // input ports that are blocking
+                         blockingInputs: List[Int] = List(),
+                         // execution dependency of ports
+                         dependency: Map[Int, Int] = Map(),
+                         isOneToManyOp: Boolean = false
 ) {
 
   // all the "dependee" links are also blocking inputs
@@ -163,6 +163,13 @@ case class OpExecConfig(
   // creates a copy with the specified port information
   def withPorts(operatorInfo: OperatorInfo): OpExecConfig = {
     this.copy(inputPorts = operatorInfo.inputPorts, outputPorts = operatorInfo.outputPorts)
+  }
+
+  def withInputPorts(inputs: List[InputPort]): OpExecConfig = {
+    this.copy(inputPorts = inputs)
+  }
+  def withOutputPorts(outputs:List[OutputPort]):OpExecConfig = {
+    this.copy(outputPorts = outputs)
   }
 
   // creates a copy with an additional input operator specified on an input port

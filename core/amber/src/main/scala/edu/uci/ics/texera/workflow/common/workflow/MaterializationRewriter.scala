@@ -77,14 +77,14 @@ class MaterializationRewriter(
       .addOperator(matReaderOpExecConfig)
       .addEdge(
         fromOpId,
-        matWriterOpExecConfig.id,
         fromOutputPortIdx,
+        matWriterOpExecConfig.id,
         0
       )
       .addEdge(
         matReaderOpExecConfig.id,
+        0,
         toOpId,
-0,
         toInputPortIdx
       )
       .removeEdge(linkId)

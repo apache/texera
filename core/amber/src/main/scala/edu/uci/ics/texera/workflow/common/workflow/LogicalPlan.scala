@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -255,7 +255,7 @@ case class LogicalPlan(
       // add all physical operators to physical DAG
       ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
       // connect intra-operator links
-      ops.links.foreach(l => physicalPlan = physicalPlan.addEdge(l.from, l.to))
+      ops.links.foreach((l:LinkIdentity) => physicalPlan = physicalPlan.addEdge(l.from, l.fromPort, l.to, l.toPort))
     })
 
     // connect inter-operator links
@@ -280,7 +280,7 @@ case class LogicalPlan(
         .displayName
       val toLayer = physicalPlan.findLayerForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan = physicalPlan.addEdge(fromLayer, toLayer, fromPort, toPort)
+      physicalPlan = physicalPlan.addEdge(fromLayer, fromPort, toLayer,toPort)
     })
 
     physicalPlan

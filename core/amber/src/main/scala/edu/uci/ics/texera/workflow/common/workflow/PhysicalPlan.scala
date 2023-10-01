@@ -146,15 +146,11 @@ case class PhysicalPlan(
     this.copy(operators = opExecConfig :: operators)
   }
 
-  // returns a new physical plan with the edges added
-  def addEdge(from: LayerIdentity, to: LayerIdentity): PhysicalPlan = {
-    addEdge(from, to, 0, 0)
-  }
 
   def addEdge(
       from: LayerIdentity,
-      to: LayerIdentity,
       fromPort: Int,
+      to: LayerIdentity,
       toPort: Int
   ): PhysicalPlan = {
 
