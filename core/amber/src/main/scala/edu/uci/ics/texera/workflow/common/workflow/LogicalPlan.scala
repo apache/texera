@@ -255,7 +255,9 @@ case class LogicalPlan(
       // add all physical operators to physical DAG
       ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
       // connect intra-operator links
-      ops.links.foreach((l:LinkIdentity) => physicalPlan = physicalPlan.addEdge(l.from, l.fromPort, l.to, l.toPort))
+      ops.links.foreach((l: LinkIdentity) =>
+        physicalPlan = physicalPlan.addEdge(l.from, l.fromPort, l.to, l.toPort)
+      )
     })
 
     // connect inter-operator links
@@ -280,7 +282,7 @@ case class LogicalPlan(
         .displayName
       val toLayer = physicalPlan.findLayerForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan = physicalPlan.addEdge(fromLayer, fromPort, toLayer,toPort)
+      physicalPlan = physicalPlan.addEdge(fromLayer, fromPort, toLayer, toPort)
     })
 
     physicalPlan

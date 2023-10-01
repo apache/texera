@@ -146,7 +146,6 @@ case class PhysicalPlan(
     this.copy(operators = opExecConfig :: operators)
   }
 
-
   def addEdge(
       from: LayerIdentity,
       fromPort: Int,
@@ -156,7 +155,7 @@ case class PhysicalPlan(
 
     val newOperators = operatorMap +
       (from -> operatorMap(from).addOutput(to, fromPort, toPort)) +
-      (to -> operatorMap(to).addInput(from,fromPort, toPort))
+      (to -> operatorMap(to).addInput(from, fromPort, toPort))
 
     val newLinks = links :+ LinkIdentity(from, fromPort, to, toPort)
     this.copy(operators = newOperators.values.toList, links = newLinks)

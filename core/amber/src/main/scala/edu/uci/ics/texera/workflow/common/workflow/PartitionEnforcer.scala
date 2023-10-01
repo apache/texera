@@ -42,7 +42,9 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
         case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
           new RangeBasedShuffle(
             inputLayer,
-            0, layer, inputPort,
+            0,
+            layer,
+            inputPort,
             defaultBatchSize,
             rangeColumnIndices,
             rangeMin,
@@ -51,9 +53,9 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
         case SinglePartition() =>
           new AllToOne(inputLayer, 0, layer, inputPort, defaultBatchSize)
         case BroadcastPartition() =>
-          new AllBroadcast(inputLayer, 0, layer, inputPort,  defaultBatchSize)
+          new AllBroadcast(inputLayer, 0, layer, inputPort, defaultBatchSize)
         case UnknownPartition() =>
-          new FullRoundRobin(inputLayer, 0, layer, inputPort,  defaultBatchSize)
+          new FullRoundRobin(inputLayer, 0, layer, inputPort, defaultBatchSize)
       }
       val outputPart = part
       (linkStrategy, outputPart)

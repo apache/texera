@@ -7,8 +7,13 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
-class AllBroadcast(_from: OpExecConfig, _fromPort:Int,  _to: OpExecConfig, _toPort: Int, batchSize: Int)
-  extends LinkStrategy(_from, _fromPort, _to,_toPort, batchSize) {
+class AllBroadcast(
+    _from: OpExecConfig,
+    _fromPort: Int,
+    _to: OpExecConfig,
+    _toPort: Int,
+    batchSize: Int
+) extends LinkStrategy(_from, _fromPort, _to, _toPort, batchSize) {
   override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {

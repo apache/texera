@@ -95,7 +95,7 @@ class LineChartOpDesc extends VisualizationOperator {
     )
 
     val finalAggOp = aggPlan.sinkOperators.head
-    aggPlan.addOperator(lineChartOpExec).addEdge(finalAggOp,0,  lineChartOpExec.id, 0)
+    aggPlan.addOperator(lineChartOpExec).addEdge(finalAggOp, 0, lineChartOpExec.id, 0)
   }
 
   override def operatorInfo: OperatorInfo =

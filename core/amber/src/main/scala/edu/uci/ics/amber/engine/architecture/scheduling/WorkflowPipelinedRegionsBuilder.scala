@@ -69,11 +69,13 @@ class WorkflowPipelinedRegionsBuilder(
       val upstreamOps = physicalPlan.getUpstream(opId)
       upstreamOps.foreach(upOpId => {
 
-        physicalPlan.links.filter(l => l.from == upOpId && l.to == opId).foreach(link => {
-          if (physicalPlan.operatorMap(opId).isInputBlocking(link)){
-            edgesToRemove+=link
-          }
-        })
+        physicalPlan.links
+          .filter(l => l.from == upOpId && l.to == opId)
+          .foreach(link => {
+            if (physicalPlan.operatorMap(opId).isInputBlocking(link)) {
+              edgesToRemove += link
+            }
+          })
       })
     })
 
@@ -147,9 +149,9 @@ class WorkflowPipelinedRegionsBuilder(
         // For operators that have only blocking input links. e.g. Sort, Groupby
         val upstreamOps = physicalPlan.getUpstream(opId)
 
-
         val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
-          findAllLinks(upstreamOp, opId).forall(link=> physicalPlan.operatorMap(opId).isInputBlocking(link))
+          findAllLinks(upstreamOp, opId)
+            .forall(link => physicalPlan.operatorMap(opId).isInputBlocking(link))
         )
         if (allInputBlocking)
           upstreamOps.foreach(upstreamOp => {
@@ -181,7 +183,7 @@ class WorkflowPipelinedRegionsBuilder(
     true
   }
 
-  private def findAllLinks(from:LayerIdentity, to: LayerIdentity): List[LinkIdentity] = {
+  private def findAllLinks(from: LayerIdentity, to: LayerIdentity): List[LinkIdentity] = {
     physicalPlan.links.filter(link => link.from == from && link.to == to)
 
   }
@@ -233,12 +235,13 @@ class WorkflowPipelinedRegionsBuilder(
             }
           })
 
-
         })
       })
 
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
-      val newRegion = region.copy(blockingDownstreamOperatorsInOtherRegions = terminalOps.toArray.map(opId=>(opId, 0)))
+      val newRegion = region.copy(blockingDownstreamOperatorsInOtherRegions =
+        terminalOps.toArray.map(opId => (opId, 0))
+      )
       replaceVertex(pipelinedRegionsDAG, region, newRegion)
     }
   }

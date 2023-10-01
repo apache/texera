@@ -20,15 +20,17 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   def getBlockingOutLinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
     val outLinks = new mutable.HashSet[LinkIdentity]()
-    region.blockingDownstreamOperatorsInOtherRegions.foreach({case (opId, toPort) => {
-      physicalPlan
-        .getUpstream(opId)
-        .foreach(upstream => {
-          if (region.operators.contains(upstream)) {
-            outLinks.add(LinkIdentity(upstream, 0 , opId, toPort))
-          }
-        })
-    }})
+    region.blockingDownstreamOperatorsInOtherRegions.foreach({
+      case (opId, toPort) => {
+        physicalPlan
+          .getUpstream(opId)
+          .foreach(upstream => {
+            if (region.operators.contains(upstream)) {
+              outLinks.add(LinkIdentity(upstream, 0, opId, toPort))
+            }
+          })
+      }
+    })
     outLinks.toSet
   }
 
