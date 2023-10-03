@@ -41,6 +41,7 @@ export class VisualizationFrameComponent {
         operatorId: this.operatorId,
       },
     });
+    this.isFullscreen = false;
   }
 
   toggleFullscreen(): void {
