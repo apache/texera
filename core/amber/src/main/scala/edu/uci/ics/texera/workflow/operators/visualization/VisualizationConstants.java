@@ -12,4 +12,6 @@ public class VisualizationConstants {
     public static final String SIMPLE_SCATTERPLOT = "scatter";
     public static final String SPATIAL_SCATTERPLOT = "spatial scatterplot";
     public static final String WORD_CLOUD = "word cloud";
+
+    public static final String BOX_PLOT = "box plot";
 }
