@@ -33,7 +33,7 @@ class TrivialControlTester(
         logger.info(s"received $internalMessage")
         this.controlInputPort.handleMessage(
           this.sender(),
-          Constants.unprocessedBatchesCreditLimitPerSender,
+          Constants.unprocessedBatchesSizeLimitPerSender,
           id,
           from,
           sequenceNumber,
