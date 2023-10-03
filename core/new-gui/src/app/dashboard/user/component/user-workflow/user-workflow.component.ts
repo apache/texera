@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, NgModule, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom } from "rxjs";
@@ -10,10 +10,8 @@ import { NgbdModalAddProjectWorkflowComponent } from "../user-project/user-proje
 import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-project-section/ngbd-modal-remove-project-workflow/ngbd-modal-remove-project-workflow.component";
 import { DashboardEntry } from "../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
-import { UserProjectService } from "../../service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { concatMap, catchError } from "rxjs/operators";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
@@ -80,6 +78,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     this._filters = value;
   }
   private masterFilterList: ReadonlyArray<string> | null = null;
+
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid?: number = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
@@ -87,7 +86,6 @@ export class UserWorkflowComponent implements AfterViewInit {
 
   constructor(
     private userService: UserService,
-    private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
     private modalService: NgbModal,
@@ -96,7 +94,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     private searchService: SearchService
   ) {}
 
-  get zipDownloadButtonEnabled(): boolean {
+  public multiWorkflowsOperationButtonEnabled(): boolean {
     if (this._searchResultsComponent) {
       return this.searchResultsComponent?.entries.filter(i => i.checked).length > 0;
     } else {
@@ -207,39 +205,33 @@ export class UserWorkflowComponent implements AfterViewInit {
       if (!isDefined(this.pid)) {
         // not nested within user project section
         this.workflowPersistService
-          .duplicateWorkflow(entry.workflow.workflow.wid)
+          .duplicateWorkflow([entry.workflow.workflow.wid])
           .pipe(untilDestroyed(this))
           .subscribe({
-            next: duplicatedWorkflowInfo => {
+            next: duplicatedWorkflowsInfo => {
               this.searchResultsComponent.entries = [
-                new DashboardEntry(duplicatedWorkflowInfo),
+                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
-            }, // TODO: fix this with notification component
-            error: (err: unknown) => alert(err),
+            },
+            // @ts-ignore // TODO: fix this with notification component
+            error: (err: unknown) => alert(err.error),
           });
       } else {
         // is nested within project section, also add duplicate workflow to project
         let localPid = this.pid;
         this.workflowPersistService
-          .duplicateWorkflow(entry.workflow.workflow.wid)
-          .pipe(
-            concatMap(duplicatedWorkflowInfo => {
+          .duplicateWorkflow([entry.workflow.workflow.wid], localPid)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: duplicatedWorkflowsInfo => {
               this.searchResultsComponent.entries = [
-                new DashboardEntry(duplicatedWorkflowInfo),
+                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
                 ...this.searchResultsComponent.entries,
               ];
-              return this.userProjectService.addWorkflowToProject(localPid, duplicatedWorkflowInfo.workflow.wid!);
-            }),
-            catchError((err: unknown) => {
-              throw err;
-            }),
-            untilDestroyed(this)
-          )
-          .subscribe({
-            next: () => {},
+            },
             // @ts-ignore // TODO: fix this with notification component
-            error: (err: unknown) => alert(err.error),
+            error: (err: unknown) => alert(err),
           });
       }
     }
@@ -257,7 +249,7 @@ export class UserWorkflowComponent implements AfterViewInit {
       return;
     }
     this.workflowPersistService
-      .deleteWorkflow(entry.workflow.workflow.wid)
+      .deleteWorkflow([entry.workflow.workflow.wid])
       .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(
@@ -375,6 +367,82 @@ export class UserWorkflowComponent implements AfterViewInit {
       for (const entry of checkedEntries) {
         entry.checked = false;
       }
+    }
+  }
+
+  public onClickDuplicateSelectedWorkflows(): void {
+    const checkedEntries = this.searchResultsComponent.entries.filter(i => i.checked);
+    let targetWids: number[] = [];
+
+    for (const entry of checkedEntries) {
+      const wid = entry.workflow.workflow.wid;
+      if (wid) {
+        targetWids.push(wid);
+      } else {
+        return;
+      }
+    }
+
+    if (targetWids.length > 0) {
+      if (!isDefined(this.pid)) {
+        this.workflowPersistService
+          .duplicateWorkflow(targetWids)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: duplicatedWorkflowsInfo => {
+              this.searchResultsComponent.entries = [
+                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
+                ...this.searchResultsComponent.entries,
+              ];
+            }, // TODO: fix this with notification component
+            error: (err: unknown) => alert(err),
+          });
+      } else {
+        const localPid = this.pid;
+        this.workflowPersistService
+          .duplicateWorkflow(targetWids, localPid)
+          .pipe(untilDestroyed(this))
+          .subscribe({
+            next: duplicatedWorkflowsInfo => {
+              this.searchResultsComponent.entries = [
+                ...duplicatedWorkflowsInfo.map(duplicatedWorkflowInfo => new DashboardEntry(duplicatedWorkflowInfo)),
+                ...this.searchResultsComponent.entries,
+              ];
+            }, // TODO: fix this with notification component
+            error: (err: unknown) => alert(err),
+          });
+      }
+    }
+  }
+
+  public handleConfirmDeleteSelectedWorkflows(): void {
+    const checkedEntries = this.searchResultsComponent.entries.filter(i => i.checked);
+    let targetWids: number[] = [];
+
+    for (const entry of checkedEntries) {
+      const wid = entry.workflow.workflow.wid;
+      if (wid) {
+        targetWids.push(wid);
+      } else {
+        return;
+      }
+    }
+
+    if (targetWids.length > 0) {
+      this.workflowPersistService
+        .deleteWorkflow(targetWids)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: _ => {
+            this.searchResultsComponent.entries = this.searchResultsComponent.entries.filter(workflowEntry => {
+              let entryWid = workflowEntry.workflow.workflow.wid;
+              // Check if wid is defined and if it's not included in targetWids
+              return entryWid === undefined || !targetWids.includes(entryWid);
+            });
+          },
+          // TODO: fix this with notification component
+          error: (err: unknown) => alert(err),
+        });
     }
   }
 

@@ -6,10 +6,12 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowDao,
+  WorkflowOfProjectDao,
   WorkflowOfUserDao,
   WorkflowUserAccessDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
 import org.jooq.{Condition, TableField}
@@ -25,6 +27,8 @@ import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.collection.mutable.ListBuffer
+import scala.util.control.NonFatal
 
 /**
   * This file handles various request related to saved-workflows.
@@ -41,6 +45,7 @@ object WorkflowResource {
   final private lazy val workflowUserAccessDao = new WorkflowUserAccessDao(
     context.configuration()
   )
+  final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
 
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
     workflowDao.insert(workflow)
@@ -62,6 +67,14 @@ object WorkflowResource {
     )
   }
 
+  private def workflowOfProjectExists(wid: UInteger, pid: UInteger): Boolean = {
+    workflowOfProjectDao.existsById(
+      context
+        .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
+        .values(wid, pid)
+    )
+  }
+
   case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,
@@ -79,6 +92,8 @@ object WorkflowResource {
       lastModifiedTime: Timestamp,
       readonly: Boolean
   )
+
+  case class WorkflowIDs(wids: List[UInteger], pid: Option[UInteger])
 
   def createWorkflowFilterCondition(
       creationStartDate: String,
@@ -462,31 +477,61 @@ class WorkflowResource {
   @Consumes(Array(MediaType.APPLICATION_JSON))
   @Path("/duplicate")
   def duplicateWorkflow(
-      workflow: Workflow,
+      workflowIDs: WorkflowIDs,
       @Auth sessionUser: SessionUser
-  ): DashboardWorkflow = {
-    val wid = workflow.getWid
-    val user = sessionUser.getUser
-    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
-      throw new ForbiddenException("No sufficient access privilege.")
-    } else {
-      val workflow: Workflow = workflowDao.fetchOneByWid(wid)
-      workflow.getContent
-      workflow.getName
-      createWorkflow(
-        new Workflow(
-          workflow.getName + "_copy",
-          workflow.getDescription,
-          null,
-          workflow.getContent,
-          null,
-          null
-        ),
-        sessionUser
-      )
+  ): List[DashboardWorkflow] = {
 
+    val user = sessionUser.getUser
+    // do the permission check first
+    for (wid <- workflowIDs.wids) {
+      if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+        throw new ForbiddenException("No sufficient access privilege.")
+      }
     }
 
+    val resultWorkflows: ListBuffer[DashboardWorkflow] = ListBuffer()
+    val addToProject = workflowIDs.pid.nonEmpty;
+    // then start a transaction and do the duplication
+    try {
+      context.transaction { _ =>
+        for (wid <- workflowIDs.wids) {
+          val workflow: Workflow = workflowDao.fetchOneByWid(wid)
+          workflow.getContent
+          workflow.getName
+          val newWorkflow = createWorkflow(
+            new Workflow(
+              workflow.getName + "_copy",
+              workflow.getDescription,
+              null,
+              workflow.getContent,
+              null,
+              null
+            ),
+            sessionUser
+          )
+          // if workflows also need to be added to the project
+          if (addToProject) {
+            val newWid = newWorkflow.workflow.getWid
+            if (!hasReadAccess(newWid, user.getUid)) {
+              throw new ForbiddenException("No sufficient access privilege to workflow.")
+            }
+            val pid = workflowIDs.pid.get
+            if (!workflowOfProjectExists(newWid, pid)) {
+              workflowOfProjectDao.insert(new WorkflowOfProject(newWid, pid))
+            } else {
+              throw new BadRequestException("Workflow already exists in the project")
+            }
+          }
+
+          resultWorkflows += newWorkflow
+        }
+      }
+    } catch {
+      case _: BadRequestException | _: ForbiddenException =>
+      case NonFatal(exception) =>
+        throw new WebApplicationException(exception)
+    }
+    resultWorkflows.toList
   }
 
   /**
@@ -522,14 +567,24 @@ class WorkflowResource {
     *
     * @return Response, deleted - 200, not exists - 400
     */
-  @DELETE
-  @Path("/{wid}")
-  def deleteWorkflow(@PathParam("wid") wid: UInteger, @Auth sessionUser: SessionUser): Unit = {
+  @POST
+  @Path("/delete")
+  def deleteWorkflow(workflowIDs: WorkflowIDs, @Auth sessionUser: SessionUser): Unit = {
     val user = sessionUser.getUser
-    if (workflowOfUserExists(wid, user.getUid)) {
-      workflowDao.deleteById(wid)
-    } else {
-      throw new BadRequestException("The workflow does not exist.")
+    try {
+      context.transaction { _ =>
+        for (wid <- workflowIDs.wids) {
+          if (workflowOfUserExists(wid, user.getUid)) {
+            workflowDao.deleteById(wid)
+          } else {
+            throw new BadRequestException("The workflow does not exist.")
+          }
+        }
+      }
+    } catch {
+      case _: BadRequestException =>
+      case NonFatal(exception) =>
+        throw new WebApplicationException(exception)
     }
   }
 
