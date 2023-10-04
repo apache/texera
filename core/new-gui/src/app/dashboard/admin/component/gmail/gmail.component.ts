@@ -43,8 +43,8 @@ export class GmailComponent implements OnInit {
       .subscribe({
         next: email => (this.email = email),
         error: (err: unknown) => {
-          this.email = undefined
-          console.log(err)
+          this.email = undefined;
+          console.log(err);
         },
       });
   }
