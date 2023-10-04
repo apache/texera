@@ -72,7 +72,13 @@ export class ShareAccessComponent implements OnInit {
           this.ngOnInit();
           this.gmailService.sendEmail(
             "Texera: " + this.owner + " shared a " + this.type + " with you",
-            this.owner + " shared a " + this.type + " with you, access the workflow at " + location.origin + "/workflow/" + this.id
+            this.owner +
+              " shared a " +
+              this.type +
+              " with you, access the workflow at " +
+              location.origin +
+              "/workflow/" +
+              this.id
           );
         });
     }

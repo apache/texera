@@ -34,18 +34,14 @@ class GmailResource {
   final private lazy val clientSecret =
     AmberUtils.amberConfig.getString("user-sys.google.clientSecret")
 
-  @GET
-  @RolesAllowed(Array("ADMIN"))
-  @Path("/email")
-  def getEmail: String = {
-    new String(Files.readAllBytes(path.resolve("senderEmail")))
-  }
-
+  /**
+    * Use the authorization code to get the refresh token and save it to the file.
+    */
   @POST
   @RolesAllowed(Array("ADMIN"))
-  @Path("/auth")
+  @Path("/sender/auth")
   def saveRefreshToken(code: String): Unit = {
-    this.deleteEmail()
+    this.revokeAuth()
     val token = new GoogleAuthorizationCodeTokenRequest(
       new NetHttpTransport(),
       new GsonFactory(),
@@ -72,15 +68,31 @@ class GmailResource {
     )
   }
 
+  /**
+    * Delete all the files related to the sender.
+    */
   @DELETE
   @RolesAllowed(Array("ADMIN"))
-  @Path("/revoke")
-  def deleteEmail(): Unit = {
+  @Path("/sender/revoke")
+  def revokeAuth(): Unit = {
     if (Files.exists(path.resolve("senderEmail"))) Files.delete(path.resolve("senderEmail"))
     if (Files.exists(path.resolve("refreshToken"))) Files.delete(path.resolve("refreshToken"))
     if (Files.exists(path.resolve("accessToken"))) Files.delete(path.resolve("accessToken"))
   }
 
+  /**
+    * Get the sender email.
+    */
+  @GET
+  @RolesAllowed(Array("ADMIN"))
+  @Path("/sender/email")
+  def getSenderEmail: String = {
+    new String(Files.readAllBytes(path.resolve("senderEmail")))
+  }
+
+  /**
+    * Send an email to the user.
+    */
   @PUT
   @RolesAllowed(Array("REGULAR", "ADMIN"))
   @Path("/send")

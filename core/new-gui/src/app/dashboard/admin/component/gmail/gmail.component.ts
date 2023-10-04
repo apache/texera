@@ -14,44 +14,46 @@ export class GmailComponent implements OnInit {
   public email: String | undefined;
   constructor(private gmailAuthService: GmailService, private formBuilder: FormBuilder) {}
 
-  sendEmail(): void {
-    this.gmailAuthService.sendEmail(
-      this.validateForm.value.subject,
-      this.validateForm.value.content,
-      this.validateForm.value.email
-    );
-    this.isVisible = true;
-  }
-
   ngOnInit(): void {
     this.validateForm = this.formBuilder.group({
       email: [null, [Validators.email, Validators.required]],
       subject: [null, [Validators.required]],
       content: [null, [Validators.required]],
     });
-    this.gmailAuthService.auth();
-    this.getEmail();
-  }
-
-  getEmail() {
-    this.gmailAuthService
-      .getEmail()
-      .pipe(untilDestroyed(this))
-      .subscribe({
-        next: email => (this.email = email),
-        error: (err: unknown) => (this.email = undefined),
-      });
+    this.gmailAuthService.authSender();
+    this.getSenderEmail();
   }
 
   public auth() {
     this.gmailAuthService.client.requestCode();
-    this.gmailAuthService.googleCredentialResponse.pipe(untilDestroyed(this)).subscribe(() => this.getEmail());
+    this.gmailAuthService.googleCredentialResponse.pipe(untilDestroyed(this)).subscribe(() => this.getSenderEmail());
   }
 
-  public revoke() {
+  public revokeAuth() {
     this.gmailAuthService
-      .deleteEmail()
+      .revokeAuth()
       .pipe(untilDestroyed(this))
-      .subscribe(() => this.getEmail());
+      .subscribe(() => this.getSenderEmail());
+  }
+
+  getSenderEmail() {
+    this.gmailAuthService
+      .getSenderEmail()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: email => (this.email = email),
+        error: (err: unknown) => {
+          this.email = undefined
+          console.log(err)
+        },
+      });
+  }
+  sendTestEmail(): void {
+    this.gmailAuthService.sendEmail(
+      this.validateForm.value.subject,
+      this.validateForm.value.content,
+      this.validateForm.value.email
+    );
+    this.isVisible = true;
   }
 }
