@@ -38,7 +38,7 @@ class GmailResource {
   @RolesAllowed(Array("ADMIN"))
   @Path("/email")
   def getEmail: String = {
-    new String(Files.readAllBytes(path.resolve("userEmail")))
+    new String(Files.readAllBytes(path.resolve("senderEmail")))
   }
 
   @POST
@@ -61,7 +61,7 @@ class GmailResource {
     )
 
     Files.write(
-      path.resolve("userEmail"),
+      path.resolve("senderEmail"),
       new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)
         .setAudience(Collections.singletonList(clientId))
         .build()
@@ -76,7 +76,7 @@ class GmailResource {
   @RolesAllowed(Array("ADMIN"))
   @Path("/revoke")
   def deleteEmail(): Unit = {
-    if (Files.exists(path.resolve("userEmail"))) Files.delete(path.resolve("userEmail"))
+    if (Files.exists(path.resolve("senderEmail"))) Files.delete(path.resolve("senderEmail"))
     if (Files.exists(path.resolve("refreshToken"))) Files.delete(path.resolve("refreshToken"))
     if (Files.exists(path.resolve("accessToken"))) Files.delete(path.resolve("accessToken"))
   }
