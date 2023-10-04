@@ -1,8 +1,8 @@
-::ng-deep .ant-modal-content {
-  /* Set a minimum width and height for the modal */
-  min-width: 300px;
-  min-height: 200px;
-  /* Enable resizing behavior */
-  resize: both;
-  overflow: auto;
+::ng-deep .cdk-overlay-pane {
+  /* Target the modal content */
+  .ant-modal-content {
+    /* Enable resizing behavior */
+    resize: both;
+    overflow: auto;
+  }
 }
