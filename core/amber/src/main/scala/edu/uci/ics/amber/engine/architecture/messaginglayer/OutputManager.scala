@@ -61,6 +61,7 @@ object OutputManager {
       case p: RoundRobinPartitioning        => p.batchSize
       case p: HashBasedShufflePartitioning  => p.batchSize
       case p: RangeBasedShufflePartitioning => p.batchSize
+      case p: BroadcastPartitioning         => p.batchSize
       case _                                => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
   }

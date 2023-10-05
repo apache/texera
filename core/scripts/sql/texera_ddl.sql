@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS workflow
     `name`               VARCHAR(128)                NOT NULL,
 	`description`        VARCHAR(500),
     `wid`                INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `content`            MEDIUMTEXT                  NOT NULL,
+    `content`            LONGTEXT                    NOT NULL,
     `creation_time`      TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `last_modified_time` TIMESTAMP                   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     PRIMARY KEY (`wid`)

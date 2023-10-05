@@ -9,7 +9,10 @@ import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  WorkflowIDs
+}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
@@ -145,12 +148,18 @@ class WorkflowResourceSpec
     // delete all workflows in the database
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser1)
+      workflowResource.deleteWorkflow(
+        WorkflowIDs(List(workflow.workflow.getWid), None),
+        sessionUser1
+      )
     )
 
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser2)
+      workflowResource.deleteWorkflow(
+        WorkflowIDs(List(workflow.workflow.getWid), None),
+        sessionUser2
+      )
     )
 
     // delete all projects in the database
