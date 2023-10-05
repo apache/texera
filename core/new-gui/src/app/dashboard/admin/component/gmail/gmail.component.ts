@@ -10,7 +10,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 })
 export class GmailComponent implements OnInit {
   public validateForm!: FormGroup;
-  isVisible = false;
   public email: String | undefined;
   constructor(private gmailAuthService: GmailService, private formBuilder: FormBuilder) {}
 
@@ -54,6 +53,5 @@ export class GmailComponent implements OnInit {
       this.validateForm.value.content,
       this.validateForm.value.email
     );
-    this.isVisible = true;
   }
 }
