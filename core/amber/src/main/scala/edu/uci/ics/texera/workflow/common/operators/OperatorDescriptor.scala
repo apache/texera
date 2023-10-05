@@ -144,7 +144,7 @@ trait StateTransferFunc
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
-new Type(value = classOf[partsOfSpeechOpDesc], name = "PartsOfSpeech")
+    new Type(value = classOf[partsOfSpeechOpDesc], name = "PartsOfSpeech")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
