@@ -1,0 +1,8 @@
+::ng-deep .cdk-overlay-pane {
+  /* Target the modal content */
+  .ant-modal-content {
+    /* Enable resizing behavior */
+    resize: both;
+    overflow: auto;
+  }
+}
