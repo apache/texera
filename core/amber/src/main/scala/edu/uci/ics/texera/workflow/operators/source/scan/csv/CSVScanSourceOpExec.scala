@@ -58,6 +58,7 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     )
 
     val csvFormat = new CsvFormat()
+    csvFormat.setLineSeparator("\n")
     csvFormat.setDelimiter(desc.customDelimiter.get.charAt(0))
     csvFormat.setComment(
       '\u0000'

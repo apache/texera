@@ -65,7 +65,9 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     val csvFormat = new CsvFormat()
     csvFormat.setDelimiter(customDelimiter.get.charAt(0))
+    csvFormat.setLineSeparator("\n")
     val csvSetting = new CsvParserSettings()
+
     csvSetting.setMaxCharsPerColumn(-1)
     csvSetting.setFormat(csvFormat)
     csvSetting.setHeaderExtractionEnabled(hasHeader)
