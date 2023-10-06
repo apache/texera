@@ -215,7 +215,7 @@ libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
 libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
-libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
 libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.16"
@@ -260,3 +260,6 @@ libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
 // Jgit library for tracking operator version
 // https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+
+// https://mvnrepository.com/artifact/org.ehcache/sizeof
+libraryDependencies += "org.ehcache" % "sizeof" % "0.4.3"
