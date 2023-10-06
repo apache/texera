@@ -15,6 +15,7 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
 
   def getOutputPartition(
       current: LayerIdentity,
+      fromPort: Int,
       input: LayerIdentity,
       inputPort: Int
   ): (LinkStrategy, PartitionInfo) = {
@@ -31,18 +32,25 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
 
     // input partition satisfies the requirement, and number of worker match
     if (inputPart.satisfies(part) && inputLayer.numWorkers == layer.numWorkers) {
-      val linkStrategy = new OneToOne(inputLayer, 0, layer, inputPort, defaultBatchSize)
+      val linkStrategy = new OneToOne(inputLayer, fromPort, layer, inputPort, defaultBatchSize)
       val outputPart = inputPart
       (linkStrategy, outputPart)
     } else {
       // we must re-distribute the input partitions
       val linkStrategy = part match {
         case HashPartition(hashColumnIndices) =>
-          new HashBasedShuffle(inputLayer, 0, layer, inputPort, defaultBatchSize, hashColumnIndices)
+          new HashBasedShuffle(
+            inputLayer,
+            fromPort,
+            layer,
+            inputPort,
+            defaultBatchSize,
+            hashColumnIndices
+          )
         case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
           new RangeBasedShuffle(
             inputLayer,
-            0,
+            fromPort,
             layer,
             inputPort,
             defaultBatchSize,
@@ -51,11 +59,11 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
             rangeMax
           )
         case SinglePartition() =>
-          new AllToOne(inputLayer, 0, layer, inputPort, defaultBatchSize)
+          new AllToOne(inputLayer, fromPort, layer, inputPort, defaultBatchSize)
         case BroadcastPartition() =>
-          new AllBroadcast(inputLayer, 0, layer, inputPort, defaultBatchSize)
+          new AllBroadcast(inputLayer, fromPort, layer, inputPort, defaultBatchSize)
         case UnknownPartition() =>
-          new FullRoundRobin(inputLayer, 0, layer, inputPort, defaultBatchSize)
+          new FullRoundRobin(inputLayer, fromPort, layer, inputPort, defaultBatchSize)
       }
       val outputPart = part
       (linkStrategy, outputPart)
@@ -68,7 +76,6 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
       .topologicalIterator()
       .foreach(layerId => {
         val layer = physicalPlan.getLayer(layerId)
-
         if (physicalPlan.sourceOperators.contains(layerId)) {
           // get output partition info of the source operator
           val outPart = layer.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
@@ -83,10 +90,12 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
             // the output partition info of each link connected from each input layer
             val outputPartitionsOfLayer = new ArrayBuffer[PartitionInfo]()
 
+            val fromPort = physicalPlan.getUpstreamLinks(layerId).head.fromPort
             // for each input layer connected on this port
             // check partition requirement to enforce corresponding LinkStrategy
             inputLayers.foreach(inputLayer => {
-              val (linkStrategy, outputPart) = getOutputPartition(layerId, inputLayer, port)
+              val (linkStrategy, outputPart) =
+                getOutputPartition(layerId, fromPort, inputLayer, port)
               linkMapping.put(linkStrategy.id, linkStrategy)
               outputPartitionsOfLayer.append(outputPart)
             })
