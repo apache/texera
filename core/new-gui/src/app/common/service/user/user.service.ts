@@ -67,10 +67,10 @@ export class UserService {
    */
   private changeUser(user: User | undefined): void {
     if (user) {
-      const r = Math.floor(Math.random() * 155);
-      const g = Math.floor(Math.random() * 155);
-      const b = Math.floor(Math.random() * 155);
-      this.currentUser = { ...user, color: "rgba(" + r + "," + g + "," + b + ",0.8)" };
+      const hue = Math.floor(Math.random() * 360); // Hue (0-360)
+      const sat = Math.floor(60 + Math.random() * 20); // Saturation (60%-80%)
+      const light = 50; // Lightness (50%)
+      this.currentUser = { ...user, color: `hsl(${hue}, ${sat}%, ${light}%)` };
     } else {
       this.currentUser = user;
     }
