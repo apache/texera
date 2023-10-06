@@ -58,11 +58,15 @@ import edu.uci.ics.texera.workflow.operators.visualization.timeseries.TimeSeries
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{
+  WordCloudOpDesc,
+  WordCloudV2OpDesc
+}
 import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.HierarchyChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.DumbbellPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -107,6 +111,7 @@ trait StateTransferFunc
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
+    new Type(value = classOf[WordCloudV2OpDesc], name = "WordCloudV2"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[UrlVizOpDesc], name = "URLVisualizer"),
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),
@@ -144,7 +149,8 @@ trait StateTransferFunc
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
-    new Type(value = classOf[partsOfSpeechOpDesc], name = "PartsOfSpeech")
+    new Type(value = classOf[partsOfSpeechOpDesc], name = "PartsOfSpeech"),
+    new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
@@ -191,7 +197,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)
 
-  override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that)
+  override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that, "context")
 
   override def toString: String = ToStringBuilder.reflectionToString(this)
 
