@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
@@ -16,7 +17,8 @@ import java.sql.Timestamp
   */
 object ExecutionsMetadataPersistService extends LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
-
+  private final val userSystemEnabled: Boolean =
+    AmberUtils.amberConfig.getBoolean("user-sys.enabled")
   private val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
@@ -57,6 +59,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       executionName: String,
       environmentVersion: String
   ): Long = {
+    if (!userSystemEnabled) return -1
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(wid)
     val newExecution = new WorkflowExecutions()
@@ -72,6 +75,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {
+    if (!userSystemEnabled) return
     try {
       val code = maptoStatusCode(state)
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
@@ -85,6 +89,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def tryUpdateExecutionStatusAndPointers(eid: Long, state: WorkflowAggregatedState): Unit = {
+    if (!userSystemEnabled) return
     try {
       val code = maptoStatusCode(state)
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
@@ -98,6 +103,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def updateExistingExecutionVolumnPointers(eid: Long, pointers: String): Unit = {
+    if (!userSystemEnabled) return
     try {
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
       execution.setResult(pointers)
