@@ -22,7 +22,6 @@ import play.api.libs.json.Json
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
-  final val userSystemEnabled: Boolean = AmberUtils.amberConfig.getBoolean("user-sys.enabled")
   val cleanUpDeadlineInSeconds: Int =
     AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
 
@@ -150,19 +149,15 @@ class WorkflowService(
     }
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
 
-    if (WorkflowService.userSystemEnabled) {
-      workflowContext.executionID = -1 // for every new execution,
-      // reset it so that the value doesn't carry over across executions
-      workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
-        workflowContext.wId,
-        workflowContext.userId,
-        req.executionName,
-        convertToJson(req.engineVersion)
-      )
-    }
+    workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
+      workflowContext.wId,
+      workflowContext.userId,
+      req.executionName,
+      convertToJson(req.engineVersion)
+    )
 
     val job = new WorkflowJobService(
-      createWorkflowContext(uidOpt),
+      workflowContext,
       wsInput,
       resultService,
       req,
