@@ -1,8 +1,7 @@
-package edu.uci.ics.texera.workflow.operators.visualization.BoxPlot
+package edu.uci.ics.texera.workflow.operators.visualization.boxPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-//import com.twitter.util.Config.intoList
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -40,7 +39,7 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("the Column of which you want to see the boxplot")
+  @JsonPropertyDescription("Data Column for Boxplot")
   @AutofillAttributeName
   var value: String = ""
 
@@ -51,7 +50,7 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Box plot",
-      "Visualize data in a Box Plot",
+      "Visualize data in a Box Plot. Boxplots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”).",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())

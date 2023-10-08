@@ -58,7 +58,7 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 }
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.BoxPlot.BoxPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
