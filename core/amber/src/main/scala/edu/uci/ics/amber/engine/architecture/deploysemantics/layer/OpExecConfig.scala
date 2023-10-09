@@ -98,8 +98,8 @@ case class OpExecConfig(
     // function to create an operator executor instance
     // parameters: 1: worker index, 2: this worker layer object
     initIOperatorExecutor: OpExecFunc,
-    // preference of parallelism (number of workers)
-    numWorkers: Int = Constants.numWorkerPerNode,
+    // preference of parallelism (total number of workers)
+    numWorkers: Int = Constants.currentWorkerNum,
     // preference of worker placement
     locationPreference: Option[LocationPreference] = None,
     // requirement of partition policy (hash/range/single/none) on inputs
