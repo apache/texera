@@ -18,6 +18,7 @@ import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.download.BulkDownloaderOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
+import edu.uci.ics.texera.workflow.operators.ifstatement.IfStatementOpDesc
 import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
 import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
@@ -142,6 +143,7 @@ trait StateTransferFunc
     new Type(value = classOf[IntervalJoinOpDesc], name = "IntervalJoin"),
     new Type(value = classOf[UnnestStringOpDesc], name = "UnnestString"),
     new Type(value = classOf[DictionaryMatcherOpDesc], name = "DictionaryMatcher"),
+    new Type(value = classOf[IfStatementOpDesc], name = "IfStatement"),
     new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions"),
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
