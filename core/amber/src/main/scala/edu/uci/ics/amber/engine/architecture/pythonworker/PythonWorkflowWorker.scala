@@ -72,7 +72,7 @@ class PythonWorkflowWorker(
 
   // TODO: Implement credit calculation logic in python worker
   override def getSenderCredits(sender: ActorVirtualIdentity) = {
-    Constants.unprocessedBatchesSizeLimitPerSender
+    pythonProxyClient.getSenderCredits(sender)
   }
 
   override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
@@ -86,9 +86,7 @@ class PythonWorkflowWorker(
     controlPayload match {
       case ControlInvocation(_, c) =>
         // TODO: Implement backpressure message handling for python worker
-        if (!c.isInstanceOf[Backpressure]) {
-          pythonProxyClient.enqueueCommand(controlPayload, from)
-        }
+        pythonProxyClient.enqueueCommand(controlPayload, from)
       case ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>

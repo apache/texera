@@ -1,9 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, ControlPayloadV2, DataPayload}
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, ControlPayloadV2, DataFrame, DataPayload}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
+
+import scala.collection.mutable
 object WorkerBatchInternalQueue {
   final val DATA_QUEUE = 1
   final val CONTROL_QUEUE = 0
@@ -35,8 +38,26 @@ trait WorkerBatchInternalQueue {
 
   private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
 
+  // the values in below maps are in batches
+  private var inputTuplesPutInQueue =
+    new mutable.HashMap[ActorVirtualIdentity, Long]() // read and written by main thread
+  @volatile private var inputTuplesTakenOutOfQueue =
+    new mutable.HashMap[ActorVirtualIdentity, Long]() // written by DP thread, read by main thread
+
   def enqueueData(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
+    elem match {
+      case DataElement(dataPayload, from) =>
+        dataPayload match {
+          case frame: DataFrame =>
+            inputTuplesPutInQueue(from) =
+              inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + frame.inMemSize
+          case _ =>
+          // do nothing
+        }
+      case _ =>
+      // do nothing
+    }
   }
   def enqueueMarker(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
@@ -49,7 +70,22 @@ trait WorkerBatchInternalQueue {
     controlQueue.add(ControlElementV2(cmd, from))
   }
 
-  def getElement: InternalQueueElement = lbmq.take()
+  def getElement: InternalQueueElement = {
+    val elem = lbmq.take()
+    elem match {
+      case DataElement(dataPayload, from) =>
+        dataPayload match {
+          case frame: DataFrame =>
+            inputTuplesTakenOutOfQueue(from) =
+              inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + frame.inMemSize
+          case _ =>
+          // do nothing
+        }
+      case _ =>
+      // do nothing
+    }
+    elem
+  }
 
   def disableDataQueue(): Unit = dataQueue.enable(false)
 
@@ -60,5 +96,18 @@ trait WorkerBatchInternalQueue {
   def getControlQueueLength: Int = controlQueue.size()
 
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
+
+  def getSenderCredits(sender: ActorVirtualIdentity): Int = {
+    println("python credit: " + (Constants.unprocessedBatchesSizeLimitPerSender - (inputTuplesPutInQueue
+      .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
+      sender,
+      0L
+    )).toInt))
+    (Constants.unprocessedBatchesSizeLimitPerSender - (inputTuplesPutInQueue
+      .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
+      sender,
+      0L
+    )).toInt)
+  }
 
 }
