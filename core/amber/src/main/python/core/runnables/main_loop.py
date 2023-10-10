@@ -310,7 +310,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             WorkerState.RUNNING, WorkerState.READY
         ):
             self.context.pause_manager.pause(PauseType.USER_PAUSE)
-            self._input_queue.disable_data()
             self.context.state_manager.transit_to(WorkerState.PAUSED)
 
     def _resume_dp(self) -> None:
@@ -319,8 +318,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
             self.context.pause_manager.resume(PauseType.USER_PAUSE)
-            if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_data()
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
     def _send_console_message(self, console_message: PythonConsoleMessageV2):
