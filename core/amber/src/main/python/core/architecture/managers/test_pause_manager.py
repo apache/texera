@@ -15,21 +15,21 @@ class TestPauseManager:
         assert not pause_manager.is_paused()
 
     def test_it_can_be_paused_and_resumed(self, pause_manager):
-        pause_manager.record_request(PauseType.USER_PAUSE, True)
+        pause_manager.pause(PauseType.USER_PAUSE)
         assert pause_manager.is_paused()
-        pause_manager.record_request(PauseType.USER_PAUSE, False)
+        pause_manager.resume(PauseType.USER_PAUSE)
         assert not pause_manager.is_paused()
 
     def test_it_can_be_paused_when_paused(self, pause_manager):
-        pause_manager.record_request(PauseType.USER_PAUSE, True)
+        pause_manager.pause(PauseType.USER_PAUSE)
         assert pause_manager.is_paused()
-        pause_manager.record_request(PauseType.USER_PAUSE, True)
+        pause_manager.pause(PauseType.USER_PAUSE)
         assert pause_manager.is_paused()
 
     def test_it_can_be_resumed_when_resumed(self, pause_manager):
-        pause_manager.record_request(PauseType.USER_PAUSE, True)
+        pause_manager.pause(PauseType.USER_PAUSE)
         assert pause_manager.is_paused()
-        pause_manager.record_request(PauseType.USER_PAUSE, False)
+        pause_manager.resume(PauseType.USER_PAUSE)
         assert not pause_manager.is_paused()
-        pause_manager.record_request(PauseType.USER_PAUSE, False)
+        pause_manager.resume(PauseType.USER_PAUSE)
         assert not pause_manager.is_paused()
