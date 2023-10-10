@@ -25,7 +25,7 @@ import javax.mail.Session
 import javax.mail.internet.{InternetAddress, MimeMessage}
 import javax.ws.rs._
 
-case class EmailMessage(email: String, subject: String, content: String)
+case class EmailMessage(receiver: String, subject: String, content: String)
 @Path("/gmail")
 class GmailResource {
   final private lazy val path =
@@ -121,7 +121,7 @@ class GmailResource {
     email.setFrom(new InternetAddress("me"))
     email.addRecipient(
       javax.mail.Message.RecipientType.TO,
-      new InternetAddress(if (emailMessage.email == "") user.getEmail else emailMessage.email)
+      new InternetAddress(if (emailMessage.receiver == "") user.getEmail else emailMessage.receiver)
     )
     email.setSubject(emailMessage.subject)
     email.setText(emailMessage.content)
