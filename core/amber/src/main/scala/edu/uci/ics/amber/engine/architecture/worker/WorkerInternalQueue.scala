@@ -69,8 +69,7 @@ class WorkerInternalQueue(
   def getSenderCredits(sender: ActorVirtualIdentity): Int = {
     val inBytes = inQueueSizeMapping.getOrElseUpdate(sender, 0L)
     val outBytes = outQueueSizeMapping.getOrElseUpdate(sender, 0L)
-    println(sender + " has inBytes: "+inBytes + " outBytes: "+outBytes+ ", total available credit: "+ (Constants.unprocessedBatchesSizeLimitPerSender - (inBytes - outBytes)))
-      (Constants.unprocessedBatchesSizeLimitPerSender - (inBytes - outBytes)).toInt
+    (Constants.unprocessedBatchesSizeLimitPerSender - (inBytes - outBytes)).toInt
   }
 
   def appendElement(elem: InternalQueueElement): Unit = {
@@ -141,7 +140,7 @@ class WorkerInternalQueue(
   def isControlQueueNonEmptyOrPaused: Boolean = {
     if (recoveryQueue.isReplayCompleted) {
       determinantLogger.stepIncrement()
-      !controlQueue.isEmpty || pauseManager.isPaused()
+      !controlQueue.isEmpty || pauseManager.isPaused
     } else {
       recoveryQueue.isReadyToEmitNextControl
     }

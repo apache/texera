@@ -70,7 +70,7 @@ class PythonWorkflowWorker(
 
   // TODO: Implement credit calculation logic in python worker
   override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    internalQueue.getSenderCredits(sender)
+    pythonProxyClient.getSenderCredits(sender)
   }
 
   override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {

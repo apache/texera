@@ -38,7 +38,7 @@ class PauseManager:
 
     def resume(self, pause_type) -> None:
         self._global_pauses.remove(pause_type)
-        del self._specific_input_pauses[pause_type]
+        # del self._specific_input_pauses[pause_type]
 
         # still globally paused no action, don't need to resume anything
         if self._global_pauses:
