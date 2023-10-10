@@ -8,7 +8,6 @@ class BackpressureHandler(Handler):
     cmd = BackpressureV2
 
     def __call__(self, context: Context, command: BackpressureV2, *args, **kwargs):
-        print("I receive:", command)
         if command.enable_backpressure:
             context.main_loop._pause_dp()
         else:

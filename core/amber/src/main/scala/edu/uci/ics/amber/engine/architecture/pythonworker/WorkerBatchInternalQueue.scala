@@ -38,26 +38,8 @@ trait WorkerBatchInternalQueue {
 
   private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
 
-  // the values in below maps are in batches
-  private var inputTuplesPutInQueue =
-    new mutable.HashMap[ActorVirtualIdentity, Long]() // read and written by main thread
-  @volatile private var inputTuplesTakenOutOfQueue =
-    new mutable.HashMap[ActorVirtualIdentity, Long]() // written by DP thread, read by main thread
-
   def enqueueData(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
-    elem match {
-      case DataElement(dataPayload, from) =>
-        dataPayload match {
-          case frame: DataFrame =>
-            inputTuplesPutInQueue(from) =
-              inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + frame.inMemSize
-          case _ =>
-          // do nothing
-        }
-      case _ =>
-      // do nothing
-    }
   }
   def enqueueMarker(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
@@ -71,20 +53,7 @@ trait WorkerBatchInternalQueue {
   }
 
   def getElement: InternalQueueElement = {
-    val elem = lbmq.take()
-    elem match {
-      case DataElement(dataPayload, from) =>
-        dataPayload match {
-          case frame: DataFrame =>
-            inputTuplesTakenOutOfQueue(from) =
-              inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + frame.inMemSize
-          case _ =>
-          // do nothing
-        }
-      case _ =>
-      // do nothing
-    }
-    elem
+    lbmq.take()
   }
 
   def disableDataQueue(): Unit = dataQueue.enable(false)
@@ -96,18 +65,5 @@ trait WorkerBatchInternalQueue {
   def getControlQueueLength: Int = controlQueue.size()
 
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
-
-  def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    println("python credit: " + (Constants.unprocessedBatchesSizeLimitPerSender - (inputTuplesPutInQueue
-      .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
-      sender,
-      0L
-    )).toInt))
-    (Constants.unprocessedBatchesSizeLimitPerSender - (inputTuplesPutInQueue
-      .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
-      sender,
-      0L
-    )).toInt)
-  }
 
 }

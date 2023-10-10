@@ -35,7 +35,7 @@ public class SentimentAnalysisOpExec extends MapOpExec {
 
     public Tuple processTuple(Tuple t) {
         try {
-            Thread.sleep(200);
+            Thread.sleep(100);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
