@@ -129,12 +129,15 @@ import { UserFileListItemComponent } from "./dashboard/user/component/user-file/
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
+import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
+import { NzAlertModule } from "ng-zorro-antd/alert";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    GmailComponent,
     PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
@@ -268,6 +271,7 @@ registerLocaleData(en);
     NzLayoutModule,
     MarkdownModule.forRoot(),
     DragDropModule,
+    NzAlertModule,
   ],
   providers: [
     AuthGuardService,

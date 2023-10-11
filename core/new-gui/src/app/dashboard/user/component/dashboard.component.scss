@@ -20,10 +20,16 @@ button {
 }
 
 .ant-menu-item {
-  height: 80px;
+  height: 60px;
 }
 
 .submenu,
 .ant-menu-item span {
-  font-size: 20px;
+  font-size: 18px;
+}
+
+.ant-menu {
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 70px - 48px);
 }

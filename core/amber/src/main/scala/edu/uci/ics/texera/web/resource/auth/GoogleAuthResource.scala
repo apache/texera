@@ -25,7 +25,7 @@ object GoogleAuthResource {
 
 @Path("/auth/google")
 class GoogleAuthResource {
-  final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.googleClientId")
+  final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.google.clientId")
   @GET
   @Path("/clientid")
   def getClientId: String = {
