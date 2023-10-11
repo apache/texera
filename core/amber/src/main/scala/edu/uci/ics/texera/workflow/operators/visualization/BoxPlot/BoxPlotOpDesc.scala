@@ -43,6 +43,18 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   @AutofillAttributeName
   var value: String = ""
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Horizontal Orientation")
+  @JsonPropertyDescription("Orientation Style")
+  var orientation: Boolean = _
+
+  @JsonProperty(
+    value = "Quertile Method",
+    required = true,
+    defaultValue = VisualizationConstants.LINEAR_BOXPLOT
+  )
+  var boxPlotEnum: BoxPlotEnum = _
+
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
   }
@@ -68,9 +80,16 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
+    var truthy = ""
+    if (orientation) truthy = "True"
     s"""
+       |        if($truthy):
+       |            fig = px.box(table, x='$value',boxmode="overlay", points='all')
+       |        else:
+       |            fig = px.box(table, y='$value',boxmode="overlay", points='all')
+       |        fig.update_traces(quartilemethod="${boxPlotEnum.getQuertiletype}", jitter=0, col=1)
        |
-       |        fig = px.box(table, y='$value',points="all")
+       |
        |
        |""".stripMargin
   }
