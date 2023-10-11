@@ -79,7 +79,7 @@ export class ShareAccessComponent implements OnInit {
               location.origin +
               "/workflow/" +
               this.id,
-            this.currentEmail
+            this.validateForm.get("email")?.value
           );
         });
     }
