@@ -9,15 +9,15 @@ public enum BoxPlotEnum {
     LINEAR_BOXPLOT(VisualizationConstants.LINEAR_BOXPLOT),
     INCLUSIVE_BOXPLOT(VisualizationConstants.INCLUSIVE_BOXPLOT),
     EXCLUSIVE_BOXPLOT(VisualizationConstants.EXCLUSIVE_BOXPLOT);
-    private final String quertiletype;
+    private final String quartiletype;
 
-    BoxPlotEnum(String quertiletype) {
-        this.quertiletype = quertiletype;
+    BoxPlotEnum(String quartiletype) {
+        this.quartiletype = quartiletype;
     }
 
     @JsonValue
-    public String getQuertiletype() {
-        return this.quertiletype;
+    public String getQuartiletype() {
+        return this.quartiletype;
     }
 
 

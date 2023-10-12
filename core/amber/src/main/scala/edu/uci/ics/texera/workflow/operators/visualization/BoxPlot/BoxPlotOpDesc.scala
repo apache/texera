@@ -49,7 +49,7 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   var orientation: Boolean = _
 
   @JsonProperty(
-    value = "Quertile Method",
+    value = "Quartile Method",
     required = true,
     defaultValue = VisualizationConstants.LINEAR_BOXPLOT
   )
@@ -87,7 +87,7 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
        |            fig = px.box(table, x='$value',boxmode="overlay", points='all')
        |        else:
        |            fig = px.box(table, y='$value',boxmode="overlay", points='all')
-       |        fig.update_traces(quartilemethod="${boxPlotEnum.getQuertiletype}", jitter=0, col=1)
+       |        fig.update_traces(quartilemethod="${boxPlotEnum.getQuartiletype}", jitter=0, col=1)
        |
        |
        |
