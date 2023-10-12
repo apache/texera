@@ -77,7 +77,7 @@ object ControlCommandConvertUtils {
         WorkerDebugCommandV2(cmd)
       case QuerySelfWorkloadMetrics() =>
         QuerySelfWorkloadMetricsV2()
-      case Backpressure(enableBackpressure)=>
+      case Backpressure(enableBackpressure) =>
         BackpressureV2(enableBackpressure)
       case _ =>
         throw new UnsupportedOperationException(

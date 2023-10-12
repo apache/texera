@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, ControlPayloadV2, DataFrame, DataPayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  ControlPayloadV2,
+  DataFrame,
+  DataPayload
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
 
@@ -15,13 +20,13 @@ object WorkerBatchInternalQueue {
   sealed trait InternalQueueElement
 
   case class DataElement(dataPayload: DataPayload, from: ActorVirtualIdentity)
-    extends InternalQueueElement
+      extends InternalQueueElement
 
   case class ControlElement(cmd: ControlPayload, from: ActorVirtualIdentity)
-    extends InternalQueueElement
+      extends InternalQueueElement
 
   case class ControlElementV2(cmd: ControlPayloadV2, from: ActorVirtualIdentity)
-    extends InternalQueueElement
+      extends InternalQueueElement
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should
