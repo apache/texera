@@ -5,6 +5,7 @@ import { ShareAccessService } from "../../service/share-access/share-access.serv
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
+import { GmailService } from "../../../admin/service/gmail.service";
 
 @UntilDestroy()
 @Component({
@@ -30,7 +31,8 @@ export class ShareAccessComponent implements OnInit {
     public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
     private formBuilder: FormBuilder,
-    private userService: UserService
+    private userService: UserService,
+    private gmailService: GmailService
   ) {
     this.currentEmail = this.userService.getCurrentUser()?.email;
   }
@@ -66,7 +68,20 @@ export class ShareAccessComponent implements OnInit {
           this.validateForm.get("accessLevel")?.value
         )
         .pipe(untilDestroyed(this))
-        .subscribe(() => this.ngOnInit());
+        .subscribe(() => {
+          this.ngOnInit();
+          this.gmailService.sendEmail(
+            "Texera: " + this.owner + " shared a " + this.type + " with you",
+            this.owner +
+              " shared a " +
+              this.type +
+              " with you, access the workflow at " +
+              location.origin +
+              "/workflow/" +
+              this.id,
+            this.validateForm.get("email")?.value
+          );
+        });
     }
   }
 
