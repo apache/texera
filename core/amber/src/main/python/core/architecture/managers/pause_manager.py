@@ -31,12 +31,10 @@ class PauseManager:
         self._input_queue.disable_data()
 
     def pause_input_channel(
-        self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
+            self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
     ) -> None:
-        for input in inputs:
-            self._specific_input_pauses[pause_type].add(input)
-            self._input_queue.disable_data()  # for now we do not have specific data
-            # queue for Python side. We disable all and the only data queue.
+        # for now we do not have specific data queue for Python side.
+        raise NotImplementedError()
 
     def resume(self, pause_type) -> None:
         if pause_type in self._global_pauses:
