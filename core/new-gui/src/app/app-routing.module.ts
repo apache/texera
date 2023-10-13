@@ -13,6 +13,7 @@ import { AdminUserComponent } from "./dashboard/admin/component/user/admin-user.
 import { AdminExecutionComponent } from "./dashboard/admin/component/execution/admin-execution.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
+import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 /*
  *  This file defines the url path
  *  The workflow workspace is set as default path
@@ -66,6 +67,11 @@ if (environment.userSystemEnabled) {
       {
         path: "admin/user",
         component: AdminUserComponent,
+        canActivate: [AdminGuardService],
+      },
+      {
+        path: "admin/gmail",
+        component: GmailComponent,
         canActivate: [AdminGuardService],
       },
       {

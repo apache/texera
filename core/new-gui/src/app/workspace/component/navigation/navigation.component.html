@@ -339,14 +339,7 @@
         </button>
       </nz-button-group>
     </div>
-    <div
-      [ngClass]="{
-				'texera-navigation-execute': true,
-				'reveal-stop-button':
-					executionState !== ExecutionState.Uninitialized &&
-					executionState !== ExecutionState.Completed &&
-					executionState !== ExecutionState.Failed
-			}">
+    <div class="texera-navigation-execute">
       <nz-button-group nzSize="large">
         <button
           [disabled]="true"
@@ -358,27 +351,20 @@
         <button
           (click)="undoRedoService.undoAction()"
           [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
-          class="animate-to-reveal-stop-button"
-          nz-button
-          nzType="default">
+          nz-button>
           <i
             nz-icon
-            nzTheme="outline"
             nzType="undo"></i>
         </button>
         <button
           (click)="undoRedoService.redoAction()"
           [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"
-          class="animate-to-reveal-stop-button"
-          nz-button
-          nzType="default">
+          nz-button>
           <i
             nz-icon
-            nzTheme="outline"
             nzType="redo"></i>
         </button>
         <button
-          #runStopButton
           (click)="handleKill()"
           [disabled]="
 						executionState === ExecutionState.Uninitialized ||
@@ -386,14 +372,11 @@
 						executionState === ExecutionState.Killed ||
             executionState === ExecutionState.Failed
 					"
-          class="texera-navigation-stop-button"
           nz-button
           nzDanger
-          nzType="primary"
-          title="Force Stop">
+          nzType="primary">
           <i
             nz-icon
-            nzTheme="outline"
             nzType="exclamation-circle"></i>
         </button>
         <button
@@ -404,13 +387,11 @@
           [nzPopoverContent]="execution_name"
           nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
-          class="texera-navigation-run-button animate-to-reveal-stop-button"
+          class="run-button"
           nz-button
           nzType="primary">
           <i
-            class="texera-navigation-run-button-icon"
             nz-icon
-            nzTheme="outline"
             nzType="{{ runIcon }}"></i>
           <span> {{ runButtonText }} </span>
         </button>
@@ -420,7 +401,7 @@
             placeholder="Untitled Execution"
             [disabled]="!isWorkflowModifiable" />
         </ng-template>
-        <div [ngStyle]="{ 'margin-left': '5px' }">
+        <div style="margin-left: 5px">
           <nz-badge
             nz-tooltip=""
             nzTooltipPlacement="bottom"
