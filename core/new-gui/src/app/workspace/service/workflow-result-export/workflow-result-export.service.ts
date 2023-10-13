@@ -22,7 +22,7 @@ export class WorkflowResultExportService {
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
     private executeWorkflowService: ExecuteWorkflowService,
-    private workflowResultService: WorkflowResultService,
+    private workflowResultService: WorkflowResultService
   ) {
     this.registerResultExportResponseHandler();
     this.registerResultToExportUpdateHandler();

@@ -42,11 +42,11 @@ export class WorkflowResultService {
     return this.hasResult(operatorID) || this.hasPaginatedResult(operatorID);
   }
 
-  public hasResult(operatorID: string):boolean {
+  public hasResult(operatorID: string): boolean {
     return isDefined(this.getResultService(operatorID));
   }
 
-  public hasPaginatedResult(operatorID: string):boolean {
+  public hasPaginatedResult(operatorID: string): boolean {
     return isDefined(this.getPaginatedResultService(operatorID));
   }
 
@@ -153,8 +153,7 @@ export class OperatorResultService {
   private chartType: ChartType | undefined;
   private resultSnapshot: ReadonlyArray<object> | undefined;
 
-  constructor(public operatorID: string) {
-  }
+  constructor(public operatorID: string) {}
 
   public getCurrentResultSnapshot(): ReadonlyArray<object> | undefined {
     return this.resultSnapshot;
@@ -225,7 +224,7 @@ class OperatorPaginationResultService {
         requestID: "",
         operatorID: this.operatorID,
         pageIndex: pageIndex,
-        table: pageCache
+        table: pageCache,
       });
     } else {
       // fetch result data from server
@@ -235,7 +234,7 @@ class OperatorPaginationResultService {
         requestID,
         operatorID,
         pageIndex,
-        pageSize
+        pageSize,
       });
       const pendingRequestSubject = new Subject<PaginatedResultEvent>();
       this.pendingRequests.set(requestID, pendingRequestSubject);
