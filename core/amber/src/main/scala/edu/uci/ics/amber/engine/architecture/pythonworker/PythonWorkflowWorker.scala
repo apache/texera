@@ -82,9 +82,7 @@ class PythonWorkflowWorker(
       controlPayload: ControlPayload
   ): Unit = {
     controlPayload match {
-      case ControlInvocation(_, _) =>
-        pythonProxyClient.enqueueCommand(controlPayload, from)
-      case ReturnInvocation(_, _) =>
+      case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>
         logger.error(s"unhandled control payload: $controlPayload")
