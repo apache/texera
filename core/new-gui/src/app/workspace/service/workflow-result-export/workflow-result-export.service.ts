@@ -75,6 +75,9 @@ export class WorkflowResultExportService {
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()
       .forEach(operatorId => {
+        if (!this.workflowResultService.hasAnyResult(operatorId)) {
+          return;
+        }
         const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
         const operatorName = operator.customDisplayName ?? operator.operatorType;
         this.workflowWebsocketService.send("ResultExportRequest", {
