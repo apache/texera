@@ -22,15 +22,17 @@ class PauseManager:
     def __init__(self, input_queue: InternalQueue):
         self._input_queue: InternalQueue = input_queue
         self._global_pauses: Set[PauseType] = set()
-        self._specific_input_pauses: Dict[PauseType, Set[ActorVirtualIdentity]] = \
-            defaultdict(set)
+        self._specific_input_pauses: Dict[
+            PauseType, Set[ActorVirtualIdentity]
+        ] = defaultdict(set)
 
     def pause(self, pause_type: PauseType) -> None:
         self._global_pauses.add(pause_type)
         self._input_queue.disable_data()
 
-    def pause_input_channel(self, pause_type: PauseType, inputs: List[
-        ActorVirtualIdentity]) -> None:
+    def pause_input_channel(
+        self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
+    ) -> None:
         for input in inputs:
             self._specific_input_pauses[pause_type].add(input)
             self._input_queue.disable_data()  # for now we do not have specific data
