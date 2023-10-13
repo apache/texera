@@ -53,6 +53,7 @@ export class WorkflowResultExportService {
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
+          // only supports exporting paginated results
           .filter(operatorId => this.workflowResultService.hasPaginatedResult(operatorId)).length > 0;
     });
   }
