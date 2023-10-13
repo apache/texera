@@ -53,12 +53,7 @@ export class WorkflowResultExportService {
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
-          .filter(operatorId => {
-
-            return this.workflowResultService.hasPaginatedResult(operatorId)
-            // return isSink(this.workflowActionService.getTexeraGraph().getOperator(operatorId))
-            }
-          ).length > 0;
+          .filter(operatorId => this.workflowResultService.hasPaginatedResult(operatorId)).length > 0;
     });
   }
 
