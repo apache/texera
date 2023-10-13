@@ -33,7 +33,6 @@ class TestPauseManager:
         pause_manager.resume(PauseType.USER_PAUSE)
         assert not pause_manager.is_paused()
 
-
     def test_it_can_be_resumed_when_resumed(self, pause_manager):
         pause_manager.pause(PauseType.USER_PAUSE)
         assert pause_manager.is_paused()
