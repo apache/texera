@@ -1,12 +1,17 @@
 import pytest
 
 from core.architecture.managers.pause_manager import PauseManager, PauseType
+from core.models import InternalQueue
 
 
 class TestPauseManager:
     @pytest.fixture
-    def pause_manager(self):
-        return PauseManager()
+    def input_queue(self):
+        return InternalQueue()
+
+    @pytest.fixture
+    def pause_manager(self, input_queue):
+        return PauseManager(input_queue)
 
     def test_it_can_init(self, pause_manager):
         pass

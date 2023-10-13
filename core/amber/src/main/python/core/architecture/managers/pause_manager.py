@@ -39,7 +39,8 @@ class PauseManager:
             # queue for Python side. We disable all and the only data queue.
 
     def resume(self, pause_type) -> None:
-        self._global_pauses.remove(pause_type)
+        if pause_type in self._global_pauses:
+            self._global_pauses.remove(pause_type)
         # del self._specific_input_pauses[pause_type]
 
         # still globally paused no action, don't need to resume anything
