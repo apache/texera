@@ -61,7 +61,7 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Box plot",
+      "Box Plot",
       "Visualize data in a Box Plot. Boxplots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”).",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -80,10 +80,10 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
-    var truthy = ""
-    if (orientation) truthy = "True"
+    var horizontal = ""
+    if (orientation) horizontal = "True"
     s"""
-       |        if($truthy):
+       |        if($horizontal):
        |            fig = px.box(table, x='$value',boxmode="overlay", points='all')
        |        else:
        |            fig = px.box(table, y='$value',boxmode="overlay", points='all')
@@ -132,8 +132,6 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
          |        """.stripMargin
     finalCode
   }
-
   // make the chart type to html visualization so it can be recognized by both backend and frontend.
   override def chartType(): String = VisualizationConstants.HTML_VIZ
-
 }

@@ -2,10 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.boxPlot;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 
-
 public enum BoxPlotQuartileFunction {
-
-
     LINEAR("linear"),
     INCLUSIVE("inclusive"),
     EXCLUSIVE("exclusive");
@@ -19,6 +16,4 @@ public enum BoxPlotQuartileFunction {
     public String getQuartiletype() {
         return this.quartiletype;
     }
-
-
 }
