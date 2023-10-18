@@ -39,7 +39,7 @@ class Context:
         )
 
         self.statistics_manager = StatisticsManager()
-        self.pause_manager = PauseManager()
+        self.pause_manager = PauseManager(self.input_queue)
         self.tuple_to_batch_converter = TupleToBatchConverter()
         self.batch_to_tuple_converter = BatchToTupleConverter()
         self.console_message_manager = ConsoleMessageManager()

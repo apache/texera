@@ -7,8 +7,6 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
-import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
@@ -71,8 +69,8 @@ class PythonWorkflowWorker(
   private var pythonServerProcess: Process = _
 
   // TODO: Implement credit calculation logic in python worker
-  override def getSenderCredits(sender: ActorVirtualIdentity) = {
-    Constants.unprocessedBatchesSizeLimitPerSender
+  override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
+    pythonProxyClient.getSenderCredits(sender)
   }
 
   override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
@@ -84,12 +82,7 @@ class PythonWorkflowWorker(
       controlPayload: ControlPayload
   ): Unit = {
     controlPayload match {
-      case ControlInvocation(_, c) =>
-        // TODO: Implement backpressure message handling for python worker
-        if (!c.isInstanceOf[Backpressure]) {
-          pythonProxyClient.enqueueCommand(controlPayload, from)
-        }
-      case ReturnInvocation(_, _) =>
+      case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>
         logger.error(s"unhandled control payload: $controlPayload")

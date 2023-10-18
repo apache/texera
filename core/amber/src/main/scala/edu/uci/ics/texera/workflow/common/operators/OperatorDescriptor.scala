@@ -58,6 +58,7 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 }
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
@@ -157,7 +158,8 @@ trait StateTransferFunc
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
-    new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot")
+    new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
+    new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
