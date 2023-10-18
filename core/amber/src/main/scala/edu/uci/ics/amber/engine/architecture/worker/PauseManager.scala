@@ -47,7 +47,7 @@ class PauseManager(dataProcessor: DataProcessor) {
     })
   }
 
-  def isPaused(): Boolean = {
+  def isPaused: Boolean = {
     globalPauses.nonEmpty
   }
 
