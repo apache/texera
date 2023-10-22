@@ -25,6 +25,36 @@ export interface User
     color?: string;
   }> {}
 
+export interface File
+  extends Readonly <{
+    userId: number;
+    fileId: number;
+    fileName: string;
+    fileSize: number;
+    uploadedTime: number;
+    description: string;
+  }> {}
+
+export interface Workflow
+  extends Readonly <{
+    userId: number;
+    workflowId: number;
+    workflowName: string;
+  }>{}
+
+export interface mongoWorkflow{
+    workflowName: string;
+    executions: mongoExecution[];
+}
+
+export interface mongoExecution
+  extends Readonly<{
+    workflowName: string;
+    size: number;
+    pointer: string;
+    eid: number;
+  }>{}
+
 /**
  * Coeditor extends User and adds clientId to differentiate local user and collaborative editor
  */
