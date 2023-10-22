@@ -4,7 +4,6 @@ import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoData
 import edu.uci.ics.amber.engine.common.AmberUtils
 import org.bson.Document
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.mongoStorage
-import org.jooq.types.UInteger
 
 import java.util
 

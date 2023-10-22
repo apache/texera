@@ -28,26 +28,26 @@ object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
 
   case class file(
-                   userId: UInteger,
-                   fileId: UInteger,
-                   fileName: String,
-                   fileSize: UInteger,
-                   uploadedTime: Long,
-                   description: String
-                 )
+      userId: UInteger,
+      fileId: UInteger,
+      fileName: String,
+      fileSize: UInteger,
+      uploadedTime: Long,
+      description: String
+  )
 
   case class workflow(
-                       userId: UInteger,
-                       workflowId: UInteger,
-                       workflowName: String
-                     )
+      userId: UInteger,
+      workflowId: UInteger,
+      workflowName: String
+  )
 
   case class mongoStorage(
-                           workflowName: String,
-                           size: Double,
-                           pointer: String,
-                           eid: UInteger
-                         )
+      workflowName: String,
+      size: Double,
+      pointer: String,
+      eid: UInteger
+  )
 
   def getCollectionName(result: String): String = {
     var quoteCount = 0
@@ -88,7 +88,8 @@ object UserQuotaResource {
           fileRecord.get(FILE.UPLOAD_TIME).getTime,
           fileRecord.get(FILE.DESCRIPTION)
         )
-      }).toList
+      })
+      .toList
   }
 
   def getUserCreatedWorkflow(uid: UInteger): List[workflow] = {
@@ -119,7 +120,8 @@ object UserQuotaResource {
           workflowRecord.get(WORKFLOW_OF_USER.WID),
           workflowRecord.get(WORKFLOW.NAME)
         )
-      }).toList
+      })
+      .toList
   }
 
   def getUserAccessedWorkflow(uid: UInteger): util.List[UInteger] = {
@@ -171,20 +173,24 @@ object UserQuotaResource {
       )
       .on(WORKFLOW_VERSION.WID.eq(WORKFLOW.WID))
       .where(
-        WORKFLOW_EXECUTIONS.UID.eq(uid)
+        WORKFLOW_EXECUTIONS.UID
+          .eq(uid)
           .and(WORKFLOW_EXECUTIONS.RESULT.notEqual(""))
           .and(WORKFLOW_EXECUTIONS.RESULT.isNotNull)
       )
       .fetch()
 
-    val collections = collectionNames.map(result => {
-      mongoStorage(
-        result.get(WORKFLOW.NAME),
-        0.0,
-        getCollectionName(result.get(WORKFLOW_EXECUTIONS.RESULT)),
-        result.get(WORKFLOW_EXECUTIONS.EID)
-      )
-    }).toList.toArray
+    val collections = collectionNames
+      .map(result => {
+        mongoStorage(
+          result.get(WORKFLOW.NAME),
+          0.0,
+          getCollectionName(result.get(WORKFLOW_EXECUTIONS.RESULT)),
+          result.get(WORKFLOW_EXECUTIONS.EID)
+        )
+      })
+      .toList
+      .toArray
 
     val collectionSizes = MongoDatabaseManager.getDatabaseSize(collections)
 
