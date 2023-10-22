@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { File, Workflow, mongoExecution, mongoWorkflow } from "../../../../common/type/user"
+import { File, Workflow, mongoExecution, mongoWorkflow } from "../../../../common/type/user";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "../../service/user-quota/user-quota.service";
@@ -10,14 +10,13 @@ type UserServiceType = AdminUserService | UserQuotaService;
 
 @UntilDestroy()
 @Component({
-  templateUrl: './user-quota.component.html',
-  styleUrls: ['./user-quota.component.scss']
+  templateUrl: "./user-quota.component.html",
+  styleUrls: ["./user-quota.component.scss"],
 })
-
 export class UserQuotaComponent implements OnInit {
   userUid: number = -1;
   backgroundColor: String = "white";
-  textColor: String = "Black"
+  textColor: String = "Black";
 
   totalFileSize: number = 0;
   totalMongoSize: number = 0;
@@ -30,16 +29,17 @@ export class UserQuotaComponent implements OnInit {
   mongodbWorkflows: Array<mongoWorkflow> = [];
   UserService: UserServiceType;
 
-  timer = setInterval(() => {
-  }, 1000); // 1 second interval
+  timer = setInterval(() => {}, 1000); // 1 second interval
 
-  constructor(private adminUserService: AdminUserService, private userFileService: UserFileService, private regularUserService: UserQuotaService) 
-  {
+  constructor(
+    private adminUserService: AdminUserService,
+    private userFileService: UserFileService,
+    private regularUserService: UserQuotaService
+  ) {
     this.UserService = adminUserService;
   }
 
   ngOnInit(): void {
-
     if (this.userUid == -1) {
       this.UserService = this.regularUserService;
     } else {
@@ -52,13 +52,14 @@ export class UserQuotaComponent implements OnInit {
   }
 
   refreshData() {
-    this.UserService
-      .getUploadedFiles(this.userUid)
+    this.UserService.getUploadedFiles(this.userUid)
       .pipe(untilDestroyed(this))
       .subscribe(fileList => {
         this.createdFiles = fileList;
         let size = 0;
-        this.createdFiles.forEach(file => {size += file.fileSize})
+        this.createdFiles.forEach(file => {
+          size += file.fileSize;
+        });
         this.totalFileSize = size;
 
         const copiedFiles = [...fileList];
@@ -66,29 +67,25 @@ export class UserQuotaComponent implements OnInit {
         this.topFiveFiles = copiedFiles.slice(0, 5);
       });
 
-    this.UserService
-      .getCreatedWorkflows(this.userUid)
+    this.UserService.getCreatedWorkflows(this.userUid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowList => {
         this.createdWorkflows = workflowList;
       });
 
-    this.UserService
-      .getAccessFiles(this.userUid)
+    this.UserService.getAccessFiles(this.userUid)
       .pipe(untilDestroyed(this))
       .subscribe(accessFiles => {
         this.accessFiles = accessFiles;
       });
 
-    this.UserService
-      .getAccessWorkflows(this.userUid)
+    this.UserService.getAccessWorkflows(this.userUid)
       .pipe(untilDestroyed(this))
       .subscribe(accessWorkflows => {
         this.accessWorkflows = accessWorkflows;
       });
 
-    this.UserService
-      .getMongoDBs(this.userUid)
+    this.UserService.getMongoDBs(this.userUid)
       .pipe(untilDestroyed(this))
       .subscribe(mongoList => {
         this.totalMongoSize = 0;
@@ -101,34 +98,32 @@ export class UserQuotaComponent implements OnInit {
 
           this.mongodbWorkflows.some((workflow, index, array) => {
             if (workflow.workflowName === execution.workflowName) {
-                array[index].executions.push(execution);
-                insert = true;
-                return
+              array[index].executions.push(execution);
+              insert = true;
+              return;
             }
           });
 
           if (!insert) {
             let workflow: mongoWorkflow = {
               workflowName: execution.workflowName,
-              executions: [] as mongoExecution[]
+              executions: [] as mongoExecution[],
             };
             workflow.executions.push(execution);
             this.mongodbWorkflows.push(workflow);
           }
-
-        })
+        });
       });
   }
 
   deleteMongoCollection(collectionName: string, execution: mongoExecution, workflowName: string) {
-    this.UserService
-      .deleteMongoDBCollection(collectionName)
+    this.UserService.deleteMongoDBCollection(collectionName)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.mongodbWorkflows.some((workflow, index, array) => {
           if (workflow.workflowName === workflowName) {
-              array[index].executions = array[index].executions.filter(e => e !== execution);
-              this.totalMongoSize -= execution.size;
+            array[index].executions = array[index].executions.filter(e => e !== execution);
+            this.totalMongoSize -= execution.size;
           }
         });
       });
@@ -149,9 +144,7 @@ export class UserQuotaComponent implements OnInit {
     this.userFileService
       .deleteFile(fid)
       .pipe(untilDestroyed(this))
-      .subscribe(() =>
-        this.refreshFiles()
-      );
+      .subscribe(() => this.refreshFiles());
   }
 
   downloadFile(fid: number, fileName: string) {
@@ -167,7 +160,7 @@ export class UserQuotaComponent implements OnInit {
   }
 
   convertFileSize(sizeInBytes: number): string {
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    const units = ["B", "KB", "MB", "GB", "TB"];
 
     let size = sizeInBytes;
     let unitIndex = 0;
@@ -181,13 +174,14 @@ export class UserQuotaComponent implements OnInit {
   }
 
   refreshFiles() {
-    this.UserService
-      .getUploadedFiles(this.userUid)
+    this.UserService.getUploadedFiles(this.userUid)
       .pipe(untilDestroyed(this))
       .subscribe(fileList => {
         this.createdFiles = fileList;
         let size = 0;
-        this.createdFiles.forEach(file => {size += file.fileSize})
+        this.createdFiles.forEach(file => {
+          size += file.fileSize;
+        });
         this.totalFileSize = size;
 
         const copiedFiles = [...fileList];
@@ -203,6 +197,5 @@ export class UserQuotaComponent implements OnInit {
     return input;
   }
 
-  public sortByMongoDBSize: NzTableSortFn<mongoExecution> = (a: mongoExecution, b: mongoExecution) =>
-    b.size - a.size;
+  public sortByMongoDBSize: NzTableSortFn<mongoExecution> = (a: mongoExecution, b: mongoExecution) => b.size - a.size;
 }
