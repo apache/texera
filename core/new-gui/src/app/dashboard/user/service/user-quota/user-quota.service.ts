@@ -5,12 +5,12 @@ import { AppSettings } from "src/app/common/app-setting";
 import { File, Workflow, mongoExecution } from "src/app/common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
-export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`
-export const USER_CREATED_WORKFLOWS = `${USER_BASE_URL}/created_workflows`
-export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`
-export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`
-export const USER_MONGODB_SIZE = `${USER_BASE_URL}/mongodb_size`
-export const USER_DELETE_MONGODB_COLLECTION_NAME = `${USER_BASE_URL}/deleteCollection`
+export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
+export const USER_CREATED_WORKFLOWS = `${USER_BASE_URL}/created_workflows`;
+export const USER_ACCESS_WORKFLOWS = `${USER_BASE_URL}/access_workflows`;
+export const USER_ACCESS_FILES = `${USER_BASE_URL}/access_files`;
+export const USER_MONGODB_SIZE = `${USER_BASE_URL}/mongodb_size`;
+export const USER_DELETE_MONGODB_COLLECTION_NAME = `${USER_BASE_URL}/deleteCollection`;
 
 @Injectable({
   providedIn: "root",

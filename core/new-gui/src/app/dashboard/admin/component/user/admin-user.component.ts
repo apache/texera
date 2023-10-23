@@ -26,7 +26,11 @@ export class AdminUserComponent implements OnInit {
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
 
-  constructor(private adminUserService: AdminUserService, private userService: UserService, private modalService: NgbModal,) {
+  constructor(
+    private adminUserService: AdminUserService,
+    private userService: UserService,
+    private modalService: NgbModal
+  ) {
     this.currentUid = this.userService.getCurrentUser()?.uid;
   }
 
@@ -96,7 +100,7 @@ export class AdminUserComponent implements OnInit {
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
   }
 
-  clickToViewQuota(userUid: number){
+  clickToViewQuota(userUid: number) {
     const modalRef = this.modalService.open(UserQuotaComponent, {
       size: "xl",
       modalDialogClass: "modal-dialog-centered",
