@@ -17,7 +17,7 @@ export class UserQuotaComponent implements OnInit {
   userUid: number = -1;
   backgroundColor: String = "white";
   textColor: String = "Black";
-  dynamicHeight: string = '700px';
+  dynamicHeight: string = "700px";
 
   totalFileSize: number = 0;
   totalMongoSize: number = 0;

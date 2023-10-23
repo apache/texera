@@ -1,69 +1,52 @@
-<div [style.height]="dynamicHeight" style="overflow-y: auto;">
-    <nz-card
-      class="section-title"
-      [style.backgroundColor]="backgroundColor">
-      <h2
-        class="page-title"
-        [style.color] = "textColor">Quota</h2>
-    </nz-card>
-    <div>
-      <nz-tabset nzCentered>
-        <style>
-          .info-container {
-            display: flex;
-            flex-wrap: wrap;
-            justify-content: center;
-          }
-  
-          .info-box {
-            background-color: #f4f4f4;
-            padding: 40px;
-            margin: 10px;
-            width: 375px;
-            height: 135px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-            font-family: Arial, sans-serif;
-            text-align: center;
-          }
-  
-          .info-heading {
-            font-weight: bold;
-            font-size: 18px;
-          }
-  
-          .info-content {
-            font-size: 24px;
-            margin-top: 10px;
-          }
-        </style>
-  
-        <nz-tab nzTitle="Quota Table">
-          <div class="info-container">
-            <div class="info-box">
-              <h2 class="info-heading">Files Uploaded</h2>
-              <p class="info-content">{{ this.createdFiles.length }}</p>
-            </div>
-            <div class="info-box">
-              <h2 class="info-heading">Workflows Created</h2>
-              <p class="info-content">{{ this.createdWorkflows.length }}</p>
-            </div>
-            <div class="info-box">
-              <h2 class="info-heading">Files with Access</h2>
-              <p class="info-content">{{ this.accessFiles.length }}</p>
-            </div>
-            <div class="info-box">
-              <h2 class="info-heading">Workflows with Access</h2>
-              <p class="info-content">{{ this.accessWorkflows.length }}</p>
-            </div>
-            <div class="info-box">
-              <h2 class="info-heading">Total Size of the Files</h2>
-              <p class="info-content">{{ convertFileSize(this.totalFileSize) }}</p>
-            </div>
-            <div class="info-box">
-              <h2 class="info-heading">Total Operator Cache Size</h2>
-              <p class="info-content">{{ convertFileSize(this.totalMongoSize) }}</p>
-            </div>
+<div
+  [style.height]="dynamicHeight"
+  style="overflow-y: auto">
+  <nz-card
+    class="section-title"
+    [style.backgroundColor]="backgroundColor">
+    <h2
+      class="page-title"
+      [style.color]="textColor">
+      Quota
+    </h2>
+  </nz-card>
+  <div>
+    <nz-tabset nzCentered>
+      <style>
+        .info-container {
+          display: flex;
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+
+        .info-box {
+          background-color: #f4f4f4;
+          padding: 40px;
+          margin: 10px;
+          width: 375px;
+          height: 135px;
+          border-radius: 5px;
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+          font-family: Arial, sans-serif;
+          text-align: center;
+        }
+
+        .info-heading {
+          font-weight: bold;
+          font-size: 18px;
+        }
+
+        .info-content {
+          font-size: 24px;
+          margin-top: 10px;
+        }
+      </style>
+
+      <nz-tab nzTitle="Quota Table">
+        <div class="info-container">
+          <div class="info-box">
+            <h2 class="info-heading">Files Uploaded</h2>
+            <p class="info-content">{{ this.createdFiles.length }}</p>
           </div>
           <div class="info-box">
             <h2 class="info-heading">Workflows Created</h2>
