@@ -17,7 +17,8 @@ type UserServiceType = AdminUserService | UserQuotaService;
 export class UserQuotaComponent implements OnInit {
   userUid: number = -1;
   backgroundColor: String = "white";
-  textColor: String = "Black"
+  textColor: String = "Black";
+  dynamicHeight: string = '700px';
 
   totalFileSize: number = 0;
   totalMongoSize: number = 0;
@@ -42,6 +43,7 @@ export class UserQuotaComponent implements OnInit {
 
     if (this.userUid == -1) {
       this.UserService = this.regularUserService;
+      this.dynamicHeight = "";
     } else {
       this.UserService = this.adminUserService;
       this.backgroundColor = "lightcoral";

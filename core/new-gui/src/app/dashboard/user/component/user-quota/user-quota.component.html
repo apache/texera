@@ -1,4 +1,4 @@
-<div style="height: 700px; overflow-y: auto;">
+<div [style.height]="dynamicHeight" style="overflow-y: auto;">
     <nz-card
       class="section-title"
       [style.backgroundColor]="backgroundColor">
@@ -38,7 +38,7 @@
           }
         </style>
   
-        <nz-tab nzTitle="quota table">
+        <nz-tab nzTitle="Quota Table">
           <div class="info-container">
             <div class="info-box">
               <h2 class="info-heading">Files Uploaded</h2>
