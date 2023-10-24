@@ -10,6 +10,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Telemetry;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -35,7 +36,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -804967438;
+    private static final long serialVersionUID = -1587773505;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -71,6 +72,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.public_project</code>.
      */
     public final PublicProject PUBLIC_PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject.PUBLIC_PROJECT;
+
+    /**
+     * The table <code>texera_db.telemetry</code>.
+     */
+    public final Telemetry TELEMETRY = edu.uci.ics.texera.web.model.jooq.generated.tables.Telemetry.TELEMETRY;
 
     /**
      * The table <code>texera_db.user</code>.
@@ -145,6 +151,7 @@ public class TexeraDb extends SchemaImpl {
             Project.PROJECT,
             ProjectUserAccess.PROJECT_USER_ACCESS,
             PublicProject.PUBLIC_PROJECT,
+            Telemetry.TELEMETRY,
             User.USER,
             UserConfig.USER_CONFIG,
             UserFileAccess.USER_FILE_ACCESS,

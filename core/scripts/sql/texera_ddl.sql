@@ -14,6 +14,7 @@ DROP TABLE IF EXISTS `workflow_of_project`;
 DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
+DROP TABLE IF EXISTS `telemetry`;
 
 SET PERSIST time_zone = '+00:00'; -- this line is mandatory
 SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
@@ -183,6 +184,19 @@ CREATE TABLE IF NOT EXISTS public_project
     `uid`             INT UNSIGNED,
     PRIMARY KEY (`pid`),
     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS telemetry
+(
+    `workflow_id`      INT UNSIGNED		NOT NULL,
+    `execution_id`     INT UNSIGNED		NOT NULL,
+    `operator_id`      VARCHAR(100)		NOT NULL,
+    `worker_id`        INT UNSIGNED		NOT NULL,
+    `time`             TIMESTAMP		NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `input_tuple_cnt`  INT UNSIGNED		NOT NULL DEFAULT 0,
+    `output_tuple_cnt` INT UNSIGNED		NOT NULL DEFAULT 0,
+    `status`           TINYINT			NOT NULL DEFAULT 1,
+    PRIMARY KEY (`workflow_id`, `execution_id`, `operator_id`, `worker_id`, `time`)
 ) ENGINE = INNODB;
 
 -- create fulltext search indexes

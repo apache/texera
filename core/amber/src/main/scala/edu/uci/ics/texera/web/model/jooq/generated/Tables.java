@@ -10,6 +10,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Telemetry;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -56,6 +57,11 @@ public class Tables {
      * The table <code>texera_db.public_project</code>.
      */
     public static final PublicProject PUBLIC_PROJECT = PublicProject.PUBLIC_PROJECT;
+
+    /**
+     * The table <code>texera_db.telemetry</code>.
+     */
+    public static final Telemetry TELEMETRY = Telemetry.TELEMETRY;
 
     /**
      * The table <code>texera_db.user</code>.
