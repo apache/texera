@@ -14,12 +14,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{
-  ExecutionDurationUpdateEvent,
-  OperatorStatistics,
-  OperatorStatisticsUpdateEvent,
-  WorkerAssignmentUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{ExecutionDurationUpdateEvent, OperatorStatistics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
@@ -30,10 +25,10 @@ import java.time.Instant
 
 class JobStatsService(
     client: AmberClient,
-    stateStore: JobStateStore
+    stateStore: JobStateStore,
+    workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
-
   registerCallbacks()
 
   addSubscription(
@@ -112,6 +107,8 @@ class JobStatsService(
           stateStore.statsStore.updateState { jobInfo =>
             jobInfo.withOperatorInfo(evt.operatorStatistics)
           }
+          println(s"Workflow ID: ${workflowContext.wId}")
+          println(s"Execution ID: ${workflowContext.executionID}")
         })
     )
   }
