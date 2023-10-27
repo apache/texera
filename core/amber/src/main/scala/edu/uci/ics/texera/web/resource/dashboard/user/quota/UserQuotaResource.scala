@@ -50,12 +50,13 @@ object UserQuotaResource {
   )
 
   def getCollectionName(result: String): String = {
+
     /**
-     * Get the Collection Name from
-     * {"results":["1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c"]}
-     * to
-     * 1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c
-     */
+      * Get the Collection Name from
+      * {"results":["1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c"]}
+      * to
+      * 1_TextInput-operator-6c3be22b-b2e2-4896-891c-cfa849638e5c
+      */
 
     var quoteCount = 0
     var name = ""
