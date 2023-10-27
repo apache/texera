@@ -34,7 +34,7 @@ object MongoDatabaseManager {
       val stats: Document = database.runCommand(new Document("collStats", collection.pointer))
       collectionNames(count) = MongoStorage(
         collection.workflowName,
-        stats.getInteger("totalSize") / 1,
+        stats.getInteger("totalSize").toDouble,
         collection.pointer,
         collection.eid
       )
