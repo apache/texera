@@ -27,12 +27,12 @@ object MongoDatabaseManager {
     database.listCollectionNames().into(new util.ArrayList[String]()).contains(collectionName)
   }
 
-  def getDatabaseSize(collectionNames: Array[mongoStorage]): Array[mongoStorage] = {
+  def getDatabaseSize(collectionNames: Array[MongoStorage]): Array[MongoStorage] = {
     var count = 0
 
     for (collection <- collectionNames) {
       val stats: Document = database.runCommand(new Document("collStats", collection.pointer))
-      collectionNames(count) = mongoStorage(
+      collectionNames(count) = MongoStorage(
         collection.workflowName,
         stats.getInteger("totalSize") / 1,
         collection.pointer,

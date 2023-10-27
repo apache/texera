@@ -67,14 +67,14 @@ class AdminUserResource {
   @GET
   @Path("/uploaded_files")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedFile(@QueryParam("user_id") user_id: UInteger): List[file] = {
+  def getCreatedFile(@QueryParam("user_id") user_id: UInteger): List[File] = {
     getUserCreatedFile(user_id)
   }
 
   @GET
   @Path("/created_workflows")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedWorkflow(@QueryParam("user_id") user_id: UInteger): List[workflow] = {
+  def getCreatedWorkflow(@QueryParam("user_id") user_id: UInteger): List[Workflow] = {
     getUserCreatedWorkflow(user_id)
   }
 
@@ -95,7 +95,7 @@ class AdminUserResource {
   @GET
   @Path("/mongodb_size")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def mongoDBSize(@QueryParam("user_id") user_id: UInteger): Array[mongoStorage] = {
+  def mongoDBSize(@QueryParam("user_id") user_id: UInteger): Array[MongoStorage] = {
     getUserMongoDBSize(user_id)
   }
 

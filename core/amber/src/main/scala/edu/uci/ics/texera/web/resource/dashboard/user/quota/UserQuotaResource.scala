@@ -64,7 +64,7 @@ object UserQuotaResource {
     name
   }
 
-  def getUserCreatedFile(uid: UInteger): List[file] = {
+  def getUserCreatedFile(uid: UInteger): List[File] = {
     val userFileEntries = context
       .select(
         FILE.OWNER_UID,
@@ -80,7 +80,7 @@ object UserQuotaResource {
 
     userFileEntries
       .map(fileRecord => {
-        file(
+        File(
           fileRecord.get(FILE.OWNER_UID),
           fileRecord.get(FILE.FID),
           fileRecord.get(FILE.NAME),
@@ -92,7 +92,7 @@ object UserQuotaResource {
       .toList
   }
 
-  def getUserCreatedWorkflow(uid: UInteger): List[workflow] = {
+  def getUserCreatedWorkflow(uid: UInteger): List[Workflow] = {
     val userWorkflowEntries = context
       .select(
         WORKFLOW_OF_USER.UID,
@@ -115,7 +115,7 @@ object UserQuotaResource {
 
     userWorkflowEntries
       .map(workflowRecord => {
-        workflow(
+        Workflow(
           workflowRecord.get(WORKFLOW_OF_USER.UID),
           workflowRecord.get(WORKFLOW_OF_USER.WID),
           workflowRecord.get(WORKFLOW.NAME)
@@ -154,7 +154,7 @@ object UserQuotaResource {
       .fetchInto(classOf[UInteger])
   }
 
-  def getUserMongoDBSize(uid: UInteger): Array[mongoStorage] = {
+  def getUserMongoDBSize(uid: UInteger): Array[MongoStorage] = {
     val collectionNames = context
       .select(
         WORKFLOW_EXECUTIONS.RESULT,
@@ -182,7 +182,7 @@ object UserQuotaResource {
 
     val collections = collectionNames
       .map(result => {
-        mongoStorage(
+        MongoStorage(
           result.get(WORKFLOW.NAME),
           0.0,
           getCollectionName(result.get(WORKFLOW_EXECUTIONS.RESULT)),
@@ -214,14 +214,14 @@ class UserQuotaResource {
   @GET
   @Path("/uploaded_files")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedFile(@Auth current_user: SessionUser): List[file] = {
+  def getCreatedFile(@Auth current_user: SessionUser): List[File] = {
     getUserCreatedFile(current_user.getUid)
   }
 
   @GET
   @Path("/created_workflows")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def getCreatedWorkflow(@Auth current_user: SessionUser): List[workflow] = {
+  def getCreatedWorkflow(@Auth current_user: SessionUser): List[Workflow] = {
     getUserCreatedWorkflow(current_user.getUid)
   }
 
@@ -242,7 +242,7 @@ class UserQuotaResource {
   @GET
   @Path("/mongodb_size")
   @Produces(Array(MediaType.APPLICATION_JSON))
-  def mongoDBSize(@Auth current_user: SessionUser): Array[mongoStorage] = {
+  def mongoDBSize(@Auth current_user: SessionUser): Array[MongoStorage] = {
     getUserMongoDBSize(current_user.getUid)
   }
 
