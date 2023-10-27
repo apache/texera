@@ -11,15 +11,15 @@ import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  file,
-  workflow,
+  File,
+  Workflow,
   getUserCreatedFile,
   getUserCreatedWorkflow,
   getUserAccessedWorkflow,
   getUserAccessedFiles,
   getUserMongoDBSize,
   deleteMongoCollection,
-  mongoStorage
+  MongoStorage
 }
 
 object AdminUserResource {

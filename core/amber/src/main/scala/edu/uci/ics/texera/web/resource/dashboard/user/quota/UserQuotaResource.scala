@@ -3,15 +3,15 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  file,
-  workflow,
+  File,
+  Workflow,
   getUserCreatedFile,
   getUserCreatedWorkflow,
   getUserAccessedWorkflow,
   getUserAccessedFiles,
   getUserMongoDBSize,
   deleteMongoCollection,
-  mongoStorage
+  MongoStorage
 }
 import org.jooq.types.UInteger
 
@@ -27,7 +27,7 @@ import io.dropwizard.auth.Auth
 object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
 
-  case class file(
+  case class File(
       userId: UInteger,
       fileId: UInteger,
       fileName: String,
@@ -36,13 +36,13 @@ object UserQuotaResource {
       description: String
   )
 
-  case class workflow(
+  case class Workflow(
       userId: UInteger,
       workflowId: UInteger,
       workflowName: String
   )
 
-  case class mongoStorage(
+  case class MongoStorage(
       workflowName: String,
       size: Double,
       pointer: String,
