@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { File, Workflow, mongoExecution, mongoWorkflow } from "../../../../common/type/user";
+import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "../../service/user-quota/user-quota.service";
@@ -26,8 +26,8 @@ export class UserQuotaComponent implements OnInit {
   accessFiles: ReadonlyArray<number> = [];
   accessWorkflows: ReadonlyArray<number> = [];
   topFiveFiles: ReadonlyArray<File> = [];
-  mongodbExecutions: ReadonlyArray<mongoExecution> = [];
-  mongodbWorkflows: Array<mongoWorkflow> = [];
+  mongodbExecutions: ReadonlyArray<MongoExecution> = [];
+  mongodbWorkflows: Array<MongoWorkflow> = [];
   UserService: UserServiceType;
 
   timer = setInterval(() => {}, 1000); // 1 second interval
@@ -107,9 +107,9 @@ export class UserQuotaComponent implements OnInit {
           });
 
           if (!insert) {
-            let workflow: mongoWorkflow = {
+            let workflow: MongoWorkflow = {
               workflowName: execution.workflowName,
-              executions: [] as mongoExecution[],
+              executions: [] as MongoExecution[],
             };
             workflow.executions.push(execution);
             this.mongodbWorkflows.push(workflow);
@@ -118,7 +118,7 @@ export class UserQuotaComponent implements OnInit {
       });
   }
 
-  deleteMongoCollection(collectionName: string, execution: mongoExecution, workflowName: string) {
+  deleteMongoCollection(collectionName: string, execution: MongoExecution, workflowName: string) {
     this.UserService.deleteMongoDBCollection(collectionName)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
@@ -199,5 +199,5 @@ export class UserQuotaComponent implements OnInit {
     return input;
   }
 
-  public sortByMongoDBSize: NzTableSortFn<mongoExecution> = (a: mongoExecution, b: mongoExecution) => b.size - a.size;
+  public sortByMongoDBSize: NzTableSortFn<MongoExecution> = (a: MongoExecution, b: MongoExecution) => b.size - a.size;
 }

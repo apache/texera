@@ -42,12 +42,12 @@ export interface Workflow
     workflowName: string;
   }> {}
 
-export interface mongoWorkflow {
+export interface MongoWorkflow {
   workflowName: string;
-  executions: mongoExecution[];
+  executions: MongoExecution[];
 }
 
-export interface mongoExecution
+export interface MongoExecution
   extends Readonly<{
     workflowName: string;
     size: number;

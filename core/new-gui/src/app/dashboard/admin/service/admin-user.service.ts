@@ -2,7 +2,7 @@ import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
-import { Role, User, File, Workflow, mongoExecution } from "../../../common/type/user";
+import { Role, User, File, Workflow, MongoExecution } from "../../../common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/admin/user`;
 export const USER_LIST_URL = `${USER_BASE_URL}/list`;
@@ -58,9 +58,9 @@ export class AdminUserService {
     return this.http.get<ReadonlyArray<number>>(`${USER_ACCESS_WORKFLOWS}`, { params: params });
   }
 
-  public getMongoDBs(uid: number): Observable<ReadonlyArray<mongoExecution>> {
+  public getMongoDBs(uid: number): Observable<ReadonlyArray<MongoExecution>> {
     let params = new HttpParams().set("user_id", uid.toString());
-    return this.http.get<ReadonlyArray<mongoExecution>>(`${USER_MONGODB_SIZE}`, { params: params });
+    return this.http.get<ReadonlyArray<MongoExecution>>(`${USER_MONGODB_SIZE}`, { params: params });
   }
 
   public deleteMongoDBCollection(collectionName: string): Observable<void> {

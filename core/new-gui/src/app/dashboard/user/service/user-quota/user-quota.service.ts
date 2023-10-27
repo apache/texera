@@ -2,7 +2,7 @@ import { HttpClient } from "@angular/common/http";
 import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "src/app/common/app-setting";
-import { File, Workflow, mongoExecution } from "src/app/common/type/user";
+import { File, Workflow, MongoExecution } from "src/app/common/type/user";
 
 export const USER_BASE_URL = `${AppSettings.getApiEndpoint()}/quota`;
 export const USER_CREATED_FILES = `${USER_BASE_URL}/uploaded_files`;
@@ -34,8 +34,8 @@ export class UserQuotaService {
     return this.http.get<ReadonlyArray<number>>(`${USER_ACCESS_WORKFLOWS}`);
   }
 
-  public getMongoDBs(uid: number): Observable<ReadonlyArray<mongoExecution>> {
-    return this.http.get<ReadonlyArray<mongoExecution>>(`${USER_MONGODB_SIZE}`);
+  public getMongoDBs(uid: number): Observable<ReadonlyArray<MongoExecution>> {
+    return this.http.get<ReadonlyArray<MongoExecution>>(`${USER_MONGODB_SIZE}`);
   }
 
   public deleteMongoDBCollection(collectionName: string): Observable<void> {
