@@ -1,9 +1,12 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
+
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { AdminUserService } from "../../service/admin-user.service";
 import { Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
+import { UserQuotaComponent } from "src/app/dashboard/user/component/user-quota/user-quota.component";
 
 @UntilDestroy()
 @Component({
@@ -23,7 +26,11 @@ export class AdminUserComponent implements OnInit {
   listOfDisplayUser = [...this.userList];
   currentUid: number | undefined = 0;
 
-  constructor(private adminUserService: AdminUserService, private userService: UserService) {
+  constructor(
+    private adminUserService: AdminUserService,
+    private userService: UserService,
+    private modalService: NgbModal
+  ) {
     this.currentUid = this.userService.getCurrentUser()?.uid;
   }
 
@@ -91,6 +98,14 @@ export class AdminUserComponent implements OnInit {
   searchByEmail(): void {
     this.emailSearchVisible = false;
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
+  }
+
+  clickToViewQuota(userUid: number) {
+    const modalRef = this.modalService.open(UserQuotaComponent, {
+      size: "xl",
+      modalDialogClass: "modal-dialog-centered",
+    });
+    modalRef.componentInstance.userUid = userUid;
   }
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>

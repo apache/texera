@@ -4,6 +4,7 @@ import { environment } from "../environments/environment";
 import { DashboardComponent } from "./dashboard/user/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/user/component/user-workflow/user-workflow.component";
 import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
+import { UserQuotaComponent } from "./dashboard/user/component/user-quota/user-quota.component";
 import { UserProjectSectionComponent } from "./dashboard/user/component/user-project/user-project-section/user-project-section.component";
 import { UserProjectComponent } from "./dashboard/user/component/user-project/user-project.component";
 import { WorkspaceComponent } from "./workspace/component/workspace.component";
@@ -59,6 +60,10 @@ if (environment.userSystemEnabled) {
       {
         path: "user-file",
         component: UserFileComponent,
+      },
+      {
+        path: "user-quota",
+        component: UserQuotaComponent,
       },
       {
         path: "search",

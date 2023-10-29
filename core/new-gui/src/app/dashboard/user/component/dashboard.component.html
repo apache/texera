@@ -70,6 +70,18 @@
       </li>
 
       <li
+        nz-menu-item
+        nz-tooltip="Quota information"
+        nzMatchRouter="true"
+        nzTooltipPlacement="right"
+        routerLink="/dashboard/user-quota">
+        <span
+          nz-icon
+          nzType="dashboard"></span>
+        <span>Quota</span>
+      </li>
+
+      <li
         *ngIf="isAdmin"
         nz-submenu>
         <span

@@ -51,6 +51,7 @@
         [nzSortFn]="sortByRole">
         Role
       </th>
+      <th>Quota</th>
     </tr>
   </thead>
   <nz-dropdown-menu #nameMenu="nzDropdownMenu">
@@ -186,6 +187,18 @@
           let-selected>
           <span class="role c{{selected.nzLabel}}">{{selected.nzValue}}</span>
         </ng-template>
+      </td>
+      <td>
+        <button
+          (click)="clickToViewQuota(user.uid)"
+          nz-button
+          nz-tooltip="quota dashboard"
+          type="button">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="dashboard"></i>
+        </button>
       </td>
     </tr>
   </tbody>
