@@ -17,12 +17,11 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Telemetry implements ITelemetry {
 
-    private static final long serialVersionUID = 132060536;
+    private static final long serialVersionUID = 1952230325;
 
     private UInteger  workflowId;
     private UInteger  executionId;
     private String    operatorId;
-    private UInteger  workerId;
     private Timestamp time;
     private UInteger  inputTupleCnt;
     private UInteger  outputTupleCnt;
@@ -34,7 +33,6 @@ public class Telemetry implements ITelemetry {
         this.workflowId = value.getWorkflowId();
         this.executionId = value.getExecutionId();
         this.operatorId = value.getOperatorId();
-        this.workerId = value.getWorkerId();
         this.time = value.getTime();
         this.inputTupleCnt = value.getInputTupleCnt();
         this.outputTupleCnt = value.getOutputTupleCnt();
@@ -45,7 +43,6 @@ public class Telemetry implements ITelemetry {
         UInteger  workflowId,
         UInteger  executionId,
         String    operatorId,
-        UInteger  workerId,
         Timestamp time,
         UInteger  inputTupleCnt,
         UInteger  outputTupleCnt,
@@ -54,7 +51,6 @@ public class Telemetry implements ITelemetry {
         this.workflowId = workflowId;
         this.executionId = executionId;
         this.operatorId = operatorId;
-        this.workerId = workerId;
         this.time = time;
         this.inputTupleCnt = inputTupleCnt;
         this.outputTupleCnt = outputTupleCnt;
@@ -89,16 +85,6 @@ public class Telemetry implements ITelemetry {
     @Override
     public void setOperatorId(String operatorId) {
         this.operatorId = operatorId;
-    }
-
-    @Override
-    public UInteger getWorkerId() {
-        return this.workerId;
-    }
-
-    @Override
-    public void setWorkerId(UInteger workerId) {
-        this.workerId = workerId;
     }
 
     @Override
@@ -148,7 +134,6 @@ public class Telemetry implements ITelemetry {
         sb.append(workflowId);
         sb.append(", ").append(executionId);
         sb.append(", ").append(operatorId);
-        sb.append(", ").append(workerId);
         sb.append(", ").append(time);
         sb.append(", ").append(inputTupleCnt);
         sb.append(", ").append(outputTupleCnt);
@@ -167,7 +152,6 @@ public class Telemetry implements ITelemetry {
         setWorkflowId(from.getWorkflowId());
         setExecutionId(from.getExecutionId());
         setOperatorId(from.getOperatorId());
-        setWorkerId(from.getWorkerId());
         setTime(from.getTime());
         setInputTupleCnt(from.getInputTupleCnt());
         setOutputTupleCnt(from.getOutputTupleCnt());

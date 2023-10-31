@@ -18,7 +18,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row8;
+import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Telemetry extends TableImpl<TelemetryRecord> {
 
-    private static final long serialVersionUID = 1053680547;
+    private static final long serialVersionUID = -1264390083;
 
     /**
      * The reference instance of <code>texera_db.telemetry</code>
@@ -63,11 +63,6 @@ public class Telemetry extends TableImpl<TelemetryRecord> {
      * The column <code>texera_db.telemetry.operator_id</code>.
      */
     public final TableField<TelemetryRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(100).nullable(false), this, "");
-
-    /**
-     * The column <code>texera_db.telemetry.worker_id</code>.
-     */
-    public final TableField<TelemetryRecord, UInteger> WORKER_ID = createField(DSL.name("worker_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.telemetry.time</code>.
@@ -129,7 +124,7 @@ public class Telemetry extends TableImpl<TelemetryRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.TELEMETRY_PRIMARY);
+        return Arrays.<Index>asList(Indexes.TELEMETRY_EXECUTION_ID, Indexes.TELEMETRY_PRIMARY);
     }
 
     @Override
@@ -140,6 +135,19 @@ public class Telemetry extends TableImpl<TelemetryRecord> {
     @Override
     public List<UniqueKey<TelemetryRecord>> getKeys() {
         return Arrays.<UniqueKey<TelemetryRecord>>asList(Keys.KEY_TELEMETRY_PRIMARY);
+    }
+
+    @Override
+    public List<ForeignKey<TelemetryRecord, ?>> getReferences() {
+        return Arrays.<ForeignKey<TelemetryRecord, ?>>asList(Keys.TELEMETRY_IBFK_1, Keys.TELEMETRY_IBFK_2);
+    }
+
+    public Workflow workflow() {
+        return new Workflow(this, Keys.TELEMETRY_IBFK_1);
+    }
+
+    public WorkflowExecutions workflowExecutions() {
+        return new WorkflowExecutions(this, Keys.TELEMETRY_IBFK_2);
     }
 
     @Override
@@ -169,11 +177,11 @@ public class Telemetry extends TableImpl<TelemetryRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row8 type methods
+    // Row7 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row8<UInteger, UInteger, String, UInteger, Timestamp, UInteger, UInteger, Byte> fieldsRow() {
-        return (Row8) super.fieldsRow();
+    public Row7<UInteger, UInteger, String, Timestamp, UInteger, UInteger, Byte> fieldsRow() {
+        return (Row7) super.fieldsRow();
     }
 }

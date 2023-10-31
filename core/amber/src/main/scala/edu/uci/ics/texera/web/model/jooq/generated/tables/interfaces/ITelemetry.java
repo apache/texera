@@ -47,16 +47,6 @@ public interface ITelemetry extends Serializable {
     public String getOperatorId();
 
     /**
-     * Setter for <code>texera_db.telemetry.worker_id</code>.
-     */
-    public void setWorkerId(UInteger value);
-
-    /**
-     * Getter for <code>texera_db.telemetry.worker_id</code>.
-     */
-    public UInteger getWorkerId();
-
-    /**
      * Setter for <code>texera_db.telemetry.time</code>.
      */
     public void setTime(Timestamp value);

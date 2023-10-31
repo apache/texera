@@ -1,6 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS `texera_db`;
 USE `texera_db`;
 
+DROP TABLE IF EXISTS `telemetry`;
 DROP TABLE IF EXISTS `workflow_user_access`;
 DROP TABLE IF EXISTS `user_file_access`;
 DROP TABLE IF EXISTS `file`;
@@ -14,7 +15,6 @@ DROP TABLE IF EXISTS `workflow_of_project`;
 DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
-DROP TABLE IF EXISTS `telemetry`;
 
 SET PERSIST time_zone = '+00:00'; -- this line is mandatory
 SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
@@ -191,12 +191,13 @@ CREATE TABLE IF NOT EXISTS telemetry
     `workflow_id`      INT UNSIGNED		NOT NULL,
     `execution_id`     INT UNSIGNED		NOT NULL,
     `operator_id`      VARCHAR(100)		NOT NULL,
-    `worker_id`        INT UNSIGNED		NOT NULL,
     `time`             TIMESTAMP		NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `input_tuple_cnt`  INT UNSIGNED		NOT NULL DEFAULT 0,
     `output_tuple_cnt` INT UNSIGNED		NOT NULL DEFAULT 0,
     `status`           TINYINT			NOT NULL DEFAULT 1,
-    PRIMARY KEY (`workflow_id`, `execution_id`, `operator_id`, `worker_id`, `time`)
+    PRIMARY KEY (`workflow_id`, `execution_id`, `operator_id`, `time`),
+    FOREIGN KEY (`workflow_id`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
+    FOREIGN KEY (`execution_id`) REFERENCES `workflow_executions` (`eid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 -- create fulltext search indexes

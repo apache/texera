@@ -49,6 +49,7 @@ public class Indexes {
     public static final Index PROJECT_USER_ACCESS_PID = Indexes0.PROJECT_USER_ACCESS_PID;
     public static final Index PROJECT_USER_ACCESS_PRIMARY = Indexes0.PROJECT_USER_ACCESS_PRIMARY;
     public static final Index PUBLIC_PROJECT_PRIMARY = Indexes0.PUBLIC_PROJECT_PRIMARY;
+    public static final Index TELEMETRY_EXECUTION_ID = Indexes0.TELEMETRY_EXECUTION_ID;
     public static final Index TELEMETRY_PRIMARY = Indexes0.TELEMETRY_PRIMARY;
     public static final Index USER_EMAIL = Indexes0.USER_EMAIL;
     public static final Index USER_GOOGLE_ID = Indexes0.USER_GOOGLE_ID;
@@ -89,7 +90,8 @@ public class Indexes {
         public static Index PROJECT_USER_ACCESS_PID = Internal.createIndex("pid", ProjectUserAccess.PROJECT_USER_ACCESS, new OrderField[] { ProjectUserAccess.PROJECT_USER_ACCESS.PID }, false);
         public static Index PROJECT_USER_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", ProjectUserAccess.PROJECT_USER_ACCESS, new OrderField[] { ProjectUserAccess.PROJECT_USER_ACCESS.UID, ProjectUserAccess.PROJECT_USER_ACCESS.PID }, true);
         public static Index PUBLIC_PROJECT_PRIMARY = Internal.createIndex("PRIMARY", PublicProject.PUBLIC_PROJECT, new OrderField[] { PublicProject.PUBLIC_PROJECT.PID }, true);
-        public static Index TELEMETRY_PRIMARY = Internal.createIndex("PRIMARY", Telemetry.TELEMETRY, new OrderField[] { Telemetry.TELEMETRY.WORKFLOW_ID, Telemetry.TELEMETRY.EXECUTION_ID, Telemetry.TELEMETRY.OPERATOR_ID, Telemetry.TELEMETRY.WORKER_ID, Telemetry.TELEMETRY.TIME }, true);
+        public static Index TELEMETRY_EXECUTION_ID = Internal.createIndex("execution_id", Telemetry.TELEMETRY, new OrderField[] { Telemetry.TELEMETRY.EXECUTION_ID }, false);
+        public static Index TELEMETRY_PRIMARY = Internal.createIndex("PRIMARY", Telemetry.TELEMETRY, new OrderField[] { Telemetry.TELEMETRY.WORKFLOW_ID, Telemetry.TELEMETRY.EXECUTION_ID, Telemetry.TELEMETRY.OPERATOR_ID, Telemetry.TELEMETRY.TIME }, true);
         public static Index USER_EMAIL = Internal.createIndex("email", User.USER, new OrderField[] { User.USER.EMAIL }, true);
         public static Index USER_GOOGLE_ID = Internal.createIndex("google_id", User.USER, new OrderField[] { User.USER.GOOGLE_ID }, true);
         public static Index USER_IDX_USER_NAME = Internal.createIndex("idx_user_name", User.USER, new OrderField[] { User.USER.NAME }, false);
