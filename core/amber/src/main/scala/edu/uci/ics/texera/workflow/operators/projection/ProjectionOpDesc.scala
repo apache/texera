@@ -55,7 +55,8 @@ class ProjectionOpDesc extends MapOpDesc {
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
-      supportReconfiguration = false
+      supportReconfiguration = false,
+      supportRetractableInput = true
     )
   }
 

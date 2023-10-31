@@ -32,7 +32,8 @@ case class OperatorInfo(
     dynamicInputPorts: Boolean = false,
     dynamicOutputPorts: Boolean = false,
     supportReconfiguration: Boolean = false,
-    allowPortCustomization: Boolean = false
+    allowPortCustomization: Boolean = false,
+    supportRetractableInput: Boolean = false
 )
 
 case class OperatorMetadata(

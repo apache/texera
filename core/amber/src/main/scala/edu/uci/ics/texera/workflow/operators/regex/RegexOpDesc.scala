@@ -40,6 +40,7 @@ class RegexOpDesc extends FilterOpDesc {
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
-      supportReconfiguration = true
+      supportReconfiguration = true,
+      supportRetractableInput = true
     )
 }

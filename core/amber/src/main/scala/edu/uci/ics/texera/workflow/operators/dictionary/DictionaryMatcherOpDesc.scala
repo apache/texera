@@ -44,7 +44,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       OperatorGroupConstants.SEARCH_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
-      supportReconfiguration = true
+      supportReconfiguration = true,
+      supportRetractableInput = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

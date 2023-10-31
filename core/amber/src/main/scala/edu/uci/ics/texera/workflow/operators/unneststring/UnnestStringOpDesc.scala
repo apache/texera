@@ -34,7 +34,8 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
         "Unnest the string values in the column separated by a delimiter to multiple values",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportRetractableInput = true
     )
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {

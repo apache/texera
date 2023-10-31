@@ -23,7 +23,8 @@ class UnionOpDesc extends OperatorDescriptor {
       "Unions the output rows from multiple input operators",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort(allowMultiInputs = true)),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportRetractableInput = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

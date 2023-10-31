@@ -84,11 +84,15 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       opResultStorage: OpResultStorage,
       lastCompletedJob: Option[LogicalPlan] = Option.empty
   ): Workflow = {
+    // perform rewrite to reuse cache of previous runs
     val cacheReuses = new WorkflowCacheChecker(lastCompletedJob, logicalPlan).getValidCacheReuse()
     val opsToReuseCache = cacheReuses.intersect(logicalPlan.opsToReuseCache.toSet)
-    val rewrittenLogicalPlan =
+    var rewrittenLogicalPlan =
       WorkflowCacheRewriter.transform(logicalPlan, opResultStorage, opsToReuseCache)
     rewrittenLogicalPlan.operatorMap.values.foreach(initOperator)
+
+    // perform rewrite to enforce progressive computation constraints
+    rewrittenLogicalPlan = ProgressiveRetractionEnforcer.enforceDelta(rewrittenLogicalPlan, context)
 
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan

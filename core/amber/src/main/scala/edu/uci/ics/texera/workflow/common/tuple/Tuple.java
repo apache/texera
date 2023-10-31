@@ -282,9 +282,9 @@ public class Tuple implements ITuple, Serializable {
          */
         public BuilderV2 addSequentially(Object[] fields) {
             checkNotNull(fields);
-            checkSchemaMatchesFields(schema.getAttributes(), Lists.newArrayList(fields));
+            int startIndex = this.fieldNameMap.size();
             for (int i = 0; i < fields.length; i++) {
-                this.add(schema.getAttributes().get(i), fields[i]);
+                this.add(schema.getAttributes().get(startIndex + i), fields[i]);
             }
             return this;
         }

@@ -73,6 +73,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 false,
                 false,
                 true,
+                false,
                 false
         );
     }

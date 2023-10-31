@@ -53,7 +53,8 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       OperatorGroupConstants.ANALYTICS_GROUP,
       List(InputPort("")),
       List(OutputPort("")),
-      supportReconfiguration = true
+      supportReconfiguration = true,
+      supportRetractableInput = true
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

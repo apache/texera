@@ -20,9 +20,17 @@ object ProgressiveUtils {
     Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, true).add(tuple).build
   }
 
+  def addInsertionFlag(fields: Array[Object], outputSchema: Schema): Tuple = {
+    Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, true).addSequentially(fields).build
+  }
+
   def addRetractionFlag(tuple: Tuple, outputSchema: Schema): Tuple = {
     assert(!tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
     Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, false).add(tuple).build
+  }
+
+  def addRetractionFlag(fields: Array[Object], outputSchema: Schema): Tuple = {
+    Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, false).addSequentially(fields).build
   }
 
   def isInsertion(tuple: Tuple): Boolean = {
