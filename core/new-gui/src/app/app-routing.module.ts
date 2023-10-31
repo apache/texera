@@ -71,6 +71,10 @@ if (environment.userSystemEnabled) {
         component: SearchComponent,
       },
       {
+        path: "discussion",
+        component: FlarumComponent,
+      },
+      {
         path: "admin/user",
         component: AdminUserComponent,
         canActivate: [AdminGuardService],
@@ -84,10 +88,6 @@ if (environment.userSystemEnabled) {
         path: "admin/execution",
         component: AdminExecutionComponent,
         canActivate: [AdminGuardService],
-      },
-      {
-        path: "flarum",
-        component: FlarumComponent,
       },
     ],
   });
