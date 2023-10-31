@@ -57,6 +57,7 @@ import { ShareAccessComponent } from "./dashboard/user/component/share-access/sh
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { NgbdModalFileAddComponent } from "./dashboard/user/component/user-file/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
+import { UserQuotaComponent } from "./dashboard/user/component/user-quota/user-quota.component";
 import { UserIconComponent } from "./dashboard/user/component/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/user/component/user-avatar/user-avatar.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
@@ -129,13 +130,16 @@ import { UserFileListItemComponent } from "./dashboard/user/component/user-file/
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
+import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
 import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
+import { NzAlertModule } from "ng-zorro-antd/alert";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    GmailComponent,
     PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
@@ -154,6 +158,7 @@ registerLocaleData(en);
     LocalLoginComponent,
     UserWorkflowComponent,
     UserFileComponent,
+    UserQuotaComponent,
     NgbdModalFileAddComponent,
     RowModalComponent,
     OperatorLabelComponent,
@@ -270,6 +275,7 @@ registerLocaleData(en);
     NzLayoutModule,
     MarkdownModule.forRoot(),
     DragDropModule,
+    NzAlertModule,
   ],
   providers: [
     AuthGuardService,

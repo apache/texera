@@ -205,7 +205,7 @@ export class ResultPanelComponent implements OnInit {
     const resultService = this.workflowResultService.getResultService(operatorId);
     const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
     if (paginatedResultService) {
-      // display table result if has paginated results
+      // display table result if it has paginated results
       this.frameComponentConfigs.set("Result", {
         component: ResultTableFrameComponent,
         componentInputs: { operatorId },

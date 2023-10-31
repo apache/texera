@@ -15,6 +15,10 @@ final case class EpochMarker(
 final case class EndOfUpstream() extends DataPayload
 
 final case class DataFrame(frame: Array[ITuple]) extends DataPayload {
+  val inMemSize: Long = {
+    frame.map(_.inMemSize).sum
+  }
+
   override def equals(obj: Any): Boolean = {
     if (!obj.isInstanceOf[DataFrame]) return false
     val other = obj.asInstanceOf[DataFrame]

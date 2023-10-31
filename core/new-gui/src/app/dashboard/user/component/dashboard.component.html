@@ -70,6 +70,18 @@
       </li>
 
       <li
+        nz-menu-item
+        nz-tooltip="Quota information"
+        nzMatchRouter="true"
+        nzTooltipPlacement="right"
+        routerLink="/dashboard/user-quota">
+        <span
+          nz-icon
+          nzType="dashboard"></span>
+        <span>Quota</span>
+      </li>
+
+      <li
         *ngIf="isAdmin"
         nz-submenu>
         <span
@@ -102,6 +114,17 @@
               nz-icon
               nzType="setting"></span>
             <span>Executions</span>
+          </li>
+          <li
+            nz-menu-item
+            nz-tooltip="Setup gmail"
+            nzMatchRouter="true"
+            nzTooltipPlacement="right"
+            routerLink="/dashboard/admin/gmail">
+            <span
+              nz-icon
+              nzType="mail"></span>
+            <span>Gmail</span>
           </li>
         </ul>
       </li>

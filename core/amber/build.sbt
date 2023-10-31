@@ -124,7 +124,10 @@ val googleServiceDependencies = Seq(
   "com.google.oauth-client" % "google-oauth-client-jetty" % "1.34.1" exclude ("com.google.guava", "guava"),
   "com.google.api-client" % "google-api-client" % "2.2.0" exclude ("com.google.guava", "guava"),
   "com.google.apis" % "google-api-services-sheets" % "v4-rev612-1.25.0" exclude ("com.google.guava", "guava"),
-  "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude ("com.google.guava", "guava")
+  "com.google.apis" % "google-api-services-drive" % "v3-rev197-1.25.0" exclude ("com.google.guava", "guava"),
+  "com.google.apis" % "google-api-services-gmail" % "v1-rev20230925-2.0.0",
+  "com.google.auth" % "google-auth-library-oauth2-http" % "1.19.0",
+  "com.sun.mail" % "javax.mail" % "1.6.2"
 )
 
 /////////////////////////////////////////////////////////////////////////////
@@ -215,7 +218,7 @@ libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
 libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
-libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.5.0"
+libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
 libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.16"
@@ -260,3 +263,6 @@ libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
 // Jgit library for tracking operator version
 // https://mvnrepository.com/artifact/org.eclipse.jgit/org.eclipse.jgit
 libraryDependencies += "org.eclipse.jgit" % "org.eclipse.jgit" % "5.13.0.202109080827-r"
+
+// https://mvnrepository.com/artifact/org.ehcache/sizeof
+libraryDependencies += "org.ehcache" % "sizeof" % "0.4.3"
