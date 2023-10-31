@@ -6,6 +6,8 @@
 -- Generation Time: Oct 29, 2023 at 10:40 PM
 -- Server version: 5.7.39
 -- PHP Version: 8.2.0
+CREATE SCHEMA IF NOT EXISTS `flarum`;
+USE `flarum`;
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
