@@ -12,7 +12,7 @@ export class FlarumService {
   constructor(private http: HttpClient, private userService: UserService) { }
 
   createFlarumUser(username: string, identification: string, password: string):Observable<any> {
-    const url = environment.Flarum_User_URL;
+    const url = "http://localhost:80/api/users";
     const body = {
       data: {
         attributes: {
@@ -24,7 +24,7 @@ export class FlarumService {
     };
     const headers = {
       'Content-Type': 'application/json',
-      Authorization: `Token ${environment.Flarum_Token}`,
+      Authorization: `Token ${"http://localhost:80/api/token"}`,
     };
     return this.http.post(url, body, { headers }).pipe(
       catchError(error => {
@@ -43,10 +43,10 @@ export class FlarumService {
 
     const username = currentUser.name.replace(/[^a-zA-Z0-9-]/g, '');
     const identification = currentUser.email;
-    const password = environment.Default_PW;
+    const password = "myPassword";
 
     return this.http.post(
-      environment.Flarum_Token_URL,
+      "http://localhost:80/public/api/token",
       { identification, password, remember: '1' },
       { headers: { 'Content-Type': 'application/json' }, withCredentials: true }
     ).pipe(

@@ -20,14 +20,14 @@ composer create-project flarum/flarum . --stability=beta
 
 # Copy config files
 echo "Copying config files..."
-echo $User_PW | sudo -S cp /Users/henryliu/Desktop/flarum-data/config.php /opt/homebrew/var/www/flarum/config.php
-sudo cp /Users/henryliu/Desktop/flarum-data/.htaccess /opt/homebrew/var/www/flarum/public/.htaccess
+echo $User_PW | sudo -S cp config.php /opt/homebrew/var/www/flarum/config.php
+sudo cp .htaccess /opt/homebrew/var/www/flarum/public/.htaccess
 
 # Database Configuration
 echo "Setting up mysql database for flarum..."
 mysql -u root -p$SQL_PW -h localhost -P 3306 -e "CREATE DATABASE IF NOT EXISTS flarum;"
 echo "Dumping necessary SQL files..."
-mysql -u root -p$SQL_PW flarum < /Users/henryliu/Desktop/flarum-data/flarum.sql
+mysql -u root -p$SQL_PW flarum < sql/flarum.sql
 
 
 # Apache Configuration
