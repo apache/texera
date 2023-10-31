@@ -21,7 +21,7 @@ composer create-project flarum/flarum . --stability=beta
 # Copy config files
 echo "Copying config files..."
 echo $User_PW | sudo -S cp /Users/henryliu/Desktop/flarum-data/config.php /opt/homebrew/var/www/flarum/config.php
-sudo cp /Users/henryliu/Desktop/flarum-data/htaccess /opt/homebrew/var/www/flarum/public/.htaccess
+sudo cp /Users/henryliu/Desktop/flarum-data/.htaccess /opt/homebrew/var/www/flarum/public/.htaccess
 
 # Database Configuration
 echo "Setting up mysql database for flarum..."
