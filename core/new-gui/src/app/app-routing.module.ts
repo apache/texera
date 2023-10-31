@@ -13,6 +13,7 @@ import { AdminUserComponent } from "./dashboard/admin/component/user/admin-user.
 import { AdminExecutionComponent } from "./dashboard/admin/component/execution/admin-execution.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
+import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
 /*
  *  This file defines the url path
  *  The workflow workspace is set as default path
@@ -72,6 +73,10 @@ if (environment.userSystemEnabled) {
         path: "admin/execution",
         component: AdminExecutionComponent,
         canActivate: [AdminGuardService],
+      },
+      {
+        path: "flarum",
+        component: FlarumComponent,
       },
     ],
   });

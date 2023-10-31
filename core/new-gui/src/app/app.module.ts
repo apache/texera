@@ -130,6 +130,7 @@ import { SearchComponent } from "./dashboard/user/component/search/search.compon
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
+import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
 
 registerLocaleData(en);
 
@@ -201,6 +202,7 @@ registerLocaleData(en);
     SearchComponent,
     SearchResultsComponent,
     PortPropertyEditFrameComponent,
+    FlarumComponent,
   ],
   imports: [
     BrowserModule,
