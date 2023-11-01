@@ -162,7 +162,10 @@ class WorkerSpec
             msgID,
             WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))
           ) =>
-        probe.sender() ! NetworkAck(msgID, Some(Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair))
+        probe.sender() ! NetworkAck(
+          msgID,
+          Some(Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
+        )
         returnValue match {
           case e: Throwable => throw e
           case _ =>
