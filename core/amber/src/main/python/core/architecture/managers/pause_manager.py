@@ -23,8 +23,9 @@ class PauseManager:
     Manage pause states.
     """
 
-    def __init__(self, input_queue: InternalQueue, state_manager:
-    state_manager.StateManager):
+    def __init__(
+        self, input_queue: InternalQueue, state_manager: state_manager.StateManager
+    ):
         self._input_queue: InternalQueue = input_queue
         self._global_pauses: Set[PauseType] = set()
         self._specific_input_pauses: Dict[
@@ -36,13 +37,11 @@ class PauseManager:
         self._global_pauses.add(pause_type)
         self._input_queue.disable_data()
 
-        if self._state_manager.confirm_state(
-                WorkerState.RUNNING, WorkerState.READY
-        ):
+        if self._state_manager.confirm_state(WorkerState.RUNNING, WorkerState.READY):
             self._state_manager.transit_to(WorkerState.PAUSED)
 
     def pause_input_channel(
-            self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
+        self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
     ) -> None:
         # for now we do not have specific data queue for Python side.
         raise NotImplementedError()

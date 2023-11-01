@@ -5,6 +5,7 @@ from .handler_base import Handler
 from ..managers.context import Context
 from ..managers.pause_manager import PauseType
 
+
 class WorkerDebugCommandHandler(Handler):
     cmd = WorkerDebugCommandV2
 
