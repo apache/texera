@@ -9,6 +9,6 @@ class PauseWorkerHandler(Handler):
     cmd = PauseWorkerV2
 
     def __call__(self, context: Context, command: PauseWorkerV2, *args, **kwargs):
-        context.main_loop._pause_dp(PauseType.USER_PAUSE)
+        context.pause_manager.pause(PauseType.USER_PAUSE)
         state = context.state_manager.get_current_state()
         return state
