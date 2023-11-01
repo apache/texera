@@ -301,7 +301,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_data()
 
-    def _pause_dp(self) -> None:
+    def _pause_dp(self, pause_type: PauseType) -> None:
         """
         Pause the data processing.
         """
@@ -309,7 +309,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(
             WorkerState.RUNNING, WorkerState.READY
         ):
-            self.context.pause_manager.pause(PauseType.USER_PAUSE)
+            self.context.pause_manager.pause(pause_type)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
 
     def _resume_dp(self) -> None:
@@ -349,12 +349,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     message=debug_event,
                 )
             )
-            self._pause_dp()
+            self._pause_dp(PauseType.DEBUG_PAUSE)
 
     def _check_and_report_exception(self) -> None:
         if self.context.exception_manager.has_exception():
             self.report_exception(self.context.exception_manager.get_exc_info())
-            self._pause_dp()
+            self._pause_dp(PauseType.EXCEPTION_PAUSE)
 
     def _check_and_report_print(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):

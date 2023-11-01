@@ -3,7 +3,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 )
 from .handler_base import Handler
 from ..managers.context import Context
-
+from ..managers.pause_manager import PauseType
 
 class WorkerDebugCommandHandler(Handler):
     cmd = WorkerDebugCommandV2
@@ -16,7 +16,8 @@ class WorkerDebugCommandHandler(Handler):
         context.debug_manager.put_debug_command(translated_command)
 
         # allow MainLoop to switch into DataProcessor.
-        context.main_loop._resume_dp()
+        context.pause_manager.resume(PauseType.DEBUG_PAUSE)
+        # context.main_loop._resume_dp()
 
     @staticmethod
     def translate_debug_command(command: cmd, context: Context) -> str:
