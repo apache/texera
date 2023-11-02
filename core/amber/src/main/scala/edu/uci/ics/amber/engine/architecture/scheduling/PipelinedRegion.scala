@@ -14,9 +14,9 @@ case class PipelinedRegion(
     blockingDownstreamOperatorsInOtherRegions: Array[(LayerIdentity, Int)] = Array.empty
 ) {
 
-  def getId(): PipelinedRegionIdentity = id
+  def getId: PipelinedRegionIdentity = id
 
-  def getOperators(): Array[LayerIdentity] = operators
+  def getOperators: Array[LayerIdentity] = operators
 
   def containsOperator(opId: LayerIdentity): Boolean = {
     this.operators.contains(opId)
