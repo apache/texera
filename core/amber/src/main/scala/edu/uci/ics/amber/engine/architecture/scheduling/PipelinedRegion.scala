@@ -10,6 +10,7 @@ case class PipelinedRegion(
     id: PipelinedRegionIdentity,
     operators: Array[LayerIdentity],
     // These are the operators that receive blocking inputs from this region
+    // Array[(ActorId, toPort)]
     blockingDownstreamOperatorsInOtherRegions: Array[(LayerIdentity, Int)] = Array.empty
 ) {
 
