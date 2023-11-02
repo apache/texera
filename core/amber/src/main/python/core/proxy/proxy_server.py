@@ -17,6 +17,15 @@ from pyarrow.flight import (
     ServerCallContext,
 )
 
+from pyarrow.ipc import RecordBatchStreamWriter
+import socket
+
+
+def get_free_local_port():
+    # results a free random port
+    with socket.socket() as s:
+        s.bind(("", 0))
+        return s.getsockname()[1]
 
 class ProxyServer(FlightServerBase):
     """
