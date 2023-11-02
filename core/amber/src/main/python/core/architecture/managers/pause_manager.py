@@ -67,4 +67,5 @@ class PauseManager:
         raise NotImplementedError()
 
     def is_paused(self) -> bool:
-        return bool(self._global_pauses)
+        return bool(self._global_pauses) and self._state_manager.confirm_state(
+            WorkerState.PAUSED)
