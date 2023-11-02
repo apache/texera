@@ -19,6 +19,7 @@ import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/r
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { exhaustiveGuard } from "../../../common/util/switch";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -369,7 +370,7 @@ export class ExecuteWorkflowService {
         this.workflowActionService.disableWorkflowModification();
         return;
       default:
-        return;
+        return exhaustiveGuard(stateInfo)
     }
   }
 
