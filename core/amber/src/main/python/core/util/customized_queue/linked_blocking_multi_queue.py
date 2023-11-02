@@ -253,7 +253,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         # disabled subqueues will not be included in this count
         self.total_count = AtomicInteger()
 
-
         # thread-safe in CPython
         self.priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup] = list()
         self.sub_queue_selection = LinkedBlockingMultiQueue.DefaultSubQueueSelection(

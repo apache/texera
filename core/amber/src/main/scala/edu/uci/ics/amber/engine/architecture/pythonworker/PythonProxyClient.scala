@@ -121,7 +121,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
     // extract info needed to calculate sender credits from ack
     // ackResult contains number of batches inside Python worker internal queue
-    serverQueueInMemSize =  new String(result.getBody).toLong
+    serverQueueInMemSize = new String(result.getBody).toLong
     // TODO : use in calculating credits + pass to sender worker's FlowControl unit
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)

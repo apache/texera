@@ -91,4 +91,4 @@ class InternalQueue(IQueue):
 
     def in_mem_size(self) -> int:
         # TODO: change this to use message size instead
-        return self._queue.actual_count()*200
+        return self._queue.actual_count() * 200
