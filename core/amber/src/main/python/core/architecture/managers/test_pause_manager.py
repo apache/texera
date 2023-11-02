@@ -21,7 +21,7 @@ class TestPauseManager:
                 WorkerState.PAUSED: {WorkerState.RUNNING},
                 WorkerState.COMPLETED: set(),
             },
-            WorkerState.READY, # initial state set to READY for testing purpose
+            WorkerState.READY,  # initial state set to READY for testing purpose
         )
 
     @pytest.fixture
