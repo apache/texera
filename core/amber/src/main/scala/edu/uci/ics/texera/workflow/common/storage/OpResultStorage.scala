@@ -55,11 +55,6 @@ class OpResultStorage extends Serializable with LazyLogging {
             new MemoryStorage(schema)
         }
       }
-    // remove any existing storage with duplicate key
-    if (cache.containsKey(key)) {
-      cache.get(key).clear() // clear the storage content
-      cache.remove(key)
-    }
     cache.put(key, storage)
     storage
   }

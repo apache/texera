@@ -290,13 +290,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
         The time slot for scheduling this worker has expired.
         """
         if time_slot_expired:
-            self.context.pause_manager.record_request(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, True
+            self.context.pause_manager.pause(
+                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
             self._input_queue.disable_data()
         else:
-            self.context.pause_manager.record_request(
-                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE, False
+            self.context.pause_manager.resume(
+                PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
             if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_data()
@@ -309,8 +309,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(
             WorkerState.RUNNING, WorkerState.READY
         ):
-            self.context.pause_manager.record_request(PauseType.USER_PAUSE, True)
-            self._input_queue.disable_data()
+            self.context.pause_manager.pause(PauseType.USER_PAUSE)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
 
     def _resume_dp(self) -> None:
@@ -318,9 +317,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         Resume the data processing.
         """
         if self.context.state_manager.confirm_state(WorkerState.PAUSED):
-            self.context.pause_manager.record_request(PauseType.USER_PAUSE, False)
-            if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_data()
+            self.context.pause_manager.resume(PauseType.USER_PAUSE)
             self.context.state_manager.transit_to(WorkerState.RUNNING)
 
     def _send_console_message(self, console_message: PythonConsoleMessageV2):
