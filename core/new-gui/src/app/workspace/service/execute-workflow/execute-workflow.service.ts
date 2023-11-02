@@ -8,7 +8,7 @@ import {
   ExecutionStateInfo,
   LogicalLink,
   LogicalOperator,
-  LogicalPlan
+  LogicalPlan,
 } from "../../types/execute-workflow.interface";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
