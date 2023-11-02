@@ -25,7 +25,6 @@ object AggregateOpDesc {
         // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
 
-
     val finalLayer = if (groupByKeys == null || groupByKeys.isEmpty) {
       OpExecConfig
         .localLayer(
