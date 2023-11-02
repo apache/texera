@@ -370,7 +370,7 @@ export class ExecuteWorkflowService {
         this.workflowActionService.disableWorkflowModification();
         return;
       default:
-        return exhaustiveGuard(stateInfo)
+        return exhaustiveGuard(stateInfo);
     }
   }
 
