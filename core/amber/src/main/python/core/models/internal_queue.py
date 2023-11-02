@@ -88,3 +88,6 @@ class InternalQueue(IQueue):
 
     def disable_data(self) -> None:
         self._disable(InternalQueue.QueueID.DATA)
+
+    def in_mem_size(self) -> int:
+        return self._queue.actual_count()*200

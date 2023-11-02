@@ -68,8 +68,10 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
-  override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    pythonProxyClient.getSenderCredits(sender)
+  override def getSenderCredits(sender: ActorVirtualIdentity): Long = {
+
+    println("total sender credit", pythonProxyClient.getSenderCredits(sender) - pythonProxyClient.getServerQueueInMemSize())
+    pythonProxyClient.getSenderCredits(sender) - pythonProxyClient.getServerQueueInMemSize()
   }
 
   override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {

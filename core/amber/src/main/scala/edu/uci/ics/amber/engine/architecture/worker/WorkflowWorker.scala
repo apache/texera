@@ -88,7 +88,7 @@ class WorkflowWorker(
 
   override def getLogName: String = getWorkerLogName(actorId)
 
-  def getSenderCredits(sender: ActorVirtualIdentity): Int = {
+  def getSenderCredits(sender: ActorVirtualIdentity): Long = {
     internalQueue.getSenderCredits(sender)
   }
 

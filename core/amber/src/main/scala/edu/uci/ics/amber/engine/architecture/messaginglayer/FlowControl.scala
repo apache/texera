@@ -37,7 +37,7 @@ import scala.util.control.Breaks.{break, breakable}
   * 4. In our current design, the term "Credit" refers to the message in memory size in bytes.
   */
 class FlowControl {
-  val receiverCreditsMapping = new mutable.HashMap[ActorVirtualIdentity, Int]()
+  val receiverCreditsMapping = new mutable.HashMap[ActorVirtualIdentity, Long]()
   var backpressureRequestSentToMainActor = false
   var receiverToCreditPollingHandle = new mutable.HashMap[ActorVirtualIdentity, Cancellable]()
   private val receiverStashedDataMessageMapping =
@@ -131,7 +131,7 @@ class FlowControl {
     )
   }
 
-  def updateCredits(receiverId: ActorVirtualIdentity, credits: Int): Unit = {
+  def updateCredits(receiverId: ActorVirtualIdentity, credits: Long): Unit = {
     if (credits <= 0) {
       receiverCreditsMapping(receiverId) = 0
     } else {

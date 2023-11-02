@@ -71,7 +71,7 @@ object NetworkCommunicationActor {
     *
     * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
     */
-  final case class NetworkAck(messageId: Long, credits: Option[Int] = None)
+  final case class NetworkAck(messageId: Long, credits: Option[Long] = None)
 
   final case class ResendMessages()
 

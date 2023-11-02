@@ -17,7 +17,7 @@ class NetworkInputPort[T](
 
   def handleMessage(
       sender: ActorRef,
-      senderCredits: Int,
+      senderCredits: Long,
       messageID: Long,
       from: ActorVirtualIdentity,
       sequenceNumber: Long,

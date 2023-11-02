@@ -107,10 +107,10 @@ trait WorkerBatchInternalQueue {
 
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
 
-  def getSenderCredits(sender: ActorVirtualIdentity): Int = {
+  def getSenderCredits(sender: ActorVirtualIdentity): Long = {
     val inBytes = inQueueSizeMapping.getOrElseUpdate(sender, 0L)
     val outBytes = outQueueSizeMapping.getOrElseUpdate(sender, 0L)
-    (Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - (inBytes - outBytes)).toInt
+    Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - (inBytes - outBytes)
   }
 
 }
