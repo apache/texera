@@ -23,6 +23,7 @@ class TestPauseManager:
             },
             WorkerState.UNINITIALIZED,
         )
+
     @pytest.fixture
     def pause_manager(self, input_queue, state_manager):
         return PauseManager(input_queue, state_manager)
@@ -38,7 +39,6 @@ class TestPauseManager:
         assert pause_manager.is_paused()
         pause_manager.resume(PauseType.USER_PAUSE)
         assert not pause_manager.is_paused()
-
 
     def test_it_can_be_paused_when_paused(self, pause_manager):
         pause_manager.pause(PauseType.USER_PAUSE)
