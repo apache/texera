@@ -13,7 +13,10 @@ import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.SubscriptionManager
+import edu.uci.ics.texera.Utils.maptoStatusCode
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.TelemetryDao
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Telemetry
+import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
 import edu.uci.ics.texera.web.model.websocket.event.{ExecutionDurationUpdateEvent, OperatorStatistics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
@@ -22,6 +25,10 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorWorkerMapping, Workf
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 
 import java.time.Instant
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import org.jooq.types.UInteger
+
+import java.util
 
 class JobStatsService(
     client: AmberClient,
@@ -29,6 +36,9 @@ class JobStatsService(
     workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
+  final private lazy val context = SqlServer.createDSLContext()
+  private val telemetryDao = new TelemetryDao(context.configuration)
+
   registerCallbacks()
 
   addSubscription(
@@ -107,10 +117,24 @@ class JobStatsService(
           stateStore.statsStore.updateState { jobInfo =>
             jobInfo.withOperatorInfo(evt.operatorStatistics)
           }
-          println(s"Workflow ID: ${workflowContext.wId}")
-          println(s"Execution ID: ${workflowContext.executionID}")
+          storeRuntimeStatistics(evt.operatorStatistics)
         })
     )
+  }
+
+  private def storeRuntimeStatistics(operatorStatistics: Map[String, OperatorRuntimeStats]): Unit = {
+    val list: util.ArrayList[Telemetry] = new util.ArrayList[Telemetry]()
+    for ((operatorId, stat) <- operatorStatistics) {
+      val execution = new Telemetry()
+      execution.setWorkflowId(workflowContext.wId)
+      execution.setExecutionId(UInteger.valueOf(workflowContext.executionID))
+      execution.setOperatorId(operatorId)
+      execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
+      execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
+      execution.setStatus(maptoStatusCode(stat.state))
+      list.add(execution)
+    }
+    telemetryDao.insert(list)
   }
 
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {
