@@ -4,23 +4,24 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.reflect.ClassTag;
 
-import java.util.Collections;
+import java.io.Serializable;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
-import static scala.collection.JavaConverters.mapAsScalaMap;
 
 public class TypeCastingOpDesc extends MapOpDesc {
 
@@ -29,11 +30,11 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonPropertyDescription("Multiple type castings")
     public List<TypeCastingUnit> typeCastingUnits;
 
-
     @Override
-    public OneToOneOpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        return new OneToOneOpExecConfig(operatorIdentifier(), worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]), Constants.currentWorkerNum(), mapAsScalaMap(Collections.emptyMap()));
+        return OpExecConfig.oneToOneLayer(operatorIdentifier(),
+                (OpExecFunc & Serializable) worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]));
     }
 
     @Override
@@ -44,7 +45,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 OperatorGroupConstants.UTILITY_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false);
+                false, false, false, false);
     }
 
     @Override

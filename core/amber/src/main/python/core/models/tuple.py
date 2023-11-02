@@ -1,21 +1,30 @@
-import datetime
-import pyarrow
+import ctypes
+import struct
 import typing
+from collections import OrderedDict
 from copy import deepcopy
 from dataclasses import dataclass
-from typing import Any, List, Mapping, Iterator, TypeVar, Dict, Callable
+from typing import Any, List, Iterator, Callable
 
+from typing_extensions import Protocol, runtime_checkable
 import pandas
+import pickle
+import pyarrow
+from loguru import logger
+from pandas._libs.missing import checknull
 
-AttributeType = TypeVar("AttributeType", int, float, str, datetime.datetime)
+from .schema.attribute_type import TO_PYOBJECT_MAPPING, AttributeType
+from .schema.field import Field
+from .schema.schema import Schema
 
-TupleLike = TypeVar(
-    "TupleLike",
-    pandas.Series,
-    Iterator[typing.Tuple[str, AttributeType]],
-    Mapping[str, typing.Callable],
-    Mapping[str, AttributeType],
-)
+
+@runtime_checkable
+class TupleLike(Protocol):
+    def __getitem__(self, item: typing.Union[str, int]) -> Field:
+        ...
+
+    def __setitem__(self, key: typing.Union[str, int], value: Field) -> None:
+        ...
 
 
 @dataclass
@@ -57,7 +66,7 @@ class ArrowTableTupleProvider:
         chunk_idx = self._current_chunk
         tuple_idx = self._current_idx
 
-        def field_accessor(field_name: str) -> AttributeType:
+        def field_accessor(field_name: str) -> Field:
             """
             Retrieve the field value by a given field name.
             This abstracts and hides the underlying implementation of the tuple data
@@ -67,9 +76,11 @@ class ArrowTableTupleProvider:
             field_type = self._table.schema.field(field_name).type
 
             # for binary types, convert pickled objects back.
-            if field_type == pyarrow.binary() and value[:6] == b"pickle":
-                import pickle
-
+            if (
+                field_type == pyarrow.binary()
+                and value is not None
+                and value[:6] == b"pickle"
+            ):
                 value = pickle.loads(value[10:])
             return value
 
@@ -77,12 +88,70 @@ class ArrowTableTupleProvider:
         return field_accessor
 
 
+def double_to_long(value: float) -> int:
+    """
+    Convert a double value into a long value.
+    :param value: A double (Python float) value.
+    :return: The converted long (Python int) value.
+    """
+    # Pack the double value into a binary string of 8 bytes
+    packed_value = struct.pack("d", value)
+    # Unpack the binary string to a 64-bit integer (int in Python 3)
+    long_value = struct.unpack("Q", packed_value)[0]
+    return long_value
+
+
+def int_32(value: int) -> int:
+    """
+    Convert a Python int (unbounded) to a 32-bit int with overflow.
+    :param value: A Python int value.
+    :return: The converted 32-bit integer, with overflow.
+    """
+    return ctypes.c_int32(value).value
+
+
+def java_hash_bool(value: bool) -> int:
+    """
+    Java's hash function for a boolean value.
+    :param value: A boolean value.
+    :return: Java's hash value in a 32-bit integer.
+    """
+    return 1231 if value else 1237
+
+
+def java_hash_long(value: int) -> int:
+    """
+    Java's hash function for a long value.
+    :param value: A long (Python int) value.
+    :return: Java's hash value in a 32-bit integer.
+    """
+    return int_32(value ^ (value >> 32))
+
+
+def java_hash_bytes(bytes: Iterator[int], init: int, salt: int):
+    """
+    Java's hash function for an array of bytes.
+    :param bytes: An iterator of int (byte) values.
+    :param init: An init hash value.
+    :param salt: A hash salt value.
+    :return: Java's hash value in a 32-bit integer.
+    """
+    h = init
+    for b in bytes:
+        h = int_32(salt * h + b)
+    return h
+
+
 class Tuple:
     """
     Lazy-Tuple implementation.
     """
 
-    def __init__(self, tuple_like: typing.Optional[TupleLike] = None):
+    def __init__(
+        self,
+        tuple_like: typing.Optional["TupleLike"] = None,
+        schema: typing.Optional[Schema] = None,
+    ):
         """
         Construct a lazy-tuple with given TupleLike object. If the field value is a
         accessor callable, the actual value is fetched upon first reference.
@@ -91,14 +160,18 @@ class Tuple:
             memory, or a callable accessor.
         """
         assert len(tuple_like) != 0
+        self._field_data: "OrderedDict[str, Field]"
         if isinstance(tuple_like, Tuple):
             self._field_data = tuple_like._field_data
         elif isinstance(tuple_like, pandas.Series):
-            self._field_data = tuple_like.to_dict()
+            self._field_data = OrderedDict(tuple_like.to_dict())
         else:
-            self._field_data = dict(tuple_like) if tuple_like else dict()
+            self._field_data = OrderedDict(tuple_like) if tuple_like else OrderedDict()
+        self._schema: typing.Optional[Schema] = schema
+        if self._schema:
+            self.finalize(schema)
 
-    def __getitem__(self, item: typing.Union[int, str]) -> AttributeType:
+    def __getitem__(self, item: typing.Union[int, str]) -> Field:
         """
         Get a field value with given item. If the value is an accessor, fetch it from
         the accessor.
@@ -123,7 +196,7 @@ class Tuple:
             self._field_data[item] = field_accessor(field_name=item)
         return self._field_data[item]
 
-    def __setitem__(self, field_name: str, field_value: AttributeType) -> None:
+    def __setitem__(self, field_name: str, field_value: Field) -> None:
         """
         Set a field with the given value.
         :param field_name
@@ -137,7 +210,7 @@ class Tuple:
         """Convert the tuple to Pandas series format"""
         return pandas.Series(self.as_dict())
 
-    def as_dict(self) -> Dict[str, AttributeType]:
+    def as_dict(self) -> "OrderedDict[str, Field]":
         """
         Return a dictionary copy of this tuple.
         Fields will be fetched from accessor if absent.
@@ -148,13 +221,13 @@ class Tuple:
             self.__getitem__(i)
         return deepcopy(self._field_data)
 
-    def as_key_value_pairs(self) -> List[typing.Tuple[str, AttributeType]]:
+    def as_key_value_pairs(self) -> List[typing.Tuple[str, Field]]:
         return [(k, v) for k, v in self.as_dict().items()]
 
     def get_field_names(self) -> typing.Tuple[str]:
         return tuple(map(str, self._field_data.keys()))
 
-    def get_fields(self, output_field_names=None) -> typing.Tuple[AttributeType]:
+    def get_fields(self, output_field_names=None) -> typing.Tuple[Field, ...]:
         """
         Get values from tuple for selected fields.
         """
@@ -162,11 +235,114 @@ class Tuple:
             output_field_names = self.get_field_names()
         return tuple(self[i] for i in output_field_names)
 
-    def __iter__(self) -> Iterator[AttributeType]:
+    def finalize(self, schema: Schema) -> None:
+        """
+        Finalizes a Tuple by adding a schema to it. This convert all Fields into the
+        AttributeType defined in the Schema and make the Tuple immutable.
+
+        A Tuple can have no Schema initially. The types of Fields are not restricted.
+        This is to provide the maximum flexibility for users to construct Tuples as
+        they wish. When a Schema is added, the Tuple is finalized to match the Schema.
+
+        :param schema: target Schema to finalize the Tuple.
+        :return:
+        """
+        self.cast_to_schema(schema)
+        self.validate_schema(schema)
+        self._schema = schema
+
+    def cast_to_schema(self, schema: Schema) -> None:
+        """
+        Safely cast each field value to match the target schema.
+        If failed, the value will stay not changed.
+
+        This current conducts two kinds of casts:
+            1. cast NaN to None;
+            2. cast any object to bytes (using pickle).
+        :param schema: The target Schema that describes the target AttributeType to
+            cast.
+        :return:
+        """
+        for field_name in self.get_field_names():
+            try:
+                field_value: Field = self[field_name]
+
+                # convert NaN to None to support null value conversion
+                if checknull(field_value):
+                    self[field_name] = None
+
+                if field_value is not None:
+                    field_type = schema.get_attr_type(field_name)
+                    if field_type == AttributeType.BINARY and not isinstance(
+                        field_value, bytes
+                    ):
+                        self[field_name] = b"pickle    " + pickle.dumps(field_value)
+            except Exception as err:
+                # Surpass exceptions during cast.
+                # Keep the value as it is if the cast fails, and continue to attempt
+                # on the next one.
+                logger.warning(err)
+                continue
+
+    def validate_schema(self, schema: Schema) -> None:
+        """
+        Checks if the field values in the Tuple matches the expected Schema.
+        :param schema: Schema
+        :return:
+        """
+
+        schema_fields = schema.get_attr_names()
+        tuple_fields = self.get_field_names()
+        expected_but_missing = set(schema_fields) - set(tuple_fields)
+        unexpected = set(tuple_fields) - set(schema_fields)
+        if expected_but_missing:
+            raise KeyError(
+                f"field{'' if len(expected_but_missing) == 1 else 's'} "
+                f"{', '.join(map(repr, expected_but_missing))} "
+                f"{'is' if len(expected_but_missing) == 1 else 'are'} "
+                f"expected but missing in the {self}."
+            )
+
+        if unexpected:
+            raise KeyError(
+                f"{self} contains {'an' if len(unexpected) == 1 else ''} unexpected "
+                f"field{'' if len(unexpected) == 1 else 's'}: "
+                f"{', '.join(map(repr, unexpected))}."
+            )
+
+        for field_name, field_value in self.as_key_value_pairs():
+            expected = schema.get_attr_type(field_name)
+            if not isinstance(
+                field_value, (TO_PYOBJECT_MAPPING.get(expected), type(None))
+            ):
+                raise TypeError(
+                    f"Unmatched type for field '{field_name}', expected {expected}, "
+                    f"got {field_value} ({type(field_value)}) instead."
+                )
+
+    def get_partial_tuple(self, indices: List[int]) -> "Tuple":
+        """
+        Create a partial Tuple with fields specified by the indices.
+        :param indices: A list of index values.
+        :return: A new Tuple with the selected fields, with the same order specified
+        by the indices.
+        """
+        assert self._schema is not None
+        schema = self._schema.get_partial_schema(indices)
+        new_raw_tuple = OrderedDict()
+        for index, (key, value) in enumerate(self.as_key_value_pairs(), 0):
+            if index in indices:
+                new_raw_tuple[key] = value
+        return Tuple(new_raw_tuple, schema=schema)
+
+    def __iter__(self) -> Iterator[Field]:
         return iter(self.get_fields())
 
     def __str__(self) -> str:
-        return f"Tuple[{str(self.as_dict()).strip('{').strip('}')}]"
+        content = ", ".join(
+            [repr(key) + ": " + repr(value) for key, value in self.as_key_value_pairs()]
+        )
+        return f"Tuple[{content}]"
 
     __repr__ = __str__
 
@@ -182,3 +358,38 @@ class Tuple:
 
     def __len__(self) -> int:
         return len(self._field_data)
+
+    def __contains__(self, __x: object) -> bool:
+        return __x in self._field_data
+
+    def __hash__(self) -> int:
+        """
+        Aligned with Java's built-in hash algorithm implementation described in
+        _Josh Bloch's Effective Java_.
+        This algorithm is taken by
+         - Built-in Java (java.util.Objects.hash)
+         - Guava (com.google.common.base.Objects.hashCode)
+        :return: A 32-bit integer value.
+        """
+        result = 1
+        salt = 31  # for ease of optimization
+
+        mapping = {
+            AttributeType.BOOL: lambda f: java_hash_bool(f),
+            AttributeType.INT: lambda f: int_32(f),
+            AttributeType.LONG: lambda f: java_hash_long(f),
+            AttributeType.DOUBLE: lambda f: java_hash_long(double_to_long(f)),
+            AttributeType.STRING: lambda f: java_hash_bytes(map(ord, f), 0, salt),
+            AttributeType.TIMESTAMP: lambda f: java_hash_long(int(f.timestamp())),
+            AttributeType.BINARY: lambda f: java_hash_bytes(f, 1, salt),
+        }
+
+        for name, field in self.as_key_value_pairs():
+            attr_type = self._schema.get_attr_type(name)
+            if field is None:
+                hash_value = 0
+            else:
+                hash_value = mapping[attr_type](field)
+            result = result * salt + hash_value
+
+        return int_32(result)

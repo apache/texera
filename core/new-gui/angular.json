@@ -43,15 +43,10 @@
               "node_modules/monaco-editor/min/vs/editor/editor.main.css"
             ],
             "scripts": [
-              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js"
+              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js",
+              "./node_modules/marked/marked.min.js"
             ],
-            "allowedCommonJsDependencies": [
-              "deep-map",
-              "c3",
-              "js-abbreviation-number",
-              "dagre",
-              "graphlib"
-            ],
+            "allowedCommonJsDependencies": ["deep-map", "c3", "js-abbreviation-number", "dagre", "graphlib"],
             "vendorChunk": true,
             "extractLicenses": false,
             "buildOptimizer": false,
@@ -105,9 +100,7 @@
         "test": {
           "builder": "@angular-devkit/build-angular:karma",
           "options": {
-            "assets": [
-              "src/assets"
-            ],
+            "assets": ["src/assets"],
             "fileReplacements": [
               {
                 "replace": "src/environments/environment.ts",
@@ -131,18 +124,12 @@
         "e2e": {
           "builder": "multi-target:multi-target",
           "options": {
-            "targets": [
-              "texera-gui:build:production",
-              "texera-gui:cypress-headless-with-fullstack"
-            ],
+            "targets": ["texera-gui:build:production", "texera-gui:cypress-headless-with-fullstack"],
             "sequential": true
           },
           "configurations": {
             "watch": {
-              "targets": [
-                "texera-gui:build:production",
-                "texera-gui:cypress-watch-with-fullstack"
-              ],
+              "targets": ["texera-gui:build:production", "texera-gui:cypress-watch-with-fullstack"],
               "sequential": true
             }
           }
@@ -150,10 +137,7 @@
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
-            "lintFilePatterns": [
-              "src/**/*.ts",
-              "src/**/*.html"
-            ]
+            "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
           }
         },
         "fullstack": {
@@ -193,22 +177,14 @@
         "cypress-headless-with-fullstack": {
           "builder": "multi-target:multi-target",
           "options": {
-            "targets": [
-              "texera-gui:fullstack",
-              "texera-gui:cypress-headless",
-              "texera-gui:kill-fullstack"
-            ],
+            "targets": ["texera-gui:fullstack", "texera-gui:cypress-headless", "texera-gui:kill-fullstack"],
             "sequential": true
           }
         },
         "cypress-watch-with-fullstack": {
           "builder": "multi-target:multi-target",
           "options": {
-            "targets": [
-              "texera-gui:fullstack",
-              "texera-gui:cypress-watch",
-              "texera-gui:kill-fullstack"
-            ],
+            "targets": ["texera-gui:fullstack", "texera-gui:cypress-watch", "texera-gui:kill-fullstack"],
             "sequential": true
           }
         }

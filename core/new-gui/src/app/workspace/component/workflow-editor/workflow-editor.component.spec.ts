@@ -9,7 +9,7 @@ import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
-import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
 import * as jQuery from "jquery";
 import * as joint from "jointjs";
@@ -32,9 +32,11 @@ import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { tap } from "rxjs/operators";
 import { UserService } from "src/app/common/service/user/user.service";
 import { StubUserService } from "src/app/common/service/user/stub-user.service";
-import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { RouterTestingModule } from "@angular/router/testing";
+import { createYTypeFromObject } from "../../types/shared-editing.interface";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -50,7 +52,7 @@ describe("WorkflowEditorComponent", () => {
     beforeEach(waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent],
-        imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule],
+        imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -149,7 +151,7 @@ describe("WorkflowEditorComponent", () => {
     beforeEach(waitForAsync(() => {
       TestBed.configureTestingModule({
         declarations: [WorkflowEditorComponent, NzModalCommentBoxComponent],
-        imports: [HttpClientTestingModule, NzModalModule, NzDropDownModule, NoopAnimationsModule],
+        imports: [RouterTestingModule, HttpClientTestingModule, NzModalModule, NzDropDownModule, NoopAnimationsModule],
         providers: [
           JointUIService,
           WorkflowUtilService,
@@ -231,24 +233,24 @@ describe("WorkflowEditorComponent", () => {
     });
 
     it("should open commentBox as NzModal when user double clicks on a commentBox", () => {
-      // const modalRef:NzModalRef = nzModalService.create({
-      //   nzTitle: "CommentBox",
-      //   nzContent: NzModalCommentBoxComponent,
-      //   nzComponentParams: {
-      //   commentBox: mockCommentBox,
-      //   },
-      //   nzAutofocus: null,
-      //   nzFooter: [
-      //     {
-      //       label: "OK",
-      //       onClick: () => {
-      //         modalRef.destroy();
-      //       },
-      //       type: "primary",
-      //     },
-      //   ],
-      // });
-      spyOn(nzModalService, "create");
+      const modalRef: NzModalRef = nzModalService.create({
+        nzTitle: "CommentBox",
+        nzContent: NzModalCommentBoxComponent,
+        nzComponentParams: {
+          commentBox: createYTypeFromObject(mockCommentBox),
+        },
+        nzAutofocus: null,
+        nzFooter: [
+          {
+            label: "OK",
+            onClick: () => {
+              modalRef.destroy();
+            },
+            type: "primary",
+          },
+        ],
+      });
+      spyOn(nzModalService, "create").and.returnValue(modalRef);
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
@@ -256,7 +258,7 @@ describe("WorkflowEditorComponent", () => {
       jointCellView.$el.trigger("dblclick");
       expect(nzModalService.create).toHaveBeenCalled();
       fixture.detectChanges();
-      // modalRef.destroy();
+      modalRef.destroy();
     });
 
     it("should unhighlight all highlighted operators when user mouse clicks on the blank space", () => {

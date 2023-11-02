@@ -14,7 +14,7 @@ import { DynamicComponentConfig } from "../../../common/type/dynamic-component-c
 import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
-import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
@@ -85,7 +85,7 @@ export class ResultPanelComponent implements OnInit {
           this.resultPanelToggleService.openResultPanel();
         }
         // display panel on abort (to show possible error messages)
-        if (event.current.state === ExecutionState.Aborted) {
+        if (event.current.state === ExecutionState.Failed) {
           this.resultPanelToggleService.openResultPanel();
         }
         // display panel when execution is completed and highlight sink to show results
@@ -180,7 +180,7 @@ export class ResultPanelComponent implements OnInit {
 
   hasErrorOrBreakpoint(): boolean {
     const executionState = this.executeWorkflowService.getExecutionState();
-    return [ExecutionState.Aborted, ExecutionState.BreakpointTriggered].includes(executionState.state);
+    return [ExecutionState.Failed, ExecutionState.BreakpointTriggered].includes(executionState.state);
   }
 
   clearResultPanel(): void {
@@ -205,7 +205,7 @@ export class ResultPanelComponent implements OnInit {
     const resultService = this.workflowResultService.getResultService(operatorId);
     const paginatedResultService = this.workflowResultService.getPaginatedResultService(operatorId);
     if (paginatedResultService) {
-      // display table result if has paginated results
+      // display table result if it has paginated results
       this.frameComponentConfigs.set("Result", {
         component: ResultTableFrameComponent,
         componentInputs: { operatorId },
@@ -224,18 +224,14 @@ export class ResultPanelComponent implements OnInit {
     current: ExecutionStateInfo;
   }): boolean {
     // transitioning from any state to failed state
-    if (event.current.state === ExecutionState.Aborted) {
+    if (event.current.state === ExecutionState.Failed) {
       return true;
     }
     // transitioning from any state to breakpoint triggered state
     if (event.current.state === ExecutionState.BreakpointTriggered) {
       return true;
     }
-
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
-    if (event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed) {
-      return true;
-    }
-    return false;
+    return event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed;
   }
 }

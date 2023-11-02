@@ -1,21 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import akka.actor.{ActorRef, Props}
+import akka.actor.Props
+import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
-import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, ISourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.Utils
 
-import java.io.IOException
-import java.net.ServerSocket
 import java.nio.file.Path
 import java.util.concurrent.{ExecutorService, Executors}
 import scala.sys.process.{BasicIO, Process}
@@ -23,36 +20,41 @@ import scala.sys.process.{BasicIO, Process}
 object PythonWorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
-      op: IOperatorExecutor,
-      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-      allUpstreamLinkIds: Set[LinkIdentity]
+      workerIndex: Int,
+      workerLayer: OpExecConfig,
+      parentNetworkCommunicationActorRef: NetworkSenderActorRef
   ): Props =
-    Props(new PythonWorkflowWorker(id, op, parentNetworkCommunicationActorRef, allUpstreamLinkIds))
+    Props(
+      new PythonWorkflowWorker(
+        id,
+        workerIndex,
+        workerLayer,
+        parentNetworkCommunicationActorRef
+      )
+    )
 }
 
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity,
-    operator: IOperatorExecutor,
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    allUpstreamLinkIds: Set[LinkIdentity]
+    workerIndex: Int,
+    workerLayer: OpExecConfig,
+    parentNetworkCommunicationActorRef: NetworkSenderActorRef
 ) extends WorkflowWorker(
       actorId,
-      operator,
+      workerIndex,
+      workerLayer,
       parentNetworkCommunicationActorRef,
-      allUpstreamLinkIds,
       false
     ) {
 
-  // Input/Output port used in between Python and Java processes.
-  private lazy val inputPortNum: Int = getFreeLocalPort
-  private lazy val outputPortNum: Int = getFreeLocalPort
-  // Proxy Serve and Client
+  // For receiving the Python server port number that will be available later
+  private lazy val portNumberPromise = Promise[Int]()
+  // Proxy Server and Client
   private lazy val serverThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
+  private var pythonProxyServer: PythonProxyServer = _
   private lazy val pythonProxyClient: PythonProxyClient =
-    new PythonProxyClient(outputPortNum, actorId)
-  private lazy val pythonProxyServer: PythonProxyServer =
-    new PythonProxyServer(inputPortNum, controlOutputPort, dataOutputPort, actorId)
+    new PythonProxyClient(portNumberPromise, actorId)
 
   // TODO: find a better way to send Error log to frontend.
   override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
@@ -67,7 +69,7 @@ class PythonWorkflowWorker(
   private var pythonServerProcess: Process = _
 
   override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    Constants.unprocessedBatchesCreditLimitPerSender
+    pythonProxyClient.getSenderCredits(sender)
   }
 
   override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
@@ -79,12 +81,7 @@ class PythonWorkflowWorker(
       controlPayload: ControlPayload
   ): Unit = {
     controlPayload match {
-      case ControlInvocation(_, c) =>
-        // TODO: Implement backpressure message handling for python worker
-        if (!c.isInstanceOf[Backpressure]) {
-          pythonProxyClient.enqueueCommand(controlPayload, from)
-        }
-      case ReturnInvocation(_, _) =>
+      case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
         pythonProxyClient.enqueueCommand(controlPayload, from)
       case _ =>
         logger.error(s"unhandled control payload: $controlPayload")
@@ -110,13 +107,27 @@ class PythonWorkflowWorker(
   }
 
   override def preStart(): Unit = {
-    startPythonProcess()
     startProxyServer()
+    startPythonProcess()
     startProxyClient()
   }
 
   private def startProxyServer(): Unit = {
-    serverThreadExecutor.submit(pythonProxyServer)
+    // Try to start the server until it succeeds
+    var serverStart = false
+    while (!serverStart) {
+      pythonProxyServer =
+        new PythonProxyServer(controlOutputPort, dataOutputPort, actorId, portNumberPromise)
+      val future = serverThreadExecutor.submit(pythonProxyServer)
+      try {
+        future.get()
+        serverStart = true
+      } catch {
+        case e: Exception =>
+          future.cancel(true)
+          logger.info("Failed to start the server: " + e.getMessage + ", will try again")
+      }
+    }
   }
 
   private def startProxyClient(): Unit = {
@@ -126,39 +137,16 @@ class PythonWorkflowWorker(
   private def startPythonProcess(): Unit = {
     val udfEntryScriptPath: String =
       pythonSrcDirectory.resolve("texera_run_python_worker.py").toString
-
     pythonServerProcess = Process(
       Seq(
         if (pythonENVPath.isEmpty) "python3"
         else pythonENVPath, // add fall back in case of empty
         "-u",
         udfEntryScriptPath,
-        Integer.toString(outputPortNum),
-        Integer.toString(inputPortNum),
+        actorId.name,
+        Integer.toString(pythonProxyServer.getPortNumber.get()),
         config.getString("python.log.streamHandler.level")
       )
     ).run(BasicIO.standard(false))
-  }
-
-  /**
-    * Get a random free port.
-    *
-    * @return The port number.
-    * @throws IOException, might happen when getting a free port.
-    */
-  @throws[IOException]
-  private def getFreeLocalPort: Int = {
-    var s: ServerSocket = null
-    try {
-      // ServerSocket(0) results in availability of a free random port
-      s = new ServerSocket(0)
-      s.getLocalPort
-    } catch {
-      case e: Exception =>
-        throw new RuntimeException(e)
-    } finally {
-      assert(s != null)
-      s.close()
-    }
   }
 }

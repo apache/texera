@@ -20,7 +20,6 @@ export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSc
  *  after an operator is added, modules, other modules can dynamically set the schema based on its need
  *
  * Currently, dynamic schema is changed through the following scenarios:
- *  - source table names autocomplete by SourceTablesService
  *  - attribute names autocomplete by SchemaPropagationService
  *
  */
@@ -176,7 +175,7 @@ export class DynamicSchemaService {
   public static mutateProperty(
     jsonSchemaToChange: CustomJSONSchema7,
     matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
-    mutationFunc: (propertyValue: CustomJSONSchema7) => CustomJSONSchema7
+    mutationFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => CustomJSONSchema7
   ): CustomJSONSchema7 {
     // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
@@ -191,7 +190,7 @@ export class DynamicSchemaService {
             return;
           }
           if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
-            objectProperty[propertyName] = mutationFunc(propertyValue as CustomJSONSchema7);
+            objectProperty[propertyName] = mutationFunc(propertyName, propertyValue as CustomJSONSchema7);
           } else {
             mutatePropertyRecurse(propertyValue);
           }

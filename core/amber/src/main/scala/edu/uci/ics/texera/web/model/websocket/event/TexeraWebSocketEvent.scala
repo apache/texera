@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
-import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, RegisterWIdResponse}
+import edu.uci.ics.texera.web.model.websocket.response.{
+  HeartBeatResponse,
+  ModifyLogicResponse,
+  RegisterWIdResponse
+}
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
@@ -21,7 +25,8 @@ import edu.uci.ics.texera.web.model.websocket.response.{HeartBeatResponse, Regis
     new Type(value = classOf[CacheStatusUpdateEvent]),
     new Type(value = classOf[PaginatedResultEvent]),
     new Type(value = classOf[PythonExpressionEvaluateResponse]),
-    new Type(value = classOf[WorkerAssignmentUpdateEvent])
+    new Type(value = classOf[WorkerAssignmentUpdateEvent]),
+    new Type(value = classOf[ModifyLogicResponse])
   )
 )
 trait TexeraWebSocketEvent {}

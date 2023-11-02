@@ -1,0 +1,78 @@
+<div>
+  <nz-card>
+    <h2>Projects</h2>
+    <a
+      [nzDropdownMenu]="menu"
+      nz-dropdown>
+      <button
+        nz-button
+        title="sort">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="sort-ascending"></i>
+      </button>
+    </a>
+    <nz-dropdown-menu #menu="nzDropdownMenu">
+      <ul
+        nz-menu
+        nzSelectable>
+        <li
+          (click)="sortByCreationTime()"
+          nz-menu-item>
+          By Time Created
+        </li>
+        <li
+          (click)="sortByNameAsc()"
+          nz-menu-item>
+          A -> Z
+        </li>
+        <li
+          (click)="sortByNameDesc()"
+          nz-menu-item>
+          Z -> A
+        </li>
+      </ul>
+    </nz-dropdown-menu>
+    <button
+      (click)="clickCreateButton()"
+      nz-button
+      nz-tooltip="Create a new project"
+      nzTooltipPlacement="bottom"
+      type="button">
+      <i
+        nz-icon
+        nzTheme="outline"
+        nzType="file-add"></i>
+    </button>
+    <input
+      (focusout)="unclickCreateButton()"
+      (keyup.enter)="createNewProject()"
+      *ngIf="createButtonIsClicked"
+      [(ngModel)]="createProjectName"
+      nz-input
+      placeholder="Enter project name" />
+  </nz-card>
+
+  <nz-card>
+    <button
+      (click)="openPublicProject()"
+      nz-button
+      nzType="primary">
+      Public Projects
+    </button>
+  </nz-card>
+
+  <nz-card>
+    <nz-list>
+      <texera-user-project-list-item
+        *ngFor="let dashboardUserProjectEntry of userProjectEntries"
+        [editable]="true"
+        [uid]="uid"
+        [entry]="dashboardUserProjectEntry"
+        (deleted)="deleteProject(dashboardUserProjectEntry.pid)"
+        (refresh)="ngOnInit()">
+      </texera-user-project-list-item>
+    </nz-list>
+  </nz-card>
+</div>

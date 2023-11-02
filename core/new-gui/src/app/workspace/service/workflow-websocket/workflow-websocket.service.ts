@@ -24,6 +24,7 @@ export class WorkflowWebsocketService {
   private static readonly TEXERA_WEBSOCKET_ENDPOINT = "wsapi/workflow-websocket";
 
   public isConnected: boolean = false;
+  public numWorkers: number = -1;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -65,7 +66,7 @@ export class WorkflowWebsocketService {
 
   public openWebsocket(wId: number) {
     const websocketUrl =
-      getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT) +
+      getWebsocketUrl(WorkflowWebsocketService.TEXERA_WEBSOCKET_ENDPOINT, "") +
       (environment.userSystemEnabled && AuthService.getAccessToken() !== null
         ? "?access-token=" + AuthService.getAccessToken()
         : "");
@@ -95,7 +96,12 @@ export class WorkflowWebsocketService {
     this.send("RegisterWIdRequest", { wId });
 
     // refresh connection status
-    this.websocketEvent().subscribe(_ => (this.isConnected = true));
+    this.websocketEvent().subscribe(evt => {
+      if (evt.type === "ClusterStatusUpdateEvent") {
+        this.numWorkers = evt.numWorkers;
+      }
+      this.isConnected = true;
+    });
   }
 
   public reopenWebsocket(wId: number) {

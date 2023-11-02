@@ -1,8 +1,9 @@
 import { WebDataUpdate, WebPaginationUpdate } from "../../types/execute-workflow.interface";
 import { Point, OperatorPredicate } from "../../types/workflow-common.interface";
 import { PaginatedResultEvent } from "../../types/workflow-websocket.interface";
+import { IndexableObject } from "ng-zorro-antd/core/types";
 
-export const mockData: Record<string, unknown>[] = [
+export const mockData: IndexableObject[] = [
   {
     id: 1,
     layer: "Disk Space and I/O Managers",
@@ -68,6 +69,7 @@ export const mockResultOperator: OperatorPredicate = {
   outputPorts: [],
   showAdvanced: false,
   isDisabled: false,
+  operatorVersion: "1.0",
 };
 
 export const mockResultPoint: Point = {

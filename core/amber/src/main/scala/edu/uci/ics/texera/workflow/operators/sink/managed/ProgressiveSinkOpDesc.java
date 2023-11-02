@@ -2,7 +2,8 @@ package edu.uci.ics.texera.workflow.operators.sink.managed;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
-import edu.uci.ics.amber.engine.operators.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -14,6 +15,8 @@ import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.collection.immutable.List;
+
+import java.io.Serializable;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
 import static java.util.Collections.singletonList;
@@ -33,12 +36,19 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     @JsonIgnore
     private SinkStorageReader storage = null;
 
+    // corresponding upstream operator ID and output port, will be set by workflow compiler
     @JsonIgnore
-    private Option<String> cachedUpstreamId = Option.empty();
+    private Option<String> upstreamId = Option.empty();
+
+    @JsonIgnore
+    private Option<Integer> upstreamPort = Option.empty();
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        return new ProgressiveSinkOpExecConfig(operatorIdentifier(), operatorSchemaInfo, outputMode, storage);
+        return OpExecConfig.localLayer(
+                operatorIdentifier(),
+                (OpExecFunc & Serializable) p -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter())
+        ).withPorts(this.operatorInfo());
     }
 
     @Override
@@ -46,9 +56,9 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         return new OperatorInfo(
                 "View Results",
                 "View the edu.uci.ics.texera.workflow results",
-                OperatorGroupConstants.RESULT_GROUP(),
+                OperatorGroupConstants.UTILITY_GROUP(),
                 asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                List.empty(), false, false);
+                List.empty(), false, false, false, false);
     }
 
     @Override
@@ -93,17 +103,25 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     }
 
     @JsonIgnore
-    public void setStorage(SinkStorageReader storage){ this.storage = storage; }
+    public void setStorage(SinkStorageReader storage) { this.storage = storage; }
 
     @JsonIgnore
-    public SinkStorageReader getStorage(){ return this.storage; }
+    public SinkStorageReader getStorage() { return this.storage; }
 
-    @JsonIgnore
-    public Option<String> getCachedUpstreamId(){ return this.cachedUpstreamId;}
+    public Option<String> getUpstreamId() {
+        return upstreamId;
+    }
 
-    @JsonIgnore
-    public void setCachedUpstreamId(String id){
-        this.cachedUpstreamId = Option.apply(id);
+    public void setUpstreamId(String upstreamId) {
+        this.upstreamId = Option.apply(upstreamId);
+    }
+
+    public Option<Integer> getUpstreamPort() {
+        return upstreamPort;
+    }
+
+    public void setUpstreamPort(Integer upstreamPort) {
+        this.upstreamPort = Option.apply(upstreamPort);
     }
 
 

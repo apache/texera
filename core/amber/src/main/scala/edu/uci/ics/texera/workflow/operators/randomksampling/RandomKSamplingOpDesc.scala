@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.randomksampling
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -8,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OneToOneOpExecConfig
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
@@ -29,11 +29,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   @JsonIgnore
   def getSeed(index: Int): Int = seeds(index)
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OneToOneOpExecConfig = {
-    new OneToOneOpExecConfig(
-      operatorIdentifier,
-      (actor: Int) => new RandomKSamplingOpExec(actor, this)
-    )
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    OpExecConfig.oneToOneLayer(operatorIdentifier, p => new RandomKSamplingOpExec(p._1, this))
   }
 
   override def operatorInfo: OperatorInfo =
@@ -42,6 +39,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
       operatorDescription = "random sampling with given percentage",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort()),
+      supportReconfiguration = true
     )
 }

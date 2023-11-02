@@ -1,9 +1,7 @@
 package edu.uci.ics.texera.web.service
 
-import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowPaused
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -15,13 +13,13 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.{
-  RemoveBreakpointRequest,
   SkipTupleRequest,
   WorkflowKillRequest,
   WorkflowPauseRequest,
   WorkflowResumeRequest
 }
-import edu.uci.ics.texera.web.storage.{JobStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
@@ -30,7 +28,8 @@ class JobRuntimeService(
     client: AmberClient,
     stateStore: JobStateStore,
     wsInput: WebsocketInput,
-    breakpointService: JobBreakpointService
+    breakpointService: JobBreakpointService,
+    reconfigurationService: JobReconfigurationService
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -39,9 +38,6 @@ class JobRuntimeService(
       val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
       if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
-        if (WorkflowService.userSystemEnabled) {
-          ExecutionsMetadataPersistService.tryUpdateExistingExecution(newState.eid, newState.state)
-        }
         // Check if is recovering
         if (newState.isRecovering && newState.state != COMPLETED) {
           outputEvts.append(WorkflowStateEvent("Recovering"))
@@ -64,29 +60,31 @@ class JobRuntimeService(
 
   // Receive Paused from Amber
   addSubscription(client.registerCallback[WorkflowPaused]((evt: WorkflowPaused) => {
-    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSED))
+    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(PAUSED, jobInfo))
   }))
 
   // Receive Pause
   addSubscription(wsInput.subscribe((req: WorkflowPauseRequest, uidOpt) => {
-    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(PAUSING))
+    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(PAUSING, jobInfo))
     client.sendAsync(PauseWorkflow())
   }))
 
   // Receive Resume
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
-    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RESUMING))
+    reconfigurationService.performReconfigurationOnResume()
+    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
     client.sendAsyncWithCallback[Unit](
       ResumeWorkflow(),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(RUNNING))
+      _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
     )
   }))
 
   // Receive Kill
   addSubscription(wsInput.subscribe((req: WorkflowKillRequest, uidOpt) => {
     client.shutdown()
-    stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
+    stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
+    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(KILLED, jobInfo))
   }))
 
 }

@@ -146,12 +146,19 @@ class LocalOperatorExceptionV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class LinkOrdinal(betterproto.Message):
+    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+    port_ordinal: int = betterproto.int64_field(2)
+
+
+@dataclass(eq=False, repr=False)
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
-    upstream_link_ids: List["__common__.LinkIdentity"] = betterproto.message_field(2)
-    is_source: bool = betterproto.bool_field(3)
+    is_source: bool = betterproto.bool_field(2)
+    input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
+    output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
     output_schema: Dict[str, str] = betterproto.map_field(
-        4, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        5, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 
@@ -192,6 +199,11 @@ class QuerySelfWorkloadMetricsV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class LinkCompletedV2(betterproto.Message):
     link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class BackpressureV2(betterproto.Message):
+    enable_backpressure: bool = betterproto.bool_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -239,6 +251,7 @@ class ControlCommandV2(betterproto.Message):
     query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
         betterproto.message_field(41, group="sealed_value")
     )
+    backpressure: "BackpressureV2" = betterproto.message_field(51, group="sealed_value")
     worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
         81, group="sealed_value"
     )

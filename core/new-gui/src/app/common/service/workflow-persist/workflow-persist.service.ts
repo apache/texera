@@ -4,17 +4,22 @@ import { Observable, throwError } from "rxjs";
 import { filter, map, catchError } from "rxjs/operators";
 import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
-import { DashboardWorkflowEntry } from "../../../dashboard/type/dashboard-workflow-entry";
+import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workflow.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
+import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
 export const WORKFLOW_LIST_URL = WORKFLOW_BASE_URL + "/list";
+export const WORKFLOW_SEARCH_URL = WORKFLOW_BASE_URL + "/search";
 export const WORKFLOW_CREATE_URL = WORKFLOW_BASE_URL + "/create";
 export const WORKFLOW_DUPLICATE_URL = WORKFLOW_BASE_URL + "/duplicate";
+export const WORKFLOW_DELETE_URL = WORKFLOW_BASE_URL + "/delete";
 export const WORKFLOW_UPDATENAME_URL = WORKFLOW_BASE_URL + "/update/name";
 export const WORKFLOW_UPDATEDESCRIPTION_URL = WORKFLOW_BASE_URL + "/update/description";
+export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
+export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
 
@@ -53,23 +58,27 @@ export class WorkflowPersistService {
   public createWorkflow(
     newWorkflowContent: WorkflowContent,
     newWorkflowName: string = DEFAULT_WORKFLOW_NAME
-  ): Observable<DashboardWorkflowEntry> {
+  ): Observable<DashboardWorkflow> {
     return this.http
-      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
+      .post<DashboardWorkflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_CREATE_URL}`, {
         name: newWorkflowName,
         content: JSON.stringify(newWorkflowContent),
       })
-      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
+      .pipe(filter((createdWorkflow: DashboardWorkflow) => createdWorkflow != null));
   }
 
   /**
    * creates a workflow and insert it to backend database and return its information
-   * @param targetWid
+   * @param targetWids
+   * @param pid
    */
-  public duplicateWorkflow(targetWid: number): Observable<DashboardWorkflowEntry> {
+  public duplicateWorkflow(targetWids: number[], pid?: number): Observable<DashboardWorkflow[]> {
     return this.http
-      .post<DashboardWorkflowEntry>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, { wid: targetWid })
-      .pipe(filter((createdWorkflow: DashboardWorkflowEntry) => createdWorkflow != null));
+      .post<DashboardWorkflow[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DUPLICATE_URL}`, {
+        wids: targetWids,
+        ...(pid !== undefined && { pid }),
+      })
+      .pipe(filter((createdWorkflows: DashboardWorkflow[]) => createdWorkflows != null && createdWorkflows.length > 0));
   }
 
   /**
@@ -83,13 +92,10 @@ export class WorkflowPersistService {
     );
   }
 
-  /**
-   * retrieves a list of workflows from backend database that belongs to the user in the session.
-   */
-  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflowEntry[]> {
-    return this.http.get<DashboardWorkflowEntry[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`).pipe(
-      map((dashboardWorkflowEntries: DashboardWorkflowEntry[]) =>
-        dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflowEntry) => {
+  private makeRequestAndFormatWorkflowResponse(url: string): Observable<DashboardWorkflow[]> {
+    return this.http.get<DashboardWorkflow[]>(url).pipe(
+      map((dashboardWorkflowEntries: DashboardWorkflow[]) =>
+        dashboardWorkflowEntries.map((workflowEntry: DashboardWorkflow) => {
           return {
             ...workflowEntry,
             dashboardWorkflowEntry: WorkflowUtilService.parseWorkflowInfo(workflowEntry.workflow),
@@ -100,10 +106,28 @@ export class WorkflowPersistService {
   }
 
   /**
+   * retrieves a list of workflows from backend database that belongs to the user in the session.
+   */
+  public retrieveWorkflowsBySessionUser(): Observable<DashboardWorkflow[]> {
+    return this.makeRequestAndFormatWorkflowResponse(`${AppSettings.getApiEndpoint()}/${WORKFLOW_LIST_URL}`);
+  }
+
+  /**
+   * Search workflows by a text query from backend database that belongs to the user in the session.
+   */
+  public searchWorkflows(keywords: string[], params: SearchFilterParameters): Observable<DashboardWorkflow[]> {
+    return this.makeRequestAndFormatWorkflowResponse(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_SEARCH_URL}?${toQueryStrings(keywords, params)}`
+    );
+  }
+
+  /**
    * deletes the given workflow, the user in the session must own the workflow.
    */
-  public deleteWorkflow(wid: number): Observable<Response> {
-    return this.http.delete<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`);
+  public deleteWorkflow(wids: number[]): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_DELETE_URL}`, {
+      wids: wids,
+    });
   }
 
   /**
@@ -148,5 +172,19 @@ export class WorkflowPersistService {
 
   public isWorkflowPersistEnabled(): boolean {
     return this.workflowPersistFlag;
+  }
+
+  /**
+   * retrieves all workflow owners
+   */
+  public retrieveOwners(): Observable<string[]> {
+    return this.http.get<string[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_OWNER_URL}`);
+  }
+
+  /**
+   * retrieves all workflow IDs
+   */
+  public retrieveWorkflowIDs(): Observable<number[]> {
+    return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
   }
 }

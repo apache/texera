@@ -3,74 +3,69 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.INTERNAL_AGGREGATE_PARTIAL_OBJECT
+import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.internalAggObjKey
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.mutable
 
-class FinalAggregateOpExec[Partial <: AnyRef](
-    val aggFunc: DistributedAggregation[Partial]
+class FinalAggregateOpExec(
+    val aggFuncs: List[DistributedAggregation[Object]],
+    val groupByKeys: List[String],
+    val operatorSchemaInfo: OperatorSchemaInfo
 ) extends OperatorExecutor {
 
   var groupByKeyAttributes: Array[Attribute] = _
   var schema: Schema = _
 
-  var partialObjectPerKey = new mutable.HashMap[List[AnyRef], Partial]()
-  var outputIterator: Iterator[Tuple] = _
+  // each value in partialObjectsPerKey has the same length as aggFuncs
+  // partialObjectsPerKey(key)[i] corresponds to aggFuncs[i]
+  var partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
 
   override def open(): Unit = {}
   override def close(): Unit = {}
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity,
+      input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
+    if (aggFuncs.isEmpty) {
+      throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
+    }
     tuple match {
       case Left(t) =>
-        val groupBySchema = if (aggFunc == null) null else aggFunc.groupByFunc(t.getSchema)
-        val builder = Tuple.newBuilder(groupBySchema)
-        groupBySchema.getAttributeNames.foreach(attrName =>
-          builder.add(t.getSchema.getAttribute(attrName), t.getField(attrName))
-        )
-        val groupByKey = if (aggFunc == null) null else builder.build()
-        if (groupByKeyAttributes == null) {
-          groupByKeyAttributes =
-            if (aggFunc == null) Array()
-            else groupByKey.getSchema.getAttributes.toArray(new Array[Attribute](0))
-        }
         val key =
-          if (groupByKey == null) List()
-          else JavaConverters.asScalaBuffer(groupByKey.getFields).toList
+          if (groupByKeys == null || groupByKeys.isEmpty) List()
+          else groupByKeys.map(k => t.getField[Object](k))
 
-        val partialObject = t.getField[Partial](INTERNAL_AGGREGATE_PARTIAL_OBJECT)
-        if (!partialObjectPerKey.contains(key)) {
-          partialObjectPerKey.put(key, partialObject)
+        val partialObjects =
+          aggFuncs.indices.map(i => t.getField[Object](internalAggObjKey(i))).toList
+        if (!partialObjectsPerKey.contains(key)) {
+          partialObjectsPerKey.put(key, partialObjects)
         } else {
-          partialObjectPerKey.put(key, aggFunc.merge(partialObjectPerKey(key), partialObject))
+          val updatedPartialObjects = aggFuncs.indices
+            .map(i => {
+              val aggFunc = aggFuncs(i)
+              val partial1 = partialObjectsPerKey(key)(i)
+              val partial2 = partialObjects(i)
+              aggFunc.merge(partial1, partial2)
+            })
+            .toList
+          partialObjectsPerKey.put(key, updatedPartialObjects)
         }
         Iterator()
       case Right(_) =>
-        partialObjectPerKey.iterator.map(pair => {
-          val finalObject = aggFunc.finalAgg(pair._2)
-          // TODO Find a way to get this from the OpDesc. Since this is generic, trying to get the
-          // right schema from there is a bit challenging.
-          // See https://github.com/Texera/texera/pull/1166#discussion_r654863854
-          if (schema == null) {
-            schema = Schema
-              .newBuilder()
-              .add(groupByKeyAttributes.toArray: _*)
-              .add(finalObject.getSchema)
-              .build()
-          }
-          val fields: Array[Object] =
-            (pair._1 ++ JavaConverters.asScalaBuffer(finalObject.getFields)).toArray
-          Tuple.newBuilder(schema).addSequentially(fields).build()
+        partialObjectsPerKey.iterator.map(pair => {
+          val finalAggValues = aggFuncs.indices.map(i => aggFuncs(i).finalAgg(pair._2(i)))
+
+          val tupleBuilder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
+          // add group by keys and final agg values
+          tupleBuilder.addSequentially((pair._1 ++ finalAggValues).toArray)
+
+          tupleBuilder.build()
         })
     }
   }

@@ -15,18 +15,20 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../../service/workflow-websocket/workflow-websocket.service";
 import { WorkflowResultExportService } from "../../service/workflow-result-export/workflow-result-export.service";
-import { debounceTime, map } from "rxjs/operators";
+import { catchError, debounceTime, filter, flatMap, map, mergeMap, tap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowUtilService } from "../../service/workflow-graph/util/workflow-util.service";
-import { isSink } from "../../service/workflow-graph/model/workflow-graph";
-import { WorkflowVersionService } from "../../../dashboard/service/workflow-version/workflow-version.service";
-import { concatMap, catchError } from "rxjs/operators";
-import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
+import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
+import { of, Subscription, throwError, timer } from "rxjs";
+import { isDefined } from "../../../common/util/predicate";
+import { HttpErrorResponse } from "@angular/common/http";
+import { assert } from "../../../common/util/assert";
 
 /**
  * NavigationComponent is the top level navigation bar that shows
@@ -54,8 +56,10 @@ export class NavigationComponent implements OnInit {
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
   public isSaving: boolean = false;
+  public isWorkflowModifiable: boolean = false;
+  public workflowId?: number;
 
-  @Input() private pid: number = 0;
+  @Input() public pid?: number = undefined;
   @Input() public autoSaveState: string = "";
   @Input() public currentWorkflowName: string = ""; // reset workflowName
   @Input() public currentExecutionName: string = ""; // reset executionName
@@ -67,13 +71,14 @@ export class NavigationComponent implements OnInit {
   public runIcon = "play-circle";
   public runDisable = false;
 
+  public executionDuration = 0;
+  private durationUpdateSubscription: Subscription = new Subscription();
+
   // whether user dashboard is enabled and accessible from the workspace
   public userSystemEnabled: boolean = environment.userSystemEnabled;
   // flag to display a particular version in the current canvas
   public displayParticularWorkflowVersion: boolean = false;
   public onClickRunHandler: () => void;
-
-  public workflowIdChanged = this.workflowActionService.workflowMetaDataChanged().pipe(map(metadata => metadata.wid));
 
   constructor(
     public executeWorkflowService: ExecuteWorkflowService,
@@ -91,9 +96,22 @@ export class NavigationComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     public operatorMenu: OperatorMenuService,
-    public changeDetectionRef: ChangeDetectorRef,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
+    workflowWebsocketService
+      .subscribeToEvent("ExecutionDurationUpdateEvent")
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        this.executionDuration = event.duration;
+        this.durationUpdateSubscription.unsubscribe();
+        if (event.isRunning) {
+          this.durationUpdateSubscription = timer(1000, 1000)
+            .pipe(untilDestroyed(this))
+            .subscribe(e => {
+              this.executionDuration += 1000;
+            });
+        }
+      });
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
@@ -103,6 +121,8 @@ export class NavigationComponent implements OnInit {
     this.runDisable = initBehavior.disable;
     this.onClickRunHandler = initBehavior.onClick;
     // this.currentWorkflowName = this.workflowCacheService.getCachedWorkflow();
+    this.registerWorkflowModifiableChangedHandler();
+    this.registerWorkflowIdUpdateHandler();
   }
 
   public ngOnInit(): void {
@@ -155,7 +175,8 @@ export class NavigationComponent implements OnInit {
     switch (executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
-      case ExecutionState.Aborted:
+      case ExecutionState.Killed:
+      case ExecutionState.Failed:
         return {
           text: "Run",
           icon: "play-circle",
@@ -350,6 +371,7 @@ export class NavigationComponent implements OnInit {
           wid: undefined,
           creationTime: undefined,
           lastModifiedTime: undefined,
+          readonly: false,
         };
 
         this.workflowActionService.enableWorkflowModification();
@@ -384,43 +406,19 @@ export class NavigationComponent implements OnInit {
 
   public persistWorkflow(): void {
     this.isSaving = true;
-    if (this.pid === 0) {
-      this.workflowPersistService
-        .persistWorkflow(this.workflowActionService.getWorkflow())
-        .pipe(untilDestroyed(this))
-        .subscribe(
-          (updatedWorkflow: Workflow) => {
-            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            this.isSaving = false;
-          },
-          (error: unknown) => {
-            alert(error);
-            this.isSaving = false;
-          }
-        );
-    } else {
-      // add workflow to project, backend will create new mapping if not already added
-      this.workflowPersistService
-        .persistWorkflow(this.workflowActionService.getWorkflow())
-        .pipe(
-          concatMap((updatedWorkflow: Workflow) => {
-            this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-            this.isSaving = false;
-            return this.userProjectService.addWorkflowToProject(this.pid, updatedWorkflow.wid!);
-          }),
-          catchError((err: unknown) => {
-            throw err;
-          }),
-          untilDestroyed(this)
-        )
-        .subscribe(
-          () => {},
-          (error: unknown) => {
-            alert(error);
-            this.isSaving = false;
-          }
-        );
-    }
+    let localPid = this.pid;
+    this.workflowPersistService
+      .persistWorkflow(this.workflowActionService.getWorkflow())
+      .pipe(
+        tap((updatedWorkflow: Workflow) => this.workflowActionService.setWorkflowMetadata(updatedWorkflow)),
+        filter(workflow => isDefined(localPid) && isDefined(workflow.wid)),
+        mergeMap(workflow => this.userProjectService.addWorkflowToProject(localPid!, workflow.wid!)),
+        untilDestroyed(this)
+      )
+      .subscribe({
+        error: (response: unknown) => this.notificationService.error((response as HttpErrorResponse).error),
+      })
+      .add(() => (this.isSaving = false));
   }
 
   /**
@@ -489,5 +487,19 @@ export class NavigationComponent implements OnInit {
     this.workflowVersionService.revertToVersion();
     // after swapping the workflows to point to the particular version, persist it in DB
     this.persistWorkflow();
+  }
+
+  private registerWorkflowModifiableChangedHandler(): void {
+    this.workflowActionService
+      .getWorkflowModificationEnabledStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(modifiable => (this.isWorkflowModifiable = modifiable));
+  }
+
+  private registerWorkflowIdUpdateHandler(): void {
+    this.workflowActionService
+      .workflowMetaDataChanged()
+      .pipe(untilDestroyed(this))
+      .subscribe(metadata => (this.workflowId = metadata.wid));
   }
 }

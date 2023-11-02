@@ -215,32 +215,32 @@ describe("WorkflowGraph", () => {
     expect(workflowGraph.getAllEnabledLinks().length).toEqual(0);
   });
 
-  it("should cache and un-cache an operator", () => {
+  it("should set and un-set viewing result status of an operator", () => {
     workflowGraph.addOperator(mockScanPredicate);
     workflowGraph.addOperator(mockResultPredicate);
-    workflowGraph.cacheOperator(mockScanPredicate.operatorID);
+    workflowGraph.setViewOperatorResult(mockScanPredicate.operatorID);
 
-    expect(workflowGraph.isOperatorCached(mockScanPredicate.operatorID)).toBeTrue();
-    expect(workflowGraph.isOperatorCached(mockResultPredicate.operatorID)).toBeFalse();
-    expect(workflowGraph.getCachedOperators().size).toEqual(1);
+    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBeTrue();
+    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.getOperatorsToViewResult().size).toEqual(1);
 
-    workflowGraph.unCacheOperator(mockScanPredicate.operatorID);
-    expect(workflowGraph.isOperatorCached(mockScanPredicate.operatorID)).toBeFalse();
+    workflowGraph.unsetViewOperatorResult(mockScanPredicate.operatorID);
+    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getDisabledOperators().size).toEqual(0);
   });
 
-  it("should ignore cache the view result operator", () => {
+  it("should ignore set the view result of the sink operator", () => {
     workflowGraph.addOperator(mockScanPredicate);
     workflowGraph.addOperator(mockResultPredicate);
-    workflowGraph.cacheOperator(mockResultPredicate.operatorID);
+    workflowGraph.setViewOperatorResult(mockResultPredicate.operatorID);
 
-    expect(workflowGraph.isOperatorCached(mockScanPredicate.operatorID)).toBeFalse();
-    expect(workflowGraph.isOperatorCached(mockResultPredicate.operatorID)).toBeFalse();
-    expect(workflowGraph.getCachedOperators().size).toEqual(0);
+    expect(workflowGraph.isViewingResult(mockScanPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.getOperatorsToViewResult().size).toEqual(0);
 
-    workflowGraph.unCacheOperator(mockResultPredicate.operatorID);
-    expect(workflowGraph.isOperatorCached(mockResultPredicate.operatorID)).toBeFalse();
-    expect(workflowGraph.getCachedOperators().size).toEqual(0);
+    workflowGraph.unsetViewOperatorResult(mockResultPredicate.operatorID);
+    expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBeFalse();
+    expect(workflowGraph.getOperatorsToViewResult().size).toEqual(0);
   });
 
   describe("when linkBreakpoint is enabled", () => {

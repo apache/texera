@@ -1,11 +1,15 @@
 import importlib
 import inspect
 import sys
+from cached_property import cached_property
+
 import fs
 from pathlib import Path
 from typing import Tuple, Optional, Mapping
+
+from fs.base import FS
 from loguru import logger
-from core.models import Operator
+from core.models import Operator, SourceOperator
 
 
 class OperatorManager:
@@ -14,8 +18,13 @@ class OperatorManager:
         self.operator_module_name: Optional[str] = None
         self.operator_version: int = 0  # incremental only
 
-        # create a tmp fs for storing source code, which will be removed when the
-        # workflow is completed.
+    @cached_property
+    def fs(self) -> FS:
+        """
+        Creates a tmp fs for storing source code, which will be removed when the
+        workflow is completed.
+        :return:
+        """
         # TODO:
         #       For various reasons when the workflow is not completed successfully,
         #  the tmp fs could not be closed properly. This means it may leave files
@@ -27,10 +36,11 @@ class OperatorManager:
         #       As each python file is usually tiny in size, and the OS can
         #  periodically clean up /var/tmp anyway, the full-life-cycle management is
         #  not a priority to be fixed.
-        self.fs = fs.open_fs("temp://")
-        self.root = Path(self.fs.getsyspath("/"))
-        logger.info(f"Opening a tmp directory at {self.root}.")
-        sys.path.append(str(self.root))
+        temp_fs = fs.open_fs("temp://")
+        root = Path(temp_fs.getsyspath("/"))
+        logger.debug(f"Opening a tmp directory at {root}.")
+        sys.path.append(str(root))
+        return temp_fs
 
     def gen_module_file_name(self) -> Tuple[str, str]:
         """
@@ -53,7 +63,10 @@ class OperatorManager:
 
         with self.fs.open(file_name, "w") as file:
             file.write(code)
-        logger.info(f"A tmp py file is written to {self.root.joinpath(file_name)}.")
+        logger.debug(
+            f"A tmp py file is written to "
+            f"{Path(self.fs.getsyspath('/')).joinpath(file_name)}."
+        )
 
         if module_name in sys.modules:
             operator_module = importlib.import_module(module_name)
@@ -76,7 +89,7 @@ class OperatorManager:
         :return:
         """
         self.fs.close()
-        logger.info(f"Tmp directory {self.root} is closed and cleared.")
+        logger.debug(f"Tmp directory {self.fs.getsyspath('/')} is closed and cleared.")
 
     @staticmethod
     def is_concrete_operator(cls: type) -> bool:
@@ -109,6 +122,9 @@ class OperatorManager:
         self.operator = operator()
         self.operator.is_source = is_source
         self.operator.output_schema = output_schema
+        assert (
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
+        ), "Please use SourceOperator API for source operators."
 
     def update_operator(self, code: str, is_source: bool) -> None:
         """
@@ -124,6 +140,9 @@ class OperatorManager:
         operator: type(Operator) = self.load_operator(code)
         self.operator = operator()
         self.operator.is_source = is_source
+        assert (
+            isinstance(self.operator, SourceOperator) == self.operator.is_source
+        ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self.operator.__dict__ = original_internal_state
         # TODO:

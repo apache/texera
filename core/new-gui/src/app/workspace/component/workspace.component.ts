@@ -1,13 +1,12 @@
 import { Location } from "@angular/common";
 import { AfterViewInit, OnInit, Component, OnDestroy } from "@angular/core";
-import { ActivatedRoute } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { Version } from "../../../environments/version";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
-import { SourceTablesService } from "../service/dynamic-schema/source-tables/source-tables.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
@@ -18,10 +17,10 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
+import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
-import { UserProjectService } from "src/app/dashboard/service/user-project/user-project.service";
+import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
@@ -37,7 +36,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
-  public pid: number = 0;
+  public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
@@ -46,10 +45,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private userService: UserService,
     private resultPanelToggleService: ResultPanelToggleService,
     // list additional services in constructor so they are initialized even if no one use them directly
-    private sourceTablesService: SourceTablesService,
     private schemaPropagationService: SchemaPropagationService,
+    private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
-    private operatorCacheStatus: OperatorCacheStatusService,
+    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -59,8 +58,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
-    private userProjectService: UserProjectService,
-    private autoAttributeCorrectionService: AutoAttributeCorrectionService
+    private router: Router,
+    private notificationService: NotificationService
   ) {}
 
   ngOnInit() {
@@ -73,9 +72,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - upon persisting of a workflow, must also ensure it is also added to the project
      *
      * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project
+     *    - there is no related project, parseInt will return NaN.
+     *    - NaN || undefined will result in undefined.
      */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) ?? 0;
+    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
   }
 
   ngAfterViewInit(): void {
@@ -147,8 +147,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
             .persistWorkflow(this.workflowActionService.getWorkflow())
             .pipe(untilDestroyed(this))
             .subscribe((updatedWorkflow: Workflow) => {
+              if (this.workflowActionService.getWorkflowMetadata().wid !== updatedWorkflow.wid) {
+                this.location.go(`/workflow/${updatedWorkflow.wid}`);
+              }
               this.workflowActionService.setWorkflowMetadata(updatedWorkflow);
-              this.location.go(`/workflow/${updatedWorkflow.wid}`);
             });
           // to sync up with the updated information, such as workflow.wid
         }
@@ -164,9 +166,29 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
       .subscribe(
         (workflow: Workflow) => {
           this.workflowActionService.setNewSharedModel(wid, this.userService.getCurrentUser());
-          this.workflowActionService.enableWorkflowModification();
+          // remember URL fragment
+          const fragment = this.route.snapshot.fragment;
           // load the fetched workflow
           this.workflowActionService.reloadWorkflow(workflow);
+          this.workflowActionService.enableWorkflowModification();
+          // set the URL fragment to previous value
+          // because reloadWorkflow will highlight/unhighlight all elements
+          // which will change the URL fragment
+          this.router.navigate([], {
+            relativeTo: this.route,
+            fragment: fragment !== null ? fragment : undefined,
+            preserveFragment: false,
+          });
+          // highlight the operator, comment box, or link in the URL fragment
+          if (fragment) {
+            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
+              this.workflowActionService.highlightElements(false, fragment);
+            } else {
+              this.notificationService.error(`Element ${fragment} doesn't exist`);
+              // remove the fragment from the URL
+              this.router.navigate([], { relativeTo: this.route });
+            }
+          }
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
@@ -186,7 +208,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   registerLoadOperatorMetadata() {
     this.operatorMetadataService
       .getOperatorMetadata()
-      .pipe(filter(metadata => metadata.operators.length !== 0))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let wid = this.route.snapshot.params.id;
@@ -206,8 +227,28 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // responsible for persisting the workflow to the backend
           this.registerAutoPersistWorkflow();
         } else {
+          // remember URL fragment
+          const fragment = this.route.snapshot.fragment;
           // load the cached workflow
           this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+          // set the URL fragment to previous value
+          // because reloadWorkflow will highlight/unhighlight all elements
+          // which will change the URL fragment
+          this.router.navigate([], {
+            relativeTo: this.route,
+            fragment: fragment !== null ? fragment : undefined,
+            preserveFragment: false,
+          });
+          // highlight the operator, comment box, or link in the URL fragment
+          if (fragment) {
+            if (this.workflowActionService.getTexeraGraph().hasElementWithID(fragment)) {
+              this.workflowActionService.highlightElements(false, fragment);
+            } else {
+              this.notificationService.error(`Element ${fragment} doesn't exist`);
+              // remove the fragment from the URL
+              this.router.navigate([], { relativeTo: this.route });
+            }
+          }
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();

@@ -41,6 +41,7 @@ object JwtAuth {
     claims.setSubject(user.getName)
     claims.setClaim("userId", user.getUid)
     claims.setClaim("googleId", user.getGoogleId)
+    claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
     claims.setExpirationTimeMinutesInTheFuture(dayToMin(expireInDays))
     claims

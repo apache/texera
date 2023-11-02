@@ -6,20 +6,20 @@ import * as cloud from "d3-cloud";
 import { ChartType, WordCloudTuple } from "../../types/visualization.interface";
 import { merge, Subject } from "rxjs";
 import { environment } from "src/environments/environment";
-import * as mapboxgl from "mapbox-gl";
-import { MapboxLayer } from "@deck.gl/mapbox";
-import { ScatterplotLayer } from "@deck.gl/layers";
-import { ScatterplotLayerProps } from "@deck.gl/layers/scatterplot-layer/scatterplot-layer";
+import { MapboxLayer } from "@deck.gl/mapbox/typed";
+import { ScatterplotLayer, ScatterplotLayerProps } from "@deck.gl/layers/typed";
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime, debounceTime } from "rxjs/operators";
 import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
+import * as mapboxgl from "mapbox-gl";
+import { isDefined } from "../../../common/util/predicate";
 
 (mapboxgl as any).accessToken = environment.mapbox.accessToken;
 
 export const wordCloudScaleOptions = ["linear", "square root", "logarithmic"] as const;
 type WordCloudControlsType = {
-  scale: typeof wordCloudScaleOptions[number];
+  scale: (typeof wordCloudScaleOptions)[number];
 };
 
 // TODO: The current design doesn't decouple the visualization types into different modules
@@ -48,16 +48,6 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   public static readonly UPDATE_INTERVAL_MS = 2000;
   public static readonly WORD_CLOUD_CONTROL_UPDATE_INTERVAL_MS = 50;
 
-  private static readonly props: ScatterplotLayerProps<any> = {
-    opacity: 0.8,
-    filled: true,
-    radiusScale: 100,
-    radiusMinPixels: 1,
-    radiusMaxPixels: 25,
-    getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
-    getFillColor: [57, 73, 171],
-  };
-
   wordCloudScaleOptions = wordCloudScaleOptions; // make this a class variable so template can access it
   // word cloud related controls
   wordCloudControls: WordCloudControlsType = {
@@ -73,7 +63,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   displayHTML: boolean = false; // variable to decide whether to display the container to display the HTML container(iFrame)
   displayWordCloud: boolean = false; // variable to decide whether to display the container for world cloud visualization
   displayMap: boolean = true; // variable to decide whether to hide/un-hide the map
-  data?: ReadonlyArray<object>;
+  data: ReadonlyArray<object> = [];
   chartType?: ChartType;
   columns: string[] = [];
   /* Mapbox doesn't allow drawing points on the map if the style is not rendered,
@@ -132,7 +122,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     if (!operatorResultService) {
       return;
     }
-    this.data = operatorResultService.getCurrentResultSnapshot();
+    this.data = operatorResultService.getCurrentResultSnapshot() ?? [];
     this.chartType = operatorResultService.getChartType();
     if (!this.data || !this.chartType) {
       return;
@@ -209,6 +199,7 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
       bindto: VisualizationFrameContentComponent.CHART_ID,
     });
   }
+
   generateSpatialScatterPlot() {
     /* after the map style is loaded, we add a layer of the data points */
     if (!this.isMapStyleRendered) {
@@ -233,24 +224,31 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
   }
 
   addNewOrReplaceExistingLayer() {
-    if (!this.map) {
+    if (!isDefined(this.map)) {
       return;
     }
-    if (this.map?.getLayer("scatter")) {
-      this.map?.removeLayer("scatter");
+    if (this.map.getLayer("scatter")) {
+      this.map.removeLayer("scatter");
     }
 
-    const clusterLayer = new MapboxLayer({
-      id: "scatter",
-      type: ScatterplotLayer,
-      data: this.data,
-      pickable: true,
-    });
-    clusterLayer.setProps(VisualizationFrameContentComponent.props);
-    this.map.addLayer(clusterLayer);
+    this.map.addLayer(
+      new MapboxLayer({
+        type: ScatterplotLayer,
+        id: "scatter",
+        data: this.data,
+        getPosition: (d: { xColumn: number; yColumn: number }) => [d.xColumn, d.yColumn],
+        getFillColor: [57, 73, 171],
+        opacity: 0.8,
+        filled: true,
+        radiusScale: 100,
+        radiusMinPixels: 1,
+        radiusMaxPixels: 25,
+        pickable: true,
+      } as ScatterplotLayerProps)
+    );
   }
 
-  updateWordCloudScale(scale: typeof wordCloudScaleOptions[number]) {
+  updateWordCloudScale(scale: (typeof wordCloudScaleOptions)[number]) {
     if (this.wordCloudControls.scale !== scale) {
       this.wordCloudControls.scale = scale;
       this.wordCloudControlUpdateObservable.next(this.wordCloudControls);
@@ -263,20 +261,15 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     }
 
     if (this.wordCloudElement === undefined) {
+      const width = window.innerWidth * 0.7 - 50;
+      const height = window.innerHeight * 0.74 - 100;
       this.wordCloudElement = d3
         .select(VisualizationFrameContentComponent.CHART_ID)
         .append("svg")
-        .attr("width", VisualizationFrameContentComponent.WIDTH)
-        .attr("height", VisualizationFrameContentComponent.HEIGHT)
+        .attr("width", width)
+        .attr("height", height)
         .append("g")
-        .attr(
-          "transform",
-          "translate(" +
-            VisualizationFrameContentComponent.WIDTH / 2 +
-            "," +
-            VisualizationFrameContentComponent.HEIGHT / 2 +
-            ")"
-        );
+        .attr("transform", "translate(" + width / 2 + "," + height / 2 + ")");
     }
 
     const wordCloudTuples = this.data as ReadonlyArray<WordCloudTuple>;
@@ -325,8 +318,8 @@ export class VisualizationFrameContentComponent implements OnInit, AfterContentI
     const minCount = Math.min(...wordCloudTuples.map(t => t.count));
     const maxCount = Math.max(...wordCloudTuples.map(t => t.count));
 
-    const minFontSize = 50;
-    const maxFontSize = 150;
+    const minFontSize = 30;
+    const maxFontSize = 70;
 
     const getScale: () => d3.ScaleContinuousNumeric<number, number> = () => {
       switch (this.wordCloudControls.scale) {

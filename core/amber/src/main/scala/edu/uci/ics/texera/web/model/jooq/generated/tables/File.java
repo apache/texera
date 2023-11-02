@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File extends TableImpl<FileRecord> {
 
-    private static final long serialVersionUID = 806590554;
+    private static final long serialVersionUID = -355080954;
 
     /**
      * The reference instance of <code>texera_db.file</code>
@@ -51,9 +51,9 @@ public class File extends TableImpl<FileRecord> {
     }
 
     /**
-     * The column <code>texera_db.file.uid</code>.
+     * The column <code>texera_db.file.owner_uid</code>.
      */
-    public final TableField<FileRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<FileRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.fid</code>.
@@ -125,7 +125,7 @@ public class File extends TableImpl<FileRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.FILE_PRIMARY, Indexes.FILE_UID);
+        return Arrays.<Index>asList(Indexes.FILE_IDX_FILE_NAME_DESCRIPTION, Indexes.FILE_OWNER_UID, Indexes.FILE_PRIMARY);
     }
 
     @Override
@@ -140,7 +140,7 @@ public class File extends TableImpl<FileRecord> {
 
     @Override
     public List<UniqueKey<FileRecord>> getKeys() {
-        return Arrays.<UniqueKey<FileRecord>>asList(Keys.KEY_FILE_UID, Keys.KEY_FILE_PRIMARY);
+        return Arrays.<UniqueKey<FileRecord>>asList(Keys.KEY_FILE_OWNER_UID, Keys.KEY_FILE_PRIMARY);
     }
 
     @Override

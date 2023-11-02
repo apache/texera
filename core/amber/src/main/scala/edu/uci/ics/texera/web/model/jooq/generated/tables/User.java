@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row5;
+import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -1170158302;
+    private static final long serialVersionUID = 1259931841;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -51,14 +51,19 @@ public class User extends TableImpl<UserRecord> {
     }
 
     /**
-     * The column <code>texera_db.user.name</code>.
-     */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
-
-    /**
      * The column <code>texera_db.user.uid</code>.
      */
     public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
+    /**
+     * The column <code>texera_db.user.name</code>.
+     */
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.user.email</code>.
+     */
+    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.password</code>.
@@ -115,7 +120,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY);
+        return Arrays.<Index>asList(Indexes.USER_EMAIL, Indexes.USER_GOOGLE_ID, Indexes.USER_IDX_USER_NAME, Indexes.USER_PRIMARY);
     }
 
     @Override
@@ -130,7 +135,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<UniqueKey<UserRecord>> getKeys() {
-        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_GOOGLE_ID);
+        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_EMAIL, Keys.KEY_USER_GOOGLE_ID);
     }
 
     @Override
@@ -160,11 +165,11 @@ public class User extends TableImpl<UserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row5 type methods
+    // Row6 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row5<String, UInteger, String, String, UserRole> fieldsRow() {
-        return (Row5) super.fieldsRow();
+    public Row6<UInteger, String, String, String, String, UserRole> fieldsRow() {
+        return (Row6) super.fieldsRow();
     }
 }

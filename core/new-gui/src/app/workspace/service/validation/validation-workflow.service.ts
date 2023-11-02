@@ -4,7 +4,7 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import Ajv from "ajv";
-import { filter, map } from "rxjs/operators";
+import { map } from "rxjs/operators";
 import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 
 export type ValidationError = {
@@ -61,13 +61,10 @@ export class ValidationWorkflowService {
     private dynamicSchemaService: DynamicSchemaService
   ) {
     // fetch operator schema list
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .pipe(filter(metadata => metadata.operators.length > 0))
-      .subscribe(metadata => {
-        this.operatorSchemaList = metadata.operators;
-        this.initializeValidation();
-      });
+    this.operatorMetadataService.getOperatorMetadata().subscribe(metadata => {
+      this.operatorSchemaList = metadata.operators;
+      this.initializeValidation();
+    });
   }
 
   public getCurrentWorkflowValidationError(): {
@@ -169,7 +166,7 @@ export class ValidationWorkflowService {
     // capture the port change event and validate the operator of this port
     this.workflowActionService
       .getTexeraGraph()
-      .getOperatorPortChangeStream()
+      .getPortAddedOrDeletedStream()
       .subscribe(portChange => {
         this.updateValidationState(
           portChange.newOperator.operatorID,
@@ -240,8 +237,8 @@ export class ValidationWorkflowService {
   }
 
   /**
-   * This method is used to check whether all ports of the operator have been connected.
-   *  if all ports of the operator are connected, the operator is valid.
+   * This method is used to check whether all input ports of the operator have been connected.
+   *  if all input ports of the operator are connected, the operator is valid.
    */
   private validateOperatorConnection(operatorID: string): Validation {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
@@ -284,32 +281,12 @@ export class ValidationWorkflowService {
       }
     }
 
-    // check if output links satisfy the requirement
-    const requiredOutputNum = operator.outputPorts.length;
-    const actualOutputNum = texeraGraph
-      .getOutputLinksByOperatorId(operatorID)
-      .filter(link => texeraGraph.isLinkEnabled(link.linkID)).length;
-
-    // If the operator is the sink operator, the actual output number must be equal to required number.
-    const satisyOutput =
-      this.operatorMetadataService.getOperatorSchema(operator.operatorType).additionalMetadata.operatorGroupName ===
-      "View Results"
-        ? requiredOutputNum === actualOutputNum
-        : requiredOutputNum <= actualOutputNum;
-
-    const outputPortsViolationMessage = satisyOutput
-      ? ""
-      : `requires ${requiredOutputNum} outputs, has ${actualOutputNum} outputs`;
-
-    if (satisfyInput && satisyOutput) {
+    if (satisfyInput) {
       return { isValid: true };
     } else {
       const messages: Record<string, string> = {};
       if (!satisfyInput) {
         messages[ValidationWorkflowService.VALIDATION_OPERATOR_INPUT_MESSAGE] = inputPortsViolationMessage;
-      }
-      if (!satisyOutput) {
-        messages[ValidationWorkflowService.VALIDATION_OPERATOR_OUTPUT_MESSAGE] = outputPortsViolationMessage;
       }
       return { isValid: false, messages: messages };
     }

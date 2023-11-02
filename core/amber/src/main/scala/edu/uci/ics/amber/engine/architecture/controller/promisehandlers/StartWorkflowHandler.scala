@@ -1,15 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
-import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-
-import scala.collection.mutable
 
 object StartWorkflowHandler {
   final case class StartWorkflow() extends ControlCommand[Unit]

@@ -5,7 +5,6 @@ import akka.actor.Address
 import scala.concurrent.duration._
 
 object Constants {
-  val defaultBatchSize: Int = AmberUtils.amberConfig.getInt("constants.default-batch-size")
   // time interval for logging queue sizes
   val loggingQueueSizeInterval: Int =
     AmberUtils.amberConfig.getInt("constants.logging-queue-size-interval")
@@ -50,8 +49,10 @@ object Constants {
   // flow control related
   var flowControlEnabled: Boolean =
     AmberUtils.amberConfig.getBoolean("flow-control.credit-based-flow-control-enabled")
-  var unprocessedBatchesCreditLimitPerSender: Int =
-    AmberUtils.amberConfig.getInt("flow-control.unprocessed-batches-limit-per-worker-pair")
+  var unprocessedBatchesSizeLimitPerSender: Int =
+    AmberUtils.amberConfig.getInt(
+      "flow-control.unprocessed-batches-size-limit-in-bytes-per-worker-pair"
+    )
   var localSendingBufferLimitPerReceiver: Int =
     AmberUtils.amberConfig.getInt("flow-control.local-sending-buffer-limit-per-receiver")
   var creditPollingInitialDelayInMs: Int =
@@ -62,4 +63,13 @@ object Constants {
   var schedulingPolicyName: String = AmberUtils.amberConfig.getString("scheduling.policy-name")
   var timeSlotExpirationDurationInMs: Int =
     AmberUtils.amberConfig.getInt("scheduling.time-slot-expiration-duration-ms")
+
+  var enableTransactionalReconfiguration: Boolean =
+    AmberUtils.amberConfig.getBoolean("reconfiguration.enable-transactional-reconfiguration")
+
+  val defaultBatchSize: Int = AmberUtils.amberConfig.getInt("network-buffering.default-batch-size")
+  var enableAdaptiveNetworkBuffering: Boolean =
+    AmberUtils.amberConfig.getBoolean("network-buffering.enable-adaptive-buffering")
+  var adaptiveBufferingTimeoutMs: Int =
+    AmberUtils.amberConfig.getInt("network-buffering.adaptive-buffering-timeout-ms")
 }

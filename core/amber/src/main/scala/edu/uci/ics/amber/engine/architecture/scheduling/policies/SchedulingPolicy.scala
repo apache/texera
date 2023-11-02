@@ -4,11 +4,7 @@ import akka.actor.ActorContext
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -36,19 +32,20 @@ object SchedulingPolicy {
 abstract class SchedulingPolicy(workflow: Workflow) {
 
   protected val regionsScheduleOrder: mutable.Buffer[PipelinedRegion] =
-    new TopologicalOrderIterator(workflow.getPipelinedRegionsDAG()).asScala.toBuffer
+    new TopologicalOrderIterator(workflow.physicalPlan.pipelinedRegionsDAG).asScala.toBuffer
 
   // regions sent by the policy to be scheduled at least once
-  protected val sentToBeScheduledRegions = new mutable.HashSet[PipelinedRegion]()
+  protected val scheduledRegions = new mutable.HashSet[PipelinedRegion]()
   protected val completedRegions = new mutable.HashSet[PipelinedRegion]()
   // regions currently running
   protected val runningRegions = new mutable.HashSet[PipelinedRegion]()
   protected val completedLinksOfRegion =
-    new mutable.HashMap[PipelinedRegion, mutable.HashSet[LinkIdentity]]()
+    new mutable.HashMap[PipelinedRegion, mutable.Set[LinkIdentity]]
+      with mutable.MultiMap[PipelinedRegion, LinkIdentity]
 
   protected def isRegionCompleted(region: PipelinedRegion): Boolean = {
     workflow
-      .getBlockingOutlinksOfRegion(region)
+      .getBlockingOutLinksOfRegion(region)
       .subsetOf(completedLinksOfRegion.getOrElse(region, new mutable.HashSet[LinkIdentity]())) &&
     region
       .getOperators()
@@ -62,17 +59,16 @@ abstract class SchedulingPolicy(workflow: Workflow) {
     }
   }
 
-  protected def getRegion(workerId: ActorVirtualIdentity): Option[PipelinedRegion] = {
+  protected def getRegions(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
     val opId = workflow.getOperator(workerId).id
-    runningRegions.find(r => r.getOperators().contains(opId))
+    runningRegions.filter(r => r.getOperators().contains(opId)).toSet
   }
 
   /**
     * A link's region is the region of the source operator of the link.
     */
-  protected def getRegion(linkId: LinkIdentity): Option[PipelinedRegion] = {
-    val upstreamOpId = OperatorIdentity(linkId.from.workflow, linkId.from.operator)
-    runningRegions.find(r => r.getOperators().contains(upstreamOpId))
+  protected def getRegions(link: LinkIdentity): Set[PipelinedRegion] = {
+    runningRegions.filter(r => r.getOperators().contains(link.from)).toSet
   }
 
   // gets the ready regions that is not currently running
@@ -89,30 +85,15 @@ abstract class SchedulingPolicy(workflow: Workflow) {
   }
 
   def onWorkerCompletion(workerId: ActorVirtualIdentity): Set[PipelinedRegion] = {
-    val region = getRegion(workerId)
-    if (region.isEmpty) {
-      throw new WorkflowRuntimeException(
-        s"WorkflowScheduler: Worker ${workerId} completed from a non-running region"
-      )
-    } else {
-      checkRegionCompleted(region.get)
-    }
+    val regions = getRegions(workerId)
+    regions.foreach(r => checkRegionCompleted(r))
     getNextSchedulingWork()
   }
 
-  def onLinkCompletion(linkId: LinkIdentity): Set[PipelinedRegion] = {
-    val region = getRegion(linkId)
-    if (region == null) {
-      throw new WorkflowRuntimeException(
-        s"WorkflowScheduler: Link ${linkId.toString()} completed from a non-running region"
-      )
-    } else {
-      val completedLinks =
-        completedLinksOfRegion.getOrElseUpdate(region.get, new mutable.HashSet[LinkIdentity]())
-      completedLinks.add(linkId)
-      completedLinksOfRegion(region.get) = completedLinks
-      checkRegionCompleted(region.get)
-    }
+  def onLinkCompletion(link: LinkIdentity): Set[PipelinedRegion] = {
+    val regions = getRegions(link)
+    regions.foreach(r => completedLinksOfRegion.addBinding(r, link))
+    regions.foreach(r => checkRegionCompleted(r))
     getNextSchedulingWork()
   }
 

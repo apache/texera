@@ -1,5 +1,3 @@
-from typing import Optional
-
 from loguru import logger
 from pyarrow import Table, Buffer
 from pyarrow.flight import (
@@ -10,6 +8,7 @@ from pyarrow.flight import (
     FlightStreamWriter,
     FlightMetadataReader,
 )
+from typing import Optional
 
 
 class ProxyClient(FlightClient):
@@ -18,6 +17,7 @@ class ProxyClient(FlightClient):
         scheme: str = "grpc+tcp",
         host: str = "localhost",
         port: int = 5005,
+        handshake_port: Optional[int] = None,
         timeout=1000,
         *args,
         **kwargs,
@@ -26,6 +26,8 @@ class ProxyClient(FlightClient):
         super().__init__(location, *args, **kwargs)
         logger.debug(f"Connected to server at {location}")
         self._timeout = timeout
+        if handshake_port is not None:
+            self._handshake(handshake_port=handshake_port)
 
     @logger.catch(reraise=True)
     def call_action(
@@ -46,7 +48,18 @@ class ProxyClient(FlightClient):
         action = Action(action_name, payload)
         if options is None:
             options = FlightCallOptions(timeout=self._timeout)
-        return next(self.do_action(action, options)).body.to_pybytes()
+
+        # Arrow allows multiple results from the Action call return as a stream (
+        # interator). In Arrow 11, it alerts if the results are not consumed fully.
+        # As we do our own Async RPC management, we are currently not using results
+        # from Action call. In the future, this results can include credits for flow
+        # control purpose.
+        results = list(self.do_action(action, options))
+
+        # However, we will only expect exactly one result for now.
+        assert len(results) == 1
+
+        return results[0].body.to_pybytes()
 
     @logger.catch(reraise=True)
     def send_data(self, command: bytes, table: Optional[Table]) -> int:
@@ -69,3 +82,13 @@ class ProxyClient(FlightClient):
                 credit_buf.to_pybytes(), byteorder="little"
             )
         return credit_count
+
+    def _handshake(self, handshake_port: int) -> None:
+        """
+        Send the handshake port to Java Proxy Server, which will be forwarded to
+        the Java Proxy Client to use.
+        :param handshake_port: int, the port number for Java Proxy Client to connect
+        to Python Proxy Server.
+        :return:
+        """
+        self.call_action("handshake", bytes(str(handshake_port), "utf-8"))

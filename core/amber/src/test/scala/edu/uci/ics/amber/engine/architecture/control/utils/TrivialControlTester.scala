@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.control.utils
 
-import akka.actor.ActorRef
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
@@ -34,7 +33,7 @@ class TrivialControlTester(
         logger.info(s"received $internalMessage")
         this.controlInputPort.handleMessage(
           this.sender(),
-          Constants.unprocessedBatchesCreditLimitPerSender,
+          Constants.unprocessedBatchesSizeLimitPerSender,
           id,
           from,
           sequenceNumber,

@@ -11,13 +11,15 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
+  ExecutionDurationUpdateEvent,
   OperatorStatistics,
   OperatorStatisticsUpdateEvent,
   WorkerAssignmentUpdateEvent
 }
 import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{ABORTED, COMPLETED}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{FAILED, COMPLETED}
 
 class JobStatsService(
     client: AmberClient,
@@ -56,6 +58,31 @@ class JobStatsService(
           .map { opToWorkers =>
             WorkerAssignmentUpdateEvent(opToWorkers.operatorId, opToWorkers.workerIds)
           }
+      } else {
+        Iterable()
+      }
+    })
+  )
+
+  addSubscription(
+    stateStore.statsStore.registerDiffHandler((oldState, newState) => {
+      // update execution duration.
+      if (
+        newState.startTimeStamp != oldState.startTimeStamp || newState.endTimeStamp != oldState.endTimeStamp
+      ) {
+        if (newState.endTimeStamp != 0) {
+          Iterable(
+            ExecutionDurationUpdateEvent(
+              newState.endTimeStamp - newState.startTimeStamp,
+              isRunning = false
+            )
+          )
+        } else {
+          val currentTime = System.currentTimeMillis()
+          Iterable(
+            ExecutionDurationUpdateEvent(currentTime - newState.startTimeStamp, isRunning = true)
+          )
+        }
       } else {
         Iterable()
       }
@@ -114,7 +141,12 @@ class JobStatsService(
       client
         .registerCallback[WorkflowCompleted]((evt: WorkflowCompleted) => {
           client.shutdown()
-          stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
+          stateStore.statsStore.updateState(stats =>
+            stats.withEndTimeStamp(System.currentTimeMillis())
+          )
+          stateStore.jobMetadataStore.updateState(jobInfo =>
+            updateWorkflowState(COMPLETED, jobInfo)
+          )
         })
     )
   }
@@ -124,8 +156,11 @@ class JobStatsService(
       client
         .registerCallback[FatalError]((evt: FatalError) => {
           client.shutdown()
+          stateStore.statsStore.updateState(stats =>
+            stats.withEndTimeStamp(System.currentTimeMillis())
+          )
           stateStore.jobMetadataStore.updateState { jobInfo =>
-            jobInfo.withState(ABORTED).withError(evt.e.getLocalizedMessage)
+            updateWorkflowState(FAILED, jobInfo).withError(evt.e.getLocalizedMessage)
           }
         })
     )

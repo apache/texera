@@ -58,8 +58,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
       keywordSearchByColumn,
       keywords
     ) {
-  // update AsterixDB API version upon initialization.
-  updateAsterixDBVersionMapping(host, port)
 
   // format Timestamp. TODO: move to some util package
   val formatter: DateTimeFormatter =
@@ -67,6 +65,12 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   var curQueryString: Option[String] = None
   var curResultIterator: Option[Iterator[AnyRef]] = None
+
+  override def open(): Unit = {
+    // update AsterixDB API version upon open
+    updateAsterixDBVersionMapping(host, port)
+    super.open()
+  }
 
   /**
     * A generator of a Texera.Tuple, which converted from a CSV row of fields from AsterixDB

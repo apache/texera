@@ -45,6 +45,10 @@ public class Schema implements Serializable {
         return JavaConverters.asScalaBuffer(attributes).toList();
     }
 
+    public scala.collection.immutable.List<String> getAttributeNamesScala() {
+        return JavaConverters.asScalaBuffer(getAttributeNames()).toList();
+    }
+
     @JsonIgnore
     public List<String> getAttributeNames() {
         return attributes.stream().map(attr -> attr.getName()).collect(Collectors.toList());
@@ -163,6 +167,14 @@ public class Schema implements Serializable {
     public static final String ATTRIBUTE_NOT_EXISTS(Iterable<String> attributeNameList, String attributeName) {
         return String.format("attribute %s does not exist in the schema: %s",
                 attributeName, attributeNameList);
+    }
+
+    public Schema getPartialSchema(int[] indices){
+        Schema.Builder builder = Schema.newBuilder();
+        for (int index : indices) {
+            builder.add(attributes.get(index));
+        }
+        return builder.build();
     }
 
     public static Schema.Builder newBuilder() {

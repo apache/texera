@@ -1,8 +1,13 @@
+import datetime
+
 import pandas
 import pytest
 from copy import deepcopy
 
+from numpy import NaN
+
 from core.models import Tuple
+from core.models.schema.schema import Schema
 
 
 class TestTuple:
@@ -89,3 +94,104 @@ class TestTuple:
         assert tuple_ == Tuple({"1": "a", "3": "c"})
         tuple_ = Tuple({"1": field_accessor, "3": field_accessor})
         assert deepcopy(tuple_) == chr_tuple
+
+    def test_finalize_tuple(self):
+        tuple_ = Tuple(
+            {"name": "texera", "age": 21, "scores": [85, 94, 100], "height": NaN}
+        )
+        schema = Schema(
+            raw_schema={
+                "name": "string",
+                "age": "integer",
+                "scores": "binary",
+                "height": "double",
+            }
+        )
+        tuple_.finalize(schema)
+        assert isinstance(tuple_["scores"], bytes)
+        assert tuple_["height"] is None
+
+    def test_hash(self):
+        schema = Schema(
+            raw_schema={
+                "col-int": "integer",
+                "col-string": "string",
+                "col-bool": "boolean",
+                "col-long": "long",
+                "col-double": "double",
+                "col-timestamp": "timestamp",
+                "col-binary": "binary",
+            }
+        )
+
+        tuple_ = Tuple(
+            {
+                "col-int": 922323,
+                "col-string": "string-attr",
+                "col-bool": True,
+                "col-long": 1123213213213,
+                "col-double": 214214.9969346,
+                "col-timestamp": datetime.datetime.fromtimestamp(100000000),
+                "col-binary": b"hello",
+            },
+            schema,
+        )
+        assert hash(tuple_) == -1335416166  # calculated with Java
+
+        tuple2 = Tuple(
+            {
+                "col-int": 0,
+                "col-string": "",
+                "col-bool": False,
+                "col-long": 0,
+                "col-double": 0.0,
+                "col-timestamp": datetime.datetime.fromtimestamp(0),
+                "col-binary": b"",
+            },
+            schema,
+        )
+
+        assert hash(tuple2) == -1409761483  # calculated with Java
+
+        tuple3 = Tuple(
+            {
+                "col-int": None,
+                "col-string": None,
+                "col-bool": None,
+                "col-long": None,
+                "col-double": None,
+                "col-timestamp": None,
+                "col-binary": None,
+            },
+            schema,
+        )
+
+        assert hash(tuple3) == 1742810335  # calculated with Java
+
+        tuple4 = Tuple(
+            {
+                "col-int": -3245763,
+                "col-string": "\n\r\napple",
+                "col-bool": True,
+                "col-long": -8965536434247,
+                "col-double": 1 / 3,
+                "col-timestamp": datetime.datetime.fromtimestamp(-1990),
+                "col-binary": None,
+            },
+            schema,
+        )
+        assert hash(tuple4) == -592643630  # calculated with Java
+
+        tuple5 = Tuple(
+            {
+                "col-int": 0x7FFFFFFF,
+                "col-string": "",
+                "col-bool": True,
+                "col-long": 0x7FFFFFFFFFFFFFFF,
+                "col-double": 7 / 17,
+                "col-timestamp": datetime.datetime.fromtimestamp(1234567890),
+                "col-binary": b"o" * 4097,
+            },
+            schema,
+        )
+        assert hash(tuple5) == -2099556631  # calculated with Java
