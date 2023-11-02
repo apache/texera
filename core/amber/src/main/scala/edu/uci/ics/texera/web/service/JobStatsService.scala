@@ -44,6 +44,15 @@ class JobStatsService(
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       // Update operator stats if any operator updates its stat
+      storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
+        case ((newId, newStats), (oldId, oldStats)) =>
+          val res = OperatorRuntimeStats(
+            newStats.state,
+            newStats.inputCount - oldStats.inputCount,
+            newStats.outputCount - oldStats.outputCount
+          )
+          (newId, res)
+      })
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
           OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
@@ -117,12 +126,11 @@ class JobStatsService(
           stateStore.statsStore.updateState { jobInfo =>
             jobInfo.withOperatorInfo(evt.operatorStatistics)
           }
-          storeRuntimeStatistics(evt.operatorStatistics)
         })
     )
   }
 
-  private def storeRuntimeStatistics(operatorStatistics: Map[String, OperatorRuntimeStats]): Unit = {
+  private def storeRuntimeStatistics(operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]): Unit = {
     val list: util.ArrayList[Telemetry] = new util.ArrayList[Telemetry]()
     for ((operatorId, stat) <- operatorStatistics) {
       val execution = new Telemetry()

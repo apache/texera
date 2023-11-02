@@ -34,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Telemetry extends TableImpl<TelemetryRecord> {
 
-    private static final long serialVersionUID = -1264390083;
+    private static final long serialVersionUID = 219860592;
 
     /**
      * The reference instance of <code>texera_db.telemetry</code>
@@ -67,7 +67,7 @@ public class Telemetry extends TableImpl<TelemetryRecord> {
     /**
      * The column <code>texera_db.telemetry.time</code>.
      */
-    public final TableField<TelemetryRecord, Timestamp> TIME = createField(DSL.name("time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<TelemetryRecord, Timestamp> TIME = createField(DSL.name("time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP(6)", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.telemetry.input_tuple_cnt</code>.

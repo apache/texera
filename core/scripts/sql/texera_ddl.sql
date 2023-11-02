@@ -191,7 +191,7 @@ CREATE TABLE IF NOT EXISTS telemetry
     `workflow_id`      INT UNSIGNED		NOT NULL,
     `execution_id`     INT UNSIGNED		NOT NULL,
     `operator_id`      VARCHAR(100)		NOT NULL,
-    `time`             TIMESTAMP		NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `time`             TIMESTAMP(6)		NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     `input_tuple_cnt`  INT UNSIGNED		NOT NULL DEFAULT 0,
     `output_tuple_cnt` INT UNSIGNED		NOT NULL DEFAULT 0,
     `status`           TINYINT			NOT NULL DEFAULT 1,
