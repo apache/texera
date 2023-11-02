@@ -48,7 +48,6 @@ class JobStatsService(
 
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
-      // Update operator stats if any operator updates its stat
       storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
         case ((newId, newStats), (oldId, oldStats)) =>
           val res = OperatorRuntimeStats(
@@ -58,6 +57,7 @@ class JobStatsService(
           )
           (newId, res)
       })
+      // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
           OperatorStatisticsUpdateEvent(newState.operatorInfo.collect {
