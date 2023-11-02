@@ -8,7 +8,7 @@ import {
   ExecutionStateInfo,
   LogicalLink,
   LogicalOperator,
-  LogicalPlan,
+  LogicalPlan
 } from "../../types/execute-workflow.interface";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
@@ -357,6 +357,7 @@ export class ExecuteWorkflowService {
       case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
+      case ExecutionState.Killed:
         this.workflowActionService.enableWorkflowModification();
         return;
       case ExecutionState.Paused:
