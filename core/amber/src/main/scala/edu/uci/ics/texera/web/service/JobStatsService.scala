@@ -17,7 +17,12 @@ import edu.uci.ics.texera.Utils.maptoStatusCode
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.TelemetryDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Telemetry
 import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
-import edu.uci.ics.texera.web.model.websocket.event.{ExecutionDurationUpdateEvent, OperatorStatistics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  ExecutionDurationUpdateEvent,
+  OperatorStatistics,
+  OperatorStatisticsUpdateEvent,
+  WorkerAssignmentUpdateEvent
+}
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
@@ -130,7 +135,9 @@ class JobStatsService(
     )
   }
 
-  private def storeRuntimeStatistics(operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]): Unit = {
+  private def storeRuntimeStatistics(
+      operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
+  ): Unit = {
     val list: util.ArrayList[Telemetry] = new util.ArrayList[Telemetry]()
     for ((operatorId, stat) <- operatorStatistics) {
       val execution = new Telemetry()
