@@ -56,9 +56,9 @@ class WorkerInternalQueue(
   protected lazy val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
 
   // the values in below maps are in tuples (not batches)
-  private var inputTuplesPutInQueue =
+  private val inQueueSizeMapping =
     new mutable.HashMap[ActorVirtualIdentity, Long]() // read and written by main thread
-  @volatile private var inputTuplesTakenOutOfQueue =
+  @volatile private var outQueueSizeMapping =
     new mutable.HashMap[ActorVirtualIdentity, Long]() // written by DP thread, read by main thread
 
   def registerInput(sender: ActorVirtualIdentity): Unit = {
@@ -67,19 +67,17 @@ class WorkerInternalQueue(
   }
 
   def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    (Constants.unprocessedBatchesSizeLimitPerSender - (inputTuplesPutInQueue
-      .getOrElseUpdate(sender, 0L) - inputTuplesTakenOutOfQueue.getOrElseUpdate(
-      sender,
-      0L
-    )).toInt)
+    val inBytes = inQueueSizeMapping.getOrElseUpdate(sender, 0L)
+    val outBytes = outQueueSizeMapping.getOrElseUpdate(sender, 0L)
+    (Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - (inBytes - outBytes)).toInt
   }
 
   def appendElement(elem: InternalQueueElement): Unit = {
     if (Constants.flowControlEnabled) {
       elem match {
         case InputTuple(from, tuple) =>
-          inputTuplesPutInQueue(from) =
-            inputTuplesPutInQueue.getOrElseUpdate(from, 0L) + tuple.inMemSize
+          inQueueSizeMapping(from) =
+            inQueueSizeMapping.getOrElseUpdate(from, 0L) + tuple.inMemSize
         case _ =>
         // do nothing
       }
@@ -120,8 +118,8 @@ class WorkerInternalQueue(
     if (Constants.flowControlEnabled) {
       elem match {
         case InputTuple(from, tuple) =>
-          inputTuplesTakenOutOfQueue(from) =
-            inputTuplesTakenOutOfQueue.getOrElseUpdate(from, 0L) + tuple.inMemSize
+          outQueueSizeMapping(from) =
+            outQueueSizeMapping.getOrElseUpdate(from, 0L) + tuple.inMemSize
         case _ =>
         // do nothing
       }
@@ -142,7 +140,7 @@ class WorkerInternalQueue(
   def isControlQueueNonEmptyOrPaused: Boolean = {
     if (recoveryQueue.isReplayCompleted) {
       determinantLogger.stepIncrement()
-      !controlQueue.isEmpty || pauseManager.isPaused()
+      !controlQueue.isEmpty || pauseManager.isPaused
     } else {
       recoveryQueue.isReadyToEmitNextControl
     }

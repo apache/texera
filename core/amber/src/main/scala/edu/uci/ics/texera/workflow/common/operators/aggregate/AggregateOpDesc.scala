@@ -22,6 +22,7 @@ object AggregateOpDesc {
           makeLayer(id, "localAgg"),
           _ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schema)
         )
+        // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
 
     val finalLayer = if (groupByKeys == null || groupByKeys.isEmpty) {
@@ -30,6 +31,7 @@ object AggregateOpDesc {
           makeLayer(id, "globalAgg"),
           _ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schema)
         )
+        // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
     } else {
       val partitionColumns: Array[Int] =
