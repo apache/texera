@@ -27,6 +27,7 @@ def get_free_local_port():
         s.bind(("", 0))
         return s.getsockname()[1]
 
+
 class ProxyServer(FlightServerBase):
     """
     There are three kinds of messages supported by the ProxyServer:
