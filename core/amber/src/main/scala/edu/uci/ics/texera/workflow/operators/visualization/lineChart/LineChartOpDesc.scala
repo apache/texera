@@ -95,7 +95,7 @@ class LineChartOpDesc extends VisualizationOperator {
     )
 
     val finalAggOp = aggPlan.sinkOperators.head
-    aggPlan.addOperator(lineChartOpExec).addEdge(finalAggOp, lineChartOpExec.id)
+    aggPlan.addOperator(lineChartOpExec).addEdge(finalAggOp, 0, lineChartOpExec.id, 0)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -103,8 +103,8 @@ class LineChartOpDesc extends VisualizationOperator {
       "Line Chart",
       "View the result in line chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      asScalaBuffer(singletonList(InputPort(""))).toList,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      asScalaBuffer(singletonList(InputPort())).toList,
+      asScalaBuffer(singletonList(OutputPort())).toList
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

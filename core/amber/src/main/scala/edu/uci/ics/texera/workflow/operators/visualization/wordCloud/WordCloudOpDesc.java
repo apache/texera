@@ -76,16 +76,19 @@ public class WordCloudOpDesc extends VisualizationOperator {
         OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
                 (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn)
-        ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1);
+        ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
+                asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
+
 
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
         OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
                 (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN)
-        ).withId(finalId).withIsOneToManyOp(true);
+        ).withId(finalId).withIsOneToManyOp(true)
+                .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 
-        OpExecConfig[] layers = { partialLayer, finalLayer };
-        LinkIdentity[] links = { new LinkIdentity(partialLayer.id(), finalLayer.id()) };
+        OpExecConfig[] layers = {partialLayer, finalLayer};
+        LinkIdentity[] links = {new LinkIdentity(partialLayer.id(), 0, finalLayer.id(), 0)};
 
         return PhysicalPlan.apply(layers, links);
     }

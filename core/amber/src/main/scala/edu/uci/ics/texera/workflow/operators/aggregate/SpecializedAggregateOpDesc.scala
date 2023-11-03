@@ -59,8 +59,10 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       "Aggregate",
       "Calculate different types of aggregation values",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      inputPorts =
+        List(InputPort("in")), // a hacky solution to have unique port names for reference purpose
+      outputPorts =
+        List(OutputPort("out")) // a hacky solution to have unique port names for reference purpose
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

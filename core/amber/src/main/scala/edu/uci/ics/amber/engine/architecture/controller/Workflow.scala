@@ -20,14 +20,16 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   def getBlockingOutLinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
     val outLinks = new mutable.HashSet[LinkIdentity]()
-    region.blockingDownstreamOperatorsInOtherRegions.foreach(opId => {
-      physicalPlan
-        .getUpstream(opId)
-        .foreach(upstream => {
-          if (region.operators.contains(upstream)) {
-            outLinks.add(LinkIdentity(upstream, opId))
-          }
-        })
+    region.blockingDownstreamOperatorsInOtherRegions.foreach({
+      case (opId, toPort) => {
+        physicalPlan
+          .getUpstream(opId)
+          .foreach(upstream => {
+            if (region.operators.contains(upstream)) {
+              outLinks.add(LinkIdentity(upstream, 0, opId, toPort))
+            }
+          })
+      }
     })
     outLinks.toSet
   }
@@ -50,7 +52,7 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
 
   def getAllWorkersOfRegion(region: PipelinedRegion): Array[ActorVirtualIdentity] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
 
     allOperatorsInRegion.flatMap(opId => physicalPlan.operatorMap(opId).getAllWorkers.toList)
   }
@@ -99,10 +101,6 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
       .getUpstream(opID)
       .foreach(uOpID => upstreamOperatorToLayers(uOpID) = physicalPlan.operatorMap(opID))
     upstreamOperatorToLayers
-  }
-
-  def getInlinksIdsToWorkerLayer(layerIdentity: LayerIdentity): Set[LinkIdentity] = {
-    physicalPlan.getLayer(layerIdentity).inputToOrdinalMapping.keySet
   }
 
   def getAllWorkers: Iterable[ActorVirtualIdentity] = workerToOpExecConfig.keys

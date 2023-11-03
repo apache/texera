@@ -78,6 +78,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
           dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()
         )
+        .withInputPorts(operatorInfo.inputPorts)
     else
       OpExecConfig
         .manyToOneLayer(
@@ -89,6 +90,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
           dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()
         )
+        .withInputPorts(operatorInfo.inputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

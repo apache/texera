@@ -257,12 +257,14 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
           .last
           .id,
+        fromPort = 0,
         workflow.physicalPlan
           .layersOfLogicalOperator(
             new OperatorIdentity(workflow.workflowId.id, hashJoin1.operatorID)
           )
           .head
-          .id
+          .id,
+        toPort = 0
       )
     )
     assert(nextRegions.isEmpty)
@@ -274,12 +276,14 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           )
           .last
           .id,
+        fromPort = 0,
         workflow.physicalPlan
           .layersOfLogicalOperator(
             new OperatorIdentity(workflow.workflowId.id, hashJoin2.operatorID)
           )
           .head
-          .id
+          .id,
+        toPort = 0
       )
     )
     assert(nextRegions.nonEmpty)

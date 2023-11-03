@@ -23,9 +23,13 @@ class MaterializationRewriter(
     var newPlan = physicalPlan
 
     val fromOpId = linkId.from
-    val fromOutputPort = physicalPlan.operatorMap(fromOpId).outputToOrdinalMapping(linkId)
+    val fromOp = physicalPlan.operatorMap(fromOpId)
+    val fromOutputPortIdx = fromOp.outputToOrdinalMapping(linkId)
+    val fromOutputPortName = fromOp.outputPorts(fromOutputPortIdx).displayName
     val toOpId = linkId.to
-    val toInputPort = physicalPlan.operatorMap(toOpId).inputToOrdinalMapping(linkId)
+    val toOp = physicalPlan.operatorMap(toOpId)
+    val toInputPortIdx = physicalPlan.operatorMap(toOpId).inputToOrdinalMapping(linkId)
+    val toInputPortName = toOp.inputPorts(toInputPortIdx).displayName
 
     val materializationWriter = new ProgressiveSinkOpDesc()
     materializationWriter.setContext(context)
@@ -41,7 +45,7 @@ class MaterializationRewriter(
       .operatorMap(fromOpId.operator)
       .getOutputSchemas(
         fromOpIdInputSchema
-      )(fromOutputPort)
+      )(fromOutputPortIdx)
     val matWriterOutputSchema =
       materializationWriter.getOutputSchemas(Array(matWriterInputSchema))(0)
     materializationWriter.setStorage(
@@ -71,8 +75,18 @@ class MaterializationRewriter(
     newPlan = newPlan
       .addOperator(matWriterOpExecConfig)
       .addOperator(matReaderOpExecConfig)
-      .addEdge(fromOpId, matWriterOpExecConfig.id, fromOutputPort, 0)
-      .addEdge(matReaderOpExecConfig.id, toOpId, 0, toInputPort)
+      .addEdge(
+        fromOpId,
+        fromOutputPortIdx,
+        matWriterOpExecConfig.id,
+        0
+      )
+      .addEdge(
+        matReaderOpExecConfig.id,
+        0,
+        toOpId,
+        toInputPortIdx
+      )
       .removeEdge(linkId)
 
     newPlan

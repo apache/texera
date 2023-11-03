@@ -109,8 +109,8 @@ case class OpExecConfig(
     derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: List[InputPort] = List(InputPort("")),
-    outputPorts: List[OutputPort] = List(OutputPort("")),
+    inputPorts: List[InputPort] = List(InputPort()),
+    outputPorts: List[OutputPort] = List(OutputPort()),
     // mapping of all input/output operators connected on a specific input/output port index
     inputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
     outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
@@ -165,33 +165,35 @@ case class OpExecConfig(
     this.copy(inputPorts = operatorInfo.inputPorts, outputPorts = operatorInfo.outputPorts)
   }
 
+  def withInputPorts(inputs: List[InputPort]): OpExecConfig = {
+    this.copy(inputPorts = inputs)
+  }
+  def withOutputPorts(outputs: List[OutputPort]): OpExecConfig = {
+    this.copy(outputPorts = outputs)
+  }
+
   // creates a copy with an additional input operator specified on an input port
-  def addInput(from: LayerIdentity, port: Int): OpExecConfig = {
-    assert(port < this.inputPorts.size, s"cannot add input on port $port, all ports: $inputPorts")
+  def addInput(from: LayerIdentity, fromPort: Int, toPort: Int): OpExecConfig = {
     this.copy(inputToOrdinalMapping =
-      inputToOrdinalMapping + (LinkIdentity(from, this.id) -> port)
+      inputToOrdinalMapping + (LinkIdentity(from, fromPort, this.id, toPort) -> toPort)
     )
   }
 
   // creates a copy with an additional output operator specified on an output port
-  def addOutput(to: LayerIdentity, port: Int): OpExecConfig = {
-    assert(
-      port < this.outputPorts.size,
-      s"cannot add output on port $port, all ports: $outputPorts"
-    )
+  def addOutput(to: LayerIdentity, fromPort: Int, toPort: Int): OpExecConfig = {
     this.copy(outputToOrdinalMapping =
-      outputToOrdinalMapping + (LinkIdentity(this.id, to) -> port)
+      outputToOrdinalMapping + (LinkIdentity(this.id, fromPort, to, toPort) -> fromPort)
     )
   }
 
   // creates a copy with a removed input operator
-  def removeInput(from: LayerIdentity): OpExecConfig = {
-    this.copy(inputToOrdinalMapping = inputToOrdinalMapping - LinkIdentity(from, this.id))
+  def removeInput(link: LinkIdentity): OpExecConfig = {
+    this.copy(inputToOrdinalMapping = inputToOrdinalMapping - link)
   }
 
   // creates a copy with a removed output operator
-  def removeOutput(to: LayerIdentity): OpExecConfig = {
-    this.copy(outputToOrdinalMapping = outputToOrdinalMapping - LinkIdentity(this.id, to))
+  def removeOutput(link: LinkIdentity): OpExecConfig = {
+    this.copy(outputToOrdinalMapping = outputToOrdinalMapping - link)
   }
 
   // creates a copy with the new ID
