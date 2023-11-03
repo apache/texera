@@ -380,7 +380,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       assert(
         dp.internalQueue.getSenderCredits(
           senderID
-        ) < Constants.unprocessedBatchesSizeLimitPerSender
+        ) < Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
       )
       dp.internalQueue.appendElement(EndMarker(senderID))
     }(ExecutionContext.global)
@@ -432,7 +432,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     assert(
       dp.internalQueue.getSenderCredits(
         senderID
-      ) == Constants.unprocessedBatchesSizeLimitPerSender
+      ) == Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
     )
     Await.result(monitorCredits(senderID, dp, tuplesToSend), 3.seconds)
     dp.shutdown()

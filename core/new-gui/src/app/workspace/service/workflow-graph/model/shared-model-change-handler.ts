@@ -111,7 +111,7 @@ export class SharedModelChangeHandler {
         this.texeraGraph.operatorAddSubject.next(newOperator.toJSON());
       }
 
-      if (event.transaction.local) {
+      if (event.transaction.local && !this.jointGraphWrapper.getReloadingWorkflow()) {
         // Only highlight when this is added by current user.
         this.jointGraphWrapper.setMultiSelectMode(newOpIDs.length > 1);
         this.jointGraphWrapper.highlightOperators(...newOpIDs);
