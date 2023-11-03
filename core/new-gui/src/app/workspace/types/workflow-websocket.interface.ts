@@ -8,7 +8,7 @@ import {
   OperatorStatsUpdate,
 } from "./execute-workflow.interface";
 import { IndexableObject } from "./result-table.interface";
-import { BreakpointFaultedTuple, BreakpointTriggerInfo, PythonPrintTriggerInfo } from "./workflow-common.interface";
+import { BreakpointFaultedTuple, BreakpointTriggerInfo, ConsoleUpdateEvent } from "./workflow-common.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -28,7 +28,17 @@ export interface RegisterWIdRequest
     wId: number;
   }> {}
 
-export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
+export interface WorkflowExecuteRequest
+  extends Readonly<{
+    executionName: string;
+    engineVersion: string;
+    logicalPlan: LogicalPlan;
+  }> {}
+
+export interface RegisterWIdEvent
+  extends Readonly<{
+    message: string;
+  }> {}
 
 export interface TexeraConstraintViolation
   extends Readonly<{
@@ -82,11 +92,11 @@ export type PaginatedResultEvent = Readonly<{
 
 export type ResultExportRequest = Readonly<{
   exportType: string;
+  workflowId: number;
   workflowName: string;
   operatorId: string;
+  operatorName: string;
 }>;
-
-export type CacheStatusUpdateRequest = LogicalPlan;
 
 export type ResultExportResponse = Readonly<{
   status: "success" | "error";
@@ -103,7 +113,7 @@ export type WorkflowAvailableResultEvent = Readonly<{
   availableOperators: ReadonlyArray<OperatorAvailableResult>;
 }>;
 
-export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
+export type OperatorResultCacheStatus = "cache invalid" | "cache valid";
 
 export interface CacheStatusUpdateEvent
   extends Readonly<{
@@ -131,6 +141,36 @@ export type PythonExpressionEvaluateResponse = Readonly<{
   values: EvaluatedValue[];
 }>;
 
+export type WorkerAssignmentUpdateEvent = Readonly<{
+  operatorId: string;
+  workerIds: readonly string[];
+}>;
+
+export type ExecutionDurationUpdateEvent = Readonly<{
+  duration: number;
+  isRunning: boolean;
+}>;
+
+export type ClusterStatusUpdateEvent = Readonly<{
+  numWorkers: number;
+}>;
+
+export type ModifyLogicResponse = Readonly<{
+  opId: string;
+  isValid: boolean;
+  errorMessage: string;
+}>;
+
+export type ModifyLogicCompletedEvent = Readonly<{
+  opIds: readonly string[];
+}>;
+
+export type DebugCommandRequest = Readonly<{
+  operatorId: string;
+  workerId: string;
+  cmd: string;
+}>;
+
 export type WorkflowStateInfo = Readonly<{
   state: ExecutionState;
 }>;
@@ -138,18 +178,19 @@ export type WorkflowStateInfo = Readonly<{
 export type TexeraWebsocketRequestTypeMap = {
   RegisterWIdRequest: RegisterWIdRequest;
   AddBreakpointRequest: BreakpointInfo;
-  CacheStatusUpdateRequest: CacheStatusUpdateRequest;
+  CacheStatusUpdateRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
   ResultPaginationRequest: PaginationRequest;
   RetryRequest: {};
   SkipTupleRequest: SkipTuple;
-  WorkflowExecuteRequest: LogicalPlan;
+  WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
   WorkflowResumeRequest: {};
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
+  DebugCommandRequest: DebugCommandRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
@@ -161,7 +202,7 @@ export type TexeraWebsocketEventTypeMap = {
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
   RecoveryStartedEvent: {};
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
-  PythonPrintTriggeredEvent: PythonPrintTriggerInfo;
+  ConsoleUpdateEvent: ConsoleUpdateEvent;
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
   WorkflowExecutionErrorEvent: WorkflowExecutionError;
@@ -169,6 +210,11 @@ export type TexeraWebsocketEventTypeMap = {
   WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
   CacheStatusUpdateEvent: CacheStatusUpdateEvent;
   PythonExpressionEvaluateResponse: PythonExpressionEvaluateResponse;
+  WorkerAssignmentUpdateEvent: WorkerAssignmentUpdateEvent;
+  ModifyLogicResponse: ModifyLogicResponse;
+  ModifyLogicCompletedEvent: ModifyLogicCompletedEvent;
+  ExecutionDurationUpdateEvent: ExecutionDurationUpdateEvent;
+  ClusterStatusUpdateEvent: ClusterStatusUpdateEvent;
 };
 
 // helper type definitions to generate the request and event types

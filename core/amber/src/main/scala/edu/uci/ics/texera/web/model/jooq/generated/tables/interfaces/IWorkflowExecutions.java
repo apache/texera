@@ -27,16 +27,6 @@ public interface IWorkflowExecutions extends Serializable {
     public UInteger getEid();
 
     /**
-     * Setter for <code>texera_db.workflow_executions.wid</code>.
-     */
-    public void setWid(UInteger value);
-
-    /**
-     * Getter for <code>texera_db.workflow_executions.wid</code>.
-     */
-    public UInteger getWid();
-
-    /**
      * Setter for <code>texera_db.workflow_executions.vid</code>.
      */
     public void setVid(UInteger value);
@@ -45,6 +35,16 @@ public interface IWorkflowExecutions extends Serializable {
      * Getter for <code>texera_db.workflow_executions.vid</code>.
      */
     public UInteger getVid();
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.uid</code>.
+     */
+    public void setUid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.uid</code>.
+     */
+    public UInteger getUid();
 
     /**
      * Setter for <code>texera_db.workflow_executions.status</code>.
@@ -77,14 +77,14 @@ public interface IWorkflowExecutions extends Serializable {
     public Timestamp getStartingTime();
 
     /**
-     * Setter for <code>texera_db.workflow_executions.completion_time</code>.
+     * Setter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public void setCompletionTime(Timestamp value);
+    public void setLastUpdateTime(Timestamp value);
 
     /**
-     * Getter for <code>texera_db.workflow_executions.completion_time</code>.
+     * Getter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public Timestamp getCompletionTime();
+    public Timestamp getLastUpdateTime();
 
     /**
      * Setter for <code>texera_db.workflow_executions.bookmarked</code>.
@@ -95,6 +95,26 @@ public interface IWorkflowExecutions extends Serializable {
      * Getter for <code>texera_db.workflow_executions.bookmarked</code>.
      */
     public Byte getBookmarked();
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.name</code>.
+     */
+    public void setName(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.name</code>.
+     */
+    public String getName();
+
+    /**
+     * Setter for <code>texera_db.workflow_executions.environment_version</code>.
+     */
+    public void setEnvironmentVersion(String value);
+
+    /**
+     * Getter for <code>texera_db.workflow_executions.environment_version</code>.
+     */
+    public String getEnvironmentVersion();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

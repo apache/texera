@@ -14,25 +14,23 @@ describe("TypecastingDisplayComponent", () => {
   let component: TypeCastingDisplayComponent;
   let fixture: ComponentFixture<TypeCastingDisplayComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        imports: [HttpClientTestingModule],
-        providers: [
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          JointUIService,
-          UndoRedoService,
-          WorkflowUtilService,
-          WorkflowActionService,
-          SchemaPropagationService,
-        ],
-        declarations: [TypeCastingDisplayComponent],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      imports: [HttpClientTestingModule],
+      providers: [
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        JointUIService,
+        UndoRedoService,
+        WorkflowUtilService,
+        WorkflowActionService,
+        SchemaPropagationService,
+      ],
+      declarations: [TypeCastingDisplayComponent],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(TypeCastingDisplayComponent);

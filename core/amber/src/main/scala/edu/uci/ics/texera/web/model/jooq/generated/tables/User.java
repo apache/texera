@@ -7,6 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables;
 import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 
 import java.util.Arrays;
@@ -18,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row4;
+import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -34,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = -170690487;
+    private static final long serialVersionUID = 1259931841;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -50,14 +51,19 @@ public class User extends TableImpl<UserRecord> {
     }
 
     /**
-     * The column <code>texera_db.user.name</code>.
-     */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(32).nullable(false), this, "");
-
-    /**
      * The column <code>texera_db.user.uid</code>.
      */
     public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+
+    /**
+     * The column <code>texera_db.user.name</code>.
+     */
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.user.email</code>.
+     */
+    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.password</code>.
@@ -68,6 +74,11 @@ public class User extends TableImpl<UserRecord> {
      * The column <code>texera_db.user.google_id</code>.
      */
     public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
+
+    /**
+     * The column <code>texera_db.user.role</code>.
+     */
+    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(10).nullable(false).defaultValue(org.jooq.impl.DSL.inline("INACTIVE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
 
     /**
      * Create a <code>texera_db.user</code> table reference
@@ -109,7 +120,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_GOOGLE_ID, Indexes.USER_PRIMARY);
+        return Arrays.<Index>asList(Indexes.USER_EMAIL, Indexes.USER_GOOGLE_ID, Indexes.USER_IDX_USER_NAME, Indexes.USER_PRIMARY);
     }
 
     @Override
@@ -124,7 +135,7 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<UniqueKey<UserRecord>> getKeys() {
-        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_GOOGLE_ID);
+        return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_EMAIL, Keys.KEY_USER_GOOGLE_ID);
     }
 
     @Override
@@ -154,11 +165,11 @@ public class User extends TableImpl<UserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row4 type methods
+    // Row6 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<String, UInteger, String, String> fieldsRow() {
-        return (Row4) super.fieldsRow();
+    public Row6<UInteger, String, String, String, String, UserRole> fieldsRow() {
+        return (Row6) super.fieldsRow();
     }
 }

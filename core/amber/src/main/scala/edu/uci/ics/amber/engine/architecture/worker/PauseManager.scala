@@ -1,39 +1,54 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-object PauseManager {
-  final val NoPause = 0
-  final val Paused = 1
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-  final case class ExecutionPaused()
-}
+import scala.collection.mutable
 
-class PauseManager {
+class PauseManager(dataProcessor: DataProcessor) {
 
-  // current pause privilege level
-  private var pausePrivilegeLevel = PauseManager.NoPause
+  private val globalPauses = new mutable.HashSet[PauseType]()
+  private val specificInputPauses =
+    new mutable.HashMap[PauseType, mutable.Set[ActorVirtualIdentity]]
+      with mutable.MultiMap[PauseType, ActorVirtualIdentity]
 
-  /** pause functionality
-    * both dp thread and actor can call this function
-    * @param
-    */
-  def pause(): Unit = {
-
-    /*this line atomically applies the following logic:
-      Level = Paused
-      if(level >= pausePrivilegeLevel.get())
-        pausePrivilegeLevel.set(level)
-     */
-    pausePrivilegeLevel = PauseManager.Paused
+  def pause(pauseType: PauseType): Unit = {
+    globalPauses.add(pauseType)
+    // disable all data queues
+    dataProcessor.internalQueue.dataQueues.values.foreach(q => q.enable(false))
   }
 
-  def isPaused: Boolean = pausePrivilegeLevel == PauseManager.Paused
+  def pauseInputChannel(pauseType: PauseType, inputs: List[ActorVirtualIdentity]): Unit = {
+    inputs.foreach(input => {
+      specificInputPauses.addBinding(pauseType, input)
+      // disable specified data queues
+      dataProcessor.internalQueue.dataQueues(input.name).enable(false)
+    })
+  }
 
-  /** resume functionality
-    * only actor calls this function for now
-    * @param
-    */
-  def resume(): Unit = {
-    pausePrivilegeLevel = PauseManager.NoPause
+  def resume(pauseType: PauseType): Unit = {
+    globalPauses.remove(pauseType)
+    specificInputPauses.remove(pauseType)
+
+    // still globally paused no action, don't need to resume anything
+    if (globalPauses.nonEmpty) {
+      return
+    }
+    // global pause is empty, specific input pause is also empty, resume all
+    if (specificInputPauses.isEmpty) {
+      dataProcessor.internalQueue.dataQueues.values.foreach(q => q.enable(true))
+      return
+    }
+    // need to resume specific input channels
+    val pausedChannels = specificInputPauses.values.flatten.map(id => id.name).toSet
+    dataProcessor.internalQueue.dataQueues.foreach(kv => {
+      if (!pausedChannels.contains(kv._1)) {
+        kv._2.enable(true)
+      }
+    })
+  }
+
+  def isPaused: Boolean = {
+    globalPauses.nonEmpty
   }
 
 }

@@ -16,6 +16,12 @@ export function assertType<T>(val: T | any): asserts val is NonNullable<T> {
   }
 }
 
+export function assert(condition: boolean, message?: string): void {
+  if (!condition) {
+    throw new Error(message);
+  }
+}
+
 interface Primitives {
   number: number;
   boolean: boolean;
@@ -45,12 +51,16 @@ export function asType<T extends AnyType>(val: any, type: T): GuardedType<T> {
   return val;
 }
 
-export function isNull<T>(val: T): val is NonNullable<T> {
+export function isNull<T>(val: T | null | undefined): val is null | undefined {
+  return val === undefined || val === null;
+}
+
+export function isNotNull<T>(val: T): val is NonNullable<T> {
   return val !== undefined && val !== null;
 }
 
 export function nonNull<T>(val: T): NonNullable<T> {
-  if (!isNull(val)) {
+  if (!isNotNull(val)) {
     throw new TypeError(`Type Guard expected value ${val} to not be null or undefined`);
   }
   return val;

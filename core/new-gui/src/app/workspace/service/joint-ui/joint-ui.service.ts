@@ -1,24 +1,25 @@
 import { Injectable } from "@angular/core";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../types/operator-schema.interface";
-
-import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 import { abbreviateNumber } from "js-abbreviation-number";
 import { Point, OperatorPredicate, OperatorLink, CommentBox } from "../../types/workflow-common.interface";
 import { Group, GroupBoundingBox } from "../workflow-graph/model/operator-group";
 import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import * as joint from "jointjs";
-import { jitOnlyGuardedExpression } from "@angular/compiler/src/render3/util";
-import { fromEvent, fromEventPattern, Observable } from "rxjs";
+import { fromEventPattern, Observable } from "rxjs";
+import { Coeditor, User } from "../../../common/type/user";
+import { OperatorResultCacheStatus } from "../../types/workflow-websocket.interface";
 
 /**
  * Defines the SVG element for the breakpoint button
  */
-export const breakpointButtonSVG = `<svg class="breakpoint-button" height = "24" width = "24">
+export const breakpointButtonSVG = `
+  <svg class="breakpoint-button" height = "24" width = "24">
     <path d="M0 0h24v24H0z" fill="none" /> +
     <polygon points="8,2 16,2 22,8 22,16 16,22 8,22 2,16 2,8" fill="red" />
+    <title>add breakpoint</title>
   </svg>
-  <title>Add Breakpoint.</title>`;
+  `;
 /**
  * Defines the SVG path for the delete button
  */
@@ -30,10 +31,57 @@ export const deleteButtonPath =
 /**
  * Defines the HTML SVG element for the delete button and customizes the look
  */
-export const deleteButtonSVG = `<svg class="delete-button" height="24" width="24">
+export const deleteButtonSVG = `
+  <svg class="delete-button" height="24" width="24">
     <path d="M0 0h24v24H0z" fill="none" pointer-events="visible" />
     <path d="${deleteButtonPath}"/>
+    <title>delete operator</title>
   </svg>`;
+
+export const addPortButtonPath = `
+<path d="M215.037,36.846c-49.129-49.128-129.063-49.128-178.191,0c-49.127,49.127-49.127,129.063,0,178.19
+c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,165.909,264.164,85.973,215.037,36.846z
+ M49.574,202.309c-42.109-42.109-42.109-110.626,0-152.735c21.055-21.054,48.711-31.582,76.367-31.582s55.313,10.527,76.367,31.582
+c42.109,42.109,42.109,110.626,0,152.735C160.199,244.417,91.683,244.417,49.574,202.309z"/>
+<path d="M194.823,116.941h-59.882V57.059c0-4.971-4.029-9-9-9s-9,4.029-9,9v59.882H57.059c-4.971,0-9,4.029-9,9s4.029,9,9,9h59.882
+v59.882c0,4.971,4.029,9,9,9s9-4.029,9-9v-59.882h59.882c4.971,0,9-4.029,9-9S199.794,116.941,194.823,116.941z"/>
+`;
+
+export const removePortButtonPath = `
+<path d="M215.037,36.846c-49.129-49.128-129.063-49.128-178.191,0c-49.127,49.127-49.127,129.063,0,178.19
+c24.564,24.564,56.83,36.846,89.096,36.846s64.531-12.282,89.096-36.846C264.164,165.909,264.164,85.973,215.037,36.846z
+ M49.574,202.309c-42.109-42.109-42.109-110.626,0-152.735c21.055-21.054,48.711-31.582,76.367-31.582s55.313,10.527,76.367,31.582
+c42.109,42.109,42.109,110.626,0,152.735C160.199,244.417,91.683,244.417,49.574,202.309z"/>
+<path d="M194.823,116.941H57.059c-4.971,0-9,4.029-9,9s4.029,9,9,9h137.764c4.971,0,9-4.029,9-9S199.794,116.941,194.823,116.941z"
+/>`;
+
+export const addInputPortButtonSVG = `
+  <svg class="add-input-port-button">
+    <g transform="scale(0.075)">${addPortButtonPath}</g>
+    <title>add port</title>
+  </svg>
+`;
+
+export const removeInputPortButtonSVG = `
+  <svg class="remove-input-port-button">
+  <g transform="scale(0.075)">${removePortButtonPath}</g>
+    <title>remove port</title>
+  </svg>
+`;
+
+export const addOutputPortButtonSVG = `
+  <svg class="add-output-port-button">
+    <g transform="scale(0.075)">${addPortButtonPath}</g>
+    <title>add port</title>
+  </svg>
+`;
+
+export const removeOutputPortButtonSVG = `
+  <svg class="remove-output-port-button">
+    <g transform="scale(0.075)">${removePortButtonPath}</g>
+    <title>remove port</title>
+  </svg>
+`;
 
 /**
  * Defines the SVG path for the collapse button
@@ -77,21 +125,18 @@ export const sourceOperatorHandle = "M 0 0 L 0 8 L 8 8 L 8 0 z";
  */
 export const targetOperatorHandle = "M 12 0 L 0 6 L 12 12 z";
 
-export const operatorCacheTextClass = "texera-operator-result-cache-text";
-export const operatorCacheIconClass = "texera-operator-result-cache-icon";
-export const operatorStateBGClass = "texera-operator-state-background";
+export const operatorReuseCacheTextClass = "texera-operator-result-reuse-text";
+export const operatorReuseCacheIconClass = "texera-operator-result-reuse-icon";
+export const operatorViewResultIconClass = "texera-operator-view-result-icon";
 export const operatorStateClass = "texera-operator-state";
-
-export const operatorProcessedCountBGClass = "texera-operator-processed-count-background";
 export const operatorProcessedCountClass = "texera-operator-processed-count";
-export const operatorOutputCountBGClass = "texera-operator-output-count-background";
 export const operatorOutputCountClass = "texera-operator-output-count";
-export const operatorAbbreviatedCountBGClass = "texera-operator-abbreviated-count-background";
 export const operatorAbbreviatedCountClass = "texera-operator-abbreviated-count";
+export const operatorCoeditorEditingClass = "texera-operator-coeditor-editing";
+export const operatorCoeditorChangedPropertyClass = "texera-operator-coeditor-changed-property";
 
 export const operatorIconClass = "texera-operator-icon";
 export const operatorNameClass = "texera-operator-name";
-export const operatorNameBGClass = "texera-operator-name-background";
 
 export const linkPathStrokeColor = "#919191";
 
@@ -101,24 +146,35 @@ export const linkPathStrokeColor = "#919191";
  *   which will show a red delete button on the top right corner
  */
 class TexeraCustomJointElement extends joint.shapes.devs.Model {
-  markup = `<g class="element-node">
+  static getMarkup(dynamicInputPorts: boolean, dynamicOutputPorts: boolean): string {
+    return `
+    <g class="element-node">
       <rect class="body"></rect>
-      <rect class="boundary"></rect>
       <image class="${operatorIconClass}"></image>
-      <text class="${operatorNameBGClass}"></text>
       <text class="${operatorNameClass}"></text>
-      <text class="${operatorProcessedCountBGClass}"></text>
       <text class="${operatorProcessedCountClass}"></text>
-      <text class="${operatorOutputCountBGClass}"></text>
       <text class="${operatorOutputCountClass}"></text>
-      <text class="${operatorAbbreviatedCountBGClass}"></text>
       <text class="${operatorAbbreviatedCountClass}"></text>
-      <text class="${operatorStateBGClass}"></text>
       <text class="${operatorStateClass}"></text>
-      <text class="${operatorCacheTextClass}"></text>
-      <image class="${operatorCacheIconClass}"></image>
+      <text class="${operatorReuseCacheTextClass}"></text>
+      <text class="${operatorCoeditorEditingClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyClass}"></text>
+      <image class="${operatorViewResultIconClass}"></image>
+      <image class="${operatorReuseCacheIconClass}"></image>
+      <text class="${operatorCoeditorEditingClass}"></text>
+      <text class="${operatorCoeditorChangedPropertyClass}"></text>
+      <image class="${operatorViewResultIconClass}"></image>
+      <rect class="boundary"></rect>
+      <path class="left-boundary"></path>
+      <path class="right-boundary"></path>
       ${deleteButtonSVG}
-    </g>`;
+      ${dynamicInputPorts ? addInputPortButtonSVG : ""}
+      ${dynamicInputPorts ? removeInputPortButtonSVG : ""}
+      ${dynamicOutputPorts ? addOutputPortButtonSVG : ""}
+      ${dynamicOutputPorts ? removeOutputPortButtonSVG : ""}
+    </g>
+    `;
+  }
 }
 
 /**
@@ -221,6 +277,10 @@ export class JointUIService {
           out: { attrs: JointUIService.getCustomPortStyleAttrs() },
         },
       },
+      markup: TexeraCustomJointElement.getMarkup(
+        operator.dynamicInputPorts ?? false,
+        operator.dynamicOutputPorts ?? false
+      ),
     });
 
     // set operator element ID to be operator ID
@@ -234,6 +294,7 @@ export class JointUIService {
         attrs: {
           ".port-label": {
             text: port.displayName ?? "",
+            event: "input-port-label:pointerdown",
           },
         },
       })
@@ -245,6 +306,7 @@ export class JointUIService {
         attrs: {
           ".port-label": {
             text: port.displayName ?? "",
+            event: "output-port-label:pointerdown",
           },
         },
       })
@@ -268,40 +330,57 @@ export class JointUIService {
     const outputCountText = isSink ? "" : abbreviateNumber(statistics.aggregatedOutputRowCount);
     const abbreviatedText = processedCountText + (isSource || isSink ? "" : " → ") + outputCountText;
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorProcessedCountBGClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
       [`.${operatorProcessedCountClass}`]: isSink ? { text: processedText, "ref-y": -30 } : { text: processedText },
       [`.${operatorOutputCountClass}`]: { text: outputText },
-      [`.${operatorOutputCountBGClass}`]: { text: outputText },
       [`.${operatorAbbreviatedCountClass}`]: { text: abbreviatedText },
-      [`.${operatorAbbreviatedCountBGClass}`]: { text: abbreviatedText },
     });
+  }
+
+  public changeOperatorEditingStatus(jointPaper: joint.dia.Paper, operatorID: string, users?: User[]): void {
+    console.log(operatorID);
+    if (users) {
+      const statusText = users[0].name + " is editing properties...";
+      const color = users[0].color;
+      jointPaper.getModelById(operatorID).attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: statusText,
+          fillColor: color,
+        },
+      });
+    } else {
+      jointPaper.getModelById(operatorID).attr({
+        [`.${operatorCoeditorEditingClass}`]: {
+          text: "",
+        },
+      });
+    }
   }
 
   public foldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "visible" },
       [`.${operatorAbbreviatedCountClass}`]: { visibility: "visible" },
       [`.${operatorProcessedCountClass}`]: { visibility: "hidden" },
-      [`.${operatorProcessedCountBGClass}`]: { visibility: "hidden" },
-      [`.${operatorOutputCountBGClass}`]: { visibility: "hidden" },
       [`.${operatorOutputCountClass}`]: { visibility: "hidden" },
-      [`.${operatorStateBGClass}`]: { visibility: "hidden" },
       [`.${operatorStateClass}`]: { visibility: "hidden" },
       ".delete-button": { visibility: "hidden" },
+      ".add-input-port-button": { visibility: "hidden" },
+      ".add-output-port-button": { visibility: "hidden" },
+      ".remove-input-port-button": { visibility: "hidden" },
+      ".remove-output-port-button": { visibility: "hidden" },
     });
   }
 
   public unfoldOperatorDetails(jointPaper: joint.dia.Paper, operatorID: string): void {
     jointPaper.getModelById(operatorID).attr({
-      [`.${operatorAbbreviatedCountBGClass}`]: { visibility: "hidden" },
       [`.${operatorAbbreviatedCountClass}`]: { visibility: "hidden" },
       [`.${operatorProcessedCountClass}`]: { visibility: "visible" },
-      [`.${operatorProcessedCountBGClass}`]: { visibility: "visible" },
-      [`.${operatorOutputCountBGClass}`]: { visibility: "visible" },
       [`.${operatorOutputCountClass}`]: { visibility: "visible" },
-      [`.${operatorStateBGClass}`]: { visibility: "visible" },
       [`.${operatorStateClass}`]: { visibility: "visible" },
       ".delete-button": { visibility: "visible" },
+      ".add-input-port-button": { visibility: "visible" },
+      ".add-output-port-button": { visibility: "visible" },
+      ".remove-input-port-button": { visibility: "visible" },
+      ".remove-output-port-button": { visibility: "visible" },
     });
   }
 
@@ -364,7 +443,6 @@ export class JointUIService {
     }
     jointPaper.getModelById(operatorID).attr({
       [`.${operatorStateClass}`]: { text: operatorState.toString() },
-      [`.${operatorStateBGClass}`]: { text: operatorState.toString() },
       [`.${operatorStateClass}`]: { fill: fillColor },
       "rect.body": { stroke: fillColor },
       [`.${operatorAbbreviatedCountClass}`]: { fill: fillColor },
@@ -430,7 +508,16 @@ export class JointUIService {
     jointPaper.getModelById(operator.operatorID).attr("rect.body/fill", JointUIService.getOperatorFillColor(operator));
   }
 
-  public changeOperatorCacheStatus(
+  public changeOperatorViewResultStatus(
+    jointPaper: joint.dia.Paper,
+    operator: OperatorPredicate,
+    viewResult?: boolean
+  ): void {
+    const icon = JointUIService.getOperatorViewResultIcon(operator);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
+  }
+
+  public changeOperatorReuseCacheStatus(
     jointPaper: joint.dia.Paper,
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
@@ -438,10 +525,10 @@ export class JointUIService {
     const cacheText = JointUIService.getOperatorCacheDisplayText(operator, cacheStatus);
     const cacheIcon = JointUIService.getOperatorCacheIcon(operator, cacheStatus);
 
-    const cacheIndicatorText = cacheText === "" ? "" : "cache";
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheIndicatorText);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/xlink:href`, cacheIcon);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheIconClass}/title`, cacheText);
+    // jointPaper.getModelById(operator.operatorID).attr(`.${operatorCacheTextClass}/text`, cacheStatus);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorReuseCacheIconClass}/xlink:href`, cacheIcon);
+    const icon = JointUIService.getOperatorViewResultIcon(operator);
+    jointPaper.getModelById(operator.operatorID).attr(`.${operatorViewResultIconClass}/xlink:href`, icon);
   }
 
   public changeOperatorJointDisplayName(
@@ -450,7 +537,6 @@ export class JointUIService {
     displayName: string
   ): void {
     jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameClass}/text`, displayName);
-    jointPaper.getModelById(operator.operatorID).attr(`.${operatorNameBGClass}/text`, displayName);
   }
 
   public getBreakpointButton(): new () => joint.linkTools.Button {
@@ -493,10 +579,11 @@ export class JointUIService {
 
   public getCommentElement(commentBox: CommentBox): joint.dia.Element {
     const basic = new joint.shapes.standard.Rectangle();
-    basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    if (commentBox.commentBoxPosition) basic.position(commentBox.commentBoxPosition.x, commentBox.commentBoxPosition.y);
+    else basic.position(0, 0);
     basic.resize(120, 50);
     const commentElement = new TexeraCustomCommentElement({
-      position: commentBox.commentBoxPosition,
+      position: commentBox.commentBoxPosition || { x: 0, y: 0 },
       size: {
         width: JointUIService.DEFAULT_COMMENT_WIDTH,
         height: JointUIService.DEFAULT_COMMENT_HEIGHT,
@@ -615,7 +702,11 @@ export class JointUIService {
         r: 5,
         stroke: "none",
       },
-      ".port-label": {},
+      ".port-label": {
+        event: "input-label:evt",
+        dblclick: "input-label:dbclick",
+        pointerdblclick: "input-label:pointerdblclick",
+      },
     };
     return portStyleAttrs;
   }
@@ -669,14 +760,24 @@ export class JointUIService {
     operatorType: string
   ): joint.shapes.devs.ModelSelectors {
     const operatorStyleAttrs = {
-      ".texera-operator-state-background": {
+      ".texera-operator-coeditor-editing": {
         text: "",
         "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
+        "font-weight": "bold",
+        visibility: "hidden",
+        "ref-x": -50,
+        "ref-y": 100,
+        ref: "rect.body",
+        "y-alignment": "middle",
+        "x-alignment": "start",
+      },
+      ".texera-operator-coeditor-changed-property": {
+        text: "",
+        "font-weight": "bold",
+        "font-size": "14px",
         visibility: "hidden",
         "ref-x": 0.5,
-        "ref-y": 100,
+        "ref-y": 120,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -687,18 +788,6 @@ export class JointUIService {
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": 100,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-      ".texera-operator-abbreviated-count-background": {
-        text: "",
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "visible",
-        "ref-x": 0.5,
-        "ref-y": -30,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -714,18 +803,6 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      ".texera-operator-processed-count-background": {
-        text: "",
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": -50,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
       ".texera-operator-processed-count": {
         text: "",
         fill: "green",
@@ -733,18 +810,6 @@ export class JointUIService {
         visibility: "hidden",
         "ref-x": 0.5,
         "ref-y": -50,
-        ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
-      },
-      ".texera-operator-output-count-background": {
-        text: "",
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        visibility: "hidden",
-        "ref-x": 0.5,
-        "ref-y": -30,
         ref: "rect.body",
         "y-alignment": "middle",
         "x-alignment": "middle",
@@ -769,23 +834,30 @@ export class JointUIService {
         ry: "5px",
       },
       "rect.boundary": {
-        fill: "rgba(0,0,0,0)",
-        width: this.DEFAULT_OPERATOR_WIDTH + 50,
-        height: this.DEFAULT_OPERATOR_HEIGHT + 100,
+        fill: "rgba(0, 0, 0, 0)",
+        width: this.DEFAULT_OPERATOR_WIDTH + 20,
+        height: this.DEFAULT_OPERATOR_HEIGHT + 20,
         ref: "rect.body",
-        "ref-x": -25,
-        "ref-y": -50,
+        "ref-x": -10,
+        "ref-y": -10,
       },
-      ".texera-operator-name-background": {
-        text: operatorDisplayName,
-        "font-size": "14px",
-        stroke: "#f5f5f5",
-        "stroke-width": "1em",
-        "ref-x": 0.5,
-        "ref-y": 80,
+      "path.right-boundary": {
         ref: "rect.body",
-        "y-alignment": "middle",
-        "x-alignment": "middle",
+        d: "M 20 80 C 0 60 0 20 20 0",
+        stroke: "rgba(0,0,0,0)",
+        "stroke-width": "10",
+        fill: "transparent",
+        "ref-x": 70,
+        "ref-y": -10,
+      },
+      "path.left-boundary": {
+        ref: "rect.body",
+        d: "M 0 80 C 20 60 20 20 0 0",
+        stroke: "rgba(0,0,0,0)",
+        "stroke-width": "10",
+        fill: "transparent",
+        "ref-x": -30,
+        "ref-y": -10,
       },
       ".texera-operator-name": {
         text: operatorDisplayName,
@@ -805,6 +877,38 @@ export class JointUIService {
         event: "element:delete",
         visibility: "hidden",
       },
+      ".add-input-port-button": {
+        x: -22,
+        y: 40,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:add-input-port",
+        visibility: "hidden",
+      },
+      ".remove-input-port-button": {
+        x: -22,
+        y: 60,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:remove-input-port",
+        visibility: "hidden",
+      },
+      ".add-output-port-button": {
+        x: 62,
+        y: 40,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:add-output-port",
+        visibility: "hidden",
+      },
+      ".remove-output-port-button": {
+        x: 62,
+        y: 60,
+        cursor: "pointer",
+        fill: "#565656",
+        event: "element:remove-output-port",
+        visibility: "hidden",
+      },
       ".texera-operator-icon": {
         "xlink:href": "assets/operator_images/" + operatorType + ".png",
         width: 35,
@@ -815,7 +919,7 @@ export class JointUIService {
         "x-alignment": "middle",
         "y-alignment": "middle",
       },
-      ".texera-operator-result-cache-text": {
+      ".texera-operator-result-reuse-text": {
         text: JointUIService.getOperatorCacheDisplayText(operator) === "" ? "" : "cache",
         fill: "#595959",
         "font-size": "14px",
@@ -826,13 +930,22 @@ export class JointUIService {
         "y-alignment": "middle",
         "x-alignment": "middle",
       },
-      ".texera-operator-result-cache-icon": {
+      ".texera-operator-result-reuse-icon": {
         "xlink:href": JointUIService.getOperatorCacheIcon(operator),
-        title: JointUIService.getOperatorCacheDisplayText(operator),
         width: 40,
         height: 40,
         "ref-x": 75,
         "ref-y": 50,
+        ref: "rect.body",
+        "x-alignment": "middle",
+        "y-alignment": "middle",
+      },
+      ".texera-operator-view-result-icon": {
+        "xlink:href": JointUIService.getOperatorViewResultIcon(operator),
+        width: 20,
+        height: 20,
+        "ref-x": 75,
+        "ref-y": 20,
         ref: "rect.body",
         "x-alignment": "middle",
         "y-alignment": "middle",
@@ -850,30 +963,30 @@ export class JointUIService {
     operator: OperatorPredicate,
     cacheStatus?: OperatorResultCacheStatus
   ): string {
-    if (cacheStatus && cacheStatus !== "cache not enabled") {
-      return cacheStatus;
+    if (cacheStatus === undefined || !operator.markedForReuse) {
+      return "";
     }
-    const isCached = operator.isCached ?? false;
-    return isCached ? "to be cached" : "";
+    return cacheStatus;
   }
 
   public static getOperatorCacheIcon(operator: OperatorPredicate, cacheStatus?: OperatorResultCacheStatus): string {
-    if (cacheStatus && cacheStatus !== "cache not enabled") {
-      if (cacheStatus === "cache valid") {
-        return "assets/svg/operator-result-cache-successful.svg";
-      } else if (cacheStatus === "cache invalid") {
-        return "assets/svg/operator-result-cache-invalid.svg";
-      } else {
-        const _exhaustiveCheck: never = cacheStatus;
-        return "";
-      }
+    console.log("getting operator cache icon for " + operator.operatorID);
+    console.log("cache status: " + cacheStatus);
+    if (!operator.markedForReuse) {
+      return "";
+    }
+    if (cacheStatus === "cache valid") {
+      return "assets/svg/operator-reuse-cache-valid.svg";
     } else {
-      const isCached = operator.isCached ?? false;
-      if (isCached) {
-        return "assets/svg/operator-result-cache-to-be-cached.svg";
-      } else {
-        return "";
-      }
+      return "assets/svg/operator-reuse-cache-invalid.svg";
+    }
+  }
+
+  public static getOperatorViewResultIcon(operator: OperatorPredicate): string {
+    if (operator.viewResult) {
+      return "assets/svg/operator-view-result.svg";
+    } else {
+      return "";
     }
   }
 
@@ -951,6 +1064,27 @@ export class JointUIService {
       },
     };
     return commentStyleAttrs;
+  }
+
+  public static getJointUserPointerCell(coeditor: Coeditor, position: Point, color: string): joint.dia.Element {
+    const userCursor = new joint.shapes.standard.Circle({
+      id: this.getJointUserPointerName(coeditor),
+    });
+    userCursor.resize(15, 15);
+    userCursor.position(position.x, position.y);
+    userCursor.attr("body/fill", color);
+    userCursor.attr("body/stroke", color);
+    userCursor.attr("text", {
+      text: coeditor.name,
+      "ref-x": 15,
+      "ref-y": 20,
+      stroke: coeditor.color,
+    });
+    return userCursor;
+  }
+
+  public static getJointUserPointerName(coeditor: Coeditor) {
+    return "pointer_" + coeditor.clientId;
   }
 }
 

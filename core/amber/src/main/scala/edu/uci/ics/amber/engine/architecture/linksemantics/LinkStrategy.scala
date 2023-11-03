@@ -1,16 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 abstract class LinkStrategy(
-    val from: WorkerLayer,
-    val to: WorkerLayer,
+    val from: OpExecConfig,
+    val fromPort: Int,
+    val to: OpExecConfig,
+    val toPort: Int,
     val batchSize: Int
 ) extends Serializable {
 
-  val id: LinkIdentity = LinkIdentity(from.id, to.id)
+  val id: LinkIdentity = LinkIdentity(from.id, fromPort, to.id, toPort)
   private var currentCompletedCount = 0
 
   def incrementCompletedReceiversCount(): Unit = currentCompletedCount += 1

@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -12,8 +12,9 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 class DifferenceOpDesc extends OperatorDescriptor {
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new DifferenceOpExecConf(operatorIdentifier)
+
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => new DifferenceOpExec())
   }
 
   override def operatorInfo: OperatorInfo =

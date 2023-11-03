@@ -17,16 +17,44 @@ export interface OperatorPort
     portID: string;
   }> {}
 
+export type PartitionInfo =
+  | Readonly<{ type: "hash"; hashColumnIndices: number[] }>
+  | Readonly<{ type: "range"; rangeColumnIndices: number[]; rangeMin: number; rangeMax: number }>
+  | Readonly<{ type: "single" }>
+  | Readonly<{ type: "broadcast" }>
+  | Readonly<{ type: "none" }>;
+
+export interface PortSchema
+  extends Readonly<{
+    jsonSchema: Readonly<JSONSchema7>;
+  }> {}
+
+export interface PortProperty extends Readonly<{ partitionInfo: PartitionInfo; dependencies: number[] }> {}
+
+export interface PortDescription
+  extends Readonly<{
+    portID: string;
+    displayName?: string;
+    allowMultiInputs?: boolean;
+    isDynamicPort?: boolean;
+    partitionRequirement?: PartitionInfo;
+    dependencies?: number[];
+  }> {}
+
 export interface OperatorPredicate
   extends Readonly<{
     operatorID: string;
     operatorType: string;
+    operatorVersion: string;
     operatorProperties: Readonly<{ [key: string]: any }>;
-    inputPorts: { portID: string; displayName?: string }[];
-    outputPorts: { portID: string; displayName?: string }[];
+    inputPorts: PortDescription[];
+    outputPorts: PortDescription[];
+    dynamicInputPorts?: boolean;
+    dynamicOutputPorts?: boolean;
     showAdvanced: boolean;
     isDisabled?: boolean;
-    isCached?: boolean;
+    viewResult?: boolean;
+    markedForReuse?: boolean;
     customDisplayName?: string;
   }> {}
 
@@ -89,7 +117,21 @@ export type BreakpointTriggerInfo = Readonly<{
   operatorID: string;
 }>;
 
-export type PythonPrintTriggerInfo = Readonly<{
-  message: Readonly<string>;
-  operatorID: string;
+/**
+ * refer to src/main/scalapb/edu/uci/ics/texera/web/workflowruntimestate/ConsoleMessage.scala
+ */
+export type ConsoleMessage = Readonly<{
+  workerId: string;
+  timestamp: {
+    nanos: number;
+    seconds: number;
+  };
+  msgType: string;
+  source: string;
+  message: string;
+}>;
+
+export type ConsoleUpdateEvent = Readonly<{
+  operatorId: string;
+  messages: ReadonlyArray<ConsoleMessage>;
 }>;

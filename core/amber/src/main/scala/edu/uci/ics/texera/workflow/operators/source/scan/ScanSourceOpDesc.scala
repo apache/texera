@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.web.resource.dashboard.file.UserFileUtils
+import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
@@ -12,10 +12,10 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import org.apache.commons.lang3.builder.EqualsBuilder
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
-import scala.collection.immutable.List
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -29,6 +29,11 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("File")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var fileName: Option[String] = None
+
+  @JsonProperty(defaultValue = "UTF_8", required = true)
+  @JsonSchemaTitle("File Encoding")
+  @JsonPropertyDescription("decoding charset to use on input")
+  var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonIgnore
   var filePath: Option[String] = None
@@ -66,13 +71,13 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       //    ownerName/fileName
       // resolve fileName to be the actual file path.
       val splitNames = fileName.get.split("/")
-      filePath = UserFileUtils
-        .getFilePathByInfo(
-          ownerName = splitNames.apply(0),
+      filePath = UserFileAccessResource
+        .getFilePath(
+          email = splitNames.apply(0),
           fileName = splitNames.apply(1),
-          context.userId.get
+          context.userId.get,
+          context.wId
         )
-        .map(_.toString)
 
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.
@@ -92,4 +97,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   }
 
   def inferSchema(): Schema
+
+  override def equals(that: Any): Boolean =
+    EqualsBuilder.reflectionEquals(this, that, "context", "filePath")
 }

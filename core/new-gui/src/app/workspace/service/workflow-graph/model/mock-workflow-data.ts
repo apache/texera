@@ -30,6 +30,7 @@ export const mockPoint: Point = {
 export const mockScanPredicate: OperatorPredicate = {
   operatorID: "1",
   operatorType: "ScanSource",
+  operatorVersion: "scan",
   operatorProperties: {},
   inputPorts: [],
   outputPorts: [{ portID: "output-0" }],
@@ -40,6 +41,7 @@ export const mockScanPredicate: OperatorPredicate = {
 export const mockSentimentPredicate: OperatorPredicate = {
   operatorID: "2",
   operatorType: "NlpSentiment",
+  operatorVersion: "nlp1",
   operatorProperties: {},
   inputPorts: [{ portID: "input-0" }],
   outputPorts: [{ portID: "output-0" }],
@@ -50,6 +52,7 @@ export const mockSentimentPredicate: OperatorPredicate = {
 export const mockResultPredicate: OperatorPredicate = {
   operatorID: "3",
   operatorType: VIEW_RESULT_OP_TYPE,
+  operatorVersion: "view1",
   operatorProperties: {},
   inputPorts: [{ portID: "input-0" }],
   outputPorts: [],
@@ -60,6 +63,7 @@ export const mockResultPredicate: OperatorPredicate = {
 export const mockMultiInputOutputPredicate: OperatorPredicate = {
   operatorID: "4",
   operatorType: "MultiInputOutput",
+  operatorVersion: "m1",
   operatorProperties: {},
   inputPorts: [{ portID: "input-0" }, { portID: "input-1" }, { portID: "input-2" }],
   outputPorts: [{ portID: "output-0" }, { portID: "output-1" }, { portID: "output-2" }],
@@ -70,6 +74,7 @@ export const mockMultiInputOutputPredicate: OperatorPredicate = {
 export const mockPresetEnabledPredicate: OperatorPredicate = {
   operatorID: "5",
   operatorType: "PresetEnabledOp",
+  operatorVersion: "p1",
   operatorProperties: {},
   inputPorts: [],
   outputPorts: [],

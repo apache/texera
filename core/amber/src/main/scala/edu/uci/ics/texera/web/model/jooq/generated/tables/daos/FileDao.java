@@ -7,6 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.jooq.Configuration;
@@ -40,17 +41,17 @@ public class FileDao extends DAOImpl<FileRecord, edu.uci.ics.texera.web.model.jo
     }
 
     /**
-     * Fetch records that have <code>uid BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>owner_uid BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchRangeOfUid(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(File.FILE.UID, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchRangeOfOwnerUid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(File.FILE.OWNER_UID, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>uid IN (values)</code>
+     * Fetch records that have <code>owner_uid IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchByUid(UInteger... values) {
-        return fetch(File.FILE.UID, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchByOwnerUid(UInteger... values) {
+        return fetch(File.FILE.OWNER_UID, values);
     }
 
     /**
@@ -128,5 +129,19 @@ public class FileDao extends DAOImpl<FileRecord, edu.uci.ics.texera.web.model.jo
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchByDescription(String... values) {
         return fetch(File.FILE.DESCRIPTION, values);
+    }
+
+    /**
+     * Fetch records that have <code>upload_time BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchRangeOfUploadTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+        return fetchRange(File.FILE.UPLOAD_TIME, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>upload_time IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File> fetchByUploadTime(Timestamp... values) {
+        return fetch(File.FILE.UPLOAD_TIME, values);
     }
 }

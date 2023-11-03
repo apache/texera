@@ -1,42 +1,22 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import com.google.common.base.Verify
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LinkIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
-import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
-
-import scala.collection.mutable
+import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
 object WorkflowCompiler {
 
   def isSink(operatorID: String, workflowCompiler: WorkflowCompiler): Boolean = {
     val outLinks =
-      workflowCompiler.workflowInfo.links.filter(link => link.origin.operatorID == operatorID)
+      workflowCompiler.logicalPlan.links.filter(link => link.origin.operatorID == operatorID)
     outLinks.isEmpty
-  }
-
-  def getUpstreamOperators(
-      operatorID: String,
-      workflowCompiler: WorkflowCompiler
-  ): List[OperatorDescriptor] = {
-    workflowCompiler.workflowInfo.links
-      .filter(link => link.destination.operatorID == operatorID)
-      .flatMap(link =>
-        workflowCompiler.workflowInfo.operators.filter(o => o.operatorID == link.origin.operatorID)
-      )
-      .toList
   }
 
   class ConstraintViolationException(val violations: Map[String, Set[ConstraintViolation]])
@@ -44,147 +24,93 @@ object WorkflowCompiler {
 
 }
 
-class WorkflowCompiler(val workflowInfo: WorkflowInfo, val context: WorkflowContext) {
-  workflowInfo.toDAG.operators.values.foreach(initOperator)
+class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContext) {
+  logicalPlan.operatorMap.values.foreach(initOperator)
 
   def initOperator(operator: OperatorDescriptor): Unit = {
     operator.setContext(context)
   }
 
   def validate: Map[String, Set[ConstraintViolation]] =
-    this.workflowInfo.operators
-      .map(o => {
-        o.operatorID -> {
-          o.validate().toSet
+    this.logicalPlan.operatorMap
+      .map(o => (o._1, o._2.validate().toSet))
+      .filter(o => o._2.nonEmpty)
+
+  private def assignSinkStorage(
+      logicalPlan: LogicalPlan,
+      storage: OpResultStorage,
+      reuseStorageSet: Set[String] = Set()
+  ) = {
+    // create a JSON object that holds pointers to the workflow's results in Mongo
+    // TODO in the future, will extract this logic from here when we need pointers to the stats storage
+    val resultsJSON = objectMapper.createObjectNode()
+    val sinksPointers = objectMapper.createArrayNode()
+    // assign storage to texera-managed sinks before generating exec config
+    logicalPlan.operators.foreach {
+      case o @ (sink: ProgressiveSinkOpDesc) =>
+        val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
+        // due to the size limit of single document in mongoDB (16MB)
+        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
+        val storageType = {
+          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
+          else OpResultStorage.defaultStorageMode
         }
-      })
-      .toMap
-      .filter(pair => pair._2.nonEmpty)
-
-  def amberWorkflow(workflowId: WorkflowIdentity, opResultStorage: OpResultStorage): Workflow = {
-    // pre-process: set output mode for sink based on the visualization operator before it
-    workflowInfo.toDAG.getSinkOperators.foreach(sinkOpId => {
-      val sinkOp = workflowInfo.toDAG.getOperator(sinkOpId)
-      val upstream = workflowInfo.toDAG.getUpstream(sinkOpId)
-      if (upstream.nonEmpty) {
-        (upstream.head, sinkOp) match {
-          // match the combination of a visualization operator followed by a sink operator
-          case (viz: VisualizationOperator, sink: ProgressiveSinkOpDesc) =>
-            sink.setOutputMode(viz.outputMode())
-            sink.setChartType(viz.chartType())
-          case _ =>
-          //skip
+        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
+          sink.setStorage(storage.get(storageKey))
+        } else {
+          sink.setStorage(
+            storage.create(
+              context.executionID + "_",
+              storageKey,
+              logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
+              storageType
+            )
+          )
+          // add the sink collection name to the JSON array of sinks
+          sinksPointers.add(context.executionID + "_" + storageKey)
         }
-      }
-    })
-
-    val inputSchemaMap = propagateWorkflowSchema()
-    val amberOperators: mutable.Map[OperatorIdentity, OpExecConfig] = mutable.Map()
-    workflowInfo.operators.foreach(o => {
-      val inputSchemas: Array[Schema] =
-        if (!o.isInstanceOf[SourceOperatorDescriptor])
-          inputSchemaMap(o).map(s => s.get).toArray
-        else Array()
-      val outputSchemas = o.getOutputSchemas(inputSchemas)
-      // assign storage to texera-managed sinks before generating exec config
-      o match {
-        case sink: ProgressiveSinkOpDesc =>
-          sink.getCachedUpstreamId match {
-            case Some(upstreamId) =>
-              sink.setStorage(opResultStorage.create(upstreamId, outputSchemas(0)))
-            case None => sink.setStorage(opResultStorage.create(o.operatorID, outputSchemas(0)))
-          }
-        case _ =>
-      }
-      val amberOperator: OpExecConfig =
-        o.operatorExecutor(OperatorSchemaInfo(inputSchemas, outputSchemas))
-      amberOperators.put(amberOperator.id, amberOperator)
-    })
-
-    val outLinks: mutable.Map[OperatorIdentity, mutable.Set[OperatorIdentity]] = mutable.Map()
-    workflowInfo.links.foreach(link => {
-      val origin = OperatorIdentity(this.context.jobId, link.origin.operatorID)
-      val dest = OperatorIdentity(this.context.jobId, link.destination.operatorID)
-      outLinks.getOrElseUpdate(origin, mutable.Set()).add(dest)
-
-      val layerLink = LinkIdentity(
-        amberOperators(origin).topology.layers.last.id,
-        amberOperators(dest).topology.layers.head.id
-      )
-      amberOperators(dest).setInputToOrdinalMapping(
-        layerLink,
-        link.destination.portOrdinal,
-        link.destination.portName
-      )
-      amberOperators(origin)
-        .setOutputToOrdinalMapping(layerLink, link.origin.portOrdinal, link.origin.portName)
-    })
-
-    val outLinksImmutable: Map[OperatorIdentity, Set[OperatorIdentity]] =
-      outLinks.map({ case (operatorId, links) => operatorId -> links.toSet }).toMap
-
-    new Workflow(workflowId, amberOperators, outLinksImmutable)
+      case _ =>
+    }
+    // update execution entry in MySQL to have pointers to the mongo collections
+    resultsJSON.set("results", sinksPointers)
+    ExecutionsMetadataPersistService.updateExistingExecutionVolumnPointers(
+      context.executionID,
+      resultsJSON.toString
+    )
   }
 
-  def propagateWorkflowSchema(): Map[OperatorDescriptor, List[Option[Schema]]] = {
-    // a map from an operator to the list of its input schema
-    val inputSchemaMap =
-      new mutable.HashMap[OperatorDescriptor, mutable.MutableList[Option[Schema]]]()
-        .withDefault(op => mutable.MutableList.fill(op.operatorInfo.inputPorts.size)(Option.empty))
+  def amberWorkflow(
+      workflowId: WorkflowIdentity,
+      opResultStorage: OpResultStorage,
+      lastCompletedJob: Option[LogicalPlan] = Option.empty
+  ): Workflow = {
+    val cacheReuses = new WorkflowCacheChecker(lastCompletedJob, logicalPlan).getValidCacheReuse()
+    val opsToReuseCache = cacheReuses.intersect(logicalPlan.opsToReuseCache.toSet)
+    val rewrittenLogicalPlan =
+      WorkflowCacheRewriter.transform(logicalPlan, opResultStorage, opsToReuseCache)
+    rewrittenLogicalPlan.operatorMap.values.foreach(initOperator)
 
-    // propagate output schema following topological order
-    val topologicalOrderIterator = workflowInfo.toDAG.jgraphtDag.iterator()
-    topologicalOrderIterator.forEachRemaining(opID => {
-      val op = workflowInfo.toDAG.getOperator(opID)
-      // infer output schema of this operator based on its input schema
-      val outputSchemas: Option[Array[Schema]] = {
-        // call to "getOutputSchema" might cause exceptions, wrap in try/catch and return empty schema
-        try {
-          if (op.isInstanceOf[SourceOperatorDescriptor]) {
-            // op is a source operator, ask for it output schema
-            Option.apply(op.getOutputSchemas(Array()))
-          } else if (!inputSchemaMap.contains(op) || inputSchemaMap(op).exists(s => s.isEmpty)) {
-            // op does not have input, or any of the op's input's output schema is null
-            // then this op's output schema cannot be inferred as well
-            Option.empty
-          } else {
-            // op's input schema is complete, try to infer its output schema
-            // if inference failed, print an exception message, but still continue the process
-            Option.apply(op.getOutputSchemas(inputSchemaMap(op).map(s => s.get).toArray))
-          }
-        } catch {
-          case e: Throwable =>
-            e.printStackTrace()
-            Option.empty
-        }
-      }
-      // exception: if op is a source operator, use its output schema as input schema for autocomplete
-      if (op.isInstanceOf[SourceOperatorDescriptor]) {
-        inputSchemaMap.update(op, mutable.MutableList(outputSchemas.map(s => s(0))))
-      }
+    // assign sink storage to the logical plan after cache rewrite
+    // as it will be converted to the actual physical plan
+    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache)
+    // also assign sink storage to the original logical plan, as the original logical plan
+    // will be used to be compared to the subsequent runs
+    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache)
 
-      if (!op.isInstanceOf[SinkOpDesc] && outputSchemas.nonEmpty) {
-        Verify.verify(outputSchemas.get.length == op.operatorInfo.outputPorts.length)
-      }
+    val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan
 
-      // update input schema of all outgoing links
-      val outLinks = this.workflowInfo.links.filter(link => link.origin.operatorID == op.operatorID)
-      outLinks.foreach(link => {
-        val dest = workflowInfo.operators.find(o => o.operatorID == link.destination.operatorID).get
-        // get the input schema list, should be pre-populated with size equals to num of ports
-        val destInputSchemas = inputSchemaMap(dest)
-        // put the schema into the ordinal corresponding to the port
-        val schemaOnPort =
-          outputSchemas.flatMap(schemas => schemas.toList.lift(link.origin.portOrdinal))
-        destInputSchemas(link.destination.portOrdinal) = schemaOnPort
-        inputSchemaMap.update(dest, destInputSchemas)
-      })
-    })
+    // create pipelined regions.
+    val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(
+      workflowId,
+      logicalPlan,
+      physicalPlan0,
+      new MaterializationRewriter(context, opResultStorage)
+    ).buildPipelinedRegions()
 
-    inputSchemaMap
-      .filter(e => !(e._2.exists(s => s.isEmpty) || e._2.isEmpty))
-      .map(e => (e._1, e._2.toList))
-      .toMap
+    // assign link strategies
+    val physicalPlan2 = new PartitionEnforcer(physicalPlan1).enforcePartition()
+
+    new Workflow(workflowId, physicalPlan2)
   }
 
 }

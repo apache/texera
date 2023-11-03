@@ -2,6 +2,7 @@
 # sources: edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto, edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto, edu/uci/ics/amber/engine/architecture/worker/statistics.proto, edu/uci/ics/amber/engine/architecture/worker/workloadmetrics.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Dict, List
 
 import betterproto
@@ -103,6 +104,11 @@ class ResumeWorkerV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class SchedulerTimeSlotEventV2(betterproto.Message):
+    time_slot_expired: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class OpenOperatorV2(betterproto.Message):
     pass
 
@@ -140,11 +146,19 @@ class LocalOperatorExceptionV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class LinkOrdinal(betterproto.Message):
+    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+    port_ordinal: int = betterproto.int64_field(2)
+
+
+@dataclass(eq=False, repr=False)
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
+    input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
+    output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
     output_schema: Dict[str, str] = betterproto.map_field(
-        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        5, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 
@@ -160,13 +174,21 @@ class ReplayCurrentTupleV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class PythonPrintV2(betterproto.Message):
-    message: str = betterproto.string_field(1)
+class PythonConsoleMessageV2(betterproto.Message):
+    timestamp: datetime = betterproto.message_field(1)
+    msg_type: str = betterproto.string_field(2)
+    source: str = betterproto.string_field(3)
+    message: str = betterproto.string_field(4)
 
 
 @dataclass(eq=False, repr=False)
 class EvaluateExpressionV2(betterproto.Message):
     expression: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class WorkerDebugCommandV2(betterproto.Message):
+    cmd: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -177,6 +199,11 @@ class QuerySelfWorkloadMetricsV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class LinkCompletedV2(betterproto.Message):
     link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class BackpressureV2(betterproto.Message):
+    enable_backpressure: bool = betterproto.bool_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -203,13 +230,18 @@ class ControlCommandV2(betterproto.Message):
     link_completed: "LinkCompletedV2" = betterproto.message_field(
         10, group="sealed_value"
     )
+    scheduler_time_slot_event: "SchedulerTimeSlotEventV2" = betterproto.message_field(
+        11, group="sealed_value"
+    )
     initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
         21, group="sealed_value"
     )
     modify_operator_logic: "ModifyOperatorLogicV2" = betterproto.message_field(
         22, group="sealed_value"
     )
-    python_print: "PythonPrintV2" = betterproto.message_field(23, group="sealed_value")
+    python_console_message: "PythonConsoleMessageV2" = betterproto.message_field(
+        23, group="sealed_value"
+    )
     replay_current_tuple: "ReplayCurrentTupleV2" = betterproto.message_field(
         24, group="sealed_value"
     )
@@ -218,6 +250,10 @@ class ControlCommandV2(betterproto.Message):
     )
     query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
         betterproto.message_field(41, group="sealed_value")
+    )
+    backpressure: "BackpressureV2" = betterproto.message_field(51, group="sealed_value")
+    worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
+        81, group="sealed_value"
     )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")

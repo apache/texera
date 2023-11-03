@@ -2,10 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.{
-  ControllerInitiateMonitoring,
-  previousCallFinished
-}
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -15,8 +12,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object MonitoringHandler {
-  var previousCallFinished = true
-
   final case class ControllerInitiateMonitoring(
       filterByWorkers: List[ActorVirtualIdentity] = List()
   ) extends ControlCommand[Unit]
@@ -24,11 +19,12 @@ object MonitoringHandler {
 
 trait MonitoringHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
+  var previousCallFinished = true
 
   def updateWorkloadSamples(
       collectedAt: ActorVirtualIdentity,
-      allDownstreamWorkerToNewSamples: ArrayBuffer[
-        mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]
+      allDownstreamWorkerToNewSamples: List[
+        Map[ActorVirtualIdentity, List[Long]]
       ]
   ): Unit = {
     if (allDownstreamWorkerToNewSamples.isEmpty) {
@@ -42,8 +38,9 @@ trait MonitoringHandler {
       for ((wid, samples) <- workerToNewSamples) {
         var existingSamplesForWorker = existingSamples.getOrElse(wid, new ArrayBuffer[Long]())
         // Remove the lowest sample as it may be incomplete
-        samples.remove(samples.indexOf(samples.min))
-        existingSamplesForWorker.appendAll(samples)
+        val samplesWithoutLowest = samples.toBuffer
+        samplesWithoutLowest.remove(samples.indexOf(samples.min))
+        existingSamplesForWorker.appendAll(samplesWithoutLowest)
 
         // clean up to save memory
         val maxSamplesPerWorker = Constants.reshapeMaxWorkloadSamplesInController

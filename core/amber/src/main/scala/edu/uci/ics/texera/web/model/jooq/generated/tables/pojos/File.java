@@ -6,6 +6,8 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile;
 
+import java.sql.Timestamp;
+
 import org.jooq.types.UInteger;
 
 
@@ -15,50 +17,54 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File implements IFile {
 
-    private static final long serialVersionUID = 963831931;
+    private static final long serialVersionUID = 1773920374;
 
-    private UInteger uid;
-    private UInteger fid;
-    private UInteger size;
-    private String   name;
-    private String   path;
-    private String   description;
+    private UInteger  ownerUid;
+    private UInteger  fid;
+    private UInteger  size;
+    private String    name;
+    private String    path;
+    private String    description;
+    private Timestamp uploadTime;
 
     public File() {}
 
     public File(IFile value) {
-        this.uid = value.getUid();
+        this.ownerUid = value.getOwnerUid();
         this.fid = value.getFid();
         this.size = value.getSize();
         this.name = value.getName();
         this.path = value.getPath();
         this.description = value.getDescription();
+        this.uploadTime = value.getUploadTime();
     }
 
     public File(
-        UInteger uid,
-        UInteger fid,
-        UInteger size,
-        String   name,
-        String   path,
-        String   description
+        UInteger  ownerUid,
+        UInteger  fid,
+        UInteger  size,
+        String    name,
+        String    path,
+        String    description,
+        Timestamp uploadTime
     ) {
-        this.uid = uid;
+        this.ownerUid = ownerUid;
         this.fid = fid;
         this.size = size;
         this.name = name;
         this.path = path;
         this.description = description;
+        this.uploadTime = uploadTime;
     }
 
     @Override
-    public UInteger getUid() {
-        return this.uid;
+    public UInteger getOwnerUid() {
+        return this.ownerUid;
     }
 
     @Override
-    public void setUid(UInteger uid) {
-        this.uid = uid;
+    public void setOwnerUid(UInteger ownerUid) {
+        this.ownerUid = ownerUid;
     }
 
     @Override
@@ -112,15 +118,26 @@ public class File implements IFile {
     }
 
     @Override
+    public Timestamp getUploadTime() {
+        return this.uploadTime;
+    }
+
+    @Override
+    public void setUploadTime(Timestamp uploadTime) {
+        this.uploadTime = uploadTime;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("File (");
 
-        sb.append(uid);
+        sb.append(ownerUid);
         sb.append(", ").append(fid);
         sb.append(", ").append(size);
         sb.append(", ").append(name);
         sb.append(", ").append(path);
         sb.append(", ").append(description);
+        sb.append(", ").append(uploadTime);
 
         sb.append(")");
         return sb.toString();
@@ -132,12 +149,13 @@ public class File implements IFile {
 
     @Override
     public void from(IFile from) {
-        setUid(from.getUid());
+        setOwnerUid(from.getOwnerUid());
         setFid(from.getFid());
         setSize(from.getSize());
         setName(from.getName());
         setPath(from.getPath());
         setDescription(from.getDescription());
+        setUploadTime(from.getUploadTime());
     }
 
     @Override

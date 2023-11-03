@@ -13,6 +13,7 @@
   // transition: grid-template-rows 0.5s;
   --header-height: 56px;
   --resultbar-height: 25px;
+  --result-panel-height: 280px;
 
   &.user-system-enabled {
     --header-height: 96px;
@@ -46,10 +47,10 @@
   grid-template-columns: 200px auto 350px;
   grid-template-rows:
     var(--header-height)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.6)
+    calc((100% - var(--header-height) - var(--resultbar-height) - var(--result-panel-height)))
     0px
     var(--resultbar-height)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.4);
+    var(--result-panel-height);
   position: relative;
 }
 

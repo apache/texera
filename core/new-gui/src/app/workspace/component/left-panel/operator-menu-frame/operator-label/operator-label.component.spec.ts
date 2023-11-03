@@ -22,25 +22,23 @@ describe("OperatorLabelComponent", () => {
   let component: OperatorLabelComponent;
   let fixture: ComponentFixture<OperatorLabelComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [OperatorLabelComponent],
-        imports: [CustomNgMaterialModule, RouterTestingModule.withRoutes([]), NgbModule],
-        providers: [
-          DragDropService,
-          JointUIService,
-          WorkflowUtilService,
-          WorkflowActionService,
-          UndoRedoService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [OperatorLabelComponent],
+      imports: [CustomNgMaterialModule, RouterTestingModule.withRoutes([]), NgbModule],
+      providers: [
+        DragDropService,
+        JointUIService,
+        WorkflowUtilService,
+        WorkflowActionService,
+        UndoRedoService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorLabelComponent);

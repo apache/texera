@@ -34,9 +34,30 @@ export const defaultEnvironment = {
   exportExecutionResultEnabled: false,
 
   /**
+   * Whether automatically correcting attribute name on change is enabled
+   * See AutoAttributeCorrectionService for more details
+   */
+  autoAttributeCorrectionEnabled: true,
+
+  /**
    * whether user system is enabled
    */
   userSystemEnabled: false,
+
+  /**
+   * whether local login is enabled
+   */
+  localLogin: true,
+
+  /**
+   * whether invite only is enabled
+   */
+  inviteOnly: false,
+
+  /**
+   * Google Api Key for Google icons
+   */
+  googleApiKey: "",
 
   /**
    * whether user preset feature is enabled, requires user system to be enabled
@@ -75,17 +96,10 @@ export const defaultEnvironment = {
   },
 
   /**
-   * all google-related configs
+   * Whether to connect to local or production shared editing server. Set to true if you have
+   * reverse proxy set up for y-websocket.
    */
-  google: {
-    clientID: "",
-    publicKey: "",
-  },
-
-  /**
-   * Whether workflow collab should be active
-   */
-  workflowCollabEnabled: false,
+  productionSharedEditingServer: false,
 };
 
 export type AppEnv = typeof defaultEnvironment;

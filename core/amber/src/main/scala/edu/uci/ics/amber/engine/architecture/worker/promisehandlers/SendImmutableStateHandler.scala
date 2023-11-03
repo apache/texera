@@ -11,7 +11,8 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import scala.collection.mutable.ArrayBuffer
 
 /**
-  * This handler is used to do state migrated during Reshape.
+  * This handler is used to do state migration during Reshape for immutable state operator
+  * like HashJoin.
   * e.g., The controller will send a `SendImmutableState` message to
   * a skewed worker of HashJoin operator to send its build hash map
   * to `helperReceiverId` worker.
@@ -28,38 +29,40 @@ trait SendImmutableStateHandler {
   this: WorkerAsyncRPCHandlerInitializer =>
 
   registerHandler { (cmd: SendImmutableState, sender) =>
-    // Returns true if the build table was replicated successfully.
-    try {
-      val joinOpExec = dataProcessor.getOperatorExecutor().asInstanceOf[HashJoinOpExec[Any]]
-      if (joinOpExec.isBuildTableFinished) {
-        val immutableStates = joinOpExec.getBuildHashTableBatches()
-        val immutableStatesSendingFutures = new ArrayBuffer[Future[Boolean]]()
-        immutableStates.foreach(map => {
-          immutableStatesSendingFutures.append(
-            send(AcceptImmutableState(map), cmd.helperReceiverId)
-          )
-        })
-        Future
-          .collect(immutableStatesSendingFutures)
-          .flatMap(seq => {
-            if (!seq.contains(false)) {
-              logger.info(
-                s"Reshape: Replication of all parts of build table done to ${cmd.helperReceiverId}"
+    dataProcessor.getOperatorExecutor() match {
+      case joinOpExec: HashJoinOpExec[_] =>
+        // Returns true if the build table was replicated successfully in case of HashJoin.
+        try {
+          if (joinOpExec.isBuildTableFinished) {
+            val immutableStates = joinOpExec.getBuildHashTableBatches()
+            val immutableStatesSendingFutures = new ArrayBuffer[Future[Boolean]]()
+            immutableStates.foreach(map => {
+              immutableStatesSendingFutures.append(
+                send(AcceptImmutableState(map), cmd.helperReceiverId)
               )
-              Future.True
-            } else {
-              Future.False
-            }
-          })
-      } else {
-        Future.False
-      }
-    } catch {
-      case exception: Exception =>
-        logger.error(
-          "Reshape: SendImmutableStateHandler exception" + exception
-            .getMessage() + " stacktrace " + exception.getStackTrace()
-        )
+            })
+            Future
+              .collect(immutableStatesSendingFutures)
+              .flatMap(seq => {
+                if (!seq.contains(false)) {
+                  logger.info(
+                    s"Reshape: Replication of all parts of build table done to ${cmd.helperReceiverId}"
+                  )
+                  Future.True
+                } else {
+                  Future.False
+                }
+              })
+          } else {
+            Future.False
+          }
+        } catch {
+          case exception: Exception =>
+            logger.error("Reshape exception: ", exception)
+            Future.False
+        }
+      case _ =>
+        // This case shouldn't happen
         Future.False
     }
   }

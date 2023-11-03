@@ -8,24 +8,22 @@ describe("CodeEditorDialogComponent", () => {
   let component: CodeEditorDialogComponent;
   let fixture: ComponentFixture<CodeEditorDialogComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [CodeEditorDialogComponent],
-        providers: [
-          {
-            provide: MatDialogRef,
-            useValue: {
-              keydownEvents: () => EMPTY,
-              backdropClick: () => EMPTY,
-            },
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [CodeEditorDialogComponent],
+      providers: [
+        {
+          provide: MatDialogRef,
+          useValue: {
+            keydownEvents: () => EMPTY,
+            backdropClick: () => EMPTY,
           },
-          { provide: MAT_DIALOG_DATA, useValue: {} },
-        ],
-        imports: [HttpClientTestingModule],
-      }).compileComponents();
-    })
-  );
+        },
+        { provide: MAT_DIALOG_DATA, useValue: {} },
+      ],
+      imports: [HttpClientTestingModule],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(CodeEditorDialogComponent);
@@ -36,4 +34,9 @@ describe("CodeEditorDialogComponent", () => {
   it("should create", () => {
     expect(component).toBeTruthy();
   });
+
+  // it("should create a websocket when the editor is opened", () => {
+  //   let socketInstance = component.getLanguageServerSocket();
+  //   expect(socketInstance).toBeTruthy();
+  // });
 });

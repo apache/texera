@@ -1,4 +1,11 @@
-<div [hidden]="!currentColumns" class="result-table">
+<div
+  *ngIf="!currentResult || currentResult.length === 0"
+  style="text-align: center">
+  <h4>Empty result set</h4>
+</div>
+<div
+  [hidden]="!currentColumns"
+  class="result-table">
   <nz-table
     #basicTable
     (nzQueryParams)="onTableQueryParamsChange($event)"
@@ -8,20 +15,29 @@
     [nzPageIndex]="currentPageIndex"
     [nzPageSize]="pageSize"
     [nzPaginationPosition]="'bottom'"
-    [nzScroll]="{ y: '200px' }"
+    [nzScroll]="{ x: 'max-content'}"
     [nzSize]="'small'"
     [nzTableLayout]="'fixed'"
     [nzTotal]="totalNumTuples"
-    nzBordered="true"
-  >
+    nzBordered="true">
     <thead>
       <tr>
-        <th *ngFor="let column of currentColumns">{{ column.header }}</th>
+        <th
+          *ngFor="let column of currentColumns; let i = index"
+          ngClass="header-size"
+          style="text-align: center">
+          {{ column.header }}
+        </th>
       </tr>
     </thead>
     <tbody>
       <tr *ngFor="let row of basicTable.data; let i = index">
-        <td (click)="open(row)" *ngFor="let column of currentColumns" class="table-row" nzEllipsis>
+        <td
+          (click)="open(i, row)"
+          *ngFor="let column of currentColumns"
+          class="table-row"
+          nzEllipsis
+          ngClass="data-size">
           {{ column.getCell(row) }}
         </td>
       </tr>

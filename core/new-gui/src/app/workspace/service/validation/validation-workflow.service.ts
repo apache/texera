@@ -4,7 +4,8 @@ import { OperatorMetadataService } from "../operator-metadata/operator-metadata.
 import { OperatorSchema } from "../../types/operator-schema.interface";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import Ajv from "ajv";
-import { filter, map } from "rxjs/operators";
+import { map } from "rxjs/operators";
+import { DynamicSchemaService } from "../dynamic-schema/dynamic-schema.service";
 
 export type ValidationError = {
   isValid: false;
@@ -56,16 +57,14 @@ export class ValidationWorkflowService {
    */
   constructor(
     private operatorMetadataService: OperatorMetadataService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
+    private dynamicSchemaService: DynamicSchemaService
   ) {
     // fetch operator schema list
-    this.operatorMetadataService
-      .getOperatorMetadata()
-      .pipe(filter(metadata => metadata.operators.length > 0))
-      .subscribe(metadata => {
-        this.operatorSchemaList = metadata.operators;
-        this.initializeValidation();
-      });
+    this.operatorMetadataService.getOperatorMetadata().subscribe(metadata => {
+      this.operatorSchemaList = metadata.operators;
+      this.initializeValidation();
+    });
   }
 
   public getCurrentWorkflowValidationError(): {
@@ -136,21 +135,19 @@ export class ValidationWorkflowService {
         this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID));
       });
 
-    // Capture the operator add event and validate the newly added operator
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorAddStream()
-      .subscribe(operator =>
-        this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID))
-      );
+    // Capture operator dynamic schema changed event
+    // dynamic schema changed event is also triggered when an operator is newly added
+    this.dynamicSchemaService
+      .getOperatorDynamicSchemaChangedStream()
+      .subscribe(op => this.updateValidationState(op.operatorID, this.validateOperator(op.operatorID)));
 
     // Capture the operator delete event but not validate the deleted operator
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorDeleteStream()
-      .subscribe(operator => this.updateValidationStateOnDelete(operator.deletedOperator.operatorID));
+      .subscribe(operator => this.updateValidationStateOnDelete(operator.deletedOperatorID));
 
-    // Capture the link add and delete event and validate the source and target operators for this link
+    // Capture the link add and delete event and validate the source and target operators of this link
     merge(
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService
@@ -158,9 +155,24 @@ export class ValidationWorkflowService {
         .getLinkDeleteStream()
         .pipe(map(link => link.deletedLink))
     ).subscribe(link => {
-      this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
-      this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
+      if (this.workflowActionService.getTexeraGraph().hasOperator(link.source.operatorID)) {
+        this.updateValidationState(link.source.operatorID, this.validateOperator(link.source.operatorID));
+      }
+      if (this.workflowActionService.getTexeraGraph().hasOperator(link.target.operatorID)) {
+        this.updateValidationState(link.target.operatorID, this.validateOperator(link.target.operatorID));
+      }
     });
+
+    // capture the port change event and validate the operator of this port
+    this.workflowActionService
+      .getTexeraGraph()
+      .getPortAddedOrDeletedStream()
+      .subscribe(portChange => {
+        this.updateValidationState(
+          portChange.newOperator.operatorID,
+          this.validateOperator(portChange.newOperator.operatorID)
+        );
+      });
 
     // Capture the operator property change event and validate the current operator being changed
     this.workflowActionService
@@ -204,7 +216,9 @@ export class ValidationWorkflowService {
     if (operator === undefined) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operator.operatorType);
+
+    // try to fetch dynamic schema first
+    const operatorSchema = this.dynamicSchemaService.getDynamicSchema(operatorID);
     if (operatorSchema === undefined) {
       throw new Error("operatorSchema doesn't exist");
     }
@@ -223,8 +237,8 @@ export class ValidationWorkflowService {
   }
 
   /**
-   * This method is used to check whether all ports of the operator have been connected.
-   *  if all ports of the operator are connected, the operator is valid.
+   * This method is used to check whether all input ports of the operator have been connected.
+   *  if all input ports of the operator are connected, the operator is valid.
    */
   private validateOperatorConnection(operatorID: string): Validation {
     const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
@@ -252,49 +266,27 @@ export class ValidationWorkflowService {
     let satisfyInput = true;
     let inputPortsViolationMessage = "";
     for (let i = 0; i < operator.inputPorts.length; i++) {
-      const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
-      const portNumInputs = numInputLinksByPort.get(operator.inputPorts[i].portID) ?? 0;
-      if (portInfo.allowMultiInputs) {
+      const port = operator.inputPorts[i];
+      const portNumInputs = numInputLinksByPort.get(port.portID) ?? 0;
+      if (port.allowMultiInputs) {
         if (portNumInputs < 1) {
           satisfyInput = false;
-          inputPortsViolationMessage += `${
-            portInfo.displayName ?? ""
-          } requires at least 1 inputs, has ${portNumInputs}`;
+          inputPortsViolationMessage += `${port.displayName ?? ""} requires at least 1 inputs, has ${portNumInputs}`;
         }
       } else {
         if (portNumInputs !== 1) {
           satisfyInput = false;
-          inputPortsViolationMessage += `${portInfo.displayName ?? ""} requires 1 input, has ${portNumInputs}`;
+          inputPortsViolationMessage += `${port.displayName ?? ""} requires 1 input, has ${portNumInputs}`;
         }
       }
     }
 
-    // check if output links satisfy the requirement
-    const requiredOutputNum = operator.outputPorts.length;
-    const actualOutputNum = texeraGraph
-      .getOutputLinksByOperatorId(operatorID)
-      .filter(link => texeraGraph.isLinkEnabled(link.linkID)).length;
-
-    // If the operator is the sink operator, the actual output number must be equal to required number.
-    const satisyOutput =
-      this.operatorMetadataService.getOperatorSchema(operator.operatorType).additionalMetadata.operatorGroupName ===
-      "View Results"
-        ? requiredOutputNum === actualOutputNum
-        : requiredOutputNum <= actualOutputNum;
-
-    const outputPortsViolationMessage = satisyOutput
-      ? ""
-      : `requires ${requiredOutputNum} outputs, has ${actualOutputNum} outputs`;
-
-    if (satisfyInput && satisyOutput) {
+    if (satisfyInput) {
       return { isValid: true };
     } else {
       const messages: Record<string, string> = {};
       if (!satisfyInput) {
         messages[ValidationWorkflowService.VALIDATION_OPERATOR_INPUT_MESSAGE] = inputPortsViolationMessage;
-      }
-      if (!satisyOutput) {
-        messages[ValidationWorkflowService.VALIDATION_OPERATOR_OUTPUT_MESSAGE] = outputPortsViolationMessage;
       }
       return { isValid: false, messages: messages };
     }

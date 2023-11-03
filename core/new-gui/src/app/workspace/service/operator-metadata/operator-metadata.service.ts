@@ -5,14 +5,9 @@ import { AppSettings } from "../../../common/app-setting";
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
 import { BreakpointSchema } from "../../types/workflow-common.interface";
 import { mockBreakpointSchema } from "./mock-operator-metadata.data";
-import { shareReplay, startWith } from "rxjs/operators";
+import { shareReplay } from "rxjs/operators";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
-
-export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
-  operators: [],
-  groups: [],
-};
 
 const addDictionaryAPIAddress = "/api/resources/dictionary/";
 const getDictionaryAPIAddress = "/api/upload/dictionary/";
@@ -21,18 +16,15 @@ const getDictionaryAPIAddress = "/api/upload/dictionary/";
 export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
 
 /**
- * OperatorMetadataService talks to the backend to fetch the operator metadata,
- *  which contains a list of operator schemas.
- * Each operator schema contains all the information related to an operator,
- *  for example, operatorType, userFriendlyName, and the jsonSchema of its properties.
+ * OperatorMetadataService talks to the backend to fetch the operator metadata, which contains a list of operator schemas.
+ * Each operator schema contains all the information related to an operator, for example, operatorType, userFriendlyName,
+ *  and the jsonSchema of its properties.
  *
+ * Components and Services should call getOperatorMetadata() and subscribe to the Observable to get the metadata,
+ *  after the metadata is fetched from the backend, it will be broadcast through the observable.
  *
- * Components and Services should call getOperatorMetadata() and subscribe to the Observable in order to to get the metadata,
- *  an empty operator metadata will be broadcasted before the metadata is fetched,
- *  after the metadata is fetched from the backend, it will be broadcasted through the observable.
- *
- * The mock operator metadata is also available in mock-operator-metadata.ts for testing. It contains schema for 3 single operators.
- *
+ * The mock operator metadata is also available in mock-operator-metadata.ts for testing.
+ * It contains the schemas for 3 operators.
  * @author Zuozhi Wang
  *
  */
@@ -46,7 +38,7 @@ export class OperatorMetadataService {
 
   private operatorMetadataObservable = this.httpClient
     .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
-    .pipe(startWith(EMPTY_OPERATOR_METADATA), shareReplay(1));
+    .pipe(shareReplay(1));
 
   constructor(private httpClient: HttpClient) {
     this.getOperatorMetadata().subscribe(data => {
@@ -59,9 +51,6 @@ export class OperatorMetadataService {
   /**
    * Gets an Observable for operator metadata.
    * This observable will emit OperatorMetadataValue after the data is fetched from the backend.
-   *
-   * Upon subscription of this observable, if the data hasn't arrived from the backend,
-   *   you will receive an empty OperatorMetadata.
    *
    * // TODO: refactor this to 2 functions: getOperatorMetadataStream() and getOperatorMetadata()
    */
@@ -81,17 +70,36 @@ export class OperatorMetadataService {
   }
 
   /**
-   * Returns if the operator type exists *in the current operator metadata*.
+   * Returns true if the operator type exists *in the current operator metadata*.
    * For example, if the first HTTP request to the backend hasn't returned yet,
    *  the current operator metadata is empty, and no operator type exists.
    *
-   * @param operatorType
+   * @param operatorType - Operator name string that we are checking for existence *in the current operator metadata*
+   * @param userFriendlyNameFilter - If true, checks if operatorType matches an operator's user friendly or type name
+   * @param caseInsensitive - If true, operatorType checking becomes case insensitive
    */
-  public operatorTypeExists(operatorType: string): boolean {
+  public operatorTypeExists(
+    operatorType: string,
+    userFriendlyNameFilter: boolean = false,
+    caseInsensitive: boolean = false
+  ): boolean {
     if (!this.currentOperatorMetadata) {
       return false;
     }
-    const operator = this.currentOperatorMetadata.operators.filter(op => op.operatorType === operatorType);
+    const operator = this.currentOperatorMetadata.operators.filter(op => {
+      let operatorTypeInMetadata = op.operatorType;
+      let operatorNameInMetadata = op.additionalMetadata.userFriendlyName;
+      if (caseInsensitive) {
+        operatorTypeInMetadata = operatorTypeInMetadata.toLowerCase();
+        operatorNameInMetadata = operatorNameInMetadata.toLowerCase();
+        operatorType = operatorType.toLowerCase();
+      }
+      if (userFriendlyNameFilter) {
+        return operatorTypeInMetadata === operatorType || operatorNameInMetadata === operatorType;
+      } else {
+        return operatorTypeInMetadata === operatorType;
+      }
+    });
     if (operator.length === 0) {
       return false;
     }

@@ -1,8 +1,6 @@
-@import "../workspace.component.scss";
-
 .texera-navigation-body {
   height: 100%;
-  box-shadow: 0px 1px 2px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   position: relative;
   z-index: 1;
 }
@@ -11,7 +9,7 @@
   height: 100%;
   width: 100%;
   display: grid;
-  grid-template-columns: 200px auto auto auto auto;
+  grid-template-columns: 200px auto auto auto auto auto;
   grid-template-rows: calc(100% - 56px) 56px;
   align-items: center;
 
@@ -31,6 +29,9 @@
     margin-left: auto;
     margin-right: auto;
     display: block;
+  }
+
+  .texera-navigation-title img {
     width: 96px;
     height: 54px;
 
@@ -41,26 +42,43 @@
   }
 
   .texera-navigation-user-icon {
+    grid-column: 6/6;
+    grid-row: 1/2;
+    text-align: right;
+    z-index: 2;
+    overflow: visible;
+    margin-right: 20px;
+
+    &::after {
+      content: "";
+      display: block;
+      border-bottom: 1px solid #cacaca;
+    }
+  }
+
+  .texera-navigation-coeditor-icons {
+    display: grid;
+    grid-template-columns: repeat(5, 30px);
     grid-column: 5/5;
     grid-row: 1/2;
+    justify-content: right;
     text-align: right;
     z-index: 2;
     overflow: visible;
   }
 
-  .texera-navigation-lockholder-status {
-    grid-column: 4/5;
+  .texera-navigation-shadowing-status {
+    display: grid;
+    grid-column: 4/4;
     grid-row: 1/2;
-    text-align: right;
     z-index: 2;
     overflow: visible;
+    justify-content: right;
 
-    .lockholder-status {
-      width: 200px;
-
-      &.clickable {
-        background-color: blanchedalmond;
-      }
+    .stop-shadowing {
+      font-size: 18px;
+      width: min-content;
+      text-align: end;
     }
   }
 
@@ -72,7 +90,7 @@
   }
 
   .texera-navigation-utilities {
-    grid-column: 3/3;
+    grid-column: 4/6;
     grid-row: 2/2;
 
     padding-left: 10px;
@@ -103,7 +121,6 @@
       display: block;
       margin-left: calc(0px - var(--left-padding));
       margin-top: -5px;
-      width: calc(100% - 30px);
       border-bottom: 1px solid #cacaca;
     }
 
@@ -112,7 +129,7 @@
       margin: 0 8px 0 0;
 
       display: inline-block;
-      min-width: 17ch;
+      min-width: 30ch;
       font-size: 18px;
       border: 0 none;
       outline: none; // some user agent stylesheets add an outline that interferes
@@ -136,7 +153,7 @@
       }
 
       &:focus {
-        box-shadow: 0 0 0px 2px #007bff;
+        box-shadow: 0 0 0 2px #007bff;
       }
     }
 
@@ -148,35 +165,22 @@
   }
 
   .texera-navigation-execute {
-    grid-column: 5/5;
+    grid-column: 6/6;
     grid-row: 2/2;
     text-align: right;
     margin-right: 20px;
-
-    .texera-navigation-run-button {
-      width: 16ch;
-      text-align: left;
-      z-index: 1;
-
-      .texera-navigation-run-button-icon {
-        width: max-content;
-        padding-right: 8px;
-      }
-    }
-
-    .texera-navigation-stop-button {
-      width: 40px;
-      z-index: 0;
-    }
-
-    .animate-to-reveal-stop-button {
-      transition: translate 0.3s ease-out;
-      transition-delay: 0.1s;
-    }
   }
 
-  .reveal-stop-button {
-    .animate-to-reveal-stop-button {
-    }
+  .run-button {
+    width: 140px;
+    text-align: left;
+  }
+
+  .execution-name {
+    margin-right: 0.5rem;
+  }
+
+  .execution-duration {
+    color: #007bff;
   }
 }

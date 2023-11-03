@@ -1,18 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.linksemantics
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
-  Partitioning,
-  HashBasedShufflePartitioning
+  HashBasedShufflePartitioning,
+  Partitioning
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 class HashBasedShuffle(
-    from: WorkerLayer,
-    to: WorkerLayer,
+    from: OpExecConfig,
+    fromPort: Int,
+    to: OpExecConfig,
+    toPort: Int,
     batchSize: Int,
-    hashColumnIndices: Array[Int]
-) extends LinkStrategy(from, to, batchSize) {
+    hashColumnIndices: Seq[Int]
+) extends LinkStrategy(from, fromPort, to, toPort, batchSize) {
   override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {

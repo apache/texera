@@ -7,7 +7,7 @@ package edu.uci.ics.texera.web.workflowruntimestate
 
 @SerialVersionUID(0L)
 final case class PythonOperatorInfo(
-    consoleMessages: _root_.scala.Seq[_root_.scala.Predef.String] = _root_.scala.Seq.empty,
+    consoleMessages: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage] = _root_.scala.Seq.empty,
     evaluateExprResults: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList] = _root_.scala.collection.immutable.Map.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PythonOperatorInfo] {
     @transient
@@ -16,7 +16,7 @@ final case class PythonOperatorInfo(
       var __size = 0
       consoleMessages.foreach { __item =>
         val __value = __item
-        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
+        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
       evaluateExprResults.foreach { __item =>
         val __value = edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo._typemapper_evaluateExprResults.toBase(__item)
@@ -35,7 +35,9 @@ final case class PythonOperatorInfo(
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       consoleMessages.foreach { __v =>
         val __m = __v
-        _output__.writeString(1, __m)
+        _output__.writeTag(1, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
       };
       evaluateExprResults.foreach { __v =>
         val __m = edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo._typemapper_evaluateExprResults.toBase(__v)
@@ -45,9 +47,9 @@ final case class PythonOperatorInfo(
       };
     }
     def clearConsoleMessages = copy(consoleMessages = _root_.scala.Seq.empty)
-    def addConsoleMessages(__vs: _root_.scala.Predef.String*): PythonOperatorInfo = addAllConsoleMessages(__vs)
-    def addAllConsoleMessages(__vs: Iterable[_root_.scala.Predef.String]): PythonOperatorInfo = copy(consoleMessages = consoleMessages ++ __vs)
-    def withConsoleMessages(__v: _root_.scala.Seq[_root_.scala.Predef.String]): PythonOperatorInfo = copy(consoleMessages = __v)
+    def addConsoleMessages(__vs: edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage*): PythonOperatorInfo = addAllConsoleMessages(__vs)
+    def addAllConsoleMessages(__vs: Iterable[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage]): PythonOperatorInfo = copy(consoleMessages = consoleMessages ++ __vs)
+    def withConsoleMessages(__v: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage]): PythonOperatorInfo = copy(consoleMessages = __v)
     def clearEvaluateExprResults = copy(evaluateExprResults = _root_.scala.collection.immutable.Map.empty)
     def addEvaluateExprResults(__vs: (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList)*): PythonOperatorInfo = addAllEvaluateExprResults(__vs)
     def addAllEvaluateExprResults(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList)]): PythonOperatorInfo = copy(evaluateExprResults = evaluateExprResults ++ __vs)
@@ -61,7 +63,7 @@ final case class PythonOperatorInfo(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PRepeated(consoleMessages.iterator.map(_root_.scalapb.descriptors.PString(_)).toVector)
+        case 1 => _root_.scalapb.descriptors.PRepeated(consoleMessages.iterator.map(_.toPMessage).toVector)
         case 2 => _root_.scalapb.descriptors.PRepeated(evaluateExprResults.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo._typemapper_evaluateExprResults.toBase(_).toPMessage).toVector)
       }
     }
@@ -73,7 +75,7 @@ final case class PythonOperatorInfo(
 object PythonOperatorInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo = {
-    val __consoleMessages: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
+    val __consoleMessages: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage]
     val __evaluateExprResults: _root_.scala.collection.mutable.Builder[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList), _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList]] = _root_.scala.collection.immutable.Map.newBuilder[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList]
     var _done__ = false
     while (!_done__) {
@@ -81,7 +83,7 @@ object PythonOperatorInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __consoleMessages += _input__.readStringRequireUtf8()
+          __consoleMessages += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage](_input__)
         case 18 =>
           __evaluateExprResults += edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo._typemapper_evaluateExprResults.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo.EvaluateExprResultsEntry](_input__))
         case tag => _input__.skipField(tag)
@@ -96,16 +98,17 @@ object PythonOperatorInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo(
-        consoleMessages = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty),
+        consoleMessages = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage]]).getOrElse(_root_.scala.Seq.empty),
         evaluateExprResults = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo.EvaluateExprResultsEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo._typemapper_evaluateExprResults.toCustom(_)).toMap
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowruntimestateProto.javaDescriptor.getMessageTypes().get(4)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowruntimestateProto.scalaDescriptor.messages(4)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowruntimestateProto.javaDescriptor.getMessageTypes().get(5)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowruntimestateProto.scalaDescriptor.messages(5)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
+      case 1 => __out = edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage
       case 2 => __out = edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo.EvaluateExprResultsEntry
     }
     __out
@@ -255,7 +258,7 @@ object PythonOperatorInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   }
   
   implicit class PythonOperatorInfoLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo](_l) {
-    def consoleMessages: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.consoleMessages)((c_, f_) => c_.copy(consoleMessages = f_))
+    def consoleMessages: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage]] = field(_.consoleMessages)((c_, f_) => c_.copy(consoleMessages = f_))
     def evaluateExprResults: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList]] = field(_.evaluateExprResults)((c_, f_) => c_.copy(evaluateExprResults = f_))
   }
   final val CONSOLE_MESSAGES_FIELD_NUMBER = 1
@@ -263,7 +266,7 @@ object PythonOperatorInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   @transient
   private[workflowruntimestate] val _typemapper_evaluateExprResults: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo.EvaluateExprResultsEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo.EvaluateExprResultsEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList)]]
   def of(
-    consoleMessages: _root_.scala.Seq[_root_.scala.Predef.String],
+    consoleMessages: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage],
     evaluateExprResults: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.EvaluatedValueList]
   ): _root_.edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo = _root_.edu.uci.ics.texera.web.workflowruntimestate.PythonOperatorInfo(
     consoleMessages,

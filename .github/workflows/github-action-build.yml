@@ -8,6 +8,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   gui:
     runs-on: ${{ matrix.os }}
@@ -15,17 +19,13 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
+          - macos-latest
+          - windows-latest
         node-version:
-          - 14
+          - 18
         architecture:
           - x64
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          ignore_sha: true
-          all_but_latest: true
-          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup node
@@ -42,7 +42,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-yarn-cache-v4-
       - name: Install dependency
-        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false
+        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false --network-timeout=100000
       - name: Lint with Prettier & ESLint
         run: yarn --cwd core/new-gui format:ci
       - name: Run frontend unit tests
@@ -61,12 +61,8 @@ jobs:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          ignore_sha: true
-          all_but_latest: true
-          access_token: ${{ github.token }}
+      - name: Prepare ENV
+        run: sudo apt-get install libncurses5
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup Java
@@ -77,8 +73,8 @@ jobs:
       - uses: coursier/cache-action@v6
         with:
           extraSbtFiles: '["core/amber/*.sbt", "core/amber/project/**.{scala,sbt}", "core/amber/project/build.properties" ]'
-      - name: Lint with scalafmt
-        run: cd core/amber && sbt scalafmtCheckAll
+      - name: Lint with scalafix & scalafmt
+        run: cd core/amber && sbt "scalafixAll --check" && sbt scalafmtCheckAll
       - name: Compile with sbt
         run: cd core/amber && sbt clean package
       - name: Run backend tests
@@ -90,15 +86,9 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        python-version: [ 3.7, 3.8, 3.9 ]
+        python-version: [ '3.8', '3.9', '3.10' ]
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          ignore_sha: true
-          all_but_latest: true
-          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
@@ -109,6 +99,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           if [ -f core/amber/requirements.txt ]; then pip install -r core/amber/requirements.txt; fi
+          if [ -f core/amber/operator-requirements.txt ]; then pip install -r core/amber/operator-requirements.txt; fi
       - name: Lint with flake8 and black
         run: |
           cd core/amber/src/main/python && flake8 && black . --check

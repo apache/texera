@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
@@ -12,7 +13,6 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class HashJoinOpExec[K](
-    val buildTable: LinkIdentity,
     val buildAttributeName: String,
     val probeAttributeName: String,
     val joinType: JoinType,
@@ -51,7 +51,7 @@ class HashJoinOpExec[K](
     * duplicate tuples of the key as new tuples and will append it. The responsibility to not send
     * duplicates is with the senders.
     */
-  def mergeIntoHashTable(additionalTable: mutable.HashMap[Any, ArrayBuffer[Tuple]]): Boolean = {
+  def mergeIntoHashTable(additionalTable: mutable.HashMap[_, ArrayBuffer[Tuple]]): Boolean = {
     try {
       for ((key, tuples) <- additionalTable) {
         val (storedTuples, _) =
@@ -60,14 +60,16 @@ class HashJoinOpExec[K](
       }
       true
     } catch {
-      case exception: Exception =>
+      case _: Exception =>
         false
     }
   }
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity
+      input: Int,
+      pauseManager: PauseManager,
+      asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
     tuple match {
       case Left(tuple) =>
@@ -75,7 +77,7 @@ class HashJoinOpExec[K](
         // small input port comes first. So, it is assigned the inputNum 0. Similarly
         // the large input is assigned the inputNum 1.
 
-        if (input == buildTable) {
+        if (input == 0) {
           // building phase
           building(tuple)
           Iterator()
@@ -102,7 +104,7 @@ class HashJoinOpExec[K](
 
         }
       case Right(_) =>
-        if (input == buildTable && !isBuildTableFinished) {
+        if (input == 0 && !isBuildTableFinished) {
           // the first input is exhausted, building phase finished
           isBuildTableFinished = true
           Iterator()
@@ -223,7 +225,7 @@ class HashJoinOpExec[K](
 
     // fill the join attribute (align with probe)
     builder.add(
-      probeSchema.getAttribute(probeAttributeName),
+      buildSchema.getAttribute(buildAttributeName),
       tuple.getField(probeAttributeName)
     )
 

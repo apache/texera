@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import akka.actor.ActorSystem
 import akka.testkit.TestProbe
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkAck
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowDataMessage}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -33,6 +34,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
     List(2, 1, 0, 3).foreach(id => {
       inputPort.handleMessage(
         testActor.ref,
+        Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair,
         id,
         messages(id).from,
         messages(id).sequenceNumber,
@@ -56,6 +58,7 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
     (0 until 10).foreach(i => {
       inputPort.handleMessage(
         testActor.ref,
+        Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair,
         i,
         message.from,
         message.sequenceNumber,
@@ -74,12 +77,15 @@ class NetworkInputPortSpec extends AnyFlatSpec with MockFactory {
 
     inputPort.handleMessage(
       testActor.ref,
+      Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair,
       messageID,
       message.from,
       message.sequenceNumber,
       message.payload
     )
-    testActor.expectMsg(NetworkAck(messageID))
+    testActor.expectMsg(
+      NetworkAck(messageID, Some(Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair))
+    )
   }
 
 }

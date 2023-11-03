@@ -15,6 +15,7 @@ import { HttpClient } from "@angular/common/http";
 import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
+import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
 
 class StubHttpClient {
   constructor() {}
@@ -28,6 +29,7 @@ class StubHttpClient {
 
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;
+  let mockWorkflowSnapshotService: WorkflowSnapshotService;
 
   beforeEach(() => {
     TestBed.configureTestingModule({
@@ -46,6 +48,7 @@ describe("ExecuteWorkflowService", () => {
     });
 
     service = TestBed.inject(ExecuteWorkflowService);
+    mockWorkflowSnapshotService = TestBed.inject(WorkflowSnapshotService);
     environment.pauseResumeEnabled = true;
   });
 
@@ -54,16 +57,15 @@ describe("ExecuteWorkflowService", () => {
   }));
 
   it("should generate a logical plan request based on the workflow graph that is passed to the function", () => {
-    const workflowGraph: WorkflowGraph = mockWorkflowPlan_scan_result;
-    const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(workflowGraph);
+    const newLogicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
     expect(newLogicalPlan).toEqual(mockLogicalPlan_scan_result);
   });
 
   it("should msg backend when executing workflow", fakeAsync(() => {
     if (environment.amberEngineEnabled) {
+      const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
       const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
-
-      service.executeWorkflow();
+      service.sendExecutionRequest("", logicalPlan);
       tick(FORM_DEBOUNCE_TIME_MS + 1);
       flush();
       expect(wsSendSpy).toHaveBeenCalledTimes(1);

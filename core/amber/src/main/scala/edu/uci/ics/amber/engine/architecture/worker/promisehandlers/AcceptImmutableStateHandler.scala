@@ -20,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
   */
 object AcceptImmutableStateHandler {
   final case class AcceptImmutableState(
-      buildHashMap: mutable.HashMap[Any, ArrayBuffer[Tuple]]
+      buildHashMap: mutable.HashMap[_, ArrayBuffer[Tuple]]
   ) extends ControlCommand[Boolean]
 }
 
@@ -31,14 +31,11 @@ trait AcceptImmutableStateHandler {
     try {
       dataProcessor
         .getOperatorExecutor()
-        .asInstanceOf[HashJoinOpExec[Any]]
+        .asInstanceOf[HashJoinOpExec[_]]
         .mergeIntoHashTable(cmd.buildHashMap)
     } catch {
       case exception: Exception =>
-        logger.error(
-          "Reshape: AcceptImmutableStateHandler exception" + exception
-            .getMessage() + " stacktrace " + exception.getStackTrace()
-        )
+        logger.error("Reshape: ", exception)
         false
     }
   }

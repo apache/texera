@@ -3,6 +3,7 @@ syntax = "proto3";
 package edu.uci.ics.texera.web;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -18,10 +19,10 @@ enum WorkflowAggregatedState {
   PAUSING = 3;
   PAUSED = 4;
   RESUMING = 5;
-  RECOVERING = 6;
-  COMPLETED = 7;
-  ABORTED = 8;
-  UNKNOWN = 9;
+  COMPLETED = 6;
+  FAILED = 7;
+  UNKNOWN = 8;
+  KILLED = 9;
 }
 
 
@@ -42,22 +43,34 @@ message OperatorBreakpoints{
 }
 
 message JobBreakpointStore{
-  map<string,OperatorBreakpoints> operator_info = 1;
+  map<string, OperatorBreakpoints> operator_info = 1;
 }
 
 message EvaluatedValueList{
   repeated amber.engine.architecture.worker.EvaluatedValue values = 1;
 }
 
+message ConsoleMessage {
+  string workerId = 1;
+  google.protobuf.Timestamp timestamp = 2  [(scalapb.field).no_box = true];
+  string msg_type = 3;
+  string source = 4;
+  string message = 5;
+}
+
 message PythonOperatorInfo{
-  repeated string console_messages = 1;
-  map<string,EvaluatedValueList> evaluate_expr_results = 2;
+  repeated ConsoleMessage console_messages = 1;
+  map<string, EvaluatedValueList> evaluate_expr_results = 2;
 }
 
 message JobPythonStore{
   map<string, PythonOperatorInfo> operator_info = 1;
 }
 
+message OperatorWorkerMapping{
+  string operatorId = 1;
+  repeated string workerIds = 2;
+}
 
 message OperatorRuntimeStats{
   WorkflowAggregatedState state = 1;
@@ -66,11 +79,15 @@ message OperatorRuntimeStats{
 }
 
 message JobStatsStore {
-  map<string,OperatorRuntimeStats> operator_info = 3;
+  int64 startTimeStamp = 1;
+  int64 endTimeStamp = 2;
+  map<string, OperatorRuntimeStats> operator_info = 3;
+  repeated OperatorWorkerMapping operator_worker_mapping = 4;
 }
 
 message JobMetadataStore{
   WorkflowAggregatedState state = 1;
   string error = 2;
   int64 eid = 3;
+  bool is_recovering = 4;
 }

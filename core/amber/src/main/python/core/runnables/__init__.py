@@ -1,5 +1,6 @@
 from .network_receiver import NetworkReceiver
 from .network_sender import NetworkSender
-from .data_processor import DataProcessor
+from .main_loop import MainLoop
+from .heartbeat import Heartbeat
 
-__all__ = ["NetworkReceiver", "NetworkSender", "DataProcessor"]
+__all__ = ["NetworkReceiver", "NetworkSender", "MainLoop", "Heartbeat"]

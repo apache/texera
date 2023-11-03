@@ -1,8 +1,25 @@
-<h1 mat-dialog-title>Python Script</h1>
-<ngx-monaco-editor
-  (ngModelChange)="onCodeChange($event)"
-  [ngModel]="code"
-  [options]="editorOptions"
-  class="code-editor"
->
-</ngx-monaco-editor>
+<ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+  <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
+</ng-container>
+
+<button
+  [mat-dialog-close]="true"
+  class="close-button"
+  mat-icon-button>
+  <mat-icon
+    class="close-icon"
+    color="white"
+    >close</mat-icon
+  >
+</button>
+<h1
+  mat-dialog-title
+  cdkDrag
+  cdkDragRootElement=".cdk-overlay-pane"
+  cdkDragBoundary=".cdk-overlay-container"
+  cdkDragHandle>
+  Python Script
+</h1>
+<div
+  #editor
+  class="code-editor"></div>

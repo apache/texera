@@ -28,6 +28,10 @@ export interface OperatorAdditionalMetadata
     operatorDescription?: string;
     inputPorts: ReadonlyArray<InputPortInfo>;
     outputPorts: ReadonlyArray<OutputPortInfo>;
+    dynamicInputPorts?: boolean;
+    dynamicOutputPorts?: boolean;
+    supportReconfiguration?: boolean;
+    allowPortCustomization?: boolean;
   }> {}
 
 export interface OperatorSchema
@@ -35,6 +39,7 @@ export interface OperatorSchema
     operatorType: string;
     jsonSchema: Readonly<CustomJSONSchema7>;
     additionalMetadata: OperatorAdditionalMetadata;
+    operatorVersion: string;
   }> {}
 
 export interface GroupInfo

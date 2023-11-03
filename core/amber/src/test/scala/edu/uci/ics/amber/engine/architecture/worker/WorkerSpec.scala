@@ -3,31 +3,30 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit, TestProbe}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   GetActorRef,
   NetworkAck,
   NetworkMessage,
+  NetworkSenderActorRef,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkInputPort,
-  NetworkOutputPort,
-  TupleToBatchConverter
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkOutputPort, OutputManager}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowControlMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowControlMessage}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, InputExhausted}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -56,7 +55,7 @@ class WorkerSpec
     val identifier = ActorVirtualIdentity("worker mock")
     val mockControlOutputPort: NetworkOutputPort[ControlPayload] =
       new NetworkOutputPort[ControlPayload](identifier, mockHandler)
-    val mockTupleToBatchConverter = mock[TupleToBatchConverter]
+    val mockOutputManager = mock[OutputManager]
     val identifier1 = ActorVirtualIdentity("worker-1")
     val identifier2 = ActorVirtualIdentity("worker-2")
     val mockOpExecutor = new IOperatorExecutor {
@@ -66,19 +65,37 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity
-      ): Iterator[(ITuple, Option[LinkIdentity])] = ???
+          input: Int,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
+      ): Iterator[(ITuple, Option[Int])] = ???
     }
 
-    val mockTag = LinkIdentity(null, null)
+    val mockTag = LinkIdentity(null, 0, null, 0)
+
+    val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+    val workerIndex = 0
+    val opExecConfig = OpExecConfig
+      .oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+      .copy(inputToOrdinalMapping = Map(mockTag -> 0))
 
     val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, TestProbe().ref) {
-      override lazy val batchProducer: TupleToBatchConverter = mockTupleToBatchConverter
-      override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] = mockControlOutputPort
-    })
-    (mockTupleToBatchConverter.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
+    val worker =
+      TestActorRef(
+        new WorkflowWorker(
+          identifier1,
+          workerIndex,
+          opExecConfig,
+          NetworkSenderActorRef(null),
+          false
+        ) {
+          override lazy val outputManager: OutputManager = mockOutputManager
+          override lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
+            mockControlOutputPort
+        }
+      )
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockTag, mockPolicy).once()
     (mockHandler.apply _).expects(*, *, *, *).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockTag, mockPolicy))
     worker ! NetworkMessage(
@@ -101,11 +118,25 @@ class WorkerSpec
 
       override def processTuple(
           tuple: Either[ITuple, InputExhausted],
-          input: LinkIdentity
-      ): Iterator[(ITuple, Option[LinkIdentity])] = { return Iterator() }
+          input: Int,
+          pauseManager: PauseManager,
+          asyncRPCClient: AsyncRPCClient
+      ): Iterator[(ITuple, Option[Int])] = { return Iterator() }
     }
 
-    val worker = TestActorRef(new WorkflowWorker(identifier1, mockOpExecutor, probe.ref))
+    val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+    val workerIndex = 0
+    val opExecConfig = OpExecConfig.oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+
+    val worker = TestActorRef(
+      new WorkflowWorker(
+        identifier1,
+        workerIndex,
+        opExecConfig,
+        NetworkSenderActorRef(probe.ref),
+        false
+      )
+    )
 
     idMap(identifier1) = worker
     idMap(CONTROLLER) = probe.ref
@@ -127,8 +158,14 @@ class WorkerSpec
         replyTo.foreach { actor =>
           actor ! RegisterActorRef(id, idMap(id))
         }
-      case NetworkMessage(msgID, WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))) =>
-        probe.sender() ! NetworkAck(msgID)
+      case NetworkMessage(
+            msgID,
+            WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))
+          ) =>
+        probe.sender() ! NetworkAck(
+          msgID,
+          Some(Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
+        )
         returnValue match {
           case e: Throwable => throw e
           case _ =>

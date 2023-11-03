@@ -1,6 +1,9 @@
 {
   "compileOnSave": false,
   "compilerOptions": {
+    "paths": {
+      "path": ["./node_modules/path-browserify"]
+    },
     "strict": true,
     "skipLibCheck": true,
     "outDir": "./dist/out-tsc",

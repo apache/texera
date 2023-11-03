@@ -30,7 +30,8 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "process a target field" in {
     val htmlVizOpExec = new HtmlVizOpExec("field1", operatorSchemaInfo)
     htmlVizOpExec.open()
-    val processedTuple: Tuple = htmlVizOpExec.processTexeraTuple(Left(tuple()), null).next()
+    val processedTuple: Tuple =
+      htmlVizOpExec.processTexeraTuple(Left(tuple()), 0, null, null).next()
 
     assert(processedTuple.getField("html-content").asInstanceOf[String] == "hello")
 
@@ -40,7 +41,8 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val htmlVizOpExec = new HtmlVizOpExec("field2", operatorSchemaInfo)
     htmlVizOpExec.open()
-    val processedTuple: Tuple = htmlVizOpExec.processTexeraTuple(Left(tuple()), null).next()
+    val processedTuple: Tuple =
+      htmlVizOpExec.processTexeraTuple(Left(tuple()), 0, null, null).next()
 
     assert(processedTuple.getField("html-content").asInstanceOf[String] == "<html></html>")
 

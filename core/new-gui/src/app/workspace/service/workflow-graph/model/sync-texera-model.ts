@@ -8,7 +8,6 @@ import { filter, map, tap } from "rxjs/operators";
 /**
  * SyncTexeraModel subscribes to the graph change events from JointJS,
  *  then sync the changes to the TexeraGraph:
- *    - delete operator
  *    - link events: link add/delete/change
  *
  * For details of handling each JointJS event type, see the comments below for each function.
@@ -22,29 +21,7 @@ export class SyncTexeraModel {
     private jointGraphWrapper: JointGraphWrapper,
     private operatorGroup: OperatorGroup
   ) {
-    this.handleJointOperatorDelete();
     this.handleJointLinkEvents();
-  }
-
-  /**
-   * Handles JointJS operator element delete events:
-   *  deletes the corresponding operator in Texera workflow graph.
-   *
-   * Deletion of an operator will also cause its connected links to be deleted as well,
-   *  JointJS automatically handles this logic,
-   *  therefore we don't handle it to avoid inconsistency (deleting already deleted link).
-   *
-   * When an operator is deleted, JointJS will trigger the corresponding
-   *  link delete events and cause texera link to be deleted.
-   */
-  private handleJointOperatorDelete(): void {
-    this.jointGraphWrapper
-      .getJointElementCellDeleteStream()
-      .pipe(
-        map(element => element.id.toString()),
-        filter(elementID => this.texeraGraph.hasOperator(elementID) && this.operatorGroup.getSyncTexeraGraph())
-      )
-      .subscribe(elementID => this.texeraGraph.deleteOperator(elementID));
   }
 
   /**
@@ -75,7 +52,12 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellAddStream()
       .pipe(
-        filter(link => this.isValidJointLink(link) && this.operatorGroup.getSyncTexeraGraph()),
+        filter(
+          link =>
+            this.isValidJointLink(link) &&
+            this.operatorGroup.getSyncTexeraGraph() &&
+            this.texeraGraph.getSyncTexeraGraph()
+        ),
         map(link => SyncTexeraModel.getOperatorLink(link))
       )
       .subscribe(link => this.texeraGraph.addLink(link));
@@ -88,7 +70,12 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellDeleteStream()
       .pipe(
-        filter(link => this.isValidJointLink(link) && this.operatorGroup.getSyncTexeraGraph()),
+        filter(
+          link =>
+            this.isValidJointLink(link) &&
+            this.operatorGroup.getSyncTexeraGraph() &&
+            this.texeraGraph.getSyncTexeraGraph()
+        ),
         map(link => SyncTexeraModel.getOperatorLink(link))
       )
       .subscribe(link => this.texeraGraph.deleteLinkWithID(link.linkID));
@@ -101,12 +88,15 @@ export class SyncTexeraModel {
     this.jointGraphWrapper
       .getJointLinkCellChangeStream()
       .pipe(
-        filter(() => this.operatorGroup.getSyncTexeraGraph()),
+        filter(() => this.operatorGroup.getSyncTexeraGraph() && this.texeraGraph.getSyncTexeraGraph()),
         // we intentionally want the side effect (delete the link) to happen **before** other operations in the chain
         tap(link => {
           const linkID = link.id.toString();
           if (this.texeraGraph.hasLinkWithID(linkID)) {
+            const previousSyncJointGraph = this.texeraGraph.getSyncJointGraph();
+            this.texeraGraph.setSyncJointGraph(false);
             this.texeraGraph.deleteLinkWithID(linkID);
+            this.texeraGraph.setSyncJointGraph(previousSyncJointGraph);
           }
         }),
         filter(link => this.isValidJointLink(link)),

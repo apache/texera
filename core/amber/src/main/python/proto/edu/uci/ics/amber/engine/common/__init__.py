@@ -34,7 +34,9 @@ class LinkIdentity(betterproto.Message):
     """
 
     from_: "LayerIdentity" = betterproto.message_field(1)
-    to: "LayerIdentity" = betterproto.message_field(2)
+    from_port: int = betterproto.int32_field(2)
+    to: "LayerIdentity" = betterproto.message_field(3)
+    to_port: int = betterproto.int32_field(4)
 
 
 @dataclass(eq=False, repr=False)

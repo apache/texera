@@ -20,7 +20,6 @@ export type SchemaTransformer = (operator: OperatorPredicate, schema: OperatorSc
  *  after an operator is added, modules, other modules can dynamically set the schema based on its need
  *
  * Currently, dynamic schema is changed through the following scenarios:
- *  - source table names autocomplete by SourceTablesService
  *  - attribute names autocomplete by SchemaPropagationService
  *
  */
@@ -58,7 +57,7 @@ export class DynamicSchemaService {
     this.workflowActionService
       .getTexeraGraph()
       .getOperatorDeleteStream()
-      .subscribe(event => this.dynamicSchemaMap.delete(event.deletedOperator.operatorID));
+      .subscribe(event => this.dynamicSchemaMap.delete(event.deletedOperatorID));
 
     // when a link is deleted, remove it from the dynamic schema map
     this.workflowActionService
@@ -92,6 +91,10 @@ export class DynamicSchemaService {
    */
   public getDynamicSchemaMap(): ReadonlyMap<string, OperatorSchema> {
     return this.dynamicSchemaMap;
+  }
+
+  public dynamicSchemaExists(operatorID: string): boolean {
+    return this.dynamicSchemaMap.has(operatorID);
   }
 
   /**
@@ -145,10 +148,7 @@ export class DynamicSchemaService {
 
     // set the new dynamic schema
     this.dynamicSchemaMap.set(operatorID, dynamicSchema);
-    // only emit event if the old dynamic schema is not present
-    if (currentDynamicSchema) {
-      this.operatorDynamicSchemaChangedStream.next({ operatorID });
-    }
+    this.operatorDynamicSchemaChangedStream.next({ operatorID });
   }
 
   /**
@@ -175,7 +175,7 @@ export class DynamicSchemaService {
   public static mutateProperty(
     jsonSchemaToChange: CustomJSONSchema7,
     matchFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => boolean,
-    mutationFunc: (propertyValue: CustomJSONSchema7) => CustomJSONSchema7
+    mutationFunc: (propertyName: string, propertyValue: CustomJSONSchema7) => CustomJSONSchema7
   ): CustomJSONSchema7 {
     // recursively walks the JSON schema property tree to find the property name
     const mutatePropertyRecurse = (jsonSchema: JSONSchema7) => {
@@ -190,7 +190,7 @@ export class DynamicSchemaService {
             return;
           }
           if (matchFunc(propertyName, propertyValue as CustomJSONSchema7)) {
-            objectProperty[propertyName] = mutationFunc(propertyValue as CustomJSONSchema7);
+            objectProperty[propertyName] = mutationFunc(propertyName, propertyValue as CustomJSONSchema7);
           } else {
             mutatePropertyRecurse(propertyValue);
           }

@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
@@ -31,11 +32,13 @@ class IntervalJoinOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: LinkIdentity
+      input: Int,
+      pauseManager: PauseManager,
+      asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
     tuple match {
       case Left(currentTuple) =>
-        if (input == desc.leftInputLink) {
+        if (input == 0) {
           leftTable += currentTuple
           if (rightTable.nonEmpty) {
             removeTooSmallTupleInRightCache(leftTable.head)

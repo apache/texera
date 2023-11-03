@@ -2,8 +2,8 @@ package edu.uci.ics.texera.workflow.operators.split
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.operators.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -25,8 +25,10 @@ class SplitOpDesc extends OperatorDescriptor {
   @JsonIgnore
   val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    new SplitOpExecConfig(operatorIdentifier, this)
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+    OpExecConfig
+      .oneToOneLayer(operatorIdentifier, i => new SplitOpExec(i._1, this))
+      .withPorts(operatorInfo)
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -35,7 +37,9 @@ class SplitOpDesc extends OperatorDescriptor {
       operatorDescription = "Split training and testing data to two different ports",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort("training"), OutputPort("testing"))
+      outputPorts = List(OutputPort("training"), OutputPort("testing")),
+      dynamicInputPorts = true,
+      dynamicOutputPorts = true
     )
   }
 

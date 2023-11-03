@@ -1,10 +1,9 @@
-import { Component } from "@angular/core";
+import { AfterViewInit, Component } from "@angular/core";
 import { FieldType } from "@ngx-formly/core";
 import { MatDialog, MatDialogRef } from "@angular/material/dialog";
 import { CodeEditorDialogComponent } from "../code-editor-dialog/code-editor-dialog.component";
-import { WorkflowCollabService } from "../../service/workflow-collab/workflow-collab.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -21,50 +20,62 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
   templateUrl: "./codearea-custom-template.component.html",
   styleUrls: ["./codearea-custom-template.component.scss"],
 })
-export class CodeareaCustomTemplateComponent extends FieldType {
-  lockGranted: boolean = false;
+export class CodeareaCustomTemplateComponent extends FieldType<any> implements AfterViewInit {
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
+  readonly: boolean = false;
 
-  constructor(
-    public dialog: MatDialog,
-    public workflowCollabService: WorkflowCollabService,
-    public workflowActionService: WorkflowActionService
-  ) {
+  constructor(public dialog: MatDialog, private coeditorPresenceService: CoeditorPresenceService) {
     super();
-    this.handleLockChange();
-    this.handleCodeChange();
+    this.handleShadowingMode();
   }
 
-  onClickEditor(): void {
-    this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
-      data: this.formControl?.value || "",
+  ngAfterViewInit() {
+    this.handleReadonlyStatusChange();
+  }
+
+  /**
+   * Syncs the disabled status of the button with formControl.
+   * Used to fit the unit test since undefined might occur.
+   * TODO: Using <code>formControl</code> here instead of
+   *  <code>WorkflowActionService.checkWorkflowModificationEnabled()</code>
+   *  since the readonly status of operator properties also locally depend on whether "Unlock for Logic Change"
+   *  is enabled, which can only be accessed via <code>formControl</code>. Might need a more unified solution.
+   */
+  handleReadonlyStatusChange(): void {
+    if (this.field === undefined) return;
+    this.field.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(() => {
+      this.readonly = this.field.formControl.disabled;
     });
   }
 
-  private handleLockChange(): void {
-    this.workflowCollabService
-      .getLockStatusStream()
-      .pipe(untilDestroyed(this))
-      .subscribe((lockGranted: boolean) => {
-        this.lockGranted = lockGranted;
-      });
+  /**
+   * Opens the code editor.
+   */
+  onClickEditor(): void {
+    this.dialogRef = this.dialog.open(CodeEditorDialogComponent, {
+      id: "mat-dialog-udf",
+      maxWidth: "95vw",
+      maxHeight: "95vh",
+      data: this.field.formControl,
+    });
   }
 
-  private handleCodeChange(): void {
-    this.workflowActionService
-      .getTexeraGraph()
-      .getOperatorPropertyChangeStream()
+  /**
+   * When shadowing a co-editor, this method handles the opening/closing of the code editor based on the co-editor.
+   * @private
+   */
+  private handleShadowingMode(): void {
+    this.coeditorPresenceService
+      .getCoeditorOpenedCodeEditorSubject()
       .pipe(untilDestroyed(this))
-      .subscribe(({ operator }) => {
-        if (this.dialogRef != undefined && !this.lockGranted) {
-          // here the assumption is the operator being edited must be highlighted
-          const currentOperatorId: string = this.workflowActionService
-            .getJointGraphWrapper()
-            .getCurrentHighlightedOperatorIDs()[0];
-          if (currentOperatorId === operator.operatorID) {
-            this.dialogRef.componentInstance.code = operator.operatorProperties["code"];
-          }
-        }
+      .subscribe(_ => {
+        this.onClickEditor();
+      });
+    this.coeditorPresenceService
+      .getCoeditorClosedCodeEditorSubject()
+      .pipe(untilDestroyed(this))
+      .subscribe(_ => {
+        this.dialogRef?.close();
       });
   }
 }

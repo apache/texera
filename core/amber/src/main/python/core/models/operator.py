@@ -1,14 +1,15 @@
 from abc import ABC, abstractmethod
 from collections import defaultdict
-from typing import Iterator, List, Mapping, Optional, Union
+from typing import Iterator, List, Mapping, Optional, Union, MutableMapping
 
 import overrides
 import pandas
-from pyarrow.lib import Schema
+
 from deprecated import deprecated
 
-from . import InputExhausted, Table, TableLike, Tuple, TupleLike
-from ..util.arrow_utils import to_arrow_schema
+from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
+from core.models.schema.schema import Schema
+from .table import all_output_to_tuple
 
 
 class Operator(ABC):
@@ -16,9 +17,8 @@ class Operator(ABC):
     Abstract base class for all operators.
     """
 
-    def __init__(self):
-        self.__internal_is_source: bool = False
-        self.__internal_output_schema: Optional[Schema] = None
+    __internal_is_source: bool = False
+    __internal_output_schema: Optional[Schema] = None
 
     @property
     @overrides.final
@@ -50,7 +50,7 @@ class Operator(ABC):
         self.__internal_output_schema = (
             raw_output_schema
             if isinstance(raw_output_schema, Schema)
-            else to_arrow_schema(raw_output_schema)
+            else Schema(raw_schema=raw_output_schema)
         )
 
     def open(self) -> None:
@@ -96,6 +96,102 @@ class TupleOperatorV2(Operator):
         yield
 
 
+class SourceOperator(TupleOperatorV2):
+    __internal_is_source = True
+
+    @abstractmethod
+    def produce(self) -> Iterator[Union[TupleLike, TableLike, None]]:
+        """
+        Produce Tuples or Tables. Used by the source operator only.
+
+        :return: Iterator[Union[TupleLike, TableLike, None]], producing
+            one TupleLike object, one TableLike object, or None, at a time.
+        """
+        yield
+
+    @overrides.final
+    def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
+        # TODO: change on_finish to output Iterator[Union[TupleLike, TableLike, None]]
+        for i in self.produce():
+            yield from all_output_to_tuple(i)
+
+    @overrides.final
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        yield
+
+
+class BatchOperator(TupleOperatorV2):
+    """
+    Base class for batch-oriented operators. A concrete implementation must
+    be provided upon using.
+    """
+
+    BATCH_SIZE: int = 10  # must be a positive integer
+
+    def __init__(self):
+        super().__init__()
+        self.__batch_data: MutableMapping[int, List[Tuple]] = defaultdict(list)
+        self._validate_batch_size(self.BATCH_SIZE)
+
+    @staticmethod
+    @overrides.final
+    def _validate_batch_size(value):
+        if value is None:
+            raise ValueError("BATCH_SIZE cannot be None.")
+        if type(value) is not int:
+            raise ValueError("BATCH_SIZE cannot be {type(value))}.")
+        if value <= 0:
+            raise ValueError("BATCH_SIZE should be positive.")
+
+    @overrides.final
+    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        self.__batch_data[port].append(tuple_)
+        if (
+            self.BATCH_SIZE is not None
+            and len(self.__batch_data[port]) >= self.BATCH_SIZE
+        ):
+            yield from self._process_batch(port)
+
+    @overrides.final
+    def _process_batch(self, port: int) -> Iterator[Optional[BatchLike]]:
+        batch = Batch(
+            pandas.DataFrame(
+                [
+                    self.__batch_data[port].pop(0).as_series()
+                    for _ in range(min(len(self.__batch_data[port]), self.BATCH_SIZE))
+                ]
+            )
+        )
+        for output_batch in self.process_batch(batch, port):
+            if output_batch is not None:
+                if isinstance(output_batch, pandas.DataFrame):
+                    # TODO: integrate into Batch as a helper function.
+                    # convert from Batch to Tuple, only supports pandas.DataFrames for
+                    # now.
+                    for _, output_tuple in output_batch.iterrows():
+                        yield output_tuple
+                else:
+                    yield output_batch
+
+    @overrides.final
+    def on_finish(self, port: int) -> Iterator[Optional[BatchLike]]:
+        while len(self.__batch_data[port]) != 0:
+            yield from self._process_batch(port)
+
+    @abstractmethod
+    def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:
+        """
+        Process an input Batch from the given link. The Batch is represented as a
+        pandas.DataFrame.
+
+        :param batch: Batch, a batch to be processed.
+        :param port: int, input port index of the current Batch.
+        :return: Iterator[Optional[BatchLike]], producing one BatchLike object at a
+            time, or None.
+        """
+        yield
+
+
 class TableOperator(TupleOperatorV2):
     """
     Base class for table-oriented operators. A concrete implementation must
@@ -113,16 +209,8 @@ class TableOperator(TupleOperatorV2):
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(
-            pandas.DataFrame([i.as_series() for i in self.__table_data[port]])
-        )
-        for output_table in self.process_table(table, port):
-            if output_table is not None:
-                if isinstance(output_table, pandas.DataFrame):
-                    for _, output_tuple in output_table.iterrows():
-                        yield output_tuple
-                else:
-                    yield output_table
+        table = Table(self.__table_data[port])
+        yield from self.process_table(table, port)
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:

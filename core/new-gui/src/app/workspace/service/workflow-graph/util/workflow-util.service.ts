@@ -1,4 +1,10 @@
-import { OperatorPredicate, CommentBox, Comment, Point } from "../../../types/workflow-common.interface";
+import {
+  OperatorPredicate,
+  CommentBox,
+  Comment,
+  Point,
+  PortDescription,
+} from "../../../types/workflow-common.interface";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
@@ -97,8 +103,8 @@ export class WorkflowUtilService {
     const validate = this.ajv.compile(schemaWithoutID);
     validate(operatorProperties);
 
-    const inputPorts: { portID: string; displayName?: string }[] = [];
-    const outputPorts: { portID: string; displayName?: string }[] = [];
+    const inputPorts: PortDescription[] = [];
+    const outputPorts: PortDescription[] = [];
 
     // by default, the operator will not show advanced option in the properties to the user
     const showAdvanced = false;
@@ -109,27 +115,45 @@ export class WorkflowUtilService {
     // by default, the operator name is the user friendly name
     const customDisplayName = operatorSchema.additionalMetadata.userFriendlyName;
 
+    const dynamicInputPorts = operatorSchema.additionalMetadata.dynamicInputPorts ?? false;
+    const dynamicOutputPorts = operatorSchema.additionalMetadata.dynamicOutputPorts ?? false;
+
     for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
       const portID = "input-" + i.toString();
-      const displayName = operatorSchema.additionalMetadata.inputPorts[i].displayName;
-      inputPorts.push({ portID, displayName });
+      const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
+      inputPorts.push({
+        portID,
+        displayName: portInfo.displayName ?? "",
+        allowMultiInputs: portInfo.allowMultiInputs ?? false,
+        isDynamicPort: false,
+      });
     }
 
     for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
       const portID = "output-" + i.toString();
-      const displayName = operatorSchema.additionalMetadata.outputPorts[i].displayName;
-      outputPorts.push({ portID, displayName });
+      const portInfo = operatorSchema.additionalMetadata.outputPorts[i];
+      outputPorts.push({
+        portID,
+        displayName: portInfo.displayName ?? "",
+        allowMultiInputs: false,
+        isDynamicPort: false,
+      });
     }
+
+    const operatorVersion = operatorSchema.operatorVersion;
 
     return {
       operatorID,
       operatorType,
+      operatorVersion,
       operatorProperties,
       inputPorts,
       outputPorts,
       showAdvanced,
       isDisabled,
       customDisplayName,
+      dynamicInputPorts,
+      dynamicOutputPorts,
     };
   }
 

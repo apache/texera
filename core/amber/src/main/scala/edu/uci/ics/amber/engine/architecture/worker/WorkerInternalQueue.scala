@@ -1,68 +1,149 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  CONTROL_QUEUE,
-  ControlElement,
-  DATA_QUEUE,
-  InternalQueueElement
-}
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
+import edu.uci.ics.amber.engine.architecture.logging.{DeterminantLogger, LogManager}
+import edu.uci.ics.amber.engine.architecture.recovery.RecoveryQueue
+import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue._
+import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, EpochMarker}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
 
+import java.util.concurrent.locks.ReentrantLock
+import scala.collection.mutable
+
 object WorkerInternalQueue {
-  final val DATA_QUEUE = 1
-  final val CONTROL_QUEUE = 0
+  final val DATA_QUEUE_PRIORITY = 1
+
+  final val CONTROL_QUEUE_KEY = "CONTROL_QUEUE"
+  final val CONTROL_QUEUE_PRIORITY = 0
 
   // 4 kinds of elements can be accepted by internal queue
-  sealed trait InternalQueueElement
+  sealed trait InternalQueueElement {
+    def from: ActorVirtualIdentity
+  }
 
-  case class InputTuple(tuple: ITuple) extends InternalQueueElement
-
-  case class SenderChangeMarker(newUpstreamLink: LinkIdentity) extends InternalQueueElement
+  case class InputTuple(from: ActorVirtualIdentity, tuple: ITuple) extends InternalQueueElement
 
   case class ControlElement(payload: ControlPayload, from: ActorVirtualIdentity)
       extends InternalQueueElement
 
-  case object EndMarker extends InternalQueueElement
+  case class EndMarker(from: ActorVirtualIdentity) extends InternalQueueElement
 
-  case object EndOfAllMarker extends InternalQueueElement
+  case class InputEpochMarker(from: ActorVirtualIdentity, epochMarker: EpochMarker)
+      extends InternalQueueElement
 
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should
   * be a part of DP thread.
   */
-trait WorkerInternalQueue {
+class WorkerInternalQueue(
+    val pauseManager: PauseManager,
+    val logManager: LogManager,
+    val recoveryQueue: RecoveryQueue
+) {
 
-  private val lbmq = new LinkedBlockingMultiQueue[Int, InternalQueueElement]()
+  private[architecture] val lbmq = new LinkedBlockingMultiQueue[String, InternalQueueElement]()
+  private[architecture] val lock = new ReentrantLock()
 
-  lbmq.addSubQueue(DATA_QUEUE, DATA_QUEUE)
-  lbmq.addSubQueue(CONTROL_QUEUE, CONTROL_QUEUE)
+  lbmq.addSubQueue(CONTROL_QUEUE_KEY, CONTROL_QUEUE_PRIORITY)
 
-  private val dataQueue = lbmq.getSubQueue(DATA_QUEUE)
+  private[architecture] val dataQueues =
+    new mutable.HashMap[String, LinkedBlockingMultiQueue[String, InternalQueueElement]#SubQueue]()
+  private[architecture] val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE_KEY)
 
-  private val controlQueue = lbmq.getSubQueue(CONTROL_QUEUE)
+  protected lazy val determinantLogger: DeterminantLogger = logManager.getDeterminantLogger
+
+  // the values in below maps are in tuples (not batches)
+  private val inQueueSizeMapping =
+    new mutable.HashMap[ActorVirtualIdentity, Long]() // read and written by main thread
+  @volatile private var outQueueSizeMapping =
+    new mutable.HashMap[ActorVirtualIdentity, Long]() // written by DP thread, read by main thread
+
+  def registerInput(sender: ActorVirtualIdentity): Unit = {
+    lbmq.addSubQueue(sender.name, DATA_QUEUE_PRIORITY)
+    dataQueues(sender.name) = lbmq.getSubQueue(sender.name)
+  }
+
+  def getSenderCredits(sender: ActorVirtualIdentity): Int = {
+    val inBytes = inQueueSizeMapping.getOrElseUpdate(sender, 0L)
+    val outBytes = outQueueSizeMapping.getOrElseUpdate(sender, 0L)
+    (Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - (inBytes - outBytes)).toInt
+  }
 
   def appendElement(elem: InternalQueueElement): Unit = {
-    dataQueue.add(elem)
+    if (Constants.flowControlEnabled) {
+      elem match {
+        case InputTuple(from, tuple) =>
+          inQueueSizeMapping(from) =
+            inQueueSizeMapping.getOrElseUpdate(from, 0L) + tuple.inMemSize
+        case _ =>
+        // do nothing
+      }
+    }
+    if (recoveryQueue.isReplayCompleted) {
+      // may have race condition with restoreInput which happens inside DP thread.
+      lock.lock()
+      if (elem == null || elem.from == null || elem.from.name == null) {
+        throw new RuntimeException("from is null for element " + elem)
+      }
+      if (dataQueues(elem.from.name) == null) {
+        throw new RuntimeException(elem.from.name + " actor not registered")
+      }
+      dataQueues(elem.from.name).add(elem)
+      lock.unlock()
+    } else {
+      recoveryQueue.add(elem)
+    }
   }
 
   def enqueueCommand(payload: ControlPayload, from: ActorVirtualIdentity): Unit = {
-    controlQueue.add(ControlElement(payload, from))
+    if (recoveryQueue.isReplayCompleted) {
+      // may have race condition with restoreInput which happens inside DP thread.
+      lock.lock()
+      controlQueue.add(ControlElement(payload, from))
+      lock.unlock()
+    } else {
+      recoveryQueue.add(ControlElement(payload, from))
+    }
   }
 
-  def getElement: InternalQueueElement = lbmq.take()
+  def getElement: InternalQueueElement = {
+    val elem = if (recoveryQueue.isReplayCompleted) {
+      lbmq.take()
+    } else {
+      recoveryQueue.get()
+    }
+    if (Constants.flowControlEnabled) {
+      elem match {
+        case InputTuple(from, tuple) =>
+          outQueueSizeMapping(from) =
+            outQueueSizeMapping.getOrElseUpdate(from, 0L) + tuple.inMemSize
+        case _ =>
+        // do nothing
+      }
+    }
+    elem
+  }
 
-  def disableDataQueue(): Unit = dataQueue.enable(false)
-
-  def enableDataQueue(): Unit = dataQueue.enable(true)
-
-  def getDataQueueLength: Int = dataQueue.size()
+  def getDataQueueLength: Int = dataQueues.values.map(q => q.size()).sum
 
   def getControlQueueLength: Int = controlQueue.size()
 
-  def isControlQueueEmpty: Boolean = controlQueue.isEmpty
+  def restoreInputs(): Unit = {
+    lock.lock()
+    recoveryQueue.drainAllStashedElements(this)
+    lock.unlock()
+  }
+
+  def isControlQueueNonEmptyOrPaused: Boolean = {
+    if (recoveryQueue.isReplayCompleted) {
+      determinantLogger.stepIncrement()
+      !controlQueue.isEmpty || pauseManager.isPaused
+    } else {
+      recoveryQueue.isReadyToEmitNextControl
+    }
+  }
 
 }

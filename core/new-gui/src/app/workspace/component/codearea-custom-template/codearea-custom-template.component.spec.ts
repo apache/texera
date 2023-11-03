@@ -12,21 +12,19 @@ describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
   let fixture: ComponentFixture<CodeareaCustomTemplateComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [CodeareaCustomTemplateComponent],
-        imports: [MatDialogModule, HttpClientTestingModule],
-        providers: [
-          WorkflowActionService,
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-        ],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [CodeareaCustomTemplateComponent],
+      imports: [MatDialogModule, HttpClientTestingModule],
+      providers: [
+        WorkflowActionService,
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+      ],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(CodeareaCustomTemplateComponent);

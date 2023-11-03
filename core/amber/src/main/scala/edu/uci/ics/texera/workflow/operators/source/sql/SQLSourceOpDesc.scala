@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
+  BatchByColumn,
   EnablePresets,
   UIWidget
 }
@@ -91,18 +92,18 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
   @JsonProperty(defaultValue = "auto")
   @JsonSchemaTitle("Min")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
+  @BatchByColumn
   var min: Option[String] = None
 
   @JsonProperty(defaultValue = "auto")
   @JsonSchemaTitle("Max")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
-  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
+  @BatchByColumn
   var max: Option[String] = None
 
   @JsonProperty(defaultValue = "1000000000")
   @JsonSchemaTitle("Batch by Interval")
-  @JsonSchemaInject(json = """{"dependOn" : "batchByColumn"}""")
+  @BatchByColumn
   var interval = 0L
 
   /**

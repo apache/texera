@@ -50,10 +50,11 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     opExec.open()
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), null)
+      opExec.processTexeraTuple(Left(tuple()), 0, null, null)
     })
 
-    val outputTuples: List[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), null).toList
+    val outputTuples: List[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), 0, null, null).toList
     assert(outputTuples.size == 1)
     assert(outputTuples.head.equals(tuple()))
     opExec.close()
@@ -63,16 +64,17 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     opExec.open()
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), null)
+      opExec.processTexeraTuple(Left(tuple()), 0, null, null)
     })
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple2()), null)
+      opExec.processTexeraTuple(Left(tuple2()), 0, null, null)
     })
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), null)
+      opExec.processTexeraTuple(Left(tuple()), 0, null, null)
     })
 
-    val outputTuples: List[Tuple] = opExec.processTexeraTuple(Right(InputExhausted()), null).toList
+    val outputTuples: List[Tuple] =
+      opExec.processTexeraTuple(Right(InputExhausted()), 0, null, null).toList
     assert(outputTuples.size == 2)
     assert(outputTuples.head.equals(tuple()))
     assert(outputTuples.apply(1).equals(tuple2()))

@@ -1,2 +1,8 @@
+pylsp --ws --port 3000 &
 cd amber
-sbt "runMain edu.uci.ics.texera.web.TexeraWebApplication" 
+if [ ! -z $1 ] 
+then 
+    sbt "runMain edu.uci.ics.texera.web.TexeraWebApplication --cluster $1" 
+else
+    sbt "runMain edu.uci.ics.texera.web.TexeraWebApplication" 
+fi

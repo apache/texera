@@ -6,11 +6,13 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.KeywordDictionary;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.UserProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
@@ -36,9 +38,24 @@ public class Tables {
     public static final FileOfProject FILE_OF_PROJECT = FileOfProject.FILE_OF_PROJECT;
 
     /**
-     * The table <code>texera_db.keyword_dictionary</code>.
+     * The table <code>texera_db.file_of_workflow</code>.
      */
-    public static final KeywordDictionary KEYWORD_DICTIONARY = KeywordDictionary.KEYWORD_DICTIONARY;
+    public static final FileOfWorkflow FILE_OF_WORKFLOW = FileOfWorkflow.FILE_OF_WORKFLOW;
+
+    /**
+     * The table <code>texera_db.project</code>.
+     */
+    public static final Project PROJECT = Project.PROJECT;
+
+    /**
+     * The table <code>texera_db.project_user_access</code>.
+     */
+    public static final ProjectUserAccess PROJECT_USER_ACCESS = ProjectUserAccess.PROJECT_USER_ACCESS;
+
+    /**
+     * The table <code>texera_db.public_project</code>.
+     */
+    public static final PublicProject PUBLIC_PROJECT = PublicProject.PUBLIC_PROJECT;
 
     /**
      * The table <code>texera_db.user</code>.
@@ -54,11 +71,6 @@ public class Tables {
      * The table <code>texera_db.user_file_access</code>.
      */
     public static final UserFileAccess USER_FILE_ACCESS = UserFileAccess.USER_FILE_ACCESS;
-
-    /**
-     * The table <code>texera_db.user_project</code>.
-     */
-    public static final UserProject USER_PROJECT = UserProject.USER_PROJECT;
 
     /**
      * The table <code>texera_db.workflow</code>.

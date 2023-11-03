@@ -13,3 +13,8 @@
 .modal-dialog {
   overflow-y: initial !important;
 }
+
+.commentContent {
+  display: flex;
+  flex-wrap: wrap;
+}

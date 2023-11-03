@@ -1,25 +1,47 @@
-import { Subject } from "rxjs";
-import { Observable } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import {
-  OperatorPredicate,
+  Breakpoint,
+  Comment,
+  PortDescription,
+  CommentBox,
   OperatorLink,
   OperatorPort,
-  Breakpoint,
-  Point,
-  CommentBox,
-  Comment,
+  OperatorPredicate,
+  PartitionInfo,
+  PortProperty,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
+import { SharedModel } from "./shared-model";
+import { User, CoeditorState } from "../../../../common/type/user";
+import { createYTypeFromObject, YType, updateYTypeFromObject } from "../../../types/shared-editing.interface";
+import { Awareness } from "y-protocols/awareness";
+import * as Y from "yjs";
 
 // define the restricted methods that could change the graph
 type restrictedMethods =
+  | "sharedModel"
+  | "newYDocLoadedSubject"
   | "addOperator"
   | "deleteOperator"
   | "addLink"
   | "deleteLink"
   | "deleteLinkWithID"
   | "setOperatorProperty"
-  | "setLinkBreakpoint";
+  | "addPort"
+  | "removePort"
+  | "setLinkBreakpoint"
+  | "operatorAddSubject"
+  | "operatorDeleteSubject"
+  | "operatorDisplayNameChangedSubject"
+  | "linkAddSubject"
+  | "linkDeleteSubject"
+  | "operatorPropertyChangeSubject"
+  | "breakpointChangeStream"
+  | "commentBoxAddSubject"
+  | "commentBoxDeleteSubject"
+  | "commentBoxAddCommentSubject"
+  | "commentBoxDeleteCommentSubject"
+  | "commentBoxEditCommentSubject";
 
 /**
  * WorkflowGraphReadonly is a type that only contains the readonly methods of WorkflowGraph.
@@ -28,6 +50,7 @@ type restrictedMethods =
  *  are omitted from this type.
  */
 export type WorkflowGraphReadonly = Omit<WorkflowGraph, restrictedMethods>;
+type OperatorPropertiesType = Readonly<{ [key: string]: any }>;
 
 export const PYTHON_UDF_V2_OP_TYPE = "PythonUDFV2";
 export const PYTHON_UDF_SOURCE_V2_OP_TYPE = "PythonUDFSourceV2";
@@ -52,82 +75,271 @@ export function isPythonUdf(operator: OperatorPredicate): boolean {
  *
  */
 export class WorkflowGraph {
-  private readonly operatorIDMap = new Map<string, OperatorPredicate>();
-  private readonly operatorLinkMap = new Map<string, OperatorLink>();
-  private readonly commentBoxMap = new Map<string, CommentBox>();
-  private readonly linkBreakpointMap = new Map<string, Breakpoint>();
+  public sharedModel: SharedModel = new SharedModel();
+  public newYDocLoadedSubject = new Subject();
 
-  private readonly operatorAddSubject = new Subject<OperatorPredicate>();
+  public readonly operatorAddSubject = new Subject<OperatorPredicate>();
 
-  private readonly operatorDeleteSubject = new Subject<{
-    deletedOperator: OperatorPredicate;
+  public readonly operatorDeleteSubject = new Subject<{
+    deletedOperatorID: string;
   }>();
-  private readonly disabledOperatorChangedSubject = new Subject<{
+  public readonly disabledOperatorChangedSubject = new Subject<{
     newDisabled: string[];
     newEnabled: string[];
   }>();
-  private readonly cachedOperatorChangedSubject = new Subject<{
-    newCached: string[];
-    newUnCached: string[];
+  public readonly viewResultOperatorChangedSubject = new Subject<{
+    newViewResultOps: string[];
+    newUnviewResultOps: string[];
   }>();
-  private readonly operatorDisplayNameChangedSubject = new Subject<{
+  public readonly reuseOperatorChangedSubject = new Subject<{
+    newReuseCacheOps: string[];
+    newUnreuseCacheOps: string[];
+  }>();
+  public readonly operatorDisplayNameChangedSubject = new Subject<{
     operatorID: string;
     newDisplayName: string;
   }>();
-  private readonly linkAddSubject = new Subject<OperatorLink>();
-  private readonly linkDeleteSubject = new Subject<{
+  public readonly linkAddSubject = new Subject<OperatorLink>();
+  public readonly linkDeleteSubject = new Subject<{
     deletedLink: OperatorLink;
   }>();
-  private readonly operatorPropertyChangeSubject = new Subject<{
-    oldProperty: object;
+  public readonly operatorVersionChangedSubject = new Subject<{
+    operatorID: string;
+    newOperatorVersion: string;
+  }>();
+  public readonly operatorPropertyChangeSubject = new Subject<{
     operator: OperatorPredicate;
   }>();
-  private readonly breakpointChangeStream = new Subject<{
+  public readonly breakpointChangeStream = new Subject<{
     oldBreakpoint: object | undefined;
     linkID: string;
   }>();
-  private readonly commentBoxAddSubject = new Subject<CommentBox>();
-  private readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
-  private readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
+  public readonly portAddedOrDeletedSubject = new Subject<{
+    newOperator: OperatorPredicate;
+  }>();
+  public readonly commentBoxAddSubject = new Subject<CommentBox>();
+  public readonly commentBoxDeleteSubject = new Subject<{ deletedCommentBox: CommentBox }>();
+  public readonly commentBoxAddCommentSubject = new Subject<{ addedComment: Comment; commentBox: CommentBox }>();
+  public readonly commentBoxDeleteCommentSubject = new Subject<{ commentBox: CommentBox }>();
+  public readonly commentBoxEditCommentSubject = new Subject<{ commentBox: CommentBox }>();
+
+  public readonly portDisplayNameChangedSubject = new Subject<{
+    operatorID: string;
+    portID: string;
+    newDisplayName: string;
+  }>();
+
+  public readonly portPropertyChangedSubject = new Subject<{
+    operatorPortID: OperatorPort;
+    newProperty: PortProperty;
+  }>();
+
+  private syncTexeraGraph = true;
+  private syncJointGraph = true;
 
   constructor(
     operatorPredicates: OperatorPredicate[] = [],
     operatorLinks: OperatorLink[] = [],
     commentBoxes: CommentBox[] = []
   ) {
-    operatorPredicates.forEach(op => this.operatorIDMap.set(op.operatorID, op));
-    operatorLinks.forEach(link => this.operatorLinkMap.set(link.linkID, link));
-    commentBoxes.forEach(commentBox => this.commentBoxMap.set(commentBox.commentBoxID, commentBox));
+    operatorPredicates.forEach(op => this.sharedModel.operatorIDMap.set(op.operatorID, createYTypeFromObject(op)));
+    operatorLinks.forEach(link => this.sharedModel.operatorLinkMap.set(link.linkID, link));
+    commentBoxes.forEach(commentBox =>
+      this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, createYTypeFromObject(commentBox))
+    );
+    this.newYDocLoadedSubject.next(undefined);
   }
+
+  /**
+   * Returns the boolean value that indicates whether
+   * or not sync JointJS changes to texera graph.
+   */
+  public getSyncTexeraGraph(): boolean {
+    return this.syncTexeraGraph;
+  }
+
+  public setSyncJointGraph(syncJointGraph: boolean): void {
+    this.syncJointGraph = syncJointGraph;
+  }
+
+  public getSyncJointGraph(): boolean {
+    return this.syncJointGraph;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                     Below are shared-editing-related methods.                                    //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * Exposes a shared operator type for fine-grained control. Do not use if not familiar with yjs.
+   * @param operatorID
+   */
+  public getSharedOperatorType(operatorID: string): YType<OperatorPredicate> {
+    this.assertOperatorExists(operatorID);
+    return this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
+  }
+
+  public getSharedOperatorPropertyType(operatorID: string): YType<OperatorPropertiesType> {
+    return this.getSharedOperatorType(operatorID).get("operatorProperties") as YType<OperatorPropertiesType>;
+  }
+
+  public getSharedPortDescriptionType(operatorPortID: OperatorPort): YType<PortDescription> | undefined {
+    const isInput = operatorPortID?.portID.includes("input");
+    const portListObject = isInput
+      ? this.getOperator(operatorPortID.operatorID).inputPorts
+      : this.getOperator(operatorPortID.operatorID).outputPorts;
+    const portIdx = portListObject.findIndex(portDescription => portDescription.portID === operatorPortID?.portID);
+    if (portIdx === -1) return undefined;
+    return this.getSharedOperatorType(<string>operatorPortID?.operatorID)
+      .get(isInput ? "inputPorts" : "outputPorts")
+      .get(portIdx) as YType<PortDescription>;
+  }
+
+  /**
+   * Exposes a shared comment box type for fine-grained control. Do not use if not familiar with yjs.
+   * @param commentBoxID
+   */
+  public getSharedCommentBoxType(commentBoxID: string): YType<CommentBox> {
+    this.assertCommentBoxExists(commentBoxID);
+    return this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
+  }
+
+  /**
+   * Get the awareness API to connect a shared type to other third-party shared-editing libraries.
+   */
+  public getSharedModelAwareness(): Awareness {
+    return this.sharedModel.awareness;
+  }
+
+  /**
+   * Updates a particular field of local awareness state info. Will only execute update when user info is provided.
+   * @param field the name of the particular state info.
+   * @param value the updated state info.
+   */
+  public updateSharedModelAwareness<K extends keyof CoeditorState>(field: K, value: CoeditorState[K]) {
+    this.sharedModel.updateAwareness(field, value);
+  }
+
+  /**
+   * Replaces current <code>{@link sharedModel}</code>  with a new one and destroy the old model if any.
+   * @param workflowId optional, but needed if you want to join shared editing.
+   * @param user optional, but needed if you want to have user presence.
+   */
+  public loadNewYModel(workflowId?: number, user?: User) {
+    this.destroyYModel();
+    this.sharedModel = new SharedModel(workflowId, user);
+    this.newYDocLoadedSubject.next(undefined);
+  }
+
+  /**
+   * Destroys shared-editing related structures and quits the shared editing session.
+   */
+  public destroyYModel(): void {
+    this.sharedModel.destroy();
+  }
+
+  /**
+   * Sets the boolean value that specifies whether sync JointJS changes to texera graph.
+   */
+  public setSyncTexeraGraph(syncTexeraGraph: boolean): void {
+    this.syncTexeraGraph = syncTexeraGraph;
+  }
+
+  /**
+   * Groups a bunch of actions into one atomic transaction, so that they can be undone/redone in one call.
+   * @param callback Put whatever need to be atomically done within this callback function.
+   */
+  public bundleActions(callback: Function) {
+    this.sharedModel.transact(callback);
+  }
+
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+  //                                           Below are action methods.                                              //
+  //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
   /**
    * Adds a new operator to the graph.
    * Throws an error the operator has a duplicate operatorID with an existing operator.
-   * @param operator OperatorPredicate
+   * @param operator <code>{@link OperatorPredicate}</code> will be converted to a <code>{@link YType}</code> brefore
+   * adding to the internal Y-graph.
    */
   public addOperator(operator: OperatorPredicate): void {
     this.assertOperatorNotExists(operator.operatorID);
-    this.operatorIDMap.set(operator.operatorID, operator);
-    this.operatorAddSubject.next(operator);
+    const newOp = createYTypeFromObject(operator);
+    this.sharedModel.operatorIDMap.set(operator.operatorID, newOp);
   }
 
+  /**
+   * Adds a comment box to the graph.
+   * @param commentBox <code>{@link CommentBox}</code> will be converted to a <code>{@link YType}</code> before adding
+   * to the internal Y-graph.
+   */
   public addCommentBox(commentBox: CommentBox): void {
     this.assertCommentBoxNotExists(commentBox.commentBoxID);
-    this.commentBoxMap.set(commentBox.commentBoxID, commentBox);
-    this.commentBoxAddSubject.next(commentBox);
+    const newCommentBox = createYTypeFromObject(commentBox);
+    this.sharedModel.commentBoxMap.set(commentBox.commentBoxID, newCommentBox);
   }
 
+  /**
+   * Adds a single comment to an existing comment box.
+   * @param comment the comment's content encapsulated in the <code>{@link Comment}</code> structure. It will be added
+   * as-is to the list of comments, i.e., it won't be converted to <code>{@link YType}</code>.
+   * @param commentBoxID the id of the comment box to add comment to.
+   */
   public addCommentToCommentBox(comment: Comment, commentBoxID: string): void {
     this.assertCommentBoxExists(commentBoxID);
-    const commentBox = this.commentBoxMap.get(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
     if (commentBox != null) {
-      commentBox.comments.push(comment);
-      this.commentBoxAddCommentSubject.next({ addedComment: comment, commentBox: commentBox });
+      commentBox.get("comments").push([comment]);
     }
   }
 
   /**
-   * Deletes the operator from the graph by its ID.
+   * Searches the comment list by <code>creatorID</code> and <code>creationTime</code> and deletes the comment if found.
+   * The deletion is on a y-list.
+   * @param creatorID
+   * @param creationTime
+   * @param commentBoxID
+   */
+  public deleteCommentFromCommentBox(creatorID: number, creationTime: string, commentBoxID: string): void {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
+    if (commentBox != null) {
+      commentBox.get("comments").forEach((comment, index) => {
+        if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
+          commentBox.get("comments").delete(index);
+        }
+      });
+    }
+  }
+
+  /**
+   * Edits a given comment. Due to yjs's limitation, the modification is actually done by
+   * deleting and adding (in place).
+   * @param creatorID
+   * @param creationTime
+   * @param commentBoxID
+   * @param content
+   */
+  public editCommentInCommentBox(creatorID: number, creationTime: string, commentBoxID: string, content: string): void {
+    this.assertCommentBoxExists(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID);
+    if (commentBox != null) {
+      commentBox.get("comments").forEach((comment, index) => {
+        if (comment.creatorID === creatorID && comment.creationTime === creationTime) {
+          let creatorName = comment.creatorName;
+          let newComment: Comment = { content, creationTime, creatorName, creatorID };
+          this.sharedModel.yDoc.transact(() => {
+            commentBox.get("comments").delete(index);
+            commentBox.get("comments").insert(index, [newComment]);
+          });
+        }
+      });
+    }
+  }
+
+  /**
+   * Deletes the operator from the graph by its ID. The deletion is on a y-map.
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID
    */
@@ -136,19 +348,25 @@ export class WorkflowGraph {
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    this.operatorIDMap.delete(operatorID);
-    this.operatorDeleteSubject.next({ deletedOperator: operator });
+    this.sharedModel.operatorIDMap.delete(operatorID);
   }
 
+  /**
+   * Deletes the comment box from the model's <code>{@link commentBoxMap}</code>.
+   * @param commentBoxID
+   */
   public deleteCommentBox(commentBoxID: string): void {
     const commentBox = this.getCommentBox(commentBoxID);
     if (!commentBox) {
       throw new Error(`CommentBox with ID ${commentBoxID} does not exist`);
     }
-    this.commentBoxMap.delete(commentBoxID);
-    this.commentBoxDeleteSubject.next({ deletedCommentBox: commentBox });
+    this.sharedModel.commentBoxMap.delete(commentBoxID);
   }
 
+  /**
+   * Disables the operator by setting the <code>isDisabled</code> attribute in the corresponding operator from the map.
+   * @param operatorID
+   */
   public disableOperator(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -157,13 +375,13 @@ export class WorkflowGraph {
     if (this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: true });
-    this.disabledOperatorChangedSubject.next({
-      newDisabled: [operatorID],
-      newEnabled: [],
-    });
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("isDisabled", true);
   }
 
+  /**
+   * Enables the operator by setting the <code>isDisabled</code> attribute in the corresponding operator from the map.
+   * @param operatorID
+   */
   public enableOperator(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -172,25 +390,26 @@ export class WorkflowGraph {
     if (!this.isOperatorDisabled(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isDisabled: false });
-    this.disabledOperatorChangedSubject.next({
-      newDisabled: [],
-      newEnabled: [operatorID],
-    });
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("isDisabled", false);
   }
 
-  public changeOperatorDisplayName(operatorID: string, newDisplayName: string): void {
+  /**
+   * Will use string instead of Y.Text since this is not supposed to be shared-editable. Also the event stream
+   * is emitted synchronously since this does not need to be shared-edited.
+   */
+  public changeOperatorVersion(operatorID: string, newOperatorVersion: string): void {
     const operator = this.getOperator(operatorID);
-    if (operator.customDisplayName === newDisplayName) {
+    if (operator.operatorVersion === newOperatorVersion) {
       return;
     }
-    this.operatorIDMap.set(operatorID, {
-      ...operator,
-      customDisplayName: newDisplayName,
-    });
-    this.operatorDisplayNameChangedSubject.next({ operatorID, newDisplayName });
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("operatorVersion", newOperatorVersion as any);
+    this.operatorVersionChangedSubject.next({ operatorID, newOperatorVersion });
   }
 
+  /**
+   * This method gets this status from readonly object version of the operator data as opposed to y-type data.
+   * @param operatorID
+   */
   public isOperatorDisabled(operatorID: string): boolean {
     const operator = this.getOperator(operatorID);
     if (!operator) {
@@ -199,11 +418,22 @@ export class WorkflowGraph {
     return operator.isDisabled ?? false;
   }
 
+  /**
+   * Gets disabled operators by filtering from all <code>operatorIDs</code> in the <code>OperatorIDMap</code>.
+   */
   public getDisabledOperators(): ReadonlySet<string> {
-    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorDisabled(op)));
+    return new Set(
+      Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
+        this.isOperatorDisabled(op)
+      )
+    );
   }
 
-  public cacheOperator(operatorID: string): void {
+  /**
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public setViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -211,41 +441,99 @@ export class WorkflowGraph {
     if (isSink(operator)) {
       return;
     }
-    if (this.isOperatorCached(operatorID)) {
+    if (this.isViewingResult(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isCached: true });
-    this.cachedOperatorChangedSubject.next({
-      newCached: [operatorID],
-      newUnCached: [],
-    });
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", true);
   }
 
-  public unCacheOperator(operatorID: string): void {
+  /**
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public unsetViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (!this.isOperatorCached(operatorID)) {
+    if (!this.isViewingResult(operatorID)) {
       return;
     }
-    this.operatorIDMap.set(operatorID, { ...operator, isCached: false });
-    this.cachedOperatorChangedSubject.next({
-      newCached: [],
-      newUnCached: [operatorID],
-    });
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", false);
   }
 
-  public isOperatorCached(operatorID: string): boolean {
+  /**
+   * This method gets this status from readonly object version of the operator data as opposed to y-type data.
+   * @param operatorID
+   */
+  public isViewingResult(operatorID: string): boolean {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    return operator.isCached ?? false;
+    return operator.viewResult ?? false;
   }
 
-  public getCachedOperators(): ReadonlySet<string> {
-    return new Set(Array.from(this.operatorIDMap.keys()).filter(op => this.isOperatorCached(op)));
+  public getOperatorsToViewResult(): ReadonlySet<string> {
+    return new Set(
+      Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
+        this.isViewingResult(op)
+      )
+    );
+  }
+
+  /**
+   * Changes <code>markedForReuse</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public markReuseResult(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (isSink(operator)) {
+      return;
+    }
+    if (this.isMarkedForReuseResult(operatorID)) {
+      return;
+    }
+    console.log("seeting marked for reuse in shared model");
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", true);
+  }
+
+  /**
+   * Changes <code>markedForReuse</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public removeMarkReuseResult(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (!this.isMarkedForReuseResult(operatorID)) {
+      return;
+    }
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", false);
+  }
+
+  /**
+   * This method gets this status from readonly object version of the operator data as opposed to y-type data.
+   * @param operatorID
+   */
+  public isMarkedForReuseResult(operatorID: string): boolean {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    return operator.markedForReuse ?? false;
+  }
+
+  public getOperatorsMarkedForReuseResult(): ReadonlySet<string> {
+    return new Set(
+      Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
+        this.isMarkedForReuseResult(op)
+      )
+    );
   }
 
   /**
@@ -253,47 +541,133 @@ export class WorkflowGraph {
    * @param operatorID operator ID
    */
   public hasOperator(operatorID: string): boolean {
-    return this.operatorIDMap.has(operatorID);
-  }
-
-  public hasCommentBox(commentBoxId: string): boolean {
-    return this.commentBoxMap.has(commentBoxId);
+    return this.sharedModel.operatorIDMap.has(operatorID) as boolean;
   }
 
   /**
-   * Gets the operator with the operatorID.
+   * Returns whether the comment box exists in the graph.
+   * @param commentBoxId
+   */
+  public hasCommentBox(commentBoxId: string): boolean {
+    return this.sharedModel.commentBoxMap.has(commentBoxId);
+  }
+
+  /**
+   * Returns whether the element exists in the graph.
+   * Can be an operator, comment box, or link.
+   * @param id element ID
+   */
+  public hasElementWithID(id: string): boolean {
+    return this.hasOperator(id) || this.hasCommentBox(id) || this.hasLinkWithID(id);
+  }
+
+  /**
+   * Gets the operator with the operatorID. The object version of the operator is returned, as opposed to y-type data.
    * Throws an Error if the operator doesn't exist.
    * @param operatorID operator ID
    */
   public getOperator(operatorID: string): OperatorPredicate {
-    const operator = this.operatorIDMap.get(operatorID);
-    if (!operator) {
+    if (!this.sharedModel.operatorIDMap.has(operatorID)) {
       throw new Error(`operator ${operatorID} does not exist`);
     }
+    const yoperator = this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
+    const operator = yoperator.toJSON();
     return operator;
   }
 
+  /**
+   * Gets the comment box with the commentBoxID. The object version is returned, as opposed to y-type data.
+   * Throws an Error if the comment box doesn't exist.
+   * @param commentBoxID
+   */
   public getCommentBox(commentBoxID: string): CommentBox {
-    const commentBox = this.commentBoxMap.get(commentBoxID);
+    const commentBox = this.sharedModel.commentBoxMap.get(commentBoxID) as YType<CommentBox>;
     if (!commentBox) {
       throw new Error(`commentBox ${commentBoxID} does not exist`);
     }
-    return commentBox;
+    return commentBox.toJSON();
   }
 
   /**
-   * Returns an array of all operators in the graph
+   * Returns an array of all operators in the graph.
    */
   public getAllOperators(): OperatorPredicate[] {
-    return Array.from(this.operatorIDMap.values());
+    return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>).map(v =>
+      v.toJSON()
+    );
   }
 
+  /**
+   * Returns an array of all enabled operators in the graph.
+   */
   public getAllEnabledOperators(): ReadonlyArray<OperatorPredicate> {
-    return Array.from(this.operatorIDMap.values()).filter(op => !this.isOperatorDisabled(op.operatorID));
+    return Array.from(this.sharedModel.operatorIDMap.values() as IterableIterator<YType<OperatorPredicate>>)
+      .map(v => v.toJSON())
+      .filter(op => !this.isOperatorDisabled(op.operatorID));
   }
 
+  /**
+   * Returns an array of all the comment boxes in the graph.
+   */
   public getAllCommentBoxes(): CommentBox[] {
-    return Array.from(this.commentBoxMap.values());
+    return Array.from(this.sharedModel.commentBoxMap.values() as IterableIterator<YType<CommentBox>>).map(v =>
+      v.toJSON()
+    );
+  }
+
+  public addPort(operatorID: string, port: PortDescription, isInput: boolean): void {
+    this.assertOperatorExists(operatorID);
+    if (isInput) {
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      inputPorts.push([createYTypeFromObject<PortDescription>(port)]);
+    } else {
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      outputPorts.push([createYTypeFromObject<PortDescription>(port)]);
+    }
+  }
+
+  public removePort(operatorID: string, isInput: boolean): void {
+    this.assertOperatorExists(operatorID);
+    if (isInput) {
+      const inputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("inputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      inputPorts.delete(inputPorts.length - 1, 1);
+    } else {
+      const outputPorts = this.sharedModel.operatorIDMap.get(operatorID)?.get("outputPorts") as Y.Array<
+        YType<PortDescription>
+      >;
+      outputPorts.delete(outputPorts.length - 1, 1);
+    }
+  }
+
+  public hasPort(operatorPortID: OperatorPort): boolean {
+    if (!this.hasOperator(operatorPortID.operatorID)) return false;
+    const operator = this.getOperator(operatorPortID.operatorID);
+    if (operatorPortID.portID.includes("input")) {
+      return (
+        operator.inputPorts.find(portDescription => portDescription.portID === operatorPortID.portID) !== undefined
+      );
+    } else if (operatorPortID.portID.includes("output")) {
+      return (
+        operator.outputPorts.find(portDescription => portDescription.portID === operatorPortID.portID) !== undefined
+      );
+    } else return false;
+  }
+
+  public getPortDescription(operatorPortID: OperatorPort): PortDescription | undefined {
+    if (!this.hasPort(operatorPortID))
+      throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
+    const operator = this.getOperator(operatorPortID.operatorID);
+    if (operatorPortID.portID.includes("input")) {
+      return operator.inputPorts.find(portDescription => portDescription.portID === operatorPortID.portID);
+    } else if (operatorPortID.portID.includes("output")) {
+      return operator.outputPorts.find(portDescription => portDescription.portID === operatorPortID.portID);
+    } else return undefined;
   }
 
   /**
@@ -306,8 +680,7 @@ export class WorkflowGraph {
   public addLink(link: OperatorLink): void {
     this.assertLinkNotExists(link);
     this.assertLinkIsValid(link);
-    this.operatorLinkMap.set(link.linkID, link);
-    this.linkAddSubject.next(link);
+    this.sharedModel.operatorLinkMap.set(link.linkID, link);
   }
 
   /**
@@ -320,10 +693,9 @@ export class WorkflowGraph {
     if (!link) {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
-    this.operatorLinkMap.delete(linkID);
-    this.linkDeleteSubject.next({ deletedLink: link });
+    this.sharedModel.operatorLinkMap.delete(linkID);
     // delete its breakpoint
-    this.linkBreakpointMap.delete(linkID);
+    this.sharedModel.linkBreakpointMap.delete(linkID);
   }
 
   /**
@@ -338,10 +710,9 @@ export class WorkflowGraph {
       throw new Error(`link from ${source.operatorID}.${source.portID}
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
-    this.operatorLinkMap.delete(link.linkID);
-    this.linkDeleteSubject.next({ deletedLink: link });
+    this.sharedModel.operatorLinkMap.delete(link.linkID);
     // delete its breakpoint
-    this.linkBreakpointMap.delete(link.linkID);
+    this.sharedModel.linkBreakpointMap.delete(link.linkID);
   }
 
   /**
@@ -349,11 +720,11 @@ export class WorkflowGraph {
    * @param linkID link ID
    */
   public hasLinkWithID(linkID: string): boolean {
-    return this.operatorLinkMap.has(linkID);
+    return this.sharedModel.operatorLinkMap.has(linkID);
   }
 
   /**
-   * Returns wheter the graph contains the link with the source and target
+   * Returns whether the graph contains the link with the source and target
    * @param source source operator and port of the link
    * @param target target operator and port of the link
    */
@@ -377,7 +748,7 @@ export class WorkflowGraph {
    * @param linkID link ID
    */
   public getLinkWithID(linkID: string): OperatorLink {
-    const link = this.operatorLinkMap.get(linkID);
+    const link = this.sharedModel.operatorLinkMap.get(linkID);
     if (!link) {
       throw new Error(`link ${linkID} does not exist`);
     }
@@ -405,15 +776,18 @@ export class WorkflowGraph {
    * Returns an array of all the links in the graph.
    */
   public getAllLinks(): OperatorLink[] {
-    return Array.from(this.operatorLinkMap.values());
-  }
-
-  public getAllEnabledLinks(): ReadonlyArray<OperatorLink> {
-    return Array.from(this.operatorLinkMap.values()).filter(link => this.isLinkEnabled(link.linkID));
+    return Array.from(this.sharedModel.operatorLinkMap.values());
   }
 
   /**
-   * Return an array of all input links of an operator in the graph.
+   * Returns an array of all the enabled links in the graph.
+   */
+  public getAllEnabledLinks(): ReadonlyArray<OperatorLink> {
+    return Array.from(this.sharedModel.operatorLinkMap.values()).filter(link => this.isLinkEnabled(link.linkID));
+  }
+
+  /**
+   * Returns an array of all input links of an operator in the graph.
    * @param operatorID
    */
   public getInputLinksByOperatorId(operatorID: string): OperatorLink[] {
@@ -421,7 +795,7 @@ export class WorkflowGraph {
   }
 
   /**
-   * Returna an array of all output links of an operator in the graph.
+   * Returns an array of all output links of an operator in the graph.
    * @param operatorID
    */
   public getOutputLinksByOperatorId(operatorID: string): OperatorLink[] {
@@ -430,27 +804,40 @@ export class WorkflowGraph {
 
   /**
    * Sets the property of the operator to use the newProperty object.
+   * Will create a new y-object based on the new property, so <b>the old y-object will be replaced</b> and as such
+   * fine-grained shared-editing will <b>NOT</b> be enabled.
+   *
+   * Also updates local awareness for changed property status.
    *
    * Throws an error if the operator doesn't exist.
    * @param operatorID operator ID
-   * @param newProperty new property to set
+   * @param newProperty new property to set, the new y-object created from this will replace the old structure.
    */
   public setOperatorProperty(operatorID: string, newProperty: object): void {
-    const originalOperatorData = this.operatorIDMap.get(operatorID);
-    if (originalOperatorData === undefined) {
+    if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const oldProperty = originalOperatorData.operatorProperties;
-
-    // constructor a new copy with new operatorProperty and all other original attributes
-    const operator = {
-      ...originalOperatorData,
-      operatorProperties: newProperty,
-    };
+    const previousProperty = this.getSharedOperatorType(operatorID).get(
+      "operatorProperties"
+    ) as YType<OperatorPropertiesType>;
     // set the new copy back to the operator ID map
-    this.operatorIDMap.set(operatorID, operator);
+    updateYTypeFromObject(previousProperty, newProperty);
+  }
 
-    this.operatorPropertyChangeSubject.next({ oldProperty, operator });
+  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+    newProperty = newProperty as PortProperty;
+    if (!this.hasPort(operatorPortID))
+      throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
+    const portDescriptionSharedType = this.getSharedPortDescriptionType(operatorPortID);
+    if (portDescriptionSharedType === undefined) return;
+    portDescriptionSharedType.set(
+      "partitionRequirement",
+      createYTypeFromObject<PartitionInfo>((newProperty as PortProperty).partitionInfo) as unknown as PartitionInfo
+    );
+    portDescriptionSharedType.set(
+      "dependencies",
+      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
+    );
   }
 
   /**
@@ -462,13 +849,11 @@ export class WorkflowGraph {
    */
   public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint | undefined): void {
     this.assertLinkWithIDExists(linkID);
-    const oldBreakpoint = this.linkBreakpointMap.get(linkID);
     if (breakpoint === undefined || Object.keys(breakpoint).length === 0) {
-      this.linkBreakpointMap.delete(linkID);
+      this.sharedModel.linkBreakpointMap.delete(linkID);
     } else {
-      this.linkBreakpointMap.set(linkID, breakpoint);
+      this.sharedModel.linkBreakpointMap.set(linkID, breakpoint);
     }
-    this.breakpointChangeStream.next({ oldBreakpoint, linkID });
   }
 
   /**
@@ -478,16 +863,22 @@ export class WorkflowGraph {
    * @param linkID
    */
   public getLinkBreakpoint(linkID: string): Breakpoint | undefined {
-    return this.linkBreakpointMap.get(linkID);
+    return this.sharedModel.linkBreakpointMap.get(linkID);
   }
 
+  /**
+   * Returns all link breakpoints as a readonly map. This returns the internal YMap directly.
+   */
   public getAllLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    return this.linkBreakpointMap;
+    return this.sharedModel.linkBreakpointMap;
   }
 
+  /**
+   * Returns breakpoints filtered by enabled status. This returns a new map from the internal YMap.
+   */
   public getAllEnabledLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
     const enabledBreakpoints = new Map();
-    this.linkBreakpointMap.forEach((breakpoint, linkID) => {
+    this.sharedModel.linkBreakpointMap.forEach((breakpoint, linkID) => {
       if (this.isLinkEnabled(linkID)) {
         enabledBreakpoints.set(linkID, breakpoint);
       }
@@ -504,10 +895,11 @@ export class WorkflowGraph {
 
   /**
    * Gets the observable event stream of an operator being deleted from the graph.
-   * The observable value is the deleted operator.
+   * The observable value is only the deleted operator's ID since a deleted YMap
+   * (the internal structure of the operator) cannot be retrieved.
    */
   public getOperatorDeleteStream(): Observable<{
-    deletedOperator: OperatorPredicate;
+    deletedOperatorID: string;
   }> {
     return this.operatorDeleteSubject.asObservable();
   }
@@ -531,11 +923,26 @@ export class WorkflowGraph {
     return this.commentBoxAddCommentSubject.asObservable();
   }
 
-  public getCachedOperatorsChangedStream(): Observable<{
-    newCached: ReadonlyArray<string>;
-    newUnCached: ReadonlyArray<string>;
+  public getCommentBoxDeleteCommentStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxDeleteCommentSubject.asObservable();
+  }
+
+  public getCommentBoxEditCommentStream(): Observable<{ commentBox: CommentBox }> {
+    return this.commentBoxEditCommentSubject.asObservable();
+  }
+
+  public getViewResultOperatorsChangedStream(): Observable<{
+    newViewResultOps: ReadonlyArray<string>;
+    newUnviewResultOps: ReadonlyArray<string>;
   }> {
-    return this.cachedOperatorChangedSubject.asObservable();
+    return this.viewResultOperatorChangedSubject.asObservable();
+  }
+
+  public getReuseCacheOperatorsChangedStream(): Observable<{
+    newReuseCacheOps: ReadonlyArray<string>;
+    newUnreuseCacheOps: ReadonlyArray<string>;
+  }> {
+    return this.reuseOperatorChangedSubject.asObservable();
   }
 
   public getOperatorDisplayNameChangedStream(): Observable<{
@@ -543,6 +950,13 @@ export class WorkflowGraph {
     newDisplayName: string;
   }> {
     return this.operatorDisplayNameChangedSubject.asObservable();
+  }
+
+  public getOperatorVersionChangedStream(): Observable<{
+    operatorID: string;
+    newOperatorVersion: string;
+  }> {
+    return this.operatorVersionChangedSubject.asObservable();
   }
 
   /**
@@ -562,10 +976,9 @@ export class WorkflowGraph {
 
   /**
    * Gets the observable event stream of a change in operator's properties.
-   * The observable value includes the old property that is replaced, and the operator with new property.
+   * The observable value includes the operator with new property.
    */
   public getOperatorPropertyChangeStream(): Observable<{
-    oldProperty: object;
     operator: OperatorPredicate;
   }> {
     return this.operatorPropertyChangeSubject.asObservable();
@@ -579,6 +992,27 @@ export class WorkflowGraph {
     linkID: string;
   }> {
     return this.breakpointChangeStream.asObservable();
+  }
+
+  public getPortAddedOrDeletedStream(): Observable<{
+    newOperator: OperatorPredicate;
+  }> {
+    return this.portAddedOrDeletedSubject.asObservable();
+  }
+
+  public getPortDisplayNameChangedSubject(): Observable<{
+    operatorID: string;
+    portID: string;
+    newDisplayName: string;
+  }> {
+    return this.portDisplayNameChangedSubject;
+  }
+
+  public getPortPropertyChangedStream(): Observable<{
+    operatorPortID: OperatorPort;
+    newProperty: PortProperty;
+  }> {
+    return this.portPropertyChangedSubject.asObservable();
   }
 
   /**

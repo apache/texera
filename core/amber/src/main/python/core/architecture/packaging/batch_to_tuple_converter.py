@@ -17,6 +17,16 @@ class BatchToTupleConverter:
             LinkIdentity, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
         self._current_link: Optional[LinkIdentity] = None
+        self._all_upstream_link_ids: Set[LinkIdentity] = set()
+        self._end_received_from_workers: defaultdict[
+            LinkIdentity, Set[ActorVirtualIdentity]
+        ] = defaultdict(set)
+        self._completed_link_ids: Set[LinkIdentity] = set()
+
+    def update_all_upstream_link_ids(
+        self, upstream_link_ids: Set[LinkIdentity]
+    ) -> None:
+        self._all_upstream_link_ids = upstream_link_ids
 
     def register_input(
         self, identifier: ActorVirtualIdentity, input_: LinkIdentity
@@ -46,11 +56,11 @@ class BatchToTupleConverter:
                 )
 
         elif isinstance(payload, EndOfUpstream):
-            self._upstream_map[link].remove(from_)
-            if len(self._upstream_map[link]) == 0:
-                del self._upstream_map[link]
+            self._end_received_from_workers[link].add(from_)
+            if self._upstream_map[link] == self._end_received_from_workers[link]:
+                self._completed_link_ids.add(link)
                 yield InputExhausted()
-            if len(self._upstream_map) == 0:
+            if self._completed_link_ids == self._all_upstream_link_ids:
                 yield EndOfAllMarker()
 
         else:

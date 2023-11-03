@@ -18,13 +18,13 @@ import scala.collection.mutable.ArrayBuffer
 import scala.util.Random.{nextInt, nextLong}
 
 class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
-  val left: LinkIdentity = linkID()
-  val right: LinkIdentity = linkID()
+  val left: Int = 0
+  val right: Int = 1
 
   var opDesc: IntervalJoinOpDesc = _
   var counter: Int = 0
 
-  def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
+  def linkID(): LinkIdentity = LinkIdentity(layerID(), fromPort = 0, layerID(), toPort = 0)
 
   def layerID(): LayerIdentity = {
     counter += 1
@@ -209,7 +209,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val inputSchemas =
       Array(schema(leftKey, dataType), schema(rightKey, dataType))
     opDesc = new IntervalJoinOpDesc(
-      left,
       leftKey,
       rightKey,
       inputSchemas,
@@ -238,7 +237,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         ) < rightOrder(rightIndex))
       ) {
         val result = opExec
-          .processTexeraTuple(Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)), left)
+          .processTexeraTuple(
+            Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)),
+            left,
+            null,
+            null
+          )
           .toBuffer
         outputTuples.appendAll(
           result
@@ -246,7 +250,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         leftIndex += 1
       } else if (rightIndex < rightOrder.size) {
         val result = opExec
-          .processTexeraTuple(Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)), right)
+          .processTexeraTuple(
+            Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)),
+            right,
+            null,
+            null
+          )
           .toBuffer
         outputTuples.appendAll(
           result
@@ -263,8 +272,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       dataType
     )
     assert(outputTuples.size == bruteForceResult)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), right).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), left, null, null).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), right, null, null).isEmpty)
     if (outputTuples.nonEmpty)
       assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
     opExec.close()
@@ -395,7 +404,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       Array(schema("point", AttributeType.DOUBLE), schema("range", AttributeType.DOUBLE))
 
     val opDesc = new IntervalJoinOpDesc(
-      left,
       "point_1",
       "range_1",
       inputSchemas,
@@ -415,13 +423,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(
-        opExec.processTexeraTuple(Left(doubleTuple("point", 1, i)), left).isEmpty
+        opExec.processTexeraTuple(Left(doubleTuple("point", 1, i)), left, null, null).isEmpty
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), left).isEmpty)
+    assert(opExec.processTexeraTuple(Right(InputExhausted()), left, null, null).isEmpty)
     val rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
     val outputTuples = rangeList
-      .map(i => opExec.processTexeraTuple(Left(doubleTuple("range", 1, i)), right))
+      .map(i => opExec.processTexeraTuple(Left(doubleTuple("range", 1, i)), right, null, null))
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
     assert(outputTuples.size == 11)

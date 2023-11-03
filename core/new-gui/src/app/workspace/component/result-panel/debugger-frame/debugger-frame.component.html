@@ -4,8 +4,7 @@
   *ngIf="breakpointTriggerInfo !== undefined"
   [disabled]="!breakpointAction"
   [hidden]="true"
-  nz-button
->
+  nz-button>
   Skip Records
 </button>
 
@@ -14,39 +13,51 @@
   (click)="onClickRetry()"
   *ngIf="breakpointTriggerInfo?.operatorID===this.operatorId"
   [disabled]="!breakpointAction"
-  nz-button
->
+  nz-button>
   Retry current Tuple
 </button>
 
 <nz-tree-view
   *ngIf="pythonExpressionSource"
   [nzDataSource]="pythonExpressionSource"
-  [nzTreeControl]="expressionTreeControl"
->
-  <nz-tree-node *nzTreeNodeDef="let node; when: hasNoContent" nzTreeNodeIndentLine>
+  [nzTreeControl]="expressionTreeControl">
+  <nz-tree-node
+    *nzTreeNodeDef="let node; when: hasNoContent"
+    nzTreeNodeIndentLine>
     <input
       #inputElement
       (focusout)="saveNode(node, inputElement.value)"
       (keyup.enter)="saveNode(node, inputElement.value)"
       nz-input
       nzSize="small"
-      placeholder="expression"
-    />
+      placeholder="expression" />
   </nz-tree-node>
-  <nz-tree-node *nzTreeNodeDef="let node" class="expression-tree-container" nzTreeNodePadding>
+  <nz-tree-node
+    *nzTreeNodeDef="let node"
+    class="expression-tree-container"
+    nzTreeNodePadding>
     <!-- triangle icon for showing expand or not -->
     <nz-tree-node-toggle *ngIf="node.expandable && !node.loading">
-      <i nz-icon nzTreeNodeToggleRotateIcon nzType="caret-down"></i>
+      <i
+        nz-icon
+        nzTreeNodeToggleRotateIcon
+        nzType="caret-down"></i>
     </nz-tree-node-toggle>
 
     <!-- loading icon indicating waiting for data -->
-    <nz-tree-node-toggle *ngIf="node.expandable && node.loading" nzTreeNodeNoopToggle>
-      <i nz-icon nzTreeNodeToggleActiveIcon nzType="loading"></i>
+    <nz-tree-node-toggle
+      *ngIf="node.expandable && node.loading"
+      nzTreeNodeNoopToggle>
+      <i
+        nz-icon
+        nzTreeNodeToggleActiveIcon
+        nzType="loading"></i>
     </nz-tree-node-toggle>
 
     <!-- disabled toggle for indentation purpose -->
-    <nz-tree-node-toggle *ngIf="!node.expandable" nzTreeNodeNoopToggle></nz-tree-node-toggle>
+    <nz-tree-node-toggle
+      *ngIf="!node.expandable"
+      nzTreeNodeNoopToggle></nz-tree-node-toggle>
     <div class="evaluated-expression">
       <span class="node-name">{{ node.name }}</span>
       <span class="node-type">({{ node.type }})</span>
@@ -62,7 +73,9 @@
   nz-tooltip="evaluate new expression"
   nzSize="small"
   nzTooltipPlacement="bottom"
-  nzType="text"
->
-  <i nz-icon nzTheme="outline" nzType="plus"></i>
+  nzType="text">
+  <i
+    nz-icon
+    nzTheme="outline"
+    nzType="plus"></i>
 </button>

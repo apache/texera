@@ -7,10 +7,7 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import * as c from "./operator-menu-frame.component";
 import { OperatorMenuFrameComponent } from "./operator-menu-frame.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
-import {
-  EMPTY_OPERATOR_METADATA,
-  OperatorMetadataService,
-} from "../../../service/operator-metadata/operator-metadata.service";
+import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { GroupInfo, OperatorSchema } from "../../../types/operator-schema.interface";
 import { RouterTestingModule } from "@angular/router/testing";
@@ -30,25 +27,23 @@ describe("OperatorPanelComponent", () => {
   let component: OperatorMenuFrameComponent;
   let fixture: ComponentFixture<OperatorMenuFrameComponent>;
 
-  beforeEach(
-    waitForAsync(() => {
-      TestBed.configureTestingModule({
-        declarations: [OperatorMenuFrameComponent, OperatorLabelComponent],
-        providers: [
-          {
-            provide: OperatorMetadataService,
-            useClass: StubOperatorMetadataService,
-          },
-          DragDropService,
-          WorkflowActionService,
-          UndoRedoService,
-          WorkflowUtilService,
-          JointUIService,
-        ],
-        imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
-      }).compileComponents();
-    })
-  );
+  beforeEach(waitForAsync(() => {
+    TestBed.configureTestingModule({
+      declarations: [OperatorMenuFrameComponent, OperatorLabelComponent],
+      providers: [
+        {
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
+        },
+        DragDropService,
+        WorkflowActionService,
+        UndoRedoService,
+        WorkflowUtilService,
+        JointUIService,
+      ],
+      imports: [NzDropDownModule, NzCollapseModule, BrowserAnimationsModule, RouterTestingModule.withRoutes([])],
+    }).compileComponents();
+  }));
 
   beforeEach(() => {
     fixture = TestBed.createComponent(OperatorMenuFrameComponent);
@@ -100,14 +95,6 @@ describe("OperatorPanelComponent", () => {
     expectedResult.set("Source", sourceOperators);
     expectedResult.set("Analysis", analysisOperators);
     expectedResult.set("View Results", resultOperators);
-
-    expect(result).toEqual(expectedResult);
-  });
-
-  it("should generate a map from operator groups to a list operators correctly from an empty list", () => {
-    const opMetadata = EMPTY_OPERATOR_METADATA;
-    const result = c.getOperatorGroupMap(opMetadata);
-    const expectedResult = new Map<string, OperatorSchema[]>();
 
     expect(result).toEqual(expectedResult);
   });

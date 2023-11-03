@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.ManyToOneOpExecConfig
+import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -13,9 +13,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
-import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 
-import java.io.IOException
+import java.io.{File, FileInputStream, IOException, InputStreamReader}
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
@@ -34,14 +33,14 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     // fill in default values
-    if (customDelimiter.get.isEmpty)
+    if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
     filePath match {
       case Some(_) =>
-        new ManyToOneOpExecConfig(operatorIdentifier, _ => new CSVScanSourceOpExec(this))
+        OpExecConfig.localLayer(operatorIdentifier, _ => new CSVScanSourceOpExec(this))
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
@@ -61,40 +60,42 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (filePath.isEmpty) {
       return null
     }
-    implicit object CustomFormat extends DefaultCSVFormat {
-      override val delimiter: Char = customDelimiter.get.charAt(0)
+    val inputReader =
+      new InputStreamReader(new FileInputStream(new File(filePath.get)), fileEncoding.getCharset)
+
+    val csvFormat = new CsvFormat()
+    csvFormat.setDelimiter(customDelimiter.get.charAt(0))
+    csvFormat.setLineSeparator("\n")
+    val csvSetting = new CsvParserSettings()
+    csvSetting.setMaxCharsPerColumn(-1)
+    csvSetting.setFormat(csvFormat)
+    csvSetting.setHeaderExtractionEnabled(hasHeader)
+    csvSetting.setNullValue("")
+    val parser = new CsvParser(csvSetting)
+    parser.beginParsing(inputReader)
+
+    var data: Array[Array[String]] = Array()
+    val readLimit = limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
+    for (i <- 0 until readLimit) {
+      val row = parser.parseNext()
+      if (row != null) {
+        data = data :+ row
+      }
     }
-    var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
-    val firstRow: Array[String] = reader.iterator.next().toArray
-    reader.close()
+    parser.stopParsing()
+    inputReader.close()
 
-    // reopen the file to read from the beginning
-    reader = CSVReader.open(filePath.get)(CustomFormat)
-
-    val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
-    val endOffset =
-      startOffset + limit.getOrElse(INFER_READ_LIMIT).min(INFER_READ_LIMIT)
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      reader.iterator
-        .slice(startOffset, endOffset)
-        .map(seq => seq.toArray)
+      data.iterator.asInstanceOf[Iterator[Array[Object]]]
     )
+    val header: Array[String] =
+      if (hasHeader) parser.getContext.headers()
+      else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
-    reader.close()
-
-    // build schema based on inferred AttributeTypes
-    Schema.newBuilder
-      .add(
-        firstRow.indices
-          .map((i: Int) =>
-            new Attribute(
-              if (hasHeader) firstRow.apply(i) else "column-" + (i + 1),
-              attributeTypeList.apply(i)
-            )
-          )
-          .asJava
-      )
-      .build
+    Schema
+      .newBuilder()
+      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))).asJava)
+      .build()
   }
 
 }

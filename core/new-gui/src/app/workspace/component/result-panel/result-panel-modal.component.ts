@@ -1,5 +1,9 @@
-import { Component, Input } from "@angular/core";
+import { Component, Input, OnChanges } from "@angular/core";
 import { NzModalRef } from "ng-zorro-antd/modal";
+import { trimDisplayJsonData } from "src/app/common/util/json";
+import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  *
@@ -14,19 +18,33 @@ import { NzModalRef } from "ng-zorro-antd/modal";
  *  3. Clicking any shaded area that is not the pop-up window
  *  4. Pressing `Esc` button on the keyboard
  */
+@UntilDestroy()
 @Component({
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
   styleUrls: ["./result-panel.component.scss"],
 })
-export class RowModalComponent {
+export class RowModalComponent implements OnChanges {
+  // Index of current displayed row in currentResult
+  @Input() operatorId?: string;
+  @Input() rowIndex: number = 0;
+
   // when modal is opened, currentDisplayRow will be passed as
   //  componentInstance to this NgbModalComponent to display
   //  as data table.
-  @Input() currentDisplayRowData: Record<string, unknown> = {};
+  currentDisplayRowData: Record<string, unknown> = {};
 
-  // Index of currentDisplayRowData in currentResult
-  @Input() currentDisplayRowIndex: number = 0;
+  constructor(public modal: NzModalRef<any, number>, private workflowResultService: WorkflowResultService) {}
 
-  constructor(public modal: NzModalRef<any, number>) {}
+  ngOnChanges(): void {
+    if (this.operatorId !== undefined) {
+      const resultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
+      resultService
+        ?.selectTuple(this.rowIndex, DEFAULT_PAGE_SIZE)
+        .pipe(untilDestroyed(this))
+        .subscribe(res => {
+          this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
+        });
+    }
+  }
 }

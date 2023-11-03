@@ -1,5 +1,31 @@
 @import "../workspace.component.scss";
 
+// CSS properties to make drop-down menu display long text in multiple lines
+// solution from https://stackoverflow.com/questions/52832889/not-enough-space-in-mat-select-how-to-add-multiple-line-mat-option
+// !important is used to override Angular's default styles
+
+// the following styles are for dropdown menu
+::ng-deep .mat-select-panel mat-option.mat-option {
+  height: unset !important;
+  padding-top: 0.5em !important;
+  padding-bottom: 0.5em !important;
+}
+
+::ng-deep .mat-option-text.mat-option-text {
+  white-space: normal !important;
+  line-height: 1.5em !important;
+}
+
+// the following styles are for selected value
+::ng-deep .mat-select-value {
+  height: unset !important;
+}
+
+::ng-deep .mat-select-value-text {
+  white-space: normal !important;
+  line-height: 1.4em !important;
+}
+
 .texera-workspace-property-editor-body {
   padding: 16px;
   padding-right: 24px;
@@ -11,13 +37,6 @@
   background-color: white;
   margin-top: 10px;
   left: 30px;
-}
-
-.mat-icon-button {
-  width: 5%;
-  height: 10%;
-  line-height: 0%;
-  float: left;
 }
 
 .container {
@@ -66,57 +85,7 @@
     font-size: 8px;
   }
 
-  h3.mat-subheader {
-    font-size: 20px;
-  }
-
-  .mat-hint {
-    font-size: 10px;
-  }
-
   div.attribute-title {
     font-size: 16px;
   }
-
-  legend.ng-star-inserted,
-  .mat-button-wrapper {
-    font-size: 14px;
-  }
-
-  p.ng-star-inserted {
-    font-size: 10px;
-  }
-
-  .mat-form-field-subscript-wrapper {
-    height: 20px;
-  }
-
-  // TODO: try and edit the configurations below.
-
-  //.mat-form-field-infix ,.mat-form-field-wrapper,.mat-form-field,.mat-primary,.mat-form-field-type-mat-input{
-  //  width: 50px
-  //}
-  //.mat-form-field-wrapper {
-  //  height: 80px;
-  //}
-
-  //formly-field [class*="col-"], .mat-form-field-infix{
-  //  width: 50px
-  //}
-  //
-  //.mat-form-field-infix{
-  //  width: 50px
-  //}
-
-  //.mat-input-element{
-  //  width: 100px
-  //}
-
-  //.mat-list-item {
-  //  height: 80px;
-  //}
-
-  //.mat-form-field-wrapper{
-  //  height: 80px;
-  //}
 }

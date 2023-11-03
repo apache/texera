@@ -1,5 +1,4 @@
 import { fakeAsync, TestBed, tick } from "@angular/core/testing";
-
 import { UserService } from "./user.service";
 import { AuthService } from "./auth.service";
 import { StubAuthService } from "./stub-auth.service";

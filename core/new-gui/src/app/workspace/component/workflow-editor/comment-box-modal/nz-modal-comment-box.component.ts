@@ -1,6 +1,6 @@
 import { Component, HostListener, Inject, Input, LOCALE_ID } from "@angular/core";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import { CommentBox } from "src/app/workspace/types/workflow-common.interface";
+import { CommentBox, Comment } from "src/app/workspace/types/workflow-common.interface";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UserService } from "src/app/common/service/user/user.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
@@ -8,6 +8,8 @@ import { User } from "src/app/common/type/user";
 import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { formatDate } from "@angular/common";
+import { Array as YArray } from "yjs";
+import { YType } from "../../../types/shared-editing.interface";
 
 @UntilDestroy()
 @Component({
@@ -16,7 +18,7 @@ import { formatDate } from "@angular/common";
   styleUrls: ["./nz-modal-comment-box.component.scss"],
 })
 export class NzModalCommentBoxComponent {
-  @Input() commentBox!: CommentBox;
+  @Input() commentBox!: YType<CommentBox>;
   public user?: User;
 
   constructor(
@@ -34,6 +36,7 @@ export class NzModalCommentBoxComponent {
 
   inputValue = "";
   submitting = false;
+  editValue = "";
 
   public onClickAddComment(): void {
     this.submitting = true;
@@ -52,10 +55,67 @@ export class NzModalCommentBoxComponent {
     const creatorID = this.user.uid;
     this.workflowActionService.addComment(
       { content, creatorName, creatorID, creationTime },
-      this.commentBox.commentBoxID
+      this.commentBox.get("commentBoxID").toJSON() as string
     );
   }
 
+  public deleteComment(creatorID: number, creationTime: string): void {
+    if (!this.user) {
+      return;
+    }
+    this.workflowActionService.deleteComment(
+      creatorID,
+      creationTime,
+      this.commentBox.get("commentBoxID").toJSON() as string
+    );
+  }
+
+  public toggleEditInput(creatorName: string, creationTime: string): void {
+    const currTxArea = document.getElementById("txarea" + creatorName + creationTime);
+    const currComment = document.getElementById("comment" + creatorName + creationTime);
+    const btn = document.getElementById("editbtn" + creatorName + creationTime);
+    if (currTxArea == null || btn == null || currComment == null) {
+      return;
+    }
+    const hiddenTextArea = currTxArea.getAttribute("hidden");
+    const hiddenComment = currComment.getAttribute("hidden");
+    if (hiddenTextArea && !hiddenComment) {
+      currComment.setAttribute("hidden", "hidden");
+      currTxArea.removeAttribute("hidden");
+      btn.removeAttribute("hidden");
+      if (currComment.textContent != null) {
+        this.editValue = currComment.textContent;
+      }
+    } else {
+      currTxArea.setAttribute("hidden", "hidden");
+      btn.setAttribute("hidden", "hidden");
+      currComment.removeAttribute("hidden");
+      this.editValue = "";
+    }
+  }
+  public editComment(creatorID: number, creatorName: string, creationTime: string): void {
+    if (!this.user) {
+      return;
+    }
+    const newContent = this.editValue;
+    this.editValue = "";
+    this.workflowActionService.editComment(
+      creatorID,
+      creationTime,
+      this.commentBox.get("commentBoxID").toJSON() as string,
+      newContent
+    );
+    const currTxArea = document.getElementById("txarea" + creatorName + creationTime);
+    const btn = document.getElementById("editbtn" + creatorName + creationTime);
+    if (currTxArea == null || btn == null) {
+      return;
+    }
+    currTxArea.setAttribute("hidden", "hidden");
+    btn.setAttribute("hidden", "hidden");
+  }
+  public replyToComment(creatorName: string, content: string) {
+    this.inputValue += "@" + creatorName + ":\"" + content + "\"\n";
+  }
   toRelative(datetime: string): string {
     return formatDate(new Date(datetime), "MM/dd/yyyy, hh:mm:ss a z", this.locale);
   }

@@ -7,16 +7,16 @@ import com.fasterxml.jackson.annotation.{
 }
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.operators.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList,
   UIWidget
+}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
 }
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -24,14 +24,15 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   OperatorSchemaInfo,
   Schema
 }
-import edu.uci.ics.texera.workflow.operators.source.sql.{SQLSourceOpDesc, SQLSourceOpExecConfig}
+import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
+import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
   fetchDataTypeFields,
   queryAsterixDB
 }
 import kong.unirest.json.JSONObject
-import java.util.Collections.singletonList
 
+import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
 
 @JsonIgnoreProperties(value = Array("username", "password"))
@@ -77,6 +78,16 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var regex: Option[String] = None
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Filter Condition?")
+  @JsonDeserialize(contentAs = classOf[java.lang.Boolean])
+  @JsonSchemaInject(json = """{"toggleHidden" : ["predicates"]}""")
+  var filterCondition: Option[Boolean] = Option(false)
+
+  @JsonProperty(value = "predicates", required = false)
+  @JsonPropertyDescription("multiple predicates in OR")
+  var filterPredicates: List[FilterPredicate] = List()
+
   @JsonProperty()
   @JsonSchemaTitle("Keywords to Search")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
@@ -86,10 +97,10 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   )
   override def getKeywords: Option[String] = super.getKeywords
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    new SQLSourceOpExecConfig(
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+    OpExecConfig.localLayer(
       this.operatorIdentifier,
-      (worker: Any) =>
+      _ =>
         new AsterixDBSourceOpExec(
           sourceSchema(),
           host,
@@ -111,7 +122,9 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           geoSearchBoundingBox,
           regexSearch.getOrElse(false),
           regexSearchByColumn.orNull,
-          regex.orNull
+          regex.orNull,
+          filterCondition.getOrElse(false),
+          filterPredicates
         )
     )
 

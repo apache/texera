@@ -4,17 +4,17 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
-  AttributeTypeUtils,
   OperatorSchemaInfo
 }
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
 import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
+import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import java.time.{LocalDateTime, ZoneId, ZoneOffset}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
@@ -70,69 +70,7 @@ class TwitterFullArchiveSearchSourceOpExec(
 
         val user = userCache.get(tweet.getAuthorId)
 
-        val fields = AttributeTypeUtils.parseFields(
-          Array[Object](
-            tweet.getId,
-            tweet.getText,
-            // given the fact that the redouane59/twittered library is using LocalDateTime as the API parameter,
-            // we have to fix it to UTC time zone to normalize the time.
-            tweet.getCreatedAt
-              .atZone(ZoneId.systemDefault())
-              .withZoneSameInstant(ZoneId.of("UTC"))
-              .toLocalDateTime
-              .atOffset(ZoneOffset.UTC)
-              .format(DateTimeFormatter.ISO_DATE_TIME),
-            tweet.getLang,
-            tweet.getTweetType.toString,
-            // TODO: add actual geo related information
-            Option(tweet.getGeo).map(_.getPlaceId).orNull,
-            Option(tweet.getGeo).map(_.getCoordinates).orNull,
-            tweet.getInReplyToStatusId,
-            tweet.getInReplyToUserId,
-            java.lang.Long.valueOf(tweet.getLikeCount),
-            java.lang.Long.valueOf(tweet.getQuoteCount),
-            java.lang.Long.valueOf(tweet.getReplyCount),
-            java.lang.Long.valueOf(tweet.getRetweetCount),
-            Option(tweet.getEntities)
-              .map(e => Option(e.getHashtags).map(_.map(x => x.getText).mkString(",")).orNull)
-              .orNull,
-            Option(tweet.getEntities)
-              .map(e => Option(e.getSymbols).map(_.map(x => x.getText).mkString(",")).orNull)
-              .orNull,
-            Option(tweet.getEntities)
-              .map(e => Option(e.getUrls).map(_.map(x => x.getExpandedUrl).mkString(",")).orNull)
-              .orNull,
-            Option(tweet.getEntities)
-              .map(e => Option(e.getUserMentions).map(_.map(x => x.getText).mkString(",")).orNull)
-              .orNull,
-            user.get.getId,
-            user.get.getCreatedAt,
-            user.get.getName,
-            user.get.getDisplayedName,
-            user.get.getLang,
-            user.get.getDescription,
-            Option(user.get.getPublicMetrics)
-              .map(u => java.lang.Long.valueOf(u.getFollowersCount))
-              .orNull,
-            Option(user.get.getPublicMetrics)
-              .map(u => java.lang.Long.valueOf(u.getFollowingCount))
-              .orNull,
-            Option(user.get.getPublicMetrics)
-              .map(u => java.lang.Long.valueOf(u.getTweetCount))
-              .orNull,
-            Option(user.get.getPublicMetrics)
-              .map(u => java.lang.Long.valueOf(u.getListedCount))
-              .orNull,
-            user.get.getLocation,
-            user.get.getUrl,
-            user.get.getProfileImageUrl,
-            user.get.getPinnedTweetId,
-            Boolean.box(user.get.isProtectedAccount),
-            Boolean.box(user.get.isVerified)
-          ),
-          outputSchemaAttributes
-        )
-        Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0)).addSequentially(fields).build
+        tweetDataToTuple(tweet, user, operatorSchemaInfo.outputSchemas(0))
       }
     }
 

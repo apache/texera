@@ -9,11 +9,13 @@ import {
 } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
-import { Observable, of, Subject } from "rxjs";
+import { map, Observable, of, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { ChartType } from "../../types/visualization.interface";
+import { IndexableObject } from "../../types/result-table.interface";
+import { isDefined } from "../../../common/util/predicate";
 
-export const DEFAULT_PAGE_SIZE = 10;
+export const DEFAULT_PAGE_SIZE = 5;
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
@@ -34,6 +36,18 @@ export class WorkflowResultService {
     this.wsService
       .subscribeToEvent("WorkflowAvailableResultEvent")
       .subscribe(event => this.handleCleanResultCache(event));
+  }
+
+  public hasAnyResult(operatorID: string): boolean {
+    return this.hasResult(operatorID) || this.hasPaginatedResult(operatorID);
+  }
+
+  public hasResult(operatorID: string): boolean {
+    return isDefined(this.getResultService(operatorID));
+  }
+
+  public hasPaginatedResult(operatorID: string): boolean {
+    return isDefined(this.getPaginatedResultService(operatorID));
   }
 
   public getResultUpdateStream(): Observable<Record<string, WebResultUpdate | undefined>> {
@@ -68,10 +82,10 @@ export class WorkflowResultService {
       }
     });
     // for each operator that has results:
-    Object.entries(event.availableOperators).forEach(availabeOp => {
-      const op = availabeOp[0];
-      const cacheValid = availabeOp[1].cacheValid;
-      const outputMode = availabeOp[1].outputMode;
+    Object.entries(event.availableOperators).forEach(availableOp => {
+      const op = availableOp[0];
+      const cacheValid = availableOp[1].cacheValid;
+      const outputMode = availableOp[1].outputMode;
 
       // make sure to init or reuse result service for each operator
       const resultService = (() => {
@@ -185,6 +199,16 @@ class OperatorPaginationResultService {
 
   public getCurrentTotalNumTuples(): number {
     return this.currentTotalNumTuples;
+  }
+
+  public selectTuple(tupleIndex: number, pageSize: number): Observable<IndexableObject> {
+    if (pageSize !== DEFAULT_PAGE_SIZE) {
+      throw new Error("only support fixed page size right now");
+    }
+    // calculate the page index
+    // remember that page index starts from 1
+    const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
+    return this.selectPage(pageIndex, pageSize).pipe(map(p => p.table[tupleIndex % pageSize]));
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {

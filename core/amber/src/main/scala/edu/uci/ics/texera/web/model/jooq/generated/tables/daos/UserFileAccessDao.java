@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserFileAccessRecord;
 
@@ -69,30 +70,16 @@ public class UserFileAccessDao extends DAOImpl<UserFileAccessRecord, edu.uci.ics
     }
 
     /**
-     * Fetch records that have <code>read_access BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>privilege BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchRangeOfReadAccess(Boolean lowerInclusive, Boolean upperInclusive) {
-        return fetchRange(UserFileAccess.USER_FILE_ACCESS.READ_ACCESS, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchRangeOfPrivilege(UserFileAccessPrivilege lowerInclusive, UserFileAccessPrivilege upperInclusive) {
+        return fetchRange(UserFileAccess.USER_FILE_ACCESS.PRIVILEGE, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>read_access IN (values)</code>
+     * Fetch records that have <code>privilege IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchByReadAccess(Boolean... values) {
-        return fetch(UserFileAccess.USER_FILE_ACCESS.READ_ACCESS, values);
-    }
-
-    /**
-     * Fetch records that have <code>write_access BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchRangeOfWriteAccess(Boolean lowerInclusive, Boolean upperInclusive) {
-        return fetchRange(UserFileAccess.USER_FILE_ACCESS.WRITE_ACCESS, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>write_access IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchByWriteAccess(Boolean... values) {
-        return fetch(UserFileAccess.USER_FILE_ACCESS.WRITE_ACCESS, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.UserFileAccess> fetchByPrivilege(UserFileAccessPrivilege... values) {
+        return fetch(UserFileAccess.USER_FILE_ACCESS.PRIVILEGE, values);
     }
 }

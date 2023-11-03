@@ -2,19 +2,20 @@ package edu.uci.ics.texera
 
 import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import org.apache.lucene.analysis.CharArraySet
 
 import java.nio.file.{Files, Path, Paths}
 import java.text.SimpleDateFormat
-import java.util.concurrent.locks.{Lock, ReentrantLock}
+import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
 
 object Utils {
 
   final val objectMapper = new ObjectMapper()
     .registerModule(DefaultScalaModule)
+    .registerModule(new NoCtorDeserModule())
     .setSerializationInclusion(Include.NON_NULL)
     .setSerializationInclusion(Include.NON_ABSENT)
     .setDateFormat(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'"))
@@ -102,9 +103,9 @@ object Utils {
       case WorkflowAggregatedState.PAUSING       => "Pausing"
       case WorkflowAggregatedState.PAUSED        => "Paused"
       case WorkflowAggregatedState.RESUMING      => "Resuming"
-      case WorkflowAggregatedState.RECOVERING    => "Recovering"
       case WorkflowAggregatedState.COMPLETED     => "Completed"
-      case WorkflowAggregatedState.ABORTED       => "Aborted"
+      case WorkflowAggregatedState.FAILED        => "Failed"
+      case WorkflowAggregatedState.KILLED        => "Killed"
       case WorkflowAggregatedState.UNKNOWN       => "Unknown"
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) =>
         s"Unrecognized($unrecognizedValue)"

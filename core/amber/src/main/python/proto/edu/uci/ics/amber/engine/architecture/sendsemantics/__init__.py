@@ -19,6 +19,12 @@ class Partitioning(betterproto.Message):
     hash_based_shuffle_partitioning: "HashBasedShufflePartitioning" = (
         betterproto.message_field(3, group="sealed_value")
     )
+    range_based_shuffle_partitioning: "RangeBasedShufflePartitioning" = (
+        betterproto.message_field(4, group="sealed_value")
+    )
+    broadcast_partitioning: "BroadcastPartitioning" = betterproto.message_field(
+        5, group="sealed_value"
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -38,6 +44,21 @@ class HashBasedShufflePartitioning(betterproto.Message):
     batch_size: int = betterproto.int32_field(1)
     receivers: List["__common__.ActorVirtualIdentity"] = betterproto.message_field(2)
     hash_column_indices: List[int] = betterproto.int32_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class RangeBasedShufflePartitioning(betterproto.Message):
+    batch_size: int = betterproto.int32_field(1)
+    receivers: List["__common__.ActorVirtualIdentity"] = betterproto.message_field(2)
+    range_column_indices: List[int] = betterproto.int32_field(3)
+    range_min: int = betterproto.int64_field(4)
+    range_max: int = betterproto.int64_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class BroadcastPartitioning(betterproto.Message):
+    batch_size: int = betterproto.int32_field(1)
+    receivers: List["__common__.ActorVirtualIdentity"] = betterproto.message_field(2)
 
 
 from ... import common as __common__

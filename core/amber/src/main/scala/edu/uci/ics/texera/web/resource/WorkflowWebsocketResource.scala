@@ -1,20 +1,17 @@
 package edu.uci.ics.texera.web.resource
 
-import java.util.concurrent.atomic.AtomicInteger
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
+import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.service.{WorkflowCacheService, WorkflowService}
+import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
 
+import java.util.concurrent.atomic.AtomicInteger
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
@@ -28,12 +25,6 @@ object WorkflowWebsocketResource {
   configurator = classOf[ServletAwareConfigurator]
 )
 class WorkflowWebsocketResource extends LazyLogging {
-
-  final val objectMapper = Utils.objectMapper
-
-  private def send(session: Session, msg: TexeraWebSocketEvent): Unit = {
-    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
-  }
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
@@ -58,20 +49,30 @@ class WorkflowWebsocketResource extends LazyLogging {
       request match {
         case wIdRequest: RegisterWIdRequest =>
           // hack to refresh frontend run button state
-          send(session, WorkflowStateEvent("Uninitialized"))
-          val workflowState = WorkflowService.getOrCreate(wIdRequest.wId, uidOpt)
+          sessionState.send(WorkflowStateEvent("Uninitialized"))
+          val workflowState = WorkflowService.getOrCreate(wIdRequest.wId)
           sessionState.subscribe(workflowState)
-          send(session, RegisterWIdResponse("wid registered"))
+          sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
+          sessionState.send(RegisterWIdResponse("wid registered"))
         case heartbeat: HeartBeatRequest =>
-          send(session, HeartBeatResponse())
+          sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
           workflowStateOpt.foreach(state =>
-            send(session, state.resultService.handleResultPagination(paginationRequest))
+            sessionState.send(state.resultService.handleResultPagination(paginationRequest))
           )
         case resultExportRequest: ResultExportRequest =>
           workflowStateOpt.foreach(state =>
-            send(session, state.exportService.exportResult(uidOpt.get, resultExportRequest))
+            sessionState.send(state.exportService.exportResult(uidOpt.get, resultExportRequest))
           )
+        case modifyLogicRequest: ModifyLogicRequest =>
+          if (workflowStateOpt.isDefined) {
+            val jobService = workflowStateOpt.get.jobService.getValue
+            val modifyLogicResponse =
+              jobService.jobReconfigurationService.modifyOperatorLogic(modifyLogicRequest)
+            sessionState.send(modifyLogicResponse)
+          }
+        case cacheStatusUpdateRequest: CacheStatusUpdateRequest =>
+          WorkflowCacheChecker.handleCacheStatusUpdateRequest(session, cacheStatusUpdateRequest)
         case other =>
           workflowStateOpt match {
             case Some(workflow) => workflow.wsInput.onNext(other, uidOpt)
@@ -80,10 +81,9 @@ class WorkflowWebsocketResource extends LazyLogging {
       }
     } catch {
       case x: ConstraintViolationException =>
-        send(session, WorkflowErrorEvent(operatorErrors = x.violations))
+        sessionState.send(WorkflowErrorEvent(operatorErrors = x.violations))
       case err: Exception =>
-        send(
-          session,
+        sessionState.send(
           WorkflowErrorEvent(generalErrors =
             Map("exception" -> (err.getMessage + "\n" + err.getStackTrace.mkString("\n")))
           )

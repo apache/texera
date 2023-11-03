@@ -8,5 +8,4 @@ class EchoOperator(UDFOperatorV2):
 
     @overrides
     def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
-        print(f"end of port {port}")
         yield

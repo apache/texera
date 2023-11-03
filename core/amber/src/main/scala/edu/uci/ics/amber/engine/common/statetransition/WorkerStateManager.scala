@@ -12,7 +12,7 @@ class WorkerStateManager(initialState: WorkerState = UNINITIALIZED)
     extends StateManager[WorkerState](
       Map(
         UNINITIALIZED -> Set(READY),
-        READY -> Set(PAUSED, RUNNING),
+        READY -> Set(PAUSED, RUNNING, COMPLETED),
         RUNNING -> Set(PAUSED, COMPLETED),
         PAUSED -> Set(RUNNING),
         COMPLETED -> Set()

@@ -8,6 +8,7 @@ import java.text.SimpleDateFormat
 import java.time.Instant
 import scala.util.Try
 import scala.util.control.Exception.allCatch
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object AttributeTypeUtils extends Serializable {
 
@@ -62,6 +63,10 @@ object AttributeTypeUtils extends Serializable {
       builder.add(attr, parseField(tuple.getField(attr.getName), attr.getType))
     )
     builder.build()
+  }
+
+  def parseFields(fields: Array[Object], schema: Schema): Array[Object] = {
+    parseFields(fields, schema.getAttributes.map(attr => attr.getType).toArray)
   }
 
   /**

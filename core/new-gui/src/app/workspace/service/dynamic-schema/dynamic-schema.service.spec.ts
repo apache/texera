@@ -97,7 +97,8 @@ describe("DynamicSchemaService", () => {
 
       trigger.subscribe(eventFunc => eventFunc());
 
-      const expected = m.hot("---e-", {
+      const expected = m.hot("-d-e-", {
+        d: { operatorID: mockScanPredicate.operatorID },
         e: { operatorID: mockScanPredicate.operatorID },
       });
 
@@ -118,7 +119,9 @@ describe("DynamicSchemaService", () => {
 
       trigger.subscribe(eventFunc => eventFunc());
 
-      const expected = m.hot("-----");
+      const expected = m.hot("-d---", {
+        d: { operatorID: mockScanPredicate.operatorID },
+      });
 
       m.expect(dynamicSchemaService.getOperatorDynamicSchemaChangedStream()).toBeObservable(expected);
     })

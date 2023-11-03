@@ -5,15 +5,16 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
   queryAsterixDB,
   updateAsterixDBVersionMapping
 }
+
 import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
-
 import scala.collection.Iterator
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 import scala.util.control.Breaks.{break, breakable}
@@ -40,7 +41,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
     geoSearchBoundingBox: List[String],
     regexSearch: Boolean,
     regexSearchByColumn: String,
-    regex: String
+    regex: String,
+    filterCondition: Boolean,
+    filterPredicates: List[FilterPredicate]
 ) extends SQLSourceOpExec(
       schema,
       table,
@@ -55,8 +58,6 @@ class AsterixDBSourceOpExec private[asterixdb] (
       keywordSearchByColumn,
       keywords
     ) {
-  // update AsterixDB API version upon initialization.
-  updateAsterixDBVersionMapping(host, port)
 
   // format Timestamp. TODO: move to some util package
   val formatter: DateTimeFormatter =
@@ -64,6 +65,12 @@ class AsterixDBSourceOpExec private[asterixdb] (
 
   var curQueryString: Option[String] = None
   var curResultIterator: Option[Iterator[AnyRef]] = None
+
+  override def open(): Unit = {
+    // update AsterixDB API version upon open
+    updateAsterixDBVersionMapping(host, port)
+    super.open()
+  }
 
   /**
     * A generator of a Texera.Tuple, which converted from a CSV row of fields from AsterixDB
@@ -219,6 +226,10 @@ class AsterixDBSourceOpExec private[asterixdb] (
     if (geoSearch) {
       addGeoSearch(queryBuilder)
     }
+
+    if (filterCondition) {
+      addGeneralFilterCondition(queryBuilder)
+    }
   }
 
   private def addKeywordSearch(queryBuilder: StringBuilder): Unit = {
@@ -259,6 +270,15 @@ class AsterixDBSourceOpExec private[asterixdb] (
         .map { attr => s"spatial_intersect($attr, $shape)" }
         .mkString(" OR ")
       queryBuilder ++= " ) "
+    }
+  }
+
+  private def addGeneralFilterCondition(queryBuilder: StringBuilder): Unit = {
+    if (filterCondition && filterPredicates.nonEmpty) {
+      val filterString = filterPredicates
+        .map(p => s"(${p.attribute} ${p.condition.getName} ${p.value})")
+        .mkString(" OR ")
+      queryBuilder ++= s" AND ( $filterString ) "
     }
   }
 

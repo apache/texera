@@ -4,6 +4,8 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole;
+
 import java.io.Serializable;
 
 import org.jooq.types.UInteger;
@@ -16,6 +18,16 @@ import org.jooq.types.UInteger;
 public interface IUser extends Serializable {
 
     /**
+     * Setter for <code>texera_db.user.uid</code>.
+     */
+    public void setUid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.user.uid</code>.
+     */
+    public UInteger getUid();
+
+    /**
      * Setter for <code>texera_db.user.name</code>.
      */
     public void setName(String value);
@@ -26,14 +38,14 @@ public interface IUser extends Serializable {
     public String getName();
 
     /**
-     * Setter for <code>texera_db.user.uid</code>.
+     * Setter for <code>texera_db.user.email</code>.
      */
-    public void setUid(UInteger value);
+    public void setEmail(String value);
 
     /**
-     * Getter for <code>texera_db.user.uid</code>.
+     * Getter for <code>texera_db.user.email</code>.
      */
-    public UInteger getUid();
+    public String getEmail();
 
     /**
      * Setter for <code>texera_db.user.password</code>.
@@ -54,6 +66,16 @@ public interface IUser extends Serializable {
      * Getter for <code>texera_db.user.google_id</code>.
      */
     public String getGoogleId();
+
+    /**
+     * Setter for <code>texera_db.user.role</code>.
+     */
+    public void setRole(UserRole value);
+
+    /**
+     * Getter for <code>texera_db.user.role</code>.
+     */
+    public UserRole getRole();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

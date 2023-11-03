@@ -15,12 +15,12 @@ import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaIterator
 
 case class InputPort(
-    displayName: String = null,
+    displayName: String = "",
     allowMultiInputs: Boolean = false
 )
 
 case class OutputPort(
-    displayName: String = null
+    displayName: String = ""
 )
 
 case class OperatorInfo(
@@ -28,13 +28,18 @@ case class OperatorInfo(
     operatorDescription: String,
     operatorGroupName: String,
     inputPorts: List[InputPort],
-    outputPorts: List[OutputPort]
+    outputPorts: List[OutputPort],
+    dynamicInputPorts: Boolean = false,
+    dynamicOutputPorts: Boolean = false,
+    supportReconfiguration: Boolean = false,
+    allowPortCustomization: Boolean = false
 )
 
 case class OperatorMetadata(
     operatorType: String,
     jsonSchema: JsonNode,
-    additionalMetadata: OperatorInfo
+    additionalMetadata: OperatorInfo,
+    operatorVersion: String
 )
 
 case class GroupInfo(
@@ -92,6 +97,11 @@ object OperatorMetadataGenerator {
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorID")
     // remove operatorType from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorType")
+    // remove operatorVersion from json schema
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorVersion")
+    // remove inputPorts/outputPorts from json schema
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("inputPorts")
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("outputPorts")
     // remove operatorType from required list
     val operatorTypeIndex =
       asScalaIterator(jsonSchema.get("required").asInstanceOf[ArrayNode].elements())
@@ -123,8 +133,12 @@ object OperatorMetadataGenerator {
 
     // generate texera operator info
     val texeraOperatorInfo = opDescClass.getConstructor().newInstance().operatorInfo
-
-    OperatorMetadata(operatorType, jsonSchema, texeraOperatorInfo)
+    OperatorMetadata(
+      operatorType,
+      jsonSchema,
+      texeraOperatorInfo,
+      opDescClass.getConstructor().newInstance().operatorVersion
+    )
   }
 
 }
