@@ -136,7 +136,7 @@ class Controller(
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(
           this.sender(),
-          Constants.unprocessedBatchesSizeLimitPerSender, // Controller is assumed to have enough credits
+          Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair, // Controller is assumed to have enough credits
           id,
           from,
           seqNum,
