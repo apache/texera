@@ -17,7 +17,6 @@ from pyarrow.flight import (
     ServerCallContext,
 )
 
-from pyarrow.ipc import RecordBatchStreamWriter
 import socket
 
 
