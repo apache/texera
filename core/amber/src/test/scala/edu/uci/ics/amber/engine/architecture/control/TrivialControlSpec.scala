@@ -52,7 +52,10 @@ class TrivialControlSpec
             msgID,
             WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))
           ) =>
-        probe.sender() ! NetworkAck(msgID, Some(Constants.unprocessedBatchesSizeLimitPerSender))
+        probe.sender() ! NetworkAck(
+          msgID,
+          Some(Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
+        )
         returnValue match {
           case e: Throwable => throw e
           case _            => assert(returnValue.asInstanceOf[T] == expectedValues(id.toInt))
