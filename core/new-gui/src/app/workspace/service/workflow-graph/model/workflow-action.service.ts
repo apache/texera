@@ -613,6 +613,7 @@ export class WorkflowActionService {
    * (<code>{@link destroySharedModel}</code>) before using this method.</b>
    */
   public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = environment.asyncRenderingEnabled): void {
+    this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
       this.setWorkflowMetadata(workflow);
       // remove the existing operators on the paper currently
@@ -663,14 +664,10 @@ export class WorkflowActionService {
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
-      // operators and links shouldn't be highlighted during page reload
-      const jointGraphWrapper = this.getJointGraphWrapper();
-      jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-      jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
-
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
+    this.jointGraphWrapper.setReloadingWorkflow(false);
 
     // After reloading a workflow, need to clear undo/redo stacks because some of the actions involved in reloading
     // may remain in the undo manager.
