@@ -95,6 +95,8 @@ export class JointGraphWrapper {
   // flag that indicates whether multiselect mode is on
   private multiSelect: boolean = false;
 
+  private reloadingWorkflow: boolean = false;
+
   private currentHighlights: JointHighlights = {
     operators: [],
     groups: [],
@@ -242,6 +244,14 @@ export class JointGraphWrapper {
    */
   public getMultiSelectMode(): boolean {
     return this.multiSelect;
+  }
+
+  public setReloadingWorkflow(reloadingWorkflow: boolean): void {
+    this.reloadingWorkflow = reloadingWorkflow;
+  }
+
+  public getReloadingWorkflow(): boolean {
+    return this.reloadingWorkflow;
   }
 
   /**
