@@ -104,8 +104,8 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
     assert(pipelinedRegions.getAncestors(probeRegion).contains(buildRegion))
     assert(buildRegion.blockingDownstreamOperatorsInOtherRegions.length == 1)
     assert(
-      buildRegion.blockingDownstreamOperatorsInOtherRegions.exists(op =>
-        op.operator == joinOpDesc.operatorID
+      buildRegion.blockingDownstreamOperatorsInOtherRegions.exists(pair =>
+        pair._1.operator == joinOpDesc.operatorID
       )
     )
   }

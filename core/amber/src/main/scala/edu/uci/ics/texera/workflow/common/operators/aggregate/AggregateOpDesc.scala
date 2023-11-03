@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
@@ -21,7 +22,8 @@ object AggregateOpDesc {
           makeLayer(id, "localAgg"),
           _ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schema)
         )
-        .copy(isOneToManyOp = true)
+        // a hacky solution to have unique port names for reference purpose
+        .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
 
     val finalLayer = if (groupByKeys == null || groupByKeys.isEmpty) {
       OpExecConfig
@@ -29,7 +31,8 @@ object AggregateOpDesc {
           makeLayer(id, "globalAgg"),
           _ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schema)
         )
-        .copy(isOneToManyOp = true)
+        // a hacky solution to have unique port names for reference purpose
+        .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
     } else {
       val partitionColumns: Array[Int] =
         if (groupByKeys == null) Array()
@@ -41,12 +44,12 @@ object AggregateOpDesc {
           _ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schema),
           partitionColumns
         )
-        .copy(isOneToManyOp = true)
+        .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
     }
 
     new PhysicalPlan(
       List(partialLayer, finalLayer),
-      List(LinkIdentity(partialLayer.id, finalLayer.id))
+      List(LinkIdentity(partialLayer.id, 0, finalLayer.id, 0))
     )
   }
 

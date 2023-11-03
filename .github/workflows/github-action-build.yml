@@ -8,6 +8,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   gui:
     runs-on: ${{ matrix.os }}
@@ -22,12 +26,6 @@ jobs:
         architecture:
           - x64
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          ignore_sha: true
-          all_but_latest: true
-          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Setup node
@@ -63,12 +61,6 @@ jobs:
       JAVA_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
       JVM_OPTS: -Xms2048M -Xmx2048M -Xss6M -XX:ReservedCodeCacheSize=256M -Dfile.encoding=UTF-8
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          ignore_sha: true
-          all_but_latest: true
-          access_token: ${{ github.token }}
       - name: Prepare ENV
         run: sudo apt-get install libncurses5
       - name: Checkout Texera
@@ -94,15 +86,9 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-        python-version: [ '3.7', '3.8', '3.9', '3.10' ]
+        python-version: [ '3.8', '3.9', '3.10' ]
 
     steps:
-      - name: Cancel Previous Runs
-        uses: styfle/cancel-workflow-action@0.9.1
-        with:
-          ignore_sha: true
-          all_but_latest: true
-          access_token: ${{ github.token }}
       - name: Checkout Texera
         uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
