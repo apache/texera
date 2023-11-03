@@ -10,7 +10,8 @@ case class PipelinedRegion(
     id: PipelinedRegionIdentity,
     operators: Array[LayerIdentity],
     // These are the operators that receive blocking inputs from this region
-    blockingDownstreamOperatorsInOtherRegions: Array[LayerIdentity] = Array.empty
+    // Array[(ActorId, toPort)]
+    blockingDownstreamOperatorsInOtherRegions: Array[(LayerIdentity, Int)] = Array.empty
 ) {
 
   def getId(): PipelinedRegionIdentity = id
