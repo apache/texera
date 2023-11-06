@@ -8,7 +8,7 @@ import {merge} from "rxjs";
 import {
   OPEN_VERSIONS_FRAME_EVENT,
   WorkflowVersionService
-} from "../../../dashboard/service/workflow-version/workflow-version.service";
+} from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 export type LeftFrameComponent =
   | OperatorMenuFrameComponent
@@ -63,6 +63,7 @@ export class LeftPanelComponent implements OnInit {
               component: VersionsFrameComponent,
             });
           } else {
+            // CLOSE_VERSIONS_FRAME_EVENT
             this.switchFrameComponent({
               component: OperatorMenuFrameComponent
             });

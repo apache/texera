@@ -1,19 +1,15 @@
 import {Component, OnInit} from "@angular/core";
 import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+
+import {WorkflowActionService} from "../../../service/workflow-graph/model/workflow-action.service";
+import {WorkflowVersionService} from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import {HttpClient} from "@angular/common/http";
+
 import {
   WorkflowVersionCollapsableEntry,
-  WorkflowVersionEntry,
-} from "../../../../dashboard/type/workflow-version-entry";
-import {WorkflowActionService} from "../../../service/workflow-graph/model/workflow-action.service";
-import {WorkflowVersionService} from "../../../../dashboard/service/workflow-version/workflow-version.service";
-import {Observable} from "rxjs";
-import {AppSettings} from "../../../../common/app-setting";
-import {HttpClient} from "@angular/common/http";
-import {Workflow} from "src/app/common/type/workflow";
-import {filter, map} from "rxjs/operators";
-import {WorkflowUtilService} from "src/app/workspace/service/workflow-graph/util/workflow-util.service";
+} from "../../../../dashboard/user/type/workflow-version-entry";
 
-export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
+
 
 @UntilDestroy()
 @Component({
@@ -54,7 +50,8 @@ export class VersionsFrameComponent implements OnInit {
   }
 
   getVersion(vid: number) {
-    this.retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
+    this.workflowVersionService
+      .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
       .pipe(untilDestroyed(this))
       .subscribe(workflow => {
         this.workflowVersionService.displayParticularVersion(workflow);
@@ -69,7 +66,8 @@ export class VersionsFrameComponent implements OnInit {
     if (wid === undefined) {
       return;
     }
-    this.retrieveVersionsOfWorkflow(wid)
+    this.workflowVersionService
+      .retrieveVersionsOfWorkflow(wid)
       .pipe(untilDestroyed(this))
       .subscribe(versionsList => {
         this.versionsList = versionsList.map(version => ({
@@ -82,24 +80,6 @@ export class VersionsFrameComponent implements OnInit {
       });
   }
 
-  /**
-   * retrieves a list of versions for a particular workflow from backend database
-   */
-  retrieveVersionsOfWorkflow(wid: number): Observable<WorkflowVersionEntry[]> {
-    return this.http.get<WorkflowVersionEntry[]>(
-      `${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}`
-    );
-  }
 
-  /**
-   * retrieves a version of the workflow from backend database
-   */
-  retrieveWorkflowByVersion(wid: number, vid: number): Observable<Workflow> {
-    return this.http
-      .get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_VERSIONS_API_BASE_URL}/${wid}/${vid}`)
-      .pipe(
-        filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
-        map(WorkflowUtilService.parseWorkflowInfo)
-      );
-  }
+
 }

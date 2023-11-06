@@ -9,12 +9,6 @@ import {
 } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import {DynamicComponentConfig} from "../../../common/type/dynamic-component-config";
 import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {
-  DISPLAY_WORKFLOW_VERSIONS_EVENT,
-  WorkflowVersionService,
-} from "src/app/dashboard/service/workflow-version/workflow-version.service";
-} from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
-import { VersionsDisplayFrameComponent } from "./versions-display/versions-display-frame.component";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 
@@ -42,7 +36,6 @@ export class PropertyEditorComponent implements OnInit {
 
   constructor(
     public workflowActionService: WorkflowActionService,
-    public workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef
   ) {
   }
@@ -81,16 +74,13 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointPortHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointPortUnhighlightStream(),
-      this.workflowVersionService.workflowVersionsDisplayObservable(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
     )
       .pipe(
         filter(() => this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()),
         untilDestroyed(this)
       )
-      .subscribe(event => {
-        const isDisplayWorkflowVersions = event.length === 1 && event[0] === DISPLAY_WORKFLOW_VERSIONS_EVENT;
-
+      .subscribe(_ => {
         const highlightedOperators = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
