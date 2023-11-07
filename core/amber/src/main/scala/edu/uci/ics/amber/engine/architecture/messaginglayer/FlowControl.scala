@@ -57,7 +57,7 @@ class FlowControl {
     overloadedReceivers
   }
 
-  def stashData(receiverId:ActorVirtualIdentity, msg:WorkflowMessage): Unit = {
+  def stashData(receiverId: ActorVirtualIdentity, msg: WorkflowMessage): Unit = {
     hasStashedDataMessage(receiverId)
     receiverStashedDataMessageMapping(receiverId).enqueue(msg)
 

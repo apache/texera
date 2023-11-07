@@ -7,7 +7,13 @@ import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
-import edu.uci.ics.amber.engine.common.ambermessage.{CreditRequest, ResendOutputTo, WorkflowControlMessage, WorkflowDataMessage, WorkflowMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  CreditRequest,
+  ResendOutputTo,
+  WorkflowControlMessage,
+  WorkflowDataMessage,
+  WorkflowMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -258,11 +264,10 @@ class NetworkCommunicationActor(
 
   def sendMessagesAndReceiveAcks: Receive = {
     case SendRequest(id, msg) =>
-
       val isDataMessage = msg.isInstanceOf[WorkflowDataMessage]
       if (!isDataMessage) {
         forwardMessageFromFlowControl(id, msg)
-      }else{
+      } else {
         flowControl.stashData(id, msg)
         val msgs = flowControl.getMessagesToForward(id)
         informParentAboutBackpressure(id) // enable backpressure if necessary
@@ -277,7 +282,10 @@ class NetworkCommunicationActor(
           flowControl.updateCredits(receiverId, credits.get)
           informParentAboutBackpressure(receiverId) // enables/disables backpressure if necessary
           val msgs = flowControl.getMessagesToForward(receiverId)
-          togglePollForCredits(receiverId, flowControl.hasStashedDataMessage(receiverId) && msgs.isEmpty)
+          togglePollForCredits(
+            receiverId,
+            flowControl.hasStashedDataMessage(receiverId) && msgs.isEmpty
+          )
           msgs.foreach(msg => forwardMessageFromFlowControl(receiverId, msg))
         }
         if (idToCongestionControls.contains(receiverId)) {

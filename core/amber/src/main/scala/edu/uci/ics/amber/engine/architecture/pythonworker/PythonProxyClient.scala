@@ -165,7 +165,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // for calculating sender credits - get back number of batches in Python worker queue
     val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
     val numBatchesInQueue: Long = ackMsgBuf.getLong(0)
-    logger.debug("got number size from Python "+ numBatchesInQueue)
+    logger.debug("got number size from Python " + numBatchesInQueue)
     serverQueueInMemSize = numBatchesInQueue
     // TODO : use in calculating credits + pass to sender worker's FlowControl unit
     ackMsgBuf.close()
