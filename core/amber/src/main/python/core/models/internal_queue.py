@@ -13,6 +13,7 @@ from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2
 from pympler import asizeof
 
+
 @dataclass
 class InternalQueueElement(QueueElement):
     pass
@@ -91,4 +92,6 @@ class InternalQueue(IQueue):
 
     def in_mem_size(self) -> int:
         # Done: change this to use message size instead
-        return asizeof.asizeof(self._queue.get_sub_queue(InternalQueue.QueueID.DATA.value))
+        return asizeof.asizeof(
+            self._queue.get_sub_queue(InternalQueue.QueueID.DATA.value)
+        )

@@ -49,7 +49,8 @@ class FlowControl {
       if (
         receiverStashedDataMessageMapping(
           receiverId
-        ).size > Constants.localSendingBufferLimitPerReceiver + receiverCreditsMapping(receiverId)
+        ).map(getInMemSize)
+        .sum > Constants.localSendingBufferLimitPerReceiver + receiverCreditsMapping(receiverId)
       ) {
         overloadedReceivers.append(receiverId)
       }
