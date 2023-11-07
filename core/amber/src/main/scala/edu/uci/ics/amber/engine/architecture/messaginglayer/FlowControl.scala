@@ -57,41 +57,9 @@ class FlowControl {
     overloadedReceivers
   }
 
-  /**
-    * Determines if an incoming message can be forwarded to the receiver based on the credits available.
-    */
-  def getMessageToForward(
-      receiverId: ActorVirtualIdentity,
-      msg: WorkflowMessage
-  ): Option[WorkflowMessage] = {
-    if (!Constants.flowControlEnabled) {
-      return Some(msg)
-    }
-
-    initializeCreditIfNotExist(receiverId)
-
-    val isDataMessage = msg.isInstanceOf[WorkflowDataMessage]
-
-    if (!isDataMessage) {
-      // control message
-      return Some(msg)
-    }
-
-    if (receiverCreditsMapping(receiverId) > 0) {
-      val credit = getInMemSize(msg).intValue()
-      decreaseCredit(receiverId, credit)
-      if (!hasStashedDataMessage(receiverId)) {
-        Some(msg)
-      } else {
-        // has stashed data messages
-        receiverStashedDataMessageMapping(receiverId).enqueue(msg)
-        Some(receiverStashedDataMessageMapping(receiverId).dequeue())
-      }
-    } else {
-      // credit <= 0
-      receiverStashedDataMessageMapping(receiverId).enqueue(msg)
-      None
-    }
+  def stashData(receiverId:ActorVirtualIdentity, msg:WorkflowMessage): Unit = {
+    hasStashedDataMessage(receiverId)
+    receiverStashedDataMessageMapping(receiverId).enqueue(msg)
 
   }
 
@@ -101,12 +69,12 @@ class FlowControl {
     initializeCreditIfNotExist(receiverId)
     breakable {
       while (hasStashedDataMessage(receiverId)) {
-        val msg = receiverStashedDataMessageMapping(receiverId).head
-        val credit = getInMemSize(msg).intValue()
+        val msg = receiverStashedDataMessageMapping(receiverId).front
+        val credit = getInMemSize(msg)
         if (credit <= receiverCreditsMapping(receiverId)) {
+          receiverStashedDataMessageMapping(receiverId).dequeue()
           messagesToSend.append(msg)
           decreaseCredit(receiverId, credit)
-          receiverStashedDataMessageMapping(receiverId).dequeue()
         } else {
           break
         }
@@ -139,7 +107,7 @@ class FlowControl {
     }
   }
 
-  def decreaseCredit(receiverId: ActorVirtualIdentity, credit: Int): Unit = {
+  def decreaseCredit(receiverId: ActorVirtualIdentity, credit: Long): Unit = {
     receiverCreditsMapping(receiverId) = receiverCreditsMapping(receiverId) - credit
   }
 

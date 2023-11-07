@@ -7,12 +7,7 @@ import akka.util.Timeout
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
 import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  CreditRequest,
-  ResendOutputTo,
-  WorkflowControlMessage,
-  WorkflowMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{CreditRequest, ResendOutputTo, WorkflowControlMessage, WorkflowDataMessage, WorkflowMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -263,21 +258,27 @@ class NetworkCommunicationActor(
 
   def sendMessagesAndReceiveAcks: Receive = {
     case SendRequest(id, msg) =>
-      val msgToForward = flowControl.getMessageToForward(id, msg)
-      if (msgToForward.nonEmpty) {
-        forwardMessageFromFlowControl(id, msgToForward.get)
+
+      val isDataMessage = msg.isInstanceOf[WorkflowDataMessage]
+      if (!isDataMessage) {
+        forwardMessageFromFlowControl(id, msg)
+      }else{
+        flowControl.stashData(id, msg)
+        val msgs = flowControl.getMessagesToForward(id)
+        informParentAboutBackpressure(id) // enable backpressure if necessary
+        togglePollForCredits(id, flowControl.hasStashedDataMessage(id) && msgs.isEmpty)
+        msgs.foreach(msg => forwardMessageFromFlowControl(id, msg))
       }
-      informParentAboutBackpressure(id) // enable backpressure if necessary
+
     case NetworkAck(id, credits) =>
       if (messageIDToIdentity.contains(id)) {
-        val receiverId = messageIDToIdentity.remove(id).get
+        val receiverId = messageIDToIdentity(id)
         if (credits.nonEmpty) {
           flowControl.updateCredits(receiverId, credits.get)
           informParentAboutBackpressure(receiverId) // enables/disables backpressure if necessary
-          togglePollForCredits(receiverId, credits.get <= 0)
-          flowControl
-            .getMessagesToForward(receiverId)
-            .foreach(msg => forwardMessageFromFlowControl(receiverId, msg))
+          val msgs = flowControl.getMessagesToForward(receiverId)
+          togglePollForCredits(receiverId, flowControl.hasStashedDataMessage(receiverId) && msgs.isEmpty)
+          msgs.foreach(msg => forwardMessageFromFlowControl(receiverId, msg))
         }
         if (idToCongestionControls.contains(receiverId)) {
           val congestionControl = idToCongestionControls(receiverId)
