@@ -92,8 +92,8 @@ class FlowControl {
   def shouldBackpressureParent(receiverId: ActorVirtualIdentity): Boolean = {
     Constants.flowControlEnabled &&
     receiverStashedDataMessageMapping
-      .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-      .size > Constants.localSendingBufferLimitPerReceiver + receiverCreditsMapping.getOrElseUpdate(
+      .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]()).map(getInMemSize)
+      .sum > Constants.localSendingBufferLimitPerReceiver + receiverCreditsMapping.getOrElseUpdate(
       receiverId,
       Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
     )

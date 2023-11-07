@@ -11,7 +11,7 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2
-
+from pympler import asizeof
 
 @dataclass
 class InternalQueueElement(QueueElement):
@@ -91,4 +91,4 @@ class InternalQueue(IQueue):
 
     def in_mem_size(self) -> int:
         # TODO: change this to use message size instead
-        return self.size_data() * 688
+        return asizeof.asizeof(self.size_data())
