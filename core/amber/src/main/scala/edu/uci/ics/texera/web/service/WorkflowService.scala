@@ -57,7 +57,7 @@ class WorkflowService(
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val errorHandler: Throwable => Unit = { t =>
     {
-      t.printStackTrace()
+      logger.warn("Caught error during workflow execution", t)
       errorSubject.onNext(
         WorkflowErrorEvent(generalErrors =
           Map("error" -> (t.getMessage + "\n" + t.getStackTrace.mkString("\n")))

@@ -1,28 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.AttributeTypeException
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  AttributeTypeUtils,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, AttributeTypeUtils, Schema}
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
-import org.apache.arrow.vector.{
-  BigIntVector,
-  BitVector,
-  FieldVector,
-  Float8Vector,
-  IntVector,
-  TimeStampVector,
-  VarBinaryVector,
-  VarCharVector,
-  VectorSchemaRoot
-}
+import org.apache.arrow.vector.{BigIntVector, BitVector, FieldVector, Float8Vector, IntVector, TimeStampVector, VarBinaryVector, VarCharVector, VectorSchemaRoot}
 
 import java.nio.charset.StandardCharsets
 import java.util
@@ -30,7 +16,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.jdk.CollectionConverters.asJavaIterableConverter
 import scala.language.implicitConversions
 
-object ArrowUtils {
+object ArrowUtils extends LazyLogging {
 
   implicit def bool2int(b: Boolean): Int = if (b) 1 else 0
 
@@ -66,7 +52,7 @@ object ArrowUtils {
 
             } catch {
               case e: Exception =>
-                e.printStackTrace()
+                logger.warn("Caught error during parsing Arrow value back to Texera value", e)
                 null
             }
 
