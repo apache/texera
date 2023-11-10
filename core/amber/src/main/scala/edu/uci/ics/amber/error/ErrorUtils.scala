@@ -1,5 +1,11 @@
 package edu.uci.ics.amber.error
 
+import com.google.protobuf.timestamp.Timestamp
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.ERROR
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+
+import java.time.Instant
 import scala.util.control.ControlThrowable
 
 object ErrorUtils {
@@ -16,6 +22,14 @@ object ErrorUtils {
     // If it's an exception they handle, pass it on
     case ex: Throwable if handler.isDefinedAt(ex) => handler(ex)
     // If they didn't handle it, rethrow automatically
+  }
+
+  def mkConsoleMessage(actorId: ActorVirtualIdentity, err: Throwable): ConsoleMessage = {
+    val source =
+      "(" + err.getStackTrace.head.getFileName + ":" + err.getStackTrace.head.getLineNumber + ")"
+    val title = err.toString
+    val message = err.getStackTrace.mkString("\n")
+    ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
   }
 
 }

@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
@@ -126,7 +127,7 @@ class WorkflowScheduler(
       }
 
       frontier = (region
-        .getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions)
+        .getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1))
         .filter(opId => {
           !builtOpsInRegion.contains(opId) && workflow.physicalPlan
             .getUpstream(opId)
@@ -151,7 +152,7 @@ class WorkflowScheduler(
   }
   private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
     val uninitializedPythonOperators = workflow.getPythonOperators(
       allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
     )
@@ -173,16 +174,17 @@ class WorkflowScheduler(
             val outputMappingList = pythonUDFOpExecConfig.outputToOrdinalMapping
               .map(kv => LinkOrdinal(kv._1, kv._2))
               .toList
-            asyncRPCClient.send(
-              InitializeOperatorLogic(
-                pythonUDFOpExec.getCode,
-                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
-                inputMappingList,
-                outputMappingList,
-                pythonUDFOpExec.getOutputSchema
-              ),
-              workerID
-            )
+            asyncRPCClient
+              .send(
+                InitializeOperatorLogic(
+                  pythonUDFOpExec.getCode,
+                  pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
+                  inputMappingList,
+                  outputMappingList,
+                  pythonUDFOpExec.getOutputSchema
+                ),
+                workerID
+              )
           })
           .toSeq
       )
@@ -193,7 +195,7 @@ class WorkflowScheduler(
 
   private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
     Future.collect(
       // activate all links
       workflow.physicalPlan.linkStrategies.values
@@ -213,7 +215,7 @@ class WorkflowScheduler(
 
   private def openAllOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
     val allNotOpenedOperators =
       allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
     Future
@@ -230,7 +232,7 @@ class WorkflowScheduler(
 
   private def startRegion(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions
+      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
 
     allOperatorsInRegion
       .filter(opId => workflow.getOperator(opId).getState == WorkflowAggregatedState.UNINITIALIZED)
@@ -312,7 +314,13 @@ class WorkflowScheduler(
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())
       constructRegion(region)
-      prepareAndStartRegion(region)
+      prepareAndStartRegion(region).rescue {
+        case err: Throwable =>
+          // this call may come from client or worker(by execution completed)
+          // thus we need to force it to send error to client.
+          asyncRPCClient.sendToClient(FatalError(err, None))
+          Future.Unit
+      }
     } else {
       // region has already been constructed. Just needs to resume
       resumeRegion(region)

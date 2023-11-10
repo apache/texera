@@ -15,12 +15,12 @@ import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaIterator
 
 case class InputPort(
-    displayName: String = null,
+    displayName: String = "",
     allowMultiInputs: Boolean = false
 )
 
 case class OutputPort(
-    displayName: String = null
+    displayName: String = ""
 )
 
 case class OperatorInfo(

@@ -26,7 +26,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     LayerIdentity("" + counter, "" + counter, "" + counter)
   }
 
-  def linkID(): LinkIdentity = LinkIdentity(layerID(), layerID())
+  def linkID(): LinkIdentity = LinkIdentity(layerID(), fromPort = 0, layerID(), toPort = 0)
 
   def tuple(): Tuple = {
     counter += 1

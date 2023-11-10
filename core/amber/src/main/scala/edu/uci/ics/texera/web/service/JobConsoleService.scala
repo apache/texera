@@ -2,12 +2,15 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Duration}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ConsoleMessageTriggered
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EvaluatePythonExpressionHandler.EvaluatePythonExpression
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.DebugCommandHandler.DebugCommand
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.COMMAND
+import edu.uci.ics.amber.engine.common.{AmberUtils, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.event.python.ConsoleUpdateEvent
 import edu.uci.ics.texera.web.model.websocket.request.RetryRequest
@@ -16,26 +19,26 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
   PythonExpressionEvaluateRequest
 }
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
-import edu.uci.ics.texera.web.service.JobPythonService.bufferSize
+import edu.uci.ics.texera.web.service.JobConsoleService.bufferSize
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.{
-  ConsoleMessage,
   EvaluatedValueList,
-  JobPythonStore,
-  PythonOperatorInfo
+  JobConsoleStore,
+  OperatorConsole
 }
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 
+import java.time.Instant
 import scala.collection.mutable
 
-object JobPythonService {
+object JobConsoleService {
   val bufferSize: Int = AmberUtils.amberConfig.getInt("web-server.python-console-buffer-size")
 
 }
 
-class JobPythonService(
+class JobConsoleService(
     client: AmberClient,
     stateStore: JobStateStore,
     wsInput: WebsocketInput,
@@ -44,22 +47,23 @@ class JobPythonService(
   registerCallbackOnPythonConsoleMessage()
 
   addSubscription(
-    stateStore.pythonStore.registerDiffHandler((oldState, newState) => {
+    stateStore.consoleStore.registerDiffHandler((oldState, newState) => {
       val output = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // For each operator, check if it has new python console message or breakpoint events
-      newState.operatorInfo
+      newState.operatorConsole
         .foreach {
           case (opId, info) =>
-            val oldInfo = oldState.operatorInfo.getOrElse(opId, new PythonOperatorInfo())
-            val diff = info.consoleMessages.diff(oldInfo.consoleMessages)
+            val oldConsole = oldState.operatorConsole.getOrElse(opId, new OperatorConsole())
+            val diff = info.consoleMessages.diff(oldConsole.consoleMessages)
             output.append(ConsoleUpdateEvent(opId, diff))
 
-            info.evaluateExprResults.keys.filterNot(oldInfo.evaluateExprResults.contains).foreach {
-              key =>
+            info.evaluateExprResults.keys
+              .filterNot(oldConsole.evaluateExprResults.contains)
+              .foreach { key =>
                 output.append(
                   PythonExpressionEvaluateResponse(key, info.evaluateExprResults(key).values)
                 )
-            }
+              }
         }
       output
     })
@@ -69,8 +73,10 @@ class JobPythonService(
     addSubscription(
       client
         .registerCallback[ConsoleMessageTriggered]((evt: ConsoleMessageTriggered) => {
-          stateStore.pythonStore.updateState { jobInfo =>
-            addConsoleMessage(jobInfo, evt.operatorId, evt.consoleMessage)
+          stateStore.consoleStore.updateState { jobInfo =>
+            val opId =
+              VirtualIdentityUtils.getOperator(ActorVirtualIdentity(evt.consoleMessage.workerId))
+            addConsoleMessage(jobInfo, opId.operator, evt.consoleMessage)
           }
         })
     )
@@ -78,21 +84,21 @@ class JobPythonService(
   }
 
   private[this] def addConsoleMessage(
-      jobInfo: JobPythonStore,
+      jobInfo: JobConsoleStore,
       opId: String,
       consoleMessage: ConsoleMessage
-  ): JobPythonStore = {
-    val opInfo = jobInfo.operatorInfo.getOrElse(opId, PythonOperatorInfo())
+  ): JobConsoleStore = {
+    val opInfo = jobInfo.operatorConsole.getOrElse(opId, OperatorConsole())
 
     if (opInfo.consoleMessages.size < bufferSize) {
-      jobInfo.addOperatorInfo(
+      jobInfo.addOperatorConsole(
         (
           opId,
           opInfo.addConsoleMessages(consoleMessage)
         )
       )
     } else {
-      jobInfo.addOperatorInfo(
+      jobInfo.addOperatorConsole(
         (
           opId,
           opInfo.withConsoleMessages(opInfo.consoleMessages.drop(1) :+ consoleMessage)
@@ -106,7 +112,7 @@ class JobPythonService(
     breakpointService.clearTriggeredBreakpoints()
     stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
     client.sendAsyncWithCallback[Unit](
-      RetryWorkflow(),
+      RetryWorkflow(req.workers.map(x => ActorVirtualIdentity(x))),
       _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
     )
   }))
@@ -117,9 +123,9 @@ class JobPythonService(
       client.sendAsync(EvaluatePythonExpression(req.expression, req.operatorId)),
       Duration.fromSeconds(10)
     )
-    stateStore.pythonStore.updateState(pythonStore => {
-      val opInfo = pythonStore.operatorInfo.getOrElse(req.operatorId, PythonOperatorInfo())
-      pythonStore.addOperatorInfo(
+    stateStore.consoleStore.updateState(consoleStore => {
+      val opInfo = consoleStore.operatorConsole.getOrElse(req.operatorId, OperatorConsole())
+      consoleStore.addOperatorConsole(
         (
           req.operatorId,
           opInfo.addEvaluateExprResults((req.expression, EvaluatedValueList(result)))
@@ -130,21 +136,22 @@ class JobPythonService(
     // TODO: remove the following hack after fixing the frontend
     // currently frontend is not prepared for re-receiving the eval-expr messages
     // so we add it to the state and remove it from the state immediately
-    stateStore.pythonStore.updateState(pythonStore => {
-      val opInfo = pythonStore.operatorInfo.getOrElse(req.operatorId, PythonOperatorInfo())
-      pythonStore.addOperatorInfo((req.operatorId, opInfo.clearEvaluateExprResults))
+    stateStore.consoleStore.updateState(consoleStore => {
+      val opInfo = consoleStore.operatorConsole.getOrElse(req.operatorId, OperatorConsole())
+      consoleStore.addOperatorConsole((req.operatorId, opInfo.clearEvaluateExprResults))
     })
   }))
 
   //Receive debug command
   addSubscription(wsInput.subscribe((req: DebugCommandRequest, uidOpt) => {
-    stateStore.pythonStore.updateState { jobInfo =>
+    stateStore.consoleStore.updateState { jobInfo =>
       val newMessage = new ConsoleMessage(
         req.workerId,
-        Timestamp.defaultInstance,
-        "COMMAND",
+        Timestamp(Instant.now),
+        COMMAND,
         "USER-" + uidOpt.getOrElse("UNKNOWN"),
-        req.cmd
+        req.cmd,
+        ""
       )
       addConsoleMessage(jobInfo, req.operatorId, newMessage)
     }

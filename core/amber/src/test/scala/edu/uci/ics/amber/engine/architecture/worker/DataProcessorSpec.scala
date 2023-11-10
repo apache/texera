@@ -72,7 +72,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   val linkID: LinkIdentity =
     LinkIdentity(
       LayerIdentity("testWorkflow", "testUpstream", "main"),
-      LayerIdentity("testWorkflow", "testOperator", "main")
+      fromPort = 0,
+      LayerIdentity("testWorkflow", "testOperator", "main"),
+      toPort = 0
     )
   val tuples: Seq[ITuple] = (0 until 400).map(ITuple(_))
 
@@ -134,7 +136,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig
+        .oneToOneLayer(operatorIdentity, _ => operator)
+        .addInput(linkID.from, fromPort = 0, toPort = 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -178,7 +182,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig
+        .oneToOneLayer(operatorIdentity, _ => operator)
+        .addInput(linkID.from, fromPort = 0, toPort = 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -234,7 +240,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig
+        .oneToOneLayer(operatorIdentity, _ => operator)
+        .addInput(linkID.from, fromPort = 0, toPort = 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -271,7 +279,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     val actorContext: ActorContext = null
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig
+        .oneToOneLayer(operatorIdentity, _ => operator)
+        .addInput(linkID.from, fromPort = 0, toPort = 0)
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
     val logStorage: DeterminantLogStorage = new EmptyLogStorage()
     val recoveryQueue: RecoveryQueue = new RecoveryQueue(logStorage.getReader)
@@ -306,7 +316,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   "data processor" should "process only control commands while paused" in {
     val operator = mock[OperatorExecutor]
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig
+        .oneToOneLayer(operatorIdentity, _ => operator)
+        .addInput(linkID.from, fromPort = 0, toPort = 0)
     (operator.open _).expects().once()
     val actorContext: ActorContext = null
     val logManager = new EmptyLogManagerImpl(NetworkSenderActorRef(null))
@@ -368,7 +380,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       assert(
         dp.internalQueue.getSenderCredits(
           senderID
-        ) < Constants.unprocessedBatchesSizeLimitPerSender
+        ) < Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
       )
       dp.internalQueue.appendElement(EndMarker(senderID))
     }(ExecutionContext.global)
@@ -403,7 +415,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       }
     }
     val opExecConfig =
-      OpExecConfig.oneToOneLayer(operatorIdentity, _ => operator).addInput(linkID.from, 0)
+      OpExecConfig
+        .oneToOneLayer(operatorIdentity, _ => operator)
+        .addInput(linkID.from, fromPort = 0, toPort = 0)
 
     val asyncRPCServer: AsyncRPCServer = null
     val workerStateManager: WorkerStateManager = new WorkerStateManager(UNINITIALIZED)
@@ -418,7 +432,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     assert(
       dp.internalQueue.getSenderCredits(
         senderID
-      ) == Constants.unprocessedBatchesSizeLimitPerSender
+      ) == Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
     )
     Await.result(monitorCredits(senderID, dp, tuplesToSend), 3.seconds)
     dp.shutdown()

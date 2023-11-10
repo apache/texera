@@ -71,7 +71,7 @@ class WorkerSpec
       ): Iterator[(ITuple, Option[Int])] = ???
     }
 
-    val mockTag = LinkIdentity(null, null)
+    val mockTag = LinkIdentity(null, 0, null, 0)
 
     val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
     val workerIndex = 0
@@ -162,7 +162,10 @@ class WorkerSpec
             msgID,
             WorkflowControlMessage(_, _, ReturnInvocation(id, returnValue))
           ) =>
-        probe.sender() ! NetworkAck(msgID, Some(Constants.unprocessedBatchesSizeLimitPerSender))
+        probe.sender() ! NetworkAck(
+          msgID,
+          Some(Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
+        )
         returnValue match {
           case e: Throwable => throw e
           case _ =>

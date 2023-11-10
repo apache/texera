@@ -4,6 +4,7 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
+import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 import io.dropwizard.auth.Auth
@@ -33,7 +34,9 @@ class SchemaPropagationResource extends LazyLogging {
       context.userId = Option(sessionUser.getUser.getUid)
       context.wId = wid
 
-      val texeraWorkflowCompiler = new WorkflowCompiler(LogicalPlan(workflow), context)
+      val logicalPlan = LogicalPlan(workflow, context)
+      logicalPlan.initializeLogicalPlan(new JobStateStore())
+      val texeraWorkflowCompiler = new WorkflowCompiler(logicalPlan)
 
       // ignore errors during propagation.
       val (schemaPropagationResult, _) =
