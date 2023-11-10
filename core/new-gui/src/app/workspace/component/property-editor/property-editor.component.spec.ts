@@ -17,7 +17,7 @@ import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { WorkflowVersionService } from "src/app/dashboard/service/workflow-version/workflow-version.service";
-import { VersionsFrameComponent } from "../left-panel/versions-display/versions-frame.component";
+import { VersionsFrameComponent } from "../left-panel/versions-frame/versions-frame.component";
 
 describe("PropertyEditorComponent", () => {
   let component: PropertyEditorComponent;

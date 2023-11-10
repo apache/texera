@@ -3,7 +3,7 @@ import {Component, OnInit} from "@angular/core";
 import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
 import {DynamicComponentConfig} from "../../../common/type/dynamic-component-config";
 import {OperatorMenuFrameComponent} from "./operator-menu-frame/operator-menu-frame.component";
-import {VersionsFrameComponent} from "./versions-display/versions-frame.component";
+import {VersionsFrameComponent} from "./versions-frame/versions-frame.component";
 import {merge} from "rxjs";
 import {
   OPEN_VERSIONS_FRAME_EVENT,
