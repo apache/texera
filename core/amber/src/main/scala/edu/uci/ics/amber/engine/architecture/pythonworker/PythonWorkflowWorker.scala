@@ -68,7 +68,6 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
-  // TODO: Implement credit calculation logic in python worker
   override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
     pythonProxyClient.getSenderCredits(sender)
   }

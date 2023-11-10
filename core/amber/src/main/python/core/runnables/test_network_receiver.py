@@ -7,6 +7,7 @@ from core.models import Tuple
 from core.models.internal_queue import InternalQueue, ControlElement, DataElement
 from core.models.payload import OutputDataFrame, EndOfUpstream
 from core.models.schema.schema import Schema
+from core.proxy import ProxyClient
 from core.runnables.network_receiver import NetworkReceiver
 from core.runnables.network_sender import NetworkSender
 from core.util.proto import set_one_of
@@ -32,9 +33,52 @@ class TestNetworkReceiver:
         yield network_receiver
         network_receiver._proxy_server.graceful_shutdown()
 
+    class MockFlightMetadataReader:
+        """
+        MockFlightMetadataReader is a mocked FlightMetadataReader class to ultimately
+        mock a credit value to be returned from Scala server to Python client
+        """
+
+        class MockBuffer:
+            def to_pybytes(self):
+                dummy_credit = 31
+                return dummy_credit.to_bytes(8, "little")
+
+        def read(self):
+            return self.MockBuffer()
+
     @pytest.fixture
     def network_sender_thread(self, input_queue):
         network_sender = NetworkSender(input_queue, host="localhost", port=5555)
+
+        # mocking do_put, read, to_pybytes to return fake credit values
+        def mock_do_put(
+            self,
+            FlightDescriptor_descriptor,
+            Schema_schema,
+            FlightCallOptions_options=None,
+        ):
+            """
+            Mocking FlightClient.do_put that is called in ProxyClient to return
+            a MockFlightMetadataReader instead of a FlightMetadataReader
+
+            :param self: an instance of FlightClient (would be ProxyClient in this case)
+            :param FlightDescriptor_descriptor: descriptor
+            :param Schema_schema: schema
+            :param FlightCallOptions_options: options, None by default
+            :return: writer : FlightStreamWriter, reader : MockFlightMetadataReader
+            """
+            writer, _ = super(ProxyClient, self).do_put(
+                FlightDescriptor_descriptor, Schema_schema, FlightCallOptions_options
+            )
+            reader = TestNetworkReceiver.MockFlightMetadataReader()
+            return writer, reader
+
+        mock_proxy_client = network_sender._proxy_client
+        mock_proxy_client.do_put = mock_do_put.__get__(
+            mock_proxy_client, ProxyClient
+        )  # override do_put with mock_do_put
+
         network_sender_thread = threading.Thread(target=network_sender.run)
         yield network_sender_thread
         network_sender.stop()

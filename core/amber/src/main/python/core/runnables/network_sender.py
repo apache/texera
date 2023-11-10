@@ -62,11 +62,11 @@ class NetworkSender(StoppableQueueBlockingRunnable):
                 schema=data_payload.schema.as_arrow_schema(),
             )
             data_header = PythonDataHeader(tag=to, is_end=False)
-            self._proxy_client.send_data(bytes(data_header), table)
+            self._proxy_client.send_data(bytes(data_header), table)  # returns credits
 
         elif isinstance(data_payload, EndOfUpstream):
             data_header = PythonDataHeader(tag=to, is_end=True)
-            self._proxy_client.send_data(bytes(data_header), None)
+            self._proxy_client.send_data(bytes(data_header), None)  # returns credits
 
         else:
             raise TypeError(f"Unexpected payload {data_payload}")
@@ -84,4 +84,7 @@ class NetworkSender(StoppableQueueBlockingRunnable):
             ControlInvocation or ReturnInvocation.
         """
         python_control_message = PythonControlMessage(tag=to, payload=control_payload)
-        self._proxy_client.call_action("control", bytes(python_control_message))
+        int.from_bytes(
+            self._proxy_client.call_action("control", bytes(python_control_message)),
+            byteorder="little",
+        )  # returned credits

@@ -18,9 +18,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -112,6 +113,10 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // In the future, this results can include credits for flow control purpose.
     val result = results.next()
 
+    // extract info needed to calculate sender credits from ack
+    // ackResult contains number of batches inside Python worker internal queue
+    val numBatchesInQueue: Long = new String(result.getBody).toLong
+    // TODO : use in calculating credits + pass to sender worker's FlowControl unit
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
@@ -150,7 +155,13 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     writer.putNext()
     schemaRoot.clear()
     writer.completed()
-    flightListener.getResult()
+
+    // for calculating sender credits - get back number of batches in Python worker queue
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    val numBatchesInQueue: Long = ackMsgBuf.getLong(0)
+    // TODO : use in calculating credits + pass to sender worker's FlowControl unit
+    ackMsgBuf.close()
+
     flightListener.close()
 
   }

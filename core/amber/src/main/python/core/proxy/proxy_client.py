@@ -1,11 +1,12 @@
 from loguru import logger
-from pyarrow import Table
+from pyarrow import Table, Buffer
 from pyarrow.flight import (
     Action,
     FlightCallOptions,
     FlightClient,
     FlightDescriptor,
     FlightStreamWriter,
+    FlightMetadataReader,
 )
 from typing import Optional
 
@@ -61,19 +62,26 @@ class ProxyClient(FlightClient):
         return results[0].body.to_pybytes()
 
     @logger.catch(reraise=True)
-    def send_data(self, command: bytes, table: Optional[Table]) -> None:
+    def send_data(self, command: bytes, table: Optional[Table]) -> int:
         """
         Send a data batch to the server.
         :param command: a command to in descriptor to pass along, user should take
             the responsibility to deserialize it.
         :param table: a PyArrow.Table of column-stored records.
+        :return: an integer representing credit values received from ack
         """
         descriptor = FlightDescriptor.for_command(command)
         table = Table.from_arrays([]) if table is None else table
-        writer, _ = self.do_put(descriptor, table.schema)
+        writer, reader = self.do_put(descriptor, table.schema)
         writer: FlightStreamWriter
+        reader: FlightMetadataReader
         with writer:
             writer.write_table(table)
+            credit_buf: Buffer = reader.read()
+            credit_count: int = int.from_bytes(
+                credit_buf.to_pybytes(), byteorder="little"
+            )
+        return credit_count
 
     def _handshake(self, handshake_port: int) -> None:
         """

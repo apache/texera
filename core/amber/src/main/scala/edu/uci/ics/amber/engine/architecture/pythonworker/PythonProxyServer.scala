@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
+import com.google.common.primitives.Longs
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
@@ -10,9 +11,10 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.apache.arrow.flight._
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
 
+import java.nio.{ByteBuffer, ByteOrder}
 import java.io.IOException
 import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicInteger
@@ -52,7 +54,15 @@ private class AmberProducer(
           case payload =>
             throw new RuntimeException(s"not supported payload $payload")
         }
-        listener.onNext(new Result("ack".getBytes))
+
+        // get little-endian representation of credits
+        var creditVal: Long = 30L // TODO : replace with actual credit value
+        val creditByteArr: Array[Byte] =
+          ByteBuffer.allocate(Longs.BYTES).order(ByteOrder.LITTLE_ENDIAN).putLong(creditVal).array
+
+        listener.onNext(
+          new Result(creditByteArr)
+        )
         listener.onCompleted()
       case "handshake" =>
         val strPortNumber: String = new String(action.getBody, Charset.forName("UTF-8"))
@@ -77,10 +87,20 @@ private class AmberProducer(
 
     val root = flightStream.getRoot
 
+    // send back ack with credits on ackStream
+    val bufferAllocator = new RootAllocator(8 * 1024)
+    try {
+      val arrowBuf: ArrowBuf = bufferAllocator.buffer(Longs.BYTES + 4)
+      arrowBuf.writeLong(
+        31L
+      ) // TODO : replace with actual credit value
+      ackStream.onNext(PutResult.metadata(arrowBuf))
+      arrowBuf.close()
+    } finally if (bufferAllocator != null) bufferAllocator.close()
+
     // consume all data in the stream, it will store on the root vectors.
-    while (flightStream.next) {
-      ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
-    }
+    while (flightStream.next) {}
+
     // closing the stream will release the dictionaries
     flightStream.takeDictionaryOwnership
 
