@@ -1,0 +1,25 @@
+.versions-frame {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  #versions-list ::ng-deep {
+    height: 100%;
+    overflow: auto;
+    // Adjust the font size of the table content
+    .ant-table-content {
+      font-size: 11px; // Adjust the font size as needed
+    }
+
+    // Adjust the font size of the table headers
+    .ant-table-thead {
+      th {
+        font-size: 11px; // Adjust the font size as needed
+        text-align: center;
+      }
+    }
+  }
+
+}
+
+
+
