@@ -10,10 +10,19 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
-import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  PaginatedResultEvent,
+  TexeraWebSocketEvent,
+  WebResultUpdateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
-import edu.uci.ics.texera.web.storage.{JobStateStore, OperatorResultMetadata, WorkflowResultStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.storage.{
+  JobStateStore,
+  OperatorResultMetadata,
+  WorkflowResultStore,
+  WorkflowStateStore
+}
 import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
@@ -150,7 +159,8 @@ object JobResultService {
 class JobResultService(
     val opResultStorage: OpResultStorage,
     val workflowStateStore: WorkflowStateStore
-) extends SubscriptionManager with LazyLogging {
+) extends SubscriptionManager
+    with LazyLogging {
 
   var sinkOperators: mutable.HashMap[String, ProgressiveSinkOpDesc] =
     mutable.HashMap[String, ProgressiveSinkOpDesc]()

@@ -67,7 +67,10 @@ object Utils extends LazyLogging {
     } catch {
       case e: Throwable =>
         if (attempts > 1) {
-          logger.warn("retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1), e)
+          logger.warn(
+            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1),
+            e
+          )
           Thread.sleep(baseBackoffTimeInMS)
           retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
         } else throw e
