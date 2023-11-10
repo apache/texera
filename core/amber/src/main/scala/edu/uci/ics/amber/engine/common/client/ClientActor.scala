@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
-import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
@@ -22,6 +21,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 
@@ -33,7 +33,8 @@ private[client] object ClientActor {
   case class CommandRequest(command: ControlCommand[_], promise: Promise[Any])
 }
 
-private[client] class ClientActor extends Actor with LazyLogging {
+private[client] class ClientActor extends Actor with AmberLogging {
+  var actorId: ActorVirtualIdentity = ActorVirtualIdentity("Client")
   var controller: ActorRef = _
   var controlId = 0L
   val promiseMap = new mutable.LongMap[Promise[Any]]()
