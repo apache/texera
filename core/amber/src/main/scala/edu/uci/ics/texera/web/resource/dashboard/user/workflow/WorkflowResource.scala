@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
@@ -36,7 +37,7 @@ import scala.util.control.NonFatal
   * The details of UserWorkflowTable can be found in /core/scripts/sql/texera_ddl.sql
   */
 
-object WorkflowResource {
+object WorkflowResource extends LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
   final private lazy val workflowOfUserDao = new WorkflowOfUserDao(
@@ -223,7 +224,7 @@ object WorkflowResource {
         dateFilter = fieldToFilterOn.between(startTimestamp, endTimestamp)
       } catch {
         case ex: ParseException =>
-          println("Invalid date format. Please follow this date format: yyyy-MM-dd")
+          logger.warn("Invalid date format. Please follow this date format: yyyy-MM-dd")
           throw ex
       }
     }
@@ -739,8 +740,9 @@ class WorkflowResource {
 
     } catch {
       case e: Exception =>
-        println(
-          "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?"
+        logger.warn(
+          "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?",
+          e
         )
         // return a empty list
         List[DashboardWorkflow]()

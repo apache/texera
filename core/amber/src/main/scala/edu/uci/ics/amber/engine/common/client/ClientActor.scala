@@ -3,11 +3,13 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
   NetworkAck,
   NetworkMessage
 }
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowControlMessage,
   WorkflowRecoveryMessage
@@ -31,7 +33,7 @@ private[client] object ClientActor {
   case class CommandRequest(command: ControlCommand[_], promise: Promise[Any])
 }
 
-private[client] class ClientActor extends Actor {
+private[client] class ClientActor extends Actor with LazyLogging {
   var controller: ActorRef = _
   var controlId = 0L
   val promiseMap = new mutable.LongMap[Promise[Any]]()
@@ -82,6 +84,6 @@ private[client] class ClientActor extends Actor {
       sender ! Ack
       controller ! x
     case other =>
-      println("client actor cannot handle " + other) //skip
+      logger.warn("client actor cannot handle " + other) //skip
   }
 }
