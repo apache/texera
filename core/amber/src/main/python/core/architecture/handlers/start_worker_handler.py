@@ -9,6 +9,7 @@ from ...models.internal_queue import DataElement
 
 from loguru import logger
 
+
 class StartWorkerHandler(Handler):
     cmd = StartWorkerV2
 
