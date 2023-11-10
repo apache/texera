@@ -13,7 +13,11 @@ import {
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from "../../types/workflow-common.interface";
-import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
+import {
+  WorkflowFatalError,
+  OperatorCurrentTuples,
+  TexeraWebsocketEvent,
+} from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
@@ -146,20 +150,7 @@ export class ExecuteWorkflowService {
       case "BreakpointTriggeredEvent":
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
       case "WorkflowErrorEvent":
-        const errorMessages: Record<string, string> = {};
-        Object.entries(event.operatorErrors).forEach(entry => {
-          errorMessages[entry[0]] = `${entry[1].propertyPath}: ${entry[1].message}`;
-        });
-        Object.entries(event.generalErrors).forEach(entry => {
-          errorMessages[entry[0]] = entry[1];
-        });
-        return { state: ExecutionState.Failed, errorMessages: errorMessages };
-      // TODO: Merge WorkflowErrorEvent and ErrorEvent
-      case "WorkflowExecutionErrorEvent":
-        return {
-          state: ExecutionState.Failed,
-          errorMessages: { WorkflowExecutionError: event.message },
-        };
+        return { state: ExecutionState.Failed, errorMessages: event.fatalErrors };
       default:
         return undefined;
     }
@@ -169,11 +160,11 @@ export class ExecuteWorkflowService {
     return this.currentState;
   }
 
-  public getErrorMessages(): Readonly<Record<string, string>> | undefined {
+  public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {
     if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;
     }
-    return undefined;
+    return [];
   }
 
   public getBreakpointTriggerInfo(): BreakpointTriggerInfo | undefined {
@@ -286,7 +277,7 @@ export class ExecuteWorkflowService {
     this.currentState.breakpoint.report.forEach(fault => {
       this.workflowWebsocketService.send("SkipTupleRequest", {
         faultedTuple: fault.faultedTuple,
-        actorPath: fault.actorPath,
+        actorPath: fault.workerName,
       });
     });
   }
@@ -298,7 +289,9 @@ export class ExecuteWorkflowService {
     if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
       throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("RetryRequest", {});
+    this.workflowWebsocketService.send("RetryRequest", {
+      workers: this.currentState.breakpoint.report.map(fault => fault.workerName),
+    });
   }
 
   public modifyOperatorLogic(operatorID: string): void {

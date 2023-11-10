@@ -15,9 +15,12 @@ import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.componen
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { ErrorFrameComponent } from "./error-frame/error-frame.component";
+import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
 
 export type ResultFrameComponent =
   | ResultTableFrameComponent
+  | ErrorFrameComponent
   | VisualizationFrameComponent
   | ConsoleFrameComponent
   | DebuggerFrameComponent;
@@ -49,7 +52,8 @@ export class ResultPanelComponent implements OnInit {
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
-    private changeDetectorRef: ChangeDetectorRef
+    private changeDetectorRef: ChangeDetectorRef,
+    private workflowConsoleService: WorkflowConsoleService
   ) {}
 
   ngOnInit(): void {
@@ -159,6 +163,20 @@ export class ResultPanelComponent implements OnInit {
       this.clearResultPanel();
       this.currentOperatorId = currentHighlightedOperator;
     }
+
+    if (this.executeWorkflowService.getExecutionState().state === ExecutionState.Failed) {
+      if (this.currentOperatorId == null) {
+        this.displayError(this.currentOperatorId);
+      } else {
+        const errorMessages = this.executeWorkflowService.getErrorMessages();
+        if (errorMessages.filter(msg => msg.operatorId === this.currentOperatorId).length > 0) {
+          this.displayError(this.currentOperatorId);
+        }
+      }
+    } else {
+      this.frameComponentConfigs.delete("Error");
+    }
+
     // current result panel is closed or there is no operator highlighted, do nothing
     this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
     if (!this.showResultPanel || !this.currentOperatorId) {
@@ -168,28 +186,34 @@ export class ResultPanelComponent implements OnInit {
     if (this.currentOperatorId) {
       this.displayResult(this.currentOperatorId);
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
-      if (isPythonUdf(operator)) {
-        this.displayConsole(this.currentOperatorId);
-
-        if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
-          this.displayDebugger(this.currentOperatorId);
-        }
+      if (this.workflowConsoleService.hasConsoleMessages(this.currentOperatorId) || isPythonUdf(operator)) {
+        this.displayConsole(this.currentOperatorId, isPythonUdf(operator));
+      }
+      if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
+        this.displayDebugger(this.currentOperatorId);
       }
     }
   }
 
   hasErrorOrBreakpoint(): boolean {
     const executionState = this.executeWorkflowService.getExecutionState();
-    return [ExecutionState.Failed, ExecutionState.BreakpointTriggered].includes(executionState.state);
+    return [ExecutionState.Paused, ExecutionState.BreakpointTriggered].includes(executionState.state);
   }
 
   clearResultPanel(): void {
     this.frameComponentConfigs.clear();
   }
 
-  displayConsole(operatorId: string) {
+  displayConsole(operatorId: string, consoleInputEnabled: boolean) {
     this.frameComponentConfigs.set("Console", {
       component: ConsoleFrameComponent,
+      componentInputs: { operatorId, consoleInputEnabled },
+    });
+  }
+
+  displayError(operatorId: string | undefined) {
+    this.frameComponentConfigs.set("Static Error", {
+      component: ErrorFrameComponent,
       componentInputs: { operatorId },
     });
   }
@@ -231,6 +255,12 @@ export class ResultPanelComponent implements OnInit {
     if (event.current.state === ExecutionState.BreakpointTriggered) {
       return true;
     }
+
+    // force refresh after fixing all editing-time errors
+    if (event.previous.state === ExecutionState.Failed) {
+      return true;
+    }
+
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
     return event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed;
   }

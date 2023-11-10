@@ -6,7 +6,7 @@
 
 import { ChartType } from "./visualization.interface";
 import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
-import { OperatorCurrentTuples } from "./workflow-websocket.interface";
+import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
 
 export interface LogicalLink
   extends Readonly<{
@@ -152,6 +152,6 @@ export type ExecutionStateInfo = Readonly<
     }
   | {
       state: ExecutionState.Failed;
-      errorMessages: Readonly<Record<string, string>>;
+      errorMessages: ReadonlyArray<WorkflowFatalError>;
     }
 >;
