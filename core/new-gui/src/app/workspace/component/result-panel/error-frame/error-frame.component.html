@@ -1,0 +1,32 @@
+<div
+  *ngIf="operatorId === undefined"
+  class="all-errors-notification">
+  Showing errors for all operators:
+</div>
+<div *ngIf="categoryToErrorMapping.size === 0">
+  <div style="text-align: center">
+    <h4>No error to display.</h4>
+  </div>
+</div>
+
+<div *ngFor="let category of categoryToErrorMapping.keys()">
+  <div class="error-category">{{category}}:</div>
+  <nz-collapse *ngIf="categoryToErrorMapping.get(category)!.length > 0">
+    <nz-collapse-panel
+      *ngFor="let error of categoryToErrorMapping.get(category)"
+      [nzHeader]="error.message"
+      [nzActive]="false"
+      [nzDisabled]="false"
+      [nzExtra]="extraTpl">
+      <ng-template #extraTpl>
+        <span
+          class="goto-operator-icon"
+          *ngIf="error.operatorId !== 'unknown operator'"
+          nz-icon
+          nzType="right-square"
+          (click)="$event.stopPropagation(); onClickGotoButton(error.operatorId)"></span>
+      </ng-template>
+      <p class="error-message">{{ error.details }}</p>
+    </nz-collapse-panel>
+  </nz-collapse>
+</div>

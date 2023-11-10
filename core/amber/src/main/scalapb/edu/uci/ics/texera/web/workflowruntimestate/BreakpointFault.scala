@@ -7,9 +7,8 @@ package edu.uci.ics.texera.web.workflowruntimestate
 
 @SerialVersionUID(0L)
 final case class BreakpointFault(
-    actorPath: _root_.scala.Predef.String = "",
-    faultedTuple: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple] = _root_.scala.None,
-    messages: _root_.scala.Seq[_root_.scala.Predef.String] = _root_.scala.Seq.empty
+    workerName: _root_.scala.Predef.String = "",
+    faultedTuple: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple] = _root_.scala.None
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[BreakpointFault] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -17,7 +16,7 @@ final case class BreakpointFault(
       var __size = 0
       
       {
-        val __value = actorPath
+        val __value = workerName
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(1, __value)
         }
@@ -26,10 +25,6 @@ final case class BreakpointFault(
         val __value = faultedTuple.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      messages.foreach { __item =>
-        val __value = __item
-        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
-      }
       __size
     }
     override def serializedSize: _root_.scala.Int = {
@@ -42,7 +37,7 @@ final case class BreakpointFault(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = actorPath
+        val __v = workerName
         if (!__v.isEmpty) {
           _output__.writeString(1, __v)
         }
@@ -53,35 +48,25 @@ final case class BreakpointFault(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      messages.foreach { __v =>
-        val __m = __v
-        _output__.writeString(3, __m)
-      };
     }
-    def withActorPath(__v: _root_.scala.Predef.String): BreakpointFault = copy(actorPath = __v)
+    def withWorkerName(__v: _root_.scala.Predef.String): BreakpointFault = copy(workerName = __v)
     def getFaultedTuple: edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple = faultedTuple.getOrElse(edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple.defaultInstance)
     def clearFaultedTuple: BreakpointFault = copy(faultedTuple = _root_.scala.None)
     def withFaultedTuple(__v: edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple): BreakpointFault = copy(faultedTuple = Option(__v))
-    def clearMessages = copy(messages = _root_.scala.Seq.empty)
-    def addMessages(__vs: _root_.scala.Predef.String*): BreakpointFault = addAllMessages(__vs)
-    def addAllMessages(__vs: Iterable[_root_.scala.Predef.String]): BreakpointFault = copy(messages = messages ++ __vs)
-    def withMessages(__v: _root_.scala.Seq[_root_.scala.Predef.String]): BreakpointFault = copy(messages = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = actorPath
+          val __t = workerName
           if (__t != "") __t else null
         }
         case 2 => faultedTuple.orNull
-        case 3 => messages
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PString(actorPath)
+        case 1 => _root_.scalapb.descriptors.PString(workerName)
         case 2 => faultedTuple.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 3 => _root_.scalapb.descriptors.PRepeated(messages.iterator.map(_root_.scalapb.descriptors.PString(_)).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -92,36 +77,31 @@ final case class BreakpointFault(
 object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault = {
-    var __actorPath: _root_.scala.Predef.String = ""
+    var __workerName: _root_.scala.Predef.String = ""
     var __faultedTuple: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple] = _root_.scala.None
-    val __messages: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __actorPath = _input__.readStringRequireUtf8()
+          __workerName = _input__.readStringRequireUtf8()
         case 18 =>
           __faultedTuple = Option(__faultedTuple.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 26 =>
-          __messages += _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault(
-        actorPath = __actorPath,
-        faultedTuple = __faultedTuple,
-        messages = __messages.result()
+        workerName = __workerName,
+        faultedTuple = __faultedTuple
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault(
-        actorPath = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        faultedTuple = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple]]),
-        messages = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty)
+        workerName = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        faultedTuple = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple]])
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -140,9 +120,8 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
     )
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault(
-    actorPath = "",
-    faultedTuple = _root_.scala.None,
-    messages = _root_.scala.Seq.empty
+    workerName = "",
+    faultedTuple = _root_.scala.None
   )
   @SerialVersionUID(0L)
   final case class BreakpointTuple(
@@ -299,22 +278,18 @@ object BreakpointFault extends scalapb.GeneratedMessageCompanion[edu.uci.ics.tex
   }
   
   implicit class BreakpointFaultLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault](_l) {
-    def actorPath: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.actorPath)((c_, f_) => c_.copy(actorPath = f_))
+    def workerName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.workerName)((c_, f_) => c_.copy(workerName = f_))
     def faultedTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple] = field(_.getFaultedTuple)((c_, f_) => c_.copy(faultedTuple = Option(f_)))
     def optionalFaultedTuple: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple]] = field(_.faultedTuple)((c_, f_) => c_.copy(faultedTuple = f_))
-    def messages: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.messages)((c_, f_) => c_.copy(messages = f_))
   }
-  final val ACTOR_PATH_FIELD_NUMBER = 1
+  final val WORKER_NAME_FIELD_NUMBER = 1
   final val FAULTED_TUPLE_FIELD_NUMBER = 2
-  final val MESSAGES_FIELD_NUMBER = 3
   def of(
-    actorPath: _root_.scala.Predef.String,
-    faultedTuple: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple],
-    messages: _root_.scala.Seq[_root_.scala.Predef.String]
+    workerName: _root_.scala.Predef.String,
+    faultedTuple: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple]
   ): _root_.edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault = _root_.edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault(
-    actorPath,
-    faultedTuple,
-    messages
+    workerName,
+    faultedTuple
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.BreakpointFault])
 }

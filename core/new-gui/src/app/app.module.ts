@@ -134,6 +134,7 @@ import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.componen
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
+import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 
 registerLocaleData(en);
 
@@ -177,6 +178,7 @@ registerLocaleData(en);
     ShareAccessComponent,
     NgbdModalWorkflowExecutionsComponent,
     ConsoleFrameComponent,
+    ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,

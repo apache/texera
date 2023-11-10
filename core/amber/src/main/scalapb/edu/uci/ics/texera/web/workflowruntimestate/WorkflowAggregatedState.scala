@@ -111,6 +111,6 @@ object WorkflowAggregatedState extends _root_.scalapb.GeneratedEnumCompanion[Wor
     case 9 => KILLED
     case __other => Unrecognized(__other)
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = WorkflowruntimestateProto.javaDescriptor.getEnumTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = WorkflowruntimestateProto.scalaDescriptor.enums(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.EnumDescriptor = WorkflowruntimestateProto.javaDescriptor.getEnumTypes().get(1)
+  def scalaDescriptor: _root_.scalapb.descriptors.EnumDescriptor = WorkflowruntimestateProto.scalaDescriptor.enums(1)
 }
