@@ -24,8 +24,9 @@ object WorkflowCompiler {
 
 }
 
-class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContext) {
+class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContext){
   logicalPlan.operatorMap.values.foreach(initOperator)
+
 
   def initOperator(operator: OperatorDescriptor): Unit = {
     operator.setContext(context)

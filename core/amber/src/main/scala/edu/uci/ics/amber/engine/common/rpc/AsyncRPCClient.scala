@@ -104,7 +104,7 @@ class AsyncRPCClient(
       if (ret.controlReturn.isInstanceOf[WorkerStatistics]) {
         return
       }
-      logger.info(
+      logger.debug(
         s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $sender (controlID: ${ret.originalCommandID})"
       )
     } else {

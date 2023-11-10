@@ -31,7 +31,9 @@ class WorkflowJobService(
     with LazyLogging {
 
   val stateStore = new JobStateStore()
+  logger.info("Creating a new execution job.")
   val workflowCompiler: WorkflowCompiler = createWorkflowCompiler(LogicalPlan(request.logicalPlan))
+  logger.info("Compiling the logical plan into a physical plan.")
   val workflow: Workflow = workflowCompiler.amberWorkflow(
     WorkflowIdentity(workflowContext.jobId),
     resultService.opResultStorage,
@@ -53,6 +55,7 @@ class WorkflowJobService(
   }
 
   // Runtime starts from here:
+  logger.info("Initialing an AmberClient, runtime starting...")
   var client: AmberClient =
     TexeraWebApplication.createAmberRuntime(
       workflow,
@@ -75,6 +78,7 @@ class WorkflowJobService(
     new JobPythonService(client, stateStore, wsInput, jobBreakpointService)
 
   def startWorkflow(): Unit = {
+    logger.info("Starting the workflow execution.")
     for (pair <- workflowCompiler.logicalPlan.breakpoints) {
       Await.result(
         jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),

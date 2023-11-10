@@ -3,25 +3,17 @@ package edu.uci.ics.texera.web.service
 import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  PaginatedResultEvent,
-  TexeraWebSocketEvent,
-  WebResultUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{PaginatedResultEvent, TexeraWebSocketEvent, WebResultUpdateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
 import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
-import edu.uci.ics.texera.web.storage.{
-  JobStateStore,
-  OperatorResultMetadata,
-  WorkflowResultStore,
-  WorkflowStateStore
-}
+import edu.uci.ics.texera.web.storage.{JobStateStore, OperatorResultMetadata, WorkflowResultStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
@@ -158,7 +150,7 @@ object JobResultService {
 class JobResultService(
     val opResultStorage: OpResultStorage,
     val workflowStateStore: WorkflowStateStore
-) extends SubscriptionManager {
+) extends SubscriptionManager with LazyLogging {
 
   var sinkOperators: mutable.HashMap[String, ProgressiveSinkOpDesc] =
     mutable.HashMap[String, ProgressiveSinkOpDesc]()
@@ -200,6 +192,7 @@ class JobResultService(
     addSubscription(
       client
         .registerCallback[WorkflowCompleted](_ => {
+          logger.info("Workflow execution completed.")
           if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
             // immediately perform final update
             onResultUpdate()
