@@ -1,14 +1,15 @@
 <div class="versions-frame" >
 
-  <nz-table nzSize="small"
+  <nz-table
+    id="versions-list"
+    nzSize="small"
             [nzSimple]=true
             [nzFrontPagination]="false"
             nzTableLayout="auto"
-
-            *ngIf="versionsList" [nzData]="versionsList" id="versions-list">
+            *ngIf="versionsList" [nzData]="versionsList" >
     <thead>
     <tr>
-      <th *ngFor="let column of versionTableHeaders">{{column}}</th>
+      <th nzAlign="center" *ngFor="let column of versionTableHeaders">{{column}}</th>
     </tr>
     </thead>
     <tbody>
@@ -21,7 +22,9 @@
       </tr>
     </ng-container>
     </tbody>
+
   </nz-table>
-  <button nz-button (click)="workflowVersionService.closeFrame()"> close versions</button>
+  <button id="close-button" nz-button (click)="workflowVersionService.closeFrame()"> close versions</button>
+
 
 </div>

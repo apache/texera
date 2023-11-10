@@ -3,21 +3,20 @@
   display: flex;
   flex-direction: column;
   #versions-list ::ng-deep {
-    height: 100%;
+    height: 90%;
     overflow: auto;
     // Adjust the font size of the table content
     .ant-table-content {
-      font-size: 11px; // Adjust the font size as needed
+      font-size: 11px;
     }
 
-    // Adjust the font size of the table headers
     .ant-table-thead {
       th {
-        font-size: 11px; // Adjust the font size as needed
-        text-align: center;
+        font-size: 11px;
       }
     }
   }
+
 
 }
 
