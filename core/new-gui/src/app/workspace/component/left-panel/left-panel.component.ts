@@ -1,21 +1,18 @@
-import {Component, OnInit} from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
-import {DynamicComponentConfig} from "../../../common/type/dynamic-component-config";
-import {OperatorMenuFrameComponent} from "./operator-menu-frame/operator-menu-frame.component";
-import {VersionsFrameComponent} from "./versions-frame/versions-frame.component";
-import {merge} from "rxjs";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+import { OperatorMenuFrameComponent } from "./operator-menu-frame/operator-menu-frame.component";
+import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
+import { merge } from "rxjs";
 import {
   OPEN_VERSIONS_FRAME_EVENT,
-  WorkflowVersionService
+  WorkflowVersionService,
 } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
-export type LeftFrameComponent =
-  | OperatorMenuFrameComponent
-  | VersionsFrameComponent;
+export type LeftFrameComponent = OperatorMenuFrameComponent | VersionsFrameComponent;
 
 export type LeftFrameComponentConfig = DynamicComponentConfig<LeftFrameComponent>;
-
 
 @UntilDestroy()
 @Component({
@@ -28,10 +25,7 @@ export class LeftPanelComponent implements OnInit {
 
   currentOperatorId?: string;
 
-  constructor(
-    private workflowVersionService: WorkflowVersionService
-  ) {
-  }
+  constructor(private workflowVersionService: WorkflowVersionService) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
@@ -53,22 +47,19 @@ export class LeftPanelComponent implements OnInit {
   }
 
   registerHighlightEventsHandler() {
-    merge(
-      this.workflowVersionService.workflowVersionsDisplayObservable()
-    )
+    merge(this.workflowVersionService.workflowVersionsDisplayObservable())
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-          if (event === OPEN_VERSIONS_FRAME_EVENT) {
-            this.switchFrameComponent({
-              component: VersionsFrameComponent,
-            });
-          } else {
-            // CLOSE_VERSIONS_FRAME_EVENT
-            this.switchFrameComponent({
-              component: OperatorMenuFrameComponent
-            });
-          }
+        if (event === OPEN_VERSIONS_FRAME_EVENT) {
+          this.switchFrameComponent({
+            component: VersionsFrameComponent,
+          });
+        } else {
+          // CLOSE_VERSIONS_FRAME_EVENT
+          this.switchFrameComponent({
+            component: OperatorMenuFrameComponent,
+          });
         }
-      );
+      });
   }
 }

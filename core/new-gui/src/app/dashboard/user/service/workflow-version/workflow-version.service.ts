@@ -265,6 +265,4 @@ export class WorkflowVersionService {
   closeFrame() {
     this.workflowVersionsSubject.next(CLOSE_VERSIONS_FRAME_EVENT);
   }
-
-
 }

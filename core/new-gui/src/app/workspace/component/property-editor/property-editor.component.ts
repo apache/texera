@@ -1,14 +1,10 @@
-import {ChangeDetectorRef,Component, OnInit} from "@angular/core";
-import {merge} from "rxjs";
-import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
-import {
-  OperatorPropertyEditFrameComponent
-} from "./operator-property-edit-frame/operator-property-edit-frame.component";
-import {
-  BreakpointPropertyEditFrameComponent
-} from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
-import {DynamicComponentConfig} from "../../../common/type/dynamic-component-config";
-import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { merge } from "rxjs";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
+import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
+import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 
@@ -34,11 +30,7 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  constructor(
-    public workflowActionService: WorkflowActionService,
-    private changeDetectorRef: ChangeDetectorRef
-  ) {
-  }
+  constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
@@ -89,18 +81,20 @@ export class PropertyEditorComponent implements OnInit {
         this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
         const highlightedPorts = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedPortIDs();
 
-        if (highlightedOperators.length === 1 &&
+        if (
+          highlightedOperators.length === 1 &&
           highlightedGroups.length === 0 &&
           highlightLinks.length === 0 &&
-          highlightedPorts.length === 0) {
+          highlightedPorts.length === 0
+        ) {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
-            componentInputs: {currentOperatorId: highlightedOperators[0]},
+            componentInputs: { currentOperatorId: highlightedOperators[0] },
           });
         } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
           this.switchFrameComponent({
             component: BreakpointPropertyEditFrameComponent,
-            componentInputs: {currentLinkId: highlightLinks[0]},
+            componentInputs: { currentLinkId: highlightLinks[0] },
           });
         } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.switchFrameComponent({

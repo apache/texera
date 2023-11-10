@@ -1,30 +1,44 @@
-<div class="versions-frame" >
-
+<div class="versions-frame">
   <nz-table
     id="versions-list"
     nzSize="small"
-            [nzSimple]=true
-            [nzFrontPagination]="false"
-            nzTableLayout="auto"
-            *ngIf="versionsList" [nzData]="versionsList" >
+    [nzSimple]="true"
+    [nzFrontPagination]="false"
+    nzTableLayout="auto"
+    *ngIf="versionsList"
+    [nzData]="versionsList">
     <thead>
-    <tr>
-      <th nzAlign="center" *ngFor="let column of versionTableHeaders">{{column}}</th>
-    </tr>
+      <tr>
+        <th
+          nzAlign="center"
+          *ngFor="let column of versionTableHeaders">
+          {{column}}
+        </th>
+      </tr>
     </thead>
     <tbody>
-    <ng-container *ngFor="let row of versionsList; let i=index; let l=count;">
-      <tr  *ngIf="(!row.importance && row.expand) || row.importance">
-        <td nzAlign="right" [nzShowExpand]="row.importance" [(nzExpand)]="row.expand" (nzExpandChange)="collapse(i, $event)">
-          {{(l - i)}}
-        </td>
-        <td nzEllipsis (click)="getVersion(row.vId)">{{row.creationTime | date:'MM/dd/YY HH:mm:ss'}}</td>
-      </tr>
-    </ng-container>
+      <ng-container *ngFor="let row of versionsList; let i=index; let l=count;">
+        <tr *ngIf="(!row.importance && row.expand) || row.importance">
+          <td
+            nzAlign="right"
+            [nzShowExpand]="row.importance"
+            [(nzExpand)]="row.expand"
+            (nzExpandChange)="collapse(i, $event)">
+            {{(l - i)}}
+          </td>
+          <td
+            nzEllipsis
+            (click)="getVersion(row.vId)">
+            {{row.creationTime | date:'MM/dd/YY HH:mm:ss'}}
+          </td>
+        </tr>
+      </ng-container>
     </tbody>
-
   </nz-table>
-  <button id="close-button" nz-button (click)="workflowVersionService.closeFrame()"> close versions</button>
-
-
+  <button
+    id="close-button"
+    nz-button
+    (click)="workflowVersionService.closeFrame()">
+    close versions
+  </button>
 </div>
