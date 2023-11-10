@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Breakpoi
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBreakpointHandler.AssignGlobalBreakpoint
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
-import edu.uci.ics.texera.web.model.websocket.event.{BreakpointTriggeredEvent, TexeraWebSocketEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{ReportFaultedTupleEvent, TexeraWebSocketEvent}
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
@@ -43,7 +43,7 @@ class JobBreakpointService(
               if (
                 info.unresolvedBreakpoints.nonEmpty && info.unresolvedBreakpoints != oldInfo.unresolvedBreakpoints
               ) {
-                output.append(BreakpointTriggeredEvent(info.unresolvedBreakpoints, opId))
+                output.append(ReportFaultedTupleEvent(info.unresolvedBreakpoints, opId))
               }
           }
         output
@@ -62,24 +62,20 @@ class JobBreakpointService(
             updateWorkflowState(PAUSED, oldState)
           }
           stateStore.breakpointStore.updateState { jobInfo =>
-            val breakpointEvts = evt.report
-              .filter(_._1._2 != null)
-              .map { elem =>
-                val actorPath = elem._1._1.toString
-                val faultedTuple = elem._1._2
-                val tupleList =
-                  if (faultedTuple.tuple != null) {
-                    faultedTuple.tuple.toArray().filter(v => v != null).map(v => v.toString).toList
-                  } else {
-                    List.empty
-                  }
-                BreakpointFault(
-                  actorPath,
-                  Some(BreakpointTuple(faultedTuple.id, faultedTuple.isInput, tupleList)),
-                  elem._2
-                )
-              }
-              .toArray
+            val breakpointEvts = evt.faultedTupleMap.map { elem =>
+              val workerName = elem._1.name
+              val faultedTuple = elem._2
+              val tupleList =
+                if (faultedTuple.tuple != null) {
+                  faultedTuple.tuple.toArray().filter(v => v != null).map(v => v.toString).toList
+                } else {
+                  List.empty
+                }
+              BreakpointFault(
+                workerName,
+                Some(BreakpointTuple(faultedTuple.id, faultedTuple.isInput, tupleList))
+              )
+            }.toArray
             val newInfo = jobInfo.operatorInfo
               .getOrElse(evt.operatorID, OperatorBreakpoints())
               .withUnresolvedBreakpoints(breakpointEvts)

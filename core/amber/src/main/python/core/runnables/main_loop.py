@@ -1,6 +1,5 @@
 import datetime
 import threading
-import traceback
 import typing
 from typing import Iterator, Optional, Union
 
@@ -18,7 +17,6 @@ from core.models import (
     InternalQueue,
     SenderChangeMarker,
     Tuple,
-    ExceptionInfo,
 )
 from core.models.internal_queue import DataElement, ControlElement
 from core.runnables.data_processor import DataProcessor
@@ -26,11 +24,12 @@ from core.util import StoppableQueueBlockingRunnable, get_one_of, set_one_of
 from core.util.customized_queue.queue_base import QueueElement
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ControlCommandV2,
-    LocalOperatorExceptionV2,
+    ConsoleMessageType,
     WorkerExecutionCompletedV2,
     WorkerState,
     LinkCompletedV2,
     PythonConsoleMessageV2,
+    ConsoleMessage,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -63,7 +62,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         controller.
         """
         # flush the buffered console prints
-        self._check_and_report_print(force_flush=True)
+        self._check_and_report_console_messages(force_flush=True)
         self.context.operator_manager.operator.close()
         # stop the data processing thread
         self.data_processor.stop()
@@ -168,18 +167,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             self._switch_context()
             yield self.context.tuple_processing_manager.get_output_tuple()
-
-    def report_exception(self, exc_info: ExceptionInfo) -> None:
-        """
-        Report the traceback of current stack when an exception occurs.
-        """
-        message: str = "\n".join(traceback.format_exception(*exc_info))
-        control_command = set_one_of(
-            ControlCommandV2, LocalOperatorExceptionV2(message=message)
-        )
-        self._async_rpc_client.send(
-            ActorVirtualIdentity(name="CONTROLLER"), control_command
-        )
 
     def _process_control_element(self, control_element: ControlElement) -> None:
         """
@@ -305,7 +292,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Pause the data processing.
         """
-        self._check_and_report_print(force_flush=True)
+        self._check_and_report_console_messages(force_flush=True)
         if self.context.state_manager.confirm_state(
             WorkerState.RUNNING, WorkerState.READY
         ):
@@ -343,22 +330,25 @@ class MainLoop(StoppableQueueBlockingRunnable):
             debug_event = self.context.debug_manager.get_debug_event()
             self._send_console_message(
                 PythonConsoleMessageV2(
-                    timestamp=datetime.datetime.now(),
-                    msg_type="DEBUGGER",
-                    source="(Pdb)",
-                    message=debug_event,
+                    ConsoleMessage(
+                        worker_id=self.context.worker_id,
+                        timestamp=datetime.datetime.now(),
+                        msg_type=ConsoleMessageType.DEBUGGER,
+                        source="(Pdb)",
+                        title=debug_event,
+                        message="",
+                    )
                 )
             )
             self._pause_dp()
 
-    def _check_and_report_exception(self) -> None:
+    def _check_exception(self) -> None:
         if self.context.exception_manager.has_exception():
-            self.report_exception(self.context.exception_manager.get_exc_info())
             self._pause_dp()
 
-    def _check_and_report_print(self, force_flush=False) -> None:
+    def _check_and_report_console_messages(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):
-            self._send_console_message(msg)
+            self._send_console_message(PythonConsoleMessageV2(msg))
 
     def _post_switch_context_checks(self) -> None:
         """
@@ -370,6 +360,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             - Exception
         We check and report them each time coming back from DataProcessor.
         """
-        self._check_and_report_print()
+        self._check_and_report_console_messages(force_flush=True)
         self._check_and_report_debug_event()
-        self._check_and_report_exception()
+        self._check_exception()

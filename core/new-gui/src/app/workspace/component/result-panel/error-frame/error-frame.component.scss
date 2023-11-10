@@ -1,0 +1,26 @@
+:host {
+  width: 100%;
+}
+
+.all-errors-notification {
+  color: blue;
+}
+
+.goto-operator-icon {
+  color: blueviolet; /* change color */
+  font-size: 20px; /* change size */
+}
+
+.error-message {
+  font-family: monaco, serif;
+  font-size: 11px;
+  font-style: normal;
+  font-variant: normal;
+  font-weight: 200;
+  line-height: 14px;
+  color: red;
+}
+
+.error-category {
+  font-weight: bold;
+}

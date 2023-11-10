@@ -5,7 +5,7 @@ import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.workflowruntimestate.{
   JobBreakpointStore,
   JobMetadataStore,
-  JobPythonStore,
+  JobConsoleStore,
   JobStatsStore,
   WorkflowAggregatedState
 }
@@ -27,11 +27,11 @@ object JobStateStore {
 class JobStateStore {
   val statsStore = new StateStore(JobStatsStore())
   val jobMetadataStore = new StateStore(JobMetadataStore())
-  val pythonStore = new StateStore(JobPythonStore())
+  val consoleStore = new StateStore(JobConsoleStore())
   val breakpointStore = new StateStore(JobBreakpointStore())
   val reconfigurationStore = new StateStore(JobReconfigurationStore())
 
   def getAllStores: Iterable[StateStore[_]] = {
-    Iterable(statsStore, pythonStore, breakpointStore, jobMetadataStore, reconfigurationStore)
+    Iterable(statsStore, consoleStore, breakpointStore, jobMetadataStore, reconfigurationStore)
   }
 }

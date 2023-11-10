@@ -5,8 +5,8 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberUtils
 
 import scala.collection.JavaConverters._
-import edu.uci.ics.texera.web.model.websocket.event.{TexeraWebSocketEvent, WorkflowErrorEvent}
-import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput, WorkflowLifecycleManager}
+import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
+import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
 import edu.uci.ics.texera.web.model.websocket.request.{WorkflowExecuteRequest, WorkflowKillRequest}
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -55,17 +55,6 @@ class WorkflowService(
   // state across execution:
   var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
-  val errorHandler: Throwable => Unit = { t =>
-    {
-      t.printStackTrace()
-      errorSubject.onNext(
-        WorkflowErrorEvent(generalErrors =
-          Map("error" -> (t.getMessage + "\n" + t.getStackTrace.mkString("\n")))
-        )
-      )
-    }
-  }
-  val wsInput = new WebsocketInput(errorHandler)
   val stateStore = new WorkflowStateStore()
   var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
 
@@ -79,7 +68,9 @@ class WorkflowService(
     () => {
       opResultStorage.close()
       WorkflowService.wIdToWorkflowState.remove(mkWorkflowStateId(wId))
-      wsInput.onNext(WorkflowKillRequest(), None)
+      if (jobService.getValue != null) {
+        jobService.getValue.wsInput.onNext(WorkflowKillRequest(), None)
+      }
       unsubscribeAll()
     }
   )
@@ -93,15 +84,12 @@ class WorkflowService(
           if (oldState.state != COMPLETED && newState.state == COMPLETED) {
             lastCompletedLogicalPlan = Option.apply(job.workflowCompiler.logicalPlan)
           }
+
           Iterable.empty
         }
       }
     }
   }
-
-  addSubscription(
-    wsInput.subscribe((evt: WorkflowExecuteRequest, uidOpt) => initJobService(evt, uidOpt))
-  )
 
   def connect(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     lifeCycleManager.increaseUserCount()
@@ -158,16 +146,16 @@ class WorkflowService(
 
     val job = new WorkflowJobService(
       workflowContext,
-      wsInput,
       resultService,
       req,
-      errorHandler,
       lastCompletedLogicalPlan
     )
 
     lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
     jobService.onNext(job)
-    job.startWorkflow()
+    if (job.stateStore.jobMetadataStore.getState.fatalErrors.isEmpty) {
+      job.startWorkflow()
+    }
   }
 
   def convertToJson(frontendVersion: String): String = {

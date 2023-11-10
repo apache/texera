@@ -5,13 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
-  WorkflowExecutionErrorEvent,
-  WorkflowStateEvent
-}
 import edu.uci.ics.texera.web.model.websocket.request.{
   SkipTupleRequest,
   WorkflowKillRequest,
@@ -22,8 +16,6 @@ import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
-import scala.collection.mutable
-
 class JobRuntimeService(
     client: AmberClient,
     stateStore: JobStateStore,
@@ -32,26 +24,6 @@ class JobRuntimeService(
     reconfigurationService: JobReconfigurationService
 ) extends SubscriptionManager
     with LazyLogging {
-
-  addSubscription(
-    stateStore.jobMetadataStore.registerDiffHandler((oldState, newState) => {
-      val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
-      // Update workflow state
-      if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
-        // Check if is recovering
-        if (newState.isRecovering && newState.state != COMPLETED) {
-          outputEvts.append(WorkflowStateEvent("Recovering"))
-        } else {
-          outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
-        }
-      }
-      // Check if new error occurred
-      if (newState.error != oldState.error && newState.error != null) {
-        outputEvts.append(WorkflowExecutionErrorEvent(newState.error))
-      }
-      outputEvts
-    })
-  )
 
   //Receive skip tuple
   addSubscription(wsInput.subscribe((req: SkipTupleRequest, uidOpt) => {

@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.model.websocket.event.python
 
+import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage
 
 object ConsoleUpdateEvent {}
 

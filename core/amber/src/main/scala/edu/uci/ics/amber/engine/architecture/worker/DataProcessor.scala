@@ -1,9 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.ActorContext
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
@@ -43,7 +43,7 @@ import edu.uci.ics.amber.engine.common.{
   ISourceOperatorExecutor,
   InputExhausted
 }
-import edu.uci.ics.amber.error.ErrorUtils.safely
+import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
 import java.util.concurrent.{ExecutorService, Executors, Future}
 
@@ -101,7 +101,10 @@ class DataProcessor( // dependencies:
             case err: Exception =>
               logger.error("DP Thread exists unexpectedly", err)
               asyncRPCClient.send(
-                FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
+                FatalError(
+                  new WorkflowRuntimeException("DP Thread exists unexpectedly", err),
+                  Some(actorId)
+                ),
                 CONTROLLER
               )
           }
@@ -292,17 +295,10 @@ class DataProcessor( // dependencies:
   }
 
   private[this] def handleOperatorException(e: Throwable): Unit = {
-    if (currentInputTuple.isLeft) {
-      asyncRPCClient.send(
-        LocalOperatorException(currentInputTuple.left.get, e),
-        CONTROLLER
-      )
-    } else {
-      asyncRPCClient.send(
-        LocalOperatorException(ITuple("input exhausted"), e),
-        CONTROLLER
-      )
-    }
+    asyncRPCClient.send(
+      ConsoleMessageTriggered(mkConsoleMessage(actorId, e)),
+      CONTROLLER
+    )
     logger.warn(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
     // invoke a pause in-place
     asyncRPCServer.execute(PauseWorker(), SELF)

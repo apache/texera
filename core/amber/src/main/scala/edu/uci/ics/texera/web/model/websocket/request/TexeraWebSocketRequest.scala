@@ -12,7 +12,7 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
   Array(
     new Type(value = classOf[RegisterWIdRequest]),
     new Type(value = classOf[AddBreakpointRequest]),
-    new Type(value = classOf[CacheStatusUpdateRequest]),
+    new Type(value = classOf[EditingTimeCompilationRequest]),
     new Type(value = classOf[HeartBeatRequest]),
     new Type(value = classOf[ModifyLogicRequest]),
     new Type(value = classOf[RemoveBreakpointRequest]),

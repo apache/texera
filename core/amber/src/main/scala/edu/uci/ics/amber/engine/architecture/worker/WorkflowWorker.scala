@@ -96,7 +96,7 @@ class WorkflowWorker(
     super.preRestart(reason, message)
     logger.error(s"Encountered fatal error, worker is shutting done.", reason)
     asyncRPCClient.send(
-      FatalError(reason),
+      FatalError(reason, Some(actorId)),
       CONTROLLER
     )
   }

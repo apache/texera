@@ -107,9 +107,8 @@ export type BreakpointFaultedTuple = Readonly<{
 }>;
 
 export type BreakpointFault = Readonly<{
-  actorPath: string;
+  workerName: string;
   faultedTuple: BreakpointFaultedTuple;
-  messages: ReadonlyArray<string>;
 }>;
 
 export type BreakpointTriggerInfo = Readonly<{
@@ -126,8 +125,11 @@ export type ConsoleMessage = Readonly<{
     nanos: number;
     seconds: number;
   };
-  msgType: string;
+  msgType: {
+    name: string;
+  };
   source: string;
+  title: string;
   message: string;
 }>;
 

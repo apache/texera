@@ -9,6 +9,11 @@ import betterproto
 from betterproto.grpc.grpclib_server import ServiceBase
 
 
+class FatalErrorType(betterproto.Enum):
+    COMPILATION_ERROR = 0
+    EXECUTION_FAILURE = 1
+
+
 class WorkflowAggregatedState(betterproto.Enum):
     UNINITIALIZED = 0
     READY = 1
@@ -24,9 +29,8 @@ class WorkflowAggregatedState(betterproto.Enum):
 
 @dataclass(eq=False, repr=False)
 class BreakpointFault(betterproto.Message):
-    actor_path: str = betterproto.string_field(1)
+    worker_name: str = betterproto.string_field(1)
     faulted_tuple: "BreakpointFaultBreakpointTuple" = betterproto.message_field(2)
-    messages: List[str] = betterproto.string_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -56,25 +60,18 @@ class EvaluatedValueList(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class ConsoleMessage(betterproto.Message):
-    worker_id: str = betterproto.string_field(1)
-    timestamp: datetime = betterproto.message_field(2)
-    msg_type: str = betterproto.string_field(3)
-    source: str = betterproto.string_field(4)
-    message: str = betterproto.string_field(5)
-
-
-@dataclass(eq=False, repr=False)
-class PythonOperatorInfo(betterproto.Message):
-    console_messages: List["ConsoleMessage"] = betterproto.message_field(1)
+class OperatorConsole(betterproto.Message):
+    console_messages: List[
+        "__amber_engine_architecture_worker__.ConsoleMessage"
+    ] = betterproto.message_field(1)
     evaluate_expr_results: Dict[str, "EvaluatedValueList"] = betterproto.map_field(
         2, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
 
 
 @dataclass(eq=False, repr=False)
-class JobPythonStore(betterproto.Message):
-    operator_info: Dict[str, "PythonOperatorInfo"] = betterproto.map_field(
+class JobConsoleStore(betterproto.Message):
+    operator_console: Dict[str, "OperatorConsole"] = betterproto.map_field(
         1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
 
@@ -105,9 +102,19 @@ class JobStatsStore(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class WorkflowFatalError(betterproto.Message):
+    type: "FatalErrorType" = betterproto.enum_field(1)
+    timestamp: datetime = betterproto.message_field(2)
+    message: str = betterproto.string_field(3)
+    details: str = betterproto.string_field(4)
+    operator_id: str = betterproto.string_field(5)
+    worker_id: str = betterproto.string_field(6)
+
+
+@dataclass(eq=False, repr=False)
 class JobMetadataStore(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
-    error: str = betterproto.string_field(2)
+    fatal_errors: List["WorkflowFatalError"] = betterproto.message_field(2)
     eid: int = betterproto.int64_field(3)
     is_recovering: bool = betterproto.bool_field(4)
 

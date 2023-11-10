@@ -44,7 +44,7 @@ class PauseSpec
     val client =
       new AmberClient(
         system,
-        Utils.getWorkflow(operators, links),
+        Utils.buildWorkflow(operators, links),
         ControllerConfig.default,
         error => {}
       )

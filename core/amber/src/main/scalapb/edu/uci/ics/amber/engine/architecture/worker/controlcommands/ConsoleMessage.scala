@@ -3,15 +3,16 @@
 //
 // Protofile syntax: PROTO3
 
-package edu.uci.ics.texera.web.workflowruntimestate
+package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
 @SerialVersionUID(0L)
 final case class ConsoleMessage(
-    workerId: _root_.scala.Predef.String = "",
-    timestamp: com.google.protobuf.timestamp.Timestamp = com.google.protobuf.timestamp.Timestamp.defaultInstance,
-    msgType: _root_.scala.Predef.String = "",
-    source: _root_.scala.Predef.String = "",
-    message: _root_.scala.Predef.String = ""
+    workerId: _root_.scala.Predef.String,
+    timestamp: com.google.protobuf.timestamp.Timestamp,
+    msgType: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType,
+    source: _root_.scala.Predef.String,
+    title: _root_.scala.Predef.String,
+    message: _root_.scala.Predef.String
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ConsoleMessage] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -33,9 +34,9 @@ final case class ConsoleMessage(
       };
       
       {
-        val __value = msgType
-        if (!__value.isEmpty) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
+        val __value = msgType.value
+        if (__value != 0) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(3, __value)
         }
       };
       
@@ -47,9 +48,16 @@ final case class ConsoleMessage(
       };
       
       {
-        val __value = message
+        val __value = title
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(5, __value)
+        }
+      };
+      
+      {
+        val __value = message
+        if (!__value.isEmpty) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(6, __value)
         }
       };
       __size
@@ -78,9 +86,9 @@ final case class ConsoleMessage(
         }
       };
       {
-        val __v = msgType
-        if (!__v.isEmpty) {
-          _output__.writeString(3, __v)
+        val __v = msgType.value
+        if (__v != 0) {
+          _output__.writeEnum(3, __v)
         }
       };
       {
@@ -90,16 +98,23 @@ final case class ConsoleMessage(
         }
       };
       {
-        val __v = message
+        val __v = title
         if (!__v.isEmpty) {
           _output__.writeString(5, __v)
+        }
+      };
+      {
+        val __v = message
+        if (!__v.isEmpty) {
+          _output__.writeString(6, __v)
         }
       };
     }
     def withWorkerId(__v: _root_.scala.Predef.String): ConsoleMessage = copy(workerId = __v)
     def withTimestamp(__v: com.google.protobuf.timestamp.Timestamp): ConsoleMessage = copy(timestamp = __v)
-    def withMsgType(__v: _root_.scala.Predef.String): ConsoleMessage = copy(msgType = __v)
+    def withMsgType(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType): ConsoleMessage = copy(msgType = __v)
     def withSource(__v: _root_.scala.Predef.String): ConsoleMessage = copy(source = __v)
+    def withTitle(__v: _root_.scala.Predef.String): ConsoleMessage = copy(title = __v)
     def withMessage(__v: _root_.scala.Predef.String): ConsoleMessage = copy(message = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
@@ -112,14 +127,18 @@ final case class ConsoleMessage(
           if (__t != com.google.protobuf.timestamp.Timestamp.defaultInstance) __t else null
         }
         case 3 => {
-          val __t = msgType
-          if (__t != "") __t else null
+          val __t = msgType.javaValueDescriptor
+          if (__t.getNumber() != 0) __t else null
         }
         case 4 => {
           val __t = source
           if (__t != "") __t else null
         }
         case 5 => {
+          val __t = title
+          if (__t != "") __t else null
+        }
+        case 6 => {
           val __t = message
           if (__t != "") __t else null
         }
@@ -130,23 +149,25 @@ final case class ConsoleMessage(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PString(workerId)
         case 2 => timestamp.toPMessage
-        case 3 => _root_.scalapb.descriptors.PString(msgType)
+        case 3 => _root_.scalapb.descriptors.PEnum(msgType.scalaValueDescriptor)
         case 4 => _root_.scalapb.descriptors.PString(source)
-        case 5 => _root_.scalapb.descriptors.PString(message)
+        case 5 => _root_.scalapb.descriptors.PString(title)
+        case 6 => _root_.scalapb.descriptors.PString(message)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.ConsoleMessage])
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.ConsoleMessage])
 }
 
-object ConsoleMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage = {
+object ConsoleMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage = {
     var __workerId: _root_.scala.Predef.String = ""
     var __timestamp: _root_.scala.Option[com.google.protobuf.timestamp.Timestamp] = _root_.scala.None
-    var __msgType: _root_.scala.Predef.String = ""
+    var __msgType: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.PRINT
     var __source: _root_.scala.Predef.String = ""
+    var __title: _root_.scala.Predef.String = ""
     var __message: _root_.scala.Predef.String = ""
     var _done__ = false
     while (!_done__) {
@@ -157,37 +178,41 @@ object ConsoleMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texe
           __workerId = _input__.readStringRequireUtf8()
         case 18 =>
           __timestamp = _root_.scala.Some(__timestamp.fold(_root_.scalapb.LiteParser.readMessage[com.google.protobuf.timestamp.Timestamp](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 26 =>
-          __msgType = _input__.readStringRequireUtf8()
+        case 24 =>
+          __msgType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.fromValue(_input__.readEnum())
         case 34 =>
           __source = _input__.readStringRequireUtf8()
         case 42 =>
+          __title = _input__.readStringRequireUtf8()
+        case 50 =>
           __message = _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage(
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage(
         workerId = __workerId,
         timestamp = __timestamp.getOrElse(com.google.protobuf.timestamp.Timestamp.defaultInstance),
         msgType = __msgType,
         source = __source,
+        title = __title,
         message = __message
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage(
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage(
         workerId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         timestamp = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[com.google.protobuf.timestamp.Timestamp]).getOrElse(com.google.protobuf.timestamp.Timestamp.defaultInstance),
-        msgType = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        msgType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.PRINT.scalaValueDescriptor).number),
         source = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
-        message = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        title = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        message = __fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowruntimestateProto.javaDescriptor.getMessageTypes().get(4)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowruntimestateProto.scalaDescriptor.messages(4)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(14)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(14)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -196,38 +221,47 @@ object ConsoleMessage extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texe
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage(
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
+    (__fieldNumber: @_root_.scala.unchecked) match {
+      case 3 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType
+    }
+  }
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage(
     workerId = "",
     timestamp = com.google.protobuf.timestamp.Timestamp.defaultInstance,
-    msgType = "",
+    msgType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType.PRINT,
     source = "",
+    title = "",
     message = ""
   )
-  implicit class ConsoleMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage](_l) {
+  implicit class ConsoleMessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage](_l) {
     def workerId: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.workerId)((c_, f_) => c_.copy(workerId = f_))
     def timestamp: _root_.scalapb.lenses.Lens[UpperPB, com.google.protobuf.timestamp.Timestamp] = field(_.timestamp)((c_, f_) => c_.copy(timestamp = f_))
-    def msgType: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.msgType)((c_, f_) => c_.copy(msgType = f_))
+    def msgType: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType] = field(_.msgType)((c_, f_) => c_.copy(msgType = f_))
     def source: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.source)((c_, f_) => c_.copy(source = f_))
+    def title: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.title)((c_, f_) => c_.copy(title = f_))
     def message: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.message)((c_, f_) => c_.copy(message = f_))
   }
-  final val WORKERID_FIELD_NUMBER = 1
+  final val WORKER_ID_FIELD_NUMBER = 1
   final val TIMESTAMP_FIELD_NUMBER = 2
   final val MSG_TYPE_FIELD_NUMBER = 3
   final val SOURCE_FIELD_NUMBER = 4
-  final val MESSAGE_FIELD_NUMBER = 5
+  final val TITLE_FIELD_NUMBER = 5
+  final val MESSAGE_FIELD_NUMBER = 6
   def of(
     workerId: _root_.scala.Predef.String,
     timestamp: com.google.protobuf.timestamp.Timestamp,
-    msgType: _root_.scala.Predef.String,
+    msgType: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessageType,
     source: _root_.scala.Predef.String,
+    title: _root_.scala.Predef.String,
     message: _root_.scala.Predef.String
-  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage = _root_.edu.uci.ics.texera.web.workflowruntimestate.ConsoleMessage(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ConsoleMessage(
     workerId,
     timestamp,
     msgType,
     source,
+    title,
     message
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.ConsoleMessage])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.ConsoleMessage])
 }

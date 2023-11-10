@@ -9,12 +9,190 @@ import betterproto
 from betterproto.grpc.grpclib_server import ServiceBase
 
 
+class ConsoleMessageType(betterproto.Enum):
+    PRINT = 0
+    ERROR = 1
+    COMMAND = 2
+    DEBUGGER = 3
+
+
 class WorkerState(betterproto.Enum):
     UNINITIALIZED = 0
     READY = 1
     RUNNING = 2
     PAUSED = 3
     COMPLETED = 4
+
+
+@dataclass(eq=False, repr=False)
+class StartWorkerV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class PauseWorkerV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class ResumeWorkerV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class SchedulerTimeSlotEventV2(betterproto.Message):
+    time_slot_expired: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class OpenOperatorV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class UpdateInputLinkingV2(betterproto.Message):
+    identifier: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
+    input_link: "__common__.LinkIdentity" = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class AddPartitioningV2(betterproto.Message):
+    tag: "__common__.LinkIdentity" = betterproto.message_field(1)
+    partitioning: "_sendsemantics__.Partitioning" = betterproto.message_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class WorkerExecutionCompletedV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class QueryStatisticsV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class QueryCurrentInputTupleV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class LinkOrdinal(betterproto.Message):
+    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+    port_ordinal: int = betterproto.int64_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class InitializeOperatorLogicV2(betterproto.Message):
+    code: str = betterproto.string_field(1)
+    is_source: bool = betterproto.bool_field(2)
+    input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
+    output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
+    output_schema: Dict[str, str] = betterproto.map_field(
+        5, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+    )
+
+
+@dataclass(eq=False, repr=False)
+class ModifyOperatorLogicV2(betterproto.Message):
+    code: str = betterproto.string_field(1)
+    is_source: bool = betterproto.bool_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class ReplayCurrentTupleV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class ConsoleMessage(betterproto.Message):
+    worker_id: str = betterproto.string_field(1)
+    timestamp: datetime = betterproto.message_field(2)
+    msg_type: "ConsoleMessageType" = betterproto.enum_field(3)
+    source: str = betterproto.string_field(4)
+    title: str = betterproto.string_field(5)
+    message: str = betterproto.string_field(6)
+
+
+@dataclass(eq=False, repr=False)
+class PythonConsoleMessageV2(betterproto.Message):
+    message: "ConsoleMessage" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class EvaluateExpressionV2(betterproto.Message):
+    expression: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class WorkerDebugCommandV2(betterproto.Message):
+    cmd: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class QuerySelfWorkloadMetricsV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
+class LinkCompletedV2(betterproto.Message):
+    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class BackpressureV2(betterproto.Message):
+    enable_backpressure: bool = betterproto.bool_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class ControlCommandV2(betterproto.Message):
+    start_worker: "StartWorkerV2" = betterproto.message_field(1, group="sealed_value")
+    pause_worker: "PauseWorkerV2" = betterproto.message_field(2, group="sealed_value")
+    resume_worker: "ResumeWorkerV2" = betterproto.message_field(3, group="sealed_value")
+    add_partitioning: "AddPartitioningV2" = betterproto.message_field(
+        4, group="sealed_value"
+    )
+    update_input_linking: "UpdateInputLinkingV2" = betterproto.message_field(
+        5, group="sealed_value"
+    )
+    query_statistics: "QueryStatisticsV2" = betterproto.message_field(
+        6, group="sealed_value"
+    )
+    query_current_input_tuple: "QueryCurrentInputTupleV2" = betterproto.message_field(
+        7, group="sealed_value"
+    )
+    open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
+    link_completed: "LinkCompletedV2" = betterproto.message_field(
+        10, group="sealed_value"
+    )
+    scheduler_time_slot_event: "SchedulerTimeSlotEventV2" = betterproto.message_field(
+        11, group="sealed_value"
+    )
+    initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
+        21, group="sealed_value"
+    )
+    modify_operator_logic: "ModifyOperatorLogicV2" = betterproto.message_field(
+        22, group="sealed_value"
+    )
+    python_console_message: "PythonConsoleMessageV2" = betterproto.message_field(
+        23, group="sealed_value"
+    )
+    replay_current_tuple: "ReplayCurrentTupleV2" = betterproto.message_field(
+        24, group="sealed_value"
+    )
+    evaluate_expression: "EvaluateExpressionV2" = betterproto.message_field(
+        25, group="sealed_value"
+    )
+    query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
+        betterproto.message_field(41, group="sealed_value")
+    )
+    backpressure: "BackpressureV2" = betterproto.message_field(51, group="sealed_value")
+    worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
+        81, group="sealed_value"
+    )
+    worker_execution_completed: "WorkerExecutionCompletedV2" = (
+        betterproto.message_field(101, group="sealed_value")
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -85,178 +263,6 @@ class ControlReturnV2(betterproto.Message):
     evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")
     self_workload_return: "SelfWorkloadReturn" = betterproto.message_field(
         6, group="value"
-    )
-
-
-@dataclass(eq=False, repr=False)
-class StartWorkerV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class PauseWorkerV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class ResumeWorkerV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class SchedulerTimeSlotEventV2(betterproto.Message):
-    time_slot_expired: bool = betterproto.bool_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class OpenOperatorV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class UpdateInputLinkingV2(betterproto.Message):
-    identifier: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
-    input_link: "__common__.LinkIdentity" = betterproto.message_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class AddPartitioningV2(betterproto.Message):
-    tag: "__common__.LinkIdentity" = betterproto.message_field(1)
-    partitioning: "_sendsemantics__.Partitioning" = betterproto.message_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class WorkerExecutionCompletedV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class QueryStatisticsV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class QueryCurrentInputTupleV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class LocalOperatorExceptionV2(betterproto.Message):
-    message: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class LinkOrdinal(betterproto.Message):
-    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
-    port_ordinal: int = betterproto.int64_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class InitializeOperatorLogicV2(betterproto.Message):
-    code: str = betterproto.string_field(1)
-    is_source: bool = betterproto.bool_field(2)
-    input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
-    output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
-    output_schema: Dict[str, str] = betterproto.map_field(
-        5, betterproto.TYPE_STRING, betterproto.TYPE_STRING
-    )
-
-
-@dataclass(eq=False, repr=False)
-class ModifyOperatorLogicV2(betterproto.Message):
-    code: str = betterproto.string_field(1)
-    is_source: bool = betterproto.bool_field(2)
-
-
-@dataclass(eq=False, repr=False)
-class ReplayCurrentTupleV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class PythonConsoleMessageV2(betterproto.Message):
-    timestamp: datetime = betterproto.message_field(1)
-    msg_type: str = betterproto.string_field(2)
-    source: str = betterproto.string_field(3)
-    message: str = betterproto.string_field(4)
-
-
-@dataclass(eq=False, repr=False)
-class EvaluateExpressionV2(betterproto.Message):
-    expression: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class WorkerDebugCommandV2(betterproto.Message):
-    cmd: str = betterproto.string_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class QuerySelfWorkloadMetricsV2(betterproto.Message):
-    pass
-
-
-@dataclass(eq=False, repr=False)
-class LinkCompletedV2(betterproto.Message):
-    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class BackpressureV2(betterproto.Message):
-    enable_backpressure: bool = betterproto.bool_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class ControlCommandV2(betterproto.Message):
-    start_worker: "StartWorkerV2" = betterproto.message_field(1, group="sealed_value")
-    pause_worker: "PauseWorkerV2" = betterproto.message_field(2, group="sealed_value")
-    resume_worker: "ResumeWorkerV2" = betterproto.message_field(3, group="sealed_value")
-    add_partitioning: "AddPartitioningV2" = betterproto.message_field(
-        4, group="sealed_value"
-    )
-    update_input_linking: "UpdateInputLinkingV2" = betterproto.message_field(
-        5, group="sealed_value"
-    )
-    query_statistics: "QueryStatisticsV2" = betterproto.message_field(
-        6, group="sealed_value"
-    )
-    query_current_input_tuple: "QueryCurrentInputTupleV2" = betterproto.message_field(
-        7, group="sealed_value"
-    )
-    local_operator_exception: "LocalOperatorExceptionV2" = betterproto.message_field(
-        8, group="sealed_value"
-    )
-    open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
-    link_completed: "LinkCompletedV2" = betterproto.message_field(
-        10, group="sealed_value"
-    )
-    scheduler_time_slot_event: "SchedulerTimeSlotEventV2" = betterproto.message_field(
-        11, group="sealed_value"
-    )
-    initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
-        21, group="sealed_value"
-    )
-    modify_operator_logic: "ModifyOperatorLogicV2" = betterproto.message_field(
-        22, group="sealed_value"
-    )
-    python_console_message: "PythonConsoleMessageV2" = betterproto.message_field(
-        23, group="sealed_value"
-    )
-    replay_current_tuple: "ReplayCurrentTupleV2" = betterproto.message_field(
-        24, group="sealed_value"
-    )
-    evaluate_expression: "EvaluateExpressionV2" = betterproto.message_field(
-        25, group="sealed_value"
-    )
-    query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
-        betterproto.message_field(41, group="sealed_value")
-    )
-    backpressure: "BackpressureV2" = betterproto.message_field(51, group="sealed_value")
-    worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
-        81, group="sealed_value"
-    )
-    worker_execution_completed: "WorkerExecutionCompletedV2" = (
-        betterproto.message_field(101, group="sealed_value")
     )
 
 

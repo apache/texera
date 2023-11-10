@@ -1,8 +1,3 @@
-<div *ngIf="errorMessages">
-  <div *ngFor="let item of errorMessages | keyvalue">
-    <div class="error-message">{{ item.key }}:{{ item.value }}</div>
-  </div>
-</div>
 <a
   nz-dropdown
   [nzDropdownMenu]="menu">
@@ -65,14 +60,33 @@
         nz-col
         nzSpan="1">
         <nz-badge
-          [nzStatus]="labelMapping.get(entry.msgType)"
-          [nzTitle]="entry.msgType"
+          [nzStatus]="labelMapping.get(entry.msgType.name)"
+          [nzTitle]="entry.msgType.name"
           class="type-tag"></nz-badge>
       </div>
       <div
         nz-col
         nzSpan="15">
-        <div class="console-message">{{ entry.message }}</div>
+        <nz-collapse
+          *ngIf="entry.message.length !== 0"
+          nzGhost>
+          <nz-collapse-panel
+            [nzShowArrow]="false"
+            [nzHeader]="customHeader"
+            [nzActive]="false"
+            [nzDisabled]="false"
+            class="collapse-remove-padding">
+            <ng-template #customHeader>
+              <div class="collapse-message-header">{{ entry.title }}</div>
+            </ng-template>
+            <div class="console-message">{{entry.message}}</div>
+          </nz-collapse-panel>
+        </nz-collapse>
+        <div
+          *ngIf="entry.message.length === 0"
+          class="console-message">
+          {{ entry.title }}
+        </div>
       </div>
       <div
         nz-col
@@ -117,6 +131,7 @@
 </nz-list>
 
 <nz-input-group
+  *ngIf="consoleInputEnabled"
   nzCompact
   [nzAddOnBefore]="addOnBeforeTemplate">
   <input
