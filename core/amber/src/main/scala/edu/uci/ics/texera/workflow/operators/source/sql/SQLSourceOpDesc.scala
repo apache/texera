@@ -181,7 +181,6 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
       schemaBuilder.build
     } catch {
       case e @ (_: SQLException | _: ClassCastException) =>
-        e.printStackTrace()
         throw new RuntimeException(
           this.getClass.getSimpleName + " failed to connect to the database. " + e.getMessage
         )

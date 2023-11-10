@@ -1,4 +1,5 @@
 package edu.uci.ics.texera.web.resource
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
@@ -16,7 +17,7 @@ import javax.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/queryplan")
-class SchemaPropagationResource {
+class SchemaPropagationResource extends LazyLogging {
 
   @POST
   @Path("/autocomplete/{wid}")
@@ -46,7 +47,7 @@ class SchemaPropagationResource {
       SchemaPropagationResponse(0, responseContent, null)
     } catch {
       case e: Throwable =>
-        e.printStackTrace()
+        logger.warn("Caught error during schema propagation", e)
         SchemaPropagationResponse(1, null, e.getMessage)
     }
   }

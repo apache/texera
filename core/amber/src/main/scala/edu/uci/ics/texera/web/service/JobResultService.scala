@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.service
 import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberUtils
@@ -158,7 +159,8 @@ object JobResultService {
 class JobResultService(
     val opResultStorage: OpResultStorage,
     val workflowStateStore: WorkflowStateStore
-) extends SubscriptionManager {
+) extends SubscriptionManager
+    with LazyLogging {
 
   var sinkOperators: mutable.HashMap[String, ProgressiveSinkOpDesc] =
     mutable.HashMap[String, ProgressiveSinkOpDesc]()
@@ -200,6 +202,7 @@ class JobResultService(
     addSubscription(
       client
         .registerCallback[WorkflowCompleted](_ => {
+          logger.info("Workflow execution completed.")
           if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
             // immediately perform final update
             onResultUpdate()

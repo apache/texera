@@ -63,9 +63,7 @@ class AsyncRPCClient(
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     val (p, id) = createPromise[T]()
-    logger.info(
-      s"send request: ${cmd} to $to (controlID: ${id})"
-    )
+    logger.debug(s"send request: $cmd to $to (controlID: $id)")
     controlOutputEndpoint.sendTo(to, ControlInvocation(id, cmd))
     p
   }
@@ -106,7 +104,7 @@ class AsyncRPCClient(
       if (ret.controlReturn.isInstanceOf[WorkerStatistics]) {
         return
       }
-      logger.info(
+      logger.debug(
         s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $sender (controlID: ${ret.originalCommandID})"
       )
     } else {

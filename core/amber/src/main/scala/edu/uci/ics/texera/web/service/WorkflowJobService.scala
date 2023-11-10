@@ -43,6 +43,7 @@ class WorkflowJobService(
     lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
+  logger.info("Creating a new execution job.")
 
   val errorHandler: Throwable => Unit = { t =>
     {
@@ -91,6 +92,7 @@ class WorkflowJobService(
   workflowCompilation()
 
   def workflowCompilation(): Unit = {
+    logger.info("Compiling the logical plan into a physical plan.")
     logicalPlan = LogicalPlan(request.logicalPlan, workflowContext)
     logicalPlan.initializeLogicalPlan(stateStore)
     try {
@@ -133,6 +135,7 @@ class WorkflowJobService(
   }
 
   // Runtime starts from here:
+  logger.info("Initialing an AmberClient, runtime starting...")
   var client: AmberClient = _
   var jobBreakpointService: JobBreakpointService = _
   var jobReconfigurationService: JobReconfigurationService = _
@@ -159,6 +162,7 @@ class WorkflowJobService(
     )
     jobConsoleService = new JobConsoleService(client, stateStore, wsInput, jobBreakpointService)
 
+    logger.info("Starting the workflow execution.")
     for (pair <- workflowCompiler.logicalPlan.breakpoints) {
       Await.result(
         jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),

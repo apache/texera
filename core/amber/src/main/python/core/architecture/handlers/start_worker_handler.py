@@ -7,11 +7,14 @@ from ..managers.context import Context
 from ..packaging.batch_to_tuple_converter import BatchToTupleConverter
 from ...models.internal_queue import DataElement
 
+from loguru import logger
+
 
 class StartWorkerHandler(Handler):
     cmd = StartWorkerV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
+        logger.info("Starting the worker.")
         if context.operator_manager.operator.is_source:
             context.state_manager.transit_to(WorkerState.RUNNING)
             context.input_queue.put(
