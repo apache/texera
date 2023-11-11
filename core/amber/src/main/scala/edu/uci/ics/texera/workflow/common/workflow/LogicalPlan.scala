@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
 import com.google.protobuf.timestamp.Timestamp
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
@@ -54,7 +55,7 @@ case class LogicalPlan(
     links: List[OperatorLink],
     breakpoints: List[BreakpointInfo],
     opsToReuseCache: List[String] = List()
-) {
+) extends LazyLogging {
 
   def initializeLogicalPlan(jobStateStore: JobStateStore): Unit = {
     // initialize the logical plan with the current context.
@@ -68,6 +69,7 @@ case class LogicalPlan(
     if (errorList.nonEmpty) {
       val jobErrors = errorList.map {
         case (opId, err) =>
+          logger.error("error occurred in logical plan compilation", err)
           WorkflowFatalError(
             COMPILATION_ERROR,
             Timestamp(Instant.now),
