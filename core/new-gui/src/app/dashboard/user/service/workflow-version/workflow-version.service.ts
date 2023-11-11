@@ -49,7 +49,7 @@ export class WorkflowVersionService {
     private http: HttpClient
   ) {}
 
-  public clickDisplayWorkflowVersions(): void {
+  public displayWorkflowVersions(): void {
     // unhighlight all the current highlighted operators/groups/links
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);

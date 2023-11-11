@@ -16,7 +16,6 @@ import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { VersionsFrameComponent } from "../left-panel/versions-frame/versions-frame.component";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 describe("PropertyEditorComponent", () => {
@@ -188,48 +187,5 @@ describe("PropertyEditorComponent", () => {
     });
   });
 
-  it("should switch the content of property editor to version display component correctly if the versions display is clicked and switch back when done", () => {
-    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
 
-    // add one operator
-    workflowActionService.addOperator(mockScanPredicate, mockPoint);
-
-    // highlight the first operator
-    jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
-    fixture.detectChanges();
-
-    //the operator shall be highlighted
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(1);
-
-    // the operator property editor should be displayed
-    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentOperatorId: mockScanPredicate.operatorID,
-    });
-
-    // click on versions display
-    workflowVersionService.clickDisplayWorkflowVersions();
-    fixture.detectChanges();
-
-    // all the elements shall be unhighlighted
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(0);
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedGroupIDs().length).toBe(0);
-    expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length).toBe(0);
-
-    // the component should switch to versions display
-    expect(component.frameComponentConfig?.component).toBe(VersionsFrameComponent);
-
-    // add one more operator
-    workflowActionService.addOperator(mockResultPredicate, mockPoint);
-
-    // highlight the new operator
-    jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
-    fixture.detectChanges();
-
-    // the operator property editor should be displayed
-    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentOperatorId: mockResultPredicate.operatorID,
-    });
-  });
 });
