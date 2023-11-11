@@ -116,6 +116,7 @@ case class OpExecConfig(
     outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
+    blockingOutputs: List[Int] = List(),
     // execution dependency of ports
     dependency: Map[Int, Int] = Map(),
     isOneToManyOp: Boolean = false
@@ -223,6 +224,10 @@ case class OpExecConfig(
     inputToOrdinalMapping.get(input).exists(port => realBlockingInputs.contains(port))
   }
 
+  def isOutputBlocking(output: LinkIdentity): Boolean = {
+    outputToOrdinalMapping.get(output).exists(port => blockingOutputs.contains(port))
+  }
+
   /**
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
@@ -248,6 +253,10 @@ case class OpExecConfig(
     }
     processingOrder.toArray
   }
+
+  def getOutPutOp: Array[LinkIdentity] =
+    blockingOutputs.map(port => outputToOrdinalMapping.find(pair => pair._2 == port).get._1).toArray
+
 
   /*
    * Functions related to runtime operations

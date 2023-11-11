@@ -72,12 +72,18 @@ class WorkflowPipelinedRegionsBuilder(
         physicalPlan.links
           .filter(l => l.from == upOpId && l.to == opId)
           .foreach(link => {
-            if (physicalPlan.operatorMap(opId).isInputBlocking(link)) {
+            if (
+              physicalPlan
+                .operatorMap(opId)
+                .isInputBlocking(link) || physicalPlan.operatorMap(upOpId).isOutputBlocking(link)
+            ) {
               edgesToRemove += link
             }
           })
       })
     })
+
+    System.out.println("Edges to remove: " + edgesToRemove)
 
     val linksAfterRemoval = physicalPlan.links.filter(link => !edgesToRemove.contains(link))
     new PhysicalPlan(physicalPlan.operatorMap.values.toList, linksAfterRemoval)
@@ -146,12 +152,18 @@ class WorkflowPipelinedRegionsBuilder(
           }
         }
 
+        physicalPlan.operatorMap(opId).getOutPutOp.foreach(outputOp => addEdgeBetweenRegions(opId, outputOp.to))
+
         // For operators that have only blocking input links. e.g. Sort, Groupby
         val upstreamOps = physicalPlan.getUpstream(opId)
 
         val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
           findAllLinks(upstreamOp, opId)
-            .forall(link => physicalPlan.operatorMap(opId).isInputBlocking(link))
+            .forall(link =>
+              physicalPlan.operatorMap(opId).isInputBlocking(link) || physicalPlan
+                .operatorMap(upstreamOp)
+                .isOutputBlocking(link)
+            )
         )
         if (allInputBlocking)
           upstreamOps.foreach(upstreamOp => {
@@ -216,7 +228,11 @@ class WorkflowPipelinedRegionsBuilder(
         val upstreamOps = this.physicalPlan.getUpstream(opId)
         upstreamOps.foreach(upstreamOp => {
           findAllLinks(upstreamOp, opId).foreach(linkFromUpstreamOp => {
-            if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp)) {
+            if (
+              physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp) || physicalPlan
+                .operatorMap(upstreamOp)
+                .isOutputBlocking(linkFromUpstreamOp)
+            ) {
               val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
               for (prevInOrderRegion <- prevInOrderRegions) {
                 if (
@@ -249,6 +265,7 @@ class WorkflowPipelinedRegionsBuilder(
   def buildPipelinedRegions(): PhysicalPlan = {
     findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks()
+    System.out.println("Pipelined regions: " + pipelinedRegionsDAG)
     this.physicalPlan.copy(pipelinedRegionsDAG = pipelinedRegionsDAG)
   }
 }
