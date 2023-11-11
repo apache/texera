@@ -5,7 +5,7 @@
   #versions-list ::ng-deep {
     height: 90%;
     overflow: auto;
-    // Adjust the font size of the table content
+
     .ant-table-content {
       font-size: 11px;
     }
@@ -15,5 +15,9 @@
         font-size: 11px;
       }
     }
+  }
+  .version-entry-link {
+    color: black;
+    font-size: 11px;
   }
 }

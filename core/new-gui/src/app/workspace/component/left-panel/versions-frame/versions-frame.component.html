@@ -23,13 +23,18 @@
             nzAlign="right"
             [nzShowExpand]="row.importance"
             [(nzExpand)]="row.expand"
-            (nzExpandChange)="collapse(i, $event)">
+            (nzExpandChange)="collapse(i, $event)"
+          class="version-entry-link">
             {{(l - i)}}
           </td>
-          <td
-            nzEllipsis
-            (click)="getVersion(row.vId)">
-            {{row.creationTime | date:'MM/dd/YY HH:mm:ss'}}
+          <td>
+            <button
+              nz-button
+              nzType="link"
+              (click)="getVersion(row.vId)"
+              class="version-entry-link">
+              {{row.creationTime | date:'MM/dd/YY HH:mm:ss'}}
+            </button>
           </td>
         </tr>
       </ng-container>
