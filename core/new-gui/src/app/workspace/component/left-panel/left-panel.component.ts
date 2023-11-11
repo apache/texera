@@ -23,8 +23,6 @@ export type LeftFrameComponentConfig = DynamicComponentConfig<LeftFrameComponent
 export class LeftPanelComponent implements OnInit {
   frameComponentConfig?: LeftFrameComponentConfig;
 
-  currentOperatorId?: string;
-
   constructor(private workflowVersionService: WorkflowVersionService) {}
 
   ngOnInit(): void {

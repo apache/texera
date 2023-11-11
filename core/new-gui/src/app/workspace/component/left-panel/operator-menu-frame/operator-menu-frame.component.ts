@@ -1,7 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import Fuse from "fuse.js";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
-
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../../types/operator-schema.interface";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -11,7 +10,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 
 /**
- * OperatorPanelComponent is the left-side panel that shows the operators.
+ * OperatorMenuFrameComponent is a panel that shows the operators.
  *
  * This component gets all the operator metadata from OperatorMetaDataService,
  *  and then displays the operators, which are grouped using their group name from the metadata.
@@ -19,10 +18,7 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
  * Clicking a group name reveals the operators in the group, each operator is a sub-component: OperatorLabelComponent,
  *  this is implemented using Angular Material's expansion panel component: https://material.angular.io/components/expansion/overview
  *
- * OperatorPanelComponent also includes a search box, which uses fuse.js to support fuzzy search on operator names.
- *
- * @author Bolin Chen
- * @author Zuozhi Wang
+ * OperatorMenuFrameComponent also includes a search box, which uses fuse.js to support fuzzy search on operator names.
  *
  */
 @UntilDestroy()
@@ -94,8 +90,10 @@ export class OperatorMenuFrameComponent implements OnInit {
       .subscribe(value => this.processOperatorMetadata(value));
   }
 
-  // create the search results observable
-  // whenever the search box text is changed, perform the search using fuse.js
+  /**
+   * create the search results observable
+   * whenever the search box text is changed, perform the search using fuse.js
+   */
   onInput(e: Event): void {
     const v = (e.target as HTMLInputElement).value;
     if (v === null || v.trim().length === 0) {
