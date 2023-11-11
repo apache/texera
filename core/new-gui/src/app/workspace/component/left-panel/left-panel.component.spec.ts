@@ -1,9 +1,6 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { LeftPanelComponent } from "./left-panel.component";
-import {
-  mockPoint,
-  mockScanPredicate
-} from "../../service/workflow-graph/model/mock-workflow-data";
+import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
@@ -67,6 +64,5 @@ describe("LeftPanelComponent", () => {
 
     // the component should switch to versions display
     expect(component.frameComponentConfig?.component).toBe(VersionsFrameComponent);
-
   });
 });

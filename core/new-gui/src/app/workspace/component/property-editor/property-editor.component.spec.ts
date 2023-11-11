@@ -186,6 +186,4 @@ describe("PropertyEditorComponent", () => {
       currentLinkId: mockSentimentResultLink.linkID,
     });
   });
-
-
 });
