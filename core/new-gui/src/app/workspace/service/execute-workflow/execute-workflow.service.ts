@@ -150,7 +150,12 @@ export class ExecuteWorkflowService {
       case "BreakpointTriggeredEvent":
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
       case "WorkflowErrorEvent":
-        return { state: ExecutionState.Failed, errorMessages: event.fatalErrors };
+        return {
+          state: ExecutionState.Failed,
+          errorMessages: event.fatalErrors.map(err => {
+            return { ...err, message: err.message.replace("\\n", "<br>") };
+          }),
+        };
       default:
         return undefined;
     }
