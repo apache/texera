@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowCompleted,
@@ -20,7 +21,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 }
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.{EXECUTION_FAILURE}
+import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorWorkerMapping, WorkflowFatalError}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 
@@ -29,7 +30,8 @@ import java.time.Instant
 class JobStatsService(
     client: AmberClient,
     stateStore: JobStateStore
-) extends SubscriptionManager {
+) extends SubscriptionManager
+    with LazyLogging {
 
   registerCallbacks()
 
@@ -171,6 +173,7 @@ class JobStatsService(
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
           stateStore.jobMetadataStore.updateState { jobInfo =>
+            logger.error("error occurred in execution", evt.e)
             updateWorkflowState(FAILED, jobInfo).addFatalErrors(
               WorkflowFatalError(
                 EXECUTION_FAILURE,

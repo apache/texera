@@ -104,6 +104,7 @@ class WorkflowJobService(
       )
     } catch {
       case e: Throwable =>
+        logger.error("error occurred during physical plan compilation", e)
         stateStore.jobMetadataStore.updateState { metadataStore =>
           updateWorkflowState(FAILED, metadataStore)
             .addFatalErrors(
