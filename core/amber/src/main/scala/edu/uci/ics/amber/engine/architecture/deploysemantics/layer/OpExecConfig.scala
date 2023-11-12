@@ -232,7 +232,7 @@ case class OpExecConfig(
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
-  def getInputProcessingOrder(): Array[LinkIdentity] = {
+  def getInputProcessingOrder: Array[LinkIdentity] = {
     val dependencyDag = new DirectedAcyclicGraph[LinkIdentity, DefaultEdge](classOf[DefaultEdge])
     dependency.foreach(dep => {
       val prevInOrder = inputToOrdinalMapping.find(pair => pair._2 == dep._2).get._1
@@ -256,7 +256,6 @@ case class OpExecConfig(
 
   def getOutPutOp: Array[LinkIdentity] =
     blockingOutputs.map(port => outputToOrdinalMapping.find(pair => pair._2 == port).get._1).toArray
-
 
   /*
    * Functions related to runtime operations

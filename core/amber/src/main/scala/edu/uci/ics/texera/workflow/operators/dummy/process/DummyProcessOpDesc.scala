@@ -11,16 +11,15 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 class DummyProcessOpDesc extends OperatorDescriptor {
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     OpExecConfig
       .manyToOneLayer(operatorIdentifier, _ => new DummyProcessOpExec())
       .copy(
         inputPorts = operatorInfo.inputPorts,
         outputPorts = operatorInfo.outputPorts
       )
-  }
 
-  override def operatorInfo: OperatorInfo = {
+  override def operatorInfo: OperatorInfo =
     OperatorInfo(
       userFriendlyName = "Dummy Process",
       operatorDescription = "Dummy Process",
@@ -28,7 +27,6 @@ class DummyProcessOpDesc extends OperatorDescriptor {
       inputPorts = List(InputPort(), InputPort()),
       outputPorts = List(OutputPort())
     )
-  }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 }

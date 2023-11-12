@@ -6,7 +6,11 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
+import scala.collection.mutable
+
 class DummyProcessOpExec() extends OperatorExecutor {
+  private val hashSet: mutable.HashSet[Tuple] = new mutable.HashSet()
+  private var exhaustedCounter: Int = 0
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -16,13 +20,12 @@ class DummyProcessOpExec() extends OperatorExecutor {
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
-        input match {
-        case 0 =>
-          Iterator.empty
-        case 1 =>
-          Iterator(t)
-      }
-      case Right(_) => Iterator.empty
+        hashSet.add(t)
+        Iterator.empty
+      case Right(_) =>
+        exhaustedCounter += 1
+        if (2 == exhaustedCounter) hashSet.iterator
+        else Iterator.empty
     }
   }
 

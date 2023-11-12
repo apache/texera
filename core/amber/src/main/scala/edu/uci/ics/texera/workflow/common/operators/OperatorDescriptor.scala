@@ -35,12 +35,18 @@ import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
+  TwitterFullArchiveSearchSourceOpDesc,
+  TwitterSearchSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csvOld.CSVOldScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.scan.text.{TextInputSourceOpDesc, TextScanSourceOpDesc}
+import edu.uci.ics.texera.workflow.operators.source.scan.text.{
+  TextInputSourceOpDesc,
+  TextScanSourceOpDesc
+}
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSourceOpDesc
@@ -48,7 +54,12 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
+import edu.uci.ics.texera.workflow.operators.udf.python.{
+  DualInputPortsPythonUDFOpDescV2,
+  PythonLambdaFunctionOpDesc,
+  PythonTableReducerOpDesc,
+  PythonUDFOpDescV2
+}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
@@ -61,7 +72,10 @@ import edu.uci.ics.texera.workflow.operators.visualization.timeseries.TimeSeries
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{WordCloudOpDesc, WordCloudV2OpDesc}
+import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{
+  WordCloudOpDesc,
+  WordCloudV2OpDesc
+}
 import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
@@ -165,7 +179,7 @@ abstract class OperatorDescriptor extends Serializable {
   var operatorID: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
-  var operatorVersion: String = getOperatorVersion()
+  var operatorVersion: String = getOperatorVersion
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
 
   def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
@@ -183,7 +197,7 @@ abstract class OperatorDescriptor extends Serializable {
 
   def getOutputSchema(schemas: Array[Schema]): Schema
 
-  def getOperatorVersion(): String = {
+  def getOperatorVersion: String = {
     val path = "core/amber/src/main/scala/"
     val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")
     OPversion.getVersion(this.getClass.getSimpleName, operatorPath)
