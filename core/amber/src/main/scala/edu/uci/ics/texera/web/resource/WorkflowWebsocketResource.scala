@@ -124,6 +124,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       }
     } catch {
       case err: Exception =>
+        logger.error("error occurred in websocket", err)
         sessionState.send(WorkflowStateEvent("Failed"))
         sessionState.send(
           WorkflowErrorEvent(
