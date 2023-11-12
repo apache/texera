@@ -5,9 +5,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegions
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
@@ -19,22 +17,9 @@ object WorkflowCompiler {
     outLinks.isEmpty
   }
 
-  class ConstraintViolationException(val violations: Map[String, Set[ConstraintViolation]])
-      extends RuntimeException
-
 }
 
-class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContext) {
-  logicalPlan.operatorMap.values.foreach(initOperator)
-
-  def initOperator(operator: OperatorDescriptor): Unit = {
-    operator.setContext(context)
-  }
-
-  def validate: Map[String, Set[ConstraintViolation]] =
-    this.logicalPlan.operatorMap
-      .map(o => (o._1, o._2.validate().toSet))
-      .filter(o => o._2.nonEmpty)
+class WorkflowCompiler(val logicalPlan: LogicalPlan) {
 
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
@@ -60,21 +45,21 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
         } else {
           sink.setStorage(
             storage.create(
-              context.executionID + "_",
+              o.context.executionID + "_",
               storageKey,
               logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
               storageType
             )
           )
           // add the sink collection name to the JSON array of sinks
-          sinksPointers.add(context.executionID + "_" + storageKey)
+          sinksPointers.add(o.context.executionID + "_" + storageKey)
         }
       case _ =>
     }
     // update execution entry in MySQL to have pointers to the mongo collections
     resultsJSON.set("results", sinksPointers)
     ExecutionsMetadataPersistService.updateExistingExecutionVolumnPointers(
-      context.executionID,
+      logicalPlan.context.executionID,
       resultsJSON.toString
     )
   }
@@ -88,7 +73,6 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
     val opsToReuseCache = cacheReuses.intersect(logicalPlan.opsToReuseCache.toSet)
     val rewrittenLogicalPlan =
       WorkflowCacheRewriter.transform(logicalPlan, opResultStorage, opsToReuseCache)
-    rewrittenLogicalPlan.operatorMap.values.foreach(initOperator)
 
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
@@ -104,7 +88,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContex
       workflowId,
       logicalPlan,
       physicalPlan0,
-      new MaterializationRewriter(context, opResultStorage)
+      new MaterializationRewriter(logicalPlan.context, opResultStorage)
     ).buildPipelinedRegions()
 
     // assign link strategies

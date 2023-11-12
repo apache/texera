@@ -136,7 +136,7 @@ class Controller(
       case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
         controlInputPort.handleMessage(
           this.sender(),
-          Constants.unprocessedBatchesSizeLimitPerSender, // Controller is assumed to have enough credits
+          Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair, // Controller is assumed to have enough credits
           id,
           from,
           seqNum,
@@ -245,10 +245,10 @@ class Controller(
       }
     case NetworkMessage(
           _,
-          WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err)))
+          WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err, fromActor)))
         ) =>
       // fatal error during recovery, fail
-      asyncRPCClient.sendToClient(FatalError(err))
+      asyncRPCClient.sendToClient(FatalError(err, fromActor))
       // re-throw the error to fail the actor
       throw err
     case x: NetworkMessage =>

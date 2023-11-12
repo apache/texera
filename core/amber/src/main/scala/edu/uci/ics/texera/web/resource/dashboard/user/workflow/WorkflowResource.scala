@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
@@ -198,6 +199,7 @@ object WorkflowResource {
     * @param fieldToFilterOn the field for applying the start and end dates.
     * @return A Condition object that can be used to filter workflows based on the date range and type.
     */
+  @throws[ParseException]
   def getDateFilter(
       startDate: String,
       endDate: String,
@@ -209,23 +211,18 @@ object WorkflowResource {
       val start = if (startDate.nonEmpty) startDate else "1970-01-01"
       val end = if (endDate.nonEmpty) endDate else "9999-12-31"
       val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-      try {
-        val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
-        val endTimestamp =
-          if (end == "9999-12-31")
-            new Timestamp(
-              dateFormat.parse(end).getTime
-            )
-          else
-            new Timestamp(
-              dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
-            )
-        dateFilter = fieldToFilterOn.between(startTimestamp, endTimestamp)
-      } catch {
-        case ex: ParseException =>
-          println("Invalid date format. Please follow this date format: yyyy-MM-dd")
-          throw ex
-      }
+
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+      val endTimestamp =
+        if (end == "9999-12-31") {
+          new Timestamp(dateFormat.parse(end).getTime)
+        } else {
+          new Timestamp(
+            dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
+          )
+        }
+      dateFilter = fieldToFilterOn.between(startTimestamp, endTimestamp)
+
     }
     dateFilter
   }
@@ -259,7 +256,7 @@ object WorkflowResource {
 @Produces(Array(MediaType.APPLICATION_JSON))
 @RolesAllowed(Array("REGULAR", "ADMIN"))
 @Path("/workflow")
-class WorkflowResource {
+class WorkflowResource extends LazyLogging {
 
   /**
     * This method returns all workflow IDs that the user has access to
@@ -739,8 +736,9 @@ class WorkflowResource {
 
     } catch {
       case e: Exception =>
-        println(
-          "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?"
+        logger.warn(
+          "Exception: Fulltext index is missing, have you run the script at core/scripts/sql/update/fulltext_indexes.sql?",
+          e
         )
         // return a empty list
         List[DashboardWorkflow]()
