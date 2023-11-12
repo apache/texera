@@ -62,7 +62,7 @@ class WorkflowPipelinedRegionsBuilder(
     *
     * @return
     */
-  private def getBlockingEdgesRemovedDAG(): PhysicalPlan = {
+  private def getBlockingEdgesRemovedDAG: PhysicalPlan = {
     val edgesToRemove = new mutable.MutableList[LinkIdentity]()
 
     physicalPlan.allOperatorIds.foreach(opId => {
@@ -115,7 +115,7 @@ class WorkflowPipelinedRegionsBuilder(
     */
   private def addMaterializationOperatorIfNeeded(): Boolean = {
     // create regions
-    val dagWithoutBlockingEdges = getBlockingEdgesRemovedDAG()
+    val dagWithoutBlockingEdges = getBlockingEdgesRemovedDAG
     val sourceOperators = dagWithoutBlockingEdges.sourceOperators
     pipelinedRegionsDAG = new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
       classOf[DefaultEdge]
@@ -134,7 +134,7 @@ class WorkflowPipelinedRegionsBuilder(
       .topologicalIterator()
       .foreach(opId => {
         // For operators like HashJoin that have an order among their blocking and pipelined inputs
-        val inputProcessingOrderForOp = physicalPlan.operatorMap(opId).getInputProcessingOrder()
+        val inputProcessingOrderForOp = physicalPlan.operatorMap(opId).getInputProcessingOrder
         if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
           for (i <- 1 until inputProcessingOrderForOp.length) {
             try {
