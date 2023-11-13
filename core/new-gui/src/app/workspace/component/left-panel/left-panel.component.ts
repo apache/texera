@@ -1,17 +1,14 @@
 import { Component, OnInit } from "@angular/core";
-
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { OperatorMenuFrameComponent } from "./operator-menu-frame/operator-menu-frame.component";
 import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
-import { merge } from "rxjs";
 import {
   OPEN_VERSIONS_FRAME_EVENT,
   WorkflowVersionService,
 } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 export type LeftFrameComponent = OperatorMenuFrameComponent | VersionsFrameComponent;
-
 export type LeftFrameComponentConfig = DynamicComponentConfig<LeftFrameComponent>;
 
 @UntilDestroy()
@@ -33,7 +30,7 @@ export class LeftPanelComponent implements OnInit {
     });
   }
 
-  switchFrameComponent(targetConfig?: LeftFrameComponentConfig) {
+  switchFrameComponent(targetConfig?: LeftFrameComponentConfig): void {
     if (
       this.frameComponentConfig?.component === targetConfig?.component &&
       this.frameComponentConfig?.componentInputs === targetConfig?.componentInputs
@@ -44,8 +41,9 @@ export class LeftPanelComponent implements OnInit {
     this.frameComponentConfig = targetConfig;
   }
 
-  registerVersionDisplayEventsHandler() {
-    this.workflowVersionService.workflowVersionsDisplayObservable()
+  registerVersionDisplayEventsHandler(): void {
+    this.workflowVersionService
+      .workflowVersionsDisplayObservable()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         if (event === OPEN_VERSIONS_FRAME_EVENT) {
