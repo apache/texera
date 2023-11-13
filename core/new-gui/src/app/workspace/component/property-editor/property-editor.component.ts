@@ -65,8 +65,7 @@ export class PropertyEditorComponent implements OnInit {
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointPortHighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointPortUnhighlightStream(),
-      this.workflowActionService.getJointGraphWrapper().getJointCommentBoxUnhighlightStream()
+      this.workflowActionService.getJointGraphWrapper().getJointPortUnhighlightStream()
     )
       .pipe(
         filter(() => this.workflowActionService.getTexeraGraph().getSyncTexeraGraph()),
