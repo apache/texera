@@ -45,7 +45,7 @@ export class LeftPanelComponent implements OnInit {
   }
 
   registerVersionDisplayEventsHandler() {
-    merge(this.workflowVersionService.workflowVersionsDisplayObservable())
+    this.workflowVersionService.workflowVersionsDisplayObservable()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
         if (event === OPEN_VERSIONS_FRAME_EVENT) {
