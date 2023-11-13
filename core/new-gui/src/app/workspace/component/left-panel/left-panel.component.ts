@@ -26,7 +26,7 @@ export class LeftPanelComponent implements OnInit {
   constructor(private workflowVersionService: WorkflowVersionService) {}
 
   ngOnInit(): void {
-    this.registerHighlightEventsHandler();
+    this.registerVersionDisplayEventsHandler();
     this.switchFrameComponent({
       component: OperatorMenuFrameComponent,
       componentInputs: {},
@@ -44,7 +44,7 @@ export class LeftPanelComponent implements OnInit {
     this.frameComponentConfig = targetConfig;
   }
 
-  registerHighlightEventsHandler() {
+  registerVersionDisplayEventsHandler() {
     merge(this.workflowVersionService.workflowVersionsDisplayObservable())
       .pipe(untilDestroyed(this))
       .subscribe(event => {
