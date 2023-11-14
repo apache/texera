@@ -127,7 +127,7 @@ class NetworkCommunicationActor(
 
   // data structures needed by flow control
   var nextSeqNumForMainActor = 0L // used to send backpressure enable/disable messages to parent.
-  val flowControl = new FlowControl()
+  val flowControl = new FlowControl(actorId)
 
   /**
     * If credit is <=0, a regular polling service needs to be started to get credit periodically from receiver.
@@ -171,19 +171,21 @@ class NetworkCommunicationActor(
     * receiver actor. We compare the (credits + buffer allowed in network actor) with the
     * `backlog`, and decide whether to notify the main worker to launch backpressure.
     */
-  private def informParentAboutBackpressure(receiverId: ActorVirtualIdentity): Unit = {
+  private def checkBackPressure(receiverId: ActorVirtualIdentity): Unit = {
     if (receiverId == actorId) {
       // this ack was in response to the backpressure message sent by the network actor
       // to the main actor. No need to check for backpressure here.
       return
     }
+
+//    logger.info("checking backpressure")
     if (
-      flowControl.shouldBackpressureParent(receiverId) && !flowControl.backpressureRequestSentToMainActor
+      flowControl.hasOverloadedReceivers && !flowControl.backpressureRequestSentToMainActor
     ) {
       sendBackpressureMessageToParent(true)
       flowControl.backpressureRequestSentToMainActor = true
     } else if (
-      flowControl.hasOverloadedReceivers && flowControl.backpressureRequestSentToMainActor
+      !flowControl.hasOverloadedReceivers && flowControl.backpressureRequestSentToMainActor
     ) {
       sendBackpressureMessageToParent(false)
       flowControl.backpressureRequestSentToMainActor = false
@@ -266,9 +268,10 @@ class NetworkCommunicationActor(
       } else {
         flowControl.stashData(id, msg)
         val msgs = flowControl.getMessagesToForward(id)
-        informParentAboutBackpressure(id) // enable backpressure if necessary
+        checkBackPressure(id) // enable backpressure if necessary
         togglePollForCredits(id, flowControl.hasStashedDataMessage(id) && msgs.isEmpty)
         msgs.foreach(msg => forwardMessageFromFlowControl(id, msg))
+
       }
 
     case NetworkAck(id, credits) =>
@@ -276,8 +279,8 @@ class NetworkCommunicationActor(
         val receiverId = messageIDToIdentity(id)
         if (credits.nonEmpty) {
           flowControl.updateCredits(receiverId, credits.get)
-          informParentAboutBackpressure(receiverId) // enables/disables backpressure if necessary
           val msgs = flowControl.getMessagesToForward(receiverId)
+          checkBackPressure(receiverId) // enables/disables backpressure if necessary
           togglePollForCredits(
             receiverId,
             flowControl.hasStashedDataMessage(receiverId) && msgs.isEmpty
