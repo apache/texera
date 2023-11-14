@@ -177,20 +177,16 @@ class NetworkCommunicationActor(
       // to the main actor. No need to check for backpressure here.
       return
     }
-    if (flowControl.shouldBackpressureParent(receiverId)) {
-      if (!flowControl.backpressureRequestSentToMainActor) {
-        sendBackpressureMessageToParent(true)
-        flowControl.backpressureRequestSentToMainActor = true
-      }
-    } else {
-      if (
-        flowControl
-          .getOverloadedReceivers()
-          .isEmpty && flowControl.backpressureRequestSentToMainActor
-      ) {
-        sendBackpressureMessageToParent(false)
-        flowControl.backpressureRequestSentToMainActor = false
-      }
+    if (
+      flowControl.shouldBackpressureParent(receiverId) && !flowControl.backpressureRequestSentToMainActor
+    ) {
+      sendBackpressureMessageToParent(true)
+      flowControl.backpressureRequestSentToMainActor = true
+    } else if (
+      flowControl.hasOverloadedReceivers && flowControl.backpressureRequestSentToMainActor
+    ) {
+      sendBackpressureMessageToParent(false)
+      flowControl.backpressureRequestSentToMainActor = false
     }
   }
 

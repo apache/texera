@@ -43,15 +43,14 @@ class FlowControl {
   private val receiverStashedDataMessageMapping =
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]()
 
-  def getOverloadedReceivers(): ArrayBuffer[ActorVirtualIdentity] = {
+
+  def hasOverloadedReceivers: Boolean = {
+    getOverloadedReceivers.nonEmpty
+  }
+  private def getOverloadedReceivers: ArrayBuffer[ActorVirtualIdentity] = {
     val overloadedReceivers = new ArrayBuffer[ActorVirtualIdentity]()
     receiverStashedDataMessageMapping.keys.foreach(receiverId => {
-      if (
-        receiverStashedDataMessageMapping(
-          receiverId
-        ).map(getInMemSize)
-        .sum > Constants.localSendingBufferLimitPerReceiver + receiverCreditsMapping(receiverId)
-      ) {
+      if (getStashedMessageSize(receiverId) > receiverCreditsMapping(receiverId)) {
         overloadedReceivers.append(receiverId)
       }
     })
@@ -92,12 +91,7 @@ class FlowControl {
     */
   def shouldBackpressureParent(receiverId: ActorVirtualIdentity): Boolean = {
     Constants.flowControlEnabled &&
-    receiverStashedDataMessageMapping
-      .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]()).map(getInMemSize)
-      .sum > Constants.localSendingBufferLimitPerReceiver + receiverCreditsMapping.getOrElseUpdate(
-      receiverId,
-      Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
-    )
+    getStashedMessageSize(receiverId) > receiverCreditsMapping(receiverId)
   }
 
   def updateCredits(receiverId: ActorVirtualIdentity, credits: Long): Unit = {
@@ -123,5 +117,9 @@ class FlowControl {
       receiverId,
       Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
     )
+  }
+
+  def getStashedMessageSize(receiverId: ActorVirtualIdentity):Long = {
+    receiverStashedDataMessageMapping(receiverId).map(getInMemSize).sum
   }
 }
