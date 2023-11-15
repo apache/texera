@@ -1,15 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import edu.uci.ics.amber.engine.architecture.logging.{
-  DeterminantLogger,
-  EmptyDeterminantLogger,
-  EmptyLogManagerImpl,
-  LogManager
-}
-import edu.uci.ics.amber.engine.architecture.logging.storage.{
-  DeterminantLogStorage,
-  EmptyLogStorage
-}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
   NetworkOutputGateway
@@ -29,19 +19,13 @@ class AmberProcessor(
   /** FIFO & exactly once */
   lazy val inputGateway: NetworkInputGateway = new NetworkInputGateway(this.actorId)
 
-  /** Fault-tolerance layer */
-  var logStorage: DeterminantLogStorage = new EmptyLogStorage()
-  var determinantLogger: DeterminantLogger = new EmptyDeterminantLogger()
-  var logManager: LogManager = new EmptyLogManagerImpl(outputHandler)
-  var isReplaying = false
-
   // 1. Unified Output
   val outputGateway: NetworkOutputGateway =
     new NetworkOutputGateway(
       this.actorId,
       msg => {
         // done by the same thread
-        logManager.sendCommitted(msg, cursor.getStep)
+        outputHandler(msg)
       }
     )
   // 2. RPC Layer
@@ -57,9 +41,6 @@ class AmberProcessor(
   ): Unit = {
     payload match {
       case invocation: ControlInvocation =>
-        logger.info(
-          s"receive command: ${invocation.command} from $channel (controlID: ${invocation.commandID}, current step = ${cursor.getStep})"
-        )
         asyncRPCServer.receive(invocation, channel.from)
       case ret: ReturnInvocation =>
         asyncRPCClient.logControlReply(ret, channel)
