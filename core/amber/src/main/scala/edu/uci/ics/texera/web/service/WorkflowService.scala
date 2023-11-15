@@ -48,7 +48,7 @@ object WorkflowService {
 }
 
 class WorkflowService(
-    wId: Int,
+    val wId: Int,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
