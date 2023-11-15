@@ -24,10 +24,7 @@ class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends S
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerInfo]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
-  var caughtLocalExceptions = new mutable.HashMap[ActorVirtualIdentity, Throwable]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
-
-  def isBuilt: Boolean = workers.size() > 0
 
   def states: Array[WorkerState] = workers.values.asScala.map(_.state).toArray
 
