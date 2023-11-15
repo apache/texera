@@ -181,7 +181,7 @@ class JobStatsService(
                 evt.e.toString,
                 evt.e.getStackTrace.mkString(
                   "\n"
-                ) + "\ncaused by:\n" + evt.e.getCause.toString + "\n" + evt.e.getCause.getStackTrace
+                ) + "\n\nCaused by:\n" + evt.e.getCause.toString + "\n" + evt.e.getCause.getStackTrace
                   .mkString("\n"),
                 operatorId,
                 workerId
