@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
@@ -173,16 +174,17 @@ class WorkflowScheduler(
             val outputMappingList = pythonUDFOpExecConfig.outputToOrdinalMapping
               .map(kv => LinkOrdinal(kv._1, kv._2))
               .toList
-            asyncRPCClient.send(
-              InitializeOperatorLogic(
-                pythonUDFOpExec.getCode,
-                pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
-                inputMappingList,
-                outputMappingList,
-                pythonUDFOpExec.getOutputSchema
-              ),
-              workerID
-            )
+            asyncRPCClient
+              .send(
+                InitializeOperatorLogic(
+                  pythonUDFOpExec.getCode,
+                  pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
+                  inputMappingList,
+                  outputMappingList,
+                  pythonUDFOpExec.getOutputSchema
+                ),
+                workerID
+              )
           })
           .toSeq
       )
@@ -312,7 +314,13 @@ class WorkflowScheduler(
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())
       constructRegion(region)
-      prepareAndStartRegion(region)
+      prepareAndStartRegion(region).rescue {
+        case err: Throwable =>
+          // this call may come from client or worker(by execution completed)
+          // thus we need to force it to send error to client.
+          asyncRPCClient.sendToClient(FatalError(err, None))
+          Future.Unit
+      }
     } else {
       // region has already been constructed. Just needs to resume
       resumeRegion(region)

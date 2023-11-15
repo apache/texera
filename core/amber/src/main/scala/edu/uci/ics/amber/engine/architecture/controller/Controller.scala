@@ -245,10 +245,10 @@ class Controller(
       }
     case NetworkMessage(
           _,
-          WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err)))
+          WorkflowControlMessage(from, seqNum, ControlInvocation(_, FatalError(err, fromActor)))
         ) =>
       // fatal error during recovery, fail
-      asyncRPCClient.sendToClient(FatalError(err))
+      asyncRPCClient.sendToClient(FatalError(err, fromActor))
       // re-throw the error to fail the actor
       throw err
     case x: NetworkMessage =>

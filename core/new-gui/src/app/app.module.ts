@@ -133,6 +133,7 @@ import { PortPropertyEditFrameComponent } from "./workspace/component/property-e
 import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
+import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 
 registerLocaleData(en);
 
@@ -176,6 +177,7 @@ registerLocaleData(en);
     ShareAccessComponent,
     NgbdModalWorkflowExecutionsComponent,
     ConsoleFrameComponent,
+    ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,

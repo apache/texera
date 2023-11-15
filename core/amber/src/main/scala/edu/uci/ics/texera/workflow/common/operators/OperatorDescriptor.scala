@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
-import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
 import edu.uci.ics.texera.workflow.operators.cartesianProduct.CartesianProductOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
@@ -198,10 +198,6 @@ abstract class OperatorDescriptor extends Serializable {
   // override if the operator has multiple output ports, schema must be specified for each port
   def getOutputSchemas(schemas: Array[Schema]): Array[Schema] = {
     Array.fill(1)(getOutputSchema(schemas))
-  }
-
-  def validate(): Array[ConstraintViolation] = {
-    Array()
   }
 
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)
