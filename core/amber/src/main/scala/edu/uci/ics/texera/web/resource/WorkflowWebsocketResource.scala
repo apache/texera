@@ -92,7 +92,11 @@ class WorkflowWebsocketResource extends LazyLogging {
               stateStore = workflowStateOpt.get.jobService.getValue.stateStore
             }
 
-            val workflowContext = new WorkflowContext(null, uidOpt,  UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId))
+            val workflowContext = new WorkflowContext(
+              null,
+              uidOpt,
+              UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
+            )
             val newPlan = {
               LogicalPlan.apply(
                 editingTimeCompilationRequest.toLogicalPlanPojo(),

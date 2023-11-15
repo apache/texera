@@ -179,7 +179,10 @@ class JobStatsService(
                 EXECUTION_FAILURE,
                 Timestamp(Instant.now),
                 evt.e.toString,
-                evt.e.getStackTrace.mkString("\n") + "\ncaused by:\n" + evt.e.getCause.toString + "\n"+evt.e.getCause.getStackTrace.mkString("\n"),
+                evt.e.getStackTrace.mkString(
+                  "\n"
+                ) + "\ncaused by:\n" + evt.e.getCause.toString + "\n" + evt.e.getCause.getStackTrace
+                  .mkString("\n"),
                 operatorId,
                 workerId
               )
