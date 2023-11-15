@@ -163,10 +163,10 @@ class JobStatsService(
       client
         .registerCallback[FatalError]((evt: FatalError) => {
           client.shutdown()
-          var opeartorId = "unknown operator"
+          var operatorId = "unknown operator"
           var workerId = ""
           if (evt.fromActor.isDefined) {
-            opeartorId = VirtualIdentityUtils.getOperator(evt.fromActor.get).operator
+            operatorId = VirtualIdentityUtils.getOperator(evt.fromActor.get).operator
             workerId = evt.fromActor.get.name
           }
           stateStore.statsStore.updateState(stats =>
@@ -179,8 +179,11 @@ class JobStatsService(
                 EXECUTION_FAILURE,
                 Timestamp(Instant.now),
                 evt.e.toString,
-                evt.e.getStackTrace.mkString("\n"),
-                opeartorId,
+                evt.e.getStackTrace.mkString(
+                  "\n"
+                ) + "\n\nCaused by:\n" + evt.e.getCause.toString + "\n" + evt.e.getCause.getStackTrace
+                  .mkString("\n"),
+                operatorId,
                 workerId
               )
             )
