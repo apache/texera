@@ -38,5 +38,5 @@ class DummySourceOpDesc extends SourceOperatorDescriptor {
     )
   }
 
-  override def sourceSchema(): Schema = new Schema(new Attribute("data", AttributeType.INTEGER))
+  override def sourceSchema(): Schema = new Schema(new Attribute("line", AttributeType.INTEGER),new Attribute("data", AttributeType.INTEGER))
 }
