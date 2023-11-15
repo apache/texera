@@ -25,6 +25,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 
 import scala.collection.mutable
 
@@ -43,6 +44,8 @@ private[client] class ClientActor extends Actor with AmberLogging {
   val promiseMap = new mutable.LongMap[Promise[Any]]()
   var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
 
+  private val controlChannelId = ChannelID(CLIENT, CONTROLLER, isControl = true)
+
   override def receive: Receive = {
     case InitializeRequest(workflow, controllerConfig) =>
       assert(controller == null)
@@ -58,7 +61,14 @@ private[client] class ClientActor extends Actor with AmberLogging {
           sender ! e
       }
     case commandRequest: CommandRequest =>
-      controller ! ControlInvocation(controlId, commandRequest.command)
+      controller ! NetworkMessage(
+        0,
+        WorkflowFIFOMessage(
+          controlChannelId,
+          controlId,
+          ControlInvocation(controlId, commandRequest.command)
+        )
+      )
       promiseMap(controlId) = commandRequest.promise
       controlId += 1
     case req: ObservableRequest =>

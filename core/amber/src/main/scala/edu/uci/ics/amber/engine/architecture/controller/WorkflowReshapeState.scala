@@ -1,13 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.Cancellable
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowReshapeState {
-  var skewDetectionHandle: Option[Cancellable] = None
   var detectionCallCount = 0
   var previousSkewDetectionCallFinished = true
   var firstPhaseRequestsFinished = true

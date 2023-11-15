@@ -1,6 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorRef, Stash}
+import akka.actor.{Actor, ActorRef, Address, Stash}
+import akka.pattern.ask
+import akka.util.Timeout
+import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   GetActorRef,
   MessageBecomesDeadLetter,
@@ -13,6 +16,10 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
+
 object WorkflowActor {
 
   /** Ack for NetworkMessage
@@ -51,9 +58,19 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
   // Akka related components:
   //
   val actorService: AkkaActorService = new AkkaActorService(actorId, this.context)
+  actorService.getAvailableNodeAddressesFunc = () => {
+    implicit val timeout: Timeout = 5.seconds
+    Await
+      .result(
+        context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses(),
+        5.seconds
+      )
+      .asInstanceOf[Array[Address]]
+  }
   val actorRefMappingService: AkkaActorRefMappingService = new AkkaActorRefMappingService(
     actorService
   )
+  actorRefMappingService.registerActorRef(actorId, self)
   val transferService: AkkaMessageTransferService =
     new AkkaMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
 

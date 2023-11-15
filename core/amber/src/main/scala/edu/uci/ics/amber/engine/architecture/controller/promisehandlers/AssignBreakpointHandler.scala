@@ -26,16 +26,16 @@ trait AssignBreakpointHandler {
   registerHandler { (msg: AssignGlobalBreakpoint[_], sender) =>
     {
       // get target operator
-      val operatorId = new OperatorIdentity(workflow.workflowId.id, msg.operatorID)
-      val operators = workflow.physicalPlan.layersOfLogicalOperator(operatorId)
+      val operatorId = new OperatorIdentity(cp.workflow.workflowId.id, msg.operatorID)
+      val operators = cp.workflow.physicalPlan.layersOfLogicalOperator(operatorId)
 
       // get the last operator (output of the operator)
       val operator = operators.last
-
+      val opExecution = cp.executionState.getOperatorExecution(operator.id)
       // attach the breakpoint
-      operator.attachedBreakpoints(msg.breakpoint.id) = msg.breakpoint
+      opExecution.attachedBreakpoints(msg.breakpoint.id) = msg.breakpoint
       // get target workers from the operator given a breakpoint
-      val targetWorkers = operator.assignBreakpoint(msg.breakpoint)
+      val targetWorkers = opExecution.assignBreakpoint(msg.breakpoint)
 
       val workersTobeAssigned: List[(ActorVirtualIdentity, LocalBreakpoint)] =
         msg.breakpoint.partition(targetWorkers).toList

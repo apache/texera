@@ -2,9 +2,11 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 
 object ControllerConfig {
   def default: ControllerConfig =
@@ -47,12 +49,53 @@ class Controller(
       CONTROLLER
     ) {
 
-  override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = ???
+  actorRefMappingService.registerActorRef(CLIENT, context.parent)
+  val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
+  val cp = new ControllerProcessor(
+    workflow,
+    controllerConfig,
+    actorId,
+    msg => {
+      transferService.send(msg)
+    }
+  )
+
+  override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
+    val channel = cp.inputGateway.getChannel(workflowMsg.channel)
+    channel.acceptMessage(workflowMsg)
+    sender ! NetworkAck(id)
+    var waitingForInput = false
+    while (!waitingForInput) {
+      cp.inputGateway.tryPickChannel match {
+        case Some(channel) =>
+          val msg = channel.take
+          msg.payload match {
+            case payload: ControlPayload => cp.processControlPayload(msg.channel, payload)
+            case p                       => throw new RuntimeException(s"controller cannot handle $p")
+          }
+        case None => waitingForInput = true
+      }
+    }
+  }
+
+  def handleDirectInvocation: Receive = {
+    case c: ControlInvocation =>
+      cp.processControlPayload(ChannelID(SELF, SELF, isControl = true), c)
+  }
+
+  override def receive: Receive = {
+    super.receive orElse handleDirectInvocation
+  }
+
+  override def initState(): Unit = {
+    cp.setupActorService(actorService)
+    cp.setupTimerService(controllerTimerService)
+    cp.setupActorRefService(actorRefMappingService)
+  }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Int = ???
+  override def getSenderCredits(channelID: ChannelID): Int =
+    Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
 
-  override def initState(): Unit = ???
-
-  override def handleBackpressure(isBackpressured: Boolean): Unit = ???
+  override def handleBackpressure(isBackpressured: Boolean): Unit = {}
 }

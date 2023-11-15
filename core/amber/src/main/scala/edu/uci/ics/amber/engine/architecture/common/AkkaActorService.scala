@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{ActorContext, ActorRef, Cancellable, Props}
+import akka.actor.{ActorContext, ActorRef, Address, Cancellable, Props}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
@@ -12,11 +12,16 @@ import scala.concurrent.ExecutionContext
 class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext) {
 
   implicit def ec: ExecutionContext = actorContext.dispatcher
-  implicit val timeout: Timeout = 500.seconds
-
-  def self: ActorRef = actorContext.self
+  implicit val timeout: Timeout = 5.seconds
+  implicit val self: ActorRef = actorContext.self
 
   def parent: ActorRef = actorContext.parent
+
+  var getAvailableNodeAddressesFunc: () => Array[Address] = () => Array.empty
+
+  def getClusterNodeAddresses: Array[Address] = {
+    getAvailableNodeAddressesFunc()
+  }
 
   def actorOf(props: Props): ActorRef = {
     actorContext.actorOf(props)
