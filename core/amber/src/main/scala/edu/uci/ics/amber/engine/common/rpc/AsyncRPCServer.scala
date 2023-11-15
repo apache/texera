@@ -55,6 +55,9 @@ class AsyncRPCServer(
   }
 
   def receive(control: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
+    logger.debug(
+      s"receive command: ${control.command} from $senderID (controlID: ${control.commandID})"
+    )
     try {
       execute((control.command, senderID))
         .onSuccess { ret =>
