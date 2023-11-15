@@ -38,7 +38,6 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
   }
 
   def forwardToActor(msg: NetworkMessage): Unit = {
-    logger.info(s"sending $msg")
     val id = msg.internalMessage.channel.to
     if (actorRefMapping.contains(id)) {
       actorRefMapping(id) ! msg
