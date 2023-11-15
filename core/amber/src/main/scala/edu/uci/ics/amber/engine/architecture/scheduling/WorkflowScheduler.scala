@@ -39,15 +39,15 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowScheduler(
-    workflow: Workflow,
-    controllerConfig: ControllerConfig,
+    regionsToSchedule: mutable.Buffer[PipelinedRegion],
     executionState: ExecutionState,
+    controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(
       Constants.schedulingPolicyName,
-      workflow.physicalPlan.regionsToSchedule.toBuffer
+      regionsToSchedule
     )
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
@@ -61,34 +61,37 @@ class WorkflowScheduler(
   private val startedRegions = new mutable.HashSet[PipelinedRegionIdentity]()
 
   def startWorkflow(
+      workflow: Workflow,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.startWorkflow(workflow)
-    doSchedulingWork(nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
   }
 
   def onWorkerCompletion(
+      workflow: Workflow,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
       workerId: ActorVirtualIdentity
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule =
       schedulingPolicy.onWorkerCompletion(workflow, executionState, workerId)
-    doSchedulingWork(nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
   }
 
   def onLinkCompletion(
+      workflow: Workflow,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
       linkId: LinkIdentity
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, linkId)
-    doSchedulingWork(nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
   }
 
   def onTimeSlotExpired(
-      workflowExecution: ExecutionState,
+      workflow: Workflow,
       timeExpiredRegions: Set[PipelinedRegion],
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
@@ -99,12 +102,12 @@ class WorkflowScheduler(
       regionsToPause = timeExpiredRegions
     }
 
-    doSchedulingWork(nextRegions, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegions, akkaActorRefMappingService, akkaActorService)
       .flatMap(_ => {
         val pauseFutures = new ArrayBuffer[Future[Unit]]()
         regionsToPause.foreach(stoppingRegion => {
           schedulingPolicy.removeFromRunningRegion(Set(stoppingRegion))
-          workflowExecution
+          executionState
             .getAllWorkersOfRegion(stoppingRegion)
             .foreach(wid => {
               pauseFutures.append(
@@ -121,13 +124,16 @@ class WorkflowScheduler(
   }
 
   private def doSchedulingWork(
+      workflow: Workflow,
       regions: Set[PipelinedRegion],
       akkaActorRefMappingService: AkkaActorRefMappingService,
       actorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     if (regions.nonEmpty) {
       Future.collect(
-        regions.toArray.map(r => scheduleRegion(r, akkaActorRefMappingService, actorService))
+        regions.toArray.map(r =>
+          scheduleRegion(workflow, r, akkaActorRefMappingService, actorService)
+        )
       )
     } else {
       Future(Seq())
@@ -135,6 +141,7 @@ class WorkflowScheduler(
   }
 
   private def constructRegion(
+      workflow: Workflow,
       region: PipelinedRegion,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
@@ -153,6 +160,7 @@ class WorkflowScheduler(
             .toArray // Last layer of upstream operators in the same region.
         if (!builtOperators.contains(op)) {
           buildOperator(
+            workflow,
             op,
             executionState.getOperatorExecution(op),
             akkaActorRefMappingService,
@@ -175,6 +183,7 @@ class WorkflowScheduler(
   }
 
   private def buildOperator(
+      workflow: Workflow,
       operatorIdentity: LayerIdentity,
       opExecution: OperatorExecution,
       actorRefService: AkkaActorRefMappingService,
@@ -231,7 +240,7 @@ class WorkflowScheduler(
       )
   }
 
-  private def activateAllLinks(region: PipelinedRegion): Future[Seq[Unit]] = {
+  private def activateAllLinks(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
     Future.collect(
@@ -268,7 +277,7 @@ class WorkflowScheduler(
       .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
   }
 
-  private def startRegion(region: PipelinedRegion): Future[Seq[Unit]] = {
+  private def startRegion(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
 
@@ -302,6 +311,7 @@ class WorkflowScheduler(
   }
 
   private def prepareAndStartRegion(
+      workflow: Workflow,
       region: PipelinedRegion,
       actorService: AkkaActorService
   ): Future[Unit] = {
@@ -318,9 +328,9 @@ class WorkflowScheduler(
     )
     Future(())
       .flatMap(_ => initializePythonOperators(region))
-      .flatMap(_ => activateAllLinks(region))
+      .flatMap(_ => activateAllLinks(workflow, region))
       .flatMap(_ => openAllOperators(region))
-      .flatMap(_ => startRegion(region))
+      .flatMap(_ => startRegion(workflow, region))
       .map(_ => {
         constructingRegions.remove(region.getId())
         schedulingPolicy.addToRunningRegions(Set(region), actorService)
@@ -355,6 +365,7 @@ class WorkflowScheduler(
   }
 
   private def scheduleRegion(
+      workflow: Workflow,
       region: PipelinedRegion,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       actorService: AkkaActorService
@@ -364,8 +375,8 @@ class WorkflowScheduler(
     }
     if (!startedRegions.contains(region.getId())) {
       constructingRegions.add(region.getId())
-      constructRegion(region, akkaActorRefMappingService, actorService)
-      prepareAndStartRegion(region, actorService).rescue {
+      constructRegion(workflow, region, akkaActorRefMappingService, actorService)
+      prepareAndStartRegion(workflow, region, actorService).rescue {
         case err: Throwable =>
           // this call may come from client or worker(by execution completed)
           // thus we need to force it to send error to client.

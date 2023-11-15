@@ -27,7 +27,7 @@ trait RegionsTimeSlotExpiredHandler {
       if (notCompletedRegions.subsetOf(cp.workflowScheduler.schedulingPolicy.getRunningRegions())) {
         cp.workflowScheduler
           .onTimeSlotExpired(
-            cp.executionState,
+            cp.workflow,
             notCompletedRegions,
             cp.actorRefService,
             cp.actorService

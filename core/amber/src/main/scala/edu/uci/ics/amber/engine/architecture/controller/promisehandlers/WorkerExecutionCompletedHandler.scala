@@ -48,7 +48,7 @@ trait WorkerExecutionCompletedHandler {
             Future.Done
           } else {
             cp.workflowScheduler
-              .onWorkerCompletion(cp.actorRefService, cp.actorService, sender)
+              .onWorkerCompletion(cp.workflow, cp.actorRefService, cp.actorService, sender)
               .flatMap(_ => Future.Unit)
           }
         })

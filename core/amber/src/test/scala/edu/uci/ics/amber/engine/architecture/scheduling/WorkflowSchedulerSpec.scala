@@ -42,7 +42,12 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     )
     val executionState = new ExecutionState(workflow)
     val scheduler =
-      new WorkflowScheduler(workflow, ControllerConfig.default, executionState, null)
+      new WorkflowScheduler(
+        workflow.physicalPlan.regionsToSchedule.toBuffer,
+        executionState,
+        ControllerConfig.default,
+        null
+      )
     Set(headerlessCsvOpDesc.operatorID, keywordOpDesc.operatorID, sink.operatorID).foreach(opID =>
       setOperatorCompleted(workflow, executionState, opID)
     )
@@ -101,7 +106,12 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     )
     val executionState = new ExecutionState(workflow)
     val scheduler =
-      new WorkflowScheduler(workflow, ControllerConfig.default, executionState, null)
+      new WorkflowScheduler(
+        workflow.physicalPlan.regionsToSchedule.toBuffer,
+        executionState,
+        ControllerConfig.default,
+        null
+      )
     scheduler.schedulingPolicy.addToRunningRegions(
       scheduler.schedulingPolicy.startWorkflow(workflow),
       null
