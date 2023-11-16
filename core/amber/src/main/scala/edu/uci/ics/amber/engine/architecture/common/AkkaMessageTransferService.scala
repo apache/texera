@@ -130,7 +130,7 @@ class AkkaMessageTransferService(
       return
     }
     backpressured = existOverloadedChannel
-    logger.info(s"current backpressure status = $backpressured channel credits = ${channelToFC
+    logger.debug(s"current backpressure status = $backpressured channel credits = ${channelToFC
       .map(c => c._1 -> c._2.getCredit)}")
     handleBackpressure(backpressured)
   }
