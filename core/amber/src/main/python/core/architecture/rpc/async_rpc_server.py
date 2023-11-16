@@ -113,5 +113,5 @@ class AsyncRPCServer:
         return self._handlers[type(cmd)]
 
     @staticmethod
-    def _no_reply_needed( command_id: int) -> bool:
+    def _no_reply_needed(command_id: int) -> bool:
         return command_id < 0
