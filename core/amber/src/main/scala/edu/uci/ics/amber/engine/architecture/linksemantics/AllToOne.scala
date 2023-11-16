@@ -12,7 +12,7 @@ class AllToOne(from: OpExecConfig, fromPort: Int, to: OpExecConfig, toPort: Int,
   override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
-    assert(from.isBuilt && to.isBuilt && to.numWorkers == 1)
+    assert(to.numWorkers == 1)
     val toActor = to.identifiers.head
     from.identifiers.map(x =>
       (x, id, OneToOnePartitioning(batchSize, Array(toActor)), Seq(toActor))

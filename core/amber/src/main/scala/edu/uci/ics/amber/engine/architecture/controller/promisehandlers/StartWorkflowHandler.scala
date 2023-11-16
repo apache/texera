@@ -18,12 +18,12 @@ trait StartWorkflowHandler {
 
   registerHandler { (msg: StartWorkflow, sender) =>
     {
-      scheduler
-        .startWorkflow()
+      cp.workflowScheduler
+        .startWorkflow(cp.workflow, cp.actorRefService, cp.actorService)
         .map(_ => {
-          enableStatusUpdate()
-          enableMonitoring()
-          enableSkewHandling()
+          cp.controllerTimerService.enableStatusUpdate()
+          cp.controllerTimerService.enableMonitoring()
+          cp.controllerTimerService.enableSkewHandling()
         })
     }
   }
