@@ -82,12 +82,12 @@ class WorkflowWorker(
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     inputQueue.put(Left(workflowMsg))
-    sender ! NetworkAck(id)
+    sender ! NetworkAck(id, getQueuedCredit(workflowMsg.channel))
   }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Long =
-    dp.getSenderCredits(channelID)
+  override def getQueuedCredit(channelID: ChannelID): Long =
+    dp.getQueuedCredit(channelID)
 
   override def initState(): Unit = {
     dp.InitTimerService(timerService)

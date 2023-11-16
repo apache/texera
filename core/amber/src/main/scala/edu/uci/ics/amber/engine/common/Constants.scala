@@ -47,12 +47,18 @@ object Constants {
     AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-denominator")
 
   // flow control related
-  var unprocessedBatchesSizeLimitInBytesPerWorkerPair: Int =
-    AmberUtils.amberConfig.getInt(
-      "flow-control.unprocessed-batches-size-limit-in-bytes-per-worker-pair"
+  var maxCreditAllowedInBytesPerChannel: Int = {
+    val maxCredit = AmberUtils.amberConfig.getInt(
+      "flow-control.max-credit-allowed-in-bytes-per-channel"
     )
-  var creditPollingInitialDelayInMs: Int =
-    AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-delay-in-ms")
+    if (maxCredit == -1) {
+      Int.MaxValue
+    } else {
+      maxCredit
+    }
+  }
+  var creditPollingIntervalInMs: Int =
+    AmberUtils.amberConfig.getInt("flow-control.credit-poll-interval-in-ms")
 
   var schedulingPolicyName: String = AmberUtils.amberConfig.getString("scheduling.policy-name")
   var timeSlotExpirationDurationInMs: Int =

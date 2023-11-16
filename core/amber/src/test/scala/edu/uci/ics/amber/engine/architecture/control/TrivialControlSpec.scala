@@ -51,7 +51,8 @@ class TrivialControlSpec
             WorkflowFIFOMessage(_, _, ReturnInvocation(id, returnValue))
           ) =>
         probe.sender() ! NetworkAck(
-          msgID
+          msgID,
+          0
         )
         returnValue match {
           case e: Throwable => throw e

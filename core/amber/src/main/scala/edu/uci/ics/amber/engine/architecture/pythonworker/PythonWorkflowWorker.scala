@@ -83,12 +83,12 @@ class PythonWorkflowWorker(
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
-    sender ! NetworkAck(messageId)
+    sender ! NetworkAck(messageId, getQueuedCredit(workflowMsg.channel))
   }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Long = {
-    pythonProxyClient.getSenderCredits(channelID) - pythonProxyClient.getPythonQueueInMemSize()
+  override def getQueuedCredit(channelID: ChannelID): Long = {
+    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getPythonQueueInMemSize()
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {

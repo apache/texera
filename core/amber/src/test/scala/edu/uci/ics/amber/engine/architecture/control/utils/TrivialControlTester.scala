@@ -28,11 +28,11 @@ class TrivialControlTester(
         case _                       => ???
       }
     }
-    sender ! NetworkAck(id)
+    sender ! NetworkAck(id, 0)
   }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Int = ???
+  override def getQueuedCredit(channelID: ChannelID): Long = ???
 
   override def initState(): Unit = {}
 

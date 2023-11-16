@@ -52,7 +52,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
       sender ! Ack
     case CreditRequest(channel: ChannelID) =>
-      sender ! CreditResponse(channel, Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
+      sender ! CreditResponse(channel, Constants.maxCreditAllowedInBytesPerChannel)
     case ClosureRequest(closure) =>
       try {
         sender ! closure()
@@ -78,7 +78,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
           mId,
           _ @WorkflowFIFOMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn))
         ) =>
-      sender ! NetworkAck(mId)
+      sender ! NetworkAck(mId, 0) // client does not have queued credits
       if (handlers.isDefinedAt(controlReturn)) {
         handlers(controlReturn)
       }
@@ -92,7 +92,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
         promiseMap.remove(originalCommandID)
       }
     case NetworkMessage(mId, _ @WorkflowFIFOMessage(_, _, _ @ControlInvocation(_, command))) =>
-      sender ! NetworkAck(mId)
+      sender ! NetworkAck(mId, 0) // client does not have queued credits
       if (handlers.isDefinedAt(command)) {
         handlers(command)
       }

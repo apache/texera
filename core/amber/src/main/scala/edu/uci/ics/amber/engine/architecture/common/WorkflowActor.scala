@@ -26,7 +26,7 @@ object WorkflowActor {
     *
     * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
     */
-  final case class NetworkAck(messageId: Long)
+  final case class NetworkAck(messageId: Long, queuedCredit: Long)
 
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
@@ -92,13 +92,13 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
           logger.warn("actor failed due to exception", e)
           throw e
       }
-    case NetworkAck(id) =>
-      transferService.receiveAck(id)
+    case NetworkAck(id, queuedCredit) =>
+      transferService.receiveAck(id, queuedCredit)
   }
 
   def receiveCreditMessages: Receive = {
     case CreditRequest(channel) =>
-      sender ! CreditResponse(channel, getSenderCredits(channel))
+      sender ! CreditResponse(channel, getQueuedCredit(channel))
     case CreditResponse(channel, credit) =>
       transferService.updateChannelCreditFromReceiver(channel, credit)
   }
@@ -113,7 +113,7 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
   //
   //flow control:
   //
-  def getSenderCredits(channelID: ChannelID): Long
+  def getQueuedCredit(channelID: ChannelID): Long
 
   def handleBackpressure(isBackpressured: Boolean): Unit
 

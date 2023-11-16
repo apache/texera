@@ -63,7 +63,7 @@ class Controller(
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     val channel = cp.inputGateway.getChannel(workflowMsg.channel)
     channel.acceptMessage(workflowMsg)
-    sender ! NetworkAck(id)
+    sender ! NetworkAck(id, getQueuedCredit(workflowMsg.channel))
     var waitingForInput = false
     while (!waitingForInput) {
       cp.inputGateway.tryPickChannel match {
@@ -94,8 +94,9 @@ class Controller(
   }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Long =
-    Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
+  override def getQueuedCredit(channelID: ChannelID): Long = {
+    0 // no queued credit for controller
+  }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
 }
