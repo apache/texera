@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.SupervisorStrategy.{Escalate, Stop}
-import akka.actor.{AllForOneStrategy, OneForOneStrategy, Props, SupervisorStrategy}
+import akka.actor.SupervisorStrategy.Stop
+import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
