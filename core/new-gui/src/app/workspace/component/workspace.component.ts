@@ -256,7 +256,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-
         }
       });
   }
