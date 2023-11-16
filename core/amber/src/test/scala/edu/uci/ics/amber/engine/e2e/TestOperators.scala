@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpDescV2
 import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 
 object TestOperators {
@@ -130,5 +131,19 @@ object TestOperators {
     wordCountOpDesc.textColumn = textColumn
     wordCountOpDesc.topN = topN
     wordCountOpDesc
+  }
+
+  def pythonOpDesc(): PythonUDFOpDescV2 = {
+    val udf = new PythonUDFOpDescV2()
+    udf.workers = 1
+    udf.code = """
+        |from pytexera import *
+        |
+        |class ProcessTupleOperator(UDFOperatorV2):
+        |    @overrides
+        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
+        |        yield tuple_
+        |""".stripMargin
+    udf
   }
 }

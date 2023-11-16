@@ -19,12 +19,11 @@ object Utils {
       operators: List[OperatorDescriptor],
       links: List[OperatorLink],
       resultStorage: OpResultStorage = new OpResultStorage(),
-      jobId: String = "workflow-test",
-      workflowTag: String = "workflow-test"
+      jobId: String = "workflow_test",
+      workflowTag: String = "workflow_test"
   ): Workflow = {
     val context = new WorkflowContext
     context.jobId = jobId
-
     val texeraWorkflowCompiler = new WorkflowCompiler(
       LogicalPlan(context, operators, links, List[BreakpointInfo]())
     )

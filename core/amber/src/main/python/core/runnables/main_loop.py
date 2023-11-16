@@ -288,7 +288,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             if not self.context.pause_manager.is_paused():
                 self.context.input_queue.enable_data()
 
-    def _pause_dp(self) -> None:
+    def _pause_dp(self, pause_type: PauseType) -> None:
         """
         Pause the data processing.
         """
@@ -296,16 +296,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.state_manager.confirm_state(
             WorkerState.RUNNING, WorkerState.READY
         ):
-            self.context.pause_manager.pause(PauseType.USER_PAUSE)
+            self.context.pause_manager.pause(pause_type)
             self.context.state_manager.transit_to(WorkerState.PAUSED)
-
-    def _resume_dp(self) -> None:
-        """
-        Resume the data processing.
-        """
-        if self.context.state_manager.confirm_state(WorkerState.PAUSED):
-            self.context.pause_manager.resume(PauseType.USER_PAUSE)
-            self.context.state_manager.transit_to(WorkerState.RUNNING)
 
     def _send_console_message(self, console_message: PythonConsoleMessageV2):
         self._async_rpc_client.send(
@@ -340,11 +332,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     )
                 )
             )
-            self._pause_dp()
+            self._check_and_report_print(force_flush=True)
+            self.context.pause_manager.pause(PauseType.DEBUG_PAUSE)
 
     def _check_exception(self) -> None:
         if self.context.exception_manager.has_exception():
-            self._pause_dp()
+            self._check_and_report_print(force_flush=True)
+            self.context.pause_manager.pause(PauseType.EXCEPTION_PAUSE)
 
     def _check_and_report_console_messages(self, force_flush=False) -> None:
         for msg in self.context.console_message_manager.get_messages(force_flush):

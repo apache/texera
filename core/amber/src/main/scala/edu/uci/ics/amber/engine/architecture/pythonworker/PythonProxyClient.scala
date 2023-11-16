@@ -77,12 +77,12 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   def mainLoop(): Unit = {
     while (running) {
       getElement match {
-        case DataElement(dataPayload, from) =>
-          sendData(dataPayload, from)
-        case ControlElement(cmd, from) =>
-          sendControlV1(from, cmd)
-        case ControlElementV2(cmd, from) =>
-          sendControlV2(from, cmd)
+        case DataElement(dataPayload, channel) =>
+          sendData(dataPayload, channel.from)
+        case ControlElement(cmd, channel) =>
+          sendControlV1(channel.from, cmd)
+        case ControlElementV2(cmd, channel) =>
+          sendControlV2(channel.from, cmd)
       }
     }
   }

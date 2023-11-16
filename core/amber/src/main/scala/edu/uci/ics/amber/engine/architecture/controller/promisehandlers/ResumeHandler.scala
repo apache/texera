@@ -24,17 +24,18 @@ trait ResumeHandler {
       // send all workers resume
       // resume message has no effect on non-paused workers
       Future
-        .collect(workflow.getAllWorkers.map { worker =>
+        .collect(cp.executionState.getAllBuiltWorkers.map { worker =>
           send(ResumeWorker(), worker).map { ret =>
-            workflow.getWorkerInfo(worker).state = ret
+            cp.executionState.getOperatorExecution(worker).getWorkerInfo(worker).state = ret
           }
         }.toSeq)
         .map { _ =>
           // update frontend status
-          sendToClient(WorkflowStatusUpdate(workflow.getWorkflowStatus))
-          enableStatusUpdate() //re-enabled it since it is disabled in pause
-          enableMonitoring()
-          enableSkewHandling()
+          sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus))
+          cp.controllerTimerService
+            .enableStatusUpdate() //re-enabled it since it is disabled in pause
+          cp.controllerTimerService.enableMonitoring()
+          cp.controllerTimerService.enableSkewHandling()
         }
     }
   }
