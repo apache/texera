@@ -11,6 +11,7 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2
+from pympler import asizeof
 
 
 @dataclass
@@ -88,3 +89,9 @@ class InternalQueue(IQueue):
 
     def disable_data(self) -> None:
         self._disable(InternalQueue.QueueID.DATA)
+
+    def in_mem_size(self) -> int:
+        # Done: change this to use message size instead
+        return asizeof.asizeof(
+            self._queue.get_sub_queue(InternalQueue.QueueID.DATA.value)
+        )

@@ -85,7 +85,7 @@ class FlowControl {
 
   def updateCredit(newCredit: Long): Unit = {
   }
-  
+
   def getCredit:Long = {
     Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - inflightCredit - queuedCredit
   }

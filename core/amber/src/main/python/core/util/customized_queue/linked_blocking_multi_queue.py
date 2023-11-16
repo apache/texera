@@ -249,6 +249,8 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         # thread-safe in CPython
         self.sub_queues: MutableMapping[str, LinkedBlockingMultiQueue.SubQueue] = dict()
 
+        # the count of the queue, describing how many element are getable;
+        # disabled subqueues will not be included in this count
         self.total_count = AtomicInteger()
 
         # thread-safe in CPython
@@ -440,3 +442,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.not_empty.notify()
         finally:
             self.take_lock.release()
+
+    def actual_count(self) -> int:
+        actual_count = 0
+        for key, sub_queue in self.sub_queues.items():
+            actual_count += sub_queue.count.value
+        return actual_count

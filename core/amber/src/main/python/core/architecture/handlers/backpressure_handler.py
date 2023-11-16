@@ -10,6 +10,10 @@ class BackpressureHandler(Handler):
 
     def __call__(self, context: Context, command: BackpressureV2, *args, **kwargs):
         if command.enable_backpressure:
-            context.pause_manager.pause(PauseType.BACKPRESSURE_PAUSE)
+            context.pause_manager.pause(
+                PauseType.BACKPRESSURE_PAUSE, change_state=False
+            )
         else:
-            context.pause_manager.resume(PauseType.BACKPRESSURE_PAUSE)
+            context.pause_manager.resume(
+                PauseType.BACKPRESSURE_PAUSE, change_state=False
+            )

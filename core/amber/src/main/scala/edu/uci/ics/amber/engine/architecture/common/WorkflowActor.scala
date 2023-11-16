@@ -46,7 +46,7 @@ object WorkflowActor {
   // sent from network communicator to next worker to poll for credit information
   final case class CreditRequest(channelEndpointID: ChannelID)
 
-  final case class CreditResponse(channelEndpointID: ChannelID, credit: Int)
+  final case class CreditResponse(channelEndpointID: ChannelID, credit: Long)
 }
 
 abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
@@ -113,7 +113,7 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
   //
   //flow control:
   //
-  def getSenderCredits(channelID: ChannelID): Int
+  def getSenderCredits(channelID: ChannelID): Long
 
   def handleBackpressure(isBackpressured: Boolean): Unit
 
