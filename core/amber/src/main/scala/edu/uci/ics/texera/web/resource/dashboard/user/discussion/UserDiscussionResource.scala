@@ -33,7 +33,7 @@ class UserDiscussionResource {
         user.getEmail,
         user.getEmail,
         "1",
-        "$2y$10$2RjeYlYGIqKrgzEN6VkGA.LE.uOxzUKUb6SeVdNoXVfKtmB4G/8fm"
+        user.getGoogleId
       )
       .execute()
   }
