@@ -1,23 +1,25 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { HttpClient } from "@angular/common/http";
+import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
 
 @UntilDestroy()
 @Component({
-  selector: "texera-versions-display-frame",
-  templateUrl: "./versions-display-frame.component.html",
-  styleUrls: ["./versions-display-frame.component.scss"],
+  selector: "texera-version-frame",
+  templateUrl: "./versions-frame.component.html",
+  styleUrls: ["./versions-frame.component.scss"],
 })
-export class VersionsDisplayFrameComponent implements OnInit {
+export class VersionsFrameComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
-  public versionTableHeaders: string[] = ["", "Version#", "Timestamp"];
+  public versionTableHeaders: string[] = ["Version#", "Timestamp"];
 
   constructor(
+    private http: HttpClient,
     private workflowActionService: WorkflowActionService,
-    private workflowVersionService: WorkflowVersionService
+    public workflowVersionService: WorkflowVersionService
   ) {}
 
   collapse(index: number, $event: boolean): void {

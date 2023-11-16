@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { BehaviorSubject, Observable, Subject } from "rxjs";
+import { BehaviorSubject, Observable, ReplaySubject, Subject } from "rxjs";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
@@ -14,7 +14,8 @@ import { WorkflowUtilService } from "../../../../workspace/service/workflow-grap
 import { HttpClient } from "@angular/common/http";
 
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
-export const DISPLAY_WORKFLOW_VERSIONS_EVENT = "display_workflow_versions_event";
+export const OPEN_VERSIONS_FRAME_EVENT = "open_versions_frame_event";
+export const CLOSE_VERSIONS_FRAME_EVENT = "close_versions_frame_event";
 
 type WorkflowContentKeys = keyof WorkflowContent;
 type Element = Breakpoint | OperatorLink | OperatorPredicate | Point;
@@ -36,9 +37,10 @@ const ID_FILED_FOR_ELEMENTS_CONFIG: { [key: string]: string } = {
 export class WorkflowVersionService {
   public modificationEnabledBeforeTempWorkflow = true;
   public operatorPropertyDiff: { [key: string]: Map<String, String> } = {};
-  private workflowVersionsObservable = new Subject<readonly string[]>();
   private displayParticularWorkflowVersion = new BehaviorSubject<boolean>(false);
   private differentOpIDsList: DifferentOpIDsList = { modified: [], added: [], deleted: [] };
+
+  private workflowVersionsSubject = new ReplaySubject<string>(1);
 
   constructor(
     private workflowActionService: WorkflowActionService,
@@ -47,17 +49,17 @@ export class WorkflowVersionService {
     private http: HttpClient
   ) {}
 
-  public clickDisplayWorkflowVersions(): void {
+  public displayWorkflowVersions(): void {
     // unhighlight all the current highlighted operators/groups/links
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
 
     // emit event for display workflow versions event
-    this.workflowVersionsObservable.next([DISPLAY_WORKFLOW_VERSIONS_EVENT]);
+    this.workflowVersionsSubject.next(OPEN_VERSIONS_FRAME_EVENT);
   }
 
-  public workflowVersionsDisplayObservable(): Observable<readonly string[]> {
-    return this.workflowVersionsObservable.asObservable();
+  public workflowVersionsDisplayObservable(): Observable<string> {
+    return this.workflowVersionsSubject.asObservable();
   }
 
   public setDisplayParticularVersion(flag: boolean): void {
@@ -259,5 +261,8 @@ export class WorkflowVersionService {
         filter((updatedWorkflow: Workflow) => updatedWorkflow != null),
         map(WorkflowUtilService.parseWorkflowInfo)
       );
+  }
+  closeFrame() {
+    this.workflowVersionsSubject.next(CLOSE_VERSIONS_FRAME_EVENT);
   }
 }

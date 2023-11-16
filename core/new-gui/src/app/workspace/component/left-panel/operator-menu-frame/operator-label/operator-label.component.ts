@@ -1,8 +1,8 @@
-import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
+import { DragDropService } from "../../../../service/drag-drop/drag-drop.service";
+import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { AfterContentInit, AfterViewInit, ChangeDetectorRef, Component, Input } from "@angular/core";
 
-import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { OperatorSchema } from "../../../../types/operator-schema.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
