@@ -47,8 +47,6 @@ object Constants {
     AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-denominator")
 
   // flow control related
-  var flowControlEnabled: Boolean =
-    AmberUtils.amberConfig.getBoolean("flow-control.credit-based-flow-control-enabled")
   var unprocessedBatchesSizeLimitInBytesPerWorkerPair: Int =
     AmberUtils.amberConfig.getInt(
       "flow-control.unprocessed-batches-size-limit-in-bytes-per-worker-pair"

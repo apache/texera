@@ -46,6 +46,8 @@ class FlowControl {
     */
   def enqueueMessage(msg: WorkflowFIFOMessage): Iterable[WorkflowFIFOMessage] = {
     val creditNeeded = getInMemSize(msg)
+    // assume the biggest message can pass through flow control
+    assert(creditNeeded <= Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
     if (stashedMessages.isEmpty) {
       if (senderSideCredit >= creditNeeded) {
         senderSideCredit -= creditNeeded
@@ -80,7 +82,7 @@ class FlowControl {
     toSend
   }
 
-  def updateCredit(newCredit: Int): Unit = {
+  def updateCredit(newCredit: Long): Unit = {
     senderSideCredit = newCredit
   }
 }
