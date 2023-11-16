@@ -80,7 +80,7 @@ class FlowControl {
     toSend
   }
 
-  def updateCredit(newCredit: Int): Unit = {
+  def updateCredit(newCredit: Long): Unit = {
     senderSideCredit = newCredit
   }
 }

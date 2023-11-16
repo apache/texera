@@ -32,7 +32,7 @@ class TrivialControlTester(
   }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Int = ???
+  override def getSenderCredits(channelID: ChannelID): Long = ???
 
   override def initState(): Unit = {}
 
