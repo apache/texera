@@ -84,6 +84,9 @@ class AsyncRPCServer(
   }
 
   @inline
+  private def noReplyNeeded(id: Long): Boolean = id < 0
+
+  @inline
   private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
     if (noReplyNeeded(id)) {
       return
