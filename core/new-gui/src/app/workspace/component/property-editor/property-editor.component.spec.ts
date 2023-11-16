@@ -16,13 +16,11 @@ import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 
 describe("PropertyEditorComponent", () => {
   let component: PropertyEditorComponent;
   let fixture: ComponentFixture<PropertyEditorComponent>;
   let workflowActionService: WorkflowActionService;
-  let workflowVersionService: WorkflowVersionService;
   environment.schemaPropagationEnabled = true;
 
   beforeEach(waitForAsync(() => {
@@ -41,7 +39,6 @@ describe("PropertyEditorComponent", () => {
     fixture = TestBed.createComponent(PropertyEditorComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
-    workflowVersionService = TestBed.inject(WorkflowVersionService);
     fixture.detectChanges();
   });
 
