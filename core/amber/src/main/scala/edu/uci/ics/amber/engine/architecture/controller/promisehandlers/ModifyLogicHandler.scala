@@ -27,8 +27,8 @@ trait ModifyLogicHandler {
 
   registerHandler { (msg: ModifyLogic, sender) =>
     {
-      val operator = workflow.physicalPlan.operatorMap(msg.newOp.id)
-
+      val operator = cp.workflow.physicalPlan.operatorMap(msg.newOp.id)
+      val opExecution = cp.executionState.getOperatorExecution(msg.newOp.id)
       val workerCommand = if (operator.isPythonOperator) {
         ModifyPythonOperatorLogic(
           msg.newOp.getPythonCode,
@@ -39,7 +39,7 @@ trait ModifyLogicHandler {
       }
 
       Future
-        .collect(operator.getAllWorkers.map { worker =>
+        .collect(opExecution.getBuiltWorkerIds.map { worker =>
           send(workerCommand, worker).onFailure((err: Throwable) => {
             logger.error("Failure when performing reconfiguration", err)
             // report error to frontend

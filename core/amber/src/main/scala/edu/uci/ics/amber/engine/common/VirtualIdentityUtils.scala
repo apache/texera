@@ -17,6 +17,13 @@ object VirtualIdentityUtils {
     ActorVirtualIdentity(s"Worker:WF$workflow-$operator-$layer-$workerId")
   }
 
+  def createWorkerIdentity(
+      layer: LayerIdentity,
+      workerId: Int
+  ): ActorVirtualIdentity = {
+    ActorVirtualIdentity(s"Worker:WF${layer.workflow}-${layer.operator}-${layer.layerID}-$workerId")
+  }
+
   def getOperator(workerId: ActorVirtualIdentity): LayerIdentity = {
     workerId.name match {
       case workerNamePattern(workflow, operator, layer, _) =>
