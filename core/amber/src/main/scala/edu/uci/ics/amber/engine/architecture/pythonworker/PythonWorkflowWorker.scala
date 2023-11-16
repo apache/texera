@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQue
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, IgnoreReply}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.Utils
@@ -92,7 +92,7 @@ class PythonWorkflowWorker(
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {
-    val backpressureMessage = ControlInvocation(0, Backpressure(isBackpressured))
+    val backpressureMessage = ControlInvocation(IgnoreReply, Backpressure(isBackpressured))
     pythonProxyClient.enqueueCommand(backpressureMessage, ChannelID(SELF, SELF, isControl = true))
   }
 
