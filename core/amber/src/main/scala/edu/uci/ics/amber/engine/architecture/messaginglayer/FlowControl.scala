@@ -35,7 +35,8 @@ import scala.util.control.Breaks.{break, breakable}
   */
 class FlowControl {
 
-  var senderSideCredit: Long = Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
+  var inflightCredit: Long = 0
+  var queuedCredit: Long = 0
   private val stashedMessages: mutable.Queue[WorkflowFIFOMessage] = new mutable.Queue()
   private var overloaded = false
   var isPollingForCredit = false
@@ -49,8 +50,8 @@ class FlowControl {
     // assume the biggest message can pass through flow control
     assert(creditNeeded <= Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
     if (stashedMessages.isEmpty) {
-      if (senderSideCredit >= creditNeeded) {
-        senderSideCredit -= creditNeeded
+      if (getCredit >= creditNeeded) {
+        inflightCredit += creditNeeded
         Iterable(msg)
       } else {
         overloaded = true
@@ -69,8 +70,8 @@ class FlowControl {
       while (stashedMessages.nonEmpty) {
         val msg = stashedMessages.front
         val creditNeeded = getInMemSize(msg)
-        if (senderSideCredit >= creditNeeded) {
-          senderSideCredit -= creditNeeded
+        if (getCredit >= creditNeeded) {
+          inflightCredit += creditNeeded
           toSend.append(msg)
           stashedMessages.dequeue()
         } else {
@@ -83,6 +84,9 @@ class FlowControl {
   }
 
   def updateCredit(newCredit: Long): Unit = {
-    senderSideCredit = newCredit
+  }
+  
+  def getCredit:Long = {
+    Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - inflightCredit - queuedCredit
   }
 }
