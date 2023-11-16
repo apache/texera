@@ -94,6 +94,9 @@ class AsyncRPCServer:
             ),
         )
 
+        if self._no_reply_needed(control_invocation.command_id):
+            return
+
         # reply to the sender
         to = from_
         logger.debug(
@@ -108,3 +111,7 @@ class AsyncRPCServer:
     def look_up(self, cmd: ControlCommandV2) -> Handler:
         logger.debug(cmd)
         return self._handlers[type(cmd)]
+
+    @staticmethod
+    def _no_reply_needed(command_id: int) -> bool:
+        return command_id < 0
