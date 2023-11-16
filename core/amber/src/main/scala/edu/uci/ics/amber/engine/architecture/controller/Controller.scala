@@ -1,12 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.Props
+import akka.actor.SupervisorStrategy.{Escalate, Stop}
+import akka.actor.{AllForOneStrategy, OneForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
+
+import scala.concurrent.duration.DurationInt
 
 object ControllerConfig {
   def default: ControllerConfig =
@@ -99,4 +103,13 @@ class Controller(
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
+  override val supervisorStrategy: SupervisorStrategy =
+    AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
+      case e: Throwable =>
+        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender)
+        logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
+        cp.asyncRPCServer.execute(FatalError(e, failedWorker), actorId)
+        Stop
+    }
 }
