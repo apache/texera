@@ -229,8 +229,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         } else {
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
+          // fetch the cached workflow first
+          const cachedWorkflow = this.workflowCacheService.getCachedWorkflow();
+          // responsible for saving the existing workflow in cache
+          this.registerAutoCacheWorkFlow();
           // load the cached workflow
-          this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+          this.workflowActionService.reloadWorkflow(cachedWorkflow);
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
@@ -252,8 +256,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-          // responsible for saving the existing workflow in cache
-          this.registerAutoCacheWorkFlow();
         }
       });
   }

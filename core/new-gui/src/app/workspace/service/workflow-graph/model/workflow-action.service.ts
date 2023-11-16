@@ -612,7 +612,10 @@ export class WorkflowActionService {
    * <b>Warning: this resets the workflow but not the SharedModel, so make sure to quit the shared-editing session
    * (<code>{@link destroySharedModel}</code>) before using this method.</b>
    */
-  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = environment.asyncRenderingEnabled): void {
+  public reloadWorkflow(
+    workflow: Readonly<Workflow> | undefined,
+    asyncRendering = environment.asyncRenderingEnabled
+  ): void {
     this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
       this.setWorkflowMetadata(workflow);

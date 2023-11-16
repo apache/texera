@@ -8,7 +8,7 @@ import { localGetObject, localRemoveObject, localSetObject } from "../../../comm
 export class WorkflowCacheService {
   private static readonly WORKFLOW_KEY: string = "workflow";
 
-  public getCachedWorkflow(): Workflow | undefined {
+  public getCachedWorkflow(): Readonly<Workflow> | undefined {
     return localGetObject<Workflow>(WorkflowCacheService.WORKFLOW_KEY);
   }
 
