@@ -53,7 +53,7 @@ class NetworkReceiver(Runnable, Stoppable):
                 shared_queue.put(
                     DataElement(tag=data_header.tag, payload=EndOfUpstream())
                 )
-            return 30  # TODO : replace with actual value determined by internal_queue
+            return shared_queue.in_mem_size()
 
         self._proxy_server.register_data_handler(data_handler)
 
@@ -73,7 +73,7 @@ class NetworkReceiver(Runnable, Stoppable):
                     payload=python_control_message.payload,
                 )
             )
-            return 29  # TODO : replace with actual value determined by internal_queue
+            return shared_queue.in_mem_size()
 
         self._proxy_server.register_control_handler(control_handler)
 
