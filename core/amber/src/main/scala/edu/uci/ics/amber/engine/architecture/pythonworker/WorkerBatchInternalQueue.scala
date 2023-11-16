@@ -104,10 +104,10 @@ trait WorkerBatchInternalQueue {
 
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
 
-  def getSenderCredits(sender: ChannelID): Int = {
+  def getSenderCredits(sender: ChannelID): Long = {
     val inBytes = inQueueSizeMapping.getOrElseUpdate(sender, 0L)
     val outBytes = outQueueSizeMapping.getOrElseUpdate(sender, 0L)
-    (Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - (inBytes - outBytes)).toInt
+    Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - (inBytes - outBytes)
   }
 
 }

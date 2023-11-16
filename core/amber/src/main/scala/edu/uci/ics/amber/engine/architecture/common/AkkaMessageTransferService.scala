@@ -90,7 +90,7 @@ class AkkaMessageTransferService(
     }
   }
 
-  def updateChannelCreditFromReceiver(channel: ChannelID, credit: Int): Unit = {
+  def updateChannelCreditFromReceiver(channel: ChannelID, credit: Long): Unit = {
     val flowControl = channelToFC.getOrElseUpdate(channel, new FlowControl())
     flowControl.isPollingForCredit = false
     flowControl.updateCredit(credit)
