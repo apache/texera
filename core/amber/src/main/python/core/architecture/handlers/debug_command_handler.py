@@ -19,7 +19,6 @@ class WorkerDebugCommandHandler(Handler):
         # allow MainLoop to switch into DataProcessor.
         context.pause_manager.resume(PauseType.DEBUG_PAUSE)
 
-
     @staticmethod
     def translate_debug_command(command: cmd, context: Context) -> str:
         """
