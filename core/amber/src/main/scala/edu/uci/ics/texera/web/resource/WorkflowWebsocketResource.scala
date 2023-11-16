@@ -16,6 +16,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
+import org.jooq.types.UInteger
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
@@ -90,10 +91,16 @@ class WorkflowWebsocketResource extends LazyLogging {
               }
               stateStore = workflowStateOpt.get.jobService.getValue.stateStore
             }
+
+            val workflowContext = new WorkflowContext(
+              null,
+              uidOpt,
+              UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
+            )
             val newPlan = {
               LogicalPlan.apply(
                 editingTimeCompilationRequest.toLogicalPlanPojo(),
-                new WorkflowContext()
+                workflowContext
               )
             }
             newPlan.initializeLogicalPlan(stateStore)
