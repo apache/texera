@@ -43,6 +43,12 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private var flightClient: FlightClient = _
   private var running: Boolean = true
 
+  private var pythonQueueInMemSize: Long = _
+
+  def getPythonQueueInMemSize(): Long = {
+    pythonQueueInMemSize
+  }
+
   override def run(): Unit = {
     establishConnection()
     mainLoop()
@@ -115,8 +121,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
     // extract info needed to calculate sender credits from ack
     // ackResult contains number of batches inside Python worker internal queue
-    val numBatchesInQueue: Long = new String(result.getBody).toLong
-    // TODO : use in calculating credits + pass to sender worker's FlowControl unit
+    pythonQueueInMemSize = new String(result.getBody).toLong
+
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
@@ -158,8 +164,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
     // for calculating sender credits - get back number of batches in Python worker queue
     val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
-    val numBatchesInQueue: Long = ackMsgBuf.getLong(0)
-    // TODO : use in calculating credits + pass to sender worker's FlowControl unit
+    pythonQueueInMemSize = ackMsgBuf.getLong(0)
     ackMsgBuf.close()
 
     flightListener.close()

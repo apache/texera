@@ -87,8 +87,8 @@ class PythonWorkflowWorker(
   }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Int = {
-    pythonProxyClient.getSenderCredits(channelID)
+  override def getSenderCredits(channelID: ChannelID): Long = {
+    pythonProxyClient.getSenderCredits(channelID) - pythonProxyClient.getPythonQueueInMemSize()
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {
