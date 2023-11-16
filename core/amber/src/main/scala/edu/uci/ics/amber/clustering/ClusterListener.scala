@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
@@ -44,8 +44,10 @@ class ClusterListener extends Actor with AmberLogging {
     case evt: MemberEvent =>
       logger.info(s"received member event = $evt")
       updateClusterStatus(evt)
-    case ClusterListener.GetAvailableNodeAddresses =>
+    case ClusterListener.GetAvailableNodeAddresses() =>
       sender ! getAllAddressExcludingMaster.toArray
+    case other =>
+      println(other)
   }
 
   private def getAllAddressExcludingMaster: Iterable[Address] = {
@@ -82,7 +84,9 @@ class ClusterListener extends Actor with AmberLogging {
         val futures = new ArrayBuffer[Future[Any]]
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
-          if (jobService != null && !jobService.workflow.isCompleted) {
+          if (
+            jobService != null && jobService.stateStore.jobMetadataStore.getState.state != COMPLETED
+          ) {
             if (AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")) {
               logger.info(
                 s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"

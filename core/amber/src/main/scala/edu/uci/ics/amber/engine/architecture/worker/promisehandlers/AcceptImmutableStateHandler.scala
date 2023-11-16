@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AcceptImmutableStateHandler.AcceptImmutableState
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -25,12 +25,11 @@ object AcceptImmutableStateHandler {
 }
 
 trait AcceptImmutableStateHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (cmd: AcceptImmutableState, sender) =>
     try {
-      dataProcessor
-        .getOperatorExecutor()
+      dp.operator
         .asInstanceOf[HashJoinOpExec[_]]
         .mergeIntoHashTable(cmd.buildHashMap)
     } catch {

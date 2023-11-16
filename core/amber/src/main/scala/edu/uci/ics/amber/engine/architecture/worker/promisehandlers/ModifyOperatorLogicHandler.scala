@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
   WorkerModifyLogic,
   WorkerModifyLogicComplete,
@@ -28,7 +28,7 @@ object ModifyOperatorLogicHandler {
   * possible sender: controller(by ControllerInitiateMonitoring)
   */
 trait ModifyOperatorLogicHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: WorkerModifyLogic, _) =>
     performModifyLogic(msg)
@@ -37,7 +37,7 @@ trait ModifyOperatorLogicHandler {
 
   registerHandler { (msg: WorkerModifyLogicMultiple, _) =>
     val modifyLogic =
-      msg.modifyLogicList.find(o => o.opExecConfig.id == dataProcessor.opExecConfig.id)
+      msg.modifyLogicList.find(o => o.opExecConfig.id == dp.getOperatorId)
     if (modifyLogic.nonEmpty) {
       performModifyLogic(modifyLogic.get)
       sendToClient(WorkerModifyLogicComplete(this.actorId))
@@ -47,13 +47,12 @@ trait ModifyOperatorLogicHandler {
   private def performModifyLogic(modifyLogic: WorkerModifyLogic): Unit = {
     val newOpExecConfig = modifyLogic.opExecConfig
     val newOperator =
-      newOpExecConfig.initIOperatorExecutor((dataProcessor.workerIndex, newOpExecConfig))
+      newOpExecConfig.initIOperatorExecutor((dp.workerIdx, newOpExecConfig))
     if (modifyLogic.stateTransferFunc.nonEmpty) {
-      modifyLogic.stateTransferFunc.get.apply(dataProcessor.operator, newOperator)
+      modifyLogic.stateTransferFunc.get.apply(dp.operator, newOperator)
     }
-    dataProcessor.operator = newOperator
-    this.operator = newOperator
-    operator.open()
+    dp.operator = newOperator
+    dp.operator.open()
   }
 
 }

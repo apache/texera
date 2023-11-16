@@ -1,27 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.{ActorContext, Cancellable}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
-  FlushNetworkBuffer,
   getBatchSize,
   toPartitioner
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.Constants.{
-  adaptiveBufferingTimeoutMs,
-  enableAdaptiveNetworkBuffering
-}
-import edu.uci.ics.amber.engine.common.ambermessage.{DataPayload, EpochMarker}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.collection.mutable
-import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 object OutputManager {
 
@@ -74,15 +65,13 @@ object OutputManager {
   */
 class OutputManager(
     selfID: ActorVirtualIdentity,
-    dataOutputPort: NetworkOutputPort[DataPayload]
+    dataOutputPort: NetworkOutputGateway
 ) {
 
   val partitioners = mutable.HashMap[LinkIdentity, Partitioner]()
 
   val networkOutputBuffers =
     mutable.HashMap[(LinkIdentity, ActorVirtualIdentity), NetworkOutputBuffer]()
-
-  val adaptiveBatchingMonitor = new AdaptiveBatchingMonitor()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
@@ -140,34 +129,4 @@ class OutputManager(
     networkOutputBuffers.values.foreach(b => b.flush())
   }
 
-}
-
-class AdaptiveBatchingMonitor {
-  var adaptiveBatchingHandle: Option[Cancellable] = None
-
-  def enableAdaptiveBatching(context: ActorContext): Unit = {
-    if (!enableAdaptiveNetworkBuffering) {
-      return
-    }
-    if (this.adaptiveBatchingHandle.nonEmpty || context == null) {
-      return
-    }
-    this.adaptiveBatchingHandle = Some(
-      context.system.scheduler.scheduleAtFixedRate(
-        0.milliseconds,
-        FiniteDuration.apply(adaptiveBufferingTimeoutMs, MILLISECONDS),
-        context.self,
-        ControlInvocation(
-          AsyncRPCClient.IgnoreReplyAndDoNotLog,
-          FlushNetworkBuffer()
-        )
-      )(context.dispatcher)
-    )
-  }
-
-  def pauseAdaptiveBatching(): Unit = {
-    if (adaptiveBatchingHandle.nonEmpty) {
-      adaptiveBatchingHandle.get.cancel()
-    }
-  }
 }

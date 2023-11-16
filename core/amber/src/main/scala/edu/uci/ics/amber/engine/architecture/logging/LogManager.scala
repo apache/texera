@@ -2,9 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logging
 
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.SendRequest
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 //In-mem formats:
@@ -19,12 +17,12 @@ case object TerminateSignal extends InMemDeterminant
 object LogManager {
   def getLogManager(
       enabledLogging: Boolean,
-      networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
+      handler: WorkflowFIFOMessage => Unit
   ): LogManager = {
     if (enabledLogging) {
-      new LogManagerImpl(networkCommunicationActor)
+      new LogManagerImpl(handler)
     } else {
-      new EmptyLogManagerImpl(networkCommunicationActor)
+      new EmptyLogManagerImpl(handler)
     }
   }
 }
@@ -34,46 +32,40 @@ trait LogManager {
 
   def getDeterminantLogger: DeterminantLogger
 
-  def sendCommitted(sendRequest: SendRequest): Unit
+  def sendCommitted(msg: WorkflowFIFOMessage, step: Long): Unit
 
   def terminate(): Unit
 
 }
 
-class EmptyLogManagerImpl(
-    networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
-) extends LogManager {
+class EmptyLogManagerImpl(handler: WorkflowFIFOMessage => Unit) extends LogManager {
   override def setupWriter(logWriter: DeterminantLogStorage.DeterminantLogWriter): Unit = {}
 
   override def getDeterminantLogger: DeterminantLogger = new EmptyDeterminantLogger()
 
-  override def sendCommitted(
-      sendRequest: NetworkCommunicationActor.SendRequest
-  ): Unit = {
-    networkCommunicationActor ! sendRequest
+  override def sendCommitted(msg: WorkflowFIFOMessage, step: Long): Unit = {
+    handler(msg)
   }
 
   override def terminate(): Unit = {}
 }
 
-class LogManagerImpl(
-    networkCommunicationActor: NetworkCommunicationActor.NetworkSenderActorRef
-) extends LogManager {
+class LogManagerImpl(handler: WorkflowFIFOMessage => Unit) extends LogManager {
 
   private val determinantLogger = new DeterminantLoggerImpl()
 
   private var writer: AsyncLogWriter = _
 
   def setupWriter(logWriter: DeterminantLogWriter): Unit = {
-    writer = new AsyncLogWriter(networkCommunicationActor, logWriter)
+    writer = new AsyncLogWriter(handler, logWriter)
     writer.start()
   }
 
   def getDeterminantLogger: DeterminantLogger = determinantLogger
 
-  def sendCommitted(sendRequest: SendRequest): Unit = {
+  def sendCommitted(msg: WorkflowFIFOMessage, step: Long): Unit = {
     writer.putDeterminants(determinantLogger.drainCurrentLogRecords())
-    writer.putOutput(sendRequest)
+    writer.putOutput(msg)
   }
 
   def terminate(): Unit = {

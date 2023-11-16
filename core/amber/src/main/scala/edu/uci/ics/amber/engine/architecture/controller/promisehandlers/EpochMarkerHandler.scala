@@ -20,8 +20,8 @@ trait EpochMarkerHandler {
 
   registerHandler { (msg: PropagateEpochMarker, sender) =>
     {
-      val operator = workflow.getOperator(msg.destOperator)
-      val futures = operator.getAllWorkers
+      val opExecution = cp.executionState.getOperatorExecution(msg.destOperator)
+      val futures = opExecution.getBuiltWorkerIds
         .map(worker => send(WorkerPropagateEpochMarker(msg.epochMarker), worker))
         .toList
       Future.collect(futures).unit

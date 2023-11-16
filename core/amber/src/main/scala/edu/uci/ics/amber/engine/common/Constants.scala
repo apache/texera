@@ -53,12 +53,8 @@ object Constants {
     AmberUtils.amberConfig.getInt(
       "flow-control.unprocessed-batches-size-limit-in-bytes-per-worker-pair"
     )
-  var localSendingBufferLimitPerReceiver: Int =
-    AmberUtils.amberConfig.getInt("flow-control.local-sending-buffer-limit-per-receiver")
   var creditPollingInitialDelayInMs: Int =
-    AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-initial-delay-in-ms")
-  var creditPollingIntervalinMs: Int =
-    AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-interval-in-ms")
+    AmberUtils.amberConfig.getInt("flow-control.credit-poll-request-delay-in-ms")
 
   var schedulingPolicyName: String = AmberUtils.amberConfig.getString("scheduling.policy-name")
   var timeSlotExpirationDurationInMs: Int =

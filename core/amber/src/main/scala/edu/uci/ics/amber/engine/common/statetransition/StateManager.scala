@@ -15,10 +15,10 @@ object StateManager {
   case class InvalidTransitionException(message: String) extends WorkflowRuntimeException(message)
 }
 
-class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
+class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) extends Serializable {
 
   private val stateStack = mutable.Stack[T]()
-  @volatile private var currentState: T = initialState
+  private var currentState: T = initialState
 
   stateStack.push(initialState)
 
@@ -33,6 +33,13 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) {
       throw InvalidStateException(
         s"except state in [${states.mkString(",")}] but current state = $currentState"
       )
+    }
+  }
+
+  def conditionalTransitTo(currentState: T, targetState: T, callback: () => Unit): Unit = {
+    if (getCurrentState == currentState) {
+      transitTo(targetState)
+      callback()
     }
   }
 

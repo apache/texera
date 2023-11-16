@@ -16,6 +16,7 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.{asScalaIteratorConverter, asScalaSetConverter}
 
 object WorkflowPipelinedRegionsBuilder {
 
@@ -249,6 +250,14 @@ class WorkflowPipelinedRegionsBuilder(
   def buildPipelinedRegions(): PhysicalPlan = {
     findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks()
-    this.physicalPlan.copy(pipelinedRegionsDAG = pipelinedRegionsDAG)
+    val allRegions = pipelinedRegionsDAG.iterator().asScala.toList
+    val ancestors = pipelinedRegionsDAG
+      .iterator()
+      .asScala
+      .map { region =>
+        region -> pipelinedRegionsDAG.getAncestors(region).asScala.toSet
+      }
+      .toMap
+    this.physicalPlan.copy(regionsToSchedule = allRegions, regionAncestorMapping = ancestors)
   }
 }

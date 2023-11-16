@@ -140,7 +140,6 @@ class WorkflowResourceSpec
   override protected def beforeEach(): Unit = {
     // Clean up environment before each test case
     // Delete all workflows, or reset the state of the `workflowResource` object
-
   }
 
   override protected def afterEach(): Unit = {

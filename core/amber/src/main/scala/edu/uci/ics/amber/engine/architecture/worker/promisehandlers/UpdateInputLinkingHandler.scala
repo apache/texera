@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -13,12 +13,12 @@ object UpdateInputLinkingHandler {
 }
 
 trait UpdateInputLinkingHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: UpdateInputLinking, sender) =>
-    stateManager.assertState(READY, RUNNING, PAUSED)
-    dataProcessor.registerInput(msg.identifier, msg.inputLink)
-    upstreamLinkStatus.registerInput(msg.identifier, msg.inputLink)
+    dp.stateManager.assertState(READY, RUNNING, PAUSED)
+    dp.registerInput(msg.identifier, msg.inputLink)
+    dp.upstreamLinkStatus.registerInput(msg.identifier, msg.inputLink)
   }
 
 }

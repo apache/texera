@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.ReshapePartitioner
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.workloadmetrics.SelfWorkloadMetrics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -24,7 +24,7 @@ object MonitoringHandler {
   * possible sender: controller(by ControllerInitiateMonitoring)
   */
 trait MonitoringHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   def getWorkloadHistory(
       outputManager: OutputManager
@@ -45,13 +45,13 @@ trait MonitoringHandler {
   registerHandler { (msg: QuerySelfWorkloadMetrics, sender) =>
     try {
       val workloadMetrics = SelfWorkloadMetrics(
-        internalQueue.getDataQueueLength,
-        internalQueue.getControlQueueLength,
-        dataInputPort.getStashedMessageCount(),
-        controlInputPort.getStashedMessageCount()
+        dp.inputGateway.getAllDataChannels.map(_.getTotalMessageSize).sum,
+        dp.inputGateway.getAllControlChannels.map(_.getTotalMessageSize).sum,
+        dp.inputGateway.getAllDataChannels.map(_.getTotalStashedSize).sum,
+        dp.inputGateway.getAllControlChannels.map(_.getTotalStashedSize).sum
       )
 
-      val samples = getWorkloadHistory(outputManager)
+      val samples = getWorkloadHistory(dp.outputManager)
       (workloadMetrics, samples)
     } catch {
       case exception: Exception =>

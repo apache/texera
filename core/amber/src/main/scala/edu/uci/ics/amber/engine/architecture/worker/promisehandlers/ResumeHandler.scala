@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.{UserPause, WorkerAsyncRPCHandlerInitializer}
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, UserPause}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, RUNNING}
@@ -11,15 +11,15 @@ object ResumeHandler {
 }
 
 trait ResumeHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: ResumeWorker, sender) =>
-    if (stateManager.getCurrentState == PAUSED) {
-      pauseManager.resume(UserPause)
-      stateManager.transitTo(RUNNING)
-      outputManager.adaptiveBatchingMonitor.enableAdaptiveBatching(actorContext)
+    if (dp.stateManager.getCurrentState == PAUSED) {
+      dp.pauseManager.resume(UserPause)
+      dp.stateManager.transitTo(RUNNING)
+      dp.adaptiveBatchingMonitor.resumeAdaptiveBatching()
     }
-    stateManager.getCurrentState
+    dp.stateManager.getCurrentState
   }
 
 }

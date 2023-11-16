@@ -35,24 +35,27 @@ case class PhysicalPlan(
     operators: List[OpExecConfig],
     links: List[LinkIdentity],
     linkStrategies: Map[LinkIdentity, LinkStrategy] = Map(),
-    pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = null
+    regionsToSchedule: List[PipelinedRegion] = List.empty,
+    regionAncestorMapping: Map[PipelinedRegion, Set[PipelinedRegion]] = Map.empty
 ) {
 
-  lazy val operatorMap: Map[LayerIdentity, OpExecConfig] = operators.map(o => (o.id, o)).toMap
+  @transient lazy val operatorMap: Map[LayerIdentity, OpExecConfig] =
+    operators.map(o => (o.id, o)).toMap
 
-  lazy val dag: DirectedAcyclicGraph[LayerIdentity, DefaultEdge] = {
+  // the dag will be re-computed again once it reaches the coordinator.
+  @transient lazy val dag: DirectedAcyclicGraph[LayerIdentity, DefaultEdge] = {
     val jgraphtDag = new DirectedAcyclicGraph[LayerIdentity, DefaultEdge](classOf[DefaultEdge])
     operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
     links.foreach(l => jgraphtDag.addEdge(l.from, l.to))
     jgraphtDag
   }
 
-  lazy val allOperatorIds: Iterable[LayerIdentity] = operatorMap.keys
+  @transient lazy val allOperatorIds: Iterable[LayerIdentity] = operatorMap.keys
 
-  lazy val sourceOperators: List[LayerIdentity] =
+  @transient lazy val sourceOperators: List[LayerIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toList
 
-  lazy val sinkOperators: List[LayerIdentity] =
+  @transient lazy val sinkOperators: List[LayerIdentity] =
     operatorMap.keys
       .filter(op => dag.outDegreeOf(op) == 0)
       .toList
@@ -129,16 +132,14 @@ case class PhysicalPlan(
     new TopologicalOrderIterator(dag).asScala
   }
 
-  def getAllRegions(): List[PipelinedRegion] = {
-    asScalaIterator(pipelinedRegionsDAG.iterator()).toList
-  }
+  def getAllRegions(): List[PipelinedRegion] = regionsToSchedule
 
   def getOperatorsInRegion(region: PipelinedRegion): PhysicalPlan = {
     val newOpIds = region.getOperators()
     val newOps = operators.filter(op => newOpIds.contains(op.id))
     val newLinks = links.filter(l => newOpIds.contains(l.from) && newOpIds.contains(l.to))
     val newLinkStrategies = linkStrategies.filter(l => newLinks.contains(l._1))
-    PhysicalPlan(newOps, newLinks, newLinkStrategies, pipelinedRegionsDAG)
+    PhysicalPlan(newOps, newLinks, newLinkStrategies, regionsToSchedule, regionAncestorMapping)
   }
 
   // returns a new physical plan with the operators added

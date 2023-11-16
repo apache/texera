@@ -17,7 +17,6 @@ class FullRoundRobin(
   override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
-    assert(from.isBuilt && to.isBuilt)
     from.identifiers.map(x =>
       (x, id, RoundRobinPartitioning(batchSize, to.identifiers), to.identifiers.toSeq)
     )

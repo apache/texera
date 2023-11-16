@@ -22,10 +22,17 @@ trait RegionsTimeSlotExpiredHandler {
   registerHandler { (msg: RegionsTimeSlotExpired, sender) =>
     {
       val notCompletedRegions =
-        msg.regions.diff(scheduler.schedulingPolicy.getCompletedRegions())
+        msg.regions.diff(cp.workflowScheduler.schedulingPolicy.getCompletedRegions())
 
-      if (notCompletedRegions.subsetOf(scheduler.schedulingPolicy.getRunningRegions())) {
-        scheduler.onTimeSlotExpired(notCompletedRegions).flatMap(_ => Future.Unit)
+      if (notCompletedRegions.subsetOf(cp.workflowScheduler.schedulingPolicy.getRunningRegions())) {
+        cp.workflowScheduler
+          .onTimeSlotExpired(
+            cp.workflow,
+            notCompletedRegions,
+            cp.actorRefService,
+            cp.actorService
+          )
+          .flatMap(_ => Future.Unit)
       } else {
         if (notCompletedRegions.nonEmpty) {
           // This shouldn't happen because the timer starts only after the regions have started

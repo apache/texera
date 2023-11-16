@@ -12,7 +12,7 @@ class OneToOne(from: OpExecConfig, fromPort: Int, to: OpExecConfig, toPort: Int,
   override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
-    assert(from.isBuilt && to.isBuilt && from.numWorkers == to.numWorkers)
+    assert(from.numWorkers == to.numWorkers)
     from.identifiers.indices.map(i =>
       (
         from.identifiers(i),
