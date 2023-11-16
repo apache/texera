@@ -442,9 +442,3 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.not_empty.notify()
         finally:
             self.take_lock.release()
-
-    def actual_count(self) -> int:
-        actual_count = 0
-        for key, sub_queue in self.sub_queues.items():
-            actual_count += sub_queue.count.value
-        return actual_count
