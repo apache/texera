@@ -33,11 +33,12 @@ class PauseManager:
         ] = defaultdict(set)
         self._state_manager = state_manager
 
-    def pause(self, pause_type: PauseType) -> None:
+    def pause(self, pause_type: PauseType, change_state = True) -> None:
         self._global_pauses.add(pause_type)
         self._input_queue.disable_data()
 
-        if self._state_manager.confirm_state(WorkerState.RUNNING, WorkerState.READY):
+        if change_state and self._state_manager.confirm_state(WorkerState.RUNNING,
+                                                 WorkerState.READY):
             self._state_manager.transit_to(WorkerState.PAUSED)
 
     def pause_input_channel(
@@ -46,7 +47,7 @@ class PauseManager:
         # for now we do not have specific data queue for Python side.
         raise NotImplementedError()
 
-    def resume(self, pause_type) -> None:
+    def resume(self, pause_type:PauseType, change_state = True) -> None:
         if pause_type in self._global_pauses:
             self._global_pauses.remove(pause_type)
         # del self._specific_input_pauses[pause_type]
@@ -58,7 +59,7 @@ class PauseManager:
         # global pause is empty, specific input pause is also empty, resume all
         if not self._specific_input_pauses:
             self._input_queue.enable_data()
-            if self._state_manager.confirm_state(WorkerState.PAUSED):
+            if change_state and self._state_manager.confirm_state(WorkerState.PAUSED):
                 self._state_manager.transit_to(WorkerState.RUNNING)
             return
 
