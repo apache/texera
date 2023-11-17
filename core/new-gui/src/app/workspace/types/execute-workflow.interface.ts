@@ -115,6 +115,15 @@ export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdat
   return (update !== undefined && update.mode.type === "SetSnapshotMode") || update.mode.type === "SetDeltaMode";
 }
 
+export function isNotInExecution(state: ExecutionState) {
+  return [
+    ExecutionState.Uninitialized,
+    ExecutionState.Failed,
+    ExecutionState.Killed,
+    ExecutionState.Completed,
+  ].includes(state);
+}
+
 export enum ExecutionState {
   Uninitialized = "Uninitialized",
   Initializing = "Initializing",

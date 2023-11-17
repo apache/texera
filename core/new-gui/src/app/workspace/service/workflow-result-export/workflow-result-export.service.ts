@@ -6,7 +6,7 @@ import { merge } from "rxjs";
 import { ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 
@@ -49,7 +49,7 @@ export class WorkflowResultExportService {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
     ).subscribe(() => {
       this.hasResultToExport =
-        this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed &&
+        isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
