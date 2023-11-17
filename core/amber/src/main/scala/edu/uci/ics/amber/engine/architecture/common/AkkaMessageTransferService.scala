@@ -40,9 +40,6 @@ class AkkaMessageTransferService(
     val pollingInterval = Constants.creditPollingIntervalInMs.millis
     creditPollingHandle =
       actorService.scheduleWithFixedDelay(pollingInterval, pollingInterval, checkCreditPolling)
-    val pollingInterval = Constants.creditPollingIntervalInMs.millis
-    creditPollingHandle =
-      actorService.scheduleWithFixedDelay(pollingInterval, pollingInterval, triggerCreditPolling)
   }
 
   def stop(): Unit = {
