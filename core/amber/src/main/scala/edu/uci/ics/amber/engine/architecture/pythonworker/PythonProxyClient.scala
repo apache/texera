@@ -45,7 +45,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
   private var pythonQueueInMemSize: Long = _
 
-  def getPythonQueueInMemSize(): Long = {
+  def getQueuedCredit(): Long = {
     pythonQueueInMemSize
   }
 

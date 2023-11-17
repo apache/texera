@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
 import scala.collection.mutable
 import scala.util.control.Breaks.{break, breakable}
@@ -35,20 +35,27 @@ import scala.util.control.Breaks.{break, breakable}
   */
 class FlowControl {
 
-  var senderSideCredit: Long = Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair
-  private val stashedMessages: mutable.Queue[WorkflowFIFOMessage] = new mutable.Queue()
+  private var inflightCredit: Long = 0
+  private var queuedCredit: Long = 0
+  private val stashedMessages: mutable.Queue[NetworkMessage] = new mutable.Queue()
   private var overloaded = false
-  var isPollingForCredit = false
   def isOverloaded: Boolean = overloaded
 
   /**
     * Determines if an incoming message can be forwarded to the receiver based on the credits available.
     */
-  def enqueueMessage(msg: WorkflowFIFOMessage): Iterable[WorkflowFIFOMessage] = {
-    val creditNeeded = getInMemSize(msg)
+  def getMessagesToSend(msg: NetworkMessage): Iterable[NetworkMessage] = {
+    val creditNeeded = getInMemSize(msg.internalMessage)
+    // assume the biggest message can pass through flow control
+    assert(
+      creditNeeded <= Constants.maxCreditAllowedInBytesPerChannel,
+      s"Message $msg is too big to send through flow control, " +
+        s"max credit = ${Constants.maxCreditAllowedInBytesPerChannel} bytes " +
+        s"while the message size is $creditNeeded bytes."
+    )
     if (stashedMessages.isEmpty) {
-      if (senderSideCredit >= creditNeeded) {
-        senderSideCredit -= creditNeeded
+      if (getCredit >= creditNeeded) {
+        inflightCredit += creditNeeded
         Iterable(msg)
       } else {
         overloaded = true
@@ -61,14 +68,14 @@ class FlowControl {
     }
   }
 
-  def getMessagesToSend: Iterable[WorkflowFIFOMessage] = {
-    val toSend = mutable.ArrayBuffer[WorkflowFIFOMessage]()
+  def getMessagesToSend: Iterable[NetworkMessage] = {
+    val toSend = mutable.ArrayBuffer[NetworkMessage]()
     breakable {
       while (stashedMessages.nonEmpty) {
         val msg = stashedMessages.front
-        val creditNeeded = getInMemSize(msg)
-        if (senderSideCredit >= creditNeeded) {
-          senderSideCredit -= creditNeeded
+        val creditNeeded = getInMemSize(msg.internalMessage)
+        if (getCredit >= creditNeeded) {
+          inflightCredit += creditNeeded
           toSend.append(msg)
           stashedMessages.dequeue()
         } else {
@@ -80,7 +87,15 @@ class FlowControl {
     toSend
   }
 
-  def updateCredit(newCredit: Long): Unit = {
-    senderSideCredit = newCredit
+  def updateQueuedCredit(newCredit: Long): Unit = {
+    queuedCredit = newCredit
+  }
+
+  def decreaseInflightCredit(ackedCredit: Long): Unit = {
+    inflightCredit -= ackedCredit
+  }
+
+  def getCredit: Long = {
+    Constants.maxCreditAllowedInBytesPerChannel - inflightCredit - queuedCredit
   }
 }

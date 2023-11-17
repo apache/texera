@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.{AmberProcessor, WorkflowActor}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelID,
   ControlPayload,
@@ -24,15 +25,15 @@ class TrivialControlTester(
       val msg = channel.take
       msg.payload match {
         case payload: ControlPayload => ap.processControlPayload(msg.channel, payload)
-        case payload: DataPayload    => ???
+        case _: DataPayload          => ???
         case _                       => ???
       }
     }
-    sender ! NetworkAck(id)
+    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
   }
 
   /** flow-control */
-  override def getSenderCredits(channelID: ChannelID): Long = ???
+  override def getQueuedCredit(channelID: ChannelID): Long = 0L
 
   override def initState(): Unit = {}
 
