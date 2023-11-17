@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -179,10 +180,7 @@ class JobStatsService(
                 EXECUTION_FAILURE,
                 Timestamp(Instant.now),
                 evt.e.toString,
-                evt.e.getStackTrace.mkString(
-                  "\n"
-                ) + "\n\nCaused by:\n" + evt.e.getCause.toString + "\n" + evt.e.getCause.getStackTrace
-                  .mkString("\n"),
+                getStackTraceWithAllCauses(evt.e),
                 operatorId,
                 workerId
               )
