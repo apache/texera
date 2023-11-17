@@ -457,7 +457,7 @@ export class NavigationComponent implements OnInit {
   }
 
   onClickGetAllVersions() {
-    this.workflowVersionService.clickDisplayWorkflowVersions();
+    this.workflowVersionService.displayWorkflowVersions();
   }
 
   private handleWorkflowVersionDisplay(): void {

@@ -38,15 +38,13 @@ class FlowControl {
   private var inflightCredit: Long = 0
   private var queuedCredit: Long = 0
   private val stashedMessages: mutable.Queue[NetworkMessage] = new mutable.Queue()
-  private val idToMsgSizeMapping: mutable.HashMap[Long, Long] = new mutable.HashMap()
   private var overloaded = false
-  var isPollingForCredit = false
   def isOverloaded: Boolean = overloaded
 
   /**
     * Determines if an incoming message can be forwarded to the receiver based on the credits available.
     */
-  def enqueueMessage(msg: NetworkMessage): Iterable[NetworkMessage] = {
+  def getMessagesToSend(msg: NetworkMessage): Iterable[NetworkMessage] = {
     val creditNeeded = getInMemSize(msg.internalMessage)
     // assume the biggest message can pass through flow control
     assert(
@@ -58,7 +56,6 @@ class FlowControl {
     if (stashedMessages.isEmpty) {
       if (getCredit >= creditNeeded) {
         inflightCredit += creditNeeded
-        idToMsgSizeMapping(msg.messageId) = creditNeeded
         Iterable(msg)
       } else {
         overloaded = true
@@ -79,7 +76,6 @@ class FlowControl {
         val creditNeeded = getInMemSize(msg.internalMessage)
         if (getCredit >= creditNeeded) {
           inflightCredit += creditNeeded
-          idToMsgSizeMapping(msg.messageId) = creditNeeded
           toSend.append(msg)
           stashedMessages.dequeue()
         } else {
@@ -95,9 +91,8 @@ class FlowControl {
     queuedCredit = newCredit
   }
 
-  def ack(msgId: Long): Unit = {
-    inflightCredit -= idToMsgSizeMapping(msgId)
-    idToMsgSizeMapping.remove(msgId)
+  def decreaseInflightCredit(ackedCredit: Long): Unit = {
+    inflightCredit -= ackedCredit
   }
 
   def getCredit: Long = {

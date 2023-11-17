@@ -24,9 +24,11 @@ object WorkflowActor {
 
   /** Ack for NetworkMessage
     *
-    * @param messageId Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
+    * @param messageId Long, id of the received network message
+    * @param ackedCredit Long, received size of the message, used to subtract sender's inflight credit
+    * @param queuedCredit Long, receiver queue's size
     */
-  final case class NetworkAck(messageId: Long, queuedCredit: Long)
+  final case class NetworkAck(messageId: Long, ackedCredit: Long, queuedCredit: Long)
 
   final case class MessageBecomesDeadLetter(message: NetworkMessage)
 
@@ -92,8 +94,8 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
           logger.warn("actor failed due to exception", e)
           throw e
       }
-    case NetworkAck(id, queuedCredit) =>
-      transferService.receiveAck(id, queuedCredit)
+    case NetworkAck(id, ackedCredit, queuedCredit) =>
+      transferService.receiveAck(id, ackedCredit, queuedCredit)
   }
 
   def receiveCreditMessages: Receive = {

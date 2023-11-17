@@ -47,12 +47,12 @@ object Constants {
     AmberUtils.amberConfig.getInt("reshape.first-phase-sharing-denominator")
 
   // flow control related
-  var maxCreditAllowedInBytesPerChannel: Int = {
-    val maxCredit = AmberUtils.amberConfig.getInt(
+  var maxCreditAllowedInBytesPerChannel: Long = {
+    val maxCredit = AmberUtils.amberConfig.getLong(
       "flow-control.max-credit-allowed-in-bytes-per-channel"
     )
-    if (maxCredit == -1) {
-      Int.MaxValue
+    if (maxCredit == -1L) {
+      Long.MaxValue
     } else {
       maxCredit
     }
