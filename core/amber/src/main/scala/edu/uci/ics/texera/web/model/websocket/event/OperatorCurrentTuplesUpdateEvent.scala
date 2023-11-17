@@ -5,7 +5,6 @@ import edu.uci.ics.texera.web.model.websocket.event.OperatorCurrentTuplesUpdateE
 
 object OperatorCurrentTuplesUpdateEvent {
   def apply(report: ReportCurrentProcessingTuple): OperatorCurrentTuplesUpdateEvent = {
-    println(report)
     val workerTuples = report.tuple
       .map(p => {
         val workerName = p._2.toString;

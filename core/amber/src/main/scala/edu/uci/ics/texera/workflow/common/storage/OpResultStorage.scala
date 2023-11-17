@@ -49,7 +49,7 @@ class OpResultStorage extends Serializable with LazyLogging {
           new MongoDBSinkStorage(executionID + key, schema)
         } catch {
           case t: Throwable =>
-            t.printStackTrace()
+            logger.warn("Failed to create mongo storage", t)
             logger.info(s"Fall back to memory storage for $key")
             // fall back to memory
             new MemoryStorage(schema)

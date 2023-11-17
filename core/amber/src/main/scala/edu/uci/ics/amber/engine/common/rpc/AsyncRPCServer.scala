@@ -1,15 +1,10 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{
-  ControlInvocation,
-  ReturnInvocation,
-  noReplyNeeded
-}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -38,7 +33,7 @@ object AsyncRPCServer {
 }
 
 class AsyncRPCServer(
-    controlOutputEndpoint: NetworkOutputPort[ControlPayload],
+    outputGateway: NetworkOutputGateway,
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
@@ -56,6 +51,9 @@ class AsyncRPCServer(
   }
 
   def receive(control: ControlInvocation, senderID: ActorVirtualIdentity): Unit = {
+    logger.debug(
+      s"receive command: ${control.command} from $senderID (controlID: ${control.commandID})"
+    )
     try {
       execute((control.command, senderID))
         .onSuccess { ret =>
@@ -82,11 +80,14 @@ class AsyncRPCServer(
   }
 
   @inline
+  private def noReplyNeeded(id: Long): Boolean = id < 0
+
+  @inline
   private def returnResult(sender: ActorVirtualIdentity, id: Long, ret: Any): Unit = {
     if (noReplyNeeded(id)) {
       return
     }
-    controlOutputEndpoint.sendTo(sender, ReturnInvocation(id, ret))
+    outputGateway.sendTo(sender, ReturnInvocation(id, ret))
   }
 
   def logControlInvocation(call: ControlInvocation, sender: ActorVirtualIdentity): Unit = {
@@ -96,7 +97,7 @@ class AsyncRPCServer(
     if (call.command.isInstanceOf[QueryStatistics]) {
       return
     }
-    logger.info(
+    logger.debug(
       s"receive command: ${call.command} from $sender (controlID: ${call.commandID})"
     )
   }

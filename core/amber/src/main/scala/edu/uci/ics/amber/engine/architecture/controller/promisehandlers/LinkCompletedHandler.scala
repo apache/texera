@@ -23,11 +23,11 @@ trait LinkCompletedHandler {
   registerHandler { (msg: LinkCompleted, sender) =>
     {
       // get the target link from workflow
-      val link = workflow.getLink(msg.linkID)
+      val link = cp.executionState.getLinkExecution(msg.linkID)
       link.incrementCompletedReceiversCount()
       if (link.isCompleted) {
-        scheduler
-          .onLinkCompletion(link.id)
+        cp.workflowScheduler
+          .onLinkCompletion(cp.workflow, cp.actorRefService, cp.actorService, msg.linkID)
           .flatMap(_ => Future.Unit)
       } else {
         // if the link is not completed yet, do nothing

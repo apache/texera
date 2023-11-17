@@ -1,22 +1,20 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
 object SinkInjectionTransformer {
 
-  def transform(pojo: LogicalPlanPojo): LogicalPlan = {
-    var logicalPlan =
-      LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
+  def transform(opsToViewResult: List[String], oldPlan: LogicalPlan): LogicalPlan = {
+    var logicalPlan = oldPlan
 
     // for any terminal operator without a sink, add a sink
     val nonSinkTerminalOps = logicalPlan.getTerminalOperators.filter(opId =>
       !logicalPlan.getOperator(opId).isInstanceOf[SinkOpDesc]
     )
     // for any operators marked as view result without a sink, add a sink
-    val viewResultOps = pojo.opsToViewResult.filter(opId =>
+    val viewResultOps = opsToViewResult.filter(opId =>
       !logicalPlan.getDownstream(opId).exists(op => op.isInstanceOf[SinkOpDesc])
     )
 

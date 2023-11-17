@@ -40,21 +40,24 @@ export interface RegisterWIdEvent
     message: string;
   }> {}
 
-export interface TexeraConstraintViolation
+export interface WorkflowFatalError
   extends Readonly<{
     message: string;
-    propertyPath: string;
+    details: string;
+    operatorId: string;
+    workerId: string;
+    type: {
+      name: string;
+    };
+    timestamp: {
+      nanos: number;
+      seconds: number;
+    };
   }> {}
 
-export interface WorkflowError
+export interface WorkflowErrorEvent
   extends Readonly<{
-    operatorErrors: Record<string, TexeraConstraintViolation>;
-    generalErrors: Record<string, string>;
-  }> {}
-
-export interface WorkflowExecutionError
-  extends Readonly<{
-    message: string;
+    fatalErrors: ReadonlyArray<WorkflowFatalError>;
   }> {}
 
 export type ModifyOperatorLogic = Readonly<{
@@ -178,7 +181,7 @@ export type WorkflowStateInfo = Readonly<{
 export type TexeraWebsocketRequestTypeMap = {
   RegisterWIdRequest: RegisterWIdRequest;
   AddBreakpointRequest: BreakpointInfo;
-  CacheStatusUpdateRequest: LogicalPlan;
+  EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
@@ -197,15 +200,14 @@ export type TexeraWebsocketEventTypeMap = {
   RegisterWIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
   WorkflowStateEvent: WorkflowStateInfo;
-  WorkflowErrorEvent: WorkflowError;
   OperatorStatisticsUpdateEvent: OperatorStatsUpdate;
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
   RecoveryStartedEvent: {};
+  WorkflowErrorEvent: WorkflowErrorEvent;
   BreakpointTriggeredEvent: BreakpointTriggerInfo;
   ConsoleUpdateEvent: ConsoleUpdateEvent;
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
-  WorkflowExecutionErrorEvent: WorkflowExecutionError;
   ResultExportResponse: ResultExportResponse;
   WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
   CacheStatusUpdateEvent: CacheStatusUpdateEvent;

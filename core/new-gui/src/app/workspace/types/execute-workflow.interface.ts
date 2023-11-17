@@ -6,7 +6,7 @@
 
 import { ChartType } from "./visualization.interface";
 import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
-import { OperatorCurrentTuples } from "./workflow-websocket.interface";
+import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
 
 export interface LogicalLink
   extends Readonly<{
@@ -115,6 +115,15 @@ export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdat
   return (update !== undefined && update.mode.type === "SetSnapshotMode") || update.mode.type === "SetDeltaMode";
 }
 
+export function isNotInExecution(state: ExecutionState) {
+  return [
+    ExecutionState.Uninitialized,
+    ExecutionState.Failed,
+    ExecutionState.Killed,
+    ExecutionState.Completed,
+  ].includes(state);
+}
+
 export enum ExecutionState {
   Uninitialized = "Uninitialized",
   Initializing = "Initializing",
@@ -152,6 +161,6 @@ export type ExecutionStateInfo = Readonly<
     }
   | {
       state: ExecutionState.Failed;
-      errorMessages: Readonly<Record<string, string>>;
+      errorMessages: ReadonlyArray<WorkflowFatalError>;
     }
 >;

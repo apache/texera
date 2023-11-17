@@ -18,9 +18,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
+import java.util.concurrent.TimeUnit
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -41,6 +42,12 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private val UNIT_WAIT_TIME_MS = 200
   private var flightClient: FlightClient = _
   private var running: Boolean = true
+
+  private var pythonQueueInMemSize: Long = _
+
+  def getPythonQueueInMemSize(): Long = {
+    pythonQueueInMemSize
+  }
 
   override def run(): Unit = {
     establishConnection()
@@ -76,12 +83,12 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   def mainLoop(): Unit = {
     while (running) {
       getElement match {
-        case DataElement(dataPayload, from) =>
-          sendData(dataPayload, from)
-        case ControlElement(cmd, from) =>
-          sendControlV1(from, cmd)
-        case ControlElementV2(cmd, from) =>
-          sendControlV2(from, cmd)
+        case DataElement(dataPayload, channel) =>
+          sendData(dataPayload, channel.from)
+        case ControlElement(cmd, channel) =>
+          sendControlV1(channel.from, cmd)
+        case ControlElementV2(cmd, channel) =>
+          sendControlV2(channel.from, cmd)
       }
     }
   }
@@ -111,6 +118,10 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // As we do our own Async RPC management, we are currently not using results from Action call.
     // In the future, this results can include credits for flow control purpose.
     val result = results.next()
+
+    // extract info needed to calculate sender credits from ack
+    // ackResult contains number of batches inside Python worker internal queue
+    pythonQueueInMemSize = new String(result.getBody).toLong
 
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
@@ -150,7 +161,12 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     writer.putNext()
     schemaRoot.clear()
     writer.completed()
-    flightListener.getResult()
+
+    // for calculating sender credits - get back number of batches in Python worker queue
+    val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
+    pythonQueueInMemSize = ackMsgBuf.getLong(0)
+    ackMsgBuf.close()
+
     flightListener.close()
 
   }

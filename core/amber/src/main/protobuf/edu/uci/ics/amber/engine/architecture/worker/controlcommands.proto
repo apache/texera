@@ -44,10 +44,6 @@ message QueryStatisticsV2 {
 message QueryCurrentInputTupleV2 {
 }
 
-message LocalOperatorExceptionV2 {
-    string message = 1;
-}
-
 message LinkOrdinal {
     common.LinkIdentity link_id = 1 [(scalapb.field).no_box = true];
     int64 port_ordinal = 2;
@@ -69,11 +65,24 @@ message ModifyOperatorLogicV2 {
 message ReplayCurrentTupleV2 {
 }
 
+enum ConsoleMessageType{
+    PRINT = 0;
+    ERROR = 1;
+    COMMAND = 2;
+    DEBUGGER = 3;
+}
+
+message ConsoleMessage {
+    string worker_id = 1;
+    google.protobuf.Timestamp timestamp = 2  [(scalapb.field).no_box = true];
+    ConsoleMessageType msg_type = 3;
+    string source = 4;
+    string title = 5;
+    string message = 6;
+}
+
 message PythonConsoleMessageV2 {
-    google.protobuf.Timestamp timestamp = 1  [(scalapb.field).no_box = true];
-    string msg_type = 2;
-    string source = 3;
-    string message = 4;
+    ConsoleMessage message = 1 [(scalapb.field).no_box = true];
 }
 
 message EvaluateExpressionV2 {
@@ -106,8 +115,6 @@ message ControlCommandV2 {
 
         QueryStatisticsV2 query_statistics = 6;
         QueryCurrentInputTupleV2 query_current_input_tuple = 7;
-
-        LocalOperatorExceptionV2 local_operator_exception = 8;
 
         OpenOperatorV2 open_operator = 9;
         LinkCompletedV2 link_completed = 10;
