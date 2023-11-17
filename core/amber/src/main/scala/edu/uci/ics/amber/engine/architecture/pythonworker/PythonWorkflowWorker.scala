@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, IgnoreReply}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -83,12 +84,12 @@ class PythonWorkflowWorker(
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
-    sender ! NetworkAck(messageId, getQueuedCredit(workflowMsg.channel))
+    sender ! NetworkAck(messageId, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
   }
 
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long = {
-    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getPythonQueueInMemSize()
+    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit()
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {
