@@ -84,6 +84,15 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
     queriedActorVirtualIdentities.clear()
   }
 
+  def findActorVirtualIdentity(ref: ActorRef): Option[ActorVirtualIdentity] = {
+    actorRefMapping
+      .find {
+        case (_, actorRef) =>
+          actorRef == ref
+      }
+      .map(_._1)
+  }
+
   @inline
   private[this] def fetchActorRefMappingFromParent(id: ActorVirtualIdentity): Unit = {
     if (!queriedActorVirtualIdentities.contains(id)) {
