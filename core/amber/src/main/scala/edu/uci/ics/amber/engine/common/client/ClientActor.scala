@@ -10,9 +10,12 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkMessage
 }
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelID,
+  ControlPayload,
+  DataPayload,
   WorkflowFIFOMessage,
   WorkflowRecoveryMessage
 }
@@ -46,13 +49,23 @@ private[client] class ClientActor extends Actor with AmberLogging {
 
   private val controlChannelId = ChannelID(CLIENT, CONTROLLER, isControl = true)
 
+  private def getQueuedCredit(channel: ChannelID): Long = {
+    0L // client does not have queued credits
+  }
+
+  private def handleControl(control: Any): Unit = {
+    if (handlers.isDefinedAt(control)) {
+      handlers(control)
+    }
+  }
+
   override def receive: Receive = {
     case InitializeRequest(workflow, controllerConfig) =>
       assert(controller == null)
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
       sender ! Ack
     case CreditRequest(channel: ChannelID) =>
-      sender ! CreditResponse(channel, Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair)
+      sender ! CreditResponse(channel, getQueuedCredit(channel))
     case ClosureRequest(closure) =>
       try {
         sender ! closure()
@@ -76,25 +89,28 @@ private[client] class ClientActor extends Actor with AmberLogging {
       sender ! scala.runtime.BoxedUnit.UNIT
     case NetworkMessage(
           mId,
-          _ @WorkflowFIFOMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn))
+          fifoMsg @ WorkflowFIFOMessage(_, _, payload)
         ) =>
-      sender ! NetworkAck(mId)
-      if (handlers.isDefinedAt(controlReturn)) {
-        handlers(controlReturn)
-      }
-      if (promiseMap.contains(originalCommandID)) {
-        controlReturn match {
-          case t: Throwable =>
-            promiseMap(originalCommandID).setException(t)
-          case other =>
-            promiseMap(originalCommandID).setValue(other)
-        }
-        promiseMap.remove(originalCommandID)
-      }
-    case NetworkMessage(mId, _ @WorkflowFIFOMessage(_, _, _ @ControlInvocation(_, command))) =>
-      sender ! NetworkAck(mId)
-      if (handlers.isDefinedAt(command)) {
-        handlers(command)
+      sender ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channel))
+      payload match {
+        case payload: ControlPayload =>
+          payload match {
+            case ControlInvocation(_, command) => handleControl(command)
+            case ReturnInvocation(originalCommandID, controlReturn) =>
+              handleControl(controlReturn)
+              if (promiseMap.contains(originalCommandID)) {
+                controlReturn match {
+                  case t: Throwable =>
+                    promiseMap(originalCommandID).setException(t)
+                  case other =>
+                    promiseMap(originalCommandID).setValue(other)
+                }
+                promiseMap.remove(originalCommandID)
+              }
+            case _ => ???
+          }
+        case _: DataPayload => ???
+        case _              => ???
       }
     case x: WorkflowRecoveryMessage =>
       sender ! Ack
