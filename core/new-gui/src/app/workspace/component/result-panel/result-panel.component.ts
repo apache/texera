@@ -174,7 +174,7 @@ export class ResultPanelComponent implements OnInit {
         }
       }
     } else {
-      this.frameComponentConfigs.delete("Error");
+      this.frameComponentConfigs.delete("Static Error");
     }
 
     // current result panel is closed or there is no operator highlighted, do nothing
