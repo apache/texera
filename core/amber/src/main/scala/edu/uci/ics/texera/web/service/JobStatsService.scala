@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -163,10 +164,10 @@ class JobStatsService(
       client
         .registerCallback[FatalError]((evt: FatalError) => {
           client.shutdown()
-          var opeartorId = "unknown operator"
+          var operatorId = "unknown operator"
           var workerId = ""
           if (evt.fromActor.isDefined) {
-            opeartorId = VirtualIdentityUtils.getOperator(evt.fromActor.get).operator
+            operatorId = VirtualIdentityUtils.getOperator(evt.fromActor.get).operator
             workerId = evt.fromActor.get.name
           }
           stateStore.statsStore.updateState(stats =>
@@ -179,8 +180,8 @@ class JobStatsService(
                 EXECUTION_FAILURE,
                 Timestamp(Instant.now),
                 evt.e.toString,
-                evt.e.getStackTrace.mkString("\n"),
-                opeartorId,
+                getStackTraceWithAllCauses(evt.e),
+                operatorId,
                 workerId
               )
             )

@@ -3,14 +3,20 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import akka.actor.Props
 import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.NetworkSenderActorRef
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, IgnoreReply}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.Utils
 
 import java.nio.file.Path
@@ -19,33 +25,18 @@ import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
   def props(
-      id: ActorVirtualIdentity,
-      workerIndex: Int,
-      workerLayer: OpExecConfig,
-      parentNetworkCommunicationActorRef: NetworkSenderActorRef
+      id: ActorVirtualIdentity
   ): Props =
     Props(
       new PythonWorkflowWorker(
-        id,
-        workerIndex,
-        workerLayer,
-        parentNetworkCommunicationActorRef
+        id
       )
     )
 }
 
 class PythonWorkflowWorker(
-    actorId: ActorVirtualIdentity,
-    workerIndex: Int,
-    workerLayer: OpExecConfig,
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef
-) extends WorkflowWorker(
-      actorId,
-      workerIndex,
-      workerLayer,
-      parentNetworkCommunicationActorRef,
-      false
-    ) {
+    actorId: ActorVirtualIdentity
+) extends WorkflowActor(actorId) {
 
   // For receiving the Python server port number that will be available later
   private lazy val portNumberPromise = Promise[Int]()
@@ -56,9 +47,6 @@ class PythonWorkflowWorker(
   private lazy val pythonProxyClient: PythonProxyClient =
     new PythonProxyClient(portNumberPromise, actorId)
 
-  // TODO: find a better way to send Error log to frontend.
-  override val rpcHandlerInitializer: AsyncRPCHandlerInitializer = null
-
   val pythonSrcDirectory: Path = Utils.amberHomePath
     .resolve("src")
     .resolve("main")
@@ -68,28 +56,49 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
-  override def getSenderCredits(sender: ActorVirtualIdentity): Int = {
-    pythonProxyClient.getSenderCredits(sender)
-  }
-
-  override def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-    pythonProxyClient.enqueueData(DataElement(dataPayload, from))
-  }
-
-  override def handleControlPayload(
-      from: ActorVirtualIdentity,
-      controlPayload: ControlPayload
-  ): Unit = {
-    controlPayload match {
-      case ControlInvocation(_, _) | ReturnInvocation(_, _) =>
-        pythonProxyClient.enqueueCommand(controlPayload, from)
-      case _ =>
-        logger.error(s"unhandled control payload: $controlPayload")
+  private val networkInputGateway = new NetworkInputGateway(actorId)
+  private val networkOutputGateway = new NetworkOutputGateway(
+    actorId,
+    x => {
+      self ! TriggerSend(x)
     }
+  )
+
+  def handleSendFromDP: Receive = {
+    case TriggerSend(msg) =>
+      transferService.send(msg)
+  }
+
+  override def receive: Receive = super.receive orElse handleSendFromDP
+
+  override def handleInputMessage(messageId: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
+    val channel = networkInputGateway.getChannel(workflowMsg.channel)
+    channel.acceptMessage(workflowMsg)
+    while (channel.isEnabled && channel.hasMessage) {
+      val msg = channel.take
+      msg.payload match {
+        case payload: ControlPayload =>
+          pythonProxyClient.enqueueCommand(payload, workflowMsg.channel)
+        case payload: DataPayload =>
+          pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channel))
+        case p => logger.error(s"unhandled control payload: $p")
+      }
+    }
+    sender ! NetworkAck(messageId, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
+  }
+
+  /** flow-control */
+  override def getQueuedCredit(channelID: ChannelID): Long = {
+    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit()
+  }
+
+  override def handleBackpressure(isBackpressured: Boolean): Unit = {
+    val backpressureMessage = ControlInvocation(IgnoreReply, Backpressure(isBackpressured))
+    pythonProxyClient.enqueueCommand(backpressureMessage, ChannelID(SELF, SELF, isControl = true))
   }
 
   override def postStop(): Unit = {
-
+    super.postStop()
     try {
       // try to send shutdown command so that it can gracefully shutdown
       pythonProxyClient.close()
@@ -106,7 +115,7 @@ class PythonWorkflowWorker(
     }
   }
 
-  override def preStart(): Unit = {
+  override def initState(): Unit = {
     startProxyServer()
     startPythonProcess()
     startProxyClient()
@@ -116,8 +125,7 @@ class PythonWorkflowWorker(
     // Try to start the server until it succeeds
     var serverStart = false
     while (!serverStart) {
-      pythonProxyServer =
-        new PythonProxyServer(controlOutputPort, dataOutputPort, actorId, portNumberPromise)
+      pythonProxyServer = new PythonProxyServer(networkOutputGateway, actorId, portNumberPromise)
       val future = serverThreadExecutor.submit(pythonProxyServer)
       try {
         future.get()

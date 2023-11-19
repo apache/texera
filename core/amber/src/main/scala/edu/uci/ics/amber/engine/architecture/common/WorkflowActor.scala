@@ -1,107 +1,149 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, Stash}
-import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.logging.storage.{
-  DeterminantLogStorage,
-  EmptyLogStorage
-}
-import edu.uci.ics.amber.engine.architecture.logging.LogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+import akka.actor.{Actor, ActorRef, Address, Stash}
+import akka.pattern.ask
+import akka.util.Timeout
+import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   GetActorRef,
-  NetworkSenderActorRef,
+  MessageBecomesDeadLetter,
+  NetworkAck,
+  NetworkMessage,
   RegisterActorRef,
-  ResendFeasibility,
-  SendRequest
+  CreditResponse,
+  CreditRequest
 }
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkCommunicationActor,
-  NetworkOutputPort
-}
-import edu.uci.ics.amber.engine.architecture.recovery.LocalRecoveryManager
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  ResendOutputTo,
-  WorkflowControlMessage
-}
-import edu.uci.ics.amber.engine.common.rpc.{
-  AsyncRPCClient,
-  AsyncRPCHandlerInitializer,
-  AsyncRPCServer
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
-abstract class WorkflowActor(
-    val actorId: ActorVirtualIdentity,
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    supportFaultTolerance: Boolean
-) extends Actor
+import scala.concurrent.Await
+import scala.concurrent.duration.DurationInt
+
+object WorkflowActor {
+
+  /** Ack for NetworkMessage
+    *
+    * @param messageId Long, id of the received network message
+    * @param ackedCredit Long, received size of the message, used to subtract sender's inflight credit
+    * @param queuedCredit Long, receiver queue's size
+    */
+  final case class NetworkAck(messageId: Long, ackedCredit: Long, queuedCredit: Long)
+
+  final case class MessageBecomesDeadLetter(message: NetworkMessage)
+
+  /** Identifier <-> ActorRef related messages
+    */
+  final case class GetActorRef(id: ActorVirtualIdentity, replyTo: Set[ActorRef])
+
+  final case class RegisterActorRef(id: ActorVirtualIdentity, ref: ActorRef)
+
+  /** All outgoing message should be eventually NetworkMessage
+    *
+    * @param messageId       Long, id for a NetworkMessage, used for FIFO and ExactlyOnce
+    * @param internalMessage WorkflowMessage, the message payload
+    */
+  final case class NetworkMessage(messageId: Long, internalMessage: WorkflowFIFOMessage)
+
+  // sent from network communicator to next worker to poll for credit information
+  final case class CreditRequest(channelEndpointID: ChannelID)
+
+  final case class CreditResponse(channelEndpointID: ChannelID, credit: Long)
+}
+
+abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
+    extends Actor
     with Stash
     with AmberLogging {
-  lazy val controlOutputPort: NetworkOutputPort[ControlPayload] =
-    new NetworkOutputPort[ControlPayload](this.actorId, this.outputControlPayload)
-  lazy val asyncRPCClient: AsyncRPCClient = wire[AsyncRPCClient]
-  lazy val asyncRPCServer: AsyncRPCServer = wire[AsyncRPCServer]
-  val networkCommunicationActor: NetworkSenderActorRef = NetworkSenderActorRef(
-    // create a network communication actor on the same machine as the WorkflowActor itself
-    context.actorOf(
-      NetworkCommunicationActor.props(
-        parentNetworkCommunicationActorRef.ref,
-        actorId,
-        supportFaultTolerance
+
+  //
+  // Akka related components:
+  //
+  val actorService: AkkaActorService = new AkkaActorService(actorId, this.context)
+  actorService.getAvailableNodeAddressesFunc = () => {
+    implicit val timeout: Timeout = 5.seconds
+    Await
+      .result(
+        context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses(),
+        5.seconds
       )
-    )
+      .asInstanceOf[Array[Address]]
+  }
+  val actorRefMappingService: AkkaActorRefMappingService = new AkkaActorRefMappingService(
+    actorService
   )
-  val logStorage: DeterminantLogStorage = {
-    DeterminantLogStorage.getLogStorage(supportFaultTolerance, getLogName)
-  }
-  val recoveryManager = new LocalRecoveryManager()
-  val logManager: LogManager =
-    LogManager.getLogManager(supportFaultTolerance, networkCommunicationActor)
-  if (!logStorage.isLogAvailableForRead) {
-    logManager.setupWriter(logStorage.getWriter)
-  } else {
-    logManager.setupWriter(new EmptyLogStorage().getWriter)
-  }
-  // this variable cannot be lazy
-  // because it should be initialized with the actor itself
-  val rpcHandlerInitializer: AsyncRPCHandlerInitializer
+  actorRefMappingService.registerActorRef(actorId, self)
+  val transferService: AkkaMessageTransferService =
+    new AkkaMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
 
-  // Get log file name
-  def getLogName: String = "worker-actor"
-
-  def outputControlPayload(
-      to: ActorVirtualIdentity,
-      self: ActorVirtualIdentity,
-      seqNum: Long,
-      payload: ControlPayload
-  ): Unit = {
-    val msg = WorkflowControlMessage(self, seqNum, payload)
-    logManager.sendCommitted(SendRequest(to, msg))
+  def receiveActorRefRelatedMessages: Receive = {
+    case GetActorRef(actorId, replyTo) =>
+      actorRefMappingService.retrieveActorRef(actorId, replyTo)
+    case RegisterActorRef(actorId, ref) =>
+      actorRefMappingService.registerActorRef(actorId, ref)
   }
 
-  def forwardResendRequest: Receive = {
-    case resend: ResendOutputTo =>
-      networkCommunicationActor ! resend
-    case ResendFeasibility(status) =>
-      if (!status) {
-        // this exception will be caught by the catch in receiveAndProcessMessages
-        throw new WorkflowRuntimeException(s"network sender cannot resend message!")
+  // actor behavior for FIFO messages
+  def receiveMessageAndAck: Receive = {
+    case NetworkMessage(id, workflowMsg @ WorkflowFIFOMessage(channel, _, _)) =>
+      actorRefMappingService.registerActorRef(channel.from, sender)
+      try {
+        handleInputMessage(id, workflowMsg)
+      } catch {
+        case e: Throwable =>
+          logger.warn("actor failed due to exception", e)
+          throw e
       }
+    case NetworkAck(id, ackedCredit, queuedCredit) =>
+      transferService.receiveAck(id, ackedCredit, queuedCredit)
   }
 
-  def disallowActorRefRelatedMessages: Receive = {
-    case GetActorRef =>
-      throw new WorkflowRuntimeException(
-        "workflow actor should never receive get actor ref message"
-      )
+  def receiveCreditMessages: Receive = {
+    case CreditRequest(channel) =>
+      sender ! CreditResponse(channel, getQueuedCredit(channel))
+    case CreditResponse(channel, credit) =>
+      transferService.updateChannelCreditFromReceiver(channel, credit)
+  }
 
-    case RegisterActorRef =>
-      throw new WorkflowRuntimeException(
-        "workflow actor should never receive register actor ref message"
-      )
+  def receiveDeadLetterMessage: Receive = {
+    case MessageBecomesDeadLetter(msg) =>
+      actorRefMappingService.removeActorRef(msg.internalMessage.channel.from)
+  }
+
+  def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit
+
+  //
+  //flow control:
+  //
+  def getQueuedCredit(channelID: ChannelID): Long
+
+  def handleBackpressure(isBackpressured: Boolean): Unit
+
+  //
+  //Actor lifecycle: Initialization
+  //
+  def initState(): Unit
+
+  override def preStart(): Unit = {
+    try {
+      transferService.initialize()
+      initState()
+    } catch {
+      case t: Throwable =>
+        logger.warn("actor initialization failed due to exception", t)
+        throw t
+    }
+  }
+
+  override def receive: Receive = {
+    receiveActorRefRelatedMessages orElse
+      receiveMessageAndAck orElse
+      receiveCreditMessages orElse
+      receiveDeadLetterMessage
+  }
+
+  override def postStop(): Unit = {
+    transferService.stop()
   }
 
 }

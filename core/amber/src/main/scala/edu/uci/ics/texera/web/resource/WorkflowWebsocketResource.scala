@@ -5,17 +5,22 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{WorkflowErrorEvent, WorkflowStateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  CacheStatusUpdateEvent,
+  WorkflowErrorEvent,
+  WorkflowStateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{FAILED, PAUSED, RUNNING}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUSED, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
+import org.jooq.types.UInteger
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
@@ -52,6 +57,7 @@ class WorkflowWebsocketResource extends LazyLogging {
       .map(_.asInstanceOf[User].getUid)
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
+    val jobStateOpt = workflowStateOpt.flatMap(x => Option(x.jobService.getValue))
     try {
       request match {
         case wIdRequest: RegisterWIdRequest =>
@@ -79,37 +85,37 @@ class WorkflowWebsocketResource extends LazyLogging {
             sessionState.send(modifyLogicResponse)
           }
         case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
-          if (workflowStateOpt.isDefined) {
-            var stateStore = new JobStateStore()
-            if (workflowStateOpt.get.jobService.hasValue) {
-              val currentState =
-                workflowStateOpt.get.jobService.getValue.stateStore.jobMetadataStore.getState.state
-              if (currentState == RUNNING || currentState == PAUSED) {
-                // disable check if the workflow execution is active.
-                return
-              }
-              stateStore = workflowStateOpt.get.jobService.getValue.stateStore
+          val stateStore = if (jobStateOpt.isDefined) {
+            val currentState =
+              jobStateOpt.get.stateStore.jobMetadataStore.getState.state
+            if (currentState == RUNNING || currentState == PAUSED) {
+              // disable check if the workflow execution is active.
+              return
             }
-            val newPlan = {
-              LogicalPlan.apply(
-                editingTimeCompilationRequest.toLogicalPlanPojo(),
-                new WorkflowContext()
-              )
-            }
-            newPlan.initializeLogicalPlan(stateStore)
-            if (stateStore.jobMetadataStore.getState.state == FAILED) {
-              sessionState.send(WorkflowStateEvent("Failed"))
-              sessionState.send(
-                WorkflowErrorEvent(stateStore.jobMetadataStore.getState.fatalErrors)
-              )
-            } else {
-              WorkflowCacheChecker.handleCacheStatusUpdate(
-                workflowStateOpt.get.lastCompletedLogicalPlan,
-                newPlan,
-                sessionState,
-                editingTimeCompilationRequest
-              )
-            }
+            jobStateOpt.get.stateStore
+          } else {
+            new JobStateStore()
+          }
+          val workflowContext = new WorkflowContext(
+            null,
+            uidOpt,
+            UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
+          )
+          val newPlan = {
+            LogicalPlan.apply(
+              editingTimeCompilationRequest.toLogicalPlanPojo(),
+              workflowContext
+            )
+          }
+          newPlan.initializeLogicalPlan(stateStore)
+          val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
+            workflowStateOpt.get.lastCompletedLogicalPlan,
+            newPlan,
+            editingTimeCompilationRequest
+          )
+          sessionState.send(CacheStatusUpdateEvent(validateResult))
+          if (jobStateOpt.isEmpty) {
+            sessionState.send(WorkflowErrorEvent(stateStore.jobMetadataStore.getState.fatalErrors))
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
@@ -125,20 +131,26 @@ class WorkflowWebsocketResource extends LazyLogging {
     } catch {
       case err: Exception =>
         logger.error("error occurred in websocket", err)
-        sessionState.send(WorkflowStateEvent("Failed"))
-        sessionState.send(
-          WorkflowErrorEvent(
-            Seq(
-              WorkflowFatalError(
-                COMPILATION_ERROR,
-                Timestamp(Instant.now),
-                err.toString,
-                err.getStackTrace.mkString("\n"),
-                "unknown operator"
-              )
+        val errEvt = WorkflowFatalError(
+          COMPILATION_ERROR,
+          Timestamp(Instant.now),
+          err.toString,
+          err.getStackTrace.mkString("\n"),
+          "unknown operator"
+        )
+        if (jobStateOpt.isDefined) {
+          jobStateOpt.get.stateStore.jobMetadataStore.updateState { metadataStore =>
+            metadataStore
+              .withFatalErrors(metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR))
+              .addFatalErrors(errEvt)
+          }
+        } else {
+          sessionState.send(
+            WorkflowErrorEvent(
+              Seq(errEvt)
             )
           )
-        )
+        }
         throw err
     }
 

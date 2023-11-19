@@ -1,14 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
-import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelID,
   ControlPayload,
   ControlPayloadV2,
   DataFrame,
   DataPayload
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import lbmq.LinkedBlockingMultiQueue
 
 import scala.collection.mutable
@@ -19,14 +18,11 @@ object WorkerBatchInternalQueue {
   // 4 kinds of elements can be accepted by internal queue
   sealed trait InternalQueueElement
 
-  case class DataElement(dataPayload: DataPayload, from: ActorVirtualIdentity)
-      extends InternalQueueElement
+  case class DataElement(dataPayload: DataPayload, from: ChannelID) extends InternalQueueElement
 
-  case class ControlElement(cmd: ControlPayload, from: ActorVirtualIdentity)
-      extends InternalQueueElement
+  case class ControlElement(cmd: ControlPayload, from: ChannelID) extends InternalQueueElement
 
-  case class ControlElementV2(cmd: ControlPayloadV2, from: ActorVirtualIdentity)
-      extends InternalQueueElement
+  case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelID) extends InternalQueueElement
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should
@@ -45,54 +41,49 @@ trait WorkerBatchInternalQueue {
 
   // the values in below maps are in batches
   private val inQueueSizeMapping =
-    new mutable.HashMap[ActorVirtualIdentity, Long]() // read and written by main thread
+    new mutable.HashMap[ChannelID, Long]() // read and written by main thread
   @volatile private var outQueueSizeMapping =
-    new mutable.HashMap[ActorVirtualIdentity, Long]() // written by DP thread, read by main thread
+    new mutable.HashMap[ChannelID, Long]() // written by DP thread, read by main thread
 
   def enqueueData(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
-
-    if (Constants.flowControlEnabled) {
-      elem match {
-        case DataElement(dataPayload, from) =>
-          dataPayload match {
-            case frame: DataFrame =>
-              inQueueSizeMapping(from) =
-                inQueueSizeMapping.getOrElseUpdate(from, 0L) + frame.inMemSize
-            case _ =>
-            // do nothing
-          }
-        case _ =>
-        // do nothing
-      }
+    elem match {
+      case DataElement(dataPayload, from) =>
+        dataPayload match {
+          case frame: DataFrame =>
+            inQueueSizeMapping(from) =
+              inQueueSizeMapping.getOrElseUpdate(from, 0L) + frame.inMemSize
+          case _ =>
+          // do nothing
+        }
+      case _ =>
+      // do nothing
     }
   }
   def enqueueMarker(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
   }
 
-  def enqueueCommand(cmd: ControlPayload, from: ActorVirtualIdentity): Unit = {
+  def enqueueCommand(cmd: ControlPayload, from: ChannelID): Unit = {
     controlQueue.add(ControlElement(cmd, from))
   }
-  def enqueueCommand(cmd: ControlPayloadV2, from: ActorVirtualIdentity): Unit = {
+  def enqueueCommand(cmd: ControlPayloadV2, from: ChannelID): Unit = {
     controlQueue.add(ControlElementV2(cmd, from))
   }
 
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()
-    if (Constants.flowControlEnabled) {
-      elem match {
-        case DataElement(dataPayload, from) =>
-          dataPayload match {
-            case frame: DataFrame =>
-              outQueueSizeMapping(from) =
-                outQueueSizeMapping.getOrElseUpdate(from, 0L) + frame.inMemSize
-            case _ =>
-            // do nothing
-          }
-        case _ =>
-        // do nothing
-      }
+    elem match {
+      case DataElement(dataPayload, from) =>
+        dataPayload match {
+          case frame: DataFrame =>
+            outQueueSizeMapping(from) =
+              outQueueSizeMapping.getOrElseUpdate(from, 0L) + frame.inMemSize
+          case _ =>
+          // do nothing
+        }
+      case _ =>
+      // do nothing
     }
     elem
   }
@@ -107,10 +98,10 @@ trait WorkerBatchInternalQueue {
 
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
 
-  def getSenderCredits(sender: ActorVirtualIdentity): Int = {
+  def getQueuedCredit(sender: ChannelID): Long = {
     val inBytes = inQueueSizeMapping.getOrElseUpdate(sender, 0L)
     val outBytes = outQueueSizeMapping.getOrElseUpdate(sender, 0L)
-    (Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - (inBytes - outBytes)).toInt
+    inBytes - outBytes
   }
 
 }

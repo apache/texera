@@ -1,10 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputGateway
+import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.collection.mutable
 
-class PauseManager(dataProcessor: DataProcessor) {
+class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: NetworkInputGateway)
+    extends AmberLogging {
 
   private val globalPauses = new mutable.HashSet[PauseType]()
   private val specificInputPauses =
@@ -14,14 +18,14 @@ class PauseManager(dataProcessor: DataProcessor) {
   def pause(pauseType: PauseType): Unit = {
     globalPauses.add(pauseType)
     // disable all data queues
-    dataProcessor.internalQueue.dataQueues.values.foreach(q => q.enable(false))
+    inputGateway.getAllDataChannels.foreach(_.enable(false))
   }
 
   def pauseInputChannel(pauseType: PauseType, inputs: List[ActorVirtualIdentity]): Unit = {
     inputs.foreach(input => {
       specificInputPauses.addBinding(pauseType, input)
       // disable specified data queues
-      dataProcessor.internalQueue.dataQueues(input.name).enable(false)
+      inputGateway.getChannel(ChannelID(actorId, input, isControl = false)).enable(false)
     })
   }
 
@@ -35,16 +39,15 @@ class PauseManager(dataProcessor: DataProcessor) {
     }
     // global pause is empty, specific input pause is also empty, resume all
     if (specificInputPauses.isEmpty) {
-      dataProcessor.internalQueue.dataQueues.values.foreach(q => q.enable(true))
+      inputGateway.getAllDataChannels.foreach(_.enable(true))
       return
     }
     // need to resume specific input channels
-    val pausedChannels = specificInputPauses.values.flatten.map(id => id.name).toSet
-    dataProcessor.internalQueue.dataQueues.foreach(kv => {
-      if (!pausedChannels.contains(kv._1)) {
-        kv._2.enable(true)
-      }
-    })
+    val pausedActorVids = specificInputPauses.values.flatten.toSet
+    inputGateway.getAllDataChannels.foreach(_.enable(true))
+    pausedActorVids.foreach { vid =>
+      inputGateway.getChannel(ChannelID(actorId, vid, isControl = false)).enable(false)
+    }
   }
 
   def isPaused: Boolean = {
