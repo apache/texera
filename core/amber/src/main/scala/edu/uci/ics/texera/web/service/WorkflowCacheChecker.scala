@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.web.service
 
-import edu.uci.ics.texera.web.SessionState
-import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request.EditingTimeCompilationRequest
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 
@@ -12,15 +10,13 @@ object WorkflowCacheChecker {
   def handleCacheStatusUpdate(
       oldPlan: Option[LogicalPlan],
       newPlan: LogicalPlan,
-      sessionState: SessionState,
       request: EditingTimeCompilationRequest
-  ): Unit = {
+  ): Map[String, String] = {
     val validCacheOps = new WorkflowCacheChecker(oldPlan, newPlan).getValidCacheReuse()
     val cacheUpdateResult = request.opsToReuseResult
       .map(o => (o, if (validCacheOps.contains(o)) "cache valid" else "cache invalid"))
       .toMap
-    sessionState.send(WorkflowStateEvent("Uninitialized"))
-    sessionState.send(CacheStatusUpdateEvent(cacheUpdateResult))
+    cacheUpdateResult
   }
 
 }

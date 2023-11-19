@@ -147,8 +147,8 @@ class DataProcessor(
     upstreamLinkStatus.registerInput(identifier, input)
   }
 
-  def getSenderCredits(channel: ChannelID): Int = {
-    inputGateway.getChannel(channel).getAvailableCredits.toInt
+  def getQueuedCredit(channel: ChannelID): Long = {
+    inputGateway.getChannel(channel).getQueuedCredit
   }
 
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
