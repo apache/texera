@@ -136,7 +136,7 @@ trait StateTransferFunc
     new Type(value = classOf[DummySourceOpDesc], name = "DummyScan"),
     new Type(value = classOf[DummyProcessOpDesc], name = "DummyProcess"),
     new Type(value = classOf[DummyBlockingOutputOpDesc], name = "DummyBlockingOutput"),
-    new Type(value = classOf[DummyBlockingInputOpDesc], name = "DummyBlockingInputput"),
+    new Type(value = classOf[DummyBlockingInputOpDesc], name = "DummyBlockingInput"),
     new Type(value = classOf[DummyDelayOpDesc], name = "DummyDelay"),
     new Type(value = classOf[SortPartitionsOpDesc], name = "SortPartitions"),
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
