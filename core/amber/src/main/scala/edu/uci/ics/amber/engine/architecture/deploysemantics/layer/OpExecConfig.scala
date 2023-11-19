@@ -210,9 +210,11 @@ case class OpExecConfig(
     inputToOrdinalMapping.get(input).exists(port => realBlockingInputs.contains(port))
   }
 
-  def isOutputBlocking(output: LinkIdentity): Boolean = {
+  def isOutputBlocking(output: LinkIdentity): Boolean =
     outputToOrdinalMapping.get(output).exists(port => blockingOutputs.contains(port))
-  }
+
+  def getOutPutOp: Array[LinkIdentity] =
+    blockingOutputs.map(port => outputToOrdinalMapping.find(pair => pair._2 == port).get._1).toArray
 
   /**
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
@@ -240,9 +242,6 @@ case class OpExecConfig(
     processingOrder.toArray
   }
 
-  def getOutPutOp: Array[LinkIdentity] =
-    blockingOutputs.map(port => outputToOrdinalMapping.find(pair => pair._2 == port).get._1).toArray
-  
   def build(
       controllerActorService: AkkaActorService,
       actorRefService: AkkaActorRefMappingService,
