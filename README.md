@@ -73,7 +73,7 @@ The following is a workflow formulated using the Texera GUI in a Web browser, wh
 
 ## Publications (Interdisciplinary):
 
-
+* (11/2023) The Marketing and Perceptions of Non-Tobacco Blunt Wraps on Twitter, Joshua U. Rhee, Yicong Huang, Aurash J. Soroosh, Sadeem Alsudais, Shengquan Ni, Avinash Kumar, Jacob Paredes, Chen Li and David S. Timberlake, in Substance Use & Misuse 2023 [PDF](https://www.tandfonline.com/doi/epdf/10.1080/10826084.2023.2280572?needAccess=true).
 * (3/2023) Understanding underlying moral values and language use of COVID-19 vaccine attitudes on twitter, Judith Borghouts, Yicong Huang, Sydney Gibbs, Suellen Hopfer, Chen Li, and Gloria Mark, in PNAS Nexus 2023 [PDF](https://academic.oup.com/pnasnexus/article-pdf/2/3/pgad013/49435858/pgad013.pdf).
 * (10/2022) Public Opinions toward COVID-19 Vaccine Mandates: A Machine Learning-based Analysis of U.S. Tweets, Yawen Guo, Jun Zhu, Yicong Huang, Lu He, Changyang He, Chen Li, and Kai Zheng, in AMIA 2022 [PDF](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10148373/pdf/1066.pdf).
 * (9/2021) The Social Amplification and Attenuation of COVID-19 Risk Perception Shaping Mask Wearing Behavior: A Longitudinal Twitter Analysis, Suellen Hopfer, Emilia J. Fields, Yuwen Lu, Ganesh Ramakrishnan, Ted Grover, Quishi Bai, Yicong Huang, Chen Li, and Gloria Mark, in PLOS ONE 2021 [PDF](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0257428).
