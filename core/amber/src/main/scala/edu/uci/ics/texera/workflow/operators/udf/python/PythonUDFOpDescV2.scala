@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OutputPort
 }
 import edu.uci.ics.texera.workflow.common.operators.{
-  PortDescriptor,
   OperatorDescriptor,
   StateTransferFunc
 }
