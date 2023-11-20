@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.common.{AmberLogging, Constants}
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -83,7 +83,7 @@ class AmberFIFOChannel(val actorId: ActorVirtualIdentity) extends AmberLogging {
       0
     }
 
-  def getAvailableCredits: Long = {
-    Constants.unprocessedBatchesSizeLimitInBytesPerWorkerPair - holdCredit.get()
+  def getQueuedCredit: Long = {
+    holdCredit.get()
   }
 }

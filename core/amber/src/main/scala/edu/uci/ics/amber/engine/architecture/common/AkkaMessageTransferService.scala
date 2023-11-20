@@ -19,6 +19,7 @@ class AkkaMessageTransferService(
   override def actorId: ActorVirtualIdentity = actorService.id
 
   var resendHandle: Cancellable = Cancellable.alreadyCancelled
+  var creditPollingHandle: Cancellable = Cancellable.alreadyCancelled
 
   // add congestion control and flow control here
   val channelToCC = new mutable.HashMap[ChannelID, CongestionControl]()
@@ -32,52 +33,70 @@ class AkkaMessageTransferService(
     * It's different from the sequence number and it will only
     * be used by the output gate.
     */
-  var networkMessageID = 0L
+  private var networkMessageID = 0L
 
   def initialize(): Unit = {
-    resendHandle = actorService.scheduleWithFixedDelay(30.seconds, 30.seconds, triggerResend)
+    resendHandle = actorService.scheduleWithFixedDelay(30.seconds, 30.seconds, checkResend)
+    val pollingInterval = Constants.creditPollingIntervalInMs.millis
+    creditPollingHandle =
+      actorService.scheduleWithFixedDelay(pollingInterval, pollingInterval, checkCreditPolling)
   }
 
   def stop(): Unit = {
     resendHandle.cancel()
+    creditPollingHandle.cancel()
+  }
+
+  private def checkCreditPolling(): Unit = {
+    channelToFC.foreach {
+      case (channel, fc) =>
+        if (fc.isOverloaded) {
+          refService.askForCredit(channel)
+        }
+    }
   }
 
   def send(msg: WorkflowFIFOMessage): Unit = {
-    if (Constants.flowControlEnabled) {
-      forwardToFlowControl(msg, out => forwardToCongestionControl(out, refService.forwardToActor))
-    } else {
-      forwardToCongestionControl(msg, refService.forwardToActor)
-    }
+    val networkMessage = NetworkMessage(networkMessageID, msg)
+    messageIDToIdentity(networkMessageID) = msg.channel
+    networkMessageID += 1
+    forwardToFlowControl(
+      networkMessage,
+      out => forwardToCongestionControl(out, refService.forwardToActor)
+    )
   }
 
   private def forwardToFlowControl(
-      msg: WorkflowFIFOMessage,
-      chainedStep: WorkflowFIFOMessage => Unit
+      msg: NetworkMessage,
+      chainedStep: NetworkMessage => Unit
   ): Unit = {
-    val flowControl = channelToFC.getOrElseUpdate(msg.channel, new FlowControl())
-    flowControl.enqueueMessage(msg).foreach { msg =>
+    if (msg.internalMessage.channel.isControl) {
+      // skip flow control for all control channels
       chainedStep(msg)
+    } else {
+      val flowControl = channelToFC.getOrElseUpdate(msg.internalMessage.channel, new FlowControl())
+      flowControl.getMessagesToSend(msg).foreach { msg =>
+        chainedStep(msg)
+      }
+      checkForBackPressure()
     }
-    checkForBackPressure()
   }
 
   private def forwardToCongestionControl(
-      msg: WorkflowFIFOMessage,
+      msg: NetworkMessage,
       chainedStep: NetworkMessage => Unit
   ): Unit = {
-    val congestionControl = channelToCC.getOrElseUpdate(msg.channel, new CongestionControl())
-    val data = NetworkMessage(networkMessageID, msg)
-    messageIDToIdentity(networkMessageID) = msg.channel
+    val congestionControl =
+      channelToCC.getOrElseUpdate(msg.internalMessage.channel, new CongestionControl())
     if (congestionControl.canSend) {
-      congestionControl.markMessageInTransit(data)
-      chainedStep(data)
+      congestionControl.markMessageInTransit(msg)
+      chainedStep(msg)
     } else {
-      congestionControl.enqueueMessage(data)
+      congestionControl.enqueueMessage(msg)
     }
-    networkMessageID += 1
   }
 
-  def receiveAck(msgId: Long): Unit = {
+  def receiveAck(msgId: Long, ackedCredit: Long, queuedCredit: Long): Unit = {
     if (!messageIDToIdentity.contains(msgId)) {
       return
     }
@@ -88,12 +107,15 @@ class AkkaMessageTransferService(
       congestionControl.markMessageInTransit(msg)
       refService.forwardToActor(msg)
     }
+    if (channelToFC.contains(channelId)) {
+      channelToFC(channelId).decreaseInflightCredit(ackedCredit)
+      updateChannelCreditFromReceiver(channelId, queuedCredit)
+    }
   }
 
-  def updateChannelCreditFromReceiver(channel: ChannelID, credit: Long): Unit = {
+  def updateChannelCreditFromReceiver(channel: ChannelID, queuedCredit: Long): Unit = {
     val flowControl = channelToFC.getOrElseUpdate(channel, new FlowControl())
-    flowControl.isPollingForCredit = false
-    flowControl.updateCredit(credit)
+    flowControl.updateQueuedCredit(queuedCredit)
     flowControl.getMessagesToSend.foreach(out =>
       forwardToCongestionControl(out, refService.forwardToActor)
     )
@@ -101,32 +123,17 @@ class AkkaMessageTransferService(
   }
 
   private def checkForBackPressure(): Unit = {
-    var existOverloadedChannel = false
-    channelToFC.foreach {
-      case (channel, fc) =>
-        if (fc.isOverloaded) {
-          existOverloadedChannel = true
-          if (!fc.isPollingForCredit) {
-            fc.isPollingForCredit = true
-            actorService.scheduleOnce(
-              Constants.creditPollingInitialDelayInMs.millis,
-              () => {
-                refService.askForCredit(channel)
-              }
-            )
-          }
-        }
-    }
+    val existOverloadedChannel = channelToFC.values.exists(_.isOverloaded)
     if (backpressured == existOverloadedChannel) {
       return
     }
     backpressured = existOverloadedChannel
-    logger.info(s"current backpressure status = $backpressured channel credits = ${channelToFC
-      .map(c => c._1 -> c._2.senderSideCredit)}")
+    logger.debug(s"current backpressure status = $backpressured channel credits = ${channelToFC
+      .map(c => c._1 -> c._2.getCredit)}")
     handleBackpressure(backpressured)
   }
 
-  private def triggerResend(): Unit = {
+  private def checkResend(): Unit = {
     refService.clearQueriedActorRefs()
     channelToCC.foreach {
       case (channel, cc) =>
