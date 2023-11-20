@@ -21,7 +21,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartit
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
+class PythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonProperty(
     required = true,
     defaultValue =
