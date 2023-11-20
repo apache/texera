@@ -6,8 +6,8 @@
     'host' => 'localhost',
     'port' => 3306,
     'database' => 'flarum',
-    'username' => 'root',
-    'password' => 'W14zalzhygr$',
+    'username' => 'REPLACE_WITH_YOUR_USERNAME',
+    'password' => 'REPLACE_WITH_YOUR_PASSWORD',
     'charset' => 'utf8mb4',
     'collation' => 'utf8mb4_unicode_ci',
     'prefix' => '',
@@ -15,7 +15,7 @@
     'engine' => 'InnoDB',
     'prefix_indexes' => true,
   ),
-  'url' => 'http://localhost:80',
+  'url' => 'http://localhost:8888',
   'paths' =>
   array (
     'api' => 'api',

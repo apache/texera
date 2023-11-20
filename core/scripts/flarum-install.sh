@@ -9,14 +9,14 @@ echo "Creating flarum directory..."
 rm -rf /opt/homebrew/var/www/flarum
 mkdir /opt/homebrew/var/www/flarum
 composer create-project flarum/flarum /opt/homebrew/var/www/flarum
+composer require --working-dir=/opt/homebrew/var/www/flarum michaelbelgium/flarum-discussion-views
+composer require --working-dir=/opt/homebrew/var/www/flarum fof/byobu:"*"
 cp config.php /opt/homebrew/var/www/flarum/config.php
 cp .htaccess /opt/homebrew/var/www/flarum/public/.htaccess
 
 # Database Configuration
 echo "Setting up mysql database for flarum..."
-mysql -u root -p -h localhost -P 3306 -e "CREATE DATABASE IF NOT EXISTS flarum;"
-echo "Dumping necessary SQL files..."
-mysql -u root -p flarum < sql/flarum.sql
+mysql -u root -p < sql/flarum.sql
 
 
 # Apache Configuration
@@ -27,7 +27,7 @@ PHP_CONF="/opt/homebrew/etc/httpd/extra/httpd-php.conf"
 echo "Configuring Apache..."
 sed -i '' 's|#LoadModule rewrite_module|LoadModule rewrite_module|' $HTTPD_CONF
 sed -i '' 's|#Include /opt/homebrew/etc/httpd/extra/httpd-vhosts.conf|Include /opt/homebrew/etc/httpd/extra/httpd-vhosts.conf|' $HTTPD_CONF
-sed -i '' 's|Listen 8080|Listen 80|' $HTTPD_CONF
+sed -i '' 's|Listen 8080|Listen 8888|' $HTTPD_CONF
 
 # Add PHP configuration
 echo "LoadModule php_module /opt/homebrew/opt/php/lib/httpd/modules/libphp.so" | tee -a $HTTPD_CONF
@@ -51,7 +51,7 @@ fi
 
 # Virtual Host Configuration
 echo "
-<VirtualHost *:80>
+<VirtualHost *:8888>
     DocumentRoot \"/opt/homebrew/var/www/flarum/public\"
     <Directory \"/opt/homebrew/var/www/flarum/public\">
         Options Indexes FollowSymLinks
@@ -62,7 +62,7 @@ echo "
 
 # Restart Apache
 echo "Restarting Apache..."
-apachectl restart
+sudo apachectl restart
 
 # Publish assets
 cd /opt/homebrew/var/www/flarum
