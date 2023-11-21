@@ -4,9 +4,13 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 
-import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
-import java.nio.file.{Files, Path, Paths}
-import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import java.io._
+import java.nio.file.{Files, Paths}
+import java.util.zip.ZipFile
+import scala.jdk.CollectionConverters.{
+  asScalaIteratorConverter,
+  enumerationAsScalaIteratorConverter
+}
 
 class TextScanSourceOpExec private[text] (
     val desc: TextScanSourceOpDesc,
@@ -15,28 +19,65 @@ class TextScanSourceOpExec private[text] (
     val outputAttributeName: String
 ) extends SourceOperatorExecutor {
   private var schema: Schema = _
-  private var reader: BufferedReader = _
-  private var rows: Iterator[String] = _
-  private var path: Path = _
+  private var lineReader: BufferedReader = _
+  private var zipReader: ZipFile = _
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
     if (desc.attributeType.isOutputSingleTuple) {
-      Iterator(
-        Tuple
-          .newBuilder(schema)
-          .add(
-            schema.getAttribute(outputAttributeName),
-            desc.attributeType match {
-              case TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE =>
-                new String(Files.readAllBytes(path), desc.fileEncodingHideable.getCharset)
-              case TextScanSourceAttributeType.BINARY => Files.readAllBytes(path)
-            }
-          )
-          .build()
-      )
+      if (0x504b0304 == new RandomAccessFile(desc.filePath.get, "r").readInt()) {
+        zipReader = new ZipFile(desc.filePath.get)
+        zipReader
+          .entries()
+          .asScala
+          .map(entry => singleTuple(zipReader.getInputStream(entry).readAllBytes))
+      } else {
+        Iterator(singleTuple(Files.readAllBytes(Paths.get(desc.filePath.get))))
+      }
     } else { // normal text file scan mode
-      rows.map(line => {
+      if (0x504b0304 == new RandomAccessFile(desc.filePath.get, "r").readInt()) {
+        zipReader = new ZipFile(desc.filePath.get)
+        zipReader
+          .entries()
+          .asScala
+          .flatMap(entry => {
+            lineReader = new BufferedReader(
+              new InputStreamReader(
+                zipReader.getInputStream(entry),
+                desc.fileEncodingHideable.getCharset
+              )
+            )
+            multipleTuple
+          })
+      } else {
+        lineReader = new BufferedReader(
+          new FileReader(desc.filePath.get, desc.fileEncodingHideable.getCharset)
+        )
+        multipleTuple
+      }
+    }
+  }
+
+  private def singleTuple(file: Array[Byte]): Tuple =
+    Tuple
+      .newBuilder(schema)
+      .add(
+        schema.getAttribute(outputAttributeName),
+        desc.attributeType match {
+          case TextScanSourceAttributeType.BINARY => file
+          case TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE =>
+            new String(file, desc.fileEncodingHideable.getCharset)
+        }
+      )
+      .build()
+
+  private def multipleTuple: Iterator[Tuple] = {
+    lineReader
+      .lines()
+      .iterator()
+      .asScala
+      .slice(startOffset, endOffset)
+      .map(line => {
         Tuple
           .newBuilder(schema)
           .add(
@@ -45,24 +86,13 @@ class TextScanSourceOpExec private[text] (
           )
           .build()
       })
-    }
   }
 
-  override def open(): Unit = {
-    schema = desc.inferSchema()
-    if (desc.attributeType.isOutputSingleTuple) {
-      path = Paths.get(desc.filePath.get)
-    } else {
-      reader = new BufferedReader(
-        new InputStreamReader(
-          new FileInputStream(desc.filePath.get),
-          desc.fileEncodingHideable.getCharset
-        )
-      )
-      rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
-    }
-  }
+  override def open(): Unit =
+    schema = desc.sourceSchema()
 
-  // in outputAsSingleTuple mode, Files.readAllBytes handles the closing of file
-  override def close(): Unit = if (!desc.attributeType.isOutputSingleTuple) reader.close()
+  override def close(): Unit = {
+    if (lineReader != null && zipReader == null) lineReader.close()
+    else if (zipReader != null && lineReader == null) zipReader.close()
+  }
 }
