@@ -10,10 +10,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{
-  OperatorDescriptor,
-  StateTransferFunc
-}
+import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
@@ -77,12 +74,14 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       opInfo.inputPorts.map(_ => None)
     }
     val dependency: Map[Int, Int] = if (inputPorts != null) {
-      inputPorts.zipWithIndex.filter {
-        case (port, _) => port.dependencies !=null
-      }
+      inputPorts.zipWithIndex
+        .filter {
+          case (port, _) => port.dependencies != null
+        }
         .flatMap {
-        case (port, i) => port.dependencies.map(dependee => i -> dependee)
-      }.toMap
+          case (port, i) => port.dependencies.map(dependee => i -> dependee)
+        }
+        .toMap
     } else {
       Map()
     }
