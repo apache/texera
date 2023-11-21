@@ -69,7 +69,8 @@ class WorkflowService(
       opResultStorage.close()
       WorkflowService.wIdToWorkflowState.remove(mkWorkflowStateId(wId))
       if (jobService.getValue != null) {
-        jobService.getValue.wsInput.onNext(WorkflowKillRequest(), None)
+        // shutdown client
+        jobService.getValue.client.shutdown()
       }
       unsubscribeAll()
     }
