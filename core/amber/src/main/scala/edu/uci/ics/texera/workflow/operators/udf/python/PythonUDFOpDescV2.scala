@@ -77,7 +77,10 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       opInfo.inputPorts.map(_ => None)
     }
     val dependency: Map[Int, Int] = if (inputPorts != null) {
-      inputPorts.zipWithIndex.flatMap {
+      inputPorts.zipWithIndex.filter {
+        case (port, _) => port.dependencies !=null
+      }
+        .flatMap {
         case (port, i) => port.dependencies.map(dependee => i -> dependee)
       }.toMap
     } else {
