@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.AmberUtils
 import scala.collection.JavaConverters._
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
-import edu.uci.ics.texera.web.model.websocket.request.{WorkflowExecuteRequest, WorkflowKillRequest}
+import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
