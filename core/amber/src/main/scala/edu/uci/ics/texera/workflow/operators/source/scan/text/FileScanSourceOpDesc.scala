@@ -23,8 +23,6 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   @JsonSchemaTitle("Attribute Type")
   var attributeType: AttributeType = AttributeType.STRING
 
-  fileTypeName = Option("")
-
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     OpExecConfig.localLayer(operatorIdentifier, _ => new FileScanSourceOpExec(this))
 

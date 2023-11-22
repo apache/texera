@@ -12,10 +12,8 @@ import javax.validation.constraints.Size
 
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Text Input")
-  @JsonSchemaDescription("Max 1024 Characters, e.g: \"line1\\nline2\"")
+  @JsonSchemaTitle("Text")
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
-  @Size(max = 1024)
   var textInput: String = _
 
   @JsonProperty(defaultValue = "string", required = true)
