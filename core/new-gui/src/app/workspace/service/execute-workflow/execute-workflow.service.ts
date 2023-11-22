@@ -409,18 +409,14 @@ export class ExecuteWorkflowService {
         operatorID: op.operatorID,
         operatorType: op.operatorType,
       };
-      if (op.inputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          inputPorts: op.inputPorts,
-        };
-      }
-      if (op.outputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          outputPorts: op.outputPorts,
-        };
-      }
+      logicalOp = {
+        ...logicalOp,
+        inputPorts: op.inputPorts,
+      };
+      logicalOp = {
+        ...logicalOp,
+        outputPorts: op.outputPorts,
+      };
       return logicalOp;
     });
 
