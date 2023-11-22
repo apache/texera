@@ -19,16 +19,18 @@ trait TextSourceOpDesc {
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var attributeName: String = "line"
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Single String")
+  var singleString: Boolean = false
+
   @JsonSchemaTitle("Limit")
   @JsonDeserialize(contentAs = classOf[Int])
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
-      new JsonSchemaString(
-        path = HideAnnotation.hideExpectedValue,
-        value = "^binary$|^string [(]entire input in 1 tuple[)]$"
-      )
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary"),
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "singleString"),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
     )
   )
   var fileScanLimit: Option[Int] = None
@@ -38,11 +40,7 @@ trait TextSourceOpDesc {
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
-      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
-      new JsonSchemaString(
-        path = HideAnnotation.hideExpectedValue,
-        value = "^binary$|^string [(]entire input in 1 tuple[)]$"
-      )
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary")
     )
   )
   var fileScanOffset: Option[Int] = None

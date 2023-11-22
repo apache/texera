@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
@@ -8,7 +8,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 
-@JsonIgnoreProperties(value = Array("binary"))
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text")
