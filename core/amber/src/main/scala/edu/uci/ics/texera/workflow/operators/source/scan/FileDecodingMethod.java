@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.scan;
 
-import com.fasterxml.jackson.annotation.JsonValue;
-
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
