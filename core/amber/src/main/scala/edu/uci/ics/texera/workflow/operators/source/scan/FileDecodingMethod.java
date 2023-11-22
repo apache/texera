@@ -18,15 +18,9 @@ public enum FileDecodingMethod {
         this.charset = charset;
     }
 
-    // use the name string instead of enum string in JSON
-    @JsonValue
-    public String getName() {
-        return this.name;
-    }
-
     @Override
     public String toString() {
-        return this.getName();
+        return this.name;
     }
 
     public Charset getCharset() {return this.charset;}
