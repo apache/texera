@@ -2,26 +2,29 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaString,
-  JsonSchemaTitle
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 
 /**
   * TextSourceOpDesc is a trait holding commonly used properties and functions
   * used for variations of text input processing
   */
 trait TextSourceOpDesc {
+  @JsonProperty(defaultValue = "string", required = true)
+  @JsonSchemaTitle("Attribute Type")
+  @JsonSchemaInject(
+    strings = Array(
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "singleString"),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
+    )
+  )
+  var attributeType: AttributeType = AttributeType.STRING
+
   @JsonProperty(defaultValue = "line", required = true)
   @JsonSchemaTitle("Attribute Name")
   @JsonDeserialize(contentAs = classOf[java.lang.String])
   var attributeName: String = "line"
-
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Single String")
-  var singleString: Boolean = false
 
   @JsonSchemaTitle("Limit")
   @JsonDeserialize(contentAs = classOf[Int])
@@ -40,8 +43,14 @@ trait TextSourceOpDesc {
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary")
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary"),
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "singleString"),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "true")
     )
   )
   var fileScanOffset: Option[Int] = None
+
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Single String")
+  var singleString: Boolean = false
 }

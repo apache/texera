@@ -31,7 +31,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
   var fileName: Option[String] = None
 
   @JsonProperty(defaultValue = "UTF_8", required = true)
-  @JsonSchemaTitle("Encoding")
+  @JsonSchemaTitle("File Encoding")
+  @JsonPropertyDescription("decoding charset to use on input")
   var fileEncoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonIgnore
