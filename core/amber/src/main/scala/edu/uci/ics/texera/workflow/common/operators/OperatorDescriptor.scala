@@ -162,7 +162,7 @@ trait StateTransferFunc
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot")
   )
 )
-abstract class OperatorDescriptor extends Serializable {
+abstract class OperatorDescriptor extends PortDescriptor with Serializable {
 
   @JsonIgnore
   var context: WorkflowContext = _

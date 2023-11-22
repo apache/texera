@@ -10,18 +10,14 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{
-  PortDescriptor,
-  OperatorDescriptor,
-  StateTransferFunc
-}
+import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
+class PythonUDFOpDescV2 extends OperatorDescriptor {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -78,9 +74,14 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
       opInfo.inputPorts.map(_ => None)
     }
     val dependency: Map[Int, Int] = if (inputPorts != null) {
-      inputPorts.zipWithIndex.flatMap {
-        case (port, i) => port.dependencies.map(dependee => i -> dependee)
-      }.toMap
+      inputPorts.zipWithIndex
+        .filter {
+          case (port, _) => port.dependencies != null
+        }
+        .flatMap {
+          case (port, i) => port.dependencies.map(dependee => i -> dependee)
+        }
+        .toMap
     } else {
       Map()
     }
