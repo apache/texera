@@ -40,17 +40,11 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extend
   }
 
   private def singleTuple(file: Array[Byte]): Tuple =
-    Tuple
-      .newBuilder(schema)
-      .add(
-        schema.getAttributes.get(0),
-        desc.attributeType match {
+    new Tuple(schema, desc.attributeType match {
           case AttributeType.BINARY => file
           case AttributeType.STRING =>
             new String(file, desc.encoding.getCharset)
-        }
-      )
-      .build()
+        })
 
   private def multipleTuple(reader: Reader): Iterator[Tuple] = {
     new BufferedReader(reader)
@@ -59,15 +53,7 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extend
       .asScala
       .drop(desc.fileScanOffset.getOrElse(0))
       .take(desc.fileScanLimit.getOrElse(Int.MaxValue))
-      .map(line => {
-        Tuple
-          .newBuilder(schema)
-          .add(
-            schema.getAttributes.get(0),
-            AttributeTypeUtils.parseField(line.asInstanceOf[Object], desc.attributeType)
-          )
-          .build()
-      })
+      .map(line => new Tuple(schema, AttributeTypeUtils.parseField(line, desc.attributeType)))
   }
 
   override def open(): Unit = {}

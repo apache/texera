@@ -9,28 +9,12 @@ class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc) exte
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
     if (desc.attributeType == AttributeType.STRING) {
-      Iterator(
-        Tuple
-          .newBuilder(schema)
-          .add(
-            schema.getAttributes.get(0),
-            desc.textInput
-          )
-          .build()
-      )
+      Iterator(new Tuple(schema, desc.textInput))
     } else {
       desc.textInput.linesIterator
         .drop(desc.fileScanOffset.getOrElse(0))
         .take(desc.fileScanLimit.getOrElse(Int.MaxValue))
-        .map(line => {
-        Tuple
-          .newBuilder(schema)
-          .add(
-            schema.getAttributes.get(0),
-            AttributeTypeUtils.parseField(line.asInstanceOf[Object], desc.attributeType)
-          )
-          .build()
-      })
+        .map(line => new Tuple(schema, AttributeTypeUtils.parseField(line, desc.attributeType)))
     }
   }
 
