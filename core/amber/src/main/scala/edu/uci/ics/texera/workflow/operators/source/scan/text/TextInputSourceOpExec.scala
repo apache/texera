@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils
 class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc) extends SourceOperatorExecutor {
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (desc.attributeType == FileAttributeType.STRING) {
+    if (desc.attributeType == FileAttributeType.SINGLE_STRING) {
       Iterator(new Tuple(desc.sourceSchema(), desc.textInput))
     } else if (desc.attributeType == FileAttributeType.BINARY) {
       Iterator(new Tuple(desc.sourceSchema(), desc.textInput.getBytes()))

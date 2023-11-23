@@ -45,8 +45,4 @@ trait TextSourceOpDesc {
     )
   )
   var fileScanOffset: Option[Int] = None
-
-  @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Single String")
-  var singleString: Boolean = false
 }

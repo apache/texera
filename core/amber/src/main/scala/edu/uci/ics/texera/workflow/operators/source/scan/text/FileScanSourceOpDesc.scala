@@ -24,6 +24,10 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   )
   var encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Unzip")
+  var unzip: Boolean = false
+
   fileTypeName = Option("")
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =

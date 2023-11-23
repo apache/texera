@@ -6,18 +6,18 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Sche
 
 import java.io._
 import java.nio.file.{Files, Paths}
-import java.util.zip.ZipFile
+import java.util.zip.{ZipFile, ZipInputStream}
 import scala.jdk.CollectionConverters.{asScalaIteratorConverter, enumerationAsScalaIteratorConverter}
 
 class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extends SourceOperatorExecutor {
   private val schema: Schema = desc.sourceSchema()
-  private var zipReader: ZipFile = _
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (desc.attributeType == FileAttributeType.STRING || desc.attributeType == FileAttributeType.BINARY) {
-      if (0x504b0304 == new RandomAccessFile(desc.filePath.get, "r").readInt()) {
-        zipReader = new ZipFile(desc.filePath.get)
+    if (desc.attributeType == FileAttributeType.SINGLE_STRING || desc.attributeType == FileAttributeType.BINARY) {
+      if (desc.unzip) {
+        val zipReader = new ZipFile(desc.filePath.get)
+        new ZipInputStream(new FileInputStream(desc.filePath.get))
         zipReader
           .entries()
           .asScala
@@ -25,9 +25,9 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extend
       } else {
         Iterator(singleTuple(Files.readAllBytes(Paths.get(desc.filePath.get))))
       }
-    } else { // normal text file scan mode
-      if (0x504b0304 == new RandomAccessFile(desc.filePath.get, "r").readInt()) {
-        zipReader = new ZipFile(desc.filePath.get)
+    } else {
+      if (desc.unzip) {
+        val zipReader = new ZipFile(desc.filePath.get)
         zipReader
           .entries()
           .asScala
@@ -42,7 +42,7 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extend
   private def singleTuple(file: Array[Byte]): Tuple =
     new Tuple(schema, desc.attributeType match {
           case FileAttributeType.BINARY => file
-          case FileAttributeType.STRING =>
+          case FileAttributeType.SINGLE_STRING =>
             new String(file, desc.encoding.getCharset)
         })
 
