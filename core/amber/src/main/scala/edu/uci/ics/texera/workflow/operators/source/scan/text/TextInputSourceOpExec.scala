@@ -4,7 +4,8 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils
 
-class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc) extends SourceOperatorExecutor {
+class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc)
+    extends SourceOperatorExecutor {
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
     if (desc.attributeType == FileAttributeType.SINGLE_STRING) {
@@ -15,7 +16,12 @@ class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc) exte
       desc.textInput.linesIterator
         .drop(desc.fileScanOffset.getOrElse(0))
         .take(desc.fileScanLimit.getOrElse(Int.MaxValue))
-        .map(line => new Tuple(desc.sourceSchema(), AttributeTypeUtils.parseField(line, desc.attributeType.getType)))
+        .map(line =>
+          new Tuple(
+            desc.sourceSchema(),
+            AttributeTypeUtils.parseField(line, desc.attributeType.getType)
+          )
+        )
     }
   }
 

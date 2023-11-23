@@ -30,7 +30,10 @@ trait TextSourceOpDesc {
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "^binary$|^single string$")
+      new JsonSchemaString(
+        path = HideAnnotation.hideExpectedValue,
+        value = "^binary$|^single string$"
+      )
     )
   )
   var fileScanLimit: Option[Int] = None
@@ -41,7 +44,10 @@ trait TextSourceOpDesc {
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "attributeType"),
       new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.regex),
-      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "^binary$|^single string$")
+      new JsonSchemaString(
+        path = HideAnnotation.hideExpectedValue,
+        value = "^binary$|^single string$"
+      )
     )
   )
   var fileScanOffset: Option[Int] = None
