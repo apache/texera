@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, AttributeTypeUtils, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 
 import java.io._
 import java.nio.file.{Files, Paths}
@@ -15,7 +15,7 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extend
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (desc.attributeType == AttributeType.STRING || desc.attributeType == AttributeType.BINARY) {
+    if (desc.attributeType == FileAttributeType.STRING || desc.attributeType == FileAttributeType.BINARY) {
       if (0x504b0304 == new RandomAccessFile(desc.filePath.get, "r").readInt()) {
         zipReader = new ZipFile(desc.filePath.get)
         zipReader
@@ -41,8 +41,8 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extend
 
   private def singleTuple(file: Array[Byte]): Tuple =
     new Tuple(schema, desc.attributeType match {
-          case AttributeType.BINARY => file
-          case AttributeType.STRING =>
+          case FileAttributeType.BINARY => file
+          case FileAttributeType.STRING =>
             new String(file, desc.encoding.getCharset)
         })
 
@@ -53,7 +53,7 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc) extend
       .asScala
       .drop(desc.fileScanOffset.getOrElse(0))
       .take(desc.fileScanLimit.getOrElse(Int.MaxValue))
-      .map(line => new Tuple(schema, AttributeTypeUtils.parseField(line, desc.attributeType)))
+      .map(line => new Tuple(schema, AttributeTypeUtils.parseField(line, desc.attributeType.getType)))
   }
 
   override def open(): Unit = {}
