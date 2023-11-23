@@ -2,11 +2,11 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils
 
 import java.io._
 import java.nio.file.{Files, Paths}
-import java.util.zip.{ZipFile, ZipInputStream}
+import java.util.zip.ZipFile
 import scala.jdk.CollectionConverters.{
   asScalaIteratorConverter,
   enumerationAsScalaIteratorConverter
@@ -14,33 +14,25 @@ import scala.jdk.CollectionConverters.{
 
 class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
     extends SourceOperatorExecutor {
-  private val schema: Schema = desc.sourceSchema()
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (
-      desc.attributeType == FileAttributeType.SINGLE_STRING || desc.attributeType == FileAttributeType.BINARY
-    ) {
-      if (desc.unzip) {
-        val zipReader = new ZipFile(desc.filePath.get)
-        zipReader
-          .entries()
-          .asScala
-          .map(entry => singleTuple(zipReader.getInputStream(entry).readAllBytes))
+    if (desc.unzip) {
+      val zipReader = new ZipFile(desc.filePath.get)
+      val entries =
+        zipReader.entries().asScala.filterNot(entry => entry.getName.startsWith("__MACOSX"))
+      if (desc.attributeType.isSingle) {
+        entries.map(entry => singleTuple(zipReader.getInputStream(entry).readAllBytes))
       } else {
-        Iterator(singleTuple(Files.readAllBytes(Paths.get(desc.filePath.get))))
+        entries.flatMap(entry =>
+          multipleTuple(
+            new InputStreamReader(zipReader.getInputStream(entry), desc.encoding.getCharset)
+          )
+        )
       }
     } else {
-      if (desc.unzip) {
-        val zipReader = new ZipFile(desc.filePath.get)
-        zipReader
-          .entries()
-          .asScala
-          .flatMap(entry =>
-            multipleTuple(
-              new InputStreamReader(zipReader.getInputStream(entry), desc.encoding.getCharset)
-            )
-          )
+      if (desc.attributeType.isSingle) {
+        Iterator(singleTuple(Files.readAllBytes(Paths.get(desc.filePath.get))))
       } else {
         multipleTuple(new FileReader(desc.filePath.get, desc.encoding.getCharset))
       }
@@ -49,11 +41,10 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
 
   private def singleTuple(file: Array[Byte]): Tuple =
     new Tuple(
-      schema,
+      desc.sourceSchema(),
       desc.attributeType match {
-        case FileAttributeType.BINARY => file
-        case FileAttributeType.SINGLE_STRING =>
-          new String(file, desc.encoding.getCharset)
+        case FileAttributeType.BINARY        => file
+        case FileAttributeType.SINGLE_STRING => new String(file, desc.encoding.getCharset)
       }
     )
 
@@ -61,11 +52,12 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
     new BufferedReader(reader)
       .lines()
       .iterator()
-      .asScala
-      .drop(desc.fileScanOffset.getOrElse(0))
-      .take(desc.fileScanLimit.getOrElse(Int.MaxValue))
+      .asScala.slice(desc.fileScanOffset.getOrElse(0), desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue))
       .map(line =>
-        new Tuple(schema, AttributeTypeUtils.parseField(line, desc.attributeType.getType))
+        new Tuple(
+          desc.sourceSchema(),
+          AttributeTypeUtils.parseField(line, desc.attributeType.getType)
+        )
       )
   }
 

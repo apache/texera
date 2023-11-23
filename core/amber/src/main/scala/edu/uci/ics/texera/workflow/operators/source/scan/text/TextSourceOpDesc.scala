@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
@@ -8,7 +8,6 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaTitle
 }
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 
 /**
   * TextSourceOpDesc is a trait holding commonly used properties and functions

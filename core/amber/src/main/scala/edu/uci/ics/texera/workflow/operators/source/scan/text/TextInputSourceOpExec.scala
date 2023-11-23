@@ -8,14 +8,18 @@ class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc)
     extends SourceOperatorExecutor {
 
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (desc.attributeType == FileAttributeType.SINGLE_STRING) {
-      Iterator(new Tuple(desc.sourceSchema(), desc.textInput))
-    } else if (desc.attributeType == FileAttributeType.BINARY) {
-      Iterator(new Tuple(desc.sourceSchema(), desc.textInput.getBytes()))
+    if (desc.attributeType.isSingle) {
+      Iterator(
+        new Tuple(
+          desc.sourceSchema(),
+          desc.attributeType match {
+            case FileAttributeType.BINARY        => desc.textInput.getBytes()
+            case FileAttributeType.SINGLE_STRING => desc.textInput
+          }
+        )
+      )
     } else {
-      desc.textInput.linesIterator
-        .drop(desc.fileScanOffset.getOrElse(0))
-        .take(desc.fileScanLimit.getOrElse(Int.MaxValue))
+      desc.textInput.linesIterator.slice(desc.fileScanOffset.getOrElse(0), desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue))
         .map(line =>
           new Tuple(
             desc.sourceSchema(),

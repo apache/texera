@@ -31,4 +31,6 @@ public enum FileAttributeType {
     public String toString() {
         return this.getName();
     }
+
+    public boolean isSingle() { return this == SINGLE_STRING || this == BINARY; }
 }
