@@ -33,7 +33,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
-    assert(inferredSchema.getAttribute("text").getType == AttributeType.STRING)
+    assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
   it should "infer schema with user-specified output schema attribute" in {
@@ -102,10 +102,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       processedTuple
         .next()
-        .getField("text")
+        .getField("line")
         .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
     )
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("text"))
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     textScanSourceOpExec.close()
   }
 

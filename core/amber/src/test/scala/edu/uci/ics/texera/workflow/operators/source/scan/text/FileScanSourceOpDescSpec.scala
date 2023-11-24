@@ -34,7 +34,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
-    assert(inferredSchema.getAttribute("file").getType == AttributeType.STRING)
+    assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
   it should "infer schema with user-specified output schema attribute" in {
@@ -98,10 +98,10 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       processedTuple
         .next()
-        .getField("file")
+        .getField("line")
         .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
     )
-    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("file"))
+    assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
   }
 
