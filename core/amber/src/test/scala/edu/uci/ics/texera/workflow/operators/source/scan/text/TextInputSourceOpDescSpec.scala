@@ -10,13 +10,12 @@ import java.nio.file.{Files, Path, Paths}
 import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
-  var textInputSourceOpDesc: TextInputSourceOpDesc = _
-
   val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
   val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"
   val TestNumbersFilePath: String = "src/test/resources/numbers.txt"
   val StartOffset: Int = 0
   val EndOffset: Int = 5
+  var textInputSourceOpDesc: TextInputSourceOpDesc = _
 
   before {
     textInputSourceOpDesc = new TextInputSourceOpDesc()
@@ -30,7 +29,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with single column representing entire input in outputAsSingleTuple mode" in {
-    textInputSourceOpDesc.attributeType = AttributeType.STRING_AS_SINGLE_TUPLE
+    textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
@@ -38,7 +37,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with user-specified output schema attribute" in {
-    textInputSourceOpDesc.attributeType = AttributeType.STRING
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
     val customOutputAttributeName: String = "testing"
     textInputSourceOpDesc.attributeName = customOutputAttributeName
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
@@ -48,7 +47,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "infer schema with integer attribute type" in {
-    textInputSourceOpDesc.attributeType = AttributeType.INTEGER
+    textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
@@ -58,7 +57,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestTextFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = AttributeType.STRING
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
@@ -76,7 +75,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text with CRLF separators into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestCRLFTextFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = AttributeType.STRING
+    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
@@ -94,7 +93,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into a single output tuple" in {
     val inputString: String = readFileIntoString(TestTextFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = AttributeType.STRING_AS_SINGLE_TUPLE
+    textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
@@ -113,7 +112,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     val inputString: String = readFileIntoString(TestNumbersFilePath)
     textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = AttributeType.INTEGER
+    textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()

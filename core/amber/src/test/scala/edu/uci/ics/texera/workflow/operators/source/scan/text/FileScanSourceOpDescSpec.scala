@@ -8,60 +8,59 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 
-class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
-  var textScanSourceOpDesc: TextScanSourceOpDesc = _
-
+class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
   val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"
   val TestNumbersFilePath: String = "src/test/resources/numbers.txt"
   val StartOffset: Int = 0
   val EndOffset: Int = 5
+  var fileScanSourceOpDesc: FileScanSourceOpDesc = _
 
   before {
-    textScanSourceOpDesc = new TextScanSourceOpDesc()
-    textScanSourceOpDesc.filePath = Some(TestTextFilePath)
-    textScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
+    fileScanSourceOpDesc = new FileScanSourceOpDesc()
+    fileScanSourceOpDesc.filePath = Some(TestTextFilePath)
+    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.UTF_8
   }
 
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
-    val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
+    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
   it should "infer schema with single column representing entire file in outputAsSingleTuple mode" in {
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE
-    val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
+    fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("file").getType == AttributeType.STRING)
   }
 
   it should "infer schema with user-specified output schema attribute" in {
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     val customOutputAttributeName: String = "testing"
-    textScanSourceOpDesc.attributeName = Option(customOutputAttributeName)
-    val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
+    fileScanSourceOpDesc.attributeName = customOutputAttributeName
+    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("testing").getType == AttributeType.STRING)
   }
 
   it should "infer schema with integer attribute type" in {
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.INTEGER
-    val inferredSchema: Schema = textScanSourceOpDesc.inferSchema()
+    fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
+    val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
     assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.INTEGER)
   }
 
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
-    val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    val FileScanSourceOpExec =
+      new FileScanSourceOpExec(fileScanSourceOpDesc)
+    FileScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -69,16 +68,16 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line4"))
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
+    FileScanSourceOpExec.close()
   }
 
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
-    textScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
-    val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    val FileScanSourceOpExec =
+      new FileScanSourceOpExec(fileScanSourceOpDesc)
+    FileScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -86,15 +85,15 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line4"))
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
+    FileScanSourceOpExec.close()
   }
 
   it should "read first 5 lines of the input text file into a single output tuple" in {
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING_AS_SINGLE_TUPLE
-    val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "file")
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
+    val FileScanSourceOpExec =
+      new FileScanSourceOpExec(fileScanSourceOpDesc)
+    FileScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
 
     assert(
       processedTuple
@@ -103,16 +102,15 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
         .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
     )
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("file"))
-    textScanSourceOpExec.close()
+    FileScanSourceOpExec.close()
   }
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
-    textScanSourceOpDesc.filePath = Some(TestNumbersFilePath)
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.INTEGER
-    val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    fileScanSourceOpDesc.filePath = Some(TestNumbersFilePath)
+    fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
+    val FileScanSourceOpExec = new FileScanSourceOpExec(fileScanSourceOpDesc)
+    FileScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
 
     assert(processedTuple.next().getField("line").equals(1))
     assert(processedTuple.next().getField("line").equals(2))
@@ -120,17 +118,17 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals(4))
     assert(processedTuple.next().getField("line").equals(5))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
+    FileScanSourceOpExec.close()
   }
 
   it should "read first 5 lines of the input text file with US_ASCII encoding" in {
-    textScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
-    textScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
-    textScanSourceOpDesc.attributeType = TextScanSourceAttributeType.STRING
-    val textScanSourceOpExec =
-      new TextScanSourceOpExec(textScanSourceOpDesc, StartOffset, EndOffset, "line")
-    textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
+    fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
+    fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    val FileScanSourceOpExec =
+      new FileScanSourceOpExec(fileScanSourceOpDesc)
+    FileScanSourceOpExec.open()
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -138,7 +136,7 @@ class TextScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(processedTuple.next().getField("line").equals("line4"))
     assert(processedTuple.next().getField("line").equals("line5"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
-    textScanSourceOpExec.close()
+    FileScanSourceOpExec.close()
   }
 
 }

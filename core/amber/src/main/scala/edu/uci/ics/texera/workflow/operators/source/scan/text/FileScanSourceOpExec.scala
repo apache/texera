@@ -52,7 +52,11 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
     new BufferedReader(reader)
       .lines()
       .iterator()
-      .asScala.slice(desc.fileScanOffset.getOrElse(0), desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue))
+      .asScala
+      .slice(
+        desc.fileScanOffset.getOrElse(0),
+        desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
+      )
       .map(line =>
         new Tuple(
           desc.sourceSchema(),

@@ -19,7 +19,11 @@ class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc)
         )
       )
     } else {
-      desc.textInput.linesIterator.slice(desc.fileScanOffset.getOrElse(0), desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue))
+      desc.textInput.linesIterator
+        .slice(
+          desc.fileScanOffset.getOrElse(0),
+          desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
+        )
         .map(line =>
           new Tuple(
             desc.sourceSchema(),
