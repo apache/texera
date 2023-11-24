@@ -55,6 +55,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text file into corresponding output tuples" in {
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(fileScanSourceOpDesc)
     FileScanSourceOpExec.open()
