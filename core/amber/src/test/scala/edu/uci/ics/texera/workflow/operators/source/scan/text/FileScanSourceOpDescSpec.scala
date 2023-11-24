@@ -12,8 +12,6 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
   val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"
   val TestNumbersFilePath: String = "src/test/resources/numbers.txt"
-  val StartOffset: Int = 0
-  val EndOffset: Int = 5
   var fileScanSourceOpDesc: FileScanSourceOpDesc = _
 
   before {
@@ -74,7 +72,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
     fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
-    fileScanSourceOpDesc.limit = Option(5)
+    fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(fileScanSourceOpDesc)
     FileScanSourceOpExec.open()
@@ -109,7 +107,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     fileScanSourceOpDesc.filePath = Some(TestNumbersFilePath)
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
-    fileScanSourceOpDesc.limit = Option(5)
+    fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec = new FileScanSourceOpExec(fileScanSourceOpDesc)
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
@@ -127,7 +125,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
-    fileScanSourceOpDesc.limit = Option(5)
+    fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(fileScanSourceOpDesc)
     FileScanSourceOpExec.open()
