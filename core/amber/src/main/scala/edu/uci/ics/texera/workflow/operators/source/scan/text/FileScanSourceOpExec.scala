@@ -26,21 +26,13 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
 
         entries.map(entry => singleTuple(toByteArray(zipReader.getInputStream(entry))))
       } else {
-        entries.flatMap(entry =>
-          multipleTuple(
-            new BufferedReader(
-              new InputStreamReader(zipReader.getInputStream(entry), desc.encoding.getCharset)
-            )
-          )
-        )
+        entries.flatMap(entry => multipleTuple(zipReader.getInputStream(entry)))
       }
     } else {
       if (desc.attributeType.isSingle) {
         Iterator(singleTuple(Files.readAllBytes(Paths.get(desc.filePath.get))))
       } else {
-        multipleTuple(
-          new BufferedReader(new FileReader(desc.filePath.get, desc.encoding.getCharset))
-        )
+        multipleTuple(new FileInputStream(desc.filePath.get))
       }
     }
   }
@@ -54,8 +46,8 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
       }
     )
 
-  private def multipleTuple(reader: BufferedReader): Iterator[Tuple] = {
-    reader
+  private def multipleTuple(stream: InputStream): Iterator[Tuple] = {
+    new BufferedReader(new InputStreamReader(stream, desc.encoding.getCharset))
       .lines()
       .iterator()
       .asScala
