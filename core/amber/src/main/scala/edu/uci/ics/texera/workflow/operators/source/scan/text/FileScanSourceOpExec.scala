@@ -23,7 +23,6 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
       val entries =
         zipReader.entries().asScala.filterNot(entry => entry.getName.startsWith("__MACOSX"))
       if (desc.attributeType.isSingle) {
-
         entries.map(entry => singleTuple(toByteArray(zipReader.getInputStream(entry))))
       } else {
         entries.flatMap(entry => multipleTuple(zipReader.getInputStream(entry)))

@@ -74,6 +74,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text file with CRLF separators into corresponding output tuples" in {
     fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    fileScanSourceOpDesc.limit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(fileScanSourceOpDesc)
     FileScanSourceOpExec.open()
@@ -108,6 +109,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     fileScanSourceOpDesc.filePath = Some(TestNumbersFilePath)
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
+    fileScanSourceOpDesc.limit = Option(5)
     val FileScanSourceOpExec = new FileScanSourceOpExec(fileScanSourceOpDesc)
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
@@ -125,6 +127,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.filePath = Some(TestCRLFTextFilePath)
     fileScanSourceOpDesc.fileEncoding = FileDecodingMethod.ASCII
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
+    fileScanSourceOpDesc.limit = Option(5)
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(fileScanSourceOpDesc)
     FileScanSourceOpExec.open()
