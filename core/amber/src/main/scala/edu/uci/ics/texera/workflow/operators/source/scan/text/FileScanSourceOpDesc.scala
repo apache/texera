@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import com.fasterxml.jackson.annotation.{JsonProperty, JsonIgnoreProperties}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaString,

@@ -23,14 +23,20 @@ public enum FileAttributeType {
     }
 
     @JsonValue
-    public String getName() { return this.name; }
+    public String getName() {
+        return this.name;
+    }
 
-    public AttributeType getType() { return this.type; }
+    public AttributeType getType() {
+        return this.type;
+    }
 
     @Override
     public String toString() {
         return this.getName();
     }
 
-    public boolean isSingle() { return this == SINGLE_STRING || this == BINARY; }
+    public boolean isSingle() {
+        return this == SINGLE_STRING || this == BINARY;
+    }
 }
