@@ -13,8 +13,6 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
   val TestCRLFTextFilePath: String = "src/test/resources/line_numbers_crlf.txt"
   val TestNumbersFilePath: String = "src/test/resources/numbers.txt"
-  val StartOffset: Int = 0
-  val EndOffset: Int = 5
   var textInputSourceOpDesc: TextInputSourceOpDesc = _
 
   before {
@@ -58,6 +56,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val inputString: String = readFileIntoString(TestTextFilePath)
     textInputSourceOpDesc.textInput = inputString
     textInputSourceOpDesc.attributeType = FileAttributeType.STRING
+    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
@@ -76,6 +75,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val inputString: String = readFileIntoString(TestCRLFTextFilePath)
     textInputSourceOpDesc.textInput = inputString
     textInputSourceOpDesc.attributeType = FileAttributeType.STRING
+    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
@@ -113,6 +113,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val inputString: String = readFileIntoString(TestNumbersFilePath)
     textInputSourceOpDesc.textInput = inputString
     textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
+    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
