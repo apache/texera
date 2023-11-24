@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils
+import org.apache.commons.io.IOUtils.toByteArray
 
 import java.io._
 import java.nio.file.{Files, Paths}
@@ -22,7 +23,8 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
       val entries =
         zipReader.entries().asScala.filterNot(entry => entry.getName.startsWith("__MACOSX"))
       if (desc.attributeType.isSingle) {
-        entries.map(entry => singleTuple(zipReader.getInputStream(entry).readAllBytes))
+
+        entries.map(entry => singleTuple(toByteArray(zipReader.getInputStream(entry))))
       } else {
         entries.flatMap(entry =>
           multipleTuple(
