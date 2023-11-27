@@ -1,13 +1,15 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+
+import scala.collection.mutable
 
 class MaterializationRewriter(
     val context: WorkflowContext,
@@ -17,10 +19,9 @@ class MaterializationRewriter(
   def addMaterializationToLink(
       physicalPlan: PhysicalPlan,
       logicalPlan: LogicalPlan,
-      linkId: LinkIdentity
+      linkId: LinkIdentity,
+      writerReaderPairs: mutable.HashMap[LayerIdentity, LayerIdentity]
   ): PhysicalPlan = {
-
-    var newPlan = physicalPlan
 
     val fromOpId = linkId.from
     val fromOp = physicalPlan.operatorMap(fromOpId)
@@ -72,7 +73,13 @@ class MaterializationRewriter(
         OperatorSchemaInfo(Array(), matReaderOutputSchema)
       )
 
-    newPlan = newPlan
+    // create 2 links for materialization
+    val readerToDestLink = LinkIdentity(matReaderOpExecConfig.id, 0, toOpId, toInputPortIdx)
+    val sourceToWriterLink = LinkIdentity(fromOpId, fromOutputPortIdx, matWriterOpExecConfig.id, 0)
+    // add the pair to the map for later adding edges between 2 regions.
+    writerReaderPairs(matWriterOpExecConfig.id) = matReaderOpExecConfig.id
+
+    physicalPlan
       .addOperator(matWriterOpExecConfig)
       .addOperator(matReaderOpExecConfig)
       .addEdge(
@@ -88,8 +95,22 @@ class MaterializationRewriter(
         toInputPortIdx
       )
       .removeEdge(linkId)
-
-    newPlan
+      .setOperator(
+        toOp.copy(
+          // update the input mapping by replacing the original link with the new link from materialization.
+          inputToOrdinalMapping =
+            toOp.inputToOrdinalMapping - linkId + (readerToDestLink -> toInputPortIdx),
+          // the dest operator's input port is not blocking anymore.
+          blockingInputs = toOp.blockingInputs.filter(e => e != toInputPortIdx)
+        )
+      )
+      .setOperator(
+        fromOp.copy(
+          // update the output mapping by replacing the original link with the new link to materialization.
+          outputToOrdinalMapping =
+            fromOp.outputToOrdinalMapping - linkId + (sourceToWriterLink -> fromOutputPortIdx)
+        )
+      )
   }
 
 }
