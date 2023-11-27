@@ -5,6 +5,6 @@ import { DomSanitizer, SafeResourceUrl } from "@angular/platform-browser";
   templateUrl: "./flarum.component.html",
 })
 export class FlarumComponent {
-  flarumUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl("http://localhost");
+  flarumUrl: SafeResourceUrl = this.sanitizer.bypassSecurityTrustResourceUrl("http://localhost:8888");
   constructor(private sanitizer: DomSanitizer) {}
 }
