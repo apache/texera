@@ -546,18 +546,34 @@ export class WorkflowActionService {
     });
   }
 
-  public cacheOperators(ops: readonly string[]): void {
+  public markReuseResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().cacheOperator(op);
+        this.getTexeraGraph().markReuseResult(op);
       });
     });
   }
 
-  public unCacheOperators(ops: readonly string[]): void {
+  public removeMarkReuseResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().unCacheOperator(op);
+        this.getTexeraGraph().removeMarkReuseResult(op);
+      });
+    });
+  }
+
+  public setViewOperatorResults(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().setViewOperatorResult(op);
+      });
+    });
+  }
+
+  public unsetViewOperatorResults(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().unsetViewOperatorResult(op);
       });
     });
   }
@@ -596,7 +612,11 @@ export class WorkflowActionService {
    * <b>Warning: this resets the workflow but not the SharedModel, so make sure to quit the shared-editing session
    * (<code>{@link destroySharedModel}</code>) before using this method.</b>
    */
-  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = environment.asyncRenderingEnabled): void {
+  public reloadWorkflow(
+    workflow: Readonly<Workflow> | undefined,
+    asyncRendering = environment.asyncRenderingEnabled
+  ): void {
+    this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
       this.setWorkflowMetadata(workflow);
       // remove the existing operators on the paper currently
@@ -647,14 +667,10 @@ export class WorkflowActionService {
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
-      // operators and links shouldn't be highlighted during page reload
-      const jointGraphWrapper = this.getJointGraphWrapper();
-      jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-      jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
-
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
+    this.jointGraphWrapper.setReloadingWorkflow(false);
 
     // After reloading a workflow, need to clear undo/redo stacks because some of the actions involved in reloading
     // may remain in the undo manager.
@@ -683,7 +699,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
-      this.getTexeraGraph().getCachedOperatorsChangedStream(),
+      this.getTexeraGraph().getViewResultOperatorsChangedStream(),
+      this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),

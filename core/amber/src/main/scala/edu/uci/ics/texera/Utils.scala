@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import java.nio.file.{Files, Path, Paths}
@@ -11,7 +12,7 @@ import java.text.SimpleDateFormat
 import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
 
-object Utils {
+object Utils extends LazyLogging {
 
   final val objectMapper = new ObjectMapper()
     .registerModule(DefaultScalaModule)
@@ -66,10 +67,9 @@ object Utils {
     } catch {
       case e: Throwable =>
         if (attempts > 1) {
-          // TODO: change the following to logger
-          e.printStackTrace()
-          println(
-            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1)
+          logger.warn(
+            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1),
+            e
           )
           Thread.sleep(baseBackoffTimeInMS)
           retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
@@ -104,7 +104,8 @@ object Utils {
       case WorkflowAggregatedState.PAUSED        => "Paused"
       case WorkflowAggregatedState.RESUMING      => "Resuming"
       case WorkflowAggregatedState.COMPLETED     => "Completed"
-      case WorkflowAggregatedState.ABORTED       => "Aborted"
+      case WorkflowAggregatedState.FAILED        => "Failed"
+      case WorkflowAggregatedState.KILLED        => "Killed"
       case WorkflowAggregatedState.UNKNOWN       => "Unknown"
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) =>
         s"Unrecognized($unrecognizedValue)"

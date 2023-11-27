@@ -3,13 +3,20 @@ package edu.uci.ics.amber.engine.common.client
 import akka.actor.{Actor, ActorRef}
 import akka.pattern.StatusReply.Ack
 import com.twitter.util.Promise
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor.{
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
+  CreditRequest,
+  CreditResponse,
   NetworkAck,
   NetworkMessage
 }
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  WorkflowControlMessage,
+  ChannelID,
+  ControlPayload,
+  DataPayload,
+  WorkflowFIFOMessage,
   WorkflowRecoveryMessage
 }
 import edu.uci.ics.amber.engine.common.client.ClientActor.{
@@ -20,6 +27,8 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 
 import scala.collection.mutable
 
@@ -31,17 +40,32 @@ private[client] object ClientActor {
   case class CommandRequest(command: ControlCommand[_], promise: Promise[Any])
 }
 
-private[client] class ClientActor extends Actor {
+private[client] class ClientActor extends Actor with AmberLogging {
+  var actorId: ActorVirtualIdentity = ActorVirtualIdentity("Client")
   var controller: ActorRef = _
   var controlId = 0L
   val promiseMap = new mutable.LongMap[Promise[Any]]()
   var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
+
+  private val controlChannelId = ChannelID(CLIENT, CONTROLLER, isControl = true)
+
+  private def getQueuedCredit(channel: ChannelID): Long = {
+    0L // client does not have queued credits
+  }
+
+  private def handleControl(control: Any): Unit = {
+    if (handlers.isDefinedAt(control)) {
+      handlers(control)
+    }
+  }
 
   override def receive: Receive = {
     case InitializeRequest(workflow, controllerConfig) =>
       assert(controller == null)
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
       sender ! Ack
+    case CreditRequest(channel: ChannelID) =>
+      sender ! CreditResponse(channel, getQueuedCredit(channel))
     case ClosureRequest(closure) =>
       try {
         sender ! closure()
@@ -50,7 +74,14 @@ private[client] class ClientActor extends Actor {
           sender ! e
       }
     case commandRequest: CommandRequest =>
-      controller ! ControlInvocation(controlId, commandRequest.command)
+      controller ! NetworkMessage(
+        0,
+        WorkflowFIFOMessage(
+          controlChannelId,
+          controlId,
+          ControlInvocation(controlId, commandRequest.command)
+        )
+      )
       promiseMap(controlId) = commandRequest.promise
       controlId += 1
     case req: ObservableRequest =>
@@ -58,30 +89,33 @@ private[client] class ClientActor extends Actor {
       sender ! scala.runtime.BoxedUnit.UNIT
     case NetworkMessage(
           mId,
-          _ @WorkflowControlMessage(_, _, _ @ReturnInvocation(originalCommandID, controlReturn))
+          fifoMsg @ WorkflowFIFOMessage(_, _, payload)
         ) =>
-      sender ! NetworkAck(mId)
-      if (handlers.isDefinedAt(controlReturn)) {
-        handlers(controlReturn)
-      }
-      if (promiseMap.contains(originalCommandID)) {
-        controlReturn match {
-          case t: Throwable =>
-            promiseMap(originalCommandID).setException(t)
-          case other =>
-            promiseMap(originalCommandID).setValue(other)
-        }
-        promiseMap.remove(originalCommandID)
-      }
-    case NetworkMessage(mId, _ @WorkflowControlMessage(_, _, _ @ControlInvocation(_, command))) =>
-      sender ! NetworkAck(mId)
-      if (handlers.isDefinedAt(command)) {
-        handlers(command)
+      sender ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channel))
+      payload match {
+        case payload: ControlPayload =>
+          payload match {
+            case ControlInvocation(_, command) => handleControl(command)
+            case ReturnInvocation(originalCommandID, controlReturn) =>
+              handleControl(controlReturn)
+              if (promiseMap.contains(originalCommandID)) {
+                controlReturn match {
+                  case t: Throwable =>
+                    promiseMap(originalCommandID).setException(t)
+                  case other =>
+                    promiseMap(originalCommandID).setValue(other)
+                }
+                promiseMap.remove(originalCommandID)
+              }
+            case _ => ???
+          }
+        case _: DataPayload => ???
+        case _              => ???
       }
     case x: WorkflowRecoveryMessage =>
       sender ! Ack
       controller ! x
     case other =>
-      println("client actor cannot handle " + other) //skip
+      logger.warn("client actor cannot handle " + other) //skip
   }
 }

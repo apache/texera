@@ -15,6 +15,7 @@ from core.architecture.handlers.modify_operator_logic_handler import (
 from core.architecture.handlers.monitoring_handler import MonitoringHandler
 from core.architecture.handlers.open_operator_handler import OpenOperatorHandler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
+from core.architecture.handlers.backpressure_handler import BackpressureHandler
 from core.architecture.handlers.query_current_input_tuple_handler import (
     QueryCurrentInputTupleHandler,
 )
@@ -53,6 +54,7 @@ class AsyncRPCServer:
         self._handlers: dict[type(ControlCommandV2), Handler] = dict()
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
+        self.register(BackpressureHandler())
         self.register(ResumeWorkerHandler())
         self.register(OpenOperatorHandler())
         self.register(AddPartitioningHandler())
@@ -92,6 +94,9 @@ class AsyncRPCServer:
             ),
         )
 
+        if self._no_reply_needed(control_invocation.command_id):
+            return
+
         # reply to the sender
         to = from_
         logger.debug(
@@ -106,3 +111,7 @@ class AsyncRPCServer:
     def look_up(self, cmd: ControlCommandV2) -> Handler:
         logger.debug(cmd)
         return self._handlers[type(cmd)]
+
+    @staticmethod
+    def _no_reply_needed(command_id: int) -> bool:
+        return command_id < 0

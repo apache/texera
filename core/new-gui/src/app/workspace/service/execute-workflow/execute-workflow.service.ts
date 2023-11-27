@@ -13,12 +13,17 @@ import {
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from "../../types/workflow-common.interface";
-import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
+import {
+  WorkflowFatalError,
+  OperatorCurrentTuples,
+  TexeraWebsocketEvent,
+} from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { exhaustiveGuard } from "../../../common/util/switch";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -113,7 +118,7 @@ export class ExecuteWorkflowService {
             } else {
               return { state: ExecutionState.Paused, currentTuples: {} };
             }
-          case ExecutionState.Aborted:
+          case ExecutionState.Failed:
           case ExecutionState.BreakpointTriggered:
             // for these 2 states, backend will send an additional message after this status event.
             return undefined;
@@ -145,19 +150,11 @@ export class ExecuteWorkflowService {
       case "BreakpointTriggeredEvent":
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
       case "WorkflowErrorEvent":
-        const errorMessages: Record<string, string> = {};
-        Object.entries(event.operatorErrors).forEach(entry => {
-          errorMessages[entry[0]] = `${entry[1].propertyPath}: ${entry[1].message}`;
-        });
-        Object.entries(event.generalErrors).forEach(entry => {
-          errorMessages[entry[0]] = entry[1];
-        });
-        return { state: ExecutionState.Aborted, errorMessages: errorMessages };
-      // TODO: Merge WorkflowErrorEvent and ErrorEvent
-      case "WorkflowExecutionErrorEvent":
         return {
-          state: ExecutionState.Aborted,
-          errorMessages: { WorkflowExecutionError: event.message },
+          state: ExecutionState.Failed,
+          errorMessages: event.fatalErrors.map(err => {
+            return { ...err, message: err.message.replace("\\n", "<br>") };
+          }),
         };
       default:
         return undefined;
@@ -168,11 +165,11 @@ export class ExecuteWorkflowService {
     return this.currentState;
   }
 
-  public getErrorMessages(): Readonly<Record<string, string>> | undefined {
-    if (this.currentState?.state === ExecutionState.Aborted) {
+  public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {
+    if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;
     }
-    return undefined;
+    return [];
   }
 
   public getBreakpointTriggerInfo(): BreakpointTriggerInfo | undefined {
@@ -285,7 +282,7 @@ export class ExecuteWorkflowService {
     this.currentState.breakpoint.report.forEach(fault => {
       this.workflowWebsocketService.send("SkipTupleRequest", {
         faultedTuple: fault.faultedTuple,
-        actorPath: fault.actorPath,
+        actorPath: fault.workerName,
       });
     });
   }
@@ -297,7 +294,9 @@ export class ExecuteWorkflowService {
     if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
       throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("RetryRequest", {});
+    this.workflowWebsocketService.send("RetryRequest", {
+      workers: this.currentState.breakpoint.report.map(fault => fault.workerName),
+    });
   }
 
   public modifyOperatorLogic(operatorID: string): void {
@@ -354,9 +353,10 @@ export class ExecuteWorkflowService {
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
     switch (stateInfo.state) {
       case ExecutionState.Completed:
-      case ExecutionState.Aborted:
+      case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
       case ExecutionState.BreakpointTriggered:
+      case ExecutionState.Killed:
         this.workflowActionService.enableWorkflowModification();
         return;
       case ExecutionState.Paused:
@@ -368,7 +368,7 @@ export class ExecuteWorkflowService {
         this.workflowActionService.disableWorkflowModification();
         return;
       default:
-        return;
+        return exhaustiveGuard(stateInfo);
     }
   }
 
@@ -409,18 +409,14 @@ export class ExecuteWorkflowService {
         operatorID: op.operatorID,
         operatorType: op.operatorType,
       };
-      if (op.inputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          inputPorts: op.inputPorts,
-        };
-      }
-      if (op.outputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          outputPorts: op.outputPorts,
-        };
-      }
+      logicalOp = {
+        ...logicalOp,
+        inputPorts: op.inputPorts,
+      };
+      logicalOp = {
+        ...logicalOp,
+        outputPorts: op.outputPorts,
+      };
       return logicalOp;
     });
 
@@ -441,11 +437,15 @@ export class ExecuteWorkflowService {
       ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
     );
 
-    const cachedOperatorIds: string[] = Array.from(workflowGraph.getCachedOperators()).filter(
+    const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(
       op => !workflowGraph.isOperatorDisabled(op)
     );
 
-    return { operators, links, breakpoints, cachedOperatorIds };
+    const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
+      op => !workflowGraph.isOperatorDisabled(op)
+    );
+
+    return { operators, links, breakpoints, opsToViewResult, opsToReuseResult };
   }
 
   public static transformBreakpoint(

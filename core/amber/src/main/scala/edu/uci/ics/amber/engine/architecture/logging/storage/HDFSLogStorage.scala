@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.logging.storage
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
   DeterminantLogReader,
   DeterminantLogWriter
@@ -9,7 +10,7 @@ import org.apache.hadoop.fs.{FileSystem, Path}
 
 import java.net.URI
 
-class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage {
+class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage with LazyLogging {
   var hdfs: FileSystem = _
   val hdfsConf = new Configuration
   hdfsConf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "false")
@@ -17,7 +18,7 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
     hdfs = FileSystem.get(new URI(hdfsIP), hdfsConf)
   } catch {
     case e: Exception =>
-      e.printStackTrace()
+      logger.warn("Caught error during creating hdfs", e)
   }
   private val recoveryLogFolder: Path = new Path("/recovery-logs")
   if (!hdfs.exists(recoveryLogFolder)) {

@@ -17,7 +17,7 @@ import { NzMessageService } from "ng-zorro-antd/message";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
+import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -48,7 +48,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private schemaPropagationService: SchemaPropagationService,
     private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
-    private operatorCacheStatus: OperatorCacheStatusService,
+    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
@@ -208,7 +208,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   registerLoadOperatorMetadata() {
     this.operatorMetadataService
       .getOperatorMetadata()
-      .pipe(filter(metadata => metadata.operators.length !== 0))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let wid = this.route.snapshot.params.id;
@@ -230,8 +229,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         } else {
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
+          // fetch the cached workflow first
+          const cachedWorkflow = this.workflowCacheService.getCachedWorkflow();
+          // responsible for saving the existing workflow in cache
+          this.registerAutoCacheWorkFlow();
           // load the cached workflow
-          this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+          this.workflowActionService.reloadWorkflow(cachedWorkflow);
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
@@ -253,8 +256,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-          // responsible for saving the existing workflow in cache
-          this.registerAutoCacheWorkFlow();
         }
       });
   }

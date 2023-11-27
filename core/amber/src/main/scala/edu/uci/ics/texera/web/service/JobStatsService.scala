@@ -1,5 +1,7 @@
 package edu.uci.ics.texera.web.service
 
+import com.google.protobuf.timestamp.Timestamp
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowCompleted,
@@ -7,7 +9,9 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowStatusUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -17,13 +21,18 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkerAssignmentUpdateEvent
 }
 import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.workflowruntimestate.OperatorWorkerMapping
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{ABORTED, COMPLETED}
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorWorkerMapping, WorkflowFatalError}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
+
+import java.time.Instant
 
 class JobStatsService(
     client: AmberClient,
     stateStore: JobStateStore
-) extends SubscriptionManager {
+) extends SubscriptionManager
+    with LazyLogging {
 
   registerCallbacks()
 
@@ -143,7 +152,9 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.jobMetadataStore.updateState(jobInfo => jobInfo.withState(COMPLETED))
+          stateStore.jobMetadataStore.updateState(jobInfo =>
+            updateWorkflowState(COMPLETED, jobInfo)
+          )
         })
     )
   }
@@ -153,11 +164,27 @@ class JobStatsService(
       client
         .registerCallback[FatalError]((evt: FatalError) => {
           client.shutdown()
+          var operatorId = "unknown operator"
+          var workerId = ""
+          if (evt.fromActor.isDefined) {
+            operatorId = VirtualIdentityUtils.getOperator(evt.fromActor.get).operator
+            workerId = evt.fromActor.get.name
+          }
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
           stateStore.jobMetadataStore.updateState { jobInfo =>
-            jobInfo.withState(ABORTED).withError(evt.e.getLocalizedMessage)
+            logger.error("error occurred in execution", evt.e)
+            updateWorkflowState(FAILED, jobInfo).addFatalErrors(
+              WorkflowFatalError(
+                EXECUTION_FAILURE,
+                Timestamp(Instant.now),
+                evt.e.toString,
+                getStackTraceWithAllCauses(evt.e),
+                operatorId,
+                workerId
+              )
+            )
           }
         })
     )

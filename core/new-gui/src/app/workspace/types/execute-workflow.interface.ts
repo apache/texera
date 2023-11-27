@@ -6,7 +6,7 @@
 
 import { ChartType } from "./visualization.interface";
 import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
-import { OperatorCurrentTuples } from "./workflow-websocket.interface";
+import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
 
 export interface LogicalLink
   extends Readonly<{
@@ -37,7 +37,8 @@ export interface LogicalPlan
     operators: LogicalOperator[];
     links: LogicalLink[];
     breakpoints: BreakpointInfo[];
-    cachedOperatorIds: string[];
+    opsToViewResult?: string[];
+    opsToReuseResult?: string[];
   }> {}
 
 /**
@@ -114,6 +115,15 @@ export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdat
   return (update !== undefined && update.mode.type === "SetSnapshotMode") || update.mode.type === "SetDeltaMode";
 }
 
+export function isNotInExecution(state: ExecutionState) {
+  return [
+    ExecutionState.Uninitialized,
+    ExecutionState.Failed,
+    ExecutionState.Killed,
+    ExecutionState.Completed,
+  ].includes(state);
+}
+
 export enum ExecutionState {
   Uninitialized = "Uninitialized",
   Initializing = "Initializing",
@@ -124,7 +134,8 @@ export enum ExecutionState {
   Recovering = "Recovering",
   BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
-  Aborted = "Aborted",
+  Failed = "Failed",
+  Killed = "Killed",
 }
 
 export type ExecutionStateInfo = Readonly<
@@ -146,10 +157,10 @@ export type ExecutionStateInfo = Readonly<
       breakpoint: BreakpointTriggerInfo;
     }
   | {
-      state: ExecutionState.Completed;
+      state: ExecutionState.Completed | ExecutionState.Killed;
     }
   | {
-      state: ExecutionState.Aborted;
-      errorMessages: Readonly<Record<string, string>>;
+      state: ExecutionState.Failed;
+      errorMessages: ReadonlyArray<WorkflowFatalError>;
     }
 >;

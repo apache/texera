@@ -6,11 +6,13 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Li
 
 abstract class LinkStrategy(
     val from: OpExecConfig,
+    val fromPort: Int,
     val to: OpExecConfig,
+    val toPort: Int,
     val batchSize: Int
 ) extends Serializable {
 
-  val id: LinkIdentity = LinkIdentity(from.id, to.id)
+  val id: LinkIdentity = LinkIdentity(from.id, fromPort, to.id, toPort)
   private var currentCompletedCount = 0
 
   def incrementCompletedReceiversCount(): Unit = currentCompletedCount += 1

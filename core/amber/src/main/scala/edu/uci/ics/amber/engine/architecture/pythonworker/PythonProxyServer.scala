@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
+import com.google.common.primitives.Longs
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV1,
@@ -10,9 +11,10 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.apache.arrow.flight._
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.util.AutoCloseables
 
+import java.nio.{ByteBuffer, ByteOrder}
 import java.io.IOException
 import java.net.ServerSocket
 import java.util.concurrent.atomic.AtomicInteger
@@ -22,8 +24,7 @@ import com.twitter.util.Promise
 import java.nio.charset.Charset
 
 private class AmberProducer(
-    controlOutputPort: NetworkOutputPort[ControlPayload],
-    dataOutputPort: NetworkOutputPort[DataPayload],
+    outputPort: NetworkOutputGateway,
     promise: Promise[Int]
 ) extends NoOpFlightProducer {
   var _portNumber: AtomicInteger = new AtomicInteger(0)
@@ -39,20 +40,28 @@ private class AmberProducer(
         val pythonControlMessage = PythonControlMessage.parseFrom(action.getBody)
         pythonControlMessage.payload match {
           case returnInvocation: ReturnInvocationV2 =>
-            controlOutputPort.sendTo(
+            outputPort.sendTo(
               to = pythonControlMessage.tag,
               payload = returnInvocationToV1(returnInvocation)
             )
 
           case controlInvocation: ControlInvocationV2 =>
-            controlOutputPort.sendTo(
+            outputPort.sendTo(
               to = pythonControlMessage.tag,
               payload = controlInvocationToV1(controlInvocation)
             )
           case payload =>
             throw new RuntimeException(s"not supported payload $payload")
         }
-        listener.onNext(new Result("ack".getBytes))
+
+        // get little-endian representation of credits
+        var creditVal: Long = 30L // TODO : replace with actual credit value
+        val creditByteArr: Array[Byte] =
+          ByteBuffer.allocate(Longs.BYTES).order(ByteOrder.LITTLE_ENDIAN).putLong(creditVal).array
+
+        listener.onNext(
+          new Result(creditByteArr)
+        )
         listener.onCompleted()
       case "handshake" =>
         val strPortNumber: String = new String(action.getBody, Charset.forName("UTF-8"))
@@ -77,23 +86,33 @@ private class AmberProducer(
 
     val root = flightStream.getRoot
 
+    // send back ack with credits on ackStream
+    val bufferAllocator = new RootAllocator(8 * 1024)
+    try {
+      val arrowBuf: ArrowBuf = bufferAllocator.buffer(Longs.BYTES + 4)
+      arrowBuf.writeLong(
+        31L
+      ) // TODO : replace with actual credit value
+      ackStream.onNext(PutResult.metadata(arrowBuf))
+      arrowBuf.close()
+    } finally if (bufferAllocator != null) bufferAllocator.close()
+
     // consume all data in the stream, it will store on the root vectors.
-    while (flightStream.next) {
-      ackStream.onNext(PutResult.metadata(flightStream.getLatestMetadata))
-    }
+    while (flightStream.next) {}
+
     // closing the stream will release the dictionaries
     flightStream.takeDictionaryOwnership
 
     if (isEnd) {
       // EndOfUpstream
       assert(root.getRowCount == 0)
-      dataOutputPort.sendTo(to, EndOfUpstream())
+      outputPort.sendTo(to, EndOfUpstream())
     } else {
       // normal data batches
       val queue = mutable.Queue[Tuple]()
       for (i <- 0 until root.getRowCount)
         queue.enqueue(ArrowUtils.getTexeraTuple(i, root))
-      dataOutputPort.sendTo(to, DataFrame(queue.toArray))
+      outputPort.sendTo(to, DataFrame(queue.toArray))
 
     }
 
@@ -102,8 +121,7 @@ private class AmberProducer(
 }
 
 class PythonProxyServer(
-    controlOutputPort: NetworkOutputPort[ControlPayload],
-    dataOutputPort: NetworkOutputPort[DataPayload],
+    outputPort: NetworkOutputGateway,
     val actorId: ActorVirtualIdentity,
     promise: Promise[Int]
 ) extends Runnable
@@ -115,7 +133,7 @@ class PythonProxyServer(
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-server", 0, Long.MaxValue);
 
-  val producer: FlightProducer = new AmberProducer(controlOutputPort, dataOutputPort, promise)
+  val producer: FlightProducer = new AmberProducer(outputPort, promise)
 
   val location: Location = (() => {
     Location.forGrpcInsecure("localhost", portNumber.intValue())

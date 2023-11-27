@@ -44,9 +44,6 @@ class JobReconfigurationService(
         val diff = newState.completedReconfigs -- oldState.completedReconfigs
         val newlyCompletedOps = diff
           .map(workerId => workflow.getOperator(workerId).id)
-          .filter(opId =>
-            workflow.getOperator(opId).getAllWorkers.toSet.subsetOf(newState.completedReconfigs)
-          )
           .map(opId => opId.operator)
         if (newlyCompletedOps.nonEmpty) {
           List(ModifyLogicCompletedEvent(newlyCompletedOps.toList))
@@ -65,8 +62,8 @@ class JobReconfigurationService(
   // they are not actually performed until the workflow is resumed
   def modifyOperatorLogic(modifyLogicRequest: ModifyLogicRequest): TexeraWebSocketEvent = {
     val newOp = modifyLogicRequest.operator
+    newOp.setContext(workflowCompiler.logicalPlan.context)
     val opId = newOp.operatorID
-    workflowCompiler.initOperator(newOp)
     val currentOp = workflowCompiler.logicalPlan.operatorMap(opId)
     val reconfiguredPhysicalOp =
       currentOp.runtimeReconfiguration(newOp, workflowCompiler.logicalPlan.opSchemaInfo(opId))

@@ -6,10 +6,11 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetryWorkflowHandler.RetryWorkflow
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 object RetryWorkflowHandler {
-  final case class RetryWorkflow() extends ControlCommand[Unit]
+  final case class RetryWorkflow(workers: Seq[ActorVirtualIdentity]) extends ControlCommand[Unit]
 }
 
 /** retry the execution of the entire workflow
@@ -25,13 +26,8 @@ trait RetryWorkflowHandler {
       // retry message has no effect on completed workers
       Future
         .collect(
-          workflow.getAllOperators
-            // find workers who received local operator exception
-            .flatMap(operator => operator.caughtLocalExceptions.keys)
-            // currently only support retry for PythonWorker, thus filter them
-            .filter(worker => workflow.getPythonWorkers.toSeq.contains(worker))
+          msg.workers
             .map(worker => send(ReplayCurrentTuple(), worker))
-            .toSeq
         )
         .unit
 

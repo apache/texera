@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
@@ -16,7 +17,8 @@ import java.sql.Timestamp
   */
 object ExecutionsMetadataPersistService extends LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
-
+  private final val userSystemEnabled: Boolean =
+    AmberUtils.amberConfig.getBoolean("user-sys.enabled")
   private val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
@@ -36,8 +38,9 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       case WorkflowAggregatedState.PAUSED                          => 2
       case WorkflowAggregatedState.RESUMING                        => ???
       case WorkflowAggregatedState.COMPLETED                       => 3
-      case WorkflowAggregatedState.ABORTED                         => 4
+      case WorkflowAggregatedState.FAILED                          => 4
       case WorkflowAggregatedState.UNKNOWN                         => ???
+      case WorkflowAggregatedState.KILLED                          => 5
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
     }
   }
@@ -56,6 +59,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       executionName: String,
       environmentVersion: String
   ): Long = {
+    if (!userSystemEnabled) return -1
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(wid)
     val newExecution = new WorkflowExecutions()
@@ -71,11 +75,38 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   }
 
   def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {
+    if (!userSystemEnabled) return
     try {
       val code = maptoStatusCode(state)
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
       execution.setStatus(code)
       execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
+      workflowExecutionsDao.update(execution)
+    } catch {
+      case t: Throwable =>
+        logger.info("Unable to update execution. Error = " + t.getMessage)
+    }
+  }
+
+  def tryUpdateExecutionStatusAndPointers(eid: Long, state: WorkflowAggregatedState): Unit = {
+    if (!userSystemEnabled) return
+    try {
+      val code = maptoStatusCode(state)
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      execution.setStatus(code)
+      execution.setResult("")
+      workflowExecutionsDao.update(execution)
+    } catch {
+      case t: Throwable =>
+        logger.info("Unable to update execution. Error = " + t.getMessage)
+    }
+  }
+
+  def updateExistingExecutionVolumnPointers(eid: Long, pointers: String): Unit = {
+    if (!userSystemEnabled) return
+    try {
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      execution.setResult(pointers)
       workflowExecutionsDao.update(execution)
     } catch {
       case t: Throwable =>

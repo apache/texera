@@ -57,14 +57,15 @@ import { ShareAccessComponent } from "./dashboard/user/component/share-access/sh
 import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
 import { NgbdModalFileAddComponent } from "./dashboard/user/component/user-file/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
+import { UserQuotaComponent } from "./dashboard/user/component/user-quota/user-quota.component";
 import { UserIconComponent } from "./dashboard/user/component/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/user/component/user-avatar/user-avatar.component";
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
 import { NavigationComponent } from "./workspace/component/navigation/navigation.component";
-import { OperatorLabelComponent } from "./workspace/component/operator-panel/operator-label/operator-label.component";
-import { OperatorPanelComponent } from "./workspace/component/operator-panel/operator-panel.component";
+import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-label/operator-label.component";
+import { OperatorMenuFrameComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-menu-frame.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelToggleComponent } from "./workspace/component/result-panel-toggle/result-panel-toggle.component";
@@ -89,7 +90,7 @@ import { NotificationComponent } from "./common/component/notification/notificat
 import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { VersionsDisplayFrameComponent } from "./workspace/component/property-editor/versions-display/versions-display-frame.component";
+import { VersionsFrameComponent } from "./workspace/component/left-panel/versions-frame/versions-frame.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
@@ -102,7 +103,8 @@ import { NgbdModalRemoveProjectFileComponent } from "./dashboard/user/component/
 import { PresetWrapperComponent } from "./common/formly/preset-wrapper/preset-wrapper.component";
 import { NzModalCommentBoxComponent } from "./workspace/component/workflow-editor/comment-box-modal/nz-modal-comment-box.component";
 import { NzCommentModule } from "ng-zorro-antd/comment";
-import { AdminUserComponent } from "./dashboard/admin/component/admin-user.component";
+import { AdminUserComponent } from "./dashboard/admin/component/user/admin-user.component";
+import { AdminExecutionComponent } from "./dashboard/admin/component/execution/admin-execution.component";
 import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
@@ -128,29 +130,36 @@ import { UserFileListItemComponent } from "./dashboard/user/component/user-file/
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { SearchResultsComponent } from "./dashboard/user/component/search-results/search-results.component";
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
+import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
+import { NzAlertModule } from "ng-zorro-antd/alert";
+import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
+import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 
 registerLocaleData(en);
 
 @NgModule({
   declarations: [
+    GmailComponent,
     PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
     NavigationComponent,
-    OperatorPanelComponent,
+    OperatorMenuFrameComponent,
     PropertyEditorComponent,
-    VersionsDisplayFrameComponent,
+    VersionsFrameComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
     DashboardComponent,
     AdminUserComponent,
+    AdminExecutionComponent,
     UserIconComponent,
     UserAvatarComponent,
     LocalLoginComponent,
     UserWorkflowComponent,
     UserFileComponent,
+    UserQuotaComponent,
     NgbdModalFileAddComponent,
     RowModalComponent,
     OperatorLabelComponent,
@@ -169,6 +178,7 @@ registerLocaleData(en);
     ShareAccessComponent,
     NgbdModalWorkflowExecutionsComponent,
     ConsoleFrameComponent,
+    ErrorFrameComponent,
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
@@ -184,6 +194,7 @@ registerLocaleData(en);
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
     NzModalCommentBoxComponent,
+    LeftPanelComponent,
     LocalLoginComponent,
     ContextMenuComponent,
     CoeditorUserIconComponent,
@@ -266,6 +277,7 @@ registerLocaleData(en);
     NzLayoutModule,
     MarkdownModule.forRoot(),
     DragDropModule,
+    NzAlertModule,
   ],
   providers: [
     AuthGuardService,

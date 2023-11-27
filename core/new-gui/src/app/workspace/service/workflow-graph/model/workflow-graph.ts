@@ -32,7 +32,6 @@ type restrictedMethods =
   | "setLinkBreakpoint"
   | "operatorAddSubject"
   | "operatorDeleteSubject"
-  | "cachedOperatorChangedSubject"
   | "operatorDisplayNameChangedSubject"
   | "linkAddSubject"
   | "linkDeleteSubject"
@@ -88,9 +87,13 @@ export class WorkflowGraph {
     newDisabled: string[];
     newEnabled: string[];
   }>();
-  public readonly cachedOperatorChangedSubject = new Subject<{
-    newCached: string[];
-    newUnCached: string[];
+  public readonly viewResultOperatorChangedSubject = new Subject<{
+    newViewResultOps: string[];
+    newUnviewResultOps: string[];
+  }>();
+  public readonly reuseOperatorChangedSubject = new Subject<{
+    newReuseCacheOps: string[];
+    newUnreuseCacheOps: string[];
   }>();
   public readonly operatorDisplayNameChangedSubject = new Subject<{
     operatorID: string;
@@ -427,10 +430,10 @@ export class WorkflowGraph {
   }
 
   /**
-   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
    * @param operatorID
    */
-  public cacheOperator(operatorID: string): void {
+  public setViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -438,43 +441,97 @@ export class WorkflowGraph {
     if (isSink(operator)) {
       return;
     }
-    if (this.isOperatorCached(operatorID)) {
+    if (this.isViewingResult(operatorID)) {
       return;
     }
-    this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", true);
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", true);
   }
 
   /**
-   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
    * @param operatorID
    */
-  public unCacheOperator(operatorID: string): void {
+  public unsetViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (!this.isOperatorCached(operatorID)) {
+    if (!this.isViewingResult(operatorID)) {
       return;
     }
-    this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", false);
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", false);
   }
 
   /**
    * This method gets this status from readonly object version of the operator data as opposed to y-type data.
    * @param operatorID
    */
-  public isOperatorCached(operatorID: string): boolean {
+  public isViewingResult(operatorID: string): boolean {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    return operator.isCached ?? false;
+    return operator.viewResult ?? false;
   }
 
-  public getCachedOperators(): ReadonlySet<string> {
+  public getOperatorsToViewResult(): ReadonlySet<string> {
     return new Set(
       Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
-        this.isOperatorCached(op)
+        this.isViewingResult(op)
+      )
+    );
+  }
+
+  /**
+   * Changes <code>markedForReuse</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public markReuseResult(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (isSink(operator)) {
+      return;
+    }
+    if (this.isMarkedForReuseResult(operatorID)) {
+      return;
+    }
+    console.log("seeting marked for reuse in shared model");
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", true);
+  }
+
+  /**
+   * Changes <code>markedForReuse</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public removeMarkReuseResult(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (!this.isMarkedForReuseResult(operatorID)) {
+      return;
+    }
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", false);
+  }
+
+  /**
+   * This method gets this status from readonly object version of the operator data as opposed to y-type data.
+   * @param operatorID
+   */
+  public isMarkedForReuseResult(operatorID: string): boolean {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    return operator.markedForReuse ?? false;
+  }
+
+  public getOperatorsMarkedForReuseResult(): ReadonlySet<string> {
+    return new Set(
+      Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
+        this.isMarkedForReuseResult(op)
       )
     );
   }
@@ -874,11 +931,18 @@ export class WorkflowGraph {
     return this.commentBoxEditCommentSubject.asObservable();
   }
 
-  public getCachedOperatorsChangedStream(): Observable<{
-    newCached: ReadonlyArray<string>;
-    newUnCached: ReadonlyArray<string>;
+  public getViewResultOperatorsChangedStream(): Observable<{
+    newViewResultOps: ReadonlyArray<string>;
+    newUnviewResultOps: ReadonlyArray<string>;
   }> {
-    return this.cachedOperatorChangedSubject.asObservable();
+    return this.viewResultOperatorChangedSubject.asObservable();
+  }
+
+  public getReuseCacheOperatorsChangedStream(): Observable<{
+    newReuseCacheOps: ReadonlyArray<string>;
+    newUnreuseCacheOps: ReadonlyArray<string>;
+  }> {
+    return this.reuseOperatorChangedSubject.asObservable();
   }
 
   public getOperatorDisplayNameChangedStream(): Observable<{

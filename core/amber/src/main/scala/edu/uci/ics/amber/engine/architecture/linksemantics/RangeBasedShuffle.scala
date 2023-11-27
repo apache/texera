@@ -8,17 +8,18 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 class RangeBasedShuffle(
-    _from: OpExecConfig,
-    _to: OpExecConfig,
+    from: OpExecConfig,
+    fromPort: Int,
+    to: OpExecConfig,
+    toPort: Int,
     batchSize: Int,
     rangeColumnIndices: Seq[Int],
     rangeMin: Long,
     rangeMax: Long
-) extends LinkStrategy(_from, _to, batchSize) {
+) extends LinkStrategy(from, fromPort, to, toPort, batchSize) {
   override def getPartitioning: Iterable[
     (ActorVirtualIdentity, LinkIdentity, Partitioning, Seq[ActorVirtualIdentity])
   ] = {
-    assert(from.isBuilt && to.isBuilt)
     from.identifiers.map(x =>
       (
         x,

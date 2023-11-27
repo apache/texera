@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import org.bson.Document;
+import org.ehcache.sizeof.SizeOf;
 
 import java.io.Serializable;
 import java.util.*;
@@ -25,6 +26,8 @@ public class Tuple implements ITuple, Serializable {
     private final Schema schema;
     private final List<Object> fields;
 
+    private final Long inMemSize;
+
     public Tuple(Schema schema, Object... fields) {
         this(schema, Arrays.asList(fields));
     }
@@ -32,9 +35,9 @@ public class Tuple implements ITuple, Serializable {
     @JsonCreator
     public Tuple(
             @JsonProperty(value = "schema", required = true)
-                    Schema schema,
+            Schema schema,
             @JsonProperty(value = "fields", required = true)
-                    List<Object> fields) {
+            List<Object> fields) {
         // check arguments are not null
         checkNotNull(schema);
         checkNotNull(fields);
@@ -44,6 +47,13 @@ public class Tuple implements ITuple, Serializable {
 
         this.schema = schema;
         this.fields = Collections.unmodifiableList(fields);
+
+        this.inMemSize = SizeOf.newInstance().deepSizeOf(this);
+    }
+
+    @Override
+    public long inMemSize() {
+        return this.inMemSize;
     }
 
     @Override
@@ -88,11 +98,7 @@ public class Tuple implements ITuple, Serializable {
     }
 
     public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((fields == null) ? 0 : fields.hashCode());
-        result = prime * result + ((schema == null) ? 0 : schema.hashCode());
-        return result;
+        return Arrays.deepHashCode(fields.toArray());
     }
 
     public boolean equals(Object obj) {
@@ -115,6 +121,16 @@ public class Tuple implements ITuple, Serializable {
         }
     }
 
+    public Tuple getPartialTuple(int[] indices){
+        Schema partialSchema = schema.getPartialSchema(indices);
+        Tuple.BuilderV2 builder = new Tuple.BuilderV2(partialSchema);
+        Object[] partialArray = new Object[indices.length];
+        for (int i = 0; i < indices.length; i++) {
+            partialArray[i] = fields.get(indices[i]);
+        }
+        builder.addSequentially(partialArray);
+        return builder.build();
+    }
     public String toString() {
         return "Tuple [schema=" + schema + ", fields=" + fields + "]";
     }
@@ -145,7 +161,7 @@ public class Tuple implements ITuple, Serializable {
     /*
      * convert the tuple to a bson document for mongoDB storage
      */
-    public Document asDocument(){
+    public Document asDocument() {
         Document doc = new Document();
         for (String attrName : this.schema.getAttributeNames()) {
             doc.put(attrName, this.getField(attrName));

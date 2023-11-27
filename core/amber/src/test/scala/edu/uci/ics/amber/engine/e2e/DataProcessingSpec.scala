@@ -8,20 +8,19 @@ import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.aggregate.AggregationFunction
 import org.scalatest.flatspec.AnyFlatSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
-import java.sql.PreparedStatement
 
+import java.sql.PreparedStatement
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.e2e.Utils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 import scala.concurrent.duration._
@@ -47,24 +46,14 @@ class DataProcessingSpec
     resultStorage.close()
   }
 
-  def buildWorkflow(
-      operators: List[OperatorDescriptor],
-      links: List[OperatorLink]
-  ): Workflow = {
-    val context = new WorkflowContext
-    context.jobId = "workflow-test"
-
-    val texeraWorkflowCompiler = new WorkflowCompiler(
-      LogicalPlan(operators, links, List()),
-      context
-    )
-    texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity("workflow-test"), resultStorage)
-  }
-
   def executeWorkflow(workflow: Workflow): Map[String, List[ITuple]] = {
     var results: Map[String, List[ITuple]] = null
     val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
     val completion = Promise[Unit]
+    client.registerCallback[FatalError](evt => {
+      completion.setException(evt.e)
+      client.shutdown()
+    })
     client
       .registerCallback[WorkflowCompleted](evt => {
         results = workflow.physicalPlan.getSinkOperators
@@ -122,7 +111,8 @@ class DataProcessingSpec
           OperatorPort(headerlessCsvOpDesc.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
-      )
+      ),
+      resultStorage
     )
     val results = executeWorkflow(workflow)(sink.operatorID)
 
@@ -139,7 +129,8 @@ class DataProcessingSpec
           OperatorPort(headerlessCsvOpDesc.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
-      )
+      ),
+      resultStorage
     )
     val results = executeWorkflow(workflow)(sink.operatorID)
 
@@ -156,7 +147,8 @@ class DataProcessingSpec
           OperatorPort(jsonlOp.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
-      )
+      ),
+      resultStorage
     )
     val results = executeWorkflow(workflow)(sink.operatorID)
 
@@ -184,7 +176,8 @@ class DataProcessingSpec
           OperatorPort(jsonlOp.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
-      )
+      ),
+      resultStorage
     )
     val results = executeWorkflow(workflow)(sink.operatorID)
 
@@ -214,7 +207,8 @@ class DataProcessingSpec
           OperatorPort(keywordOpDesc.operatorID, 0)
         ),
         OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
-      )
+      ),
+      resultStorage
     )
     executeWorkflow(workflow)
   }
@@ -233,7 +227,8 @@ class DataProcessingSpec
           OperatorPort(wordCountOpDesc.operatorID, 0)
         ),
         OperatorLink(OperatorPort(wordCountOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
-      )
+      ),
+      resultStorage
     )
     val result = executeWorkflow(workflow).values
     // Assert that only one tuple came out successfully
@@ -248,7 +243,8 @@ class DataProcessingSpec
       List(csvOpDesc, sink),
       List(
         OperatorLink(OperatorPort(csvOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
-      )
+      ),
+      resultStorage
     )
     executeWorkflow(workflow)
   }
@@ -265,7 +261,8 @@ class DataProcessingSpec
           OperatorPort(keywordOpDesc.operatorID, 0)
         ),
         OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
-      )
+      ),
+      resultStorage
     )
     executeWorkflow(workflow)
   }
@@ -288,7 +285,8 @@ class DataProcessingSpec
           OperatorPort(countOpDesc.operatorID, 0)
         ),
         OperatorLink(OperatorPort(countOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
-      )
+      ),
+      resultStorage
     )
     executeWorkflow(workflow)
   }
@@ -318,7 +316,8 @@ class DataProcessingSpec
           OperatorPort(averageAndGroupByOpDesc.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
-      )
+      ),
+      resultStorage
     )
     executeWorkflow(workflow)
   }
@@ -348,7 +347,8 @@ class DataProcessingSpec
           OperatorPort(joinOpDesc.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
-      )
+      ),
+      resultStorage
     )
     executeWorkflow(workflow)
   }
@@ -386,7 +386,8 @@ class DataProcessingSpec
           OperatorPort(inMemoryMsSQLSourceOpDesc.operatorID, 0),
           OperatorPort(sink.operatorID, 0)
         )
-      )
+      ),
+      resultStorage
     )
     executeWorkflow(workflow)
 

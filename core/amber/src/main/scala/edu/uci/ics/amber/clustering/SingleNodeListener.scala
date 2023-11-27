@@ -7,6 +7,6 @@ import akka.actor.{Actor, ActorLogging}
 class SingleNodeListener extends Actor with ActorLogging {
   Constants.currentWorkerNum = 2
   override def receive: Receive = {
-    case GetAvailableNodeAddresses => sender ! Array(context.self.path.address)
+    case GetAvailableNodeAddresses() => sender ! Array(context.self.path.address)
   }
 }

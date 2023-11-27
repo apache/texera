@@ -15,6 +15,7 @@ import org.jooq.impl.DSL._
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
+import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
@@ -26,6 +27,38 @@ object WorkflowExecutionsResource {
 
   def getExecutionById(eId: UInteger): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
+  }
+
+  def getExpiredResults(timeToLive: Int): List[ExecutionResultEntry] = {
+    context
+      .select(
+        WORKFLOW_EXECUTIONS.EID,
+        WORKFLOW_EXECUTIONS.RESULT
+      )
+      .from(WORKFLOW_EXECUTIONS)
+      .where(
+        WORKFLOW_EXECUTIONS.STATUS
+          .eq(3.toByte)
+          .and(
+            WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME
+              .lt(new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)))
+          )
+          .and(WORKFLOW_EXECUTIONS.RESULT.ne(""))
+      )
+      .fetchInto(classOf[ExecutionResultEntry])
+      .toList
+  }
+
+  def getAllIncompleteResults(): List[ExecutionResultEntry] = {
+    context
+      .select(
+        WORKFLOW_EXECUTIONS.EID,
+        WORKFLOW_EXECUTIONS.RESULT
+      )
+      .from(WORKFLOW_EXECUTIONS)
+      .where(WORKFLOW_EXECUTIONS.RESULT.ne("").and(WORKFLOW_EXECUTIONS.STATUS.ne(3.toByte)))
+      .fetchInto(classOf[ExecutionResultEntry])
+      .toList
   }
 
   /**
@@ -50,14 +83,18 @@ object WorkflowExecutionsResource {
       eId: UInteger,
       vId: UInteger,
       userName: String,
-      startingTime: Timestamp,
-      completionTime: Timestamp,
       status: Byte,
       result: String,
+      startingTime: Timestamp,
+      completionTime: Timestamp,
       bookmarked: Boolean,
       name: String
   )
 
+  case class ExecutionResultEntry(
+      eId: UInteger,
+      result: String
+  )
 }
 
 case class ExecutionGroupBookmarkRequest(
@@ -99,10 +136,10 @@ class WorkflowExecutionsResource {
               .from(USER)
               .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
           ),
-          WORKFLOW_EXECUTIONS.STARTING_TIME,
-          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
           WORKFLOW_EXECUTIONS.STATUS,
           WORKFLOW_EXECUTIONS.RESULT,
+          WORKFLOW_EXECUTIONS.STARTING_TIME,
+          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
           WORKFLOW_EXECUTIONS.BOOKMARKED,
           WORKFLOW_EXECUTIONS.NAME
         )

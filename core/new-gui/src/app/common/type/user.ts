@@ -1,3 +1,4 @@
+import { NumberValue } from "d3";
 import { Point } from "../../workspace/types/workflow-common.interface";
 
 /**
@@ -22,6 +23,36 @@ export interface User
     googleId?: string;
     role: Role;
     color?: string;
+  }> {}
+
+export interface File
+  extends Readonly<{
+    userId: number;
+    fileId: number;
+    fileName: string;
+    fileSize: number;
+    uploadedTime: number;
+    description: string;
+  }> {}
+
+export interface Workflow
+  extends Readonly<{
+    userId: number;
+    workflowId: number;
+    workflowName: string;
+  }> {}
+
+export interface MongoWorkflow {
+  workflowName: string;
+  executions: MongoExecution[];
+}
+
+export interface MongoExecution
+  extends Readonly<{
+    workflowName: string;
+    size: number;
+    pointer: string;
+    eid: number;
   }> {}
 
 /**

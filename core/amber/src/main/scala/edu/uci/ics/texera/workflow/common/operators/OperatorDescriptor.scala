@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
-import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
 import edu.uci.ics.texera.workflow.operators.cartesianProduct.CartesianProductOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
@@ -53,17 +53,30 @@ import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOp
 import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
   PythonLambdaFunctionOpDesc,
+  PythonTableReducerOpDesc,
   PythonUDFOpDescV2
 }
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.timeseries.TimeSeriesOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{
+  WordCloudOpDesc,
+  WordCloudV2OpDesc
+}
+import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.HierarchyChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.DumbbellPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 
 import java.util.UUID
@@ -108,6 +121,7 @@ trait StateTransferFunc
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
+    new Type(value = classOf[WordCloudV2OpDesc], name = "WordCloudV2"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[UrlVizOpDesc], name = "URLVisualizer"),
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),
@@ -133,12 +147,22 @@ trait StateTransferFunc
     new Type(value = classOf[CSVOldScanSourceOpDesc], name = "CSVOldFileScan"),
     new Type(value = classOf[RedditSearchSourceOpDesc], name = "RedditSearch"),
     new Type(value = classOf[PythonLambdaFunctionOpDesc], name = "PythonLambdaFunction"),
+    new Type(value = classOf[PythonTableReducerOpDesc], name = "PythonTableReducer"),
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
-    new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct")
+    new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
+    new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
+    new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
+    new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
+    new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeries"),
+    new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
+    new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
+    new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
+    new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
+    new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot")
   )
 )
-abstract class OperatorDescriptor extends Serializable {
+abstract class OperatorDescriptor extends PortDescriptor with Serializable {
 
   @JsonIgnore
   var context: WorkflowContext = _
@@ -176,13 +200,9 @@ abstract class OperatorDescriptor extends Serializable {
     Array.fill(1)(getOutputSchema(schemas))
   }
 
-  def validate(): Array[ConstraintViolation] = {
-    Array()
-  }
-
   override def hashCode: Int = HashCodeBuilder.reflectionHashCode(this)
 
-  override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that)
+  override def equals(that: Any): Boolean = EqualsBuilder.reflectionEquals(this, that, "context")
 
   override def toString: String = ToStringBuilder.reflectionToString(this)
 

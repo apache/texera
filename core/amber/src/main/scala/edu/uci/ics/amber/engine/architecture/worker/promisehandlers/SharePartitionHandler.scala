@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.ReshapePartitioner
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SharePartitionHandler.SharePartition
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -17,7 +17,7 @@ object SharePartitionHandler {
 }
 
 trait SharePartitionHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   /**
     * Used by Reshape to share the input of skewed worker with the helper worker.
@@ -53,7 +53,7 @@ trait SharePartitionHandler {
   }
   registerHandler { (cmd: SharePartition, sender) =>
     sharePartition(
-      outputManager,
+      dp.outputManager,
       cmd.skewedReceiverId,
       cmd.helperReceiverId,
       cmd.tuplesToRedirectNumerator,

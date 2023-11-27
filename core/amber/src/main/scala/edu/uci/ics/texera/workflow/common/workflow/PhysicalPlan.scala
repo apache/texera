@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
+
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -34,24 +35,27 @@ case class PhysicalPlan(
     operators: List[OpExecConfig],
     links: List[LinkIdentity],
     linkStrategies: Map[LinkIdentity, LinkStrategy] = Map(),
-    pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] = null
+    regionsToSchedule: List[PipelinedRegion] = List.empty,
+    regionAncestorMapping: Map[PipelinedRegion, Set[PipelinedRegion]] = Map.empty
 ) {
 
-  lazy val operatorMap: Map[LayerIdentity, OpExecConfig] = operators.map(o => (o.id, o)).toMap
+  @transient lazy val operatorMap: Map[LayerIdentity, OpExecConfig] =
+    operators.map(o => (o.id, o)).toMap
 
-  lazy val dag: DirectedAcyclicGraph[LayerIdentity, DefaultEdge] = {
+  // the dag will be re-computed again once it reaches the coordinator.
+  @transient lazy val dag: DirectedAcyclicGraph[LayerIdentity, DefaultEdge] = {
     val jgraphtDag = new DirectedAcyclicGraph[LayerIdentity, DefaultEdge](classOf[DefaultEdge])
     operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
     links.foreach(l => jgraphtDag.addEdge(l.from, l.to))
     jgraphtDag
   }
 
-  lazy val allOperatorIds: Iterable[LayerIdentity] = operatorMap.keys
+  @transient lazy val allOperatorIds: Iterable[LayerIdentity] = operatorMap.keys
 
-  lazy val sourceOperators: List[LayerIdentity] =
+  @transient lazy val sourceOperators: List[LayerIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toList
 
-  lazy val sinkOperators: List[LayerIdentity] =
+  @transient lazy val sinkOperators: List[LayerIdentity] =
     operatorMap.keys
       .filter(op => dag.outDegreeOf(op) == 0)
       .toList
@@ -59,6 +63,28 @@ case class PhysicalPlan(
   def getSourceOperators: List[LayerIdentity] = this.sourceOperators
 
   def getSinkOperators: List[LayerIdentity] = this.sinkOperators
+
+  def findLayerForInputPort(opName: OperatorIdentity, portName: String): LayerIdentity = {
+    val candidateLayers = layersOfLogicalOperator(opName).filter(op =>
+      op.inputPorts.map(_.displayName).contains(portName)
+    )
+    assert(
+      candidateLayers.size == 1,
+      s"find no or multiple input port with name = $portName for operator $opName"
+    )
+    candidateLayers.head.id
+  }
+
+  def findLayerForOutputPort(opName: OperatorIdentity, portName: String): LayerIdentity = {
+    val candidateLayers = layersOfLogicalOperator(opName).filter(op =>
+      op.outputPorts.map(_.displayName).contains(portName)
+    )
+    assert(
+      candidateLayers.size == 1,
+      s"find no or multiple output port with name = $portName for operator $opName"
+    )
+    candidateLayers.head.id
+  }
 
   def layersOfLogicalOperator(opId: OperatorIdentity): List[OpExecConfig] = {
     topologicalIterator()
@@ -106,16 +132,14 @@ case class PhysicalPlan(
     new TopologicalOrderIterator(dag).asScala
   }
 
-  def getAllRegions(): List[PipelinedRegion] = {
-    asScalaIterator(pipelinedRegionsDAG.iterator()).toList
-  }
+  def getAllRegions(): List[PipelinedRegion] = regionsToSchedule
 
   def getOperatorsInRegion(region: PipelinedRegion): PhysicalPlan = {
     val newOpIds = region.getOperators()
     val newOps = operators.filter(op => newOpIds.contains(op.id))
     val newLinks = links.filter(l => newOpIds.contains(l.from) && newOpIds.contains(l.to))
     val newLinkStrategies = linkStrategies.filter(l => newLinks.contains(l._1))
-    PhysicalPlan(newOps, newLinks, newLinkStrategies, pipelinedRegionsDAG)
+    PhysicalPlan(newOps, newLinks, newLinkStrategies, regionsToSchedule, regionAncestorMapping)
   }
 
   // returns a new physical plan with the operators added
@@ -123,19 +147,18 @@ case class PhysicalPlan(
     this.copy(operators = opExecConfig :: operators)
   }
 
-  // returns a new physical plan with the edges added
   def addEdge(
       from: LayerIdentity,
+      fromPort: Int,
       to: LayerIdentity,
-      fromPort: Int = 0,
-      toPort: Int = 0
+      toPort: Int
   ): PhysicalPlan = {
 
     val newOperators = operatorMap +
-      (from -> operatorMap(from).addOutput(to, fromPort)) +
-      (to -> operatorMap(to).addInput(from, toPort))
+      (from -> operatorMap(from).addOutput(to, fromPort, toPort)) +
+      (to -> operatorMap(to).addInput(from, fromPort, toPort))
 
-    val newLinks = links :+ LinkIdentity(from, to)
+    val newLinks = links :+ LinkIdentity(from, fromPort, to, toPort)
     this.copy(operators = newOperators.values.toList, links = newLinks)
   }
 
@@ -146,10 +169,10 @@ case class PhysicalPlan(
     val from = edge.from
     val to = edge.to
     val newOperators = operatorMap +
-      (from -> operatorMap(from).removeOutput(to)) +
-      (to -> operatorMap(to).removeInput(from))
+      (from -> operatorMap(from).removeOutput(edge)) +
+      (to -> operatorMap(to).removeInput(edge))
 
-    val newLinks = links.filter(l => l != LinkIdentity(from, to))
+    val newLinks = links.filter(l => l != edge)
     this.copy(operators = newOperators.values.toList, links = newLinks)
   }
 
