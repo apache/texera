@@ -36,7 +36,7 @@ class UserDiscussionResource {
         user.getEmail,
         user.getEmail,
         "1",
-        hashed,
+        hashed
       )
       .execute()
   }
