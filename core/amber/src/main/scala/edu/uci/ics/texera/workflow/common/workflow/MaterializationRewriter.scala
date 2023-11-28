@@ -108,7 +108,8 @@ class MaterializationRewriter(
         fromOp.copy(
           // update the output mapping by replacing the original link with the new link to materialization.
           outputToOrdinalMapping =
-            fromOp.outputToOrdinalMapping - linkId + (sourceToWriterLink -> fromOutputPortIdx)
+            fromOp.outputToOrdinalMapping - linkId + (sourceToWriterLink -> fromOutputPortIdx),
+          blockingOutputs = fromOp.blockingOutputs.filter(e => e != fromOutputPortIdx)
         )
       )
   }

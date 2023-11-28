@@ -164,7 +164,7 @@ class WorkflowPipelinedRegionsBuilder(
 
         val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
           findAllLinks(upstreamOp, opId)
-            .forall(link => physicalPlan.operatorMap(opId).isInputBlocking(link))
+            .forall(link => physicalPlan.operatorMap(opId).isInputBlocking(link) || physicalPlan.operatorMap(upstreamOp).isOutputBlocking(link))
         )
         if (allInputBlocking) {
           upstreamOps.foreach(upstreamOp => {
@@ -232,7 +232,7 @@ class WorkflowPipelinedRegionsBuilder(
         upstreamOps.foreach(upstreamOp => {
           findAllLinks(upstreamOp, opId).foreach(linkFromUpstreamOp => {
             if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp) ||
-                physicalPlan.operatorMap(upstreamOp).isOutputBlocking(linkFromUpstreamOp)) {
+              physicalPlan.operatorMap(upstreamOp).isOutputBlocking(linkFromUpstreamOp)) {
               val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
               for (prevInOrderRegion <- prevInOrderRegions) {
                 if (
