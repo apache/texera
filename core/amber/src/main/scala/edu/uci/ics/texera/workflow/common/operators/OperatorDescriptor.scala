@@ -36,13 +36,11 @@ import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
   TwitterSearchSourceOpDesc
 }
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
+import edu.uci.ics.texera.workflow.operators.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csvOld.CSVOldScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.scan.text.{
-  FileScanSourceOpDesc,
-  TextInputSourceOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.source.scan.text.TextInputSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSourceOpDesc

@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils
+import edu.uci.ics.texera.workflow.operators.source.scan.FileAttributeType
 
 class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc)
     extends SourceOperatorExecutor {

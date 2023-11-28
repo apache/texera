@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.source.scan.text;
+package edu.uci.ics.texera.workflow.operators.source.scan;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
