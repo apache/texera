@@ -7,9 +7,10 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 import edu.uci.ics.texera.workflow.operators.source.scan.FileAttributeType
 
 /**
-  * TextSourceOpDesc is a trait holding commonly used properties and functions
-  * used for variations of text input processing
-  */
+ * TextSourceOpDesc is a trait holding commonly used properties and functions used for variations of text input processing
+ * Create new, identical limit and offset fields with additional annotations to make hideable binary attributes
+ * and strings that are in outputAsSingleTuple mode will always read the entire input, so limit / offset are disabled in these cases
+ */
 trait TextSourceOpDesc {
   @JsonProperty(defaultValue = "string", required = true)
   @JsonSchemaTitle("Attribute Type")
