@@ -17,7 +17,7 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    val fileEntries: Iterator[InputStream] = if (desc.unzip) {
+    val fileEntries: Iterator[InputStream] = if (desc.extract) {
       val zipReader = new ZipFile(desc.filePath.get)
       zipReader
         .entries()
