@@ -17,24 +17,28 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    if (desc.unzip) {
-      val zipReader = new ZipFile(desc.filePath.get)
-      val entries = zipReader.entries().asScala.filterNot(entry => entry.getName.startsWith("__MACOSX"))
-      if (desc.attributeType.isSingle) {
-        entries.map(entry => produceSingleTuple(toByteArray(zipReader.getInputStream(entry))))
-      } else {
-        entries.flatMap(entry => multipleTuple(zipReader.getInputStream(entry)))
-      }
+    val filePath = desc.filePath.getOrElse(throw new RuntimeException("Empty file path accepted."))
+
+    val fileEntries: Iterator[InputStream] = if (desc.unzip) {
+      val zipReader = new ZipFile(filePath)
+      zipReader.entries()
+        .asScala
+        .filterNot(entry => entry.getName.startsWith("__MACOSX"))
+        .map(entry => zipReader.getInputStream(entry))
     } else {
-      if (desc.attributeType.isSingle) {
-        Iterator(produceSingleTuple(Files.readAllBytes(Paths.get(desc.filePath.get))))
-      } else {
-        multipleTuple(new FileInputStream(desc.filePath.get))
-      }
+      Iterator(new FileInputStream(filePath))
+    }
+
+
+    if (desc.attributeType.isSingle) {
+      fileEntries.map(entry => produceSingleTuple(entry))
+    } else {
+      fileEntries.flatMap(entry => produceMultiTuples(entry))
     }
   }
 
-  private def produceSingleTuple(field: Object): Tuple =
+  private def produceSingleTuple(stream: InputStream): Tuple = {
+    val line = toByteArray(stream)
     Tuple
       .newBuilder(desc.sourceSchema())
       .add(
@@ -45,8 +49,9 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
         }
       )
       .build()
+  }
 
-  private def multipleTuple(stream: InputStream): Iterator[Tuple] = {
+  private def produceMultiTuples(stream: InputStream): Iterator[Tuple] = {
     new BufferedReader(new InputStreamReader(stream, desc.encoding.getCharset))
       .lines()
       .iterator()
@@ -55,7 +60,8 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
         desc.fileScanOffset.getOrElse(0),
         desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
       )
-      .map(line => produceSingleTuple(line))
+      .map(line => produceSingleTuple( new ByteArrayInputStream(line.getBytes))
+      )
   }
 
   override def open(): Unit = {}
