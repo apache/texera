@@ -22,7 +22,10 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
     OpExecConfig.localLayer(operatorIdentifier, _ => new TextInputSourceOpExec(this))
 
   override def sourceSchema(): Schema =
-    new Schema(new Attribute(attributeName, attributeType.getType))
+    Schema
+      .newBuilder()
+      .add(new Attribute(attributeName, attributeType.getType))
+      .build()
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

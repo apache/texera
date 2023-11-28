@@ -34,5 +34,8 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
     OpExecConfig.localLayer(operatorIdentifier, _ => new FileScanSourceOpExec(this))
 
   override def inferSchema(): Schema =
-    new Schema(new Attribute(attributeName, attributeType.getType))
+    Schema
+      .newBuilder()
+      .add(new Attribute(attributeName, attributeType.getType))
+      .build()
 }
