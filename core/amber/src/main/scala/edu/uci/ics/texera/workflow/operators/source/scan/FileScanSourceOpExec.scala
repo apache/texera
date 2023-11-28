@@ -2,14 +2,14 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import org.apache.commons.io.IOUtils.toByteArray
 
 import java.io._
 import java.util.zip.ZipFile
 import scala.jdk.CollectionConverters.{asScalaIteratorConverter, enumerationAsScalaIteratorConverter}
 
-class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
+class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
     extends SourceOperatorExecutor {
 
   @throws[IOException]
@@ -25,7 +25,7 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
     }
 
     if (desc.attributeType.isSingle) {
-      fileEntries.map(entry => produceSingleTuple(entry))
+      fileEntries.map(entry => produceSingleTuple(toByteArray(entry)))
     } else {
       fileEntries.flatMap(entry => new BufferedReader(new InputStreamReader(entry, desc.encoding.getCharset))
         .lines()
@@ -35,20 +35,19 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
           desc.fileScanOffset.getOrElse(0),
           desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
         )
-        .map(line => produceSingleTuple(new ByteArrayInputStream(line.getBytes))
+        .map(line => produceSingleTuple(line)
         ))
     }
   }
 
-  private def produceSingleTuple(stream: InputStream): Tuple = {
-    val line = toByteArray(stream)
+  private def produceSingleTuple(field: Object): Tuple = {
     Tuple
       .newBuilder(desc.sourceSchema())
       .add(
         desc.sourceSchema().getAttributes.get(0),
         desc.attributeType match {
-          case FileAttributeType.SINGLE_STRING => new String(line, desc.encoding.getCharset)
-          case _ => AttributeTypeUtils.parseField(line, desc.attributeType.getType)
+          case FileAttributeType.SINGLE_STRING => new String(field.asInstanceOf[Array[Byte]], desc.encoding.getCharset)
+          case _ => parseField(field, desc.attributeType.getType)
         }
       )
       .build()
