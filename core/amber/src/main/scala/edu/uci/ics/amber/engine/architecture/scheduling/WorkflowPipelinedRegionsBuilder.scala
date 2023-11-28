@@ -141,31 +141,38 @@ class WorkflowPipelinedRegionsBuilder(
               case _: java.lang.IllegalArgumentException =>
                 // edge causes a cycle
                 this.physicalPlan = materializationRewriter
-                  .addMaterializationToLink(physicalPlan, logicalPlan, inputProcessingOrderForOp(i))
+                  .addMaterializationToLink(
+                    physicalPlan,
+                    logicalPlan,
+                    inputProcessingOrderForOp(i),
+                    materializationWriterReaderPairs
+                  )
                 return false
             }
           }
         }
 
-        // For operators that have only blocking input links. e.g. Sort, Groupby
+        // For operators that have only blocking input links. add materialization to all input links.
         val upstreamOps = physicalPlan.getUpstream(opId)
 
         val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
           findAllLinks(upstreamOp, opId)
             .forall(link => physicalPlan.operatorMap(opId).isInputBlocking(link))
         )
-        if (allInputBlocking)
+        if (allInputBlocking) {
           upstreamOps.foreach(upstreamOp => {
-            try {
-              addEdgeBetweenRegions(upstreamOp, opId)
-            } catch {
-              case _: java.lang.IllegalArgumentException =>
-                // edge causes a cycle. Code shouldn't reach here.
-                throw new WorkflowRuntimeException(
-                  s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${upstreamOp.toString} and ${opId.toString}"
+            findAllLinks(upstreamOp, opId).foreach { link =>
+              this.physicalPlan = materializationRewriter
+                .addMaterializationToLink(
+                  physicalPlan,
+                  logicalPlan,
+                  link,
+                  materializationWriterReaderPairs
                 )
             }
           })
+          return false
+        }
       })
 
     // add dependencies between materialization writer and reader regions
