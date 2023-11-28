@@ -3,14 +3,11 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
+import org.apache.commons.compress.archivers.ArchiveStreamFactory
 import org.apache.commons.io.IOUtils.toByteArray
 
 import java.io._
-import java.util.zip.ZipFile
-import scala.jdk.CollectionConverters.{
-  asScalaIteratorConverter,
-  enumerationAsScalaIteratorConverter
-}
+import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
 class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
     extends SourceOperatorExecutor {
@@ -18,12 +15,14 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
     val fileEntries: Iterator[InputStream] = if (desc.extract) {
-      val zipReader = new ZipFile(desc.filePath.get)
-      zipReader
-        .entries()
-        .asScala
-        .filterNot(entry => entry.getName.startsWith("__MACOSX"))
-        .map(entry => zipReader.getInputStream(entry))
+      val input = new ArchiveStreamFactory().createArchiveInputStream(
+        new BufferedInputStream(new FileInputStream(desc.filePath.get))
+      )
+      Iterator
+        .continually(input.getNextEntry)
+        .takeWhile(_ != null)
+        .filterNot(_.getName.startsWith("__MACOSX"))
+        .map(_ => input)
     } else {
       Iterator(new FileInputStream(desc.filePath.get))
     }
