@@ -44,8 +44,8 @@ class FileScanSourceOpExec private[text] (val desc: FileScanSourceOpDesc)
       .add(
         desc.sourceSchema().getAttributes.get(0),
         desc.attributeType match {
-          case FileAttributeType.SINGLE_STRING => new String(field.asInstanceOf[Array[Byte]], desc.encoding.getCharset)
-          case _ => AttributeTypeUtils.parseField(field, desc.attributeType.getType)
+          case FileAttributeType.SINGLE_STRING => new String(line, desc.encoding.getCharset)
+          case _ => AttributeTypeUtils.parseField(line, desc.attributeType.getType)
         }
       )
       .build()
