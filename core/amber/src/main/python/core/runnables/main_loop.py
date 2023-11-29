@@ -337,7 +337,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _check_exception(self) -> None:
         if self.context.exception_manager.has_exception():
-            self._check_and_report_print(force_flush=True)
+            self._check_and_report_console_messages(force_flush=True)
             self.context.pause_manager.pause(PauseType.EXCEPTION_PAUSE)
 
     def _check_and_report_console_messages(self, force_flush=False) -> None:
