@@ -13,9 +13,8 @@ class PauseType(Enum):
     NO_PAUSE = 0
     USER_PAUSE = 1
     SCHEDULER_TIME_SLOT_EXPIRED_PAUSE = 2
-    BACKPRESSURE_PAUSE = 3
-    DEBUG_PAUSE = 4
-    EXCEPTION_PAUSE = 5
+    DEBUG_PAUSE = 3
+    EXCEPTION_PAUSE = 4
 
 
 class PauseManager:
