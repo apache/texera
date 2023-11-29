@@ -84,8 +84,6 @@ class WorkflowPipelinedRegionsBuilder(
       })
     })
 
-    System.out.println("Edges to remove: " + edgesToRemove)
-
     val linksAfterRemoval = physicalPlan.links.filter(link => !edgesToRemove.contains(link))
     new PhysicalPlan(physicalPlan.operatorMap.values.toList, linksAfterRemoval)
   }
