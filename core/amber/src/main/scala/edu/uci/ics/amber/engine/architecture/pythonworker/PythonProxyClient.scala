@@ -1,11 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2,ActorMessageElement, DataElement}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ControlElement,
+  ControlElementV2,
+  ActorMessageElement,
+  DataElement
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
+  controlInvocationToV2,
+  returnInvocationToV2
+}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -23,8 +31,6 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
-
-
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
@@ -85,7 +91,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendControlV1(channel.from, cmd)
         case ControlElementV2(cmd, channel) =>
           sendControlV2(channel.from, cmd)
-        case ActorMessageElement(cmd, from)=>
+        case ActorMessageElement(cmd, from) =>
           sendActorMessage(from.from, cmd)
 
       }
@@ -129,11 +135,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   }
 
   def sendActorMessage(
-  from: ActorVirtualIdentity
-  ,
-  message: PythonActorMessage
-  ):
-  Result = {
+      from: ActorVirtualIdentity,
+      message: PythonActorMessage
+  ): Result = {
     val action: Action = new Action("actor", message.toByteArray)
 
     logger.info(s"sending actor message $message")

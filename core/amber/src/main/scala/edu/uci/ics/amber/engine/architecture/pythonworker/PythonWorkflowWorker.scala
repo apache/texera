@@ -5,7 +5,10 @@ import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkInputGateway, NetworkOutputGateway}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure, PythonActorMessage}
@@ -89,7 +92,10 @@ class PythonWorkflowWorker(
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {
-    pythonProxyClient.enqueueActorMessage( ChannelID(actorId, actorId, isControl = true),PythonActorMessage(Backpressure(isBackpressured)))
+    pythonProxyClient.enqueueActorMessage(
+      ChannelID(actorId, actorId, isControl = true),
+      PythonActorMessage(Backpressure(isBackpressured))
+    )
   }
 
   override def postStop(): Unit = {
