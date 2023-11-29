@@ -15,7 +15,6 @@ from core.architecture.handlers.modify_operator_logic_handler import (
 from core.architecture.handlers.monitoring_handler import MonitoringHandler
 from core.architecture.handlers.open_operator_handler import OpenOperatorHandler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
-from core.architecture.handlers.backpressure_handler import BackpressureHandler
 from core.architecture.handlers.query_current_input_tuple_handler import (
     QueryCurrentInputTupleHandler,
 )
@@ -54,7 +53,6 @@ class AsyncRPCServer:
         self._handlers: dict[type(ControlCommandV2), Handler] = dict()
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
-        self.register(BackpressureHandler())
         self.register(ResumeWorkerHandler())
         self.register(OpenOperatorHandler())
         self.register(AddPartitioningHandler())

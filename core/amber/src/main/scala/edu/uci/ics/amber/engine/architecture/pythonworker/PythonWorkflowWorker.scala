@@ -5,16 +5,12 @@ import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkInputGateway,
-  NetworkOutputGateway
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkInputGateway, NetworkOutputGateway}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, IgnoreReply}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.Utils
@@ -93,8 +89,7 @@ class PythonWorkflowWorker(
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {
-    val backpressureMessage = ControlInvocation(IgnoreReply, Backpressure(isBackpressured))
-    pythonProxyClient.enqueueCommand(backpressureMessage, ChannelID(SELF, SELF, isControl = true))
+    pythonProxyClient.enqueueActorMessage( ChannelID(actorId, actorId, isControl = true),PythonActorMessage(Backpressure(isBackpressured)))
   }
 
   override def postStop(): Unit = {

@@ -11,9 +11,10 @@ from core.models import (
 )
 from core.models.internal_queue import DataElement, ControlElement
 from core.proxy import ProxyServer
-from core.util import Stoppable
+from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, PythonDataHeader
+from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, \
+    PythonDataHeader, PythonActorMessage, Backpressure
 
 
 class NetworkReceiver(Runnable, Stoppable):
@@ -75,7 +76,27 @@ class NetworkReceiver(Runnable, Stoppable):
             )
             return shared_queue.in_mem_size()
 
+        @logger.catch(reraise=True)
+        def actor_message_handler(message: bytes) -> int:
+            """
+            Control handler for deserializing control messages
+
+            :param message:
+            :return: sender credits
+            """
+            python_control_message = PythonActorMessage().parse(message)
+            command = get_one_of(python_control_message.payload)
+            if isinstance(command, Backpressure):
+                if command.enable_backpressure:
+                    logger.info("backpressured!!!!")
+                    shared_queue.disable_data()
+                else:
+                    logger.info("released!!!")
+                    shared_queue.enable_data()
+            return shared_queue.in_mem_size()
+
         self._proxy_server.register_control_handler(control_handler)
+        self._proxy_server.register_actor_message_handler(actor_message_handler)
 
     def register_shutdown(self, shutdown: callable) -> None:
         self._proxy_server.register(

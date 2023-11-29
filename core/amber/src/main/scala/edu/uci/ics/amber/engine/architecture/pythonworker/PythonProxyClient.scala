@@ -1,17 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ControlElement,
-  ControlElementV2,
-  DataElement
-}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ControlElement, ControlElementV2,ActorMessageElement, DataElement}
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -29,6 +23,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     with AmberLogging
     with AutoCloseable
     with WorkerBatchInternalQueue {
+
+
 
   val allocator: BufferAllocator =
     new RootAllocator().newChildAllocator("flight-client", 0, Long.MaxValue)
@@ -89,6 +85,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendControlV1(channel.from, cmd)
         case ControlElementV2(cmd, channel) =>
           sendControlV2(channel.from, cmd)
+        case ActorMessageElement(cmd, from)=>
+          sendActorMessage(from.from, cmd)
+
       }
     }
   }
@@ -122,7 +121,33 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // extract info needed to calculate sender credits from ack
     // ackResult contains number of batches inside Python worker internal queue
     pythonQueueInMemSize = new String(result.getBody).toLong
+    logger.info(s"control updated queue size $pythonQueueInMemSize")
+    // However, we will only expect exactly one result for now.
+    assert(!results.hasNext)
 
+    result
+  }
+
+  def sendActorMessage(
+  from: ActorVirtualIdentity
+  ,
+  message: PythonActorMessage
+  ):
+  Result = {
+    val action: Action = new Action("actor", message.toByteArray)
+
+    logger.info(s"sending actor message $message")
+    // Arrow allows multiple results from the Action call return as a stream (interator).
+    // In Arrow 11, it alerts if the results are not consumed fully.
+    val results = flightClient.doAction(action)
+    // As we do our own Async RPC management, we are currently not using results from Action call.
+    // In the future, this results can include credits for flow control purpose.
+    val result = results.next()
+
+    // extract info needed to calculate sender credits from ack
+    // ackResult contains number of batches inside Python worker internal queue
+    pythonQueueInMemSize = new String(result.getBody).toLong
+    logger.info(s"updated queue size $pythonQueueInMemSize")
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
