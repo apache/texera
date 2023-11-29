@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
@@ -42,13 +42,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         OpExecConfig
           .localLayer(
             operatorIdentifier,
-            p => Left({
+            (() =>  Left(p => {
               val i = p._1
               val startOffset: Int = offsetValue + count / numWorkers * i
               val endOffset: Int =
                 offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
-            })
+            })):OpExecInitInfo
           )
           .copy(numWorkers = numWorkers)
 

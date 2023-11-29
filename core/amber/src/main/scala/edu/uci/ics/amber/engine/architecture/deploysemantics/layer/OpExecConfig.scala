@@ -9,59 +9,61 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
-import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, ISourceOperatorExecutor, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, VirtualIdentityUtils}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable.ArrayBuffer
 
-trait OpExecFunc extends (((Int, OpExecConfig)) => Either[IOperatorExecutor, Tuple3[String, Schema, Boolean]]) with java.io.Serializable
+trait OpExecFunc extends( ((Int, OpExecConfig)) => IOperatorExecutor) with java.io.Serializable
+trait OpExecInitInfo extends (()=> Either[OpExecFunc,String]) with java.io.Serializable
 
 object OpExecConfig {
 
-  def oneToOneLayer(opId: OperatorIdentity, opExec: OpExecFunc): OpExecConfig =
-    oneToOneLayer(layerId = makeLayer(opId, "main"), opExec)
+  def oneToOneLayer(opId: OperatorIdentity, opExecInitInfo: OpExecInitInfo): OpExecConfig =
+    oneToOneLayer(layerId = makeLayer(opId, "main"), opExecInitInfo)
 
-  def oneToOneLayer(layerId: LayerIdentity, opExec: OpExecFunc): OpExecConfig =
-    OpExecConfig(layerId, initIOperatorExecutor = opExec)
+  def oneToOneLayer(layerId: LayerIdentity, opExecInitInfo: OpExecInitInfo): OpExecConfig =
+    OpExecConfig(layerId, opExecInitInfo = opExecInitInfo)
 
-  def manyToOneLayer(opId: OperatorIdentity, opExec: OpExecFunc): OpExecConfig =
-    manyToOneLayer(makeLayer(opId, "main"), opExec)
+  def manyToOneLayer(opId: OperatorIdentity, opExecInitInfo: OpExecInitInfo): OpExecConfig =
+    manyToOneLayer(makeLayer(opId, "main"), opExecInitInfo)
 
-  def manyToOneLayer(layerId: LayerIdentity, opExec: OpExecFunc): OpExecConfig = {
+  def manyToOneLayer(layerId: LayerIdentity, opExecInitInfo: OpExecInitInfo): OpExecConfig = {
     OpExecConfig(
       layerId,
-      initIOperatorExecutor = opExec,
+      opExecInitInfo = opExecInitInfo,
       numWorkers = 1,
       partitionRequirement = List(Option(SinglePartition())),
       derivePartition = _ => SinglePartition()
     )
   }
 
-  def localLayer(opId: OperatorIdentity, opExec: OpExecFunc): OpExecConfig =
-    localLayer(makeLayer(opId, "main"), opExec)
+  def localLayer(opId: OperatorIdentity, opExecInitInfo: OpExecInitInfo): OpExecConfig =
+    localLayer(makeLayer(opId, "main"), opExecInitInfo)
 
-  def localLayer(layerId: LayerIdentity, opExec: OpExecFunc): OpExecConfig = {
-    manyToOneLayer(layerId, opExec).copy(locationPreference = Option(new PreferController()))
+  def localLayer(layerId: LayerIdentity, opExecInitInfo: OpExecInitInfo): OpExecConfig = {
+    manyToOneLayer(layerId, opExecInitInfo).copy(locationPreference = Option(new PreferController()))
   }
 
   def hashLayer(
-      opId: OperatorIdentity,
-      opExec: OpExecFunc,
-      hashColumnIndices: Array[Int]
+                 opId: OperatorIdentity,
+                 opExec: OpExecInitInfo,
+                 hashColumnIndices: Array[Int]
   ): OpExecConfig = hashLayer(makeLayer(opId, "main"), opExec, hashColumnIndices)
 
   def hashLayer(
-      layerId: LayerIdentity,
-      opExec: OpExecFunc,
-      hashColumnIndices: Array[Int]
+                 layerId: LayerIdentity,
+                 opExec: OpExecInitInfo,
+                 hashColumnIndices: Array[Int]
   ): OpExecConfig = {
     OpExecConfig(
       id = layerId,
-      initIOperatorExecutor = opExec,
+      opExecInitInfo = opExec,
       partitionRequirement = List(Option(HashPartition(hashColumnIndices))),
       derivePartition = _ => HashPartition(hashColumnIndices)
     )
@@ -70,66 +72,74 @@ object OpExecConfig {
 }
 
 case class OpExecConfig(
-    id: LayerIdentity,
-    // function to create an operator executor instance
-    // parameters: 1: worker index, 2: this worker layer object
-    initIOperatorExecutor: OpExecFunc,
-    // preference of parallelism (total number of workers)
-    numWorkers: Int = Constants.currentWorkerNum,
-    // preference of worker placement
-    locationPreference: Option[LocationPreference] = None,
-    // requirement of partition policy (hash/range/single/none) on inputs
-    partitionRequirement: List[Option[PartitionInfo]] = List(),
-    // derive the output partition info given the input partitions
-    // if not specified, by default the output partition is the same as input partition
-    derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
-    // input/output ports of the physical operator
-    // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: List[InputPort] = List(InputPort()),
-    outputPorts: List[OutputPort] = List(OutputPort()),
-    // mapping of all input/output operators connected on a specific input/output port index
-    inputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
-    outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
-    // input ports that are blocking
-    blockingInputs: List[Int] = List(),
-    // execution dependency of ports
-    dependency: Map[Int, Int] = Map(),
-    isOneToManyOp: Boolean = false
+                         id: LayerIdentity,
+                         // a function to return information regarding initializing an operator executor instance,
+                         // it could be two cases:
+                         //   - A function to create an operator executor instance,
+                         //       with parameters: 1) worker index, 2) this worker layer object;
+                         //   - A code string that to be compiled in a virtual machine.
+                         opExecInitInfo: OpExecInitInfo,
+                         // preference of parallelism (total number of workers)
+                         numWorkers: Int = Constants.currentWorkerNum,
+                         // input/output schemas
+                         schemaInfo: Option[OperatorSchemaInfo] = None,
+                         // preference of worker placement
+                         locationPreference: Option[LocationPreference] = None,
+                         // requirement of partition policy (hash/range/single/none) on inputs
+                         partitionRequirement: List[Option[PartitionInfo]] = List(),
+                         // derive the output partition info given the input partitions
+                         // if not specified, by default the output partition is the same as input partition
+                         derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+                         // input/output ports of the physical operator
+                         // for operators with multiple input/output ports: must set these variables properly
+                         inputPorts: List[InputPort] = List(InputPort()),
+                         outputPorts: List[OutputPort] = List(OutputPort()),
+                         // mapping of all input/output operators connected on a specific input/output port index
+                         inputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
+                         outputToOrdinalMapping: Map[LinkIdentity, Int] = Map(),
+                         // input ports that are blocking
+                         blockingInputs: List[Int] = List(),
+                         // execution dependency of ports
+                         dependency: Map[Int, Int] = Map(),
+                         isOneToManyOp: Boolean = false
 ) {
 
   // all the "dependee" links are also blocking inputs
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
-  // return the runtime class of the corresponding OperatorExecutor
-  lazy val tempOperatorInstance: Either[IOperatorExecutor, Tuple3[String, Schema, Boolean]] = initIOperatorExecutor((0, this))
+  // flag that if this operator will be early initialized with a OpExecFunc, or late initialized with a code String.
+  lazy val isLateInit: Boolean = opExecInitInfo().isRight
 
   /*
    * Helper functions related to compile-time operations
    */
 
   def isSourceOperator: Boolean = {
-    tempOperatorInstance match {
-      case Left(exec) => exec.isInstanceOf[ISourceOperatorExecutor]
-      case Right((code, schema, isSource)) => isSource
-    }
+    inputPorts.isEmpty
   }
 
   def isPythonOperator: Boolean = {
-    tempOperatorInstance.isRight
+    isLateInit // currently, only Python operators are being late initialized.
+  }
+
+  def isHashJoinOperator: Boolean = {
+    val initInfo = opExecInitInfo()
+    initInfo.isLeft && initInfo.left.get.apply((0, this)).isInstanceOf[HashJoinOpExec[_]]
   }
 
   def getPythonCode: String = {
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    tempOperatorInstance.right.get._1
+    opExecInitInfo().right.get
   }
 
   def getOutputSchema: Schema = {
+
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    tempOperatorInstance.right.get._2
+    schemaInfo.get.outputSchemas.head
   }
 
   // creates a copy with the specified port information
@@ -177,6 +187,9 @@ case class OpExecConfig(
   // creates a copy with the specified property that whether this operator is one-to-many
   def withIsOneToManyOp(isOneToManyOp: Boolean): OpExecConfig =
     this.copy(isOneToManyOp = isOneToManyOp)
+
+  // creates a copy with the schema information
+  def withOperatorSchemaInfo(schemaInfo: OperatorSchemaInfo): OpExecConfig = this.copy(schemaInfo = Some(schemaInfo))
 
   // returns all input links on a specific input port
   def getInputLinks(portIndex: Int): List[LinkIdentity] = {

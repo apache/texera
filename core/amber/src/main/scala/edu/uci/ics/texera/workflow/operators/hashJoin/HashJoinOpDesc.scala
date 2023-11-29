@@ -3,17 +3,9 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo}
@@ -82,13 +74,12 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
     OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
-        _ =>
-          Left(new HashJoinOpExec[K](
+        (() =>  Left(_ => new HashJoinOpExec[K](
             buildAttributeName,
             probeAttributeName,
             joinType,
             operatorSchemaInfo
-          ))
+          ))):OpExecInitInfo,
       )
       .copy(
         inputPorts = operatorInfo.inputPorts,

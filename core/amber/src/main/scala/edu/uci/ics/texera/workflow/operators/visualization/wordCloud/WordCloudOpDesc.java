@@ -5,8 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
-import edu.uci.ics.amber.engine.common.IOperatorExecutor;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.util;
@@ -23,7 +22,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
-import scala.reflect.ClassTag;
 import scala.util.Left;
 
 import java.io.Serializable;
@@ -76,7 +74,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
         OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new Left<>(new WordCloudOpPartialExec(textColumn))
+                (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new WordCloudOpPartialExec(textColumn))
         ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
@@ -84,7 +82,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
         OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i ->new Left<>( new WordCloudOpFinalExec(topN))
+                        (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new WordCloudOpFinalExec(topN))
         ).withId(finalId).withIsOneToManyOp(true)
                 .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 

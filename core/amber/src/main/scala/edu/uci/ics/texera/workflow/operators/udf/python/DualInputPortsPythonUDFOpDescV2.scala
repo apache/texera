@@ -3,13 +3,8 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
@@ -70,7 +65,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          _ => Right(Tuple3(code, operatorSchemaInfo.outputSchemas.head, false))
+          () => Right(code)
         )
         .copy(
           numWorkers = workers,
@@ -83,7 +78,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
-          _ => Right(Tuple3(code, operatorSchemaInfo.outputSchemas.head, false))
+          () => Right(code)
         )
         .copy(
           blockingInputs = List(0),

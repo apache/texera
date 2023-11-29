@@ -4,15 +4,10 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, IOException}
@@ -34,7 +29,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
@@ -46,19 +41,19 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
         OpExecConfig.oneToOneLayer(
           operatorIdentifier,
-          p => {
+          (() =>  Left(p => {
             val i = p._1
             // TODO: add support for limit
             // TODO: add support for offset
             val startOffset: Long = totalBytes / numWorkers * i
             val endOffset: Long =
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
-            Left(new ParallelCSVScanSourceOpExec(
+            new ParallelCSVScanSourceOpExec(
               this,
               startOffset,
               endOffset
-            ))
-          }
+            )}
+            )):OpExecInitInfo
         )
 
       case None =>

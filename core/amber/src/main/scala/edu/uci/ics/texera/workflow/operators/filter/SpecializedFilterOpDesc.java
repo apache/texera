@@ -3,15 +3,13 @@ package edu.uci.ics.texera.workflow.operators.filter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
-import edu.uci.ics.amber.engine.common.IOperatorExecutor;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
-import scala.reflect.ClassTag;
 import scala.util.Left;
 
 import java.io.Serializable;
@@ -29,7 +27,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return OpExecConfig.oneToOneLayer(
                 operatorIdentifier(),
-                (OpExecFunc & Serializable) worker -> new Left<>(new SpecializedFilterOpExec(this)));
+                (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new SpecializedFilterOpExec(this)));
     }
 
     @Override

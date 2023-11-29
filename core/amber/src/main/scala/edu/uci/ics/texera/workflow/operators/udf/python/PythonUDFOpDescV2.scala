@@ -90,7 +90,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          _ => Right(Tuple3(code, operatorSchemaInfo.outputSchemas.head, false))
+          () => Right(code)
         )
         .copy(
           numWorkers = workers,
@@ -100,12 +100,12 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
           outputPorts = opInfo.outputPorts,
           partitionRequirement = partitionRequirement,
           dependency = dependency
-        )
+        ).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
-          _ => Right(Tuple3(code, operatorSchemaInfo.outputSchemas.head, false))
+          () => Right(code)
         )
         .copy(
           derivePartition = _ => UnknownPartition(),
@@ -114,7 +114,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
           outputPorts = opInfo.outputPorts,
           partitionRequirement = partitionRequirement,
           dependency = dependency
-        )
+        ).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo = {

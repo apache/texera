@@ -5,8 +5,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
-import edu.uci.ics.amber.engine.common.IOperatorExecutor;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -15,7 +14,6 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.reflect.ClassTag;
 import scala.util.Left;
 
 import java.io.Serializable;
@@ -35,7 +33,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
         return OpExecConfig.oneToOneLayer(operatorIdentifier(),
-                (OpExecFunc & Serializable) worker -> new Left<>(new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])));
+                (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])));
     }
 
     @Override

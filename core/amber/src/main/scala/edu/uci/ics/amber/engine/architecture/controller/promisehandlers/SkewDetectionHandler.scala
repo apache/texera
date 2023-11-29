@@ -234,7 +234,7 @@ object SkewDetectionHandler {
   def getPreviousWorkerLayer(opId: LayerIdentity, workflow: Workflow): OpExecConfig = {
     val upstreamLayers = workflow.getUpStreamConnectedWorkerLayers(opId).values.toList
 
-    if (workflow.getOperator(opId).tempOperatorInstance.isLeft && workflow.getOperator(opId).tempOperatorInstance.left.get.isInstanceOf[HashJoinOpExec[_]]) {
+    if (workflow.getOperator(opId).isHashJoinOperator) {
       upstreamLayers
         .find(layer => {
           val buildTableLinkId = layer.inputToOrdinalMapping.find(input => input._2 == 0).get._1
@@ -372,7 +372,7 @@ trait SkewDetectionHandler {
       workflowReshapeState.detectionCallCount += 1
 
       cp.workflow.getAllOperators.foreach(opConfig => {
-        if (opConfig.tempOperatorInstance.isLeft && opConfig.tempOperatorInstance.left.get.isInstanceOf[HashJoinOpExec[_]]) {
+        if (opConfig.isHashJoinOperator) {
           // Skew handling is only for hash-join operator for now.
           // 1: Find the skewed and helper worker that need first phase.
           val skewedAndHelperPairsForFirstPhase =

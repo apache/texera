@@ -1,14 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.randomksampling
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
@@ -29,8 +24,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   @JsonIgnore
   def getSeed(index: Int): Int = seeds(index)
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, p => Left(new RandomKSamplingOpExec(p._1, this)))
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    OpExecConfig.oneToOneLayer(operatorIdentifier, (() =>  Left(p => new RandomKSamplingOpExec(p._1, this))):OpExecInitInfo)
   }
 
   override def operatorInfo: OperatorInfo =

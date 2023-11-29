@@ -1,35 +1,15 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
-import com.fasterxml.jackson.annotation.{
-  JsonIgnoreProperties,
-  JsonProperty,
-  JsonPropertyDescription
-}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList,
-  UIWidget
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList, UIWidget}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
-  fetchDataTypeFields,
-  queryAsterixDB
-}
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{fetchDataTypeFields, queryAsterixDB}
 import kong.unirest.json.JSONObject
 
 import java.util.Collections.singletonList
@@ -97,11 +77,10 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   )
   override def getKeywords: Option[String] = super.getKeywords
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     OpExecConfig.localLayer(
       this.operatorIdentifier,
-      _ =>
-        Left(new AsterixDBSourceOpExec(
+      (() =>  Left(_ => new AsterixDBSourceOpExec(
           sourceSchema(),
           host,
           port,
@@ -125,7 +104,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           regex.orNull,
           filterCondition.getOrElse(false),
           filterPredicates
-        ))
+        ))):OpExecInitInfo
     )
 
   override def sourceSchema(): Schema = {

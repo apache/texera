@@ -1,19 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaDescription,
-  JsonSchemaInject,
-  JsonSchemaTitle
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
 class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
@@ -32,11 +23,11 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaDescription("Maximum number of tweets to retrieve")
   var limit: Int = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     // TODO: use multiple workers
     OpExecConfig.manyToOneLayer(
       operatorIdentifier,
-      _ => Left(new TwitterSearchSourceOpExec(this, operatorSchemaInfo))
+      (() =>  Left(_ => new TwitterSearchSourceOpExec(this, operatorSchemaInfo))):OpExecInitInfo
     )
 
   override def sourceSchema(): Schema = {

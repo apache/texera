@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.sink.managed;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -48,7 +48,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return OpExecConfig.localLayer(
                 operatorIdentifier(),
-                (OpExecFunc & Serializable) p -> new Left<>(new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()))
+                (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()))
         ).withPorts(this.operatorInfo());
     }
 

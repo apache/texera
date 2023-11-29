@@ -7,24 +7,23 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends OperatorDescriptor {
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
     if (asSource()) {
+
       OpExecConfig
         .localLayer(
           operatorIdentifier,
-          _ =>
-            Right(Tuple3(generatedCode, operatorSchemaInfo.outputSchemas.head, true))
+          () => Right(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          _ =>
-            Right(Tuple3(generatedCode, operatorSchemaInfo.outputSchemas.head, false))
+          () => Right(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 

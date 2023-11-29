@@ -1,11 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.cache
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
@@ -22,10 +18,10 @@ class CacheSourceOpDesc(val targetSinkStorageId: String, opResultStorage: OpResu
 
   override def sourceSchema(): Schema = schema
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     OpExecConfig.localLayer(
       operatorIdentifier,
-      _ => Left(new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))
+      (() =>  Left(_ => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))):OpExecInitInfo
     )
   }
 
