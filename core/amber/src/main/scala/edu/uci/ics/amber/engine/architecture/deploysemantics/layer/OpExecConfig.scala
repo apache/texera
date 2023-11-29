@@ -4,28 +4,14 @@ import akka.actor.Deploy
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, OperatorExecution}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
-  AddressInfo,
-  LocationPreference,
-  PreferController,
-  RoundRobinPreference
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
-import edu.uci.ics.amber.engine.common.{
-  Constants,
-  IOperatorExecutor,
-  ISourceOperatorExecutor,
-  VirtualIdentityUtils
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.{Constants, IOperatorExecutor, ISourceOperatorExecutor, VirtualIdentityUtils}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
 import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
@@ -33,7 +19,7 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable.ArrayBuffer
 
-trait OpExecFunc extends (((Int, OpExecConfig)) => Either[IOperatorExecutor, String]) with java.io.Serializable
+trait OpExecFunc extends (((Int, OpExecConfig)) => Either[IOperatorExecutor, Tuple2[String, Schema]]) with java.io.Serializable
 
 object OpExecConfig {
 
@@ -116,7 +102,7 @@ case class OpExecConfig(
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
   // return the runtime class of the corresponding OperatorExecutor
-  lazy val tempOperatorInstance: Either[IOperatorExecutor, String] = initIOperatorExecutor((0, this))
+  lazy val tempOperatorInstance: Either[IOperatorExecutor, Tuple2[String, Schema]] = initIOperatorExecutor((0, this))
 //  lazy val opExecClass: Class[_ <: IOperatorExecutor] =
 //    tempOperatorInstance.left.getClass
 
@@ -125,7 +111,10 @@ case class OpExecConfig(
    */
 
   def isSourceOperator: Boolean = {
-    tempOperatorInstance.left.get.isInstanceOf[ISourceOperatorExecutor]
+    tempOperatorInstance match {
+      case Left(exec) => exec.isInstanceOf[ISourceOperatorExecutor]
+      case Right((code, schema)) => false
+    }
   }
 
   def isPythonOperator: Boolean = {
@@ -136,7 +125,14 @@ case class OpExecConfig(
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    tempOperatorInstance.asInstanceOf[PythonUDFOpExecV2].getCode
+    tempOperatorInstance.right.get._1
+  }
+
+  def getOutputSchema: Schema = {
+    if (!isPythonOperator) {
+      throw new RuntimeException("operator " + id + " is not a python operator")
+    }
+    tempOperatorInstance.right.get._2
   }
 
   // creates a copy with the specified port information

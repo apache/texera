@@ -94,7 +94,7 @@ class DataProcessor(
     with Serializable {
   var operator: IOperatorExecutor = opConf.tempOperatorInstance match {
     case Left(exec) => exec
-    case Right(string: String) => null
+    case Right(_) => null
   }
   def overwriteOperator(
       workerIdx: Int,
@@ -104,7 +104,7 @@ class DataProcessor(
     this.workerIdx = workerIdx
     this.operator = opConf.tempOperatorInstance match {
       case Left(exec) => exec
-      case Right(string: String)=> null
+      case Right(_)=> null
     }
     this.opConf = opConf
     this.outputIterator.setTupleOutput(currentOutputIterator)
