@@ -314,17 +314,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         finally:
             self.take_lock.release()
 
-
-    def is_enabled(self, key: str) -> bool:
-        """
-        Checks if a SebQueue specified by the key is enabled.
-
-        :param key: the identifier of the SubQueue.
-        :raises KeyError for non-existing keys.
-        :return: Boolean value representing enabled or not.
-        """
-        return self.get_sub_queue(key).is_enabled()
-
     def enable(self, key: str) -> None:
         """
         Enables a SubQueue, specified by key. This action acquires all locks.
