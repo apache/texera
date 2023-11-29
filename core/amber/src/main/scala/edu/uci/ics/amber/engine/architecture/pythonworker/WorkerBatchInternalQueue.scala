@@ -1,14 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
-import edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
-  ControlPayload,
-  ControlPayloadV2,
-  DataFrame,
-  DataPayload
-}
+import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, ControlPayloadV2, DataFrame, DataPayload}
 import lbmq.LinkedBlockingMultiQueue
 
 import scala.collection.mutable
@@ -24,7 +18,7 @@ object WorkerBatchInternalQueue {
   case class ControlElement(cmd: ControlPayload, from: ChannelID) extends InternalQueueElement
 
   case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelID) extends InternalQueueElement
-  case class ActorMessageElement(cmd: PythonActorMessage) extends InternalQueueElement
+  case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should

@@ -1,19 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ControlElement,
-  ControlElementV2,
-  ActorMessageElement,
-  DataElement
-}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ControlElement, ControlElementV2, DataElement}
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.actormessage.PythonActorMessage
+import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -91,8 +83,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendControlV1(channel.from, cmd)
         case ControlElementV2(cmd, channel) =>
           sendControlV2(channel.from, cmd)
-        case ActorMessageElement(cmd) =>
-          sendActorMessage(cmd)
+        case ActorCommandElement(cmd) =>
+          sendActorCommand(cmd)
 
       }
     }
@@ -118,10 +110,10 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     sendCreditedAction(action)
   }
 
-  def sendActorMessage(
-      message: PythonActorMessage
+  def sendActorCommand(
+      command: ActorCommand
   ): Result = {
-    val action: Action = new Action("actor", message.toByteArray)
+    val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)
     sendCreditedAction(action)
   }
 
@@ -144,7 +136,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     result
   }
 
-  def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
+  private def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
     payload match {
       case controlInvocation: ControlInvocation =>
         val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
