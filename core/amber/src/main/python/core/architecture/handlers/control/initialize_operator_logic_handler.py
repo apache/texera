@@ -1,6 +1,6 @@
 from proto.edu.uci.ics.amber.engine.architecture.worker import InitializeOperatorLogicV2
-from .handler_base import Handler
-from ..managers.context import Context
+from core.architecture.handlers.handler_base import Handler
+from core.architecture.managers.context import Context
 
 
 class InitializeOperatorLogicHandler(Handler):

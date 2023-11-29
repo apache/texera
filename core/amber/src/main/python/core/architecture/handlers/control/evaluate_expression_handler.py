@@ -2,9 +2,9 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     EvaluateExpressionV2,
     EvaluatedValue,
 )
-from .handler_base import Handler
-from ..managers.context import Context
-from ...util.expression_evaluator import ExpressionEvaluator
+from core.architecture.handlers.handler_base import Handler
+from core.architecture.managers.context import Context
+from core.util.expression_evaluator import ExpressionEvaluator
 
 
 class EvaluateExpressionHandler(Handler):

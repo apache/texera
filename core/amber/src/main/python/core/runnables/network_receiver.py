@@ -1,9 +1,17 @@
-from typing import Optional
-
 from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
+from typing import Optional
 
+from core.architecture.handlers.actorcommand.actor_handler_base import (
+    ActorCommandHandler,
+)
+from core.architecture.handlers.actorcommand.backpressure_handler import (
+    BackpressureHandler,
+)
+from core.architecture.handlers.actorcommand.credit_update_handler import (
+    CreditUpdateHandler,
+)
 from core.models import (
     InputDataFrame,
     EndOfUpstream,
@@ -11,18 +19,13 @@ from core.models import (
 )
 from core.models.internal_queue import DataElement, ControlElement
 from core.proxy import ProxyServer
-from core.util import Stoppable, get_one_of, set_one_of
+from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, NoOpV2
 from proto.edu.uci.ics.amber.engine.common import (
     PythonControlMessage,
     PythonDataHeader,
     PythonActorMessage,
-    Backpressure,
-    ControlInvocationV2,
-    ActorVirtualIdentity,
-    ControlPayloadV2,
-    CreditUpdate,
+    ActorCommand,
 )
 
 
@@ -43,6 +46,11 @@ class NetworkReceiver(Runnable, Stoppable):
                 server_start = True
             except Exception as e:
                 logger.debug("Error occurred while starting the server:", repr(e))
+
+        self._handlers: dict[type(ActorCommand), ActorCommandHandler] = dict()
+
+        self.register_handler(BackpressureHandler())
+        self.register_handler(CreditUpdateHandler())
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
@@ -95,25 +103,7 @@ class NetworkReceiver(Runnable, Stoppable):
             """
             python_actor_message = PythonActorMessage().parse(message)
             command = get_one_of(python_actor_message.payload)
-            if isinstance(command, Backpressure):
-                if command.enable_backpressure:
-                    shared_queue.disable_data()
-                else:
-                    shared_queue.enable_data()
-                    shared_queue.put(
-                        ControlElement(
-                            tag=ActorVirtualIdentity(""),
-                            payload=set_one_of(
-                                ControlPayloadV2,
-                                ControlInvocationV2(
-                                    -1, set_one_of(ControlCommandV2, NoOpV2())
-                                ),
-                            ),
-                        )
-                    )
-            elif isinstance(command, CreditUpdate):
-                # do nothing, just return the credit
-                pass
+            self.look_up(command)(command, shared_queue)
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_control_handler(control_handler)
@@ -139,3 +129,10 @@ class NetworkReceiver(Runnable, Stoppable):
     @property
     def proxy_server(self):
         return self._proxy_server
+
+    def register_handler(self, handler: ActorCommandHandler) -> None:
+        self._handlers[handler.cmd] = handler
+
+    def look_up(self, cmd: ActorCommand) -> ActorCommandHandler:
+        logger.debug(cmd)
+        return self._handlers[type(cmd)]

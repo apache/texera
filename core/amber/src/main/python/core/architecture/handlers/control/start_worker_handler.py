@@ -2,10 +2,10 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     StartWorkerV2,
     WorkerState,
 )
-from .handler_base import Handler
-from ..managers.context import Context
-from ..packaging.batch_to_tuple_converter import BatchToTupleConverter
-from ...models.internal_queue import DataElement
+from core.architecture.handlers.handler_base import Handler
+from core.architecture.managers.context import Context
+from core.architecture.packaging.batch_to_tuple_converter import BatchToTupleConverter
+from core.models.internal_queue import DataElement
 
 from loguru import logger
 
