@@ -11,10 +11,12 @@ from core.models import (
 )
 from core.models.internal_queue import DataElement, ControlElement
 from core.proxy import ProxyServer
-from core.util import Stoppable, get_one_of
+from core.util import Stoppable, get_one_of, set_one_of
 from core.util.runnable.runnable import Runnable
+from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, NoOpV2
 from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, \
-    PythonDataHeader, PythonActorMessage, Backpressure
+    PythonDataHeader, PythonActorMessage, Backpressure, ControlInvocationV2, \
+    ActorVirtualIdentity, ControlPayloadV2
 
 
 class NetworkReceiver(Runnable, Stoppable):
@@ -24,7 +26,7 @@ class NetworkReceiver(Runnable, Stoppable):
 
     @logger.catch(reraise=True)
     def __init__(
-        self, shared_queue: InternalQueue, host: str, port: Optional[int] = None
+            self, shared_queue: InternalQueue, host: str, port: Optional[int] = None
     ):
         server_start = False
         # try to start the server until it succeeds
@@ -79,20 +81,28 @@ class NetworkReceiver(Runnable, Stoppable):
         @logger.catch(reraise=True)
         def actor_message_handler(message: bytes) -> int:
             """
-            Control handler for deserializing control messages
+            Control handler for deserializing actor messages
 
             :param message:
             :return: sender credits
             """
-            python_control_message = PythonActorMessage().parse(message)
-            command = get_one_of(python_control_message.payload)
+            python_actor_message = PythonActorMessage().parse(message)
+            command = get_one_of(python_actor_message.payload)
             if isinstance(command, Backpressure):
                 if command.enable_backpressure:
-                    logger.info("backpressured!!!!")
                     shared_queue.disable_data()
                 else:
-                    logger.info("released!!!")
                     shared_queue.enable_data()
+                    shared_queue.put(ControlElement(
+                        tag=ActorVirtualIdentity(""),
+                        payload=set_one_of(
+                            ControlPayloadV2,
+                            ControlInvocationV2(
+                            -1,
+                            set_one_of(
+                            ControlCommandV2,
+                            NoOpV2())))
+                    ))
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_control_handler(control_handler)

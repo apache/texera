@@ -13,6 +13,7 @@ from core.architecture.handlers.modify_operator_logic_handler import (
     ModifyOperatorLogicHandler,
 )
 from core.architecture.handlers.monitoring_handler import MonitoringHandler
+from core.architecture.handlers.no_op_handler import NoOpHandler
 from core.architecture.handlers.open_operator_handler import OpenOperatorHandler
 from core.architecture.handlers.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.query_current_input_tuple_handler import (
@@ -51,6 +52,7 @@ class AsyncRPCServer:
         self._context = context
         self._output_queue = output_queue
         self._handlers: dict[type(ControlCommandV2), Handler] = dict()
+        self.register(NoOpHandler())
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
         self.register(ResumeWorkerHandler())

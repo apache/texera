@@ -85,7 +85,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         while (
             not self._input_queue.is_control_empty()
-            or self.context.pause_manager.is_paused()
+            # or self.context.pause_manager.is_paused()
+            or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)

@@ -25,6 +25,11 @@ class WorkerState(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
+class NoOpV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class StartWorkerV2(betterproto.Message):
     pass
 
@@ -187,6 +192,7 @@ class ControlCommandV2(betterproto.Message):
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )
+    no_op: "NoOpV2" = betterproto.message_field(9999, group="sealed_value")
 
 
 @dataclass(eq=False, repr=False)
