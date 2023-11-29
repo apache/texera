@@ -19,7 +19,7 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable.ArrayBuffer
 
-trait OpExecFunc extends (((Int, OpExecConfig)) => Either[IOperatorExecutor, Tuple2[String, Schema]]) with java.io.Serializable
+trait OpExecFunc extends (((Int, OpExecConfig)) => Either[IOperatorExecutor, Tuple3[String, Schema, Boolean]]) with java.io.Serializable
 
 object OpExecConfig {
 
@@ -102,9 +102,7 @@ case class OpExecConfig(
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
   // return the runtime class of the corresponding OperatorExecutor
-  lazy val tempOperatorInstance: Either[IOperatorExecutor, Tuple2[String, Schema]] = initIOperatorExecutor((0, this))
-//  lazy val opExecClass: Class[_ <: IOperatorExecutor] =
-//    tempOperatorInstance.left.getClass
+  lazy val tempOperatorInstance: Either[IOperatorExecutor, Tuple3[String, Schema, Boolean]] = initIOperatorExecutor((0, this))
 
   /*
    * Helper functions related to compile-time operations
@@ -113,7 +111,7 @@ case class OpExecConfig(
   def isSourceOperator: Boolean = {
     tempOperatorInstance match {
       case Left(exec) => exec.isInstanceOf[ISourceOperatorExecutor]
-      case Right((code, schema)) => false // TODO: fix for Python Souorce
+      case Right((code, schema, isSource)) => isSource
     }
   }
 

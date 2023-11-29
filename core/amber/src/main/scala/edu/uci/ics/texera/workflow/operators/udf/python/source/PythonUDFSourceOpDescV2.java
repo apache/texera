@@ -14,7 +14,9 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.Tuple3;
 import scala.util.Left;
+import scala.util.Right;
 
 import java.io.Serializable;
 import java.util.List;
@@ -52,7 +54,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         OpExecFunc exec = (OpExecFunc & Serializable) (i) ->
-                new Left<>(new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]));
+                new Right<>(new Tuple3<>(code, operatorSchemaInfo.outputSchemas()[0], true));
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
             return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec).withNumWorkers(workers)

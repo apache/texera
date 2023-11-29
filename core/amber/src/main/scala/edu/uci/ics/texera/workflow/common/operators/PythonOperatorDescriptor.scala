@@ -16,10 +16,7 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
         .localLayer(
           operatorIdentifier,
           _ =>
-            Left(new PythonUDFSourceOpExecV2(
-              generatedCode,
-              operatorSchemaInfo.outputSchemas.head
-            ))
+            Right(Tuple3(generatedCode, operatorSchemaInfo.outputSchemas.head, true))
         )
         .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
     } else {
@@ -27,10 +24,7 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
         .oneToOneLayer(
           operatorIdentifier,
           _ =>
-            Left(new PythonUDFOpExecV2(
-              generatedCode,
-              operatorSchemaInfo.outputSchemas.head
-            ))
+            Right(Tuple3(generatedCode, operatorSchemaInfo.outputSchemas.head, false))
         )
         .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
     }
