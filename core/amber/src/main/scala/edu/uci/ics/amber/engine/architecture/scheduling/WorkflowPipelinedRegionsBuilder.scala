@@ -265,7 +265,6 @@ class WorkflowPipelinedRegionsBuilder(
   def buildPipelinedRegions(): PhysicalPlan = {
     findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks()
-    System.out.println("Pipelined regions: " + pipelinedRegionsDAG)
     val allRegions = pipelinedRegionsDAG.iterator().asScala.toList
     val ancestors = pipelinedRegionsDAG
       .iterator()
