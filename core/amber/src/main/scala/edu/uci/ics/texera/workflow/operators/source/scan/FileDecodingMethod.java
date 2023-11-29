@@ -27,7 +27,7 @@ public enum FileDecodingMethod {
 
     @Override
     public String toString() {
-        return this.name;
+        return this.getName();
     }
 
     public Charset getCharset() {return this.charset;}
