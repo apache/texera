@@ -92,7 +92,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
         case ControlElementV2(cmd, channel) =>
           sendControlV2(channel.from, cmd)
         case ActorMessageElement(cmd) =>
-          sendActorMessage( cmd)
+          sendActorMessage(cmd)
 
       }
     }
@@ -125,7 +125,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     sendCreditedAction(action)
   }
 
-  private def sendCreditedAction(action: Action) ={
+  private def sendCreditedAction(action: Action) = {
     logger.debug(s"sending ${action.getType} message")
     // Arrow allows multiple results from the Action call return as a stream (interator).
     // In Arrow 11, it alerts if the results are not consumed fully.

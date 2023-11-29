@@ -24,8 +24,7 @@ object WorkerBatchInternalQueue {
   case class ControlElement(cmd: ControlPayload, from: ChannelID) extends InternalQueueElement
 
   case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelID) extends InternalQueueElement
-  case class ActorMessageElement(cmd: PythonActorMessage)
-      extends InternalQueueElement
+  case class ActorMessageElement(cmd: PythonActorMessage) extends InternalQueueElement
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should
@@ -74,7 +73,7 @@ trait WorkerBatchInternalQueue {
     controlQueue.add(ControlElementV2(cmd, from))
   }
 
-  def enqueueActorMessage( message: PythonActorMessage): Unit = {
+  def enqueueActorMessage(message: PythonActorMessage): Unit = {
     controlQueue.add(ActorMessageElement(message))
   }
   def getElement: InternalQueueElement = {
