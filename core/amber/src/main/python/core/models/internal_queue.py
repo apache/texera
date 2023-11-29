@@ -94,6 +94,3 @@ class InternalQueue(IQueue):
         return asizeof.asizeof(
             self._queue.get_sub_queue(InternalQueue.QueueID.DATA.value)
         )
-
-    def is_data_enabled(self) -> bool:
-        return self._queue.is_enabled(InternalQueue.QueueID.DATA)
