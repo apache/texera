@@ -1,12 +1,12 @@
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerDebugCommandV2,
 )
-from core.architecture.handlers.handler_base import Handler
+from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
 
 
-class WorkerDebugCommandHandler(Handler):
+class WorkerDebugCommandHandler(ControlHandler):
     cmd = WorkerDebugCommandV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):

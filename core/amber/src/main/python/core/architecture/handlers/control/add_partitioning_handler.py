@@ -1,9 +1,9 @@
 from proto.edu.uci.ics.amber.engine.architecture.worker import AddPartitioningV2
-from core.architecture.handlers.handler_base import Handler
+from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
 
 
-class AddPartitioningHandler(Handler):
+class AddPartitioningHandler(ControlHandler):
     cmd = AddPartitioningV2
 
     def __call__(self, context: Context, command: AddPartitioningV2, *args, **kwargs):

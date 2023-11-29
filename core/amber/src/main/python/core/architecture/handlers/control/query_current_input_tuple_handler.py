@@ -2,11 +2,11 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     CurrentInputTupleInfo,
     QueryCurrentInputTupleV2,
 )
-from core.architecture.handlers.handler_base import Handler
+from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
 
 
-class QueryCurrentInputTupleHandler(Handler):
+class QueryCurrentInputTupleHandler(ControlHandler):
     cmd = QueryCurrentInputTupleV2
 
     def __call__(
