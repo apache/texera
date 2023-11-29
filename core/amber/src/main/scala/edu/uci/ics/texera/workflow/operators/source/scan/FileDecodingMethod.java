@@ -24,7 +24,6 @@ public enum FileDecodingMethod {
         return this.name;
     }
 
-
     @Override
     public String toString() {
         return this.getName();
