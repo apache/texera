@@ -113,7 +113,7 @@ case class OpExecConfig(
   def isSourceOperator: Boolean = {
     tempOperatorInstance match {
       case Left(exec) => exec.isInstanceOf[ISourceOperatorExecutor]
-      case Right((code, schema)) => false
+      case Right((code, schema)) => false // TODO: fix for Python Souorce
     }
   }
 
