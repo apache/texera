@@ -81,7 +81,7 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
     OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
-        p => new IntervalJoinOpExec(operatorSchemaInfo, this)
+        p => Left(new IntervalJoinOpExec(operatorSchemaInfo, this))
       )
       .copy(
         inputPorts = operatorInfo.inputPorts,

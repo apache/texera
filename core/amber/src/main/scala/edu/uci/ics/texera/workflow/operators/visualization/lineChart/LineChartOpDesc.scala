@@ -91,7 +91,7 @@ class LineChartOpDesc extends VisualizationOperator {
 
     val lineChartOpExec = OpExecConfig.oneToOneLayer(
       makeLayer(operatorIdentifier, "visualize"),
-      _ => new LineChartOpExec(this, operatorSchemaInfo)
+      _ => Left(new LineChartOpExec(this, operatorSchemaInfo))
     )
 
     val finalAggOp = aggPlan.sinkOperators.head

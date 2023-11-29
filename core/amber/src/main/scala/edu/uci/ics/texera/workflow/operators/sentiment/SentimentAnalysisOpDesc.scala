@@ -42,7 +42,7 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       throw new RuntimeException("sentiment analysis: attribute is null")
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      _ => new SentimentAnalysisOpExec(this, operatorSchemaInfo)
+      _ => Left(new SentimentAnalysisOpExec(this, operatorSchemaInfo))
     )
   }
 

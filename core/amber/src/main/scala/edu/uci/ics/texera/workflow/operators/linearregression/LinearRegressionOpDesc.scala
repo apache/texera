@@ -31,7 +31,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     OpExecConfig.manyToOneLayer(
       operatorIdentifier,
-      _ => new LinearRegressionOpExec(xAttr, yAttr, learningRate)
+      _ => Left(new LinearRegressionOpExec(xAttr, yAttr, learningRate))
     )
 
   override def operatorInfo: OperatorInfo =

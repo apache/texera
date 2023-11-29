@@ -27,7 +27,7 @@ class SplitOpDesc extends OperatorDescriptor {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     OpExecConfig
-      .oneToOneLayer(operatorIdentifier, i => new SplitOpExec(i._1, this))
+      .oneToOneLayer(operatorIdentifier, i => Left(new SplitOpExec(i._1, this)))
       .withPorts(operatorInfo)
   }
 

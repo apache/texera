@@ -42,13 +42,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         OpExecConfig
           .localLayer(
             operatorIdentifier,
-            p => {
+            p => Left({
               val i = p._1
               val startOffset: Int = offsetValue + count / numWorkers * i
               val endOffset: Int =
                 offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
-            }
+            })
           )
           .copy(numWorkers = numWorkers)
 

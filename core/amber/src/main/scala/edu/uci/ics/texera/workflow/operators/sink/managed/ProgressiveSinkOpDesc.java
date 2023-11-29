@@ -15,6 +15,7 @@ import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.collection.immutable.List;
+import scala.util.Left;
 
 import java.io.Serializable;
 
@@ -47,7 +48,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return OpExecConfig.localLayer(
                 operatorIdentifier(),
-                (OpExecFunc & Serializable) p -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter())
+                (OpExecFunc & Serializable) p -> new Left<>(new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()))
         ).withPorts(this.operatorInfo());
     }
 

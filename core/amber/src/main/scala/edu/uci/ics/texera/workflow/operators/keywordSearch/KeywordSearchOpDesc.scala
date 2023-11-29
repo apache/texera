@@ -27,7 +27,8 @@ class KeywordSearchOpDesc extends FilterOpDesc {
   var keyword: String = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => new KeywordSearchOpExec(this))
+    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => Left(
+      new KeywordSearchOpExec(this)))
   }
 
   override def operatorInfo: OperatorInfo =

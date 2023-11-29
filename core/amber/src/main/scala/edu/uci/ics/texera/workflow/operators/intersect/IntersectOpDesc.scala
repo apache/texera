@@ -16,7 +16,7 @@ class IntersectOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     OpExecConfig.hashLayer(
       operatorIdentifier,
-      _ => new IntersectOpExec(),
+      _ => Left(new IntersectOpExec()),
       operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
     )
   }

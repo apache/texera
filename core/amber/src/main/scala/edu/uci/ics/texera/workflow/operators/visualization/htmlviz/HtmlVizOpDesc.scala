@@ -38,7 +38,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      _ => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo)
+      _ => Left(new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo))
     )
 
   override def operatorInfo: OperatorInfo =

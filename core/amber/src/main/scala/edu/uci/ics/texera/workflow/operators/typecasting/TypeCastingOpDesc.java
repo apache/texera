@@ -16,6 +16,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.reflect.ClassTag;
+import scala.util.Left;
 
 import java.io.Serializable;
 import java.util.List;
@@ -34,7 +35,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
         return OpExecConfig.oneToOneLayer(operatorIdentifier(),
-                (OpExecFunc & Serializable) worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0]));
+                (OpExecFunc & Serializable) worker -> new Left<>(new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])));
     }
 
     @Override

@@ -33,7 +33,7 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
     OpExecConfig.localLayer(
       operatorIdentifier,
       _ =>
-        new PostgreSQLSourceOpExec(
+        Left(new PostgreSQLSourceOpExec(
           querySchema,
           host,
           port,
@@ -51,7 +51,7 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
           keywordSearch.getOrElse(false),
           keywordSearchByColumn.orNull,
           keywords.orNull
-        )
+        ))
     )
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

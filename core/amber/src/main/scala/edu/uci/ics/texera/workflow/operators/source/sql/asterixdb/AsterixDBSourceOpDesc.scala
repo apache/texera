@@ -101,7 +101,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     OpExecConfig.localLayer(
       this.operatorIdentifier,
       _ =>
-        new AsterixDBSourceOpExec(
+        Left(new AsterixDBSourceOpExec(
           sourceSchema(),
           host,
           port,
@@ -125,7 +125,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           regex.orNull,
           filterCondition.getOrElse(false),
           filterPredicates
-        )
+        ))
     )
 
   override def sourceSchema(): Schema = {

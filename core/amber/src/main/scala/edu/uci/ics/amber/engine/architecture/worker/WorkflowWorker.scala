@@ -45,7 +45,6 @@ class WorkflowWorker(
   var dp = new DataProcessor(
     actorId,
     workerIndex,
-    workerLayer.initIOperatorExecutor((workerIndex, workerLayer)),
     workerLayer,
     sendMessageFromDPToMain
   )

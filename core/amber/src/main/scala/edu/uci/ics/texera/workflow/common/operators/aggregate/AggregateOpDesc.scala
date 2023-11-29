@@ -20,7 +20,7 @@ object AggregateOpDesc {
       OpExecConfig
         .oneToOneLayer(
           makeLayer(id, "localAgg"),
-          _ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schema)
+          _ => Left(new PartialAggregateOpExec(aggFuncs, groupByKeys, schema))
         )
         // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
@@ -29,7 +29,7 @@ object AggregateOpDesc {
       OpExecConfig
         .localLayer(
           makeLayer(id, "globalAgg"),
-          _ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schema)
+          _ => Left(new FinalAggregateOpExec(aggFuncs, groupByKeys, schema))
         )
         // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
@@ -41,7 +41,7 @@ object AggregateOpDesc {
       OpExecConfig
         .hashLayer(
           makeLayer(id, "globalAgg"),
-          _ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schema),
+          _ => Left(new FinalAggregateOpExec(aggFuncs, groupByKeys, schema)),
           partitionColumns
         )
         .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))

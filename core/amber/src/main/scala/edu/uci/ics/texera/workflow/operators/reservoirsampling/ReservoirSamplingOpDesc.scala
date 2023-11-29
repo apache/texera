@@ -43,7 +43,7 @@ class ReservoirSamplingOpDesc extends OperatorDescriptor {
   }
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, p => new ReservoirSamplingOpExec(p._1, this))
+    OpExecConfig.oneToOneLayer(operatorIdentifier, p => Left(new ReservoirSamplingOpExec(p._1, this)))
   }
 
   override def operatorInfo: OperatorInfo = {

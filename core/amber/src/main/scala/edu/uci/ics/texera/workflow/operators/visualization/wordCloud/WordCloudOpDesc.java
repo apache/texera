@@ -24,6 +24,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.reflect.ClassTag;
+import scala.util.Left;
 
 import java.io.Serializable;
 
@@ -75,7 +76,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
         OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn)
+                (OpExecFunc & Serializable) i -> new Left<>(new WordCloudOpPartialExec(textColumn))
         ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
@@ -83,7 +84,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
         OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN)
+                (OpExecFunc & Serializable) i ->new Left<>( new WordCloudOpFinalExec(topN))
         ).withId(finalId).withIsOneToManyOp(true)
                 .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 

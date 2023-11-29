@@ -34,7 +34,7 @@ class ExecutionState(workflow: Workflow) {
 
   def getBuiltPythonWorkers: Iterable[ActorVirtualIdentity] =
     workflow.physicalPlan.operators
-      .filter(operator => operator.opExecClass == classOf[PythonUDFOpExecV2])
+      .filter(operator => operator.isPythonOperator)
       .flatMap(op => getOperatorExecution(op.id).getBuiltWorkerIds)
 
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {

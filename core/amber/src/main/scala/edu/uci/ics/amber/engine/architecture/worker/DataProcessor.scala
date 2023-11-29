@@ -88,20 +88,24 @@ object DataProcessor {
 class DataProcessor(
     actorId: ActorVirtualIdentity,
     @transient var workerIdx: Int,
-    @transient var operator: IOperatorExecutor,
     @transient var opConf: OpExecConfig,
     outputHandler: WorkflowFIFOMessage => Unit
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
-
+  var operator: IOperatorExecutor = opConf.tempOperatorInstance match {
+    case Left(exec) => exec
+    case Right(string: String) => null
+  }
   def overwriteOperator(
       workerIdx: Int,
       opConf: OpExecConfig,
-      op: IOperatorExecutor,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
-    this.operator = op
+    this.operator = opConf.tempOperatorInstance match {
+      case Left(exec) => exec
+      case Right(string: String)=> null
+    }
     this.opConf = opConf
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }

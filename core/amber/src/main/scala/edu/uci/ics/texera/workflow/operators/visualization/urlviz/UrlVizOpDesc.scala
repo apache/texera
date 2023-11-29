@@ -50,7 +50,7 @@ class UrlVizOpDesc extends VisualizationOperator {
     OpExecConfig
       .manyToOneLayer(
         operatorIdentifier,
-        _ => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo)
+        _ => Left(new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo))
       )
 
   override def operatorInfo: OperatorInfo =

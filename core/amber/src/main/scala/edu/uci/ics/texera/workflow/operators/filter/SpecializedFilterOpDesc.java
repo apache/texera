@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import scala.reflect.ClassTag;
+import scala.util.Left;
 
 import java.io.Serializable;
 import java.util.List;
@@ -28,7 +29,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return OpExecConfig.oneToOneLayer(
                 operatorIdentifier(),
-                (OpExecFunc & Serializable) worker -> new SpecializedFilterOpExec(this));
+                (OpExecFunc & Serializable) worker -> new Left<>(new SpecializedFilterOpExec(this)));
     }
 
     @Override

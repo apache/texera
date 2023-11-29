@@ -57,14 +57,14 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
       .oneToOneLayer(
         operatorIdentifier,
         p =>
-          new SortPartitionOpExec(
+          Left(new SortPartitionOpExec(
             sortAttributeName,
             operatorSchemaInfo,
             p._1,
             domainMin,
             domainMax,
             p._2.numWorkers
-          )
+          ))
       )
       .copy(
         partitionRequirement = partitionRequirement

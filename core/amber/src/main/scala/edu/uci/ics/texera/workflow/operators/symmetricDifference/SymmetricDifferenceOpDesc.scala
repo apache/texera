@@ -16,7 +16,7 @@ class SymmetricDifferenceOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     OpExecConfig.hashLayer(
       operatorIdentifier,
-      _ => new SymmetricDifferenceOpExec(),
+      _ => Left(new SymmetricDifferenceOpExec()),
       operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
     )
   }

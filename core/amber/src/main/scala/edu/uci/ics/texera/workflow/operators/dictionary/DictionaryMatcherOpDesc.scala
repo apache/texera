@@ -34,7 +34,7 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      _ => new DictionaryMatcherOpExec(this, operatorSchemaInfo)
+      _ => Left(new DictionaryMatcherOpExec(this, operatorSchemaInfo))
     )
 
   override def operatorInfo: OperatorInfo =

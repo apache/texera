@@ -16,7 +16,7 @@ class CartesianProductOpDesc extends OperatorDescriptor {
     OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
-        _ => new CartesianProductOpExec(operatorSchemaInfo)
+        _ => Left(new CartesianProductOpExec(operatorSchemaInfo))
       )
       .copy(
         inputPorts = operatorInfo.inputPorts,

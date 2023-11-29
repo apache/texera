@@ -49,13 +49,13 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       _ => {
         val startOffset: Int = offsetValue
         val endOffset: Int = offsetValue + count
-        new TextInputSourceOpExec(
+        Left(new TextInputSourceOpExec(
           this,
           startOffset,
           endOffset,
           if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
           else attributeName.get
-        )
+        ))
       }
     )
   }

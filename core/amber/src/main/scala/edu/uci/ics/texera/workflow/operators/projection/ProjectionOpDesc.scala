@@ -21,7 +21,7 @@ class ProjectionOpDesc extends MapOpDesc {
   var attributes: List[AttributeUnit] = List()
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    oneToOneLayer(operatorIdentifier, _ => new ProjectionOpExec(attributes, operatorSchemaInfo))
+    oneToOneLayer(operatorIdentifier, _ => Left(new ProjectionOpExec(attributes, operatorSchemaInfo)))
       .copy(derivePartition = this.derivePartition(operatorSchemaInfo))
   }
 

@@ -46,7 +46,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
     // TODO: use multiple workers
     OpExecConfig.manyToOneLayer(
       operatorIdentifier,
-      _ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
+      _ => Left(new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo))
     )
 
   override def sourceSchema(): Schema = {

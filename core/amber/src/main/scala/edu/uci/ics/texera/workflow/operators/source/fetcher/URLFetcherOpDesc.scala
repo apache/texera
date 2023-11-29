@@ -47,11 +47,11 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       .oneToOneLayer(
         operatorIdentifier,
         _ =>
-          new URLFetcherOpExec(
+          Left(new URLFetcherOpExec(
             url,
             decodingMethod,
             operatorSchemaInfo
-          )
+          ))
       )
       .withNumWorkers(1)
   }

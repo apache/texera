@@ -33,7 +33,7 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable.ArrayBuffer
 
-trait OpExecFunc extends (((Int, OpExecConfig)) => IOperatorExecutor) with java.io.Serializable
+trait OpExecFunc extends (((Int, OpExecConfig)) => Either[IOperatorExecutor, String]) with java.io.Serializable
 
 object OpExecConfig {
 
@@ -116,19 +116,21 @@ case class OpExecConfig(
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
   // return the runtime class of the corresponding OperatorExecutor
-  lazy private val tempOperatorInstance: IOperatorExecutor = initIOperatorExecutor((0, this))
-  lazy val opExecClass: Class[_ <: IOperatorExecutor] =
-    tempOperatorInstance.getClass
+  lazy val tempOperatorInstance: Either[IOperatorExecutor, String] = initIOperatorExecutor((0, this))
+//  lazy val opExecClass: Class[_ <: IOperatorExecutor] =
+//    tempOperatorInstance.left.getClass
 
   /*
    * Helper functions related to compile-time operations
    */
 
-  def isSourceOperator: Boolean =
-    classOf[ISourceOperatorExecutor].isAssignableFrom(opExecClass)
+  def isSourceOperator: Boolean = {
+    tempOperatorInstance.left.get.isInstanceOf[ISourceOperatorExecutor]
+  }
 
-  def isPythonOperator: Boolean =
-    classOf[PythonUDFOpExecV2].isAssignableFrom(opExecClass)
+  def isPythonOperator: Boolean = {
+    tempOperatorInstance.isRight
+  }
 
   def getPythonCode: String = {
     if (!isPythonOperator) {

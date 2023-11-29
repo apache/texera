@@ -20,7 +20,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
     OpExecConfig.localLayer(
       this.operatorIdentifier,
       _ =>
-        new MySQLSourceOpExec(
+        Left(new MySQLSourceOpExec(
           this.querySchema,
           host,
           port,
@@ -38,7 +38,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
           keywordSearch.getOrElse(false),
           keywordSearchByColumn.orNull,
           keywords.orNull
-        )
+        ))
     )
 
   override def operatorInfo: OperatorInfo =

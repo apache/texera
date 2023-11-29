@@ -16,7 +16,7 @@ class DistinctOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     OpExecConfig.hashLayer(
       operatorIdentifier,
-      _ => new DistinctOpExec(),
+      _ => Left(new DistinctOpExec()),
       operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
     )
   }

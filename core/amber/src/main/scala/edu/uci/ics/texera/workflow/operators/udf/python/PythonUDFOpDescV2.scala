@@ -90,7 +90,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
+          _ => Left(new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head))
         )
         .copy(
           numWorkers = workers,
@@ -105,7 +105,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
-          _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
+          _ => Left(new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head))
         )
         .copy(
           derivePartition = _ => UnknownPartition(),

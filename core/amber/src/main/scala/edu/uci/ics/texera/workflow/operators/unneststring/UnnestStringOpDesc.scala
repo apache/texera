@@ -40,7 +40,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      _ => new UnnestStringOpExec(this, operatorSchemaInfo)
+      _ => Left(new UnnestStringOpExec(this, operatorSchemaInfo))
     )
   }
 

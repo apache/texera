@@ -83,12 +83,12 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
       .oneToOneLayer(
         operatorIdentifier,
         _ =>
-          new HashJoinOpExec[K](
+          Left(new HashJoinOpExec[K](
             buildAttributeName,
             probeAttributeName,
             joinType,
             operatorSchemaInfo
-          )
+          ))
       )
       .copy(
         inputPorts = operatorInfo.inputPorts,

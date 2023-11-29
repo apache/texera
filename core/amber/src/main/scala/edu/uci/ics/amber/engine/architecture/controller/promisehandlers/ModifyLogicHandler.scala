@@ -32,7 +32,7 @@ trait ModifyLogicHandler {
       val workerCommand = if (operator.isPythonOperator) {
         ModifyPythonOperatorLogic(
           msg.newOp.getPythonCode,
-          isSource = operator.opExecClass.isInstance(classOf[PythonUDFSourceOpExecV2])
+          isSource = operator.isSourceOperator
         )
       } else {
         WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)

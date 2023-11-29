@@ -42,12 +42,12 @@ class BulkDownloaderOpDesc extends OperatorDescriptor {
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       _ =>
-        new BulkDownloaderOpExec(
+        Left(new BulkDownloaderOpExec(
           context,
           urlAttribute,
           resultAttribute,
           operatorSchemaInfo
-        )
+        ))
     )
   }
 

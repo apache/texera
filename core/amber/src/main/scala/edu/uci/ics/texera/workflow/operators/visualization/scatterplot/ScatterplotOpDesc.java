@@ -20,6 +20,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.reflect.ClassTag;
+import scala.util.Left;
 
 import java.io.Serializable;
 import java.util.EnumSet;
@@ -87,7 +88,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
             numWorkers = 1;
         }
         return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
-                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo))
+                (OpExecFunc & Serializable) p -> new Left<>(new ScatterplotOpExec(this, operatorSchemaInfo)))
                 .withIsOneToManyOp(true);
     }
 

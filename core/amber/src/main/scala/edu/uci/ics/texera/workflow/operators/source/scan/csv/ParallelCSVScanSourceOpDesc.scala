@@ -53,11 +53,11 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
             val startOffset: Long = totalBytes / numWorkers * i
             val endOffset: Long =
               if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
-            new ParallelCSVScanSourceOpExec(
+            Left(new ParallelCSVScanSourceOpExec(
               this,
               startOffset,
               endOffset
-            )
+            ))
           }
         )
 

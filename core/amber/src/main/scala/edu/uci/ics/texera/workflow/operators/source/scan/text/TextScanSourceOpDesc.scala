@@ -73,13 +73,13 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
           _ => {
             val startOffset: Int = offsetValue
             val endOffset: Int = offsetValue + count
-            new TextScanSourceOpExec(
+            Left(new TextScanSourceOpExec(
               this,
               startOffset,
               endOffset,
               if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
               else attributeName.get
-            )
+            ))
           }
         )
       case None =>

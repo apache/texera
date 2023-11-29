@@ -30,7 +30,7 @@ class RegexOpDesc extends FilterOpDesc {
   var caseInsensitive: Boolean = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => new RegexOpExec(this))
+    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => Left(new RegexOpExec(this)))
   }
 
   override def operatorInfo: OperatorInfo =
