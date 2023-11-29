@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
-import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
+import edu.uci.ics.amber.engine.common.actormessage.ActorCommand
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelID,
   ControlPayload,
