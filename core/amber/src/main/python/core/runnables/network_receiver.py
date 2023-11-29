@@ -14,9 +14,16 @@ from core.proxy import ProxyServer
 from core.util import Stoppable, get_one_of, set_one_of
 from core.util.runnable.runnable import Runnable
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, NoOpV2
-from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, \
-    PythonDataHeader, PythonActorMessage, Backpressure, ControlInvocationV2, \
-    ActorVirtualIdentity, ControlPayloadV2, CreditUpdate
+from proto.edu.uci.ics.amber.engine.common import (
+    PythonControlMessage,
+    PythonDataHeader,
+    PythonActorMessage,
+    Backpressure,
+    ControlInvocationV2,
+    ActorVirtualIdentity,
+    ControlPayloadV2,
+    CreditUpdate,
+)
 
 
 class NetworkReceiver(Runnable, Stoppable):
@@ -26,7 +33,7 @@ class NetworkReceiver(Runnable, Stoppable):
 
     @logger.catch(reraise=True)
     def __init__(
-            self, shared_queue: InternalQueue, host: str, port: Optional[int] = None
+        self, shared_queue: InternalQueue, host: str, port: Optional[int] = None
     ):
         server_start = False
         # try to start the server until it succeeds
@@ -93,16 +100,17 @@ class NetworkReceiver(Runnable, Stoppable):
                     shared_queue.disable_data()
                 else:
                     shared_queue.enable_data()
-                    shared_queue.put(ControlElement(
-                        tag=ActorVirtualIdentity(""),
-                        payload=set_one_of(
-                            ControlPayloadV2,
-                            ControlInvocationV2(
-                            -1,
-                            set_one_of(
-                            ControlCommandV2,
-                            NoOpV2())))
-                    ))
+                    shared_queue.put(
+                        ControlElement(
+                            tag=ActorVirtualIdentity(""),
+                            payload=set_one_of(
+                                ControlPayloadV2,
+                                ControlInvocationV2(
+                                    -1, set_one_of(ControlCommandV2, NoOpV2())
+                                ),
+                            ),
+                        )
+                    )
             elif isinstance(command, CreditUpdate):
                 # do nothing, just return the credit
                 pass

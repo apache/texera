@@ -366,6 +366,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
 
     def is_enabled(self, key: str) -> bool:
         return self.get_sub_queue(key).is_enabled()
+
     def add_sub_queue(self, key: str, priority: int) -> Optional[SubQueue]:
         """
         Create a new SubQueue if absent, with the key and priority.

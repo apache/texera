@@ -132,9 +132,9 @@ class ProxyServer(FlightServerBase):
         )
 
         self.register(
-            name = "actor",
+            name="actor",
             action=lambda message: self.process_actor(message),
-            description="Process the actor message"
+            description="Process the actor message",
         )
 
         # the data message handler for each data message, needs to be
