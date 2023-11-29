@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperat
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.error.ErrorUtils.mkConsoleMessage
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
-import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpExecV2
 
 object ModifyLogicHandler {
 

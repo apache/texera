@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
-import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 class ExecutionState(workflow: Workflow) {
 

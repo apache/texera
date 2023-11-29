@@ -70,7 +70,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          _ => Left(new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head))
+          _ => Right(Tuple3(code, operatorSchemaInfo.outputSchemas.head, false))
         )
         .copy(
           numWorkers = workers,
@@ -83,7 +83,7 @@ class DualInputPortsPythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
-          _ => Left(new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head))
+          _ => Right(Tuple3(code, operatorSchemaInfo.outputSchemas.head, false))
         )
         .copy(
           blockingInputs = List(0),
