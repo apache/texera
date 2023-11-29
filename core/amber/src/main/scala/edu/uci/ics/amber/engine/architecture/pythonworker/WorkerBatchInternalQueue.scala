@@ -67,8 +67,8 @@ trait WorkerBatchInternalQueue {
     controlQueue.add(ControlElementV2(cmd, from))
   }
 
-  def enqueueActorMessage(message: PythonActorMessage): Unit = {
-    controlQueue.add(ActorMessageElement(message))
+  def enqueueActorCommand(command: ActorCommand): Unit = {
+    controlQueue.add(ActorCommandElement(command))
   }
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()

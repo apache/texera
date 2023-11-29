@@ -87,9 +87,7 @@ class PythonWorkflowWorker(
 
   override def receiveCreditMessages: Receive = {
     case WorkflowActor.CreditRequest(channel) =>
-      pythonProxyClient.enqueueActorMessage(
-        PythonActorMessage(CreditUpdate())
-      )
+      pythonProxyClient.enqueueActorCommand(CreditUpdate())
       sender ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
     case WorkflowActor.CreditResponse(channel, credit) =>
       transferService.updateChannelCreditFromReceiver(channel, credit)
@@ -100,10 +98,8 @@ class PythonWorkflowWorker(
     pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit()
   }
 
-  override def handleBackpressure(isBackpressured: Boolean): Unit = {
-    pythonProxyClient.enqueueActorMessage(
-      PythonActorMessage(Backpressure(isBackpressured))
-    )
+  override def handleBackpressure(enableBackpressure: Boolean): Unit = {
+    pythonProxyClient.enqueueActorCommand(Backpressure(enableBackpressure))
   }
 
   override def postStop(): Unit = {
