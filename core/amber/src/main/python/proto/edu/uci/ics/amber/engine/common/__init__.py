@@ -98,8 +98,14 @@ class Backpressure(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class CreditUpdate(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class ActorCommand(betterproto.Message):
     backpressure: "Backpressure" = betterproto.message_field(1, group="sealed_value")
+    credit_update: "CreditUpdate" = betterproto.message_field(2, group="sealed_value")
 
 
 @dataclass(eq=False, repr=False)

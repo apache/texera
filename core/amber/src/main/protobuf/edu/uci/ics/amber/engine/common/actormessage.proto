@@ -15,9 +15,13 @@ message Backpressure {
   bool enable_backpressure = 1;
 }
 
+message CreditUpdate {
+}
+
 message ActorCommand {
   oneof sealed_value {
       Backpressure backpressure = 1;
+      CreditUpdate credit_update = 2;
   }
 }
 

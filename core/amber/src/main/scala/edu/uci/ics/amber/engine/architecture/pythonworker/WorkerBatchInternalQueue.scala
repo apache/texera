@@ -24,7 +24,7 @@ object WorkerBatchInternalQueue {
   case class ControlElement(cmd: ControlPayload, from: ChannelID) extends InternalQueueElement
 
   case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelID) extends InternalQueueElement
-  case class ActorMessageElement(cmd: PythonActorMessage, from: ChannelID)
+  case class ActorMessageElement(cmd: PythonActorMessage)
       extends InternalQueueElement
 }
 
@@ -74,8 +74,8 @@ trait WorkerBatchInternalQueue {
     controlQueue.add(ControlElementV2(cmd, from))
   }
 
-  def enqueueActorMessage(from: ChannelID, message: PythonActorMessage): Unit = {
-    controlQueue.add(ActorMessageElement(message, from))
+  def enqueueActorMessage( message: PythonActorMessage): Unit = {
+    controlQueue.add(ActorMessageElement(message))
   }
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()

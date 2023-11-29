@@ -16,7 +16,7 @@ from core.util.runnable.runnable import Runnable
 from proto.edu.uci.ics.amber.engine.architecture.worker import ControlCommandV2, NoOpV2
 from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, \
     PythonDataHeader, PythonActorMessage, Backpressure, ControlInvocationV2, \
-    ActorVirtualIdentity, ControlPayloadV2
+    ActorVirtualIdentity, ControlPayloadV2, CreditUpdate
 
 
 class NetworkReceiver(Runnable, Stoppable):
@@ -103,6 +103,9 @@ class NetworkReceiver(Runnable, Stoppable):
                             ControlCommandV2,
                             NoOpV2())))
                     ))
+            elif isinstance(command, CreditUpdate):
+                # do nothing, just return the credit
+                pass
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_control_handler(control_handler)

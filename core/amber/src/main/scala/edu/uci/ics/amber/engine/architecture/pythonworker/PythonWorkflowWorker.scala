@@ -5,17 +5,13 @@ import com.twitter.util.Promise
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkInputGateway,
-  NetworkOutputGateway
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{NetworkInputGateway, NetworkOutputGateway}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
-import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure, PythonActorMessage}
+import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.Utils
 
 import java.nio.file.Path
@@ -86,6 +82,16 @@ class PythonWorkflowWorker(
     sender ! NetworkAck(messageId, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
   }
 
+  override def receiveCreditMessages: Receive = {
+    case WorkflowActor.CreditRequest(channel) =>
+      pythonProxyClient.enqueueActorMessage(
+        PythonActorMessage(CreditUpdate())
+      )
+      sender ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
+    case WorkflowActor.CreditResponse(channel, credit) =>
+      transferService.updateChannelCreditFromReceiver(channel, credit)
+  }
+
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long = {
     pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit()
@@ -93,7 +99,6 @@ class PythonWorkflowWorker(
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {
     pythonProxyClient.enqueueActorMessage(
-      ChannelID(actorId, actorId, isControl = true),
       PythonActorMessage(Backpressure(isBackpressured))
     )
   }

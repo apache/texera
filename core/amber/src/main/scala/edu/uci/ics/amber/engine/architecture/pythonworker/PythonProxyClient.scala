@@ -91,8 +91,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendControlV1(channel.from, cmd)
         case ControlElementV2(cmd, channel) =>
           sendControlV2(channel.from, cmd)
-        case ActorMessageElement(cmd, from) =>
-          sendActorMessage(from.from, cmd)
+        case ActorMessageElement(cmd) =>
+          sendActorMessage( cmd)
 
       }
     }
@@ -115,32 +115,18 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
-
-    logger.debug(s"sending control $controlMessage")
-    // Arrow allows multiple results from the Action call return as a stream (interator).
-    // In Arrow 11, it alerts if the results are not consumed fully.
-    val results = flightClient.doAction(action)
-    // As we do our own Async RPC management, we are currently not using results from Action call.
-    // In the future, this results can include credits for flow control purpose.
-    val result = results.next()
-
-    // extract info needed to calculate sender credits from ack
-    // ackResult contains number of batches inside Python worker internal queue
-    pythonQueueInMemSize = new String(result.getBody).toLong
-    logger.info(s"control updated queue size $pythonQueueInMemSize")
-    // However, we will only expect exactly one result for now.
-    assert(!results.hasNext)
-
-    result
+    sendCreditedAction(action)
   }
 
   def sendActorMessage(
-      from: ActorVirtualIdentity,
       message: PythonActorMessage
   ): Result = {
     val action: Action = new Action("actor", message.toByteArray)
+    sendCreditedAction(action)
+  }
 
-    logger.info(s"sending actor message $message")
+  private def sendCreditedAction(action: Action) ={
+    logger.debug(s"sending ${action.getType} message")
     // Arrow allows multiple results from the Action call return as a stream (interator).
     // In Arrow 11, it alerts if the results are not consumed fully.
     val results = flightClient.doAction(action)
@@ -151,7 +137,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // extract info needed to calculate sender credits from ack
     // ackResult contains number of batches inside Python worker internal queue
     pythonQueueInMemSize = new String(result.getBody).toLong
-    logger.info(s"updated queue size $pythonQueueInMemSize")
+    logger.debug(s"action ${action.getType} updated queue size $pythonQueueInMemSize")
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
