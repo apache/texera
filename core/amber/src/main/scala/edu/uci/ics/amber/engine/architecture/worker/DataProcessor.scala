@@ -92,14 +92,14 @@ class DataProcessor(
     outputHandler: WorkflowFIFOMessage => Unit
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
-  var operator: IOperatorExecutor = opConf.opExecInitInfo.left.get.apply(workerIdx, opConf)
+  var operator: IOperatorExecutor = opConf.opExecInitInfo(workerIdx, opConf).left.get
   def overwriteOperator(
       workerIdx: Int,
       opConf: OpExecConfig,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
-    this.operator = opConf.opExecInitInfo.left.get.apply(workerIdx, opConf)
+    this.operator = opConf.opExecInitInfo(workerIdx, opConf).left.get
     this.opConf = opConf
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }

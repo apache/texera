@@ -134,7 +134,7 @@ case class OpExecConfig(
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
   // flag that if this operator will be early initialized with a OpExecFunc, or late initialized with a code String.
-  lazy val isLateInit: Boolean = opExecInitInfo.isRight
+  lazy val isLateInit: Boolean = opExecInitInfo((0, this)).isRight
 
   /*
    * Helper functions related to compile-time operations
@@ -150,14 +150,14 @@ case class OpExecConfig(
 
   def isHashJoinOperator: Boolean = {
     val initInfo = opExecInitInfo
-    initInfo.isLeft && initInfo.left.get.apply((0, this)).isInstanceOf[HashJoinOpExec[_]]
+    initInfo((0, this)).left.exists(_.isInstanceOf[HashJoinOpExec[_]])
   }
 
-  def getPythonCode: String = {
+  def getPythonCode(workerIdx: Int): String = {
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    opExecInitInfo.right.get
+    opExecInitInfo((workerIdx, this)).right.get
   }
 
   def getOutputSchema: Schema = {

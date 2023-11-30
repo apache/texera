@@ -46,7 +46,7 @@ trait ModifyOperatorLogicHandler {
 
   private def performModifyLogic(modifyLogic: WorkerModifyLogic): Unit = {
     val newOpExecConfig = modifyLogic.opExecConfig
-    val newOperator = newOpExecConfig.opExecInitInfo.left.get.apply(dp.workerIdx, newOpExecConfig)
+    val newOperator = newOpExecConfig.opExecInitInfo(dp.workerIdx, newOpExecConfig).left.get
 
     if (modifyLogic.stateTransferFunc.nonEmpty) {
       modifyLogic.stateTransferFunc.get.apply(dp.operator, newOperator)

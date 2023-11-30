@@ -17,11 +17,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Function1;
 import scala.Option;
 import scala.Tuple2;
-import scala.Tuple3;
 import scala.util.Either;
-import scala.util.Right;
 
-import java.io.Serializable;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -56,7 +53,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        Either<Function1<Tuple2<Object, OpExecConfig>, IOperatorExecutor>, String> exec = OpExecInitInfo.apply(code);
+        Function1<Tuple2<Object, OpExecConfig>, Either<IOperatorExecutor, String>> exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
             return OpExecConfig.sourceLayer(operatorIdentifier(), exec).withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)

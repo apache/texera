@@ -7,6 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -18,11 +19,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
+import scala.Tuple2;
 import scala.util.Left;
 
 import java.io.Serializable;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.DOUBLE;
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.INTEGER;
@@ -86,7 +89,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
             numWorkers = 1;
         }
         return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
-                        OpExecInitInfo.apply(worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
+                        OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
                 .withIsOneToManyOp(true);
     }
 

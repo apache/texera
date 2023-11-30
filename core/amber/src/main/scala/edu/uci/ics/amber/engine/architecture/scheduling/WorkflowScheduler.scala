@@ -31,7 +31,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.{Constants, VirtualIdentityUtils}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
@@ -220,7 +220,8 @@ class WorkflowScheduler(
             asyncRPCClient
               .send(
                 InitializeOperatorLogic(
-                  pythonUDFOpExecConfig.getPythonCode,
+                  pythonUDFOpExecConfig
+                    .getPythonCode(VirtualIdentityUtils.getWorkerIndex(workerID)),
                   pythonUDFOpExecConfig.isSourceOperator,
                   inputMappingList,
                   outputMappingList,

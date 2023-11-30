@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.WorkerModifyLogic
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.error.ErrorUtils.mkConsoleMessage
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
@@ -28,17 +29,19 @@ trait ModifyLogicHandler {
     {
       val operator = cp.workflow.physicalPlan.operatorMap(msg.newOp.id)
       val opExecution = cp.executionState.getOperatorExecution(msg.newOp.id)
-      val workerCommand = if (operator.isPythonOperator) {
-        ModifyPythonOperatorLogic(
-          msg.newOp.getPythonCode,
-          isSource = operator.isSourceOperator
-        )
-      } else {
-        WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)
-      }
 
       Future
         .collect(opExecution.getBuiltWorkerIds.map { worker =>
+          val workerIdx = VirtualIdentityUtils.getWorkerIndex(worker)
+          val workerCommand = if (operator.isPythonOperator) {
+            ModifyPythonOperatorLogic(
+              msg.newOp.getPythonCode(workerIdx),
+              isSource = operator.isSourceOperator
+            )
+          } else {
+            WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)
+          }
+
           send(workerCommand, worker).onFailure((err: Throwable) => {
             logger.error("Failure when performing reconfiguration", err)
             // report error to frontend
