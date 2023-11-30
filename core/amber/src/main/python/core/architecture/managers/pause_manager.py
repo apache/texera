@@ -7,6 +7,7 @@ from . import state_manager
 from core.models import InternalQueue
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
+from .internal_queue_manager import InternalQueueManager, DisableType
 
 
 class PauseType(Enum):
@@ -23,9 +24,11 @@ class PauseManager:
     """
 
     def __init__(
-        self, input_queue: InternalQueue, state_manager: state_manager.StateManager
+        self,
+        input_queue_manager: InternalQueueManager,
+        state_manager: state_manager.StateManager,
     ):
-        self._input_queue: InternalQueue = input_queue
+        self._input_queue_manager: InternalQueueManager = input_queue_manager
         self._global_pauses: Set[PauseType] = set()
         self._specific_input_pauses: Dict[
             PauseType, Set[ActorVirtualIdentity]
@@ -34,7 +37,7 @@ class PauseManager:
 
     def pause(self, pause_type: PauseType, change_state=True) -> None:
         self._global_pauses.add(pause_type)
-        self._input_queue.disable_data()
+        self._input_queue_manager.disable_data(DisableType.DISABLE_BY_PAUSE)
 
         if change_state and self._state_manager.confirm_state(
             WorkerState.RUNNING, WorkerState.READY
@@ -58,7 +61,7 @@ class PauseManager:
 
         # global pause is empty, specific input pause is also empty, resume all
         if not self._specific_input_pauses:
-            self._input_queue.enable_data()
+            self._input_queue_manager.enable_data(DisableType.DISABLE_BY_PAUSE)
             if change_state and self._state_manager.confirm_state(WorkerState.PAUSED):
                 self._state_manager.transit_to(WorkerState.RUNNING)
             return

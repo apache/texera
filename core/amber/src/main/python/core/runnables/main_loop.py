@@ -8,6 +8,7 @@ from overrides import overrides
 from pampy import match
 
 from core.architecture.managers.context import Context
+from core.architecture.managers.internal_queue_manager import InternalQueueManager
 from core.architecture.managers.pause_manager import PauseType
 from core.architecture.packaging.batch_to_tuple_converter import EndOfAllMarker
 from core.architecture.rpc.async_rpc_client import AsyncRPCClient
@@ -41,13 +42,16 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(
-        self, worker_id: str, input_queue: InternalQueue, output_queue: InternalQueue
+        self,
+        worker_id: str,
+        input_queue_manager: InternalQueueManager,
+        output_queue: InternalQueue,
     ):
-        super().__init__(self.__class__.__name__, queue=input_queue)
-        self._input_queue: InternalQueue = input_queue
+        super().__init__(self.__class__.__name__, queue=input_queue_manager)
+        self.input_queue_manager: InternalQueueManager = input_queue_manager
         self._output_queue: InternalQueue = output_queue
 
-        self.context = Context(worker_id, self)
+        self.context = Context(worker_id, input_queue_manager)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
 
@@ -84,8 +88,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         stage while processing a DataElement.
         """
         while (
-            not self._input_queue.is_control_empty()
-            or not self._input_queue.is_data_enabled()
+            not self.input_queue_manager.is_control_empty()
+            or not self.input_queue_manager.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -280,13 +284,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.pause_manager.pause(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
-            self._input_queue.disable_data()
         else:
             self.context.pause_manager.resume(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
-            if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_data()
 
     def _pause_dp(self, pause_type: PauseType) -> None:
         """
@@ -332,7 +333,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     )
                 )
             )
-            self._check_and_report_print(force_flush=True)
+            self._check_and_report_console_messages(force_flush=True)
             self.context.pause_manager.pause(PauseType.DEBUG_PAUSE)
 
     def _check_exception(self) -> None:

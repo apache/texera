@@ -1,6 +1,7 @@
 from overrides import overrides
 from threading import Thread, Event
 
+from core.architecture.managers.internal_queue_manager import InternalQueueManager
 from core.models.internal_queue import InternalQueue
 from core.runnables import MainLoop, NetworkReceiver, NetworkSender, Heartbeat
 from core.util.runnable.runnable import Runnable
@@ -11,8 +12,11 @@ class PythonWorker(Runnable, Stoppable):
     def __init__(self, worker_id: str, host: str, output_port: int):
         self._input_queue = InternalQueue()
         self._output_queue = InternalQueue()
+        self._internal_queue_manager = InternalQueueManager(self._input_queue)
         # start the server
-        self._network_receiver = NetworkReceiver(self._input_queue, host=host)
+        self._network_receiver = NetworkReceiver(
+            self._internal_queue_manager, host=host
+        )
         # let Java knows where Python starts (do handshake)
         self._network_sender = NetworkSender(
             self._output_queue,
@@ -23,7 +27,9 @@ class PythonWorker(Runnable, Stoppable):
         self._stop_event = Event()
         self._heartbeat = Heartbeat(host, output_port, 5, self._stop_event)
 
-        self._main_loop = MainLoop(worker_id, self._input_queue, self._output_queue)
+        self._main_loop = MainLoop(
+            worker_id, self._internal_queue_manager, self._output_queue
+        )
         self._network_receiver.register_shutdown(self.stop)
 
     @overrides

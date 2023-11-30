@@ -20,10 +20,9 @@ class Context:
     Context class can be viewed as a friend of DataProcessor.
     """
 
-    def __init__(self, worker_id, main_loop):
+    def __init__(self, worker_id, input_queue_manager):
         self.worker_id = worker_id
-        self.main_loop = main_loop
-        self.input_queue = main_loop._input_queue
+        self.input_queue_manager = input_queue_manager
         self.operator_manager = OperatorManager()
         self.tuple_processing_manager = TupleProcessingManager()
         self.exception_manager = ExceptionManager()
@@ -40,7 +39,7 @@ class Context:
 
         self.statistics_manager = StatisticsManager()
         self.pause_manager = PauseManager(
-            self.input_queue, state_manager=self.state_manager
+            self.input_queue_manager, state_manager=self.state_manager
         )
         self.tuple_to_batch_converter = TupleToBatchConverter()
         self.batch_to_tuple_converter = BatchToTupleConverter()
