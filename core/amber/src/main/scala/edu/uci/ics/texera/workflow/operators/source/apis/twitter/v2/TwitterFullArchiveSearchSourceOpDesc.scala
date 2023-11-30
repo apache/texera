@@ -1,10 +1,20 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaDescription,
+  JsonSchemaInject,
+  JsonSchemaTitle
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
 class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
@@ -35,9 +45,9 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
     // TODO: use multiple workers
-    OpExecConfig.manyToOneLayer(
+    OpExecConfig.sourceLayer(
       operatorIdentifier,
-      (() =>  Left(_ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo))):OpExecInitInfo
+      OpExecInitInfo(_ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo))
     )
 
   override def sourceSchema(): Schema = {

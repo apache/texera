@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
@@ -20,7 +21,7 @@ object AggregateOpDesc {
       OpExecConfig
         .oneToOneLayer(
           makeLayer(id, "localAgg"),
-          (()=>Left(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))):OpExecInitInfo
+          OpExecInitInfo(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
@@ -29,7 +30,7 @@ object AggregateOpDesc {
       OpExecConfig
         .localLayer(
           makeLayer(id, "globalAgg"),
-          (()=>Left(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))):OpExecInitInfo
+          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
@@ -41,7 +42,7 @@ object AggregateOpDesc {
       OpExecConfig
         .hashLayer(
           makeLayer(id, "globalAgg"),
-          (()=>Left(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))):OpExecInitInfo,
+          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
           partitionColumns
         )
         .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))

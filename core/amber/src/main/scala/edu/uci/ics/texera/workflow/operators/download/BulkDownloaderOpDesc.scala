@@ -5,10 +5,21 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 
 class BulkDownloaderOpDesc extends OperatorDescriptor {
 
@@ -31,12 +42,14 @@ class BulkDownloaderOpDesc extends OperatorDescriptor {
     assert(context.userId.isDefined)
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      (() =>  Left(_ => new BulkDownloaderOpExec(
+      OpExecInitInfo(_ =>
+        new BulkDownloaderOpExec(
           context,
           urlAttribute,
           resultAttribute,
           operatorSchemaInfo
-        ))):OpExecInitInfo
+        )
+      )
     )
   }
 

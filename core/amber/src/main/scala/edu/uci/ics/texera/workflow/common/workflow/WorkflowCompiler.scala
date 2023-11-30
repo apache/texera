@@ -94,7 +94,18 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan) {
     // assign link strategies
     val physicalPlan2 = new PartitionEnforcer(physicalPlan1).enforcePartition()
 
-    new Workflow(workflowId, physicalPlan2)
+    // enforce all source layers to have 0 input ports:
+    val sourceSet = physicalPlan2.getSourceOperators.toSet
+    val updatedOps = physicalPlan2.operators.map { op =>
+      if (sourceSet.contains(op.id)) {
+        op.copy(inputPorts = List.empty)
+      } else {
+        op
+      }
+    }
+    val physicalPlan3 = physicalPlan2.copy(operators = updatedOps)
+
+    new Workflow(workflowId, physicalPlan3)
   }
 
 }

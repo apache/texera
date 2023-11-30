@@ -33,7 +33,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
         return OpExecConfig.oneToOneLayer(operatorIdentifier(),
-                (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])));
+                OpExecInitInfo.apply(worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])));
     }
 
     @Override

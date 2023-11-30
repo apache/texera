@@ -2,8 +2,14 @@ package edu.uci.ics.texera.workflow.operators.unneststring
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
@@ -35,7 +41,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      (() =>  Left(_ => new UnnestStringOpExec(this, operatorSchemaInfo))):OpExecInitInfo
+      OpExecInitInfo(_ => new UnnestStringOpExec(this, operatorSchemaInfo))
     )
   }
 

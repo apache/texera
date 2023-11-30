@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
@@ -33,12 +33,12 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
   private val mockLink = LinkIdentity(layerId1, 0, layerId2, 0)
   private val opExecConfig = OpExecConfig
-    .oneToOneLayer(operatorIdentity, _ => operator)
+    .oneToOneLayer(operatorIdentity, OpExecInitInfo(_ => operator))
     .copy(inputToOrdinalMapping = Map(mockLink -> 0), outputToOrdinalMapping = Map(mockLink -> 0))
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
 
   "DP Thread" should "handle pause/resume during processing" in {
-    val dp = new DataProcessor(identifier, 0, operator, opExecConfig, x => {})
+    val dp = new DataProcessor(identifier, 0, opExecConfig, x => {})
     val inputQueue = new LinkedBlockingQueue[Either[WorkflowFIFOMessage, ControlInvocation]]()
     dp.registerInput(senderID, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
@@ -63,7 +63,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle pause/resume using fifo messages" in {
-    val dp = new DataProcessor(identifier, 0, operator, opExecConfig, x => {})
+    val dp = new DataProcessor(identifier, 0, opExecConfig, x => {})
     val inputQueue = new LinkedBlockingQueue[Either[WorkflowFIFOMessage, ControlInvocation]]()
     dp.registerInput(senderID, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
@@ -91,7 +91,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
-    val dp = new DataProcessor(identifier, 0, operator, opExecConfig, x => {})
+    val dp = new DataProcessor(identifier, 0, opExecConfig, x => {})
     val inputQueue = new LinkedBlockingQueue[Either[WorkflowFIFOMessage, ControlInvocation]]()
     val anotherSender = ActorVirtualIdentity("another")
     dp.registerInput(senderID, mockLink)

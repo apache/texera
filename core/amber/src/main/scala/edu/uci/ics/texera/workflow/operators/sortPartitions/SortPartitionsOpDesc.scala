@@ -3,9 +3,15 @@ package edu.uci.ics.texera.workflow.operators.sortPartitions
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.RangePartition
@@ -51,14 +57,16 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
     OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
-        (() =>  Left(p => new SortPartitionOpExec(
+        OpExecInitInfo(p =>
+          new SortPartitionOpExec(
             sortAttributeName,
             operatorSchemaInfo,
             p._1,
             domainMin,
             domainMax,
             p._2.numWorkers
-          ))):OpExecInitInfo
+          )
+        )
       )
       .copy(
         partitionRequirement = partitionRequirement

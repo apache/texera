@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
@@ -12,18 +13,20 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
     if (asSource()) {
 
       OpExecConfig
-        .localLayer(
+        .sourceLayer(
           operatorIdentifier,
-          () => Right(generatedCode)
+          OpExecInitInfo(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          () => Right(generatedCode)
+          OpExecInitInfo(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 

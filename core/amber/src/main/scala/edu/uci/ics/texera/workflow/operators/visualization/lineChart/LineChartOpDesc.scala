@@ -1,13 +1,34 @@
 package edu.uci.ics.texera.workflow.operators.visualization.lineChart
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.aggregate.{AggregationFunction, AggregationOperation, SpecializedAggregateOpDesc}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.aggregate.{
+  AggregationFunction,
+  AggregationOperation,
+  SpecializedAggregateOpDesc
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 import java.util.Collections.singletonList
 import scala.jdk.CollectionConverters.asScalaBuffer
@@ -71,7 +92,7 @@ class LineChartOpDesc extends VisualizationOperator {
 
     val lineChartOpExec = OpExecConfig.oneToOneLayer(
       makeLayer(operatorIdentifier, "visualize"),
-      (() =>  Left(_ => new LineChartOpExec(this, operatorSchemaInfo))):OpExecInitInfo
+      OpExecInitInfo(_ => new LineChartOpExec(this, operatorSchemaInfo))
     )
 
     val finalAggOp = aggPlan.sinkOperators.head

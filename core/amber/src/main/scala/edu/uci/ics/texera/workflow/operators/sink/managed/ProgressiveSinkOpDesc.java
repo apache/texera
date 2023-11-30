@@ -48,7 +48,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
         return OpExecConfig.localLayer(
                 operatorIdentifier(),
-                (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()))
+                OpExecInitInfo.apply(worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()))
         ).withPorts(this.operatorInfo());
     }
 

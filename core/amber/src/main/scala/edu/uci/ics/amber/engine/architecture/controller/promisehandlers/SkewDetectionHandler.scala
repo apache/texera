@@ -15,7 +15,6 @@ import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer

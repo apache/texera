@@ -74,7 +74,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
         OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new WordCloudOpPartialExec(textColumn))
+                OpExecInitInfo.apply(worker -> new WordCloudOpPartialExec(textColumn))
         ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
@@ -82,7 +82,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
         OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
-                        (OpExecInitInfo & Serializable) ()-> new Left<>(worker -> new WordCloudOpFinalExec(topN))
+                        OpExecInitInfo.apply(worker -> new WordCloudOpFinalExec(topN))
         ).withId(finalId).withIsOneToManyOp(true)
                 .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 

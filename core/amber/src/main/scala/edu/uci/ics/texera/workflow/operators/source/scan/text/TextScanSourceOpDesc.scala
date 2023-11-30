@@ -1,8 +1,17 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import com.fasterxml.jackson.annotation.{
+  JsonIgnoreProperties,
+  JsonProperty,
+  JsonPropertyDescription
+}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaString,
+  JsonSchemaTitle
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.{FileDecodingMethod, ScanSourceOpDesc}
@@ -60,9 +69,9 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         val defaultAttributeName: String = if (attributeType.isOutputSingleTuple) "file" else "line"
 
         // using only 1 worker for text scan to maintain proper ordering
-        OpExecConfig.localLayer(
+        OpExecConfig.sourceLayer(
           operatorIdentifier,
-          (() =>  Left(_ => {
+          OpExecInitInfo(_ => {
             val startOffset: Int = offsetValue
             val endOffset: Int = offsetValue + count
             new TextScanSourceOpExec(
@@ -72,7 +81,7 @@ class TextScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
               if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
               else attributeName.get
             )
-          })):OpExecInitInfo
+          })
         )
       case None =>
         throw new RuntimeException("File path is not provided.")

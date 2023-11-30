@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -90,7 +91,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          () => Right(code)
+          OpExecInitInfo(code)
         )
         .copy(
           numWorkers = workers,
@@ -100,12 +101,13 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
           outputPorts = opInfo.outputPorts,
           partitionRequirement = partitionRequirement,
           dependency = dependency
-        ).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        )
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
       OpExecConfig
         .manyToOneLayer(
           operatorIdentifier,
-          () => Right(code)
+          OpExecInitInfo(code)
         )
         .copy(
           derivePartition = _ => UnknownPartition(),
@@ -114,7 +116,8 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
           outputPorts = opInfo.outputPorts,
           partitionRequirement = partitionRequirement,
           dependency = dependency
-        ).withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        )
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo = {

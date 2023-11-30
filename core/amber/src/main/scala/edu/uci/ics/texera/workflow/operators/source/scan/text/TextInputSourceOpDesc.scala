@@ -1,10 +1,19 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaDescription,
+  JsonSchemaInject,
+  JsonSchemaTitle
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
@@ -36,9 +45,9 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       defaultAttributeName = "line"
     }
 
-    OpExecConfig.localLayer(
+    OpExecConfig.sourceLayer(
       operatorIdentifier,
-      (() =>  Left(_ => {
+      OpExecInitInfo(_ => {
         val startOffset: Int = offsetValue
         val endOffset: Int = offsetValue + count
         new TextInputSourceOpExec(
@@ -48,7 +57,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
           if (attributeName.isEmpty || attributeName.get.isEmpty) defaultAttributeName
           else attributeName.get
         )
-      })):OpExecInitInfo
+      })
     )
   }
 

@@ -3,9 +3,14 @@ package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
@@ -26,9 +31,10 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
   override def getKeywords: Option[String] = super.getKeywords
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    OpExecConfig.localLayer(
+    OpExecConfig.sourceLayer(
       operatorIdentifier,
-      (() =>  Left(_ => new PostgreSQLSourceOpExec(
+      OpExecInitInfo(_ =>
+        new PostgreSQLSourceOpExec(
           querySchema,
           host,
           port,
@@ -46,7 +52,8 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
           keywordSearch.getOrElse(false),
           keywordSearchByColumn.orNull,
           keywords.orNull
-        ))):OpExecInitInfo
+        )
+      )
     )
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
