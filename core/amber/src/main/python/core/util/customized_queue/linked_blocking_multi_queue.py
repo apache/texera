@@ -1,9 +1,8 @@
 from __future__ import annotations
 
+import sys
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, MutableMapping
-
-from pympler import asizeof
 
 from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IKeyedQueue
@@ -18,7 +17,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def __init__(self, item: T):
             self.item = item
             self.next: Optional[LinkedBlockingMultiQueue.Node[T]] = None
-            self.in_mem_size = asizeof.asizeof(item)
+            self.in_mem_size = sys.getsizeof(item)
 
     @inner
     class SubQueue(Generic[T]):
