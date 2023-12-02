@@ -37,7 +37,7 @@ class PauseManager:
         self._state_manager = state_manager
 
     def pause(self, pause_type: PauseType, change_state=True) -> None:
-        logger.info("pause by " + str(pause_type))
+        logger.debug("pause by " + str(pause_type))
         self._global_pauses.add(pause_type)
         self._input_queue.disable_data(InternalQueue.DisableType.DISABLE_BY_PAUSE)
 
@@ -53,7 +53,7 @@ class PauseManager:
         raise NotImplementedError()
 
     def resume(self, pause_type: PauseType, change_state=True) -> None:
-        logger.info("resume by " + str(pause_type))
+        logger.debug("resume by " + str(pause_type))
         if pause_type in self._global_pauses:
             self._global_pauses.remove(pause_type)
         # del self._specific_input_pauses[pause_type]

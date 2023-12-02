@@ -47,7 +47,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         output_queue: InternalQueue,
     ):
         super().__init__(self.__class__.__name__, queue=input_queue)
-        self.input_queue: InternalQueue = input_queue
+        self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
 
         self.context = Context(worker_id, input_queue)
@@ -87,8 +87,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
         stage while processing a DataElement.
         """
         while (
-            not self.input_queue.is_control_empty()
-            or not self.input_queue.is_data_enabled()
+            not self._input_queue.is_control_empty()
+            or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
