@@ -267,6 +267,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
 
     def in_mem_size(self, key: str) -> int:
         return self.sub_queues[key].in_mem_size.value
+
     def put(self, key: str, item: T) -> None:
         """
         Put one item into the SubQueue specified by the key.
