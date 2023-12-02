@@ -1,7 +1,6 @@
 #nav-container {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   width: 100%;
-  min-width: 650px;
 }
 
 #logo {
@@ -33,17 +32,15 @@
   height: 36px;
   margin: 1px;
   border-bottom: 1px solid #cacaca;
+  display: flex;
 }
 
 #metadata {
-  display: inline-block;
-  width: calc(100% - 200px);
-  vertical-align: top;
+  width: 100%;
 }
 
 #user-icon {
-  display: inline-block;
-  width: 200px;
+  width: 120px;
 }
 
 #button-groups {
@@ -63,12 +60,6 @@ i {
   display: inline-flex;
   align-content: center;
   justify-content: center;
-}
-
-#stop-shadowing {
-  font-size: 18px;
-  width: min-content;
-  text-align: end;
 }
 
 #save-state {
@@ -97,7 +88,15 @@ i {
 }
 
 #dropdown-button {
-  @media screen and (min-width: 960px) {
+  @media screen and (min-width: 961px) {
     display: none;
   }
+}
+
+texera-user-icon {
+  margin-left: 10px;
+}
+
+texera-coeditor-user-icon {
+  margin-left: -10px;
 }

@@ -59,26 +59,12 @@
           {{autoSaveState}}
         </button>
       </div>
-      <div id="user-icon">
-        <div>
-          <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
-            <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
-          </ng-container>
-        </div>
-        <div *ngIf="this.coeditorPresenceService.shadowingModeEnabled">
-          <button
-            *ngIf="this.coeditorPresenceService.shadowingModeEnabled"
-            nz-button
-            nzType="link"
-            id="stop-shadowing"
-            [ngStyle]="{ 'color': this.coeditorPresenceService.shadowingCoeditor?.color }"
-            spellcheck="false"
-            (click)="this.coeditorPresenceService.stopShadowing()">
-            <b>Shadowing {{this.coeditorPresenceService.shadowingCoeditor?.name}}, click to stop</b>
-          </button>
-        </div>
-        <texera-user-icon></texera-user-icon>
-      </div>
+
+      <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+        <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
+      </ng-container>
+
+      <texera-user-icon></texera-user-icon>
     </div>
     <div id="button-groups">
       <nz-button-group
