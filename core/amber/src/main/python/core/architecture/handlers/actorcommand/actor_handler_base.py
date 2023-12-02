@@ -1,6 +1,6 @@
 from abc import ABC
 
-from core.architecture.managers.internal_queue_manager import InternalQueueManager
+from core.models import InternalQueue
 from proto.edu.uci.ics.amber.engine.common import ActorCommand
 
 
@@ -10,7 +10,7 @@ class ActorCommandHandler(ABC):
     def __call__(
         self,
         command: ActorCommand,
-        input_queue_manager: InternalQueueManager,
+        input_queue: InternalQueue,
         *args,
         **kwargs
     ) -> None:
