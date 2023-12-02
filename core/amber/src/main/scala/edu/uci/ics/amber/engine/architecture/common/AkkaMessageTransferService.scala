@@ -50,12 +50,8 @@ class AkkaMessageTransferService(
   private def checkCreditPolling(): Unit = {
 
     channelToFC.foreach {
-      case (channel, fc) =>{
-        logger.info("checking if channel"+channel+" needs polling credit")
-      }
+      case (channel, fc) =>
         if (fc.isOverloaded) {
-
-          logger.info(channel+" needs polling!")
           refService.askForCredit(channel)
         }
     }
@@ -133,7 +129,7 @@ class AkkaMessageTransferService(
       return
     }
     backpressured = existOverloadedChannel
-    logger.info(s"current backpressure status = $backpressured channel credits = ${
+    logger.debug(s"current backpressure status = $backpressured channel credits = ${
       channelToFC
         .map(c => c._1 -> c._2.getCredit)
     }")

@@ -2,6 +2,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from .console_message_manager import ConsoleMessageManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
+from .internal_queue_manager import InternalQueueManager
 from .tuple_processing_manager import TupleProcessingManager
 from .operator_manager import OperatorManager
 from .pause_manager import PauseManager
@@ -22,7 +23,7 @@ class Context:
 
     def __init__(self, worker_id, input_queue_manager):
         self.worker_id = worker_id
-        self.input_queue_manager = input_queue_manager
+        self.input_queue_manager: InternalQueueManager = input_queue_manager
         self.operator_manager = OperatorManager()
         self.tuple_processing_manager = TupleProcessingManager()
         self.exception_manager = ExceptionManager()

@@ -4,8 +4,6 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeVar
 
-from loguru import logger
-
 from core.models.marker import Marker
 from core.models.payload import DataPayload
 from core.util.customized_queue.linked_blocking_multi_queue import (
@@ -13,7 +11,6 @@ from core.util.customized_queue.linked_blocking_multi_queue import (
 )
 from core.util.customized_queue.queue_base import IQueue, QueueElement
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, ControlPayloadV2
-from pympler import asizeof
 
 
 @dataclass
@@ -93,8 +90,7 @@ class InternalQueue(IQueue):
         self._disable(InternalQueue.QueueID.DATA)
 
     def in_mem_size(self) -> int:
-        logger.info("python side "+str(self._queue.in_mem_size("data")))
-        return self._queue.in_mem_size("data")
+        return self._queue.in_mem_size(InternalQueue.QueueID.DATA.value)
 
     def is_data_enabled(self) -> bool:
         return self._queue.is_enabled(InternalQueue.QueueID.DATA.value)

@@ -131,7 +131,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // extract info needed to calculate sender credits from ack
     // ackResult contains number of batches inside Python worker internal queue
     pythonQueueInMemSize.set(new String(result.getBody).toLong)
-    logger.info(s"action ${action.getType} updated queue size $pythonQueueInMemSize")
+    logger.debug(s"action ${action.getType} updated queue size $pythonQueueInMemSize")
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
@@ -174,7 +174,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // for calculating sender credits - get back number of batches in Python worker queue
     val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
     pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
-    logger.info(s"data channel updated queue size $pythonQueueInMemSize")
+    logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
     ackMsgBuf.close()
 
     flightListener.close()

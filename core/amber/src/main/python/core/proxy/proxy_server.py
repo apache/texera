@@ -149,7 +149,7 @@ class ProxyServer(FlightServerBase):
             NotImplementedError
         )
 
-        # the actor command message handler for each control message, needs to be
+        # the actor command message handler for each actor message, needs to be
         # implemented during runtime.
         self.process_actor = lambda *args, **kwargs: (_ for _ in ()).throw(
             NotImplementedError

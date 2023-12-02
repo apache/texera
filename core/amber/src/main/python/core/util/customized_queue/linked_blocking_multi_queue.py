@@ -88,9 +88,18 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def enqueue(self, node: LinkedBlockingMultiQueue.Node[T]) -> None:
             self.last.next = node
             self.last = node
-            # logger.info("enqueuing " + str(node.in_mem_size))
             self.in_mem_size.add(node.in_mem_size)
-            # logger.info("now has " + str(self.in_mem_size.load()))
+
+        def dequeue(self) -> T:
+            assert self.size() > 0
+            h = self.head
+            first = h.next
+            h.next = h
+            self.head = first
+            x = first.item
+            self.in_mem_size.sub(first.in_mem_size)
+            first.item = None
+            return x
 
         def __str__(self) -> str:
             res = ""
@@ -159,18 +168,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.put_lock.release()
             self.owner.take_lock.release()
 
-        def dequeue(self) -> T:
-            assert self.size() > 0
-            h = self.head
-            first = h.next
-            h.next = h
-            self.head = first
-            x = first.item
-            # logger.info("dequeue " + str(first.in_mem_size))
-            self.in_mem_size.sub(first.in_mem_size)
-            # logger.info("now has " + str(self.in_mem_size.load()))
-            first.item = None
-            return x
+
 
     @inner
     class PriorityGroup(Generic[T]):

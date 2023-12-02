@@ -95,12 +95,10 @@ class PythonWorkflowWorker(
 
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long = {
-    logger.info("java side total " +  (pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit))
     pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit
   }
 
   override def handleBackpressure(enableBackpressure: Boolean): Unit = {
-    logger.info("got backpressure!!!! " + enableBackpressure)
     pythonProxyClient.enqueueActorCommand(Backpressure(enableBackpressure))
   }
 

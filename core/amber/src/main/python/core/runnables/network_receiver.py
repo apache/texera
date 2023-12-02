@@ -65,14 +65,14 @@ class NetworkReceiver(Runnable, Stoppable):
             """
             data_header = PythonDataHeader().parse(command)
             if not data_header.is_end:
-                queue_manager.queue.put(
+                queue_manager.put(
                     DataElement(tag=data_header.tag, payload=InputDataFrame(table))
                 )
             else:
-                queue_manager.queue.put(
+                queue_manager.put(
                     DataElement(tag=data_header.tag, payload=EndOfUpstream())
                 )
-            return queue_manager.queue.in_mem_size()
+            return queue_manager.in_mem_size()
 
         self._proxy_server.register_data_handler(data_handler)
 
@@ -85,13 +85,13 @@ class NetworkReceiver(Runnable, Stoppable):
             :return: sender credits
             """
             python_control_message = PythonControlMessage().parse(message)
-            queue_manager.queue.put(
+            queue_manager.put(
                 ControlElement(
                     tag=python_control_message.tag,
                     payload=python_control_message.payload,
                 )
             )
-            return queue_manager.queue.in_mem_size()
+            return queue_manager.in_mem_size()
 
         self._proxy_server.register_control_handler(control_handler)
 
@@ -106,8 +106,7 @@ class NetworkReceiver(Runnable, Stoppable):
             python_actor_message = PythonActorMessage().parse(message)
             command = get_one_of(python_actor_message.payload)
             self.look_up(command)(command, queue_manager)
-            logger.info("getting actor message" + str(command))
-            return queue_manager.queue.in_mem_size()
+            return queue_manager.in_mem_size()
 
         self._proxy_server.register_actor_message_handler(actor_message_handler)
 

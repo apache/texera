@@ -17,45 +17,55 @@ T = TypeVar("T")
 
 class InternalQueueManager(IQueue):
     def __init__(self, queue: InternalQueue):
-        self.queue = queue
+        self._queue = queue
         self._queue_state: Set[DisableType] = set()
         self._lock = RLock()
 
     def disable_data(self, disable_type: DisableType) -> None:
         with self._lock:
             self._queue_state.add(disable_type)
-            self.queue.disable_data()
+            self._queue.disable_data()
 
     def enable_data(self, disable_type: DisableType) -> bool:
         with self._lock:
             self._queue_state.remove(disable_type)
             if self._queue_state:
                 return False
-            self.queue.enable_data()
+            self._queue.enable_data()
             return True
 
     def put(self, item: T) -> None:
-        self.queue.put(item)
+        self._queue.put(item)
 
     def get(self) -> T:
-        return self.queue.get()
+        return self._queue.get()
 
     def is_empty(self) -> bool:
         with self._lock:
-            return self.queue.is_empty()
+            return self._queue.is_empty()
 
     def __len__(self) -> int:
         with self._lock:
-            return len(self.queue)
+            return len(self._queue)
 
     def is_control_empty(self) -> bool:
         with self._lock:
-            return self.queue.is_control_empty()
+            return self._queue.is_control_empty()
 
     def is_data_empty(self) -> bool:
         with self._lock:
-            return self.queue.is_data_empty()
+            return self._queue.is_data_empty()
 
     def is_data_enabled(self) -> bool:
         with self._lock:
             return not bool(self._queue_state)
+
+    def in_mem_size(self):
+        with self._lock:
+            return self._queue.in_mem_size()
+
+    def size_data(self):
+        return self._queue.size_data()
+
+    def size_control(self)->int:
+        return self._queue.size_control()
