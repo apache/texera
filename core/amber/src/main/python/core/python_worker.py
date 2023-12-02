@@ -13,9 +13,7 @@ class PythonWorker(Runnable, Stoppable):
         self._output_queue = InternalQueue()
         self._internal_queue = self._input_queue
         # start the server
-        self._network_receiver = NetworkReceiver(
-            self._internal_queue, host=host
-        )
+        self._network_receiver = NetworkReceiver(self._internal_queue, host=host)
         # let Java knows where Python starts (do handshake)
         self._network_sender = NetworkSender(
             self._output_queue,
@@ -26,9 +24,7 @@ class PythonWorker(Runnable, Stoppable):
         self._stop_event = Event()
         self._heartbeat = Heartbeat(host, output_port, 5, self._stop_event)
 
-        self._main_loop = MainLoop(
-            worker_id, self._internal_queue, self._output_queue
-        )
+        self._main_loop = MainLoop(worker_id, self._internal_queue, self._output_queue)
         self._network_receiver.register_shutdown(self.stop)
 
     @overrides

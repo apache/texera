@@ -9,11 +9,7 @@ class CreditUpdateHandler(ActorCommandHandler):
     cmd = CreditUpdate
 
     def __call__(
-        self,
-        command: CreditUpdate,
-        input_queue: InternalQueue,
-        *args,
-        **kwargs
+        self, command: CreditUpdate, input_queue: InternalQueue, *args, **kwargs
     ):
         # do nothing
         return None

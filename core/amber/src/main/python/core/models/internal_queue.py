@@ -31,8 +31,6 @@ class ControlElement(InternalQueueElement):
     payload: ControlPayloadV2
 
 
-
-
 T = TypeVar("T", bound=InternalQueueElement)
 
 
@@ -45,6 +43,7 @@ class InternalQueue(IQueue):
     class DisableType(Enum):
         DISABLE_BY_PAUSE = 1
         DISABLE_BY_BACKPRESSURE = 2
+
     def __init__(self):
         self._queue = LinkedBlockingMultiQueue()
         self._queue.add_sub_queue(InternalQueue.QueueID.SYSTEM.value, 0)

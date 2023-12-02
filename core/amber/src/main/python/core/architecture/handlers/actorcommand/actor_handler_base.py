@@ -8,10 +8,6 @@ class ActorCommandHandler(ABC):
     cmd: ActorCommand = None
 
     def __call__(
-        self,
-        command: ActorCommand,
-        input_queue: InternalQueue,
-        *args,
-        **kwargs
+        self, command: ActorCommand, input_queue: InternalQueue, *args, **kwargs
     ) -> None:
         pass

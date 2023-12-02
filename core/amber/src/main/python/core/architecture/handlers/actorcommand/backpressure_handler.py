@@ -18,18 +18,12 @@ class BackpressureHandler(ActorCommandHandler):
     cmd = Backpressure
 
     def __call__(
-        self,
-        command: Backpressure,
-        input_queue: InternalQueue,
-        *args,
-        **kwargs
+        self, command: Backpressure, input_queue: InternalQueue, *args, **kwargs
     ):
         if command.enable_backpressure:
-            input_queue.disable_data(
-                InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
+            input_queue.disable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
         else:
-            input_queue.enable_data(
-                InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
+            input_queue.enable_data(InternalQueue.DisableType.DISABLE_BY_BACKPRESSURE)
             input_queue.put(
                 ControlElement(
                     tag=ActorVirtualIdentity(""),
