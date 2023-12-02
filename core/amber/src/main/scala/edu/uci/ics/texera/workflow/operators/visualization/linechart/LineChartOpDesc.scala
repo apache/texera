@@ -1,13 +1,24 @@
 package edu.uci.ics.texera.workflow.operators.visualization.linechart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.texera.workflow.common.metadata.{
+  InputPort,
+  OperatorGroupConstants,
+  OperatorInfo,
+  OutputPort
+}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 import java.util
 import scala.jdk.CollectionConverters.iterableAsScalaIterableConverter
@@ -15,18 +26,18 @@ import scala.jdk.CollectionConverters.iterableAsScalaIterableConverter
 class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty(value = "title", required = false)
-  @JsonSchemaTitle("Plot title")
+  @JsonSchemaTitle("Plot Title")
   @JsonPropertyDescription("The value for the plot tile")
   var title: String = ""
 
-  @JsonProperty(value = "yLabel", required = true)
-  @JsonSchemaTitle("Y label")
-  @JsonPropertyDescription("the value for the label of y axis")
+  @JsonProperty(value = "yLabel", required = false)
+  @JsonSchemaTitle("Y Label")
+  @JsonPropertyDescription("the label for y axis")
   var yLabel: String = ""
 
-  @JsonProperty(value = "xLabel", required = true)
-  @JsonSchemaTitle("X label")
-  @JsonPropertyDescription("the value for the label of x axis")
+  @JsonProperty(value = "xLabel", required = false)
+  @JsonSchemaTitle("X Label")
+  @JsonPropertyDescription("the label for x axis")
   var xLabel: String = ""
 
   @JsonProperty(value = "lines", required = true)
@@ -39,7 +50,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Line Chart",
-      "Visualize data in a certain time period",
+      "View the result in line chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
@@ -48,16 +59,25 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   override def numWorkers() = 1
 
   def createPlotlyFigure(): String = {
-    val linesCode = lines.asScala.map{
-      lineConf =>
+    val linesCode = lines.asScala
+      .map { lineConf =>
         s"        " +
-          s"fig.add_trace(go.Scatter(x=${lineConf.xValue}, y=${lineConf.yValue}, " +
-          s"mode=${lineConf.mode.getMode}, line={color:${lineConf.color}}, " +
-          s"marker={color:${lineConf.color}}, name=${lineConf.name}"
-    }.mkString("\n")
+          s"fig.add_trace(go.Scatter(x=table['${lineConf.xValue}'], y=table['${lineConf.yValue}'], " +
+          s"mode='${lineConf.mode.getMode}', " + (if (lineConf.color != "") {
+                                                    s"line={'color':'${lineConf.color}'}, marker={'color':'${lineConf.color}'}, "
+                                                  } else {
+                                                    ""
+                                                  }) + (if (lineConf.name != "") {
+                                                          s"name='${lineConf.name}'"
+                                                        } else {
+                                                          s"name='${lineConf.yValue}'"
+                                                        }) + "))"
+
+      }
+      .mkString("\n")
     s"""
        |        fig = go.Figure()
-       |        $linesCode
+       |$linesCode
        |        fig.update_layout(title='$title',
        |                   xaxis_title='$xLabel',
        |                   yaxis_title='$yLabel')

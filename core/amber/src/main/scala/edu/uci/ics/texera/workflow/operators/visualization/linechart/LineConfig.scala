@@ -2,8 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.linechart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameLambda}
-
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 
 //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
@@ -21,34 +20,32 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttribut
 class LineConfig {
 
   @JsonProperty(value = "y", required = true)
-  @JsonSchemaTitle("y Column")
-  @JsonPropertyDescription("the y value")
+  @JsonSchemaTitle("Y Value")
+  @JsonPropertyDescription("value for y axis")
   @AutofillAttributeName
   var yValue: String = ""
 
   @JsonProperty(value = "x", required = true)
-  @JsonSchemaTitle("x Column")
-  @JsonPropertyDescription("ths x value")
+  @JsonSchemaTitle("X Value")
+  @JsonPropertyDescription("value for x axis")
   @AutofillAttributeName
   var xValue: String = ""
-
-  @JsonProperty(value = "color", required = false)
-  @JsonSchemaTitle("color Column")
-  @JsonPropertyDescription("the color")
-  var color: String = "None"
 
   @JsonProperty(
     value = "mode",
     required = true,
     defaultValue = "lines+markers"
   )
-  @JsonSchemaTitle("mode Column")
-  @JsonPropertyDescription("the mode")
+  @JsonSchemaTitle("Line Mode")
   var mode: LineMode = LineMode.LINES_MARKERS
 
   @JsonProperty(value = "name", required = false)
-  @JsonSchemaTitle("name line")
-  @JsonPropertyDescription("the name value")
+  @JsonSchemaTitle("Line Name")
   var name: String = ""
+
+  @JsonProperty(value = "color", required = false)
+  @JsonSchemaTitle("Line Color")
+  @JsonPropertyDescription("must be a valid CSS color or hex color string")
+  var color: String = ""
 
 }
