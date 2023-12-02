@@ -36,8 +36,7 @@ class NetworkReceiver(Runnable, Stoppable):
 
     @logger.catch(reraise=True)
     def __init__(
-            self, queue_manager: InternalQueueManager, host: str,
-            port: Optional[int] = None
+        self, queue_manager: InternalQueueManager, host: str, port: Optional[int] = None
     ):
         server_start = False
         # try to start the server until it succeeds

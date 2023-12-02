@@ -25,7 +25,7 @@ class PauseManager:
     """
 
     def __init__(
-            self,
+        self,
         input_queue_manager: InternalQueueManager,
         state_manager: state_manager.StateManager,
     ):
@@ -42,12 +42,12 @@ class PauseManager:
         self._input_queue_manager.disable_data(DisableType.DISABLE_BY_PAUSE)
 
         if change_state and self._state_manager.confirm_state(
-                WorkerState.RUNNING, WorkerState.READY
+            WorkerState.RUNNING, WorkerState.READY
         ):
             self._state_manager.transit_to(WorkerState.PAUSED)
 
     def pause_input_channel(
-            self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
+        self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
     ) -> None:
         # for now we do not have specific data queue for Python side.
         raise NotImplementedError()

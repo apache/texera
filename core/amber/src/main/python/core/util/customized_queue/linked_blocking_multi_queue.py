@@ -21,6 +21,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.item = item
             self.next: Optional[LinkedBlockingMultiQueue.Node[T]] = None
             self.in_mem_size = asizeof.asizeof(item)
+
     @inner
     class SubQueue(Generic[T]):
         def __init__(self, key: str):
@@ -168,8 +169,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.put_lock.release()
             self.owner.take_lock.release()
 
-
-
     @inner
     class PriorityGroup(Generic[T]):
         def __init__(self, priority: int = 0):
@@ -268,7 +267,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.priority_groups
         )
 
-    def in_mem_size(self, key:str)-> int:
+    def in_mem_size(self, key: str) -> int:
         return self.sub_queues[key].in_mem_size.load()
 
     def put(self, key: str, item: T) -> None:

@@ -67,5 +67,5 @@ class InternalQueueManager(IQueue):
     def size_data(self):
         return self._queue.size_data()
 
-    def size_control(self)->int:
+    def size_control(self) -> int:
         return self._queue.size_control()
