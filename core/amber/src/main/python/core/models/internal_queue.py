@@ -93,10 +93,8 @@ class InternalQueue(IQueue):
         self._disable(InternalQueue.QueueID.DATA)
 
     def in_mem_size(self) -> int:
-        logger.info("python side "+str(self._queue.get_sub_queue(
-            InternalQueue.QueueID.DATA.value).in_mem_size.value))
-        return self._queue.get_sub_queue(
-            InternalQueue.QueueID.DATA.value).in_mem_size.value
+        logger.info("python side "+str(self._queue.in_mem_size("data")))
+        return self._queue.in_mem_size("data")
 
     def is_data_enabled(self) -> bool:
         return self._queue.is_enabled(InternalQueue.QueueID.DATA.value)

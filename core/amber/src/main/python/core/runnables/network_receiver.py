@@ -36,7 +36,8 @@ class NetworkReceiver(Runnable, Stoppable):
 
     @logger.catch(reraise=True)
     def __init__(
-        self, queue_manager: InternalQueueManager, host: str, port: Optional[int] = None
+            self, queue_manager: InternalQueueManager, host: str,
+            port: Optional[int] = None
     ):
         server_start = False
         # try to start the server until it succeeds
@@ -105,6 +106,7 @@ class NetworkReceiver(Runnable, Stoppable):
             python_actor_message = PythonActorMessage().parse(message)
             command = get_one_of(python_actor_message.payload)
             self.look_up(command)(command, queue_manager)
+            logger.info("getting actor message" + str(command))
             return queue_manager.queue.in_mem_size()
 
         self._proxy_server.register_actor_message_handler(actor_message_handler)

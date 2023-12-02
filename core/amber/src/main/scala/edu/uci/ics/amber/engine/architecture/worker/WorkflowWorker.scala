@@ -101,7 +101,11 @@ class WorkflowWorker(
 
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long =
-    dp.getQueuedCredit(channelID)
+   {
+     logger.info("java operator credit " + dp.getQueuedCredit(channelID))
+     dp.getQueuedCredit(channelID)
+   }
+
 
   override def initState(): Unit = {
     dp.InitTimerService(timerService)

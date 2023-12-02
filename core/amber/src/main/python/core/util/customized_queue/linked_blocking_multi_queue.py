@@ -3,6 +3,8 @@ from __future__ import annotations
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, MutableMapping
 
+import atomics
+from loguru import logger
 from pympler import asizeof
 
 from core.util.customized_queue.inner import inner
@@ -27,7 +29,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.put_lock: RLock = RLock()
             self.count: AtomicInteger = AtomicInteger()
             self.enabled: bool = True
-            self.in_mem_size :AtomicInteger = AtomicInteger()
+            self.in_mem_size = atomics.atomic(width=4, atype=atomics.INT)
             self.head: LinkedBlockingMultiQueue.Node = LinkedBlockingMultiQueue.Node(
                 None
             )
@@ -86,7 +88,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def enqueue(self, node: LinkedBlockingMultiQueue.Node[T]) -> None:
             self.last.next = node
             self.last = node
-            self.in_mem_size.inc(node.in_mem_size)
+            # logger.info("enqueuing " + str(node.in_mem_size))
+            self.in_mem_size.add(node.in_mem_size)
+            # logger.info("now has " + str(self.in_mem_size.load()))
 
         def __str__(self) -> str:
             res = ""
@@ -162,7 +166,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             h.next = h
             self.head = first
             x = first.item
-            self.in_mem_size.dec(first.in_mem_size)
+            # logger.info("dequeue " + str(first.in_mem_size))
+            self.in_mem_size.sub(first.in_mem_size)
+            # logger.info("now has " + str(self.in_mem_size.load()))
             first.item = None
             return x
 
@@ -263,6 +269,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         self.sub_queue_selection = LinkedBlockingMultiQueue.DefaultSubQueueSelection(
             self.priority_groups
         )
+
+    def in_mem_size(self, key:str)-> int:
+        return self.sub_queues[key].in_mem_size.load()
 
     def put(self, key: str, item: T) -> None:
         """

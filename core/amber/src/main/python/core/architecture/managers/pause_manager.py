@@ -3,8 +3,9 @@ from enum import Enum
 
 from typing import Set, Dict, List
 
+from loguru import logger
+
 from . import state_manager
-from core.models import InternalQueue
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerState
 from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity
 from .internal_queue_manager import InternalQueueManager, DisableType
@@ -24,7 +25,7 @@ class PauseManager:
     """
 
     def __init__(
-        self,
+            self,
         input_queue_manager: InternalQueueManager,
         state_manager: state_manager.StateManager,
     ):
@@ -36,21 +37,23 @@ class PauseManager:
         self._state_manager = state_manager
 
     def pause(self, pause_type: PauseType, change_state=True) -> None:
+        logger.info("pause by " + str(pause_type))
         self._global_pauses.add(pause_type)
         self._input_queue_manager.disable_data(DisableType.DISABLE_BY_PAUSE)
 
         if change_state and self._state_manager.confirm_state(
-            WorkerState.RUNNING, WorkerState.READY
+                WorkerState.RUNNING, WorkerState.READY
         ):
             self._state_manager.transit_to(WorkerState.PAUSED)
 
     def pause_input_channel(
-        self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
+            self, pause_type: PauseType, inputs: List[ActorVirtualIdentity]
     ) -> None:
         # for now we do not have specific data queue for Python side.
         raise NotImplementedError()
 
     def resume(self, pause_type: PauseType, change_state=True) -> None:
+        logger.info("resume by " + str(pause_type))
         if pause_type in self._global_pauses:
             self._global_pauses.remove(pause_type)
         # del self._specific_input_pauses[pause_type]

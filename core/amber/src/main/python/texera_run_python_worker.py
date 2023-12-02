@@ -18,7 +18,12 @@ def init_loguru_logger(stream_log_level) -> None:
     logger.remove()
 
     # set up stream handler, which outputs to stderr
-    logger.add(sys.stderr, level=stream_log_level)
+    logger.add(sys.stderr, level=stream_log_level, format = '<green>{time:YYYY-MM-DD '
+                                                            'HH:mm:ss.SSS}</green> | '
+                                                            '<level>{level: '
+                                                            '<8}</level>  | {'
+                                                            'thread.name} | <cyan>{'
+                                                            'name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>')
 
 
 if __name__ == "__main__":

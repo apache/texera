@@ -48,9 +48,14 @@ class AkkaMessageTransferService(
   }
 
   private def checkCreditPolling(): Unit = {
+
     channelToFC.foreach {
-      case (channel, fc) =>
+      case (channel, fc) =>{
+        logger.info("checking if channel"+channel+" needs polling credit")
+      }
         if (fc.isOverloaded) {
+
+          logger.info(channel+" needs polling!")
           refService.askForCredit(channel)
         }
     }

@@ -289,17 +289,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
 
-    def _pause_dp(self, pause_type: PauseType) -> None:
-        """
-        Pause the data processing.
-        """
-        self._check_and_report_console_messages(force_flush=True)
-        if self.context.state_manager.confirm_state(
-            WorkerState.RUNNING, WorkerState.READY
-        ):
-            self.context.pause_manager.pause(pause_type)
-            self.context.state_manager.transit_to(WorkerState.PAUSED)
-
     def _send_console_message(self, console_message: PythonConsoleMessageV2):
         self._async_rpc_client.send(
             ActorVirtualIdentity(name="CONTROLLER"),
