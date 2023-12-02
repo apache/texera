@@ -1,9 +1,9 @@
-from core.architecture.handlers.handler_base import Handler
+from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
 from proto.edu.uci.ics.amber.engine.architecture.worker import UpdateInputLinkingV2
 
 
-class UpdateInputLinkingHandler(Handler):
+class UpdateInputLinkingHandler(ControlHandler):
     cmd = UpdateInputLinkingV2
 
     def __call__(
