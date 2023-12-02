@@ -92,7 +92,8 @@ class InternalQueue(IQueue):
 
     def enable_data(self, disable_type: DisableType) -> bool:
         with self._lock:
-            self._queue_state.remove(disable_type)
+            if disable_type in self._queue_state:
+                self._queue_state.remove(disable_type)
             if self._queue_state:
                 return False
             self._enable(InternalQueue.QueueID.DATA)
