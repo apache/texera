@@ -49,7 +49,6 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private val pythonQueueInMemSize: AtomicLong = new AtomicLong(0)
 
   def getQueuedCredit: Long = {
-    logger.info(s"current Python Queue size $pythonQueueInMemSize")
     pythonQueueInMemSize.get()
   }
 
@@ -58,7 +57,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     mainLoop()
   }
 
-  def establishConnection(): Unit = {
+  private def establishConnection(): Unit = {
     var connected = false
     var tryCount = 0
     while (!connected && tryCount <= MAX_TRY_COUNT) {
