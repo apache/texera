@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, MutableMapping
 
@@ -16,6 +17,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def __init__(self, item: T):
             self.item = item
             self.next: Optional[LinkedBlockingMultiQueue.Node[T]] = None
+            self.in_mem_size = sys.getsizeof(item)
 
     @inner
     class SubQueue(Generic[T]):
@@ -25,6 +27,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.put_lock: RLock = RLock()
             self.count: AtomicInteger = AtomicInteger()
             self.enabled: bool = True
+            self.in_mem_size = AtomicInteger()
             self.head: LinkedBlockingMultiQueue.Node = LinkedBlockingMultiQueue.Node(
                 None
             )
@@ -83,6 +86,18 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def enqueue(self, node: LinkedBlockingMultiQueue.Node[T]) -> None:
             self.last.next = node
             self.last = node
+            self.in_mem_size.inc(node.in_mem_size)
+
+        def dequeue(self) -> T:
+            assert self.size() > 0
+            h = self.head
+            first = h.next
+            h.next = h
+            self.head = first
+            x = first.item
+            self.in_mem_size.dec(first.in_mem_size)
+            first.item = None
+            return x
 
         def __str__(self) -> str:
             res = ""
@@ -150,16 +165,6 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def fully_unlock(self) -> None:
             self.put_lock.release()
             self.owner.take_lock.release()
-
-        def dequeue(self) -> T:
-            assert self.size() > 0
-            h = self.head
-            first = h.next
-            h.next = h
-            self.head = first
-            x = first.item
-            first.item = None
-            return x
 
     @inner
     class PriorityGroup(Generic[T]):
@@ -258,6 +263,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         self.sub_queue_selection = LinkedBlockingMultiQueue.DefaultSubQueueSelection(
             self.priority_groups
         )
+
+    def in_mem_size(self, key: str) -> int:
+        return self.sub_queues[key].in_mem_size.value
 
     def put(self, key: str, item: T) -> None:
         """
@@ -363,6 +371,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         :return: Boolean representing empty or not.
         """
         return self.size(key) == 0
+
+    def is_enabled(self, key: str) -> bool:
+        return self.get_sub_queue(key).is_enabled()
 
     def add_sub_queue(self, key: str, priority: int) -> Optional[SubQueue]:
         """

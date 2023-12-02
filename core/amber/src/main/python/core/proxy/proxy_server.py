@@ -131,6 +131,12 @@ class ProxyServer(FlightServerBase):
             description="Process the control message",
         )
 
+        self.register(
+            name="actor",
+            action=lambda message: self.process_actor(message),
+            description="Process the actor message",
+        )
+
         # the data message handler for each data message, needs to be
         # implemented during runtime.
         self.process_data = lambda *args, **kwargs: (_ for _ in ()).throw(
@@ -140,6 +146,12 @@ class ProxyServer(FlightServerBase):
         # the control message handler for each control message, needs to be
         # implemented during runtime.
         self.process_control = lambda *args, **kwargs: (_ for _ in ()).throw(
+            NotImplementedError
+        )
+
+        # the actor command message handler for each actor message, needs to be
+        # implemented during runtime.
+        self.process_actor = lambda *args, **kwargs: (_ for _ in ()).throw(
             NotImplementedError
         )
 
@@ -275,6 +287,10 @@ class ProxyServer(FlightServerBase):
         # the handler should have at least 1 argument
         assert len(signature(handler).parameters) >= 1
         self.process_control = handler
+
+    @logger.catch(reraise=True)
+    def register_actor_message_handler(self, handler: Callable) -> None:
+        self.process_actor = handler
 
     ##################
     # helper methods #

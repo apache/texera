@@ -41,13 +41,16 @@ from proto.edu.uci.ics.amber.engine.common import (
 
 class MainLoop(StoppableQueueBlockingRunnable):
     def __init__(
-        self, worker_id: str, input_queue: InternalQueue, output_queue: InternalQueue
+        self,
+        worker_id: str,
+        input_queue: InternalQueue,
+        output_queue: InternalQueue,
     ):
         super().__init__(self.__class__.__name__, queue=input_queue)
         self._input_queue: InternalQueue = input_queue
         self._output_queue: InternalQueue = output_queue
 
-        self.context = Context(worker_id, self)
+        self.context = Context(worker_id, input_queue)
         self._async_rpc_server = AsyncRPCServer(output_queue, context=self.context)
         self._async_rpc_client = AsyncRPCClient(output_queue, context=self.context)
 
@@ -85,7 +88,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         while (
             not self._input_queue.is_control_empty()
-            or self.context.pause_manager.is_paused()
+            or not self._input_queue.is_data_enabled()
         ):
             next_entry = self.interruptible_get()
             self._process_control_element(next_entry)
@@ -280,24 +283,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self.context.pause_manager.pause(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
-            self._input_queue.disable_data()
         else:
             self.context.pause_manager.resume(
                 PauseType.SCHEDULER_TIME_SLOT_EXPIRED_PAUSE
             )
-            if not self.context.pause_manager.is_paused():
-                self.context.input_queue.enable_data()
-
-    def _pause_dp(self, pause_type: PauseType) -> None:
-        """
-        Pause the data processing.
-        """
-        self._check_and_report_console_messages(force_flush=True)
-        if self.context.state_manager.confirm_state(
-            WorkerState.RUNNING, WorkerState.READY
-        ):
-            self.context.pause_manager.pause(pause_type)
-            self.context.state_manager.transit_to(WorkerState.PAUSED)
 
     def _send_console_message(self, console_message: PythonConsoleMessageV2):
         self._async_rpc_client.send(
@@ -332,12 +321,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     )
                 )
             )
-            self._check_and_report_print(force_flush=True)
+            self._check_and_report_console_messages(force_flush=True)
             self.context.pause_manager.pause(PauseType.DEBUG_PAUSE)
 
     def _check_exception(self) -> None:
         if self.context.exception_manager.has_exception():
-            self._check_and_report_print(force_flush=True)
+            self._check_and_report_console_messages(force_flush=True)
             self.context.pause_manager.pause(PauseType.EXCEPTION_PAUSE)
 
     def _check_and_report_console_messages(self, force_flush=False) -> None:

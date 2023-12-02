@@ -1,6 +1,6 @@
 import itertools
 
-from core.architecture.handlers.handler_base import Handler
+from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ReplayCurrentTupleV2,
@@ -8,7 +8,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 )
 
 
-class ReplayCurrentTupleHandler(Handler):
+class ReplayCurrentTupleHandler(ControlHandler):
     cmd = ReplayCurrentTupleV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):

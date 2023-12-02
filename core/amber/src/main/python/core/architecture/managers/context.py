@@ -9,6 +9,7 @@ from .state_manager import StateManager
 from .statistics_manager import StatisticsManager
 from ..packaging.batch_to_tuple_converter import BatchToTupleConverter
 from ..packaging.tuple_to_batch_converter import TupleToBatchConverter
+from ...models import InternalQueue
 
 
 class Context:
@@ -20,10 +21,9 @@ class Context:
     Context class can be viewed as a friend of DataProcessor.
     """
 
-    def __init__(self, worker_id, main_loop):
+    def __init__(self, worker_id, input_queue):
         self.worker_id = worker_id
-        self.main_loop = main_loop
-        self.input_queue = main_loop._input_queue
+        self.input_queue: InternalQueue = input_queue
         self.operator_manager = OperatorManager()
         self.tuple_processing_manager = TupleProcessingManager()
         self.exception_manager = ExceptionManager()

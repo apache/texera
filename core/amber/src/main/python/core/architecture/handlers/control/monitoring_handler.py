@@ -3,11 +3,11 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     SelfWorkloadMetrics,
     SelfWorkloadReturn,
 )
-from .handler_base import Handler
-from ..managers.context import Context
+from core.architecture.handlers.control.control_handler_base import ControlHandler
+from core.architecture.managers.context import Context
 
 
-class MonitoringHandler(Handler):
+class MonitoringHandler(ControlHandler):
     cmd = QuerySelfWorkloadMetricsV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):

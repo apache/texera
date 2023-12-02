@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+package edu.uci.ics.amber.engine.common;
+
+import "scalapb/scalapb.proto";
+
+
+option (scalapb.options) = {
+  scope: FILE,
+  preserve_unknown_fields: false
+  no_default_values_in_constructor: true
+};
+
+message Backpressure {
+  bool enable_backpressure = 1;
+}
+
+message CreditUpdate {
+}
+
+message ActorCommand {
+  oneof sealed_value {
+      Backpressure backpressure = 1;
+      CreditUpdate credit_update = 2;
+  }
+}
+
+message PythonActorMessage {
+  ActorCommand payload = 1 [(scalapb.field).no_box = true];
+}

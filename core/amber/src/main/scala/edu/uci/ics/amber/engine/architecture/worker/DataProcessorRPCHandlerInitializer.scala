@@ -24,7 +24,6 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with AcceptImmutableStateHandler
     with SharePartitionHandler
     with PauseSkewMitigationHandler
-    with BackpressureHandler
     with SchedulerTimeSlotEventHandler
     with FlushNetworkBufferHandler
     with WorkerEpochMarkerHandler

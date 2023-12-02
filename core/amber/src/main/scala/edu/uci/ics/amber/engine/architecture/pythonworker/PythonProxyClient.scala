@@ -2,11 +2,13 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ActorCommandElement,
   ControlElement,
   ControlElementV2,
   DataElement
 }
 import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV2,
@@ -22,6 +24,7 @@ import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -43,10 +46,10 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private var flightClient: FlightClient = _
   private var running: Boolean = true
 
-  private var pythonQueueInMemSize: Long = _
+  private val pythonQueueInMemSize: AtomicLong = new AtomicLong(0)
 
-  def getQueuedCredit(): Long = {
-    pythonQueueInMemSize
+  def getQueuedCredit: Long = {
+    pythonQueueInMemSize.get()
   }
 
   override def run(): Unit = {
@@ -54,7 +57,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     mainLoop()
   }
 
-  def establishConnection(): Unit = {
+  private def establishConnection(): Unit = {
     var connected = false
     var tryCount = 0
     while (!connected && tryCount <= MAX_TRY_COUNT) {
@@ -89,6 +92,9 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
           sendControlV1(channel.from, cmd)
         case ControlElementV2(cmd, channel) =>
           sendControlV2(channel.from, cmd)
+        case ActorCommandElement(cmd) =>
+          sendActorCommand(cmd)
+
       }
     }
   }
@@ -110,8 +116,18 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
+    sendCreditedAction(action)
+  }
 
-    logger.debug(s"sending control $controlMessage")
+  def sendActorCommand(
+      command: ActorCommand
+  ): Result = {
+    val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)
+    sendCreditedAction(action)
+  }
+
+  private def sendCreditedAction(action: Action) = {
+    logger.debug(s"sending ${action.getType} message")
     // Arrow allows multiple results from the Action call return as a stream (interator).
     // In Arrow 11, it alerts if the results are not consumed fully.
     val results = flightClient.doAction(action)
@@ -121,15 +137,15 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
     // extract info needed to calculate sender credits from ack
     // ackResult contains number of batches inside Python worker internal queue
-    pythonQueueInMemSize = new String(result.getBody).toLong
-
+    pythonQueueInMemSize.set(new String(result.getBody).toLong)
+    logger.debug(s"action ${action.getType} updated queue size $pythonQueueInMemSize")
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
     result
   }
 
-  def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
+  private def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
     payload match {
       case controlInvocation: ControlInvocation =>
         val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
@@ -164,7 +180,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
     // for calculating sender credits - get back number of batches in Python worker queue
     val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
-    pythonQueueInMemSize = ackMsgBuf.getLong(0)
+    pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
+    logger.debug(s"data channel updated queue size $pythonQueueInMemSize")
     ackMsgBuf.close()
 
     flightListener.close()
