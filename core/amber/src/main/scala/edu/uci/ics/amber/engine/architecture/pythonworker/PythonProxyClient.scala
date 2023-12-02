@@ -1,19 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
-import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
-  ActorCommandElement,
-  ControlElement,
-  ControlElementV2,
-  DataElement
-}
+import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{ActorCommandElement, ControlElement, ControlElementV2, DataElement}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
-  controlInvocationToV2,
-  returnInvocationToV2
-}
+import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{controlInvocationToV2, returnInvocationToV2}
 import edu.uci.ics.amber.engine.common.ambermessage.{PythonControlMessage, _}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -24,6 +16,7 @@ import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.VectorSchemaRoot
 
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtualIdentity)
@@ -45,10 +38,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private var flightClient: FlightClient = _
   private var running: Boolean = true
 
-  private var pythonQueueInMemSize: Long = _
+  private val pythonQueueInMemSize: AtomicLong = new AtomicLong(0)
 
-  def getQueuedCredit(): Long = {
-    pythonQueueInMemSize
+  def getQueuedCredit: Long = {
+    logger.info(s"current Python Queue size $pythonQueueInMemSize")
+    pythonQueueInMemSize.get()
   }
 
   override def run(): Unit = {
@@ -136,8 +130,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
     // extract info needed to calculate sender credits from ack
     // ackResult contains number of batches inside Python worker internal queue
-    pythonQueueInMemSize = new String(result.getBody).toLong
-    logger.debug(s"action ${action.getType} updated queue size $pythonQueueInMemSize")
+    pythonQueueInMemSize.set(new String(result.getBody).toLong)
+    logger.info(s"action ${action.getType} updated queue size $pythonQueueInMemSize")
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
@@ -179,7 +173,8 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
 
     // for calculating sender credits - get back number of batches in Python worker queue
     val ackMsgBuf: ArrowBuf = flightListener.poll(5, TimeUnit.SECONDS).getApplicationMetadata
-    pythonQueueInMemSize = ackMsgBuf.getLong(0)
+    pythonQueueInMemSize.set(ackMsgBuf.getLong(0))
+    logger.info(s"data channel updated queue size $pythonQueueInMemSize")
     ackMsgBuf.close()
 
     flightListener.close()

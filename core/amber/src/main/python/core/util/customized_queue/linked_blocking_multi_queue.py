@@ -3,6 +3,8 @@ from __future__ import annotations
 from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, MutableMapping
 
+from pympler import asizeof
+
 from core.util.customized_queue.inner import inner
 from core.util.customized_queue.queue_base import IKeyedQueue
 from core.util.thread.atomic import AtomicInteger
@@ -16,7 +18,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def __init__(self, item: T):
             self.item = item
             self.next: Optional[LinkedBlockingMultiQueue.Node[T]] = None
-
+            self.in_mem_size = asizeof.asizeof(item)
     @inner
     class SubQueue(Generic[T]):
         def __init__(self, key: str):
@@ -25,6 +27,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             self.put_lock: RLock = RLock()
             self.count: AtomicInteger = AtomicInteger()
             self.enabled: bool = True
+            self.in_mem_size :AtomicInteger = AtomicInteger()
             self.head: LinkedBlockingMultiQueue.Node = LinkedBlockingMultiQueue.Node(
                 None
             )
@@ -83,6 +86,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def enqueue(self, node: LinkedBlockingMultiQueue.Node[T]) -> None:
             self.last.next = node
             self.last = node
+            self.in_mem_size.inc(node.in_mem_size)
 
         def __str__(self) -> str:
             res = ""
@@ -158,6 +162,7 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
             h.next = h
             self.head = first
             x = first.item
+            self.in_mem_size.dec(first.in_mem_size)
             first.item = None
             return x
 

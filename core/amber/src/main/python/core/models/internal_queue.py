@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import TypeVar
 
+from loguru import logger
+
 from core.models.marker import Marker
 from core.models.payload import DataPayload
 from core.util.customized_queue.linked_blocking_multi_queue import (
@@ -91,9 +93,10 @@ class InternalQueue(IQueue):
         self._disable(InternalQueue.QueueID.DATA)
 
     def in_mem_size(self) -> int:
-        return asizeof.asizeof(
-            self._queue.get_sub_queue(InternalQueue.QueueID.DATA.value)
-        )
+        logger.info("python side "+str(self._queue.get_sub_queue(
+            InternalQueue.QueueID.DATA.value).in_mem_size.value))
+        return self._queue.get_sub_queue(
+            InternalQueue.QueueID.DATA.value).in_mem_size.value
 
     def is_data_enabled(self) -> bool:
         return self._queue.is_enabled(InternalQueue.QueueID.DATA.value)

@@ -1,3 +1,5 @@
+from loguru import logger
+
 from core.architecture.handlers.actorcommand.actor_handler_base import (
     ActorCommandHandler,
 )
@@ -27,6 +29,7 @@ class BackpressureHandler(ActorCommandHandler):
         *args,
         **kwargs
     ):
+        logger.info("received", command.enable_backpressure)
         if command.enable_backpressure:
             input_queue_manager.disable_data(DisableType.DISABLE_BY_BACKPRESSURE)
         else:
