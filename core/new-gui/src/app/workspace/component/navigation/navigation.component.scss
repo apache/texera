@@ -6,6 +6,9 @@
 #logo {
   display: inline-block;
   vertical-align: top;
+  img {
+    height: calc(var(--header-height) - 1px);
+  }
 }
 
 #nav-content {
