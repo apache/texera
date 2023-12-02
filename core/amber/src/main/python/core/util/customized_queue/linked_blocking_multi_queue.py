@@ -4,7 +4,6 @@ from threading import RLock, Condition
 from typing import List, Optional, Generic, TypeVar, MutableMapping
 
 import atomics
-from loguru import logger
 from pympler import asizeof
 
 from core.util.customized_queue.inner import inner
