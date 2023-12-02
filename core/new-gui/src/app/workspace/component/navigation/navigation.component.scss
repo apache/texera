@@ -1,19 +1,17 @@
-.texera-navigation-padded {
+#nav-container {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   width: 100%;
-  min-width:650px;
+  min-width: 650px;
 }
 
-i {
-  display: inline-flex;
-  align-content: center;
-  justify-content: center;
+#logo {
+  display: inline-block;
+  vertical-align: top;
 }
 
-.stop-shadowing {
-  font-size: 18px;
-  width: min-content;
-  text-align: end;
+#nav-content {
+  display: inline-block;
+  width: calc(100% - 140px);
 }
 
 .workflow-name {
@@ -30,19 +28,58 @@ i {
     box-shadow: 0 0 0 2px #007bff;
   }
 }
-.save-state {
+
+#nav-user {
+  height: 36px;
+  margin: 1px;
+  border-bottom: 1px solid #cacaca;
+}
+
+#metadata {
+  display: inline-block;
+  width: calc(100% - 200px);
+  vertical-align: top;
+}
+
+#user-icon {
+  display: inline-block;
+  width: 200px;
+}
+
+#button-groups {
+  text-align: center;
+  margin: 3px 5px;
+}
+
+#user-buttons {
+  float: left;
+}
+
+#execution-buttons {
+  float: right;
+}
+
+i {
+  display: inline-flex;
+  align-content: center;
+  justify-content: center;
+}
+
+#stop-shadowing {
+  font-size: 18px;
+  width: min-content;
+  text-align: end;
+}
+
+#save-state {
   font-size: 10px;
   color: royalblue;
   font-style: italic;
 }
 
-.run-button {
+#run-button {
   width: 140px;
   text-align: left;
-}
-
-.execution-name {
-  margin-right: 0.5rem;
 }
 
 #expanded-utilities {
@@ -64,5 +101,3 @@ i {
     display: none;
   }
 }
-
-

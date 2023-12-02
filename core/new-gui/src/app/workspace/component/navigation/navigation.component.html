@@ -1,5 +1,5 @@
-<div class="texera-navigation-padded">
-  <div style="display:inline-block;vertical-align: top;">
+<div id="nav-container">
+  <div id="logo">
     <a href="/">
       <img
         alt="Texera"
@@ -7,9 +7,11 @@
         src="assets/logos/full_logo_small.png" />
     </a>
   </div>
-  <div style="display:inline-block;width:calc(100% - 140px)">
-    <div style="height:36px;border-bottom: 1px solid #cacaca;margin-bottom: 2px;" *ngIf="userSystemEnabled">
-      <div style="display:inline-block;width:calc(100% - 200px);vertical-align:top;">
+  <div id="nav-content">
+    <div
+      id="nav-user"
+      *ngIf="userSystemEnabled">
+      <div id="metadata">
         <button
           (click)="closeParticularVersionDisplay()"
           *ngIf="displayParticularWorkflowVersion"
@@ -24,7 +26,7 @@
         </button>
         <label>
           <nz-avatar
-            style="vertical-align:top;margin-top:1px;margin-left:3px;"
+            style="vertical-align: top; margin-top: 1px; margin-left: 3px"
             *ngIf="workflowId"
             [nzText]="workflowId.toString() || ''"></nz-avatar>
           <input
@@ -36,7 +38,7 @@
           <span
             *ngIf="displayParticularWorkflowVersion"
             class="particular-version-metadata">
-          {{particularVersionDate}}
+            {{particularVersionDate}}
           </span>
         </label>
         <button
@@ -52,41 +54,35 @@
           nz-button
           nzType="link"
           title="Open version history"
-          class="save-state"
+          id="save-state"
           (click)="onClickGetAllVersions()">
           {{autoSaveState}}
         </button>
       </div>
-      <div style="display:inline-block;width:200px;">
+      <div id="user-icon">
         <div>
           <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
             <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
           </ng-container>
         </div>
-
-        <div
-             *ngIf="this.coeditorPresenceService.shadowingModeEnabled">
+        <div *ngIf="this.coeditorPresenceService.shadowingModeEnabled">
           <button
             *ngIf="this.coeditorPresenceService.shadowingModeEnabled"
             nz-button
             nzType="link"
-            class="stop-shadowing"
+            id="stop-shadowing"
             [ngStyle]="{ 'color': this.coeditorPresenceService.shadowingCoeditor?.color }"
             spellcheck="false"
             (click)="this.coeditorPresenceService.stopShadowing()">
             <b>Shadowing {{this.coeditorPresenceService.shadowingCoeditor?.name}}, click to stop</b>
           </button>
         </div>
-
-
         <texera-user-icon></texera-user-icon>
-
       </div>
-
-
     </div>
-    <div style="text-align:center;margin:3px 5px;">
-      <nz-button-group style="float:left;"
+    <div id="button-groups">
+      <nz-button-group
+        id="user-buttons"
         *ngIf="!displayParticularWorkflowVersion">
         <a [routerLink]="'/dashboard/workflow'">
           <button
@@ -160,9 +156,6 @@
             nzType="download"></i>
         </button>
       </nz-button-group>
-
-
-
       <ng-template #utilities>
         <nz-button-group>
           <button
@@ -328,12 +321,18 @@
         <ng-template [ngTemplateOutlet]="utilities"></ng-template>
       </div>
 
-      <button nz-button nz-dropdown [nzDropdownMenu]="menu" nzPlacement="bottomCenter" id="dropdown-button">
-        <i nz-icon nzType="ellipsis"></i>
+      <button
+        nz-button
+        nz-dropdown
+        [nzDropdownMenu]="menu"
+        nzPlacement="bottomCenter"
+        id="dropdown-button">
+        <i
+          nz-icon
+          nzType="ellipsis"></i>
       </button>
 
-
-      <nz-button-group style="float: right;">
+      <nz-button-group id="execution-buttons">
         <button
           (click)="handleKill()"
           [disabled]="
@@ -357,7 +356,7 @@
           [nzPopoverContent]="execution_name"
           nzPopoverPlacement="bottom"
           [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
-          class="run-button"
+          id="run-button"
           nz-button
           nzType="primary">
           <i
@@ -385,9 +384,7 @@
             </div>
           </ng-template>
         </div>
-        <div style="color: #007bff;line-height:32px;">
-          {{ executionDuration | date: 'H:mm:ss': 'UTC' }}
-        </div>
+        <div style="color: #007bff; line-height: 32px">{{ executionDuration | date: 'H:mm:ss': 'UTC' }}</div>
       </nz-button-group>
     </div>
   </div>
