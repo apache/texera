@@ -41,7 +41,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   var xLabel: String = ""
 
   @JsonProperty(value = "lines", required = true)
-  var lines: util.List[LineConfig] = util.List.of()
+  var lines: util.List[LineConfig] = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
