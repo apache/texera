@@ -101,7 +101,6 @@ class WorkflowWorker(
 
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long = {
-    logger.info("java operator credit " + channelID + "" + dp.getQueuedCredit(channelID))
     dp.getQueuedCredit(channelID)
   }
 
