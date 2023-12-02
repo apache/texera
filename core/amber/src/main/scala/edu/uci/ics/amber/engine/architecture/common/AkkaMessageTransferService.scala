@@ -48,7 +48,6 @@ class AkkaMessageTransferService(
   }
 
   private def checkCreditPolling(): Unit = {
-
     channelToFC.foreach {
       case (channel, fc) =>
         if (fc.isOverloaded) {
