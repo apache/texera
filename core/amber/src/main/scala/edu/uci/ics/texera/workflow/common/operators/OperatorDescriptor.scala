@@ -62,7 +62,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.timeseries.TimeSeriesOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.linechart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
@@ -152,7 +152,7 @@ trait StateTransferFunc
     new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
     new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
     new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
-    new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeries"),
+    new Type(value = classOf[LineChartOpDesc], name = "TimeSeries"),
     new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
