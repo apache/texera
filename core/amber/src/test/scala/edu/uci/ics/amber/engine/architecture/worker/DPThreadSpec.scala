@@ -38,7 +38,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
 
   "DP Thread" should "handle pause/resume during processing" in {
-    val dp = new DataProcessor(identifier, 0, opExecConfig, x => {})
+    val dp = new DataProcessor(identifier, x => {})
+    dp.overwriteOperator(0, opExecConfig, Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[Either[WorkflowFIFOMessage, ControlInvocation]]()
     dp.registerInput(senderID, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
@@ -63,7 +64,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle pause/resume using fifo messages" in {
-    val dp = new DataProcessor(identifier, 0, opExecConfig, x => {})
+    val dp = new DataProcessor(identifier, x => {})
+    dp.overwriteOperator(0, opExecConfig, Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[Either[WorkflowFIFOMessage, ControlInvocation]]()
     dp.registerInput(senderID, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
@@ -91,7 +93,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
-    val dp = new DataProcessor(identifier, 0, opExecConfig, x => {})
+    val dp = new DataProcessor(identifier, x => {})
+    dp.overwriteOperator(0, opExecConfig, Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[Either[WorkflowFIFOMessage, ControlInvocation]]()
     val anotherSender = ActorVirtualIdentity("another")
     dp.registerInput(senderID, mockLink)

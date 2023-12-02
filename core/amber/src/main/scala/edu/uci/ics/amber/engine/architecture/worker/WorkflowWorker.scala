@@ -44,8 +44,6 @@ class WorkflowWorker(
     new LinkedBlockingQueue()
   var dp = new DataProcessor(
     actorId,
-    workerIndex,
-    workerLayer,
     sendMessageFromDPToMain
   )
   val timerService = new WorkerTimerService(actorService)
@@ -91,6 +89,7 @@ class WorkflowWorker(
 
   override def initState(): Unit = {
     dp.InitTimerService(timerService)
+    dp.overwriteOperator(workerIndex, workerLayer, Iterator.empty)
     dpThread.start()
   }
 

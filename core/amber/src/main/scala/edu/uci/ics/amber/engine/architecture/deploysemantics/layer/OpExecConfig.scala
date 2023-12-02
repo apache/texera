@@ -4,7 +4,6 @@ import akka.actor.Deploy
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, OperatorExecution}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
   AddressInfo,
   LocationPreference,
@@ -134,7 +133,7 @@ case class OpExecConfig(
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
   // flag that if this operator will be early initialized with a OpExecFunc, or late initialized with a code String.
-  lazy val isLateInit: Boolean = opExecInitInfo((0, this)).isRight
+  lazy val isLateInit: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
   /*
    * Helper functions related to compile-time operations
@@ -149,15 +148,17 @@ case class OpExecConfig(
   }
 
   def isHashJoinOperator: Boolean = {
-    val initInfo = opExecInitInfo
-    initInfo((0, this)).left.exists(_.isInstanceOf[HashJoinOpExec[_]])
+    opExecInitInfo match {
+      case OpExecInitInfoWithCode(codeGen) => false
+      case OpExecInitInfoWithFunc(opGen)   => opGen((0, this)).isInstanceOf[HashJoinOpExec[_]]
+    }
   }
 
   def getPythonCode(workerIdx: Int): String = {
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    opExecInitInfo((workerIdx, this)).right.get
+    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen((0, this))
   }
 
   def getOutputSchema: Schema = {

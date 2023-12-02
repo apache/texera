@@ -7,8 +7,12 @@ import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{WorkerTimerService, OutputManager}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecConfig,
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
   DPOutputIterator,
   FinalizeLink,
@@ -87,19 +91,25 @@ object DataProcessor {
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
-    @transient var workerIdx: Int,
-    @transient var opConf: OpExecConfig,
     outputHandler: WorkflowFIFOMessage => Unit
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
-  var operator: IOperatorExecutor = opConf.opExecInitInfo(workerIdx, opConf).left.get
+
+  @transient var workerIdx: Int = 0
+  @transient var opConf: OpExecConfig = _
+  @transient var operator: IOperatorExecutor = _
+
   def overwriteOperator(
       workerIdx: Int,
       opConf: OpExecConfig,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
-    this.operator = opConf.opExecInitInfo(workerIdx, opConf).left.get
+    this.operator = opConf.opExecInitInfo match {
+      case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen((workerIdx, opConf))
+    }
     this.opConf = opConf
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }

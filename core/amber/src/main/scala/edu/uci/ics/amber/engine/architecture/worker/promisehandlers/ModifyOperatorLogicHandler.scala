@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecConfig,
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
   WorkerModifyLogic,
   WorkerModifyLogicComplete,
@@ -46,7 +50,11 @@ trait ModifyOperatorLogicHandler {
 
   private def performModifyLogic(modifyLogic: WorkerModifyLogic): Unit = {
     val newOpExecConfig = modifyLogic.opExecConfig
-    val newOperator = newOpExecConfig.opExecInitInfo(dp.workerIdx, newOpExecConfig).left.get
+    val newOperator = newOpExecConfig.opExecInitInfo match {
+      case OpExecInitInfoWithCode(codeGen) => ??? // python modify logic is through a different path
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen((dp.workerIdx, newOpExecConfig))
+    }
 
     if (modifyLogic.stateTransferFunc.nonEmpty) {
       modifyLogic.stateTransferFunc.get.apply(dp.operator, newOperator)

@@ -53,7 +53,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        Function1<Tuple2<Object, OpExecConfig>, Either<IOperatorExecutor, String>> exec = OpExecInitInfo.apply(code);
+        OpExecInitInfo exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
             return OpExecConfig.sourceLayer(operatorIdentifier(), exec).withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)
