@@ -103,7 +103,7 @@ class WorkflowWorker(
 
   override def initState(): Unit = {
     dp.InitTimerService(timerService)
-    dp.initializeOperator(workerIndex, workerLayer, Iterator.empty)
+    dp.initOperator(workerIndex, workerLayer, Iterator.empty)
     dpThread.start()
   }
 

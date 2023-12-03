@@ -99,7 +99,7 @@ class DataProcessor(
   @transient var opConf: OpExecConfig = _
   @transient var operator: IOperatorExecutor = _
 
-  def initializeOperator(
+  def initOperator(
       workerIdx: Int,
       opConf: OpExecConfig,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
