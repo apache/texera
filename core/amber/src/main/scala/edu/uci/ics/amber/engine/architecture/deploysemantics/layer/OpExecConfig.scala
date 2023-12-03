@@ -128,7 +128,6 @@ case class OpExecConfig(
   // all the "dependee" links are also blocking inputs
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
-
   lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
   /*
