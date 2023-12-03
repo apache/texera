@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity
 }
 import edu.uci.ics.amber.engine.common.{
-  Constants,
+  AmberConfig,
   IOperatorExecutor,
   ISourceOperatorExecutor,
   VirtualIdentityUtils
@@ -90,7 +90,7 @@ case class OpExecConfig(
     // parameters: 1: worker index, 2: this worker layer object
     initIOperatorExecutor: OpExecFunc,
     // preference of parallelism (total number of workers)
-    numWorkers: Int = Constants.currentWorkerNum,
+    numWorkers: Int = AmberConfig.numWorkerPerOperatorByDefault,
     // preference of worker placement
     locationPreference: Option[LocationPreference] = None,
     // requirement of partition policy (hash/range/single/none) on inputs

@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStora
 }
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 
 import java.io.{DataInputStream, DataOutputStream}
@@ -32,8 +32,7 @@ object DeterminantLogStorage {
     KryoPool.withByteArrayOutputStream(Runtime.getRuntime.availableProcessors * 2, ki)
   }
 
-  private val maxSize: Int =
-    AmberUtils.amberConfig.getInt("fault-tolerance.log-record-max-size-in-byte")
+  private val maxSize: Int = Int.MaxValue // To be removed in the logging PR.
 
   // For debugging purpose only
   def fetchAllLogRecords(storage: DeterminantLogStorage): Iterable[InMemDeterminant] = {
@@ -97,13 +96,13 @@ object DeterminantLogStorage {
 
   def getLogStorage(enabledLogging: Boolean, name: String): DeterminantLogStorage = {
     val storageType: String =
-      AmberUtils.amberConfig.getString("fault-tolerance.log-storage-type")
+      AmberConfig.faultToleranceLogStorage
     if (enabledLogging) {
       storageType match {
         case "local" => new LocalFSLogStorage(name)
         case "hdfs" =>
           val hdfsIP: String =
-            AmberUtils.amberConfig.getString("fault-tolerance.hdfs-storage.address")
+            AmberConfig.faultToleranceHDFSAddress
           new HDFSLogStorage(name, hdfsIP)
         case other => throw new RuntimeException("Cannot support log storage type of " + other)
       }

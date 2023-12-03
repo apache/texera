@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.split
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.{AmberConfig}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -23,7 +23,7 @@ class SplitOpDesc extends OperatorDescriptor {
 
   // Store random seeds for each executor to satisfy the fault tolerance requirement.
   @JsonIgnore
-  val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
+  val seeds: Array[Int] = Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     OpExecConfig

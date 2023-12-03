@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpExecV2
@@ -36,7 +36,7 @@ trait PythonOperatorDescriptor extends OperatorDescriptor {
     }
   }
 
-  def numWorkers(): Int = Constants.numWorkerPerNode
+  def numWorkers(): Int = AmberConfig.numWorkerPerOperatorByDefault
 
   def dependency(): mutable.Map[Int, Int] = mutable.Map()
 

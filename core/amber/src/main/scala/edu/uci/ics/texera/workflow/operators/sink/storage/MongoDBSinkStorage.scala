@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.sink.storage
 
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.MongoCursor
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.storage.{MongoCollectionManager, MongoDatabaseManager}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.document2Tuple
@@ -18,7 +18,7 @@ class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
     assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
   )
 
-  val commitBatchSize: Int = AmberUtils.amberConfig.getInt("storage.mongodb.commit-batch-size")
+  val commitBatchSize: Int = AmberConfig.sinkStorageMongoDBConfig.getInt("commit-batch-size")
   MongoDatabaseManager.dropCollection(id)
   val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
 

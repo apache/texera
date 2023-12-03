@@ -31,7 +31,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{AmberConfig, ISourceOperatorExecutor}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
@@ -46,7 +46,7 @@ class WorkflowScheduler(
 ) {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(
-      Constants.schedulingPolicyName,
+      AmberConfig.schedulingPolicyName,
       regionsToSchedule
     )
 

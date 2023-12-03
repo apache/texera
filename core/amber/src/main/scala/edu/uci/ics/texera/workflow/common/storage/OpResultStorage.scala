@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.storage
 
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MemoryStorage,
@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.{
 }
 
 object OpResultStorage {
-  val defaultStorageMode: String = AmberUtils.amberConfig.getString("storage.mode").toLowerCase
+  val defaultStorageMode: String = AmberConfig.sinkStorageMode.toLowerCase
   val MEMORY = "memory"
   val MONGODB = "mongodb"
 }
