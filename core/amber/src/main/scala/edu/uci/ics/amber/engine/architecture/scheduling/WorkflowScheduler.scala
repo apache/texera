@@ -220,8 +220,7 @@ class WorkflowScheduler(
             asyncRPCClient
               .send(
                 InitializeOperatorLogic(
-                  pythonUDFOpExecConfig
-                    .getPythonCode(VirtualIdentityUtils.getWorkerIndex(workerID)),
+                  pythonUDFOpExecConfig.getPythonCode,
                   pythonUDFOpExecConfig.isSourceOperator,
                   inputMappingList,
                   outputMappingList,
