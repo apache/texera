@@ -21,8 +21,7 @@ object AmberConfig {
       conf
     } else {
       lastModifiedTime = configFile.lastModified()
-      ConfigFactory.invalidateCaches()
-      conf = ConfigFactory.load()
+      conf = ConfigFactory.parseFile(configFile)
       conf
     }
   }
