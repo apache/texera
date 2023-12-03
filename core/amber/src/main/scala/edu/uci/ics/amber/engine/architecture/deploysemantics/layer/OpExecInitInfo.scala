@@ -14,6 +14,16 @@ object OpExecInitInfo {
     OpExecInitInfoWithFunc(x => opExecFunc.apply(x))
 }
 
+
+/**
+  * Information regarding initializing an operator executor instance
+  * it could be two cases:
+  *   - OpExecInitInfoWithFunc:
+  *       A function to create an operator executor instance, with parameters:
+  *       1) worker index, 2) this worker layer object;
+  *   - OpExecInitInfoWithCode:
+  *       A code string that to be compiled in a virtual machine.
+*/
 sealed trait OpExecInitInfo
 
 // only for Python right now

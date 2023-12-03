@@ -98,11 +98,7 @@ object OpExecConfig {
 
 case class OpExecConfig(
     id: LayerIdentity,
-    // a function to return information regarding initializing an operator executor instance,
-    // it could be two cases:
-    //   - A function to create an operator executor instance,
-    //       with parameters: 1) worker index, 2) this worker layer object;
-    //   - A code string that to be compiled in a virtual machine.
+    // information regarding initializing an operator executor instance
     opExecInitInfo: OpExecInitInfo,
     // preference of parallelism (total number of workers)
     numWorkers: Int = Constants.currentWorkerNum,
@@ -132,8 +128,8 @@ case class OpExecConfig(
   // all the "dependee" links are also blocking inputs
   lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
-  // flag that if this operator will be early initialized with a OpExecFunc, or late initialized with a code String.
-  lazy val isLateInit: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
+
+  lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
   /*
    * Helper functions related to compile-time operations
@@ -144,7 +140,7 @@ case class OpExecConfig(
   }
 
   def isPythonOperator: Boolean = {
-    isLateInit // currently, only Python operators are being late initialized.
+    isInitWithCode // currently, only Python operators are initialized with code
   }
 
   def isHashJoinOperator: Boolean = {
@@ -154,7 +150,7 @@ case class OpExecConfig(
     }
   }
 
-  def getPythonCode(workerIdx: Int): String = {
+  def getPythonCode: String = {
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
@@ -162,7 +158,6 @@ case class OpExecConfig(
   }
 
   def getOutputSchema: Schema = {
-
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }

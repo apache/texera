@@ -32,10 +32,9 @@ trait ModifyLogicHandler {
 
       Future
         .collect(opExecution.getBuiltWorkerIds.map { worker =>
-          val workerIdx = VirtualIdentityUtils.getWorkerIndex(worker)
           val workerCommand = if (operator.isPythonOperator) {
             ModifyPythonOperatorLogic(
-              msg.newOp.getPythonCode(workerIdx),
+              msg.newOp.getPythonCode,
               isSource = operator.isSourceOperator
             )
           } else {
