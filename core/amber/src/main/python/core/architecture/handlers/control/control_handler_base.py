@@ -7,7 +7,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
 )
 
 
-class Handler(ABC):
+class ControlHandler(ABC):
     cmd: ControlCommandV2 = None
 
     def __call__(

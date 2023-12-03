@@ -1,19 +1,31 @@
-from typing import Optional
-
 from loguru import logger
 from overrides import overrides
 from pyarrow.lib import Table
+from typing import Optional
 
+from core.architecture.handlers.actorcommand.actor_handler_base import (
+    ActorCommandHandler,
+)
+from core.architecture.handlers.actorcommand.backpressure_handler import (
+    BackpressureHandler,
+)
+from core.architecture.handlers.actorcommand.credit_update_handler import (
+    CreditUpdateHandler,
+)
 from core.models import (
     InputDataFrame,
     EndOfUpstream,
-    InternalQueue,
 )
-from core.models.internal_queue import DataElement, ControlElement
+from core.models.internal_queue import DataElement, ControlElement, InternalQueue
 from core.proxy import ProxyServer
-from core.util import Stoppable
+from core.util import Stoppable, get_one_of
 from core.util.runnable.runnable import Runnable
-from proto.edu.uci.ics.amber.engine.common import PythonControlMessage, PythonDataHeader
+from proto.edu.uci.ics.amber.engine.common import (
+    PythonControlMessage,
+    PythonDataHeader,
+    PythonActorMessage,
+    ActorCommand,
+)
 
 
 class NetworkReceiver(Runnable, Stoppable):
@@ -33,6 +45,11 @@ class NetworkReceiver(Runnable, Stoppable):
                 server_start = True
             except Exception as e:
                 logger.debug("Error occurred while starting the server:", repr(e))
+
+        self._handlers: dict[type(ActorCommand), ActorCommandHandler] = dict()
+
+        self.register_actor_command_handler(BackpressureHandler())
+        self.register_actor_command_handler(CreditUpdateHandler())
 
         # register the data handler to deserialize data messages.
         @logger.catch(reraise=True)
@@ -57,7 +74,6 @@ class NetworkReceiver(Runnable, Stoppable):
 
         self._proxy_server.register_data_handler(data_handler)
 
-        # register the control handler to deserialize control messages.
         @logger.catch(reraise=True)
         def control_handler(message: bytes) -> int:
             """
@@ -76,6 +92,21 @@ class NetworkReceiver(Runnable, Stoppable):
             return shared_queue.in_mem_size()
 
         self._proxy_server.register_control_handler(control_handler)
+
+        @logger.catch(reraise=True)
+        def actor_message_handler(message: bytes) -> int:
+            """
+            Control handler for deserializing actor messages
+
+            :param message:
+            :return: sender credits
+            """
+            python_actor_message = PythonActorMessage().parse(message)
+            command = get_one_of(python_actor_message.payload)
+            self.look_up(command)(command, shared_queue)
+            return shared_queue.in_mem_size()
+
+        self._proxy_server.register_actor_message_handler(actor_message_handler)
 
     def register_shutdown(self, shutdown: callable) -> None:
         self._proxy_server.register(
@@ -97,3 +128,10 @@ class NetworkReceiver(Runnable, Stoppable):
     @property
     def proxy_server(self):
         return self._proxy_server
+
+    def register_actor_command_handler(self, handler: ActorCommandHandler) -> None:
+        self._handlers[handler.cmd] = handler
+
+    def look_up(self, cmd: ActorCommand) -> ActorCommandHandler:
+        logger.debug(cmd)
+        return self._handlers[type(cmd)]
