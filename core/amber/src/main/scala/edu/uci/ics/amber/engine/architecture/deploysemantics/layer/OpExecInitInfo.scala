@@ -22,7 +22,7 @@ object OpExecInitInfo {
   *       A function to create an operator executor instance, with parameters:
   *       1) worker index, 2) this worker layer object;
   *   - OpExecInitInfoWithCode:
-  *       A code string that to be compiled in a virtual machine.
+  *       A function returning the code string that to be compiled in a virtual machine.
 */
 sealed trait OpExecInitInfo
 
