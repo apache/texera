@@ -99,7 +99,7 @@ class DataProcessor(
   @transient var opConf: OpExecConfig = _
   @transient var operator: IOperatorExecutor = _
 
-  def overwriteOperator(
+  def setupOpExec(
       workerIdx: Int,
       opConf: OpExecConfig,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
@@ -111,6 +111,14 @@ class DataProcessor(
         opGen((workerIdx, opConf))
     }
     this.opConf = opConf
+    this.upstreamLinkStatus.setAllUpstreamLinkIds(
+      if (opConf.isSourceOperator)
+        Set(
+          LinkIdentity(SOURCE_STARTER_OP, 0, opConf.id, 0)
+        ) // special case for source operator
+      else
+        opConf.inputToOrdinalMapping.keySet
+    )
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }
 
