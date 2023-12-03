@@ -28,18 +28,16 @@ trait ModifyLogicHandler {
     {
       val operator = cp.workflow.physicalPlan.operatorMap(msg.newOp.id)
       val opExecution = cp.executionState.getOperatorExecution(msg.newOp.id)
-
+      val workerCommand = if (operator.isPythonOperator) {
+        ModifyPythonOperatorLogic(
+          msg.newOp.getPythonCode,
+          isSource = operator.isSourceOperator
+        )
+      } else {
+        WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)
+      }
       Future
         .collect(opExecution.getBuiltWorkerIds.map { worker =>
-          val workerCommand = if (operator.isPythonOperator) {
-            ModifyPythonOperatorLogic(
-              msg.newOp.getPythonCode,
-              isSource = operator.isSourceOperator
-            )
-          } else {
-            WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)
-          }
-
           send(workerCommand, worker).onFailure((err: Throwable) => {
             logger.error("Failure when performing reconfiguration", err)
             // report error to frontend
