@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.intersect
 
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -16,7 +17,7 @@ class IntersectOpDesc extends OperatorDescriptor {
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
     OpExecConfig.hashLayer(
       operatorIdentifier,
-      _ => new IntersectOpExec(),
+      OpExecInitInfo(_ => new IntersectOpExec()),
       operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
     )
   }

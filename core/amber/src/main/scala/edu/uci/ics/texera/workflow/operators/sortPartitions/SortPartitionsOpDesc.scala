@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -42,7 +43,7 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("Maximum value of the domain of the attribute.")
   var domainMax: Long = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val partitionRequirement = List(
       Option(
         RangePartition(
@@ -56,7 +57,7 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
     OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
-        p =>
+        OpExecInitInfo(p =>
           new SortPartitionOpExec(
             sortAttributeName,
             operatorSchemaInfo,
@@ -65,6 +66,7 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
             domainMax,
             p._2.numWorkers
           )
+        )
       )
       .copy(
         partitionRequirement = partitionRequirement

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -82,13 +83,14 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
     OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
-        _ =>
+        OpExecInitInfo(_ =>
           new HashJoinOpExec[K](
             buildAttributeName,
             probeAttributeName,
             joinType,
             operatorSchemaInfo
           )
+        )
       )
       .copy(
         inputPorts = operatorInfo.inputPorts,

@@ -15,7 +15,6 @@ import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -234,7 +233,7 @@ object SkewDetectionHandler {
   def getPreviousWorkerLayer(opId: LayerIdentity, workflow: Workflow): OpExecConfig = {
     val upstreamLayers = workflow.getUpStreamConnectedWorkerLayers(opId).values.toList
 
-    if (workflow.getOperator(opId).opExecClass == classOf[HashJoinOpExec[_]]) {
+    if (workflow.getOperator(opId).isHashJoinOperator) {
       upstreamLayers
         .find(layer => {
           val buildTableLinkId = layer.inputToOrdinalMapping.find(input => input._2 == 0).get._1
@@ -372,7 +371,7 @@ trait SkewDetectionHandler {
       workflowReshapeState.detectionCallCount += 1
 
       cp.workflow.getAllOperators.foreach(opConfig => {
-        if (opConfig.opExecClass == classOf[HashJoinOpExec[_]]) {
+        if (opConfig.isHashJoinOperator) {
           // Skew handling is only for hash-join operator for now.
           // 1: Find the skewed and helper worker that need first phase.
           val skewedAndHelperPairsForFirstPhase =
@@ -384,9 +383,7 @@ trait SkewDetectionHandler {
             )
           skewedAndHelperPairsForFirstPhase.foreach(skewedHelperAndReplication =>
             logger.info(
-              s"Reshape ${cp.workflow.getWorkflowId().id} #${workflowReshapeState.detectionCallCount}: First phase process begins - Skewed ${skewedHelperAndReplication._1
-                .toString()} :: Helper ${skewedHelperAndReplication._2
-                .toString()} - Replication/Intimation required: ${skewedHelperAndReplication._3.toString()}"
+              s"Reshape ${cp.workflow.getWorkflowId().id} #${workflowReshapeState.detectionCallCount}: First phase process begins - Skewed ${skewedHelperAndReplication._1} :: Helper ${skewedHelperAndReplication._2} - Replication/Intimation required: ${skewedHelperAndReplication._3}"
             )
           )
 
@@ -408,8 +405,7 @@ trait SkewDetectionHandler {
                     workflowReshapeState.skewedToStateTransferOrIntimationDone(currSkewedWorker) =
                       true
                     logger.info(
-                      s"Reshape ${cp.workflow.getWorkflowId().id} #${workflowReshapeState.detectionCallCount}: State transfer/intimation completed - ${currSkewedWorker
-                        .toString()} to ${currHelperWorker.toString()}"
+                      s"Reshape ${cp.workflow.getWorkflowId().id} #${workflowReshapeState.detectionCallCount}: State transfer/intimation completed - $currSkewedWorker to $currHelperWorker"
                     )
                     implementFirstPhasePartitioning(
                       prevWorkerLayer,

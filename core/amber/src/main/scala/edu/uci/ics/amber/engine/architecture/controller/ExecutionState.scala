@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
-import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 class ExecutionState(workflow: Workflow) {
 
@@ -34,7 +33,7 @@ class ExecutionState(workflow: Workflow) {
 
   def getBuiltPythonWorkers: Iterable[ActorVirtualIdentity] =
     workflow.physicalPlan.operators
-      .filter(operator => operator.opExecClass == classOf[PythonUDFOpExecV2])
+      .filter(operator => operator.isPythonOperator)
       .flatMap(op => getOperatorExecution(op.id).getBuiltWorkerIds)
 
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {

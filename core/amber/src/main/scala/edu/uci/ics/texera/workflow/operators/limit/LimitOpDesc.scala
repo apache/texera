@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.limit
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.metadata.{
@@ -23,9 +24,12 @@ class LimitOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("the max number of output rows")
   var limit: Int = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val limitPerWorker = equallyPartitionGoal(limit, Constants.currentWorkerNum)
-    OpExecConfig.oneToOneLayer(operatorIdentifier, p => new LimitOpExec(limitPerWorker(p._1)))
+    OpExecConfig.oneToOneLayer(
+      operatorIdentifier,
+      OpExecInitInfo(p => new LimitOpExec(limitPerWorker(p._1)))
+    )
   }
 
   override def operatorInfo: OperatorInfo =
