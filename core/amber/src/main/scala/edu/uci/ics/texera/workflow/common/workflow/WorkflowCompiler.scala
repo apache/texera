@@ -94,6 +94,11 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan) {
     // assign link strategies
     val physicalPlan2 = new PartitionEnforcer(physicalPlan1).enforcePartition()
 
+    // assert all source layers to have 0 input ports
+    physicalPlan2.getSourceOperators.foreach { sourceLayer =>
+      assert(physicalPlan2.getLayer(sourceLayer).inputPorts.isEmpty)
+    }
+
     new Workflow(workflowId, physicalPlan2)
   }
 
