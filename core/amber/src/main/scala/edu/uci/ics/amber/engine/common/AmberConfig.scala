@@ -27,38 +27,38 @@ object AmberConfig {
   }
 
   // Constants configuration
-  def loggingQueueSizeInterval: Int = getConfSource.getInt("constants.logging-queue-size-interval")
-  def MAX_RESOLUTION_ROWS: Int = getConfSource.getInt("constants.max-resolution-rows")
-  def MAX_RESOLUTION_COLUMNS: Int = getConfSource.getInt("constants.max-resolution-columns")
-  def numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
-  def getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
+  val loggingQueueSizeInterval: Int = getConfSource.getInt("constants.logging-queue-size-interval")
+  val MAX_RESOLUTION_ROWS: Int = getConfSource.getInt("constants.max-resolution-rows")
+  val MAX_RESOLUTION_COLUMNS: Int = getConfSource.getInt("constants.max-resolution-columns")
+  val numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
+  val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
 
   // Monitoring and reshape related configuration
-  def monitoringEnabled: Boolean =
+  val monitoringEnabled: Boolean =
     getConfSource.getBoolean("monitoring.monitoring-enabled")
-  def monitoringIntervalInMs: Int =
+  val monitoringIntervalInMs: Int =
     getConfSource.getInt("monitoring.monitoring-interval-ms")
-  def reshapeSkewHandlingEnabled: Boolean =
+  val reshapeSkewHandlingEnabled: Boolean =
     getConfSource.getBoolean("reshape.skew-handling-enabled")
-  def reshapeSkewDetectionInitialDelayInMs: Int =
+  val reshapeSkewDetectionInitialDelayInMs: Int =
     getConfSource.getInt("reshape.skew-detection-initial-delay-ms")
-  def reshapeSkewDetectionIntervalInMs: Int =
+  val reshapeSkewDetectionIntervalInMs: Int =
     getConfSource.getInt("reshape.skew-detection-interval-ms")
-  def reshapeEtaThreshold: Int =
+  val reshapeEtaThreshold: Int =
     getConfSource.getInt("reshape.eta-threshold")
-  def reshapeTauThreshold: Int =
+  val reshapeTauThreshold: Int =
     getConfSource.getInt("reshape.tau-threshold")
-  def reshapeHelperOverloadThreshold: Int =
+  val reshapeHelperOverloadThreshold: Int =
     getConfSource.getInt("reshape.helper-overload-threshold")
-  def reshapeMaxWorkloadSamplesInController: Int =
+  val reshapeMaxWorkloadSamplesInController: Int =
     getConfSource.getInt("reshape.max-workload-samples-controller")
-  def reshapeMaxWorkloadSamplesInWorker: Int =
+  val reshapeMaxWorkloadSamplesInWorker: Int =
     getConfSource.getInt("reshape.max-workload-samples-worker")
-  def reshapeWorkloadSampleSize: Int =
+  val reshapeWorkloadSampleSize: Int =
     getConfSource.getInt("reshape.workload-sample-size")
-  def reshapeFirstPhaseSharingNumerator: Int =
+  val reshapeFirstPhaseSharingNumerator: Int =
     getConfSource.getInt("reshape.first-phase-sharing-numerator")
-  def reshapeFirstPhaseSharingDenominator: Int =
+  val reshapeFirstPhaseSharingDenominator: Int =
     getConfSource.getInt("reshape.first-phase-sharing-denominator")
 
   // Flow control related configuration
@@ -66,58 +66,58 @@ object AmberConfig {
     val maxCredit = getConfSource.getLong("flow-control.max-credit-allowed-in-bytes-per-channel")
     if (maxCredit == -1L) Long.MaxValue else maxCredit
   }
-  def creditPollingIntervalInMs: Int =
+  val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
   // Scheduling related configuration
-  def schedulingPolicyName: String = getConfSource.getString("scheduling.policy-name")
-  def timeSlotExpirationDurationInMs: Int =
+  val schedulingPolicyName: String = getConfSource.getString("scheduling.policy-name")
+  val timeSlotExpirationDurationInMs: Int =
     getConfSource.getInt("scheduling.time-slot-expiration-duration-ms")
 
   // Network buffering configuration
   def defaultBatchSize: Int = getConfSource.getInt("network-buffering.default-batch-size")
-  def enableAdaptiveNetworkBuffering: Boolean =
+  val enableAdaptiveNetworkBuffering: Boolean =
     getConfSource.getBoolean("network-buffering.enable-adaptive-buffering")
-  def adaptiveBufferingTimeoutMs: Int =
+  val adaptiveBufferingTimeoutMs: Int =
     getConfSource.getInt("network-buffering.adaptive-buffering-timeout-ms")
 
   // Fries configuration
-  def enableTransactionalReconfiguration: Boolean =
+  val enableTransactionalReconfiguration: Boolean =
     getConfSource.getBoolean("reconfiguration.enable-transactional-reconfiguration")
 
   // Fault tolerance configuration
-  def isFaultToleranceEnabled: Boolean =
+  val isFaultToleranceEnabled: Boolean =
     getConfSource.getBoolean("fault-tolerance.enable-determinant-logging")
-  def delayBeforeRecovery: Long = getConfSource.getLong("fault-tolerance.delay-before-recovery")
-  def faultToleranceLogFlushIntervalInMs: Long =
+  val delayBeforeRecovery: Long = getConfSource.getLong("fault-tolerance.delay-before-recovery")
+  val faultToleranceLogFlushIntervalInMs: Long =
     getConfSource.getLong("fault-tolerance.log-flush-interval-ms")
-  def faultToleranceLogStorage: String = getConfSource.getString("fault-tolerance.log-storage-type")
-  def faultToleranceHDFSAddress: String =
+  val faultToleranceLogStorage: String = getConfSource.getString("fault-tolerance.log-storage-type")
+  val faultToleranceHDFSAddress: String =
     getConfSource.getString("fault-tolerance.hdfs-storage.address")
 
   // Storage configuration
-  def sinkStorageMode: String = getConfSource.getString("storage.mode")
-  def sinkStorageMongoDBConfig: Config = getConfSource.getConfig("storage.mongodb")
-  def sinkStorageTTLInSecs: Int = getConfSource.getInt("result-cleanup.ttl-in-seconds")
-  def sinkStorageCleanUpCheckIntervalInSecs: Int =
+  val sinkStorageMode: String = getConfSource.getString("storage.mode")
+  val sinkStorageMongoDBConfig: Config = getConfSource.getConfig("storage.mongodb")
+  val sinkStorageTTLInSecs: Int = getConfSource.getInt("result-cleanup.ttl-in-seconds")
+  val sinkStorageCleanUpCheckIntervalInSecs: Int =
     getConfSource.getInt("result-cleanup.collection-check-interval-in-seconds")
 
   // User system and authentication configuration
-  def isUserSystemEnabled: Boolean = getConfSource.getBoolean("user-sys.enabled")
-  def jWTConfig: Config = getConfSource.getConfig("user-sys.jwt")
-  def googleClientId: String = getConfSource.getString("user-sys.google.clientId")
-  def googleClientSecret: String = getConfSource.getString("user-sys.google.clientSecret")
+  val isUserSystemEnabled: Boolean = getConfSource.getBoolean("user-sys.enabled")
+  val jWTConfig: Config = getConfSource.getConfig("user-sys.jwt")
+  val googleClientId: String = getConfSource.getString("user-sys.google.clientId")
+  val googleClientSecret: String = getConfSource.getString("user-sys.google.clientSecret")
 
   // Web server configuration
-  def operatorConsoleBufferSize: Int = getConfSource.getInt("web-server.python-console-buffer-size")
-  def executionResultPollingInSecs: Int =
+  val operatorConsoleBufferSize: Int = getConfSource.getInt("web-server.python-console-buffer-size")
+  val executionResultPollingInSecs: Int =
     getConfSource.getInt("web-server.workflow-result-pulling-in-seconds")
-  def executionStateCleanUpInSecs: Int =
+  val executionStateCleanUpInSecs: Int =
     getConfSource.getInt("web-server.workflow-state-cleanup-in-seconds")
-  def workflowVersionCollapseIntervalInMinutes: Int =
+  val workflowVersionCollapseIntervalInMinutes: Int =
     getConfSource.getInt("user-sys.version-time-limit-in-minutes")
 
   // JDBC configuration
-  def jdbcConfig: Config = getConfSource.getConfig("jdbc")
+  val jdbcConfig: Config = getConfSource.getConfig("jdbc")
 
 }
