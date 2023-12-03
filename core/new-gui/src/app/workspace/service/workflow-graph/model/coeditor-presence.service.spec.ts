@@ -3,7 +3,7 @@ import { TestBed } from "@angular/core/testing";
 import { CoeditorPresenceService } from "./coeditor-presence.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropdownMenuComponent, NzDropDownModule } from "ng-zorro-antd/dropdown";
-import { CoeditorUserIconComponent } from "../../../component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
+import { CoeditorUserIconComponent } from "../../../component/menu/coeditor-user-icon/coeditor-user-icon.component";
 import { WorkflowActionService } from "./workflow-action.service";
 import { HttpClient } from "@angular/common/http";
 
