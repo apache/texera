@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
 import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaString,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
@@ -27,9 +31,10 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   fileTypeName = Option("")
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    OpExecConfig.sourceLayer(operatorIdentifier, OpExecInitInfo(_ => new FileScanSourceOpExec(this)))
-
-
+    OpExecConfig.sourceLayer(
+      operatorIdentifier,
+      OpExecInitInfo(_ => new FileScanSourceOpExec(this))
+    )
 
   override def inferSchema(): Schema =
     Schema
