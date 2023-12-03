@@ -48,7 +48,7 @@ import { assert } from "../../../common/util/assert";
 @UntilDestroy()
 @Component({
   selector: "texera-navigation",
-  templateUrl: "../menu/navigation.component.html",
+  templateUrl: "./navigation.component.html",
   styleUrls: ["./navigation.component.scss"],
 })
 export class NavigationComponent implements OnInit {
