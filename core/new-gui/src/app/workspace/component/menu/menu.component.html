@@ -1,4 +1,4 @@
-<div id="nav-container">
+<div id="menu-container">
   <div id="logo">
     <a href="/">
       <img
@@ -6,9 +6,9 @@
         src="assets/logos/full_logo_small.png" />
     </a>
   </div>
-  <div id="nav-content">
+  <div id="menu-content">
     <div
-      id="nav-user"
+      id="menu-user"
       *ngIf="userSystemEnabled">
       <div id="metadata">
         <button
@@ -311,7 +311,7 @@
         nz-dropdown
         [nzDropdownMenu]="menu"
         nzPlacement="bottomCenter"
-        id="dropdown-button">
+        id="utilities-dropdown-button">
         <i
           nz-icon
           nzType="ellipsis"></i>

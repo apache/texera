@@ -1,4 +1,4 @@
-#nav-container {
+#menu-container {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   width: 100%;
 }
@@ -11,7 +11,7 @@
   }
 }
 
-#nav-content {
+#menu-content {
   display: inline-block;
   width: calc(100% - 140px);
 }
@@ -31,7 +31,7 @@
   }
 }
 
-#nav-user {
+#menu-user {
   height: 36px;
   margin: 1px;
   border-bottom: 1px solid #cacaca;
@@ -90,7 +90,7 @@ i {
   }
 }
 
-#dropdown-button {
+#utilities-dropdown-button {
   @media screen and (min-width: 961px) {
     display: none;
   }
