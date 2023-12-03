@@ -4,7 +4,7 @@ import { environment } from "../../../../environments/environment";
 import { UserService } from "../../../common/service/user/user.service";
 import {
   DEFAULT_WORKFLOW_NAME,
-  WorkflowPersistService
+  WorkflowPersistService,
 } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow, WorkflowContent } from "../../../common/type/workflow";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
@@ -448,7 +448,7 @@ export class MenuComponent implements OnInit {
             : "Saved at " +
               this.datePipe.transform(
                 this.workflowActionService.getWorkflowMetadata().lastModifiedTime,
-                "MM/dd/yyyy HH:mm:ss zzz",
+                "MM/dd/yyyy HH:mm:ss",
                 Intl.DateTimeFormat().resolvedOptions().timeZone,
                 "en"
               );
