@@ -6,6 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -41,13 +42,14 @@ class BulkDownloaderOpDesc extends OperatorDescriptor {
     assert(context.userId.isDefined)
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
-      _ =>
+      OpExecInitInfo(_ =>
         new BulkDownloaderOpExec(
           context,
           urlAttribute,
           resultAttribute,
           operatorSchemaInfo
         )
+      )
     )
   }
 

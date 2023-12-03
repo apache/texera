@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.union
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -13,8 +14,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 
 class UnionOpDesc extends OperatorDescriptor {
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => new UnionOpExec())
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    OpExecConfig.oneToOneLayer(operatorIdentifier, OpExecInitInfo(_ => new UnionOpExec()))
   }
 
   override def operatorInfo: OperatorInfo =

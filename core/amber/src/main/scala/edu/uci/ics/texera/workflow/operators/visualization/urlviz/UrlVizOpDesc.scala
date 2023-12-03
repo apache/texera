@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -50,7 +51,7 @@ class UrlVizOpDesc extends VisualizationOperator {
     OpExecConfig
       .manyToOneLayer(
         operatorIdentifier,
-        _ => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo)
+        OpExecInitInfo(_ => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo))
       )
 
   override def operatorInfo: OperatorInfo =

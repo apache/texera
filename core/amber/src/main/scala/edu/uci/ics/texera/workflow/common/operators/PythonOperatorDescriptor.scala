@@ -1,38 +1,32 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
-import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpExecV2
 
 import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends OperatorDescriptor {
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
     if (asSource()) {
+
       OpExecConfig
-        .localLayer(
+        .sourceLayer(
           operatorIdentifier,
-          _ =>
-            new PythonUDFSourceOpExecV2(
-              generatedCode,
-              operatorSchemaInfo.outputSchemas.head
-            )
+          OpExecInitInfo(generatedCode)
         )
         .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
       OpExecConfig
         .oneToOneLayer(
           operatorIdentifier,
-          _ =>
-            new PythonUDFOpExecV2(
-              generatedCode,
-              operatorSchemaInfo.outputSchemas.head
-            )
+          OpExecInitInfo(generatedCode)
         )
         .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 

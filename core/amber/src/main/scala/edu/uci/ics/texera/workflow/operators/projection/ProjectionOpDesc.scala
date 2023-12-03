@@ -2,15 +2,16 @@ package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig.oneToOneLayer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{
+  BroadcastPartition,
   HashPartition,
   PartitionInfo,
   RangePartition,
   SinglePartition,
-  BroadcastPartition,
   UnknownPartition
 }
 
@@ -20,8 +21,11 @@ class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    oneToOneLayer(operatorIdentifier, _ => new ProjectionOpExec(attributes, operatorSchemaInfo))
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+    oneToOneLayer(
+      operatorIdentifier,
+      OpExecInitInfo(_ => new ProjectionOpExec(attributes, operatorSchemaInfo))
+    )
       .copy(derivePartition = this.derivePartition(operatorSchemaInfo))
   }
 

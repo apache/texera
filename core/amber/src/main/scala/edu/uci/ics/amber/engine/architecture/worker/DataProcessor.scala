@@ -7,8 +7,12 @@ import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{WorkerTimerService, OutputManager}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecConfig,
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
   DPOutputIterator,
   FinalizeLink,
@@ -87,22 +91,34 @@ object DataProcessor {
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
-    @transient var workerIdx: Int,
-    @transient var operator: IOperatorExecutor,
-    @transient var opConf: OpExecConfig,
     outputHandler: WorkflowFIFOMessage => Unit
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
-  def overwriteOperator(
+  @transient var workerIdx: Int = 0
+  @transient var opConf: OpExecConfig = _
+  @transient var operator: IOperatorExecutor = _
+
+  def initOperator(
       workerIdx: Int,
       opConf: OpExecConfig,
-      op: IOperatorExecutor,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
-    this.operator = op
+    this.operator = opConf.opExecInitInfo match {
+      case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen((workerIdx, opConf))
+    }
     this.opConf = opConf
+    this.upstreamLinkStatus.setAllUpstreamLinkIds(
+      if (opConf.isSourceOperator)
+        Set(
+          LinkIdentity(SOURCE_STARTER_OP, 0, opConf.id, 0)
+        ) // special case for source operator
+      else
+        opConf.inputToOrdinalMapping.keySet
+    )
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }
 

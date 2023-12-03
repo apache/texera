@@ -31,9 +31,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.{Constants, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.Constants
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -211,9 +210,6 @@ class WorkflowScheduler(
           .map(p => {
             val workerID = p._1
             val pythonUDFOpExecConfig = p._2
-            val pythonUDFOpExec = pythonUDFOpExecConfig
-              .initIOperatorExecutor((0, pythonUDFOpExecConfig))
-              .asInstanceOf[PythonUDFOpExecV2]
 
             val inputMappingList = pythonUDFOpExecConfig.inputToOrdinalMapping
               .map(kv => LinkOrdinal(kv._1, kv._2))
@@ -224,11 +220,11 @@ class WorkflowScheduler(
             asyncRPCClient
               .send(
                 InitializeOperatorLogic(
-                  pythonUDFOpExec.getCode,
-                  pythonUDFOpExec.isInstanceOf[ISourceOperatorExecutor],
+                  pythonUDFOpExecConfig.getPythonCode,
+                  pythonUDFOpExecConfig.isSourceOperator,
                   inputMappingList,
                   outputMappingList,
-                  pythonUDFOpExec.getOutputSchema
+                  pythonUDFOpExecConfig.getOutputSchema
                 ),
                 workerID
               )

@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperat
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.error.ErrorUtils.mkConsoleMessage
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
-import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpExecV2
 
 object ModifyLogicHandler {
 
@@ -32,12 +31,11 @@ trait ModifyLogicHandler {
       val workerCommand = if (operator.isPythonOperator) {
         ModifyPythonOperatorLogic(
           msg.newOp.getPythonCode,
-          isSource = operator.opExecClass.isInstance(classOf[PythonUDFSourceOpExecV2])
+          isSource = operator.isSourceOperator
         )
       } else {
         WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)
       }
-
       Future
         .collect(opExecution.getBuiltWorkerIds.map { worker =>
           send(workerCommand, worker).onFailure((err: Throwable) => {

@@ -31,11 +31,6 @@ trait StartHandler {
         SOURCE_STARTER_ACTOR,
         LinkIdentity(SOURCE_STARTER_OP, 0, dp.getOperatorId, 0)
       )
-      // for source operator: add a virtual input channel just for kicking off the execution
-      dp.registerInput(
-        SOURCE_STARTER_ACTOR,
-        LinkIdentity(SOURCE_STARTER_OP, 0, dp.getOperatorId, 0)
-      )
       dp.processDataPayload(
         ChannelID(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),
         EndOfUpstream()
