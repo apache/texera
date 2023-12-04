@@ -272,19 +272,15 @@ export class ExecuteWorkflowService {
     );
   }
 
-  public skipTuples(): void {
+  public skipTuples(workers: ReadonlyArray<string>): void {
     if (!environment.amberEngineEnabled) {
       return;
     }
-    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot skip tuples, the current execution state is " + this.currentState.state);
     }
-    this.currentState.breakpoint.report.forEach(fault => {
-      this.workflowWebsocketService.send("SkipTupleRequest", {
-        faultedTuple: fault.faultedTuple,
-        actorPath: fault.workerName,
-      });
-    });
+    this.workflowWebsocketService.send("SkipTupleRequest", {workers});
+
   }
 
   public retryExecution(workers: ReadonlyArray<string>): void {

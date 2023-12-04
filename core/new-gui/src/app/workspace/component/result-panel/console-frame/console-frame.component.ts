@@ -157,13 +157,13 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   onClickSkipTuples(): void {
     try {
-      this.executeWorkflowService.skipTuples();
+      this.executeWorkflowService.skipTuples(this.workerIds);
     } catch (e) {
       this.notificationService.error(e);
     }
   }
 
-  onClickRetry() {
+  onClickRetryTuples() {
     try {
       this.executeWorkflowService.retryExecution(this.workerIds);
     } catch (e) {
