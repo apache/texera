@@ -19,6 +19,7 @@
     <texera-left-panel></texera-left-panel>
     <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
   </mat-expansion-panel>
+  <span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
 </div>
 <div
   [ngClass]="{
@@ -28,8 +29,6 @@
 		'texera-workspace-grid-container': this.showResultPanel,
 		'user-system-enabled': this.userSystemEnabled
 	}">
-
-
 
 
   <div class="texera-property-editor-grid-container grid-container">
@@ -43,10 +42,9 @@
     class="texera-workflow-editor-grid-container grid-container">
   </texera-workflow-editor>
 
-  <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container grid-container">
+  <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container">
   </texera-result-panel-toggle>
 
   <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
 </div>
 
-<span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
