@@ -64,8 +64,8 @@ import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dia
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
 import { MenuComponent } from "./workspace/component/menu/menu.component";
-import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-label/operator-label.component";
-import { OperatorMenuComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-menu.component";
+import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu/operator-label/operator-label.component";
+import { OperatorMenuComponent } from "./workspace/component/left-panel/operator-menu/operator-menu.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelToggleComponent } from "./workspace/component/result-panel-toggle/result-panel-toggle.component";

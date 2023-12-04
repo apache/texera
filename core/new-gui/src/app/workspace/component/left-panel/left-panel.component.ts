@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { OperatorMenuComponent } from "./operator-menu-frame/operator-menu.component";
+import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
 import { ComponentType } from "@angular/cdk/overlay";
 import {
