@@ -1,23 +1,24 @@
 <div id="boundary">
-<mat-expansion-panel
-  [expanded]="true"
-  hideToggle
-  cdkDrag
-  cdkDragBoundary="#boundary"
-  id="left-panel"
-  nz-resizable
-  [nzMinWidth]="200"
-  [nzMaxWidth]="screenWidth*0.5"
-  [style.width.px]="width"
-  (nzResize)="onResize($event)">
-  <mat-expansion-panel-header cdkDragHandle>
-    <mat-panel-title>
-      Operators
-    </mat-panel-title>
-  </mat-expansion-panel-header>
-  <texera-left-panel></texera-left-panel>
-  <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
-</mat-expansion-panel>
+  <texera-menu [pid]="pid"></texera-menu>
+  <mat-expansion-panel
+    [expanded]="true"
+    hideToggle
+    cdkDrag
+    cdkDragBoundary="#boundary"
+    id="left-panel"
+    nz-resizable
+    [nzMinWidth]="200"
+    [nzMaxWidth]="screenWidth*0.5"
+    [style.width.px]="width"
+    (nzResize)="onResize($event)">
+    <mat-expansion-panel-header cdkDragHandle>
+      <mat-panel-title>
+        Operators
+      </mat-panel-title>
+    </mat-expansion-panel-header>
+    <texera-left-panel></texera-left-panel>
+    <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
+  </mat-expansion-panel>
 </div>
 <div
   [ngClass]="{
@@ -27,10 +28,7 @@
 		'texera-workspace-grid-container': this.showResultPanel,
 		'user-system-enabled': this.userSystemEnabled
 	}">
-  <texera-menu
-    class="texera-menu-grid-container"
-    [pid]="pid">
-  </texera-menu>
+
 
 
 

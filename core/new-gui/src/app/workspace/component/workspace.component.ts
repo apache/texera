@@ -277,4 +277,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.workflowWebsocketService.reopenWebsocket(wid);
       });
   }
+
+  protected readonly undefined = undefined;
 }

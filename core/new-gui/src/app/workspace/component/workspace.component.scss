@@ -10,7 +10,6 @@
 }
 
 .texera-workspace {
-  // transition: grid-template-rows 0.5s;
   --header-height: 40px;
   --resultbar-height: 25px;
   --result-panel-height: 280px;
@@ -75,15 +74,6 @@
   position: relative;
 }
 
-/**
-  * this style specifies that the navigation component will
-  * use all three columns and the first row.
-  */
-.texera-menu-grid-container {
-  grid-column: 1/4;
-  grid-row: 1/2;
-}
-
 #left-panel {
   width: 50%;
   z-index: 1;
@@ -91,6 +81,14 @@
   top: 90px;
   left: 15px;
   user-select: none;
+}
+
+texera-menu {
+  width: 100%;
+  z-index: 3;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 #boundary{
