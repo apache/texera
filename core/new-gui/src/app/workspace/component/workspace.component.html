@@ -1,13 +1,16 @@
 <div
-  id="left-panel-container"
+  id="left-panel"
   nz-resizable
   [nzMinWidth]="200"
   [nzMaxWidth]="screenWidth*0.5"
   [style.width.px]="width"
   (nzResize)="onResize($event)"
 >
-
-  <texera-left-panel> </texera-left-panel>
+  <nz-collapse >
+    <nz-collapse-panel nzHeader="Operators" [nzActive]="true">
+      <texera-left-panel></texera-left-panel>
+    </nz-collapse-panel>
+  </nz-collapse>
   <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
 </div>
 
@@ -42,3 +45,5 @@
 
   <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
 </div>
+
+<span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>

@@ -84,15 +84,17 @@
   grid-row: 1/2;
 }
 
-#left-panel-container {
-  background: white;
-  height: calc(100% - 76px);
+#left-panel {
   width: 50%;
   z-index: 1;
   position: absolute;
-  top: 76px;
+  top: 75px;
   left: 0;
+  user-select: none;
 }
+
+
+
 
 /**
   * this style specifies that the property editor for the operators
@@ -136,4 +138,13 @@
 .texera-result-panel-toggle-grid-container {
   grid-column: 2/3;
   grid-row: 4/5;
+}
+
+#git-commit-id {
+  position: absolute;
+  left: 5px;
+  bottom: 5px;
+  font-size: 0.4em;
+  color: gray;
+  z-index: 1;
 }

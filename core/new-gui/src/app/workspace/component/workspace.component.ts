@@ -18,6 +18,7 @@ import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { Version } from "../../../environments/version";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -33,7 +34,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
-
+  public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
 

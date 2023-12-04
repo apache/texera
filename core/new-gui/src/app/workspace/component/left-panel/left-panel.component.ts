@@ -7,7 +7,6 @@ import {
   OPEN_VERSIONS_FRAME_EVENT,
   WorkflowVersionService,
 } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { Version } from "../../../../environments/version";
 
 @UntilDestroy()
 @Component({
@@ -17,7 +16,6 @@ import { Version } from "../../../../environments/version";
 })
 export class LeftPanelComponent implements OnInit {
   currentComponent: ComponentType<any>;
-  public gitCommitHash: string = Version.raw;
 
   constructor(private workflowVersionService: WorkflowVersionService) {
     this.currentComponent = OperatorMenuComponent;
