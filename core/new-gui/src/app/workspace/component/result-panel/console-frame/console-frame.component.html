@@ -103,35 +103,6 @@
           <div
             nz-col
             nzFlex="auto">
-            <button
-              (click)="onClickSkipTuples()"
-              *ngIf="entry.msgType.name==='ERROR'"
-              [disabled]="!isLast"
-              nzSize="small"
-              nz-tooltip
-              nzTooltipTitle="Skip the faulty Tuple"
-              nz-button>
-              <span nz-icon nzType="delete-row" nzTheme="outline"></span>
-            </button>
-
-            <button
-              (click)="onClickRetryTuples()"
-              *ngIf="entry.msgType.name==='ERROR'"
-              [disabled]="!isLast"
-              nzSize="small"
-              nz-tooltip
-              nzTooltipTitle="Retry the faulty Tuple"
-              nz-button>
-              <span
-                nz-icon
-                nzType="redo"
-                nzTheme="outline">
-              </span>
-            </button>
-          </div>
-          <div
-            nz-col
-            nzFlex="auto">
             <nz-tag
               *ngIf="showSource"
               class="source-tag">
@@ -163,10 +134,36 @@
   </nz-list-item>
 </nz-list>
 
+
 <nz-input-group
   *ngIf="consoleInputEnabled"
   nzCompact
   [nzAddOnBefore]="addOnBeforeTemplate">
+  <button
+    (click)="onClickSkipTuples()"
+    *ngIf="true"
+    [disabled]="false"
+    nzSize="small"
+    nz-tooltip
+    nzTooltipTitle="Skip the faulty Tuple"
+    nz-button>
+    <span nz-icon nzType="delete-row" nzTheme="outline"></span>
+  </button>
+
+  <button
+    (click)="onClickRetryTuples()"
+    *ngIf="true"
+    [disabled]="false"
+    nzSize="small"
+    nz-tooltip
+    nzTooltipTitle="Retry the faulty Tuple"
+    nz-button>
+              <span
+                nz-icon
+                nzType="redo"
+                nzTheme="outline">
+              </span>
+  </button>
   <input
     type="text"
     nz-input
