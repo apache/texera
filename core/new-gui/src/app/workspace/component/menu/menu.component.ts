@@ -30,7 +30,7 @@ import { isDefined } from "../../../common/util/predicate";
 import { HttpErrorResponse } from "@angular/common/http";
 
 /**
- * NavigationComponent is the top level navigation bar that shows
+ * MenuComponent is the top level menu bar that shows
  *  the Texera title and workflow execution button
  *
  * This Component will be the only Component capable of executing
@@ -46,7 +46,7 @@ import { HttpErrorResponse } from "@angular/common/http";
  */
 @UntilDestroy()
 @Component({
-  selector: "texera-navigation",
+  selector: "texera-menu",
   templateUrl: "menu.component.html",
   styleUrls: ["menu.component.scss"],
 })
@@ -238,7 +238,7 @@ export class MenuComponent implements OnInit {
 
   /**
    * This method checks whether the zoom ratio reaches minimum. If it is minimum, this method
-   *  will disable the zoom out button on the navigation bar.
+   *  will disable the zoom out button on the menu bar.
    */
   public isZoomRatioMin(): boolean {
     return this.workflowActionService.getJointGraphWrapper().isZoomRatioMin();
@@ -246,7 +246,7 @@ export class MenuComponent implements OnInit {
 
   /**
    * This method checks whether the zoom ratio reaches maximum. If it is maximum, this method
-   *  will disable the zoom in button on the navigation bar.
+   *  will disable the zoom in button on the menu bar.
    */
   public isZoomRatioMax(): boolean {
     return this.workflowActionService.getJointGraphWrapper().isZoomRatioMax();
