@@ -1,23 +1,25 @@
-.texera-workspace-operator-panel-body {
+#operator-menu-container {
   height: 100%;
   width: 200px;
   display: flex;
   flex-direction: column;
-  .search-box {
-    padding: 10px;
-    border-bottom: 1px solid #e0e0e0;
-  }
-  .texera-workspace-operator-panel-menu {
-    flex-grow: 1;
-    overflow-y: auto;
-    .texera-workspace-operator-panel-subgroup {
-      background-color: #fff;
-      user-select: none;
-      .texera-workspace-operator-panel-subgroup-menu {
-        border: none;
-        .texera-operator-label {
-          padding: unset;
-        }
+}
+
+#search-box {
+  padding: 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+#operator-menu {
+  flex-grow: 1;
+  overflow-y: auto;
+  .texera-workspace-operator-panel-subgroup {
+    background-color: #fff;
+    user-select: none;
+    .texera-workspace-operator-panel-subgroup-menu {
+      border: none;
+      .texera-operator-label {
+        padding: unset;
       }
     }
   }

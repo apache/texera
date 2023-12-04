@@ -1,5 +1,5 @@
-<div class="texera-workspace-operator-panel-body">
-  <div class="search-box">
+<div id="operator-menu-container">
+  <div id="search-box">
     <input
       placeholder="search operator"
       nz-input
@@ -23,7 +23,7 @@
   </div>
   <nz-collapse
     [nzBordered]="false"
-    class="texera-workspace-operator-panel-menu"
+    id="operator-menu"
     nzAccordion>
     <nz-collapse-panel
       *ngFor="let groupName of groupNamesOrdered"
