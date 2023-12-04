@@ -16,8 +16,7 @@
           *ngIf="displayParticularWorkflowVersion"
           nz-button
           nzType="text"
-          title="back"
-          class="particular-version-metadata">
+          title="back">
           <i
             nz-icon
             nzTheme="outline"
@@ -35,8 +34,7 @@
             class="workflow-name"
             placeholder="Untitled Workflow" />
           <span
-            *ngIf="displayParticularWorkflowVersion"
-            class="particular-version-metadata">
+            *ngIf="displayParticularWorkflowVersion">
             {{particularVersionDate}}
           </span>
         </label>

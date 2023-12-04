@@ -1,4 +1,16 @@
-<texera-left-panel> </texera-left-panel>
+<div
+  id="left-panel-container"
+  nz-resizable
+  [nzMinWidth]="200"
+  [nzMaxWidth]="screenWidth*0.5"
+  [style.width.px]="width"
+  (nzResize)="onResize($event)"
+>
+
+  <texera-left-panel> </texera-left-panel>
+  <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
+</div>
+
 <div
   [ngClass]="{
 		'grid-container': true,
@@ -22,7 +34,6 @@
   </div>
 
   <texera-workflow-editor
-    id="texera-workflow-editor"
     class="texera-workflow-editor-grid-container grid-container">
   </texera-workflow-editor>
 
@@ -30,7 +41,4 @@
   </texera-result-panel-toggle>
 
   <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
-  <div class="texera-git-commit-id">
-    <span>Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
-  </div>
 </div>

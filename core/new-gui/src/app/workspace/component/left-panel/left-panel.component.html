@@ -1,10 +1,2 @@
-<div
-  id="left-panel-container"
-  nz-resizable
-  [nzMinWidth]="120"
-  [style.width.px]="width"
-  (nzResize)="onResize($event)"
->
-  <nz-resize-handles></nz-resize-handles>
-  <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
-</div>
+<ng-container *ngComponentOutlet="currentComponent;"></ng-container>
+<span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>

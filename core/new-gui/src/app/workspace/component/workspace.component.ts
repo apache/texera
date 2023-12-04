@@ -2,11 +2,9 @@ import { Location } from "@angular/common";
 import { AfterViewInit, OnInit, Component, OnDestroy } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
-import { Version } from "../../../environments/version";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
-import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
@@ -14,14 +12,12 @@ import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.s
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -37,23 +33,29 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
-  public gitCommitHash: string = Version.raw;
+
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
+
+  screenWidth = window.innerWidth;
+  width = 200;
+  id = -1;
+
+  onResize({ width }: NzResizeEvent): void {
+    cancelAnimationFrame(this.id);
+    this.id = requestAnimationFrame(() => {
+      this.width = width!;
+    });
+  }
 
   constructor(
     private userService: UserService,
     private resultPanelToggleService: ResultPanelToggleService,
-    // list additional services in constructor so they are initialized even if no one use them directly
-    private schemaPropagationService: SchemaPropagationService,
-    private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private undoRedoService: UndoRedoService,
-    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
-    private workflowConsoleService: WorkflowConsoleService,
     private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
