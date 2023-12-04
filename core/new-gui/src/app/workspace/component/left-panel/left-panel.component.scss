@@ -1,6 +1,5 @@
-
-
 #left-panel-container {
-  background: white;
-  height: calc(100vh - 124px);
+  min-height: 100%;
+  max-height: calc(100vh - 180px);
+  overflow-y: auto;
 }
