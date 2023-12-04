@@ -9,6 +9,7 @@ import org.jooq.impl.DSL.{field, name, table, using}
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
+import org.mindrot.jbcrypt.BCrypt
 
 @Path("/discussion")
 class UserDiscussionResource {
@@ -21,6 +22,8 @@ class UserDiscussionResource {
     dataSource.setUrl(AmberUtils.amberConfig.getString("jdbc.url").replace("texera_db", "flarum"))
     dataSource.setUser(AmberUtils.amberConfig.getString("jdbc.username"))
     dataSource.setPassword(AmberUtils.amberConfig.getString("jdbc.password"))
+    val hashed = BCrypt.hashpw(user.getGoogleId, BCrypt.gensalt());
+
     using(dataSource, SQLDialect.MYSQL)
       .insertInto(table(name("users")))
       .columns(
@@ -33,7 +36,7 @@ class UserDiscussionResource {
         user.getEmail,
         user.getEmail,
         "1",
-        user.getGoogleId
+        hashed
       )
       .execute()
   }
