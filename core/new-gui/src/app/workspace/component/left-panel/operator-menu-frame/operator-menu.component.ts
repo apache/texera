@@ -24,14 +24,14 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 @UntilDestroy()
 @Component({
   selector: "texera-operator-panel",
-  templateUrl: "./operator-menu-frame.component.html",
-  styleUrls: ["./operator-menu-frame.component.scss"],
+  templateUrl: "operator-menu.component.html",
+  styleUrls: ["operator-menu.component.scss"],
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
   ],
 })
-export class OperatorMenuFrameComponent implements OnInit {
+export class OperatorMenuComponent implements OnInit {
   // a list of all operator's schema
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata

@@ -1,6 +1,6 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { OperatorMenuFrameComponent } from "./operator-menu-frame/operator-menu-frame.component";
+import { OperatorMenuComponent } from "./operator-menu-frame/operator-menu.component";
 import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
 import { ComponentType } from "@angular/cdk/overlay";
 import {
@@ -18,7 +18,7 @@ export class LeftPanelComponent implements OnInit {
   currentComponent: ComponentType<any>;
 
   constructor(private workflowVersionService: WorkflowVersionService) {
-    this.currentComponent = OperatorMenuFrameComponent;
+    this.currentComponent = OperatorMenuComponent;
   }
 
   ngOnInit(): void {
@@ -31,8 +31,7 @@ export class LeftPanelComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(
         event =>
-          (this.currentComponent =
-            event === OPEN_VERSIONS_FRAME_EVENT ? VersionsFrameComponent : OperatorMenuFrameComponent)
+          (this.currentComponent = event === OPEN_VERSIONS_FRAME_EVENT ? VersionsFrameComponent : OperatorMenuComponent)
       );
   }
 }
