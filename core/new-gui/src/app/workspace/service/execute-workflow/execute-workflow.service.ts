@@ -287,16 +287,15 @@ export class ExecuteWorkflowService {
     });
   }
 
-  public retryExecution(): void {
+  public retryExecution(workers: ReadonlyArray<string>): void {
     if (!environment.amberEngineEnabled) {
       return;
     }
-    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+    console.log(this.currentState.state);
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("RetryRequest", {
-      workers: this.currentState.breakpoint.report.map(fault => fault.workerName),
-    });
+    this.workflowWebsocketService.send("RetryRequest", {workers});
   }
 
   public modifyOperatorLogic(operatorID: string): void {

@@ -44,6 +44,8 @@
     </li>
   </ul>
 </nz-dropdown-menu>
+
+
 <nz-list
   nzSize="small"
   class="console-list-container"
@@ -64,6 +66,7 @@
           [nzTitle]="entry.msgType.name"
           class="type-tag"></nz-badge>
       </div>
+
       <div
         nz-col
         nzSpan="15">
@@ -91,6 +94,25 @@
       <div
         nz-col
         nzSpan="8">
+        <button
+          (click)="onClickSkipTuples()"
+          *ngIf="entry.msgType.name==='ERROR'"
+          [disabled]="false"
+          [hidden]="true"
+          nz-button>
+          Skip Records
+        </button>
+
+        <button
+          (click)="onClickRetry()"
+          *ngIf="entry.msgType.name==='ERROR'"
+          [disabled]="false"
+          nz-button>
+          <span
+            nz-icon
+            nzType="redo"
+            nzTheme="outline"></span>
+        </button>
         <div
           nz-row
           nzAlign="top"

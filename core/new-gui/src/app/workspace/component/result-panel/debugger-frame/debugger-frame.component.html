@@ -1,21 +1,5 @@
 <!-- hide this button to temporarily disable this feature         -->
-<button
-  (click)="onClickSkipTuples()"
-  *ngIf="breakpointTriggerInfo !== undefined"
-  [disabled]="!breakpointAction"
-  [hidden]="true"
-  nz-button>
-  Skip Records
-</button>
 
-<!--TODO: add this to part of resume logic-->
-<button
-  (click)="onClickRetry()"
-  *ngIf="breakpointTriggerInfo?.operatorID===this.operatorId"
-  [disabled]="!breakpointAction"
-  nz-button>
-  Retry current Tuple
-</button>
 
 <nz-tree-view
   *ngIf="pythonExpressionSource"

@@ -58,23 +58,7 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
     }
   }
 
-  onClickSkipTuples(): void {
-    try {
-      this.executeWorkflowService.skipTuples();
-    } catch (e) {
-      this.notificationService.error(e);
-    }
-    this.breakpointAction = false;
-  }
 
-  onClickRetry() {
-    try {
-      this.executeWorkflowService.retryExecution();
-    } catch (e) {
-      this.notificationService.error(e);
-    }
-    this.breakpointAction = false;
-  }
 
   onClickEvaluate() {
     if (this.operatorId) {

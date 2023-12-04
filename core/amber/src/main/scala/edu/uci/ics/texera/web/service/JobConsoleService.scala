@@ -109,7 +109,6 @@ class JobConsoleService(
 
   //Receive retry request
   addSubscription(wsInput.subscribe((req: RetryRequest, uidOpt) => {
-    breakpointService.clearTriggeredBreakpoints()
     stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
     client.sendAsyncWithCallback[Unit](
       RetryWorkflow(req.workers.map(x => ActorVirtualIdentity(x))),
