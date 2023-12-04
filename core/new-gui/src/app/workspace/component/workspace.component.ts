@@ -41,6 +41,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   screenWidth = window.innerWidth;
   width = 200;
   id = -1;
+  disabled = false;
 
   onResize({ width }: NzResizeEvent): void {
     cancelAnimationFrame(this.id);

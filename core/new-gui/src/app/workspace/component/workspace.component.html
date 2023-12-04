@@ -1,7 +1,9 @@
+<div id="boundary">
 <mat-expansion-panel
   [expanded]="true"
   hideToggle
   cdkDrag
+  cdkDragBoundary="#boundary"
   id="left-panel"
   nz-resizable
   [nzMinWidth]="200"
@@ -16,6 +18,7 @@
   <texera-left-panel></texera-left-panel>
   <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
 </mat-expansion-panel>
+</div>
 <div
   [ngClass]="{
 		'grid-container': true,
