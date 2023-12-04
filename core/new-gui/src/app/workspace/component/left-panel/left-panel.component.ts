@@ -1,7 +1,8 @@
-import { Component, OnInit, Type } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { OperatorMenuFrameComponent } from "./operator-menu-frame/operator-menu-frame.component";
 import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
+import { ComponentType } from "@angular/cdk/overlay";
 import {
   OPEN_VERSIONS_FRAME_EVENT,
   WorkflowVersionService,
@@ -14,7 +15,7 @@ import {
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent implements OnInit {
-  currentComponent: Type<any>;
+  currentComponent: ComponentType<any>;
 
   constructor(private workflowVersionService: WorkflowVersionService) {
     this.currentComponent = OperatorMenuFrameComponent;

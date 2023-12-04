@@ -13,8 +13,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @UntilDestroy()
 @Component({
   selector: "texera-operator-label",
-  templateUrl: "./operator-label.component.html",
-  styleUrls: ["./operator-label.component.scss"],
+  templateUrl: "operator-label.component.html",
+  styleUrls: ["operator-label.component.scss"],
 })
 export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
   public static operatorLabelPrefix = "texera-operator-label-";

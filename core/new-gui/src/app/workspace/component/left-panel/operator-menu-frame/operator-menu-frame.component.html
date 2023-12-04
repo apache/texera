@@ -1,5 +1,5 @@
 <div class="texera-workspace-operator-panel-body">
-  <div class="texera-workspace-operator-panel-search-box">
+  <div class="search-box">
     <input
       placeholder="search operator"
       nz-input
@@ -17,8 +17,7 @@
         [nzDisabled]="! canModify">
         <texera-operator-label
           [fromSearchBox]="true"
-          [operator]="option"
-          class="texera-workspace-operator-panel-search-box-dropdown-menu-name-wrapper"></texera-operator-label>
+          [operator]="option"></texera-operator-label>
       </nz-auto-option>
     </nz-autocomplete>
   </div>
