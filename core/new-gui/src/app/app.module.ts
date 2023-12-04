@@ -135,6 +135,7 @@ import { PublicProjectComponent } from "./dashboard/user/component/user-project/
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
+import { NzResizableModule } from "ng-zorro-antd/resizable";
 
 registerLocaleData(en);
 
@@ -278,6 +279,7 @@ registerLocaleData(en);
     MarkdownModule.forRoot(),
     DragDropModule,
     NzAlertModule,
+    NzResizableModule,
   ],
   providers: [
     AuthGuardService,

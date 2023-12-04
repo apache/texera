@@ -7,6 +7,7 @@ import {
   OPEN_VERSIONS_FRAME_EVENT,
   WorkflowVersionService,
 } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
 
 @UntilDestroy()
 @Component({
@@ -16,6 +17,15 @@ import {
 })
 export class LeftPanelComponent implements OnInit {
   currentComponent: ComponentType<any>;
+  width = 400;
+  id = -1;
+
+  onResize({ width }: NzResizeEvent): void {
+    cancelAnimationFrame(this.id);
+    this.id = requestAnimationFrame(() => {
+      this.width = width!;
+    });
+  }
 
   constructor(private workflowVersionService: WorkflowVersionService) {
     this.currentComponent = OperatorMenuComponent;

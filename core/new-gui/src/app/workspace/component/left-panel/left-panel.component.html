@@ -1,1 +1,10 @@
-<ng-container *ngComponentOutlet="currentComponent;"></ng-container>
+<div
+  id="left-panel-container"
+  nz-resizable
+  [nzMinWidth]="120"
+  [style.width.px]="width"
+  (nzResize)="onResize($event)"
+>
+  <nz-resize-handles></nz-resize-handles>
+  <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
+</div>

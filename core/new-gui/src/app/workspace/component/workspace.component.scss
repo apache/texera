@@ -84,16 +84,13 @@
   grid-row: 1/2;
 }
 
-/**
-  * this style specifies that the operator bar on the left will
-  * occupy the first column count from the left and use second and third rows.
-  * Overflow auto creates a scrollbar when the content exceeds the size
-  * of the grid
-  */
-
-.texera-operator-panel-grid-container {
-  grid-column: 1/2;
-  grid-row: 2/6;
+texera-left-panel{
+  height: calc(100% - 75px);
+  width: 50%;
+  z-index: 1;
+  position: absolute;
+  top: 75px;
+  left: 0;
 }
 
 /**
