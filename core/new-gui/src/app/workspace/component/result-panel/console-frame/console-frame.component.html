@@ -15,14 +15,14 @@
         [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
       Show Timestamp
       <ng-template #checkedTemplate
-        ><span
-          nz-icon
-          nzType="check"></span
+      ><span
+        nz-icon
+        nzType="check"></span
       ></ng-template>
       <ng-template #unCheckedTemplate
-        ><span
-          nz-icon
-          nzType="close"></span
+      ><span
+        nz-icon
+        nzType="close"></span
       ></ng-template>
     </li>
     <li nz-menu-item>
@@ -32,14 +32,14 @@
         [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
       Show Source
       <ng-template #checkedTemplate
-        ><span
-          nz-icon
-          nzType="check"></span
+      ><span
+        nz-icon
+        nzType="check"></span
       ></ng-template>
       <ng-template #unCheckedTemplate
-        ><span
-          nz-icon
-          nzType="close"></span
+      ><span
+        nz-icon
+        nzType="close"></span
       ></ng-template>
     </li>
   </ul>
@@ -51,7 +51,7 @@
   class="console-list-container"
   #consoleList>
   <nz-list-item
-    *ngFor="let entry of consoleMessages"
+    *ngFor="let entry of consoleMessages; last as isLast"
     class="console-message-entry"
     nzNoFlex>
     <div
@@ -94,30 +94,41 @@
       <div
         nz-col
         nzSpan="8">
-        <button
-          (click)="onClickSkipTuples()"
-          *ngIf="entry.msgType.name==='ERROR'"
-          [disabled]="false"
-          [hidden]="true"
-          nz-button>
-          Skip Records
-        </button>
 
-        <button
-          (click)="onClickRetry()"
-          *ngIf="entry.msgType.name==='ERROR'"
-          [disabled]="false"
-          nz-button>
-          <span
-            nz-icon
-            nzType="redo"
-            nzTheme="outline"></span>
-        </button>
         <div
           nz-row
           nzAlign="top"
           nzJustify="end"
           nzGutter="0">
+          <div
+            nz-col
+            nzFlex="auto">
+            <button
+              (click)="onClickSkipTuples()"
+              *ngIf="entry.msgType.name==='ERROR'"
+              [disabled]="!isLast"
+              nzSize="small"
+              nz-tooltip
+              nzTooltipTitle="Skip the faulty Tuple"
+              nz-button>
+              <span nz-icon nzType="delete-row" nzTheme="outline"></span>
+            </button>
+
+            <button
+              (click)="onClickRetry()"
+              *ngIf="entry.msgType.name==='ERROR'"
+              [disabled]="!isLast"
+              nzSize="small"
+              nz-tooltip
+              nzTooltipTitle="Retry the faulty Tuple"
+              nz-button>
+              <span
+                nz-icon
+                nzType="redo"
+                nzTheme="outline">
+              </span>
+            </button>
+          </div>
           <div
             nz-col
             nzFlex="auto">
