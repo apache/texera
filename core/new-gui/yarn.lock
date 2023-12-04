@@ -11899,10 +11899,10 @@ ng-dynamic-component@10.1.0:
   dependencies:
     tslib "^2.0.0"
 
-ng-zorro-antd@13.2.2:
-  version "13.2.2"
-  resolved "https://registry.yarnpkg.com/ng-zorro-antd/-/ng-zorro-antd-13.2.2.tgz#bcdbdecebab5651b630b230b73ebcc4f1b7fb958"
-  integrity sha512-77M8o3fsCIZPmEqUicwa6N3RGq5oAppLhCAbyINGaqnkVvEa4Rf8ys4JkC6n8tWzpHNxj37dBO19mXaO7S8jLQ==
+ng-zorro-antd@13.4.0:
+  version "13.4.0"
+  resolved "https://registry.yarnpkg.com/ng-zorro-antd/-/ng-zorro-antd-13.4.0.tgz#a62a9df914d7241a6f5baabe1f4740ddd724b737"
+  integrity sha512-ZIXeeXtTUNg3mdXNg2A3gJGh0aqN/pM3Ii61FiUhwkVwmVzIIDwYfGZZNNOl+cURL5HGzrwQ10nrYgdfFfZ20g==
   dependencies:
     "@angular/cdk" "^13.0.1"
     "@ant-design/icons-angular" "^13.0.1"
