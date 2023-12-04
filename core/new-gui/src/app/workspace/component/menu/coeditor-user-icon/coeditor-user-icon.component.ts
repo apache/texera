@@ -1,6 +1,6 @@
 import { Component, Input } from "@angular/core";
-import { Coeditor, Role } from "../../../../../common/type/user";
-import { CoeditorPresenceService } from "../../../../service/workflow-graph/model/coeditor-presence.service";
+import { Coeditor, Role } from "../../../../common/type/user";
+import { CoeditorPresenceService } from "../../../service/workflow-graph/model/coeditor-presence.service";
 
 /**
  * CoeditorUserIconComponent is the user icon of a co-editor.

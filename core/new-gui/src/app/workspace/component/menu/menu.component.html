@@ -1,0 +1,376 @@
+<div id="menu-container">
+  <div id="logo">
+    <a href="/">
+      <img
+        alt="Texera"
+        src="assets/logos/full_logo_small.png" />
+    </a>
+  </div>
+  <div id="menu-content">
+    <div
+      id="menu-user"
+      *ngIf="userSystemEnabled">
+      <div id="metadata">
+        <button
+          (click)="closeParticularVersionDisplay()"
+          *ngIf="displayParticularWorkflowVersion"
+          nz-button
+          nzType="text"
+          title="back"
+          class="particular-version-metadata">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="arrow-left"></i>
+        </button>
+        <label>
+          <nz-avatar
+            style="vertical-align: top; margin-top: 1px; margin-left: 3px"
+            *ngIf="workflowId"
+            [nzText]="workflowId.toString() || ''"></nz-avatar>
+          <input
+            *ngIf="!displayParticularWorkflowVersion"
+            (change)="onWorkflowNameChange()"
+            [(ngModel)]="currentWorkflowName"
+            class="workflow-name"
+            placeholder="Untitled Workflow" />
+          <span
+            *ngIf="displayParticularWorkflowVersion"
+            class="particular-version-metadata">
+            {{particularVersionDate}}
+          </span>
+        </label>
+        <button
+          *ngIf="displayParticularWorkflowVersion"
+          nz-button
+          nzType="primary"
+          [disabled]="!workflowVersionService.modificationEnabledBeforeTempWorkflow"
+          (click)="revertToVersion()">
+          Restore this version
+        </button>
+        <button
+          *ngIf="!displayParticularWorkflowVersion"
+          nz-button
+          nzType="link"
+          title="Open version history"
+          id="save-state"
+          (click)="onClickGetAllVersions()">
+          {{autoSaveState}}
+        </button>
+      </div>
+
+      <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+        <texera-coeditor-user-icon [coeditor]="user"></texera-coeditor-user-icon>
+      </ng-container>
+
+      <texera-user-icon></texera-user-icon>
+    </div>
+    <div id="button-groups">
+      <nz-button-group
+        id="user-buttons"
+        *ngIf="!displayParticularWorkflowVersion">
+        <a [routerLink]="'/dashboard/workflow'">
+          <button
+            *ngIf="userSystemEnabled"
+            nz-button
+            title="dashboard">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="profile"></i>
+          </button>
+        </a>
+        <button
+          (click)="onClickCreateNewWorkflow()"
+          *ngIf="userSystemEnabled"
+          nz-button
+          title="create new">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="form"></i>
+        </button>
+        <button
+          (click)="persistWorkflow()"
+          *ngIf="userSystemEnabled"
+          [disabled]="!userService.isLogin() || isSaving || !isWorkflowModifiable"
+          nz-button
+          title="save">
+          <i
+            *ngIf="!isSaving"
+            nz-icon
+            nzTheme="outline"
+            nzType="save"></i>
+          <i
+            *ngIf="isSaving"
+            [nzSpin]="true"
+            [nzType]="'sync'"
+            nz-icon
+            nzTheme="outline"></i>
+        </button>
+        <button
+          (click)="onClickDeleteAllOperators()"
+          [disabled]="!isWorkflowModifiable"
+          nz-button
+          title="delete all">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="delete"></i>
+        </button>
+        <nz-upload
+          [nzDisabled]="!isWorkflowModifiable"
+          [nzBeforeUpload]="onClickImportWorkflow">
+          <button
+            nz-button
+            [disabled]="!isWorkflowModifiable"
+            title="import workflow">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="upload"></i>
+          </button>
+        </nz-upload>
+        <button
+          (click)="onClickExportWorkflow()"
+          nz-button
+          title="export workflow">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="download"></i>
+        </button>
+      </nz-button-group>
+      <ng-template #utilities>
+        <nz-button-group>
+          <button
+            (click)="onClickToggleGrids()"
+            nz-button
+            title="Toggle Grids">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="border-outer"></i>
+          </button>
+          <button
+            (click)="onClickZoomOut()"
+            nz-button
+            title="zoom out">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="zoom-out"></i>
+          </button>
+          <button
+            (click)="onClickZoomIn()"
+            nz-button
+            title="zoom in">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="zoom-in"></i>
+          </button>
+          <button
+            (click)="onClickRestoreZoomOffsetDefault()"
+            nz-button
+            title="reset zoom">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="fullscreen"></i>
+          </button>
+          <button
+            nz-button
+            (click)="onClickAutoLayout()"
+            [disabled]="!isWorkflowModifiable"
+            title="auto layout">
+            <i
+              nz-icon
+              nzType="partition"
+              nzTheme="outline"></i>
+          </button>
+          <button
+            (click)="onClickAddCommentBox()"
+            [disabled]="!isWorkflowModifiable"
+            nz-button
+            title="add a comment">
+            <i
+              nz-icon
+              nzType="comment"
+              nzTheme="outline"></i>
+          </button>
+          <button
+            (click)="onClickExportExecutionResult('csv')"
+            [disabled]="
+        !workflowResultExportService.exportExecutionResultEnabled ||
+        !workflowResultExportService.hasResultToExport
+      "
+            id="downloadExcelOptions"
+            nz-button
+            nz-dropdown
+            title="export execution result">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="cloud-download"></i>
+          </button>
+          <button
+            (click)="operatorMenu.disableHighlightedOperators()"
+            *ngIf="operatorMenu.isDisableOperator || !operatorMenu.isDisableOperatorClickable"
+            [disabled]="!operatorMenu.isDisableOperatorClickable"
+            nz-button
+            title="disable operators">
+            <i
+              nz-icon
+              nzTheme="outline"
+              nzType="stop"></i>
+          </button>
+          <button
+            (click)="operatorMenu.disableHighlightedOperators()"
+            *ngIf="!operatorMenu.isDisableOperator && operatorMenu.isDisableOperatorClickable"
+            [disabled]="!operatorMenu.isDisableOperatorClickable"
+            nz-button
+            title="operators disabled, click to re-enable">
+            <i
+              nz-icon
+              nzTheme="twotone"
+              nzType="stop"></i>
+          </button>
+          <button
+            *ngIf="(operatorMenu.isToViewResult || ! operatorMenu.isToViewResultClickable)"
+            [disabled]="! operatorMenu.isToViewResultClickable"
+            (click)="operatorMenu.viewResultHighlightedOperators()"
+            nz-button
+            title="view result">
+            <i
+              nz-icon
+              nzType="eye"
+              nzTheme="outline"></i>
+          </button>
+          <button
+            *ngIf="(! operatorMenu.isToViewResult && operatorMenu.isToViewResultClickable)"
+            [disabled]="! operatorMenu.isToViewResultClickable"
+            (click)="operatorMenu.viewResultHighlightedOperators()"
+            nz-button
+            title="click to remove view result">
+            <i
+              nz-icon
+              nzType="eye-invisible"
+              nzTheme="twotone"></i>
+          </button>
+          <button
+            *ngIf="(operatorMenu.isMarkForReuse || ! operatorMenu.isReuseResultClickable)"
+            [disabled]="! operatorMenu.isReuseResultClickable"
+            (click)="operatorMenu.reuseResultHighlightedOperator()"
+            nz-button
+            title="reuse result if possible">
+            <i
+              nz-icon
+              nzType="database"
+              nzTheme="outline"></i>
+          </button>
+          <button
+            *ngIf="(! operatorMenu.isMarkForReuse && operatorMenu.isReuseResultClickable)"
+            [disabled]="! operatorMenu.isReuseResultClickable"
+            (click)="operatorMenu.reuseResultHighlightedOperator()"
+            nz-button
+            title="remove reusing previous result">
+            <i
+              nz-icon
+              nzType="database"
+              nzTheme="twotone"></i>
+          </button>
+          <button
+            (click)="undoRedoService.undoAction()"
+            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canUndo()"
+            nz-button>
+            <i
+              nz-icon
+              nzType="undo"></i>
+          </button>
+          <button
+            (click)="undoRedoService.redoAction()"
+            [disabled]="displayParticularWorkflowVersion || !undoRedoService.canRedo()"
+            nz-button>
+            <i
+              nz-icon
+              nzType="redo"></i>
+          </button>
+        </nz-button-group>
+      </ng-template>
+      <nz-dropdown-menu #menu="nzDropdownMenu">
+        <ng-template [ngTemplateOutlet]="utilities"></ng-template>
+      </nz-dropdown-menu>
+
+      <div id="expanded-utilities">
+        <ng-template [ngTemplateOutlet]="utilities"></ng-template>
+      </div>
+
+      <button
+        nz-button
+        nz-dropdown
+        [nzDropdownMenu]="menu"
+        nzPlacement="bottomCenter"
+        id="utilities-dropdown-button">
+        <i
+          nz-icon
+          nzType="ellipsis"></i>
+      </button>
+
+      <nz-button-group id="execution-buttons">
+        <button
+          (click)="handleKill()"
+          [disabled]="
+        executionState === ExecutionState.Uninitialized ||
+        executionState === ExecutionState.Completed ||
+        executionState === ExecutionState.Killed ||
+        executionState === ExecutionState.Failed
+      "
+          nz-button
+          nzDanger
+          nzType="primary">
+          <i
+            nz-icon
+            nzType="exclamation-circle"></i>
+        </button>
+        <button
+          (click)="onClickRunHandler()"
+          nz-popover
+          nzPopoverTitle="Enter Execution Name"
+          [nzPopoverTrigger]="userSystemEnabled?'hover':null"
+          [nzPopoverContent]="execution_name"
+          nzPopoverPlacement="bottom"
+          [disabled]="runDisable || !workflowWebsocketService.isConnected || displayParticularWorkflowVersion"
+          id="run-button"
+          nz-button
+          nzType="primary">
+          <i
+            nz-icon
+            nzType="{{ runIcon }}"></i>
+          <span> {{ runButtonText }} </span>
+        </button>
+        <ng-template #execution_name>
+          <input
+            [(ngModel)]="currentExecutionName"
+            placeholder="Untitled Execution"
+            [disabled]="!isWorkflowModifiable" />
+        </ng-template>
+        <div style="margin-left: 5px">
+          <nz-badge
+            nz-tooltip=""
+            nzTooltipPlacement="bottom"
+            [nzTooltipTitle]="clusterInfo"
+            [nzColor]="workflowWebsocketService.isConnected?'green':'red'">
+          </nz-badge>
+          <ng-template #clusterInfo>
+            <b>{{workflowWebsocketService.isConnected?"Connected":"Disconnected"}} to Web Server</b>
+            <div *ngIf="workflowWebsocketService.isConnected">
+              Number of Machines: {{workflowWebsocketService.numWorkers}}
+            </div>
+          </ng-template>
+        </div>
+        <div style="color: #007bff; line-height: 32px">{{ executionDuration | date: 'H:mm:ss': 'UTC' }}</div>
+      </nz-button-group>
+    </div>
+  </div>
+</div>

@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 
 import { CoeditorUserIconComponent } from "./coeditor-user-icon.component";
-import { CoeditorPresenceService } from "../../../../service/workflow-graph/model/coeditor-presence.service";
-import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
+import { CoeditorPresenceService } from "../../../service/workflow-graph/model/coeditor-presence.service";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { HttpClient } from "@angular/common/http";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzDropdownMenuComponent, NzDropDownModule } from "ng-zorro-antd/dropdown";

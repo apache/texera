@@ -11,12 +11,13 @@
 
 .texera-workspace {
   // transition: grid-template-rows 0.5s;
-  --header-height: 56px;
+  --header-height: 40px;
   --resultbar-height: 25px;
   --result-panel-height: 280px;
+  min-width: 630px;
 
   &.user-system-enabled {
-    --header-height: 96px;
+    --header-height: 76px;
   }
 }
 
@@ -78,7 +79,7 @@
   * this style specifies that the navigation component will
   * use all three columns and the first row.
   */
-.texera-navigation-grid-container {
+.texera-menu-grid-container {
   grid-column: 1/4;
   grid-row: 1/2;
 }
