@@ -63,6 +63,6 @@ describe("LeftPanelComponent", () => {
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length).toBe(0);
 
     // the component should switch to versions display
-    expect(component.frameComponentConfig?.component).toBe(VersionsFrameComponent);
+    expect(component.currentComponent).toBe(VersionsFrameComponent);
   });
 });
