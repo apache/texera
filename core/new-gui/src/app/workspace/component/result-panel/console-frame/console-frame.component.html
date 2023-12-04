@@ -141,8 +141,7 @@
   [nzAddOnBefore]="addOnBeforeTemplate">
   <button
     (click)="onClickSkipTuples()"
-    *ngIf="true"
-    [disabled]="false"
+    [disabled]="consoleMessages[consoleMessages.length-1].msgType.name!=='ERROR'"
     nzSize="small"
     nz-tooltip
     nzTooltipTitle="Skip the faulty Tuple"
@@ -152,8 +151,7 @@
 
   <button
     (click)="onClickRetryTuples()"
-    *ngIf="true"
-    [disabled]="false"
+    [disabled]="consoleMessages[consoleMessages.length-1].msgType.name!=='ERROR'"
     nzSize="small"
     nz-tooltip
     nzTooltipTitle="Retry the faulty Tuple"
