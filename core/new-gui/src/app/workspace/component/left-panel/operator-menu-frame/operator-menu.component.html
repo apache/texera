@@ -23,15 +23,15 @@
   </div>
   <nz-collapse
     [nzBordered]="false"
-    id="operator-menu"
     nzAccordion>
     <nz-collapse-panel
       *ngFor="let groupName of groupNamesOrdered"
       [nzHeader]="groupName"
-      class="texera-workspace-operator-panel-subgroup">
+      class="operator-submenu-title">
       <ul
-        class="texera-workspace-operator-panel-subgroup-menu"
+        class="operator-submenu"
         nz-menu
+        [nzInlineIndent]=0
         nzSelectable="false">
         <li
           *ngFor="let operatorSchema of operatorGroupMap.get(groupName)"
