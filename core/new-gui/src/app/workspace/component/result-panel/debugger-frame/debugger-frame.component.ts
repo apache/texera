@@ -58,8 +58,6 @@ export class DebuggerFrameComponent implements OnInit, OnChanges {
     }
   }
 
-
-
   onClickEvaluate() {
     if (this.operatorId) {
       this.workflowWebsocketService.send("PythonExpressionEvaluateRequest", {

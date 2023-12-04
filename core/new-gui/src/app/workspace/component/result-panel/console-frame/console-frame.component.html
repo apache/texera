@@ -15,14 +15,14 @@
         [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
       Show Timestamp
       <ng-template #checkedTemplate
-      ><span
-        nz-icon
-        nzType="check"></span
+        ><span
+          nz-icon
+          nzType="check"></span
       ></ng-template>
       <ng-template #unCheckedTemplate
-      ><span
-        nz-icon
-        nzType="close"></span
+        ><span
+          nz-icon
+          nzType="close"></span
       ></ng-template>
     </li>
     <li nz-menu-item>
@@ -32,19 +32,18 @@
         [nzUnCheckedChildren]="unCheckedTemplate"></nz-switch>
       Show Source
       <ng-template #checkedTemplate
-      ><span
-        nz-icon
-        nzType="check"></span
+        ><span
+          nz-icon
+          nzType="check"></span
       ></ng-template>
       <ng-template #unCheckedTemplate
-      ><span
-        nz-icon
-        nzType="close"></span
+        ><span
+          nz-icon
+          nzType="close"></span
       ></ng-template>
     </li>
   </ul>
 </nz-dropdown-menu>
-
 
 <nz-list
   nzSize="small"
@@ -94,7 +93,6 @@
       <div
         nz-col
         nzSpan="8">
-
         <div
           nz-row
           nzAlign="top"
@@ -134,33 +132,35 @@
   </nz-list-item>
 </nz-list>
 
-
 <nz-input-group
   *ngIf="consoleInputEnabled"
   nzCompact
   [nzAddOnBefore]="addOnBeforeTemplate">
   <button
     (click)="onClickSkipTuples()"
-    [disabled]="consoleMessages[consoleMessages.length-1].msgType.name!=='ERROR'"
+    [disabled]="true"
     nzSize="small"
     nz-tooltip
     nzTooltipTitle="Skip the faulty Tuple"
     nz-button>
-    <span nz-icon nzType="delete-row" nzTheme="outline"></span>
+    <span
+      nz-icon
+      nzType="delete-row"
+      nzTheme="outline"></span>
   </button>
 
   <button
     (click)="onClickRetryTuples()"
-    [disabled]="consoleMessages[consoleMessages.length-1].msgType.name!=='ERROR'"
+    [disabled]="false"
     nzSize="small"
     nz-tooltip
     nzTooltipTitle="Retry the faulty Tuple"
     nz-button>
-              <span
-                nz-icon
-                nzType="redo"
-                nzTheme="outline">
-              </span>
+    <span
+      nz-icon
+      nzType="redo"
+      nzTheme="outline">
+    </span>
   </button>
   <input
     type="text"

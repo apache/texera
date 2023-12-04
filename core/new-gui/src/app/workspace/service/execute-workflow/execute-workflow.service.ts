@@ -279,8 +279,7 @@ export class ExecuteWorkflowService {
     if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot skip tuples, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("SkipTupleRequest", {workers});
-
+    this.workflowWebsocketService.send("SkipTupleRequest", { workers });
   }
 
   public retryExecution(workers: ReadonlyArray<string>): void {
@@ -291,7 +290,7 @@ export class ExecuteWorkflowService {
     if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("RetryRequest", {workers});
+    this.workflowWebsocketService.send("RetryRequest", { workers });
   }
 
   public modifyOperatorLogic(operatorID: string): void {

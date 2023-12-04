@@ -97,10 +97,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     if (this.operatorId) {
       this.workerIds = this.executeWorkflowService.getWorkerIds(this.operatorId);
 
-
       // always display console messages
       this.displayConsoleMessages(this.operatorId);
-
     }
   }
 
@@ -153,7 +151,6 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     const tokens = workerId.split("-");
     return parseInt(tokens.at(tokens.length - 1) || "0");
   }
-
 
   onClickSkipTuples(): void {
     try {
