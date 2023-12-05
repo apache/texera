@@ -110,6 +110,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       }
     }, 0);
   }
+
   submitDebugCommand(): void {
     if (!isDefined(this.operatorId)) {
       return;
@@ -166,5 +167,9 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     } catch (e) {
       this.notificationService.error(e);
     }
+  }
+
+  getMessageLabel(message: ConsoleMessage): string {
+    return this.labelMapping.get(message.msgType.name) ?? "";
   }
 }

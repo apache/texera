@@ -50,7 +50,7 @@
   class="console-list-container"
   #consoleList>
   <nz-list-item
-    *ngFor="let entry of consoleMessages; last as isLast"
+    *ngFor="let entry of consoleMessages"
     class="console-message-entry"
     nzNoFlex>
     <div
@@ -61,7 +61,7 @@
         nz-col
         nzSpan="1">
         <nz-badge
-          [nzStatus]="labelMapping.get(entry.msgType.name)"
+          [nzStatus]="getMessageLabel(entry)"
           [nzTitle]="entry.msgType.name"
           class="type-tag"></nz-badge>
       </div>
