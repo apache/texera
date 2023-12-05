@@ -1,21 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_OP
+import edu.uci.ics.amber.engine.common.{AmberLogging, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
 
 import scala.collection.mutable
 
-class UpstreamLinkStatus(opExecConfig: OpExecConfig) {
-
-  private val allUpstreamLinkIds: Set[LinkIdentity] = {
-    if (opExecConfig.isSourceOperator)
-      Set(
-        LinkIdentity(SOURCE_STARTER_OP, 0, opExecConfig.id, 0)
-      ) // special case for source operator
-    else
-      opExecConfig.inputToOrdinalMapping.keySet
-  }
+class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging {
 
   /**
     * The scheduler may not schedule the entire workflow at once. Consider a 2-phase hash join where the first
@@ -31,11 +21,18 @@ class UpstreamLinkStatus(opExecConfig: OpExecConfig) {
     new mutable.HashMap[ActorVirtualIdentity, LinkIdentity]
   private val endReceivedFromWorkers = new mutable.HashSet[ActorVirtualIdentity]
   private val completedLinkIds = new mutable.HashSet[LinkIdentity]()
+  private var allUpstreamLinkIds: Set[LinkIdentity] = Set.empty
+
+  def setAllUpstreamLinkIds(newSet: Set[LinkIdentity]): Unit = {
+    this.allUpstreamLinkIds = newSet
+  }
 
   def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
     assert(
       allUpstreamLinkIds.contains(input),
-      "unexpected input link " + input + " for operator " + opExecConfig.id
+      "unexpected input link " + input + " for operator " + VirtualIdentityUtils.getOperator(
+        actorId
+      )
     )
     upstreamMap.update(input, upstreamMap(input) + identifier)
     upstreamMapReverse.update(identifier, input)

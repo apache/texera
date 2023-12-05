@@ -4,7 +4,7 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
@@ -68,7 +68,7 @@ class WorkerSpec
     LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "2nd-layer")
   private val mockLink = LinkIdentity(layerId1, 0, layerId2, 0)
   private val opExecConfig = OpExecConfig
-    .oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
+    .oneToOneLayer(operatorIdentity, OpExecInitInfo(_ => mockOpExecutor))
     .copy(inputToOrdinalMapping = Map(mockLink -> 0), outputToOrdinalMapping = Map(mockLink -> 0))
   private val workerIndex = 0
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
@@ -98,10 +98,10 @@ class WorkerSpec
         workerIndex,
         opExecConfig
       ) {
-        this.dp =
-          new DataProcessor(identifier1, workerIndex, mockOpExecutor, opExecConfig, mockHandler) {
-            override val outputManager: OutputManager = mockOutputManager
-          }
+        this.dp = new DataProcessor(identifier1, mockHandler) {
+          override val outputManager: OutputManager = mockOutputManager
+        }
+        this.dp.initOperator(0, opExecConfig, Iterator.empty)
         this.dp.InitTimerService(timerService)
         override val dpThread: DPThread = new DPThread(actorId, dp, inputQueue)
       }

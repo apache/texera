@@ -5,7 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
@@ -23,9 +23,11 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
-import scala.reflect.ClassTag;
+import scala.Tuple2;
+import scala.util.Left;
 
 import java.io.Serializable;
+import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
@@ -75,7 +77,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
         OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn)
+                OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable)worker -> new WordCloudOpPartialExec(textColumn))
         ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
@@ -83,7 +85,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
         OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN)
+                        OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable)worker -> new WordCloudOpFinalExec(topN))
         ).withId(finalId).withIsOneToManyOp(true)
                 .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 

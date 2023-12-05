@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.distinct
 
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -13,10 +14,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 
 class DistinctOpDesc extends OperatorDescriptor {
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     OpExecConfig.hashLayer(
       operatorIdentifier,
-      _ => new DistinctOpExec(),
+      OpExecInitInfo(_ => new DistinctOpExec()),
       operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
     )
   }
