@@ -3,7 +3,7 @@
     <a href="/">
       <img
         alt="Texera"
-        height = "{{userSystemEnabled?75:38}}"
+        height="{{userSystemEnabled?75:38}}"
         src="assets/logos/full_logo_small.png" />
     </a>
   </div>
@@ -34,10 +34,7 @@
             [(ngModel)]="currentWorkflowName"
             class="workflow-name"
             placeholder="Untitled Workflow" />
-          <span
-            *ngIf="displayParticularWorkflowVersion">
-            {{particularVersionDate}}
-          </span>
+          <span *ngIf="displayParticularWorkflowVersion"> {{particularVersionDate}} </span>
         </label>
         <button
           *ngIf="displayParticularWorkflowVersion"

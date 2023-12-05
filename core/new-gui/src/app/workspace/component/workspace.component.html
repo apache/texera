@@ -12,9 +12,7 @@
     [style.width.px]="width"
     (nzResize)="onResize($event)">
     <mat-expansion-panel-header cdkDragHandle>
-      <mat-panel-title>
-        Operators
-      </mat-panel-title>
+      <mat-panel-title> Operators </mat-panel-title>
     </mat-expansion-panel-header>
     <texera-left-panel></texera-left-panel>
     <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
@@ -29,8 +27,6 @@
 		'texera-workspace-grid-container': this.showResultPanel,
 		'user-system-enabled': this.userSystemEnabled
 	}">
-
-
   <div class="texera-property-editor-grid-container grid-container">
     <div class="texera-right-side-bar-split-editor-minimap">
       <texera-property-editor style="overflow: auto"> </texera-property-editor>
@@ -38,13 +34,9 @@
     </div>
   </div>
 
-  <texera-workflow-editor
-    class="texera-workflow-editor-grid-container grid-container">
-  </texera-workflow-editor>
+  <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"> </texera-workflow-editor>
 
-  <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container">
-  </texera-result-panel-toggle>
+  <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"> </texera-result-panel-toggle>
 
   <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
 </div>
-
