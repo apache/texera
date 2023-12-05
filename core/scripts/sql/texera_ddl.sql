@@ -1,6 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS `texera_db`;
 USE `texera_db`;
 
+DROP TABLE IF EXISTS `workflow_runtime_statistics`;
 DROP TABLE IF EXISTS `workflow_user_access`;
 DROP TABLE IF EXISTS `user_file_access`;
 DROP TABLE IF EXISTS `file`;
@@ -183,6 +184,20 @@ CREATE TABLE IF NOT EXISTS public_project
     `uid`             INT UNSIGNED,
     PRIMARY KEY (`pid`),
     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS workflow_runtime_statistics
+(
+    `workflow_id`      INT UNSIGNED		NOT NULL,
+    `execution_id`     INT UNSIGNED		NOT NULL,
+    `operator_id`      VARCHAR(100)		NOT NULL,
+    `time`             TIMESTAMP(6)		NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `input_tuple_cnt`  INT UNSIGNED		NOT NULL DEFAULT 0,
+    `output_tuple_cnt` INT UNSIGNED		NOT NULL DEFAULT 0,
+    `status`           TINYINT			NOT NULL DEFAULT 1,
+    PRIMARY KEY (`workflow_id`, `execution_id`, `operator_id`, `time`),
+    FOREIGN KEY (`workflow_id`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
+    FOREIGN KEY (`execution_id`) REFERENCES `workflow_executions` (`eid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
 -- create fulltext search indexes
