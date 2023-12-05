@@ -8,6 +8,7 @@ import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { presetPalettes } from "@ant-design/colors";
 import { isDefined } from "../../../../common/util/predicate";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -45,7 +46,8 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowConsoleService: WorkflowConsoleService,
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -102,13 +104,13 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   displayConsoleMessages(operatorId: string): void {
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
-
     setTimeout(() => {
       if (this.listElement) {
         this.listElement.nativeElement.scrollTop = this.listElement.nativeElement.scrollHeight;
       }
     }, 0);
   }
+
   submitDebugCommand(): void {
     if (!isDefined(this.operatorId)) {
       return;
@@ -149,5 +151,25 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   getWorkerIndex(workerId: string): number {
     const tokens = workerId.split("-");
     return parseInt(tokens.at(tokens.length - 1) || "0");
+  }
+
+  onClickSkipTuples(): void {
+    try {
+      this.executeWorkflowService.skipTuples(this.workerIds);
+    } catch (e) {
+      this.notificationService.error(e);
+    }
+  }
+
+  onClickRetryTuples() {
+    try {
+      this.executeWorkflowService.retryExecution(this.workerIds);
+    } catch (e) {
+      this.notificationService.error(e);
+    }
+  }
+
+  getMessageLabel(message: ConsoleMessage): string {
+    return this.labelMapping.get(message.msgType.name) ?? "";
   }
 }
