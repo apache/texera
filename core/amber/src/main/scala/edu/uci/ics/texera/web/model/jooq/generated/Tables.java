@@ -10,7 +10,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Project;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject;
-import edu.uci.ics.texera.web.model.jooq.generated.tables.Telemetry;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.User;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess;
@@ -18,6 +17,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
@@ -59,11 +59,6 @@ public class Tables {
     public static final PublicProject PUBLIC_PROJECT = PublicProject.PUBLIC_PROJECT;
 
     /**
-     * The table <code>texera_db.telemetry</code>.
-     */
-    public static final Telemetry TELEMETRY = Telemetry.TELEMETRY;
-
-    /**
      * The table <code>texera_db.user</code>.
      */
     public static final User USER = User.USER;
@@ -97,6 +92,11 @@ public class Tables {
      * The table <code>texera_db.workflow_of_user</code>.
      */
     public static final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
+
+    /**
+     * The table <code>texera_db.workflow_runtime_statistics</code>.
+     */
+    public static final WorkflowRuntimeStatistics WORKFLOW_RUNTIME_STATISTICS = WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS;
 
     /**
      * The table <code>texera_db.workflow_user_access</code>.

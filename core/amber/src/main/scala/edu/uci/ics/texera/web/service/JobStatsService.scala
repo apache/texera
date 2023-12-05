@@ -2,31 +2,21 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowCompleted,
-  WorkflowRecoveryStatus,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowCompleted, WorkflowRecoveryStatus, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.maptoStatusCode
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.TelemetryDao
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Telemetry
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowRuntimeStatisticsDao
 import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
-import edu.uci.ics.texera.web.model.websocket.event.{
-  ExecutionDurationUpdateEvent,
-  OperatorStatistics,
-  OperatorStatisticsUpdateEvent,
-  WorkerAssignmentUpdateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{ExecutionDurationUpdateEvent, OperatorStatistics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorWorkerMapping, WorkflowFatalError}
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, OperatorWorkerMapping, WorkflowFatalError}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 
 import java.time.Instant
@@ -42,7 +32,7 @@ class JobStatsService(
 ) extends SubscriptionManager
     with LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
-  private val telemetryDao = new TelemetryDao(context.configuration)
+  private val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(context.configuration)
 
   registerCallbacks()
 
@@ -138,9 +128,9 @@ class JobStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
   ): Unit = {
-    val list: util.ArrayList[Telemetry] = new util.ArrayList[Telemetry]()
+    val list: util.ArrayList[WorkflowRuntimeStatistics] = new util.ArrayList[WorkflowRuntimeStatistics]()
     for ((operatorId, stat) <- operatorStatistics) {
-      val execution = new Telemetry()
+      val execution = new WorkflowRuntimeStatistics()
       execution.setWorkflowId(workflowContext.wId)
       execution.setExecutionId(UInteger.valueOf(workflowContext.executionID))
       execution.setOperatorId(operatorId)
@@ -149,7 +139,7 @@ class JobStatsService(
       execution.setStatus(maptoStatusCode(stat.state))
       list.add(execution)
     }
-    telemetryDao.insert(list)
+    workflowRuntimeStatisticsDao.insert(list)
   }
 
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {

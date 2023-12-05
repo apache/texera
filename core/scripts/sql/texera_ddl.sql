@@ -1,7 +1,7 @@
 CREATE SCHEMA IF NOT EXISTS `texera_db`;
 USE `texera_db`;
 
-DROP TABLE IF EXISTS `telemetry`;
+DROP TABLE IF EXISTS `workflow_runtime_statistics`;
 DROP TABLE IF EXISTS `workflow_user_access`;
 DROP TABLE IF EXISTS `user_file_access`;
 DROP TABLE IF EXISTS `file`;
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS public_project
     FOREIGN KEY (`pid`) REFERENCES `project` (`pid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
-CREATE TABLE IF NOT EXISTS telemetry
+CREATE TABLE IF NOT EXISTS workflow_runtime_statistics
 (
     `workflow_id`      INT UNSIGNED		NOT NULL,
     `execution_id`     INT UNSIGNED		NOT NULL,
