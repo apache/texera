@@ -10,6 +10,7 @@ import { NotificationService } from "../../../../../common/service/notification/
 import Fuse from "fuse.js";
 import { ChartType } from "src/app/workspace/types/visualization.interface";
 import { ceil } from "lodash";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -44,6 +45,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     "Starting Time",
     "Last Status Updated Time",
     "Status",
+    "Runtime Statistics",
     "",
   ];
   /*Tooltip for each header in execution table*/
@@ -53,6 +55,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
+    "Runtime Statistics": "Runtime Statistics of Workflow Execution",
     "Group Bookmarking": "Mark or Unmark the Selected Entries",
     "Group Deletion": "Delete the Selected Entries",
   };
@@ -66,6 +69,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     "Starting Time": "250px",
     "Last Status Updated Time": "250px",
     Status: "80px",
+    "Runtime Statistics": "120px"
   };
 
   /** variables related to executions filtering
@@ -113,7 +117,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NgbModal,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private runtimeStatisticsModal: NzModalService
   ) {}
 
   ngOnInit(): void {
@@ -709,6 +714,15 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       eIdToNumber++;
     });
     return processTimeData;
+  }
+
+  showRuntimeStatistics() : void {
+    this.runtimeStatisticsModal.create({
+      nzTitle: "Runtime Statistics",
+      nzStyle: { top: "5px", width: "98vw", height: "92vh" },
+      nzFooter: null, // null indicates that the footer of the window would be hidden
+      nzBodyStyle: { width: "98vw", height: "92vh" },
+    });
   }
 
   private updatePaginatedExecutions(): void {
