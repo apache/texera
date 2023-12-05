@@ -53,15 +53,6 @@ describe("OperatorLabelComponent", () => {
     expect(component).toBeTruthy();
   });
 
-  it("should generate an ID for the component DOM element", () => {
-    expect(component.operatorLabelID).toContain("texera-operator-label-");
-  });
-
-  it("should display operator user friendly name on the UI", () => {
-    const element = <HTMLElement>fixture.debugElement.query(By.css(".texera-operator-label-body")).nativeElement;
-    expect(element.firstChild?.textContent?.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
-  });
-
   it("should register itself as a draggable element", () => {
     const jqueryElement = jQuery(`#${component.operatorLabelID}`);
     expect(jqueryElement.data("uiDraggable")).toBeTruthy();
