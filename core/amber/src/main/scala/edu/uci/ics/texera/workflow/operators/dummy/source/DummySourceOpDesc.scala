@@ -2,19 +2,10 @@ package edu.uci.ics.texera.workflow.operators.dummy.source
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
 
 class DummySourceOpDesc extends SourceOperatorDescriptor {
   @JsonProperty(required = true)
@@ -25,7 +16,7 @@ class DummySourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("delay")
   var delay = 1
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    OpExecConfig.manyToOneLayer(operatorIdentifier, _ => new DummySourceOpExec(i, delay))
+    OpExecConfig.manyToOneLayer(operatorIdentifier, OpExecInitInfo(_ => new DummySourceOpExec(i, delay)))
   }
 
   override def operatorInfo: OperatorInfo = {
