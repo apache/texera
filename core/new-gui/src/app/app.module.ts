@@ -63,7 +63,7 @@ import { UserAvatarComponent } from "./dashboard/user/component/user-avatar/user
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
-import { NavigationComponent } from "./workspace/component/navigation/navigation.component";
+import { MenuComponent } from "./workspace/component/menu/menu.component";
 import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-label/operator-label.component";
 import { OperatorMenuFrameComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-menu-frame.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
@@ -108,7 +108,7 @@ import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { NzImageModule } from "ng-zorro-antd/image";
-import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
+import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-user-icon/coeditor-user-icon.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
@@ -143,7 +143,7 @@ registerLocaleData(en);
     PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
-    NavigationComponent,
+    MenuComponent,
     OperatorMenuFrameComponent,
     PropertyEditorComponent,
     VersionsFrameComponent,
