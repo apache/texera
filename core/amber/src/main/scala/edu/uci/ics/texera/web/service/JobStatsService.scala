@@ -142,19 +142,24 @@ class JobStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
   ): Unit = {
-    val list: util.ArrayList[WorkflowRuntimeStatistics] =
-      new util.ArrayList[WorkflowRuntimeStatistics]()
-    for ((operatorId, stat) <- operatorStatistics) {
-      val execution = new WorkflowRuntimeStatistics()
-      execution.setWorkflowId(workflowContext.wId)
-      execution.setExecutionId(UInteger.valueOf(workflowContext.executionID))
-      execution.setOperatorId(operatorId)
-      execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
-      execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
-      execution.setStatus(maptoStatusCode(stat.state))
-      list.add(execution)
+    // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
+    try {
+      val list: util.ArrayList[WorkflowRuntimeStatistics] =
+        new util.ArrayList[WorkflowRuntimeStatistics]()
+      for ((operatorId, stat) <- operatorStatistics) {
+        val execution = new WorkflowRuntimeStatistics()
+        execution.setWorkflowId(workflowContext.wId)
+        execution.setExecutionId(UInteger.valueOf(workflowContext.executionID))
+        execution.setOperatorId(operatorId)
+        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
+        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
+        execution.setStatus(maptoStatusCode(stat.state))
+        list.add(execution)
+      }
+      workflowRuntimeStatisticsDao.insert(list)
+    } catch {
+      case _: Throwable => // Do nothing
     }
-    workflowRuntimeStatisticsDao.insert(list)
   }
 
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {
