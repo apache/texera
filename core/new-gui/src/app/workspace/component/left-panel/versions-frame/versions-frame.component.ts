@@ -8,8 +8,8 @@ import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type
 @UntilDestroy()
 @Component({
   selector: "texera-version-frame",
-  templateUrl: "./versions-frame.component.html",
-  styleUrls: ["./versions-frame.component.scss"],
+  templateUrl: "versions-frame.component.html",
+  styleUrls: ["versions-frame.component.scss"],
 })
 export class VersionsFrameComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;

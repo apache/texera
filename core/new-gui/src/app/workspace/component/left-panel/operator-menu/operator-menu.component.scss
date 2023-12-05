@@ -1,5 +1,5 @@
 #search-box {
-  padding: 5px;
+  padding: 0 5px 5px 5px;
   border-bottom: 1px solid #e0e0e0;
 }
 
@@ -9,4 +9,9 @@
 
 .operator-submenu {
   border: none;
+}
+
+.texera-operator-label {
+  padding-left: 10px;
+  padding-right: 0;
 }

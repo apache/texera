@@ -1,23 +1,18 @@
-.versions-frame {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  #versions-list ::ng-deep {
-    height: 90%;
-    overflow: auto;
-
-    .ant-table-content {
-      font-size: 11px;
-    }
-
-    .ant-table-thead {
-      th {
-        font-size: 11px;
-      }
-    }
-  }
-  .version-entry-link {
-    color: black;
+#versions-list ::ng-deep {
+  .ant-table-content {
     font-size: 11px;
   }
+  .ant-table-cell {
+    padding-right: 0;
+  }
+}
+
+.version-link {
+  color: black;
+  font-size: 11px;
+  padding: 0;
+}
+
+#close-version {
+  width: 100%;
 }

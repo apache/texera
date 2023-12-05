@@ -1,13 +1,7 @@
-texera-operator-label {
-  display: contents;
-}
-
 .disable-drag-drop {
-  > .texera-operator-label-body {
-    color: rgb(151, 151, 151);
-    &:hover {
-      border-color: rgb(217, 217, 217);
-    }
+  color: rgb(151, 151, 151);
+  &:hover {
+    border-color: rgb(217, 217, 217);
   }
 }
 
