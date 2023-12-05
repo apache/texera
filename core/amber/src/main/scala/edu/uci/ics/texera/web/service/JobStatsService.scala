@@ -2,7 +2,12 @@ package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowCompleted, WorkflowRecoveryStatus, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowCompleted,
+  WorkflowRecoveryStatus,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -12,11 +17,20 @@ import edu.uci.ics.texera.Utils.maptoStatusCode
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowRuntimeStatisticsDao
 import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
-import edu.uci.ics.texera.web.model.websocket.event.{ExecutionDurationUpdateEvent, OperatorStatistics, OperatorStatisticsUpdateEvent, WorkerAssignmentUpdateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  ExecutionDurationUpdateEvent,
+  OperatorStatistics,
+  OperatorStatisticsUpdateEvent,
+  WorkerAssignmentUpdateEvent
+}
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, OperatorWorkerMapping, WorkflowFatalError}
+import edu.uci.ics.texera.web.workflowruntimestate.{
+  OperatorRuntimeStats,
+  OperatorWorkerMapping,
+  WorkflowFatalError
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 
 import java.time.Instant
@@ -128,7 +142,8 @@ class JobStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
   ): Unit = {
-    val list: util.ArrayList[WorkflowRuntimeStatistics] = new util.ArrayList[WorkflowRuntimeStatistics]()
+    val list: util.ArrayList[WorkflowRuntimeStatistics] =
+      new util.ArrayList[WorkflowRuntimeStatistics]()
     for ((operatorId, stat) <- operatorStatistics) {
       val execution = new WorkflowRuntimeStatistics()
       execution.setWorkflowId(workflowContext.wId)
