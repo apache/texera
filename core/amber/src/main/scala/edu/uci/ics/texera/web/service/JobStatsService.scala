@@ -158,7 +158,7 @@ class JobStatsService(
       }
       workflowRuntimeStatisticsDao.insert(list)
     } catch {
-      case _: Throwable => // Do nothing
+      case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
     }
   }
 
