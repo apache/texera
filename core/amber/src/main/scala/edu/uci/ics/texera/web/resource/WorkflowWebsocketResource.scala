@@ -107,7 +107,7 @@ class WorkflowWebsocketResource extends LazyLogging {
               workflowContext
             )
           }
-          newPlan.initializeLogicalPlan(stateStore)
+          newPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(newPlan, stateStore)
           val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
             workflowStateOpt.get.lastCompletedLogicalPlan,
             newPlan,

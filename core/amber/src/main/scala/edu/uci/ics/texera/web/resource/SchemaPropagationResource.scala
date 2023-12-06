@@ -35,7 +35,8 @@ class SchemaPropagationResource extends LazyLogging {
       context.wId = wid
 
       val logicalPlan = LogicalPlan(workflow, context)
-      logicalPlan.initializeLogicalPlan(new JobStateStore())
+      logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, new JobStateStore())
+
       val texeraWorkflowCompiler = new WorkflowCompiler(logicalPlan)
 
       // ignore errors during propagation.

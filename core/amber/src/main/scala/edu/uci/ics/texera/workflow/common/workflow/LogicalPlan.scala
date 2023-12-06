@@ -47,29 +47,26 @@ object LogicalPlan {
       LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
     SinkInjectionTransformer.transform(pojo.opsToViewResult, logicalPlan)
   }
-}
 
-case class LogicalPlan(
-    context: WorkflowContext,
-    operators: List[OperatorDescriptor],
-    links: List[OperatorLink],
-    breakpoints: List[BreakpointInfo],
-    opsToReuseCache: List[String] = List()
-) extends LazyLogging {
-
-  def initializeLogicalPlan(jobStateStore: JobStateStore): Unit = {
+  def schemaPropagationCheck(logicalPlan: LogicalPlan, jobStateStore: JobStateStore): Map[OperatorIdentity, List[Option[Schema]]] = {
     // initialize the logical plan with the current context.
-    operators.foreach(_.setContext(context))
+    logicalPlan.operators.foreach(_.setContext(logicalPlan.context))
+
+    // remove previous error state
     jobStateStore.jobMetadataStore.updateState { metadataStore =>
       metadataStore.withFatalErrors(
         metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
       )
     }
-    val (schemaMap, errorList) = propagateWorkflowSchema()
+
+    // propagate schema
+    val (schemaMap, errorList) = logicalPlan.propagateWorkflowSchema()
+
+    // report compilation errors
     if (errorList.nonEmpty) {
       val jobErrors = errorList.map {
         case (opId, err) =>
-          logger.error("error occurred in logical plan compilation", err)
+          logicalPlan.logger.error("error occurred in logical plan compilation", err)
           WorkflowFatalError(
             COMPILATION_ERROR,
             Timestamp(Instant.now),
@@ -82,8 +79,19 @@ case class LogicalPlan(
         updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
       )
     }
-    inputSchemaMap = schemaMap
+    schemaMap
+
   }
+
+}
+
+case class LogicalPlan(
+    context: WorkflowContext,
+    operators: List[OperatorDescriptor],
+    links: List[OperatorLink],
+    breakpoints: List[BreakpointInfo],
+    opsToReuseCache: List[String] = List()
+) extends LazyLogging {
 
   lazy val operatorMap: Map[String, OperatorDescriptor] =
     operators.map(op => (op.operatorID, op)).toMap

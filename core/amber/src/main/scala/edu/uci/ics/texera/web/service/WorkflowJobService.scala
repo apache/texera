@@ -91,10 +91,10 @@ class WorkflowJobService(
 
   workflowCompilation()
 
-  def workflowCompilation(): Unit = {
+  private def workflowCompilation(): Unit = {
     logger.info("Compiling the logical plan into a physical plan.")
     logicalPlan = LogicalPlan(request.logicalPlan, workflowContext)
-    logicalPlan.initializeLogicalPlan(stateStore)
+    logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, stateStore)
     try {
       workflowCompiler = new WorkflowCompiler(logicalPlan)
       workflow = workflowCompiler.amberWorkflow(

@@ -141,7 +141,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val ctx = new WorkflowContext()
     val logicalPlan = LogicalPlan(ctx, operators, links, List())
-    logicalPlan.initializeLogicalPlan(new JobStateStore())
+    logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, new JobStateStore())
     val workflowCompiler = new WorkflowCompiler(logicalPlan)
 
     val schemaResult = workflowCompiler.logicalPlan.propagateWorkflowSchema()._1

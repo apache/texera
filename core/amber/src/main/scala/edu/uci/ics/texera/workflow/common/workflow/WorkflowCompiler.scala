@@ -25,7 +25,7 @@ class WorkflowCompiler(val logicalPlan: LogicalPlan) {
       logicalPlan: LogicalPlan,
       storage: OpResultStorage,
       reuseStorageSet: Set[String] = Set()
-  ) = {
+  ): Unit = {
     // create a JSON object that holds pointers to the workflow's results in Mongo
     // TODO in the future, will extract this logic from here when we need pointers to the stats storage
     val resultsJSON = objectMapper.createObjectNode()

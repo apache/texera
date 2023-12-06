@@ -27,7 +27,7 @@ object Utils {
     val texeraWorkflowCompiler = new WorkflowCompiler(
       LogicalPlan(context, operators, links, List[BreakpointInfo]())
     )
-    texeraWorkflowCompiler.logicalPlan.initializeLogicalPlan(new JobStateStore())
+    LogicalPlan.schemaPropagationCheck(logicalPlan = texeraWorkflowCompiler.logicalPlan, new JobStateStore())
     texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(workflowTag), resultStorage)
   }
 
