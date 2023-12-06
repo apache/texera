@@ -21,6 +21,8 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { Version } from "../../../environments/version";
 import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
+import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
+import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -58,6 +60,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // list additional services in constructor so they are initialized even if no one use them directly
     private schemaPropagationService: SchemaPropagationService,
     private autoAttributeCorrectionService: AutoAttributeCorrectionService,
+    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
+    private workflowConsoleService: WorkflowConsoleService,
     private undoRedoService: UndoRedoService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
