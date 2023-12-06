@@ -1,4 +1,21 @@
-#left-panel-container {
+#boundary {
+  width: 100%;
+  height: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#left-panel {
+  width: 50%;
+  z-index: 2;
+  position: absolute;
+  top: 90px;
+  left: 15px;
+  user-select: none;
+}
+
+#left-panel-content {
   min-height: 100%;
   max-height: calc(100vh - 190px);
   overflow-y: auto;

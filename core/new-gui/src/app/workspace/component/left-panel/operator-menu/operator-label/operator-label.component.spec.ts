@@ -53,6 +53,11 @@ describe("OperatorLabelComponent", () => {
     expect(component).toBeTruthy();
   });
 
+  it("should display operator user friendly name on the UI", () => {
+    const element = <HTMLElement>fixture.debugElement.query(By.css(".text")).nativeElement;
+    expect(element.textContent?.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
+  });
+
   it("should register itself as a draggable element", () => {
     const jqueryElement = jQuery(`#${component.operatorLabelID}`);
     expect(jqueryElement.data("uiDraggable")).toBeTruthy();

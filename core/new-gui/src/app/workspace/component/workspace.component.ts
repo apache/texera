@@ -17,7 +17,6 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { Version } from "../../../environments/version";
 import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
@@ -41,18 +40,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
-
-  screenWidth = window.innerWidth;
-  width = 200;
-  id = -1;
-  disabled = false;
-
-  onResize({ width }: NzResizeEvent): void {
-    cancelAnimationFrame(this.id);
-    this.id = requestAnimationFrame(() => {
-      this.width = width!;
-    });
-  }
 
   constructor(
     private userService: UserService,
@@ -286,4 +273,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         this.workflowWebsocketService.reopenWebsocket(wid);
       });
   }
+
+  protected readonly undefined = undefined;
 }

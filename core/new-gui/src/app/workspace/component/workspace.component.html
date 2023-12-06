@@ -1,24 +1,6 @@
-<div id="boundary">
-  <texera-menu [pid]="pid"></texera-menu>
-  <mat-expansion-panel
-    [expanded]="true"
-    hideToggle
-    cdkDrag
-    cdkDragBoundary="#boundary"
-    id="left-panel"
-    nz-resizable
-    [nzMinWidth]="175"
-    [nzMaxWidth]="screenWidth*0.5"
-    [style.width.px]="width"
-    (nzResize)="onResize($event)">
-    <mat-expansion-panel-header cdkDragHandle>
-      <mat-panel-title> Operators </mat-panel-title>
-    </mat-expansion-panel-header>
-    <texera-left-panel></texera-left-panel>
-    <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
-  </mat-expansion-panel>
-  <span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
-</div>
+<texera-menu [pid]="pid"></texera-menu>
+<texera-left-panel></texera-left-panel>
+<span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
 <div
   [ngClass]="{
 		'grid-container': true,
@@ -33,10 +15,7 @@
       <texera-mini-map> </texera-mini-map>
     </div>
   </div>
-
   <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"> </texera-workflow-editor>
-
   <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"> </texera-result-panel-toggle>
-
   <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
 </div>
