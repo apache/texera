@@ -1,25 +1,25 @@
-package edu.uci.ics.amber.engine.architecture.logging.storage
+package edu.uci.ics.amber.engine.architecture.logreplay.storage
 
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
-  DeterminantLogReader,
-  DeterminantLogWriter
+import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.{
+  ReplayLogReader,
+  ReplayLogWriter
 }
 import org.apache.commons.io.input.NullInputStream
 import org.apache.hadoop.io.IOUtils.NullOutputStream
 
 import java.io.{DataInputStream, DataOutputStream}
 
-class EmptyLogStorage extends DeterminantLogStorage {
-  override def getWriter: DeterminantLogWriter = {
-    new DeterminantLogWriter(
+class EmptyLogStorage extends ReplayLogStorage {
+  override def getWriter: ReplayLogWriter = {
+    new ReplayLogWriter(
       new DataOutputStream(
         new NullOutputStream()
       )
     )
   }
 
-  override def getReader: DeterminantLogReader = {
-    new DeterminantLogReader(() =>
+  override def getReader: ReplayLogReader = {
+    new ReplayLogReader(() =>
       new DataInputStream(
         new NullInputStream()
       )

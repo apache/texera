@@ -1,16 +1,16 @@
-package edu.uci.ics.amber.engine.architecture.logging.storage
+package edu.uci.ics.amber.engine.architecture.logreplay.storage
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
-  DeterminantLogReader,
-  DeterminantLogWriter
+import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.{
+  ReplayLogReader,
+  ReplayLogWriter
 }
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
 import java.net.URI
 
-class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage with LazyLogging {
+class HDFSLogStorage(name: String, hdfsIP: String) extends ReplayLogStorage with LazyLogging {
   var hdfs: FileSystem = _
   val hdfsConf = new Configuration
   hdfsConf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "false")
@@ -29,14 +29,14 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
     new Path("/recovery-logs/" + name + ".logfile")
   }
 
-  override def getWriter: DeterminantLogWriter = {
-    new DeterminantLogWriter(hdfs.append(getLogPath))
+  override def getWriter: ReplayLogWriter = {
+    new ReplayLogWriter(hdfs.append(getLogPath))
   }
 
-  override def getReader: DeterminantLogReader = {
+  override def getReader: ReplayLogReader = {
     val path = getLogPath
     if (hdfs.exists(path)) {
-      new DeterminantLogReader(() => hdfs.open(path))
+      new ReplayLogReader(() => hdfs.open(path))
     } else {
       new EmptyLogStorage().getReader
     }
@@ -53,7 +53,7 @@ class HDFSLogStorage(name: String, hdfsIP: String) extends DeterminantLogStorage
   override def cleanPartiallyWrittenLogFile(): Unit = {
     var tmpPath = getLogPath
     tmpPath = tmpPath.suffix(".tmp")
-    copyReadableLogRecords(new DeterminantLogWriter(hdfs.create(tmpPath)))
+    copyReadableLogRecords(new ReplayLogWriter(hdfs.create(tmpPath)))
     if (hdfs.exists(getLogPath)) {
       hdfs.delete(getLogPath, false)
     }

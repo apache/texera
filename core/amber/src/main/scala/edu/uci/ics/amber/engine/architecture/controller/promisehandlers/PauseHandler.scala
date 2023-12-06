@@ -70,7 +70,7 @@ trait PauseHandler {
           // update frontend workflow status
           sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus))
           sendToClient(WorkflowPaused())
-          logger.info(s"controller pause cursor = ${cp.cursor.getStep}")
+          logger.info(s"workflow paused")
         }
         .unit
     }

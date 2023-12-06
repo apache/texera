@@ -1,7 +1,7 @@
-package edu.uci.ics.amber.engine.architecture.logging
+package edu.uci.ics.amber.engine.architecture.logreplay
 
 import com.google.common.collect.Queues
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
+import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.ReplayLogWriter
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
@@ -9,21 +9,21 @@ import java.util
 import java.util.concurrent.CompletableFuture
 import scala.collection.JavaConverters._
 
-class AsyncLogWriter(
+class AsyncReplayLogWriter(
     handler: WorkflowFIFOMessage => Unit,
-    writer: DeterminantLogWriter
+    writer: ReplayLogWriter
 ) extends Thread {
-  private val drained = new util.ArrayList[Either[InMemDeterminant, WorkflowFIFOMessage]]()
+  private val drained = new util.ArrayList[Either[ReplayLogRecord, WorkflowFIFOMessage]]()
   private val writerQueue =
-    Queues.newLinkedBlockingQueue[Either[InMemDeterminant, WorkflowFIFOMessage]]()
+    Queues.newLinkedBlockingQueue[Either[ReplayLogRecord, WorkflowFIFOMessage]]()
   private var stopped = false
   private val logInterval =
     AmberConfig.faultToleranceLogFlushIntervalInMs
   private val gracefullyStopped = new CompletableFuture[Unit]()
 
-  def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {
+  def putLogRecords(records: Array[ReplayLogRecord]): Unit = {
     assert(!stopped)
-    determinants.foreach(x => {
+    records.foreach(x => {
       writerQueue.put(Left(x))
     })
   }

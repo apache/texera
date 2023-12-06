@@ -33,7 +33,6 @@ class AmberProcessor(
     new AsyncRPCClient(outputGateway, actorId)
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
-  var cursor = new ProcessingStepCursor()
 
   def processControlPayload(
       channel: ChannelID,

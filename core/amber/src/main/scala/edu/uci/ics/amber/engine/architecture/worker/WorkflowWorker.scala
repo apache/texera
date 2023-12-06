@@ -6,16 +6,16 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
+import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
   DPInputQueueElement,
   FIFOMessageElement,
   TimerBasedControlElement,
-  TriggerSend
+  WorkflowWorkerConfig
 }
-import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -26,13 +26,15 @@ object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       workerIndex: Int,
-      workerLayer: OpExecConfig
+      workerLayer: OpExecConfig,
+      workerConf: WorkflowWorkerConfig
   ): Props =
     Props(
       new WorkflowWorker(
         id,
         workerIndex: Int,
-        workerLayer: OpExecConfig
+        workerLayer: OpExecConfig,
+        workerConf
       )
     )
 
@@ -46,31 +48,23 @@ object WorkflowWorker {
   final case class TimerBasedControlElement(control: ControlInvocation) extends DPInputQueueElement
   final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
 
+  final case class WorkflowWorkerConfig(logStorageType: String)
 }
 
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     workerIndex: Int,
-    workerLayer: OpExecConfig
-) extends WorkflowActor(actorId) {
+    workerLayer: OpExecConfig,
+    workerConf: WorkflowWorkerConfig
+) extends WorkflowActor(workerConf.logStorageType, actorId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(
     actorId,
-    sendMessageFromDPToMain
+    logManager.sendCommitted
   )
   val timerService = new WorkerTimerService(actorService)
-  val dpThread = new DPThread(actorId, dp, inputQueue)
-
-  def sendMessageFromDPToMain(msg: WorkflowFIFOMessage): Unit = {
-    // limitation: TriggerSend will be processed after input messages before it.
-    self ! TriggerSend(msg)
-  }
-
-  def handleSendFromDP: Receive = {
-    case TriggerSend(msg) =>
-      transferService.send(msg)
-  }
+  val dpThread = new DPThread(actorId, dp, logManager, inputQueue)
 
   def handleDirectInvocation: Receive = {
     case c: ControlInvocation =>
@@ -88,7 +82,7 @@ class WorkflowWorker(
   }
 
   override def receive: Receive = {
-    super.receive orElse handleSendFromDP orElse handleDirectInvocation
+    super.receive orElse handleDirectInvocation
   }
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
@@ -111,6 +105,7 @@ class WorkflowWorker(
     super.postStop()
     timerService.stopAdaptiveBatching()
     dpThread.stop()
+    logManager.terminate()
   }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {

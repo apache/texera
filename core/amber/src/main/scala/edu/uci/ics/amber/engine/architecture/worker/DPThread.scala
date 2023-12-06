@@ -2,11 +2,17 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.DPInputQueueElement
+import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, UNINITIALIZED}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, DataPayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelID,
+  ControlPayload,
+  DataPayload,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.error.ErrorUtils.safely
@@ -22,6 +28,7 @@ import java.util.concurrent.{
 class DPThread(
     val actorId: ActorVirtualIdentity,
     dp: DataProcessor,
+    logManager: ReplayLogManager,
     internalQueue: LinkedBlockingQueue[DPInputQueueElement]
 ) extends AmberLogging {
 
@@ -99,7 +106,9 @@ class DPThread(
 
   @throws[Exception]
   private[this] def runDPThreadMainLogic(): Unit = {
-    // main DP loop
+    //
+    // Main loop step 1: receive messages from actor and apply FIFO
+    //
     var waitingForInput = false
     while (!stopped) {
       while (internalQueue.size > 0 || waitingForInput) {
@@ -110,20 +119,33 @@ class DPThread(
             val channel = dp.inputGateway.getChannel(msg.channel)
             channel.acceptMessage(msg)
           case WorkflowWorker.TimerBasedControlElement(control) =>
-            dp.processControlPayload(ChannelID(SELF, SELF, isControl = true), control)
+            // establish order according to receiving order.
+            // Note: this will not guarantee fifo & exactly-once
+            // Please make sure the control here is IDEMPOTENT and ORDER-INDEPENDENT.
+            val controlChannelId = ChannelID(SELF, SELF, isControl = true)
+            val channel = dp.inputGateway.getChannel(controlChannelId)
+            channel.acceptMessage(
+              WorkflowFIFOMessage(controlChannelId, channel.getCurrentSeq, control)
+            )
           case WorkflowWorker.ActorCommandElement(msg) =>
             handleActorCommand(msg)
         }
       }
+
+      //
+      // Main loop step 2: do input selection
+      //
+      var channelID: ChannelID = null
+      var msgOpt: Option[WorkflowFIFOMessage] = None
       if (dp.hasUnfinishedInput || dp.hasUnfinishedOutput || dp.pauseManager.isPaused) {
         dp.inputGateway.tryPickControlChannel match {
           case Some(channel) =>
-            val msg = channel.take
-            dp.processControlPayload(msg.channel, msg.payload.asInstanceOf[ControlPayload])
+            channelID = channel.channelId
+            msgOpt = Some(channel.take)
           case None =>
             // continue processing
             if (!dp.pauseManager.isPaused && !backpressureStatus) {
-              dp.continueDataProcessing()
+              channelID = dp.currentBatchChannel
             } else {
               waitingForInput = true
             }
@@ -136,16 +158,36 @@ class DPThread(
           dp.inputGateway.tryPickChannel
         } match {
           case Some(channel) =>
-            val msg = channel.take
-            msg.payload match {
-              case payload: ControlPayload =>
-                dp.processControlPayload(msg.channel, payload)
-              case payload: DataPayload =>
-                dp.processDataPayload(msg.channel, payload)
-            }
+            channelID = channel.channelId
+            msgOpt = Some(channel.take)
           case None => waitingForInput = true
         }
       }
+
+      //
+      // Main loop step 3: process selected message payload
+      //
+      if (channelID != null) {
+        val msgToLog = if (channelID.isControl) {
+          msgOpt
+        } else {
+          None //skip large dataframes
+        }
+        logManager.withFaultTolerant(channelID, msgToLog) {
+          msgOpt match {
+            case None =>
+              dp.continueDataProcessing()
+            case Some(msg) =>
+              msg.payload match {
+                case payload: ControlPayload =>
+                  dp.processControlPayload(msg.channel, payload)
+                case payload: DataPayload =>
+                  dp.processDataPayload(msg.channel, payload)
+              }
+          }
+        }
+      }
+      // End of Main loop
     }
   }
 }

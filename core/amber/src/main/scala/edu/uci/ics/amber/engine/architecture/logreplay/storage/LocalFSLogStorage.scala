@@ -1,14 +1,14 @@
-package edu.uci.ics.amber.engine.architecture.logging.storage
+package edu.uci.ics.amber.engine.architecture.logreplay.storage
 
-import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.{
-  DeterminantLogReader,
-  DeterminantLogWriter
+import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.{
+  ReplayLogReader,
+  ReplayLogWriter
 }
 
 import java.io.{DataInputStream, DataOutputStream}
 import java.nio.file.{Files, Path, Paths, StandardCopyOption, StandardOpenOption}
 
-class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
+class LocalFSLogStorage(name: String) extends ReplayLogStorage {
 
   private val recoveryLogFolder: Path = Paths.get("").resolve("recovery-logs")
   if (!Files.exists(recoveryLogFolder)) {
@@ -19,8 +19,8 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
     recoveryLogFolder.resolve(name + ".logfile")
   }
 
-  override def getWriter: DeterminantLogWriter = {
-    new DeterminantLogWriter(
+  override def getWriter: ReplayLogWriter = {
+    new ReplayLogWriter(
       new DataOutputStream(
         Files.newOutputStream(
           getLogPath,
@@ -31,10 +31,10 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
     )
   }
 
-  override def getReader: DeterminantLogReader = {
+  override def getReader: ReplayLogReader = {
     val path = getLogPath
     if (Files.exists(path)) {
-      new DeterminantLogReader(() => new DataInputStream(Files.newInputStream(path)))
+      new ReplayLogReader(() => new DataInputStream(Files.newInputStream(path)))
     } else {
       // we do not throw exception here because every worker
       // will try to read log during startup.
@@ -54,7 +54,7 @@ class LocalFSLogStorage(name: String) extends DeterminantLogStorage {
     var tmpPath = getLogPath
     tmpPath = tmpPath.resolveSibling(tmpPath.getFileName + ".tmp")
     copyReadableLogRecords(
-      new DeterminantLogWriter(
+      new ReplayLogWriter(
         new DataOutputStream(
           Files.newOutputStream(
             tmpPath,

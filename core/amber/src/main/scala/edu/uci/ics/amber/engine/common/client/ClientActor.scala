@@ -74,14 +74,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
           sender ! e
       }
     case commandRequest: CommandRequest =>
-      controller ! NetworkMessage(
-        0,
-        WorkflowFIFOMessage(
-          controlChannelId,
-          controlId,
-          ControlInvocation(controlId, commandRequest.command)
-        )
-      )
+      controller ! ControlInvocation(controlId, commandRequest.command)
       promiseMap(controlId) = commandRequest.promise
       controlId += 1
     case req: ObservableRequest =>

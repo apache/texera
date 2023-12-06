@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -9,7 +9,9 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 /* The abstracted FIFO/exactly-once logic */
-class AmberFIFOChannel(val actorId: ActorVirtualIdentity) extends AmberLogging {
+class AmberFIFOChannel(val channelId: ChannelID) extends AmberLogging {
+
+  override def actorId: ActorVirtualIdentity = channelId.to
 
   private val ofoMap = new mutable.HashMap[Long, WorkflowFIFOMessage]
   private var current = 0L
@@ -31,6 +33,8 @@ class AmberFIFOChannel(val actorId: ActorVirtualIdentity) extends AmberLogging {
       enforceFIFO(msg)
     }
   }
+
+  def getCurrentSeq: Long = current
 
   private def isDuplicated(sequenceNumber: Long): Boolean =
     sequenceNumber < current || ofoMap.contains(sequenceNumber)
