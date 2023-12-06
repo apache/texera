@@ -137,7 +137,7 @@ class WorkflowJobService(
     jobBreakpointService = new JobBreakpointService(client, stateStore)
     jobReconfigurationService =
       new JobReconfigurationService(client, stateStore, workflowCompiler, workflow)
-    jobStatsService = new JobStatsService(client, stateStore)
+    jobStatsService = new JobStatsService(client, stateStore, workflowContext)
     jobRuntimeService = new JobRuntimeService(
       client,
       stateStore,

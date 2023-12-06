@@ -64,11 +64,6 @@ export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator;
 }>;
 
-export type SkipTuple = Readonly<{
-  actorPath: string;
-  faultedTuple: BreakpointFaultedTuple;
-}>;
-
 export type WorkerTuples = Readonly<{
   workerID: string;
   tuple: ReadonlyArray<string>;
@@ -186,8 +181,8 @@ export type TexeraWebsocketRequestTypeMap = {
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
   ResultPaginationRequest: PaginationRequest;
-  RetryRequest: {};
-  SkipTupleRequest: SkipTuple;
+  RetryRequest: { workers: ReadonlyArray<string> };
+  SkipTupleRequest: { workers: ReadonlyArray<string> };
   WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};

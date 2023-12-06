@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logreplay
 
 import com.google.common.collect.Queues
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.ReplayLogWriter
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
 import java.util
@@ -18,7 +18,7 @@ class AsyncReplayLogWriter(
     Queues.newLinkedBlockingQueue[Either[ReplayLogRecord, WorkflowFIFOMessage]]()
   private var stopped = false
   private val logInterval =
-    AmberUtils.amberConfig.getLong("fault-tolerance.log-flush-interval-ms")
+    AmberConfig.faultToleranceLogFlushIntervalInMs
   private val gracefullyStopped = new CompletableFuture[Unit]()
 
   def putLogRecords(records: Array[ReplayLogRecord]): Unit = {

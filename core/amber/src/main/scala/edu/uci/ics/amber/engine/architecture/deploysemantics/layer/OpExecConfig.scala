@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LinkIdentity,
   OperatorIdentity
 }
-import edu.uci.ics.amber.engine.common.{Constants, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
@@ -102,7 +102,7 @@ case class OpExecConfig(
     // information regarding initializing an operator executor instance
     opExecInitInfo: OpExecInitInfo,
     // preference of parallelism (total number of workers)
-    numWorkers: Int = Constants.currentWorkerNum,
+    numWorkers: Int = AmberConfig.numWorkerPerOperatorByDefault,
     // input/output schemas
     schemaInfo: Option[OperatorSchemaInfo] = None,
     // preference of worker placement

@@ -2,6 +2,7 @@ import itertools
 
 from core.architecture.handlers.control.control_handler_base import ControlHandler
 from core.architecture.managers.context import Context
+from core.architecture.managers.pause_manager import PauseType
 from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ReplayCurrentTupleV2,
     WorkerState,
@@ -19,4 +20,5 @@ class ReplayCurrentTupleHandler(ControlHandler):
                 [context.tuple_processing_manager.current_input_tuple],
                 context.tuple_processing_manager.current_input_tuple_iter,
             )
+            context.pause_manager.resume(PauseType.EXCEPTION_PAUSE)
         return None
