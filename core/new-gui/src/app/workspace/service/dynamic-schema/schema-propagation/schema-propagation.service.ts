@@ -7,7 +7,7 @@ import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
-import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { catchError, debounceTime, filter, mergeMap } from "rxjs/operators";
 
@@ -15,6 +15,7 @@ import { catchError, debounceTime, filter, mergeMap } from "rxjs/operators";
 export const SCHEMA_PROPAGATION_ENDPOINT = "queryplan/autocomplete";
 
 export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
+
 
 /**
  * Schema Propagation Service provides autocomplete functionality for attribute property of operators.
@@ -139,7 +140,7 @@ export class SchemaPropagationService {
     return this.httpClient
       .post<SchemaPropagationResponse>(
         `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${
-          this.workflowActionService.getWorkflow().wid ?? 1
+          this.workflowActionService.getWorkflow().wid ?? DEFAULT_WORKFLOW.wid
         }`,
         JSON.stringify(body),
         { headers: { "Content-Type": "application/json" } }
