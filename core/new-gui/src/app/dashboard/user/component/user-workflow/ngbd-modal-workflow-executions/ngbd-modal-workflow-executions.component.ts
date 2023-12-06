@@ -716,13 +716,21 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     return processTimeData;
   }
 
-  showRuntimeStatistics() : void {
-    this.runtimeStatisticsModal.create({
-      nzTitle: "Runtime Statistics",
-      nzStyle: { top: "5px", width: "98vw", height: "92vh" },
-      nzFooter: null, // null indicates that the footer of the window would be hidden
-      nzBodyStyle: { width: "98vw", height: "92vh" },
-    });
+  showRuntimeStatistics(eId: number) : void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+    this.workflowExecutionsService
+        .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
+        .pipe(untilDestroyed(this))
+        .subscribe(workflowRuntimeStatistics =>{
+          this.runtimeStatisticsModal.create({
+            nzTitle: "Runtime Statistics",
+            nzStyle: { top: "5px", width: "98vw", height: "92vh" },
+            nzFooter: null, // null indicates that the footer of the window would be hidden
+            nzBodyStyle: { width: "98vw", height: "92vh" },
+          });
+        });
   }
 
   private updatePaginatedExecutions(): void {
