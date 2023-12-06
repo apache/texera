@@ -31,7 +31,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
@@ -45,7 +45,7 @@ class WorkflowScheduler(
 ) {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(
-      Constants.schedulingPolicyName,
+      AmberConfig.schedulingPolicyName,
       regionsToSchedule
     )
 

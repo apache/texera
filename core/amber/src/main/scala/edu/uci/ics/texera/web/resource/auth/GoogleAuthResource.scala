@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.auth
 import com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier
 import com.google.api.client.http.javanet.NetHttpTransport
 import com.google.api.client.json.gson.GsonFactory
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth.{
   TOKEN_EXPIRE_TIME_IN_DAYS,
@@ -15,6 +15,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.resource.auth.GoogleAuthResource.userDao
+
 import java.util.Collections
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -25,7 +26,7 @@ object GoogleAuthResource {
 
 @Path("/auth/google")
 class GoogleAuthResource {
-  final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.google.clientId")
+  final private lazy val clientId = AmberConfig.googleClientId
   @GET
   @Path("/clientid")
   def getClientId: String = {
@@ -37,7 +38,7 @@ class GoogleAuthResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/login")
   def login(credential: String): TokenIssueResponse = {
-    if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
+    if (!AmberConfig.isUserSystemEnabled)
       throw new NotAcceptableException("User System is disabled on the backend!")
     val idToken =
       new GoogleIdTokenVerifier.Builder(new NetHttpTransport, GsonFactory.getDefaultInstance)

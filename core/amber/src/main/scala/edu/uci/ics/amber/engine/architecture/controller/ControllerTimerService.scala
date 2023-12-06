@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.SkewDetectionHandler.ControllerInitiateSkewDetection
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 
@@ -36,7 +36,7 @@ class ControllerTimerService(
 
   def enableMonitoring(): Unit = {
     if (
-      Constants.monitoringEnabled && controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty
+      AmberConfig.monitoringEnabled && controllerConfig.monitoringIntervalMs.nonEmpty && monitoringHandle.isEmpty
     ) {
       monitoringHandle = Option(
         akkaActorService.sendToSelfWithFixedDelay(
@@ -53,11 +53,11 @@ class ControllerTimerService(
 
   def enableSkewHandling(): Unit = {
     if (
-      Constants.reshapeSkewHandlingEnabled && controllerConfig.skewDetectionIntervalMs.nonEmpty && skewDetectionHandle.isEmpty
+      AmberConfig.reshapeSkewHandlingEnabled && controllerConfig.skewDetectionIntervalMs.nonEmpty && skewDetectionHandle.isEmpty
     ) {
       skewDetectionHandle = Option(
         akkaActorService.sendToSelfWithFixedDelay(
-          Constants.reshapeSkewDetectionInitialDelayInMs.milliseconds,
+          AmberConfig.reshapeSkewDetectionInitialDelayInMs.milliseconds,
           FiniteDuration.apply(controllerConfig.skewDetectionIntervalMs.get, MILLISECONDS),
           ControlInvocation(
             AsyncRPCClient.IgnoreReplyAndDoNotLog,

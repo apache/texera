@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -34,7 +34,7 @@ object OutputManager {
     }
 
     // if reshape is enabled, wrap the original partitioner in a reshape partitioner
-    if (Constants.reshapeSkewHandlingEnabled) {
+    if (AmberConfig.reshapeSkewHandlingEnabled) {
       partitioner match {
         case p @ (_: RoundRobinPartitioner | _: HashBasedShufflePartitioner |
             _: RangeBasedShufflePartitioner) =>

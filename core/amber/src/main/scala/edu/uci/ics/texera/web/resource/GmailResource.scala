@@ -11,7 +11,7 @@ import com.google.api.services.gmail.Gmail
 import com.google.api.services.gmail.model.Message
 import com.google.auth.http.HttpCredentialsAdapter
 import com.google.auth.oauth2.{AccessToken, GoogleCredentials}
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import io.dropwizard.auth.Auth
@@ -30,9 +30,9 @@ case class EmailMessage(receiver: String, subject: String, content: String)
 class GmailResource {
   final private lazy val path =
     Utils.amberHomePath.resolve("src").resolve("main").resolve("resources").resolve("gmail")
-  final private lazy val clientId = AmberUtils.amberConfig.getString("user-sys.google.clientId")
+  final private lazy val clientId = AmberConfig.googleClientId
   final private lazy val clientSecret =
-    AmberUtils.amberConfig.getString("user-sys.google.clientSecret")
+    AmberConfig.googleClientSecret
 
   /**
     * Use the authorization code to get the refresh token and save it to the file.

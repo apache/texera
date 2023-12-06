@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.storage
 
 import com.mongodb.client.{MongoClient, MongoClients, MongoCollection, MongoDatabase}
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import org.bson.Document
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.MongoStorage
 
@@ -9,8 +9,9 @@ import java.util
 
 object MongoDatabaseManager {
 
-  val url: String = AmberUtils.amberConfig.getString("storage.mongodb.url")
-  val databaseName: String = AmberUtils.amberConfig.getString("storage.mongodb.database")
+  private val storageConfig = AmberConfig.sinkStorageMongoDBConfig
+  val url: String = storageConfig.getString("url")
+  val databaseName: String = storageConfig.getString("database")
   val client: MongoClient = MongoClients.create(url)
   val database: MongoDatabase = client.getDatabase(databaseName)
 

@@ -7,7 +7,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
@@ -53,7 +53,7 @@ class ClusterListener extends Actor with AmberLogging {
   private def getAllAddressExcludingMaster: Iterable[Address] = {
     cluster.state.members
       .filter { member =>
-        member.address != Constants.masterNodeAddr
+        member.address != AmberConfig.masterNodeAddr
       }
       .map(_.address)
   }
@@ -87,7 +87,7 @@ class ClusterListener extends Actor with AmberLogging {
           if (
             jobService != null && jobService.stateStore.jobMetadataStore.getState.state != COMPLETED
           ) {
-            if (AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")) {
+            if (AmberConfig.isFaultToleranceEnabled) {
               logger.info(
                 s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
               )
@@ -118,9 +118,8 @@ class ClusterListener extends Actor with AmberLogging {
       state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
     }
 
-    Constants.currentWorkerNum = numWorkerNodesInCluster * Constants.numWorkerPerNode
     logger.info(
-      "---------Now we have " + numWorkerNodesInCluster + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
+      "---------Now we have " + numWorkerNodesInCluster + s" nodes in the cluster---------"
     )
 
   }

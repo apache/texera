@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EpochMarkerHandler.PropagateEpochMarker
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.WorkerModifyLogicComplete
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
@@ -92,7 +92,7 @@ class JobReconfigurationService(
 
     // schedule all pending reconfigurations to the engine
     val reconfigurationId = UUID.randomUUID().toString
-    if (!Constants.enableTransactionalReconfiguration) {
+    if (!AmberConfig.enableTransactionalReconfiguration) {
       reconfigurations.foreach(reconfig => {
         client.sendAsync(ModifyLogic(reconfig._1, reconfig._2))
       })

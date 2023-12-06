@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -25,7 +25,7 @@ class LimitOpDesc extends OperatorDescriptor {
   var limit: Int = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    val limitPerWorker = equallyPartitionGoal(limit, Constants.currentWorkerNum)
+    val limitPerWorker = equallyPartitionGoal(limit, AmberConfig.numWorkerPerOperatorByDefault)
     OpExecConfig.oneToOneLayer(
       operatorIdentifier,
       OpExecInitInfo(p => new LimitOpExec(limitPerWorker(p._1)))

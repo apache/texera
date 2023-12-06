@@ -1,5 +1,5 @@
 package edu.uci.ics.texera.web.resource.auth
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.JwtAuth._
 import edu.uci.ics.texera.web.model.http.request.auth.{
@@ -47,7 +47,7 @@ class AuthResource {
   @POST
   @Path("/login")
   def login(request: UserLoginRequest): TokenIssueResponse = {
-    if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
+    if (!AmberConfig.isUserSystemEnabled)
       throw new NotAcceptableException("User System is disabled on the backend!")
     retrieveUserByUsernameAndPassword(request.username, request.password) match {
       case Some(user) =>
@@ -67,7 +67,7 @@ class AuthResource {
   @POST
   @Path("/register")
   def register(request: UserRegistrationRequest): TokenIssueResponse = {
-    if (!AmberUtils.amberConfig.getBoolean("user-sys.enabled"))
+    if (!AmberConfig.isUserSystemEnabled)
       throw new NotAcceptableException("User System is disabled on the backend!")
     val username = request.username
     if (username == null) throw new NotAcceptableException("Username cannot be null.")

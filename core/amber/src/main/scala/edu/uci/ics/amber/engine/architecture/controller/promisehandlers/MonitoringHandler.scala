@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -43,7 +43,7 @@ trait MonitoringHandler {
         existingSamplesForWorker.appendAll(samplesWithoutLowest)
 
         // clean up to save memory
-        val maxSamplesPerWorker = Constants.reshapeMaxWorkloadSamplesInController
+        val maxSamplesPerWorker = AmberConfig.reshapeMaxWorkloadSamplesInController
         if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
           existingSamplesForWorker = existingSamplesForWorker.slice(
             existingSamplesForWorker.size - maxSamplesPerWorker,

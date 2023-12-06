@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
@@ -164,8 +164,7 @@ class JobResultService(
 
   var sinkOperators: mutable.HashMap[String, ProgressiveSinkOpDesc] =
     mutable.HashMap[String, ProgressiveSinkOpDesc]()
-  private val resultPullingFrequency =
-    AmberUtils.amberConfig.getInt("web-server.workflow-result-pulling-in-seconds")
+  private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
 
   def attachToJob(

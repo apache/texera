@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.common.AmberConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -64,8 +64,6 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     @JsonPropertyDescription("plot on a map")
     public boolean isGeometric;
 
-    private int numWorkers = Constants.currentWorkerNum();
-
     @Override
     public String chartType() {
         if (isGeometric) {
@@ -85,12 +83,13 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if (!allowedAttributeTypesNumbersOnly.contains(yType)) {
             throw new IllegalArgumentException(yColumn + " is not a number \n");
         }
+        int numWorkers = AmberConfig.numWorkerPerOperatorByDefault();
         if (isGeometric) {
             numWorkers = 1;
         }
         return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
                         OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
-                .withIsOneToManyOp(true);
+                .withIsOneToManyOp(true).withNumWorkers(numWorkers);
     }
 
     @Override

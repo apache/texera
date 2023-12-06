@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logging
 
 import com.google.common.collect.Queues
 import edu.uci.ics.amber.engine.architecture.logging.storage.DeterminantLogStorage.DeterminantLogWriter
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 
 import java.util
@@ -18,7 +18,7 @@ class AsyncLogWriter(
     Queues.newLinkedBlockingQueue[Either[InMemDeterminant, WorkflowFIFOMessage]]()
   private var stopped = false
   private val logInterval =
-    AmberUtils.amberConfig.getLong("fault-tolerance.log-flush-interval-ms")
+    AmberConfig.faultToleranceLogFlushIntervalInMs
   private val gracefullyStopped = new CompletableFuture[Unit]()
 
   def putDeterminants(determinants: Array[InMemDeterminant]): Unit = {
