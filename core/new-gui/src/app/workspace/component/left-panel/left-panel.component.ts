@@ -15,7 +15,7 @@ import {
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent implements OnInit {
-  currentComponent: ComponentType<any>;
+  currentComponent: ComponentType<OperatorMenuComponent | VersionsFrameComponent>;
 
   constructor(private workflowVersionService: WorkflowVersionService) {
     this.currentComponent = OperatorMenuComponent;
