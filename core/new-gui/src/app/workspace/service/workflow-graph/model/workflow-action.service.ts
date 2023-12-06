@@ -30,7 +30,7 @@ import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 
-export const  DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
+export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
 export const DEFAULT_WORKFLOW = {
   name: DEFAULT_WORKFLOW_NAME,
   description: undefined,
@@ -62,9 +62,6 @@ export const DEFAULT_WORKFLOW = {
   providedIn: "root",
 })
 export class WorkflowActionService {
-
-
-
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;

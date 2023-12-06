@@ -34,7 +34,6 @@ import {
   SchemaPropagationService,
 } from "./schema-propagation.service";
 
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 describe("SchemaPropagationService", () => {
   let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
@@ -73,27 +72,37 @@ describe("SchemaPropagationService", () => {
 
     // add link
     workflowActionService.addLink(mockScanSentimentLink);
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    httpTestingController.match(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     httpTestingController.verify();
 
     // delete link
     workflowActionService.deleteLinkWithID(mockScanSentimentLink.linkID);
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    httpTestingController.match(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     httpTestingController.verify();
 
     // add link again
     workflowActionService.addLink(mockScanSentimentLink);
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    httpTestingController.match(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     httpTestingController.verify();
 
     // disable opeator
     workflowActionService.getTexeraGraph().disableOperator(mockScanPredicate.operatorID);
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    httpTestingController.match(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     httpTestingController.verify();
 
     // enable operator
     workflowActionService.getTexeraGraph().disableOperator(mockScanPredicate.operatorID);
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    httpTestingController.match(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     httpTestingController.verify();
 
     // change operator property
@@ -103,7 +112,9 @@ describe("SchemaPropagationService", () => {
     // verify debounce time: no request before debounce time ticks
     httpTestingController.verify();
     // request should be made after debounce time
-    httpTestingController.match(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    httpTestingController.match(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     httpTestingController.verify();
     discardPeriodicTasks();
   }));
@@ -115,7 +126,6 @@ describe("SchemaPropagationService", () => {
     workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, {
       tableName: "test",
     });
-
 
     tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
     const req1 = httpTestingController.expectOne(
@@ -182,7 +192,9 @@ describe("SchemaPropagationService", () => {
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req1.request.method === "POST");
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    expect(req1.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     req1.flush(mockSchemaPropagationResponse);
 
     httpTestingController.verify();
@@ -222,7 +234,9 @@ describe("SchemaPropagationService", () => {
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req1.request.method === "POST");
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    expect(req1.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
 
     // flush mock response
     req1.flush(mockSchemaPropagationResponse);
@@ -251,7 +265,9 @@ describe("SchemaPropagationService", () => {
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req3.request.method === "POST");
-    expect(req3.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    expect(req3.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
 
     // flush mock response, however, this time response is empty, which means input attrs no longer exists
     req3.flush(mockEmptySchemaPropagationResponse);
@@ -298,7 +314,9 @@ describe("SchemaPropagationService", () => {
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req1.request.method === "POST");
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    expect(req1.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     // flush mock response
     req1.flush(mockSchemaPropagationResponse);
 
@@ -349,7 +367,9 @@ describe("SchemaPropagationService", () => {
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req1.request.method === "POST");
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`);
+    expect(req1.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
 
     // flush mock response
     req1.flush(mockSchemaPropagationResponse);

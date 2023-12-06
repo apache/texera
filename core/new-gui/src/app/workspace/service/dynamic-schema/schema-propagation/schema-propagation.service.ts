@@ -16,7 +16,6 @@ export const SCHEMA_PROPAGATION_ENDPOINT = "queryplan/autocomplete";
 
 export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
 
-
 /**
  * Schema Propagation Service provides autocomplete functionality for attribute property of operators.
  * When user creates and connects operators in workflow, the backend can propagate the schema information,
