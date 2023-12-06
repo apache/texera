@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.
 }
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 
 import java.io.{DataInputStream, DataOutputStream}
@@ -90,16 +90,20 @@ object ReplayLogStorage {
     }
   }
 
-  def getLogStorage(storageType: String, name: String): ReplayLogStorage = {
-    storageType match {
-      case "local" => new LocalFSLogStorage(name)
-      case "hdfs" =>
-        val hdfsIP: String =
-          AmberUtils.amberConfig.getString("fault-tolerance.hdfs-storage.address")
-        new HDFSLogStorage(name, hdfsIP)
-      case "none" =>
-        new EmptyLogStorage()
-      case other => throw new RuntimeException("Cannot support log storage type of " + other)
+  def getLogStorage(enabledLogging: Boolean, name: String): DeterminantLogStorage = {
+    val storageType: String =
+      AmberConfig.faultToleranceLogStorage
+    if (enabledLogging) {
+      storageType match {
+        case "local" => new LocalFSLogStorage(name)
+        case "hdfs" =>
+          val hdfsIP: String =
+            AmberConfig.faultToleranceHDFSAddress
+          new HDFSLogStorage(name, hdfsIP)
+        case other => throw new RuntimeException("Cannot support log storage type of " + other)
+      }
+    } else {
+      new EmptyLogStorage()
     }
   }
 

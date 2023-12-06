@@ -13,7 +13,10 @@ import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.SubscriptionManager
+import edu.uci.ics.texera.Utils.maptoStatusCode
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowRuntimeStatisticsDao
+import edu.uci.ics.texera.web.{SqlServer, SubscriptionManager}
 import edu.uci.ics.texera.web.model.websocket.event.{
   ExecutionDurationUpdateEvent,
   OperatorStatistics,
@@ -23,21 +26,41 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorWorkerMapping, WorkflowFatalError}
+import edu.uci.ics.texera.web.workflowruntimestate.{
+  OperatorRuntimeStats,
+  OperatorWorkerMapping,
+  WorkflowFatalError
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 
 import java.time.Instant
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import org.jooq.types.UInteger
+
+import java.util
 
 class JobStatsService(
     client: AmberClient,
-    stateStore: JobStateStore
+    stateStore: JobStateStore,
+    workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
+  final private lazy val context = SqlServer.createDSLContext()
+  private val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(context.configuration)
 
   registerCallbacks()
 
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
+      storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
+        case ((newId, newStats), (oldId, oldStats)) =>
+          val res = OperatorRuntimeStats(
+            newStats.state,
+            newStats.inputCount - oldStats.inputCount,
+            newStats.outputCount - oldStats.outputCount
+          )
+          (newId, res)
+      })
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
@@ -114,6 +137,29 @@ class JobStatsService(
           }
         })
     )
+  }
+
+  private def storeRuntimeStatistics(
+      operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
+  ): Unit = {
+    // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
+    try {
+      val list: util.ArrayList[WorkflowRuntimeStatistics] =
+        new util.ArrayList[WorkflowRuntimeStatistics]()
+      for ((operatorId, stat) <- operatorStatistics) {
+        val execution = new WorkflowRuntimeStatistics()
+        execution.setWorkflowId(workflowContext.wId)
+        execution.setExecutionId(UInteger.valueOf(workflowContext.executionID))
+        execution.setOperatorId(operatorId)
+        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
+        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
+        execution.setStatus(maptoStatusCode(stat.state))
+        list.add(execution)
+      }
+      workflowRuntimeStatisticsDao.insert(list)
+    } catch {
+      case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
+    }
   }
 
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {

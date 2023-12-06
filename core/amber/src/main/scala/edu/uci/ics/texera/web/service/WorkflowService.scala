@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 
 import scala.collection.JavaConverters._
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
@@ -22,8 +22,7 @@ import play.api.libs.json.Json
 
 object WorkflowService {
   private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
-  val cleanUpDeadlineInSeconds: Int =
-    AmberUtils.amberConfig.getInt("web-server.workflow-state-cleanup-in-seconds")
+  val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
 
   def getAllWorkflowService: Iterable[WorkflowService] = wIdToWorkflowState.values().asScala
 

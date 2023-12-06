@@ -5,7 +5,7 @@ import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.objectMapper
@@ -128,8 +128,8 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
 
-    if (AmberUtils.amberConfig.getString("storage.mode").equalsIgnoreCase("mongodb")) {
-      val timeToLive: Int = AmberUtils.amberConfig.getInt("result-cleanup.ttl-in-seconds")
+    if (AmberConfig.sinkStorageMode.equalsIgnoreCase("mongodb")) {
+      val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
       // do one time cleanup of collections that were not closed gracefully before restart/crash
       // retrieve all executions that are not completed
       val incompleteExecutions: List[ExecutionResultEntry] =
@@ -137,9 +137,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
       cleanOldCollections(incompleteExecutions, WorkflowAggregatedState.FAILED)
       scheduleRecurringCallThroughActorSystem(
         2.seconds,
-        AmberUtils.amberConfig
-          .getInt("result-cleanup.collection-check-interval-in-seconds")
-          .seconds
+        AmberConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
       ) {
         recurringCheckExpiredResults(timeToLive)
       }
@@ -174,7 +172,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     // environment.jersey().register(classOf[MockKillWorkerResource])
     environment.jersey.register(classOf[SchemaPropagationResource])
 
-    if (AmberUtils.amberConfig.getBoolean("user-sys.enabled")) {
+    if (AmberConfig.isUserSystemEnabled) {
       // register JWT Auth layer
       environment.jersey.register(
         new AuthDynamicFeature(

@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{AmberUtils, Constants}
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 
 import scala.concurrent.duration.DurationInt
@@ -20,11 +20,10 @@ import scala.concurrent.duration.DurationInt
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      monitoringIntervalMs = Option(Constants.monitoringIntervalInMs),
-      skewDetectionIntervalMs = Option(Constants.reshapeSkewDetectionIntervalInMs),
-      statusUpdateIntervalMs =
-        Option(AmberUtils.amberConfig.getLong("constants.status-update-interval")),
-      logStorageType = AmberUtils.amberConfig.getString("fault-tolerance.log-storage-type"),
+      monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
+      skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
+      statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
+      logStorageType = AmberConfig.faultToleranceLogStorage,
       replayTo = None
     )
 }
@@ -38,6 +37,7 @@ final case class ControllerConfig(
 )
 
 object Controller {
+
 
   def props(
       workflow: Workflow,
