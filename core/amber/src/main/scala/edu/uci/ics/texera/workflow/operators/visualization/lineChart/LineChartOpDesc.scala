@@ -25,17 +25,17 @@ import scala.jdk.CollectionConverters.iterableAsScalaIterableConverter
 
 class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  @JsonProperty(value = "title", required = false)
+  @JsonProperty(value = "title", required = false, defaultValue = "Line Chart")
   @JsonSchemaTitle("Plot Title")
   @JsonPropertyDescription("The value for the plot tile")
   var title: String = ""
 
-  @JsonProperty(value = "yLabel", required = false)
+  @JsonProperty(value = "yLabel", required = false, defaultValue = "Y Axis")
   @JsonSchemaTitle("Y Label")
   @JsonPropertyDescription("the label for y axis")
   var yLabel: String = ""
 
-  @JsonProperty(value = "xLabel", required = false)
+  @JsonProperty(value = "xLabel", required = false, defaultValue = "X Axis")
   @JsonSchemaTitle("X Label")
   @JsonPropertyDescription("the label for x axis")
   var xLabel: String = ""
@@ -64,14 +64,14 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
         s"        " +
           s"fig.add_trace(go.Scatter(x=table['${lineConf.xValue}'], y=table['${lineConf.yValue}'], " +
           s"mode='${lineConf.mode.getMode}', " + (if (lineConf.color != "") {
-          s"line={'color':'${lineConf.color}'}, marker={'color':'${lineConf.color}'}, "
-        } else {
-          ""
-        }) + (if (lineConf.name != "") {
-          s"name='${lineConf.name}'"
-        } else {
-          s"name='${lineConf.yValue}'"
-        }) + "))"
+                                                    s"line={'color':'${lineConf.color}'}, marker={'color':'${lineConf.color}'}, "
+                                                  } else {
+                                                    ""
+                                                  }) + (if (lineConf.name != "") {
+                                                          s"name='${lineConf.name}'"
+                                                        } else {
+                                                          s"name='${lineConf.yValue}'"
+                                                        }) + "))"
 
       }
       .mkString("\n")
