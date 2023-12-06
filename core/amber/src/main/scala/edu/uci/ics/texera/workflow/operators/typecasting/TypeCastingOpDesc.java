@@ -16,9 +16,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Tuple2;
-import scala.util.Left;
 
-import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Function;
 
@@ -30,7 +29,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("TypeCasting Units")
     @JsonPropertyDescription("Multiple type castings")
-    public List<TypeCastingUnit> typeCastingUnits;
+    public List<TypeCastingUnit> typeCastingUnits= new ArrayList<>();
 
     @Override
     public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
