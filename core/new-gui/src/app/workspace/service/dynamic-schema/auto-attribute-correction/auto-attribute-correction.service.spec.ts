@@ -55,7 +55,7 @@ describe("AutoAttributeCorrectionService", () => {
     expect(service).toBeTruthy();
   }));
 
-  it("should propagate new attribute name when atteibute is renamed", fakeAsync(() => {
+  it("should propagate new attribute name when attribute is renamed", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     TestBed.inject(SchemaPropagationService);
     TestBed.inject(AutoAttributeCorrectionService);
