@@ -31,7 +31,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   LayerIdentity,
   LinkIdentity
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, ISourceOperatorExecutor}
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
