@@ -16,7 +16,7 @@ class DummySourceOpDesc extends SourceOperatorDescriptor {
   @JsonSchemaTitle("delay")
   var delay = 1
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    OpExecConfig.manyToOneLayer(operatorIdentifier, OpExecInitInfo(_ => new DummySourceOpExec(i, delay)))
+    OpExecConfig.sourceLayer(operatorIdentifier, OpExecInitInfo(_ => new DummySourceOpExec(i, delay)))
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -25,7 +25,7 @@ class DummySourceOpDesc extends SourceOperatorDescriptor {
       operatorDescription = "Dummy Input",
       OperatorGroupConstants.DUMMY_GROUP,
       List.empty,
-      outputPorts = List(OutputPort())
+      List(OutputPort())
     )
   }
 
