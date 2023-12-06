@@ -11,12 +11,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, IgnoreReply}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.Utils
 
 import java.nio.file.Path
@@ -87,14 +85,21 @@ class PythonWorkflowWorker(
     sender ! NetworkAck(messageId, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
   }
 
-  /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
-    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit()
+  override def receiveCreditMessages: Receive = {
+    case WorkflowActor.CreditRequest(channel) =>
+      pythonProxyClient.enqueueActorCommand(CreditUpdate())
+      sender ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
+    case WorkflowActor.CreditResponse(channel, credit) =>
+      transferService.updateChannelCreditFromReceiver(channel, credit)
   }
 
-  override def handleBackpressure(isBackpressured: Boolean): Unit = {
-    val backpressureMessage = ControlInvocation(IgnoreReply, Backpressure(isBackpressured))
-    pythonProxyClient.enqueueCommand(backpressureMessage, ChannelID(SELF, SELF, isControl = true))
+  /** flow-control */
+  override def getQueuedCredit(channelID: ChannelID): Long = {
+    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit
+  }
+
+  override def handleBackpressure(enableBackpressure: Boolean): Unit = {
+    pythonProxyClient.enqueueActorCommand(Backpressure(enableBackpressure))
   }
 
   override def postStop(): Unit = {

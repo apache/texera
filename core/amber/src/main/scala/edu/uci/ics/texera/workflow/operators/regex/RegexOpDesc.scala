@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.regex
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -30,7 +31,7 @@ class RegexOpDesc extends FilterOpDesc {
   var caseInsensitive: Boolean = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, _ => new RegexOpExec(this))
+    OpExecConfig.oneToOneLayer(operatorIdentifier, OpExecInitInfo(_ => new RegexOpExec(this)))
   }
 
   override def operatorInfo: OperatorInfo =

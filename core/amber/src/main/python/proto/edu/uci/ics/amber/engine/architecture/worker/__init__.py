@@ -25,6 +25,11 @@ class WorkerState(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
+class NoOpV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class StartWorkerV2(betterproto.Message):
     pass
 
@@ -140,11 +145,6 @@ class LinkCompletedV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class BackpressureV2(betterproto.Message):
-    enable_backpressure: bool = betterproto.bool_field(1)
-
-
-@dataclass(eq=False, repr=False)
 class ControlCommandV2(betterproto.Message):
     start_worker: "StartWorkerV2" = betterproto.message_field(1, group="sealed_value")
     pause_worker: "PauseWorkerV2" = betterproto.message_field(2, group="sealed_value")
@@ -186,13 +186,13 @@ class ControlCommandV2(betterproto.Message):
     query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
         betterproto.message_field(41, group="sealed_value")
     )
-    backpressure: "BackpressureV2" = betterproto.message_field(51, group="sealed_value")
     worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
         81, group="sealed_value"
     )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )
+    no_op: "NoOpV2" = betterproto.message_field(9999, group="sealed_value")
 
 
 @dataclass(eq=False, repr=False)
