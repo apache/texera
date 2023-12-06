@@ -6,7 +6,7 @@ import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
@@ -28,20 +28,17 @@ class SchemaPropagationResource extends LazyLogging {
       @Auth sessionUser: SessionUser
   ): SchemaPropagationResponse = {
     try {
-      val workflow = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
+      val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
       val context = new WorkflowContext
       context.userId = Option(sessionUser.getUser.getUid)
       context.wId = wid
 
-      val logicalPlan = LogicalPlan(workflow, context)
-      logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, new JobStateStore())
-
-      val texeraWorkflowCompiler = new WorkflowCompiler(logicalPlan)
+      val workflowCompiler = new WorkflowCompiler(logicalPlanPojo, context, new JobStateStore())
 
       // ignore errors during propagation.
       val (schemaPropagationResult, _) =
-        texeraWorkflowCompiler.logicalPlan.propagateWorkflowSchema()
+        workflowCompiler.logicalPlan.propagateWorkflowSchema()
       val responseContent = schemaPropagationResult.map(e =>
         (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala)))
       )

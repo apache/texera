@@ -87,12 +87,12 @@ class WorkflowWebsocketResource extends LazyLogging {
         case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
           val stateStore = if (jobStateOpt.isDefined) {
             val currentState =
-              jobStateOpt.get.stateStore.jobMetadataStore.getState.state
+              jobStateOpt.get.jobStateStore.jobMetadataStore.getState.state
             if (currentState == RUNNING || currentState == PAUSED) {
               // disable check if the workflow execution is active.
               return
             }
-            jobStateOpt.get.stateStore
+            jobStateOpt.get.jobStateStore
           } else {
             new JobStateStore()
           }
@@ -139,7 +139,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           "unknown operator"
         )
         if (jobStateOpt.isDefined) {
-          jobStateOpt.get.stateStore.jobMetadataStore.updateState { metadataStore =>
+          jobStateOpt.get.jobStateStore.jobMetadataStore.updateState { metadataStore =>
             metadataStore
               .withFatalErrors(metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR))
               .addFatalErrors(errEvt)

@@ -4,7 +4,10 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
+import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
@@ -19,8 +22,9 @@ object WorkflowCompiler {
 
 }
 
-class WorkflowCompiler(val logicalPlan: LogicalPlan) {
-
+class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: WorkflowContext, jobStateStore: JobStateStore) {
+  val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
+  logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, jobStateStore)
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
       storage: OpResultStorage,
