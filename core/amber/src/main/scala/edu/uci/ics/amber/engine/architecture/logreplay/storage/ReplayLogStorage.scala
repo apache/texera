@@ -90,7 +90,7 @@ object ReplayLogStorage {
     }
   }
 
-  def getLogStorage(enabledLogging: Boolean, name: String): DeterminantLogStorage = {
+  def getLogStorage(enabledLogging: Boolean, name: String): ReplayLogStorage = {
     val storageType: String =
       AmberConfig.faultToleranceLogStorage
     if (enabledLogging) {
