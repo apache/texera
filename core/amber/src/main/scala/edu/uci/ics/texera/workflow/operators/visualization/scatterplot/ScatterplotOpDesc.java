@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.AmberConfig;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -18,11 +18,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
-import scala.reflect.ClassTag;
+import scala.Tuple2;
+import scala.util.Left;
 
 import java.io.Serializable;
 import java.util.EnumSet;
 import java.util.Set;
+import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.DOUBLE;
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.INTEGER;
@@ -35,16 +37,16 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  */
 
 @JsonSchemaInject(json =
-"{" +
-"  \"attributeTypeRules\": {" +
-"    \"xColumn\":{" +
-"      \"enum\": [\"integer\", \"double\"]" +
-"    }," +
-"    \"yColumn\":{" +
-"      \"enum\": [\"integer\", \"double\"]" +
-"    }" +
-"  }" +
-"}")
+        "{" +
+                "  \"attributeTypeRules\": {" +
+                "    \"xColumn\":{" +
+                "      \"enum\": [\"integer\", \"double\"]" +
+                "    }," +
+                "    \"yColumn\":{" +
+                "      \"enum\": [\"integer\", \"double\"]" +
+                "    }" +
+                "  }" +
+                "}")
 public class ScatterplotOpDesc extends VisualizationOperator {
     @JsonProperty(required = true)
     @JsonSchemaTitle("X-Column")
@@ -63,7 +65,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
 
     @Override
     public String chartType() {
-        if(isGeometric) {
+        if (isGeometric) {
             return VisualizationConstants.SPATIAL_SCATTERPLOT;
         }
         return VisualizationConstants.SIMPLE_SCATTERPLOT;
@@ -81,11 +83,11 @@ public class ScatterplotOpDesc extends VisualizationOperator {
             throw new IllegalArgumentException(yColumn + " is not a number \n");
         }
         int numWorkers = AmberConfig.numWorkerPerOperatorByDefault();
-        if(isGeometric){
+        if (isGeometric) {
             numWorkers = 1;
         }
         return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
-                (OpExecFunc & Serializable) p -> new ScatterplotOpExec(this, operatorSchemaInfo))
+                        OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
                 .withIsOneToManyOp(true).withNumWorkers(numWorkers);
     }
 
@@ -103,7 +105,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
         Schema inputSchema = schemas[0];
-        if(isGeometric)
+        if (isGeometric)
             return Schema.newBuilder().add(
                     new Attribute("xColumn", inputSchema.getAttribute(xColumn).getType()),
                     new Attribute("yColumn", inputSchema.getAttribute(yColumn).getType())

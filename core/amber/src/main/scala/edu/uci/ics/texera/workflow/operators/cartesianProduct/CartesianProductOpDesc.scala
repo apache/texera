@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -16,7 +17,7 @@ class CartesianProductOpDesc extends OperatorDescriptor {
     OpExecConfig
       .oneToOneLayer(
         operatorIdentifier,
-        _ => new CartesianProductOpExec(operatorSchemaInfo)
+        OpExecInitInfo(_ => new CartesianProductOpExec(operatorSchemaInfo))
       )
       .copy(
         inputPorts = operatorInfo.inputPorts,

@@ -44,6 +44,7 @@
     </li>
   </ul>
 </nz-dropdown-menu>
+
 <nz-list
   nzSize="small"
   class="console-list-container"
@@ -60,10 +61,11 @@
         nz-col
         nzSpan="1">
         <nz-badge
-          [nzStatus]="labelMapping.get(entry.msgType.name)"
+          [nzStatus]="getMessageLabel(entry)"
           [nzTitle]="entry.msgType.name"
           class="type-tag"></nz-badge>
       </div>
+
       <div
         nz-col
         nzSpan="15">
@@ -134,6 +136,32 @@
   *ngIf="consoleInputEnabled"
   nzCompact
   [nzAddOnBefore]="addOnBeforeTemplate">
+  <button
+    (click)="onClickSkipTuples()"
+    [disabled]="true"
+    nzSize="small"
+    nz-tooltip
+    nzTooltipTitle="Skip the faulty Tuple"
+    nz-button>
+    <span
+      nz-icon
+      nzType="delete-row"
+      nzTheme="outline"></span>
+  </button>
+
+  <button
+    (click)="onClickRetryTuples()"
+    [disabled]="false"
+    nzSize="small"
+    nz-tooltip
+    nzTooltipTitle="Retry the faulty Tuple"
+    nz-button>
+    <span
+      nz-icon
+      nzType="redo"
+      nzTheme="outline">
+    </span>
+  </button>
   <input
     type="text"
     nz-input

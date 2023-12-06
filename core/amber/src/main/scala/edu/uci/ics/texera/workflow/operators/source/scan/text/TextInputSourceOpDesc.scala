@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
@@ -19,7 +20,10 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   var textInput: String = _
 
   override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    OpExecConfig.localLayer(operatorIdentifier, _ => new TextInputSourceOpExec(this))
+    OpExecConfig.sourceLayer(
+      operatorIdentifier,
+      OpExecInitInfo(_ => new TextInputSourceOpExec(this))
+    )
 
   override def sourceSchema(): Schema =
     Schema
