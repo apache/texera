@@ -18,8 +18,7 @@ object ControllerConfig {
     ControllerConfig(
       monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
       skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
-      statusUpdateIntervalMs =
-        Option(AmberConfig.getStatusUpdateIntervalInMs),
+      statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
       AmberConfig.faultToleranceLogStorage
     )
 }
