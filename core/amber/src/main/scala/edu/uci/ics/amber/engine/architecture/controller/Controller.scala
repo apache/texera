@@ -38,7 +38,6 @@ final case class ControllerConfig(
 
 object Controller {
 
-
   def props(
       workflow: Workflow,
       controllerConfig: ControllerConfig = ControllerConfig.default

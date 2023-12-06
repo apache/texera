@@ -90,23 +90,18 @@ object ReplayLogStorage {
     }
   }
 
-  def getLogStorage(enabledLogging: Boolean, name: String): ReplayLogStorage = {
-    val storageType: String =
-      AmberConfig.faultToleranceLogStorage
-    if (enabledLogging) {
-      storageType match {
-        case "local" => new LocalFSLogStorage(name)
-        case "hdfs" =>
-          val hdfsIP: String =
-            AmberConfig.faultToleranceHDFSAddress
-          new HDFSLogStorage(name, hdfsIP)
-        case other => throw new RuntimeException("Cannot support log storage type of " + other)
-      }
-    } else {
-      new EmptyLogStorage()
+  def getLogStorage(storageType: String, name: String): ReplayLogStorage = {
+    storageType match {
+      case "local" => new LocalFSLogStorage(name)
+      case "hdfs" =>
+        val hdfsIP: String =
+          AmberConfig.faultToleranceLogStorage
+        new HDFSLogStorage(name, hdfsIP)
+      case "none" =>
+        new EmptyLogStorage()
+      case other => throw new RuntimeException("Cannot support log storage type of " + other)
     }
   }
-
 }
 
 abstract class ReplayLogStorage {
