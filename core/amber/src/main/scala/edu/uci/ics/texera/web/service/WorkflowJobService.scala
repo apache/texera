@@ -95,7 +95,7 @@ class WorkflowJobService(
 
     try {
       workflowCompiler = new WorkflowCompiler(request.logicalPlan, workflowContext, jobStateStore)
-      workflow = workflowCompiler.amberWorkflow(
+      workflow = workflowCompiler.compile(
         WorkflowIdentity(workflowContext.jobId),
         resultService.opResultStorage,
         lastCompletedLogicalPlan
@@ -121,7 +121,7 @@ class WorkflowJobService(
   private val controllerConfig = {
     val conf = ControllerConfig.default
     if (
-      workflowCompiler.logicalPlan.operators.exists {
+      request.logicalPlan.operators.exists {
         case _: DualInputPortsPythonUDFOpDescV2 => true
         case _: PythonUDFOpDescV2               => true
         case _: PythonUDFSourceOpDescV2         => true
@@ -148,9 +148,10 @@ class WorkflowJobService(
       controllerConfig,
       errorHandler
     )
+    var logicalPlan = workflowCompiler.compileLogicalPlan()
     jobBreakpointService = new JobBreakpointService(client, jobStateStore)
     jobReconfigurationService =
-      new JobReconfigurationService(client, jobStateStore, workflowCompiler, workflow)
+      new JobReconfigurationService(client, jobStateStore, logicalPlan, workflow)
     jobStatsService = new JobStatsService(client, jobStateStore, workflowContext)
     jobRuntimeService = new JobRuntimeService(
       client,
@@ -162,7 +163,7 @@ class WorkflowJobService(
     jobConsoleService = new JobConsoleService(client, jobStateStore, wsInput, jobBreakpointService)
 
     logger.info("Starting the workflow execution.")
-    for (pair <- workflowCompiler.logicalPlan.breakpoints) {
+    for (pair <- request.logicalPlan.breakpoints) {
       Await.result(
         jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
         Duration.fromSeconds(10)

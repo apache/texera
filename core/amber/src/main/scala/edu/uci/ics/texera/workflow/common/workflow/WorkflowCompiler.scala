@@ -14,17 +14,17 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstant
 
 object WorkflowCompiler {
 
-  def isSink(operatorID: String, workflowCompiler: WorkflowCompiler): Boolean = {
-    val outLinks =
-      workflowCompiler.logicalPlan.links.filter(link => link.origin.operatorID == operatorID)
-    outLinks.isEmpty
-  }
+
 
 }
 
 class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: WorkflowContext, jobStateStore: JobStateStore) {
-  val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
-  logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, jobStateStore)
+  val logicalPlan: LogicalPlan = compileLogicalPlan()
+  def compileLogicalPlan(): LogicalPlan = {
+    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
+    logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, jobStateStore)
+    logicalPlan
+  }
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
       storage: OpResultStorage,
@@ -68,11 +68,13 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
     )
   }
 
-  def amberWorkflow(
+  def compile(
       workflowId: WorkflowIdentity,
       opResultStorage: OpResultStorage,
       lastCompletedJob: Option[LogicalPlan] = Option.empty
   ): Workflow = {
+
+
     val cacheReuses = new WorkflowCacheChecker(lastCompletedJob, logicalPlan).getValidCacheReuse()
     val opsToReuseCache = cacheReuses.intersect(logicalPlan.opsToReuseCache.toSet)
     val rewrittenLogicalPlan =
@@ -103,7 +105,7 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
       assert(physicalPlan2.getLayer(sourceLayer).inputPorts.isEmpty)
     }
 
-    new Workflow(workflowId, physicalPlan2)
+    new Workflow(workflowId,  physicalPlan2)
   }
 
 }

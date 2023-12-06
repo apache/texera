@@ -29,7 +29,7 @@ object Utils {
     )
     val logicalPlan = texeraWorkflowCompiler.logicalPlan
     logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, new JobStateStore())
-    texeraWorkflowCompiler.amberWorkflow(WorkflowIdentity(workflowTag), resultStorage)
+    texeraWorkflowCompiler.compile(WorkflowIdentity(workflowTag), resultStorage)
   }
 
 }
