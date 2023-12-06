@@ -27,7 +27,7 @@ export const SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS = 500;
  *  and schema propagation can provide autocomplete for the column names.
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class SchemaPropagationService {
   private operatorInputSchemaMap: Readonly<Record<string, OperatorInputSchema>> = {};
@@ -245,7 +245,7 @@ export class SchemaPropagationService {
         ...old,
         type: "string",
         enum: getAttrNames(attrName, old),
-        uniqueItems: true
+        uniqueItems: true,
       })
     );
 
@@ -259,14 +259,14 @@ export class SchemaPropagationService {
         items: {
           ...(old.items as CustomJSONSchema7),
           type: "string",
-          enum: getAttrNames(attrName, old)
-        }
+          enum: getAttrNames(attrName, old),
+        },
       })
     );
 
     return {
       ...operatorSchema,
-      jsonSchema: newJsonSchema
+      jsonSchema: newJsonSchema,
     };
   }
 
@@ -280,7 +280,7 @@ export class SchemaPropagationService {
         ...old,
         type: "string",
         enum: undefined,
-        uniqueItems: undefined
+        uniqueItems: undefined,
       })
     );
 
@@ -294,14 +294,14 @@ export class SchemaPropagationService {
         items: {
           ...(old.items as CustomJSONSchema7),
           type: "string",
-          enum: undefined
-        }
+          enum: undefined,
+        },
       })
     );
 
     return {
       ...operatorSchema,
-      jsonSchema: newJsonSchema
+      jsonSchema: newJsonSchema,
     };
   }
 
@@ -318,8 +318,7 @@ export interface SchemaAttribute
   extends Readonly<{
     attributeName: string;
     attributeType: AttributeType;
-  }> {
-}
+  }> {}
 
 // input schema of an operator: an array of schemas at each input port
 export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
@@ -347,8 +346,7 @@ export interface SchemaPropagationResponse
     result: {
       [key: string]: OperatorInputSchema;
     };
-  }> {
-}
+  }> {}
 
 /**
  * The backend interface of the return object of a failed execution of
@@ -358,5 +356,4 @@ export interface SchemaPropagationError
   extends Readonly<{
     code: -1;
     message: string;
-  }> {
-}
+  }> {}
