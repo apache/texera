@@ -16,11 +16,11 @@ import scala.concurrent.duration.DurationInt
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      monitoringIntervalMs = Option(Constants.monitoringIntervalInMs),
-      skewDetectionIntervalMs = Option(Constants.reshapeSkewDetectionIntervalInMs),
+      monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
+      skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs =
-        Option(AmberUtils.amberConfig.getLong("constants.status-update-interval")),
-      AmberUtils.amberConfig.getString("fault-tolerance.log-storage-type")
+        Option(AmberConfig.getStatusUpdateIntervalInMs),
+      AmberConfig.faultToleranceLogStorage
     )
 }
 

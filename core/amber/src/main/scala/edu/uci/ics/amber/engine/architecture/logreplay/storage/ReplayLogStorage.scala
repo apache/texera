@@ -95,7 +95,7 @@ object ReplayLogStorage {
       case "local" => new LocalFSLogStorage(name)
       case "hdfs" =>
         val hdfsIP: String =
-          AmberUtils.amberConfig.getString("fault-tolerance.hdfs-storage.address")
+          AmberConfig.faultToleranceHDFSAddress
         new HDFSLogStorage(name, hdfsIP)
       case "none" =>
         new EmptyLogStorage()
