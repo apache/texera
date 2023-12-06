@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.randomksampling
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -21,7 +21,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   // Fault tolerance requires that the restarted worker should produce the exactly same output.
   // Therefore the seeds have to be stored.
   @JsonIgnore
-  private val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
+  private val seeds: Array[Int] =
+    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
 
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")

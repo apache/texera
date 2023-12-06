@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  InputGateway,
   NetworkInputGateway,
   NetworkOutputGateway
 }
@@ -17,7 +18,7 @@ class AmberProcessor(
     with Serializable {
 
   /** FIFO & exactly once */
-  lazy val inputGateway: NetworkInputGateway = new NetworkInputGateway(this.actorId)
+  val inputGateway: InputGateway = new NetworkInputGateway(this.actorId)
 
   // 1. Unified Output
   val outputGateway: NetworkOutputGateway =
@@ -33,7 +34,6 @@ class AmberProcessor(
     new AsyncRPCClient(outputGateway, actorId)
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
-  var cursor = new ProcessingStepCursor()
 
   def processControlPayload(
       channel: ChannelID,

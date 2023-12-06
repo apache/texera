@@ -27,11 +27,6 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
-import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.python.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2
-}
 
 import java.time.Instant
 import scala.collection.mutable
@@ -121,18 +116,7 @@ class WorkflowJobService(
   }
 
   private val controllerConfig = {
-    val conf = ControllerConfig.default
-    if (
-      workflowCompiler.logicalPlan.operators.exists {
-        case _: DualInputPortsPythonUDFOpDescV2 => true
-        case _: PythonUDFOpDescV2               => true
-        case _: PythonUDFSourceOpDescV2         => true
-        case _                                  => false
-      }
-    ) {
-      conf.supportFaultTolerance = false
-    }
-    conf
+    ControllerConfig.default
   }
 
   // Runtime starts from here:

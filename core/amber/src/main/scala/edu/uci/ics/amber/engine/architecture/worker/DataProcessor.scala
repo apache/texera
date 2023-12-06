@@ -127,8 +127,9 @@ class DataProcessor(
   var operatorOpened: Boolean = false
   var inputBatch: Array[ITuple] = _
   var currentInputIdx: Int = -1
+  var currentBatchChannel: ChannelID = _
 
-  def InitTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
+  def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
   }
 
@@ -152,8 +153,6 @@ class DataProcessor(
     new OutputManager(actorId, outputGateway)
   // 6. epoch manager
   val epochManager: EpochManager = new EpochManager()
-
-  private var currentBatchChannel: ChannelID = _
 
   // dp thread stats:
   protected var inputTupleCount = 0L
@@ -249,14 +248,14 @@ class DataProcessor(
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
         logger.info(
-          s"$operator completed at step = ${cursor.getStep} outputted = $outputTupleCount"
+          s"$operator completed, outputted = $outputTupleCount"
         )
         operator.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizeLink(link) =>
-        logger.info(s"process FinalizeLink message at step = ${cursor.getStep}")
+        logger.info(s"process FinalizeLink message")
         if (link != null && link.from != SOURCE_STARTER_OP) {
           asyncRPCClient.send(LinkCompleted(link), CONTROLLER)
         }
@@ -328,13 +327,13 @@ class DataProcessor(
           initBatch(channel, Array.empty)
           processInputTuple(Right(InputExhausted()))
           logger.info(
-            s"$currentLink completed, append FinalizeLink message at step = ${cursor.getStep}"
+            s"$currentLink completed, append FinalizeLink message"
           )
           outputIterator.appendSpecialTupleToEnd(FinalizeLink(currentLink))
         }
         if (upstreamLinkStatus.isAllEOF) {
           logger.info(
-            s"operator completed, append FinalizeOperator message at step = ${cursor.getStep}"
+            s"operator completed, append FinalizeOperator message"
           )
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
