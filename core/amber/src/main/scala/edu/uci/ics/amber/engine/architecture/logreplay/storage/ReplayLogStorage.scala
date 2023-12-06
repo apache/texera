@@ -95,14 +95,13 @@ object ReplayLogStorage {
       case "local" => new LocalFSLogStorage(name)
       case "hdfs" =>
         val hdfsIP: String =
-          AmberConfig.faultToleranceHDFSAddress
+          AmberConfig.faultToleranceLogStorage
         new HDFSLogStorage(name, hdfsIP)
       case "none" =>
         new EmptyLogStorage()
       case other => throw new RuntimeException("Cannot support log storage type of " + other)
     }
   }
-
 }
 
 abstract class ReplayLogStorage {

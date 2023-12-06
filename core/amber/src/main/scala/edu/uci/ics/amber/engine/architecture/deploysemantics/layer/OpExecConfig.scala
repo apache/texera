@@ -293,7 +293,10 @@ case class OpExecConfig(
             workerId,
             i,
             workerLayer = this,
-            WorkflowWorkerConfig("none")
+            WorkflowWorkerConfig(
+              logStorageType = AmberConfig.faultToleranceLogStorage,
+              replayTo = None
+            )
           )
         }
         val ref =
