@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowStatusUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
@@ -52,15 +52,17 @@ class JobStatsService(
 
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
-      storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
-        case ((newId, newStats), (oldId, oldStats)) =>
-          val res = OperatorRuntimeStats(
-            newStats.state,
-            newStats.inputCount - oldStats.inputCount,
-            newStats.outputCount - oldStats.outputCount
-          )
-          (newId, res)
-      })
+      if (AmberConfig.isUserSystemEnabled) {
+        storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
+          case ((newId, newStats), (oldId, oldStats)) =>
+            val res = OperatorRuntimeStats(
+              newStats.state,
+              newStats.inputCount - oldStats.inputCount,
+              newStats.outputCount - oldStats.outputCount
+            )
+            (newId, res)
+        })
+      }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
