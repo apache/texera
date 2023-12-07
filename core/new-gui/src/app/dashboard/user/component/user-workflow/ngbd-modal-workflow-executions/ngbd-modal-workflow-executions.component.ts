@@ -11,6 +11,7 @@ import Fuse from "fuse.js";
 import { ChartType } from "src/app/workspace/types/visualization.interface";
 import { ceil } from "lodash";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -69,7 +70,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     "Starting Time": "250px",
     "Last Status Updated Time": "250px",
     Status: "80px",
-    "Runtime Statistics": "120px"
+    "Runtime Statistics": "120px",
   };
 
   /** variables related to executions filtering
@@ -716,21 +717,27 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     return processTimeData;
   }
 
-  showRuntimeStatistics(eId: number) : void {
+  showRuntimeStatistics(eId: number): void {
     if (this.workflow.wid === undefined) {
       return;
     }
+
     this.workflowExecutionsService
-        .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
-        .pipe(untilDestroyed(this))
-        .subscribe(workflowRuntimeStatistics =>{
-          this.runtimeStatisticsModal.create({
-            nzTitle: "Runtime Statistics",
-            nzStyle: { top: "5px", width: "98vw", height: "92vh" },
-            nzFooter: null, // null indicates that the footer of the window would be hidden
-            nzBodyStyle: { width: "98vw", height: "92vh" },
-          });
+      .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflowRuntimeStatistics => {
+        console.log(workflowRuntimeStatistics);
+        this.runtimeStatisticsModal.create({
+          nzTitle: "Runtime Statistics",
+          nzStyle: { top: "5px", width: "98vw", height: "92vh" },
+          nzFooter: null, // null indicates that the footer of the window would be hidden
+          nzBodyStyle: { width: "98vw", height: "92vh" },
+          nzContent: WorkflowRuntimeStatisticsComponent,
+          nzComponentParams: {
+            workflowRuntimeStatistics: workflowRuntimeStatistics,
+          },
         });
+      });
   }
 
   private updatePaginatedExecutions(): void {

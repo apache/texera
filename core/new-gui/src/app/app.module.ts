@@ -134,6 +134,7 @@ import { PublicProjectComponent } from "./dashboard/user/component/user-project/
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
+import { WorkflowRuntimeStatisticsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 
 registerLocaleData(en);
 
@@ -208,6 +209,7 @@ registerLocaleData(en);
     SearchComponent,
     SearchResultsComponent,
     PortPropertyEditFrameComponent,
+    WorkflowRuntimeStatisticsComponent,
   ],
   imports: [
     BrowserModule,
