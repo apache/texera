@@ -8,8 +8,8 @@ import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -18,8 +18,9 @@ import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import java.time.Instant
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.immutable.Map
 import scala.collection.mutable.ArrayBuffer
+import scala.collection.{JavaConverters, mutable}
 
 case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
 
@@ -42,15 +43,11 @@ object LogicalPlan {
     workflowDag
   }
 
-  def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext): LogicalPlan = {
-    val logicalPlan =
-      LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
-    SinkInjectionTransformer.transform(pojo.opsToViewResult, logicalPlan)
-  }
+  def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext, jobStateStore: JobStateStore): LogicalPlan = {
 
-  def schemaPropagationCheck(logicalPlan: LogicalPlan, jobStateStore: JobStateStore): Map[OperatorIdentity, List[Option[Schema]]] = {
-    // initialize the logical plan with the current context.
-    logicalPlan.operators.foreach(_.setContext(logicalPlan.context))
+    var logicalPlan =
+      LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
+    logicalPlan = SinkInjectionTransformer.transform(pojo.opsToViewResult, logicalPlan)
 
     // remove previous error state
     jobStateStore.jobMetadataStore.updateState { metadataStore =>
@@ -58,9 +55,8 @@ object LogicalPlan {
         metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
       )
     }
-
-    // propagate schema
-    val (schemaMap, errorList) = logicalPlan.propagateWorkflowSchema()
+    val errorList = new ArrayBuffer[(String, Throwable)]()
+    logicalPlan = logicalPlan.withInputSchemaMap(schemaPropagationCheck(logicalPlan, errorList))
 
     // report compilation errors
     if (errorList.nonEmpty) {
@@ -79,8 +75,13 @@ object LogicalPlan {
         updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
       )
     }
-    schemaMap
+    logicalPlan
+  }
 
+  def schemaPropagationCheck(logicalPlan: LogicalPlan, errorList: ArrayBuffer[(String, Throwable)]): Map[OperatorIdentity, List[Option[Schema]]] = {
+    // initialize the logical plan with the current context.
+    logicalPlan.operators.foreach(_.setContext(logicalPlan.context))
+    logicalPlan.propagateWorkflowSchema(errorList)
   }
 
 }
@@ -90,7 +91,8 @@ case class LogicalPlan(
     operators: List[OperatorDescriptor],
     links: List[OperatorLink],
     breakpoints: List[BreakpointInfo],
-    opsToReuseCache: List[String] = List()
+    opsToReuseCache: List[String] = List(),
+    inputSchemaMap:Map[OperatorIdentity, List[Option[Schema]]] = Map.empty
 ) extends LazyLogging {
 
   lazy val operatorMap: Map[String, OperatorDescriptor] =
@@ -107,8 +109,6 @@ case class LogicalPlan(
       .filter(op => jgraphtDag.outDegreeOf(op) == 0)
       .toList
 
-  var inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = Map.empty
-
   lazy val outputSchemaMap: Map[OperatorIdentity, List[Schema]] =
     operatorMap.values
       .map(o => {
@@ -121,6 +121,9 @@ case class LogicalPlan(
       })
       .toMap
 
+  def withInputSchemaMap(map: Map[OperatorIdentity, List[Option[Schema]]]): LogicalPlan = {
+    new LogicalPlan(context, operators, links, breakpoints, opsToReuseCache, map)
+  }
   def getOperator(operatorID: String): OperatorDescriptor = operatorMap(operatorID)
 
   def getSourceOperators: List[String] = this.sourceOperators
@@ -214,8 +217,8 @@ case class LogicalPlan(
     OperatorSchemaInfo(inputSchemas, outputSchemas)
   }
 
-  def propagateWorkflowSchema()
-      : (Map[OperatorIdentity, List[Option[Schema]]], List[(String, Throwable)]) = {
+  def propagateWorkflowSchema(errorList: ArrayBuffer[(String, Throwable)])
+      : Map[OperatorIdentity, List[Option[Schema]]] = {
     // a map from an operator to the list of its input schema
     val inputSchemaMap =
       new mutable.HashMap[OperatorIdentity, mutable.MutableList[Option[Schema]]]()
@@ -223,8 +226,6 @@ case class LogicalPlan(
           mutable.MutableList
             .fill(operatorMap(op.operator).operatorInfo.inputPorts.size)(Option.empty)
         )
-    val errorsDuringPropagation =
-      new ArrayBuffer[(String, Throwable)]() // operatorID to a throwable.
     // propagate output schema following topological order
     val topologicalOrderIterator = jgraphtDag.iterator()
     topologicalOrderIterator.forEachRemaining(opID => {
@@ -252,7 +253,7 @@ case class LogicalPlan(
           }
         } catch {
           case e: Throwable =>
-            errorsDuringPropagation.append((opID, e))
+            errorList.append((opID, e))
             Option.empty
         }
       }
@@ -282,13 +283,10 @@ case class LogicalPlan(
       })
     })
 
-    (
       inputSchemaMap
         .filter(e => !(e._2.exists(s => s.isEmpty) || e._2.isEmpty))
         .map(e => (e._1, e._2.toList))
-        .toMap,
-      errorsDuringPropagation.toList
-    )
+        .toMap
   }
 
   def toPhysicalPlan: PhysicalPlan = {

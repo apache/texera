@@ -1,32 +1,39 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import edu.uci.ics.texera.web.service.WorkflowCacheChecker
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
+import scala.collection.mutable
+
 object WorkflowCacheRewriter {
 
   def transform(
-      logicalPlan: LogicalPlan,
-      storage: OpResultStorage,
-      availableCache: Set[String]
+                 logicalPlan: LogicalPlan,
+                 lastCompletedPlan: Option[LogicalPlan],
+                 storage: OpResultStorage,
+                 opsToReuseCache: mutable.ListBuffer[String],
   ): LogicalPlan = {
-    var resultPlan = logicalPlan
+    val validCachesFromLastExecution = new WorkflowCacheChecker(lastCompletedPlan, logicalPlan).getValidCacheReuse
 
+    var resultPlan = logicalPlan.withInputSchemaMap(logicalPlan.inputSchemaMap)
     // an operator can reuse cache if
     // 1: the user wants the operator to reuse past result
     // 2: the operator is equivalent to the last run
-    val opsToUseCache = logicalPlan.opsToReuseCache.toSet.intersect(availableCache)
+    logicalPlan.opsToReuseCache.toSet.intersect(validCachesFromLastExecution).foreach(opId =>
+      opsToReuseCache.append(opId)
+    )
 
     // remove sinks directly connected to operators that are already reusing cache
     val unnecessarySinks = resultPlan.getTerminalOperators.filter(sink => {
-      opsToUseCache.contains(resultPlan.getUpstream(sink).head.operatorID)
+      opsToReuseCache.contains(resultPlan.getUpstream(sink).head.operatorID)
     })
     unnecessarySinks.foreach(o => {
       resultPlan = resultPlan.removeOperator(o)
     })
 
-    opsToUseCache.foreach(opId => {
+    opsToReuseCache.foreach(opId => {
       val materializationReader = new CacheSourceOpDesc(opId, storage)
       resultPlan = resultPlan.addOperator(materializationReader)
       // replace the connection of all outgoing edges of opId with the cache

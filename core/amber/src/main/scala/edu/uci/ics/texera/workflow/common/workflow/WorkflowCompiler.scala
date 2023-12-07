@@ -12,6 +12,8 @@ import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
+import scala.collection.mutable
+
 object WorkflowCompiler {
 
 
@@ -21,8 +23,7 @@ object WorkflowCompiler {
 class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: WorkflowContext, jobStateStore: JobStateStore) {
   val logicalPlan: LogicalPlan = compileLogicalPlan()
   def compileLogicalPlan(): LogicalPlan = {
-    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
-    logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, jobStateStore)
+    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext, jobStateStore)
     logicalPlan
   }
   private def assignSinkStorage(
@@ -75,17 +76,16 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
   ): Workflow = {
 
 
-    val cacheReuses = new WorkflowCacheChecker(lastCompletedJob, logicalPlan).getValidCacheReuse()
-    val opsToReuseCache = cacheReuses.intersect(logicalPlan.opsToReuseCache.toSet)
+    val opsToReuseCache = new mutable.ListBuffer[String]()
     val rewrittenLogicalPlan =
-      WorkflowCacheRewriter.transform(logicalPlan, opResultStorage, opsToReuseCache)
+      WorkflowCacheRewriter.transform(logicalPlan, lastCompletedJob, opResultStorage, opsToReuseCache)
 
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
-    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache)
+    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache.toSet)
     // also assign sink storage to the original logical plan, as the original logical plan
     // will be used to be compared to the subsequent runs
-    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache)
+    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache.toSet)
 
     val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan
 
