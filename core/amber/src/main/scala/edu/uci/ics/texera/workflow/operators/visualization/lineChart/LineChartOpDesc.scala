@@ -61,20 +61,24 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   def createPlotlyFigure(): String = {
     val linesCode = lines.asScala
       .map { lineConf =>
-        s"        " +
-          s"fig.add_trace(go.Scatter(x=table['${lineConf.xValue}'], y=table['${lineConf.yValue}'], " +
-          s"mode='${lineConf.mode.getMode}', " + (if (lineConf.color != "") {
-                                                    s"line={'color':'${lineConf.color}'}, marker={'color':'${lineConf.color}'}, "
-                                                  } else {
-                                                    ""
-                                                  }) + (if (lineConf.name != "") {
-                                                          s"name='${lineConf.name}'"
-                                                        } else {
-                                                          s"name='${lineConf.yValue}'"
-                                                        }) + "))"
+        val xValue = lineConf.xValue
+        val yValue = lineConf.yValue
+        val mode = lineConf.mode.getMode
+        val color = if (lineConf.color != "") s"'color':'${lineConf.color}'" else ""
+        val name =
+          if (lineConf.name != "") s"'name':'${lineConf.name}'" else s"'name':'${lineConf.yValue}'"
 
+        s"""        fig.add_trace(go.Scatter(
+           |            x=table['$xValue'],
+           |            y=table['$yValue'],
+           |            mode='$mode',
+           |            line={$color},
+           |            marker={$color},
+           |            $name
+           |        ))""".stripMargin
       }
       .mkString("\n")
+
     s"""
        |        fig = go.Figure()
        |$linesCode
