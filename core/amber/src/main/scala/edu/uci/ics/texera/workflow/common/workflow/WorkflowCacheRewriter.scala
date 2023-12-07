@@ -2,10 +2,12 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.texera.web.service.WorkflowCacheChecker
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan.schemaPropagationCheck
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object WorkflowCacheRewriter {
 
@@ -17,7 +19,7 @@ object WorkflowCacheRewriter {
   ): LogicalPlan = {
     val validCachesFromLastExecution = new WorkflowCacheChecker(lastCompletedPlan, logicalPlan).getValidCacheReuse
 
-    var resultPlan = logicalPlan.withInputSchemaMap(logicalPlan.inputSchemaMap)
+    var resultPlan = logicalPlan
     // an operator can reuse cache if
     // 1: the user wants the operator to reuse past result
     // 2: the operator is equivalent to the last run
@@ -70,8 +72,9 @@ object WorkflowCacheRewriter {
     assert(
       resultPlan.terminalOperators.forall(o => resultPlan.getOperator(o).isInstanceOf[SinkOpDesc])
     )
+    val errorList = new ArrayBuffer[(String, Throwable)]()
+    resultPlan.withInputSchemaMap(schemaPropagationCheck(resultPlan, errorList))
 
-    resultPlan
   }
 
 }

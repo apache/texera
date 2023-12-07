@@ -7,7 +7,7 @@ import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
 import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.{WorkflowContext, workflow}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
@@ -21,11 +21,8 @@ object WorkflowCompiler {
 }
 
 class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: WorkflowContext, jobStateStore: JobStateStore) {
-  val logicalPlan: LogicalPlan = compileLogicalPlan()
-  def compileLogicalPlan(): LogicalPlan = {
-    val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext, jobStateStore)
-    logicalPlan
-  }
+  val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext, jobStateStore)
+
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
       storage: OpResultStorage,

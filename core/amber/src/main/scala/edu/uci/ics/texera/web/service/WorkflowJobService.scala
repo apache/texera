@@ -132,10 +132,10 @@ class WorkflowJobService(
       controllerConfig,
       errorHandler
     )
-    var logicalPlan = workflowCompiler.compileLogicalPlan()
+
     jobBreakpointService = new JobBreakpointService(client, jobStateStore)
     jobReconfigurationService =
-      new JobReconfigurationService(client, jobStateStore, logicalPlan, workflow)
+      new JobReconfigurationService(client, jobStateStore, workflowCompiler.logicalPlan, workflow)
     jobStatsService = new JobStatsService(client, jobStateStore, workflowContext)
     jobRuntimeService = new JobRuntimeService(
       client,
