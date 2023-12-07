@@ -1,7 +1,7 @@
 import { AfterContentInit, Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
-import Chart from 'chart.js/auto';
+import Chart from "chart.js/auto";
 
 @UntilDestroy()
 @Component({
@@ -19,44 +19,78 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
     if (this.workflowRuntimeStatistics === undefined) {
       return;
     }
-    // Get the canvas context for chart 1 and chart 2
-    const ctx1 = (document.getElementById("chart1") as HTMLCanvasElement).getContext("2d");
 
+    const ctx1 = this.getCanvasContext("chart1");
     if (ctx1 === null) {
       return;
     }
 
-    // Group the workflowRuntimeStatistics by operatorId
-    const groupedStats = this.workflowRuntimeStatistics.reduce(
-      (acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
-        acc[stat.operatorId] = acc[stat.operatorId] || [];
-        if (acc[stat.operatorId].length > 0) {
-          stat.inputTupleCount = stat.inputTupleCount + acc[stat.operatorId][acc[stat.operatorId].length - 1].inputTupleCount;
-        }
-        acc[stat.operatorId].push(stat);
-        return acc;
-      },
-      {}
-    );
+    const groupedStats = this.groupStatsByOperatorId(this.workflowRuntimeStatistics);
+    const datasets1 = this.createDatasets(groupedStats);
+    const labels = this.createLabels(groupedStats);
 
-    // Create an array of datasets for chart 1 (inputTupleCount)
-    const datasets1 = Object.keys(groupedStats).map((operatorId, index) => {
+    this.createChart(ctx1, labels, datasets1);
+  }
+
+  getCanvasContext(elementId: string): CanvasRenderingContext2D | null {
+    return (document.getElementById(elementId) as HTMLCanvasElement).getContext("2d");
+  }
+
+  groupStatsByOperatorId(stats: WorkflowRuntimeStatistics[]): Record<string, WorkflowRuntimeStatistics[]> {
+    return stats.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
+      acc[stat.operatorId] = acc[stat.operatorId] || [];
+      if (acc[stat.operatorId].length > 0) {
+        stat.inputTupleCount =
+          stat.inputTupleCount + acc[stat.operatorId][acc[stat.operatorId].length - 1].inputTupleCount;
+      }
+      acc[stat.operatorId].push(stat);
+      return acc;
+    }, {});
+  }
+
+  createDatasets(groupedStats: Record<string, WorkflowRuntimeStatistics[]>): any[] {
+    return Object.keys(groupedStats).map((operatorId, index) => {
       return {
         label: operatorId,
         data: groupedStats[operatorId].map(stat => stat.inputTupleCount),
         fill: false,
       };
     });
+  }
 
-    // Create an array of labels for the x-axis (time)
-    const labels = groupedStats[Object.keys(groupedStats)[0]].map((stat, index) => index * 0.5);
+  createLabels(groupedStats: Record<string, WorkflowRuntimeStatistics[]>): number[] {
+    return groupedStats[Object.keys(groupedStats)[0]].map((stat, index) => index * 0.5);
+  }
 
-    // Create the chart 1 object
-    const chart1 = new Chart(ctx1, {
-      type: 'line',
+  createChart(ctx: CanvasRenderingContext2D, labels: number[], datasets: any[]): void {
+    new Chart(ctx, {
+      type: "line",
       data: {
         labels: labels,
-        datasets: datasets1,
+        datasets: datasets,
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          title: {
+            display: true,
+            text: "Input Tuple Count",
+          },
+        },
+        scales: {
+          y: {
+            title: {
+              display: true,
+              text: "Tuple Count",
+            },
+          },
+          x: {
+            title: {
+              display: true,
+              text: "Time (s)",
+            },
+          },
+        },
       },
     });
   }
