@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
@@ -72,7 +73,6 @@ class WorkerSpec
     .copy(inputToOrdinalMapping = Map(mockLink -> 0), outputToOrdinalMapping = Map(mockLink -> 0))
   private val workerIndex = 0
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
-
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
   private val mockOutputManager = mock[OutputManager]
 
@@ -85,7 +85,7 @@ class WorkerSpec
     controls.foreach { ctrl =>
       worker ! NetworkMessage(
         seq,
-        WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), seq, ctrl)
+        WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, isControl = true), seq, ctrl)
       )
       seq += 1
     }
@@ -96,14 +96,21 @@ class WorkerSpec
       new WorkflowWorker(
         identifier1,
         workerIndex,
-        opExecConfig
+        opExecConfig,
+        WorkflowWorkerConfig(logStorageType = "none", replayTo = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager
         }
         this.dp.initOperator(0, opExecConfig, Iterator.empty)
-        this.dp.InitTimerService(timerService)
-        override val dpThread: DPThread = new DPThread(actorId, dp, inputQueue)
+        this.dp.initTimerService(timerService)
+        override val dpThread: DPThread =
+          new DPThread(
+            actorId,
+            dp,
+            logManager,
+            inputQueue
+          )
       }
     )
   }

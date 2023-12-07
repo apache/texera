@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -291,7 +292,11 @@ case class OpExecConfig(
           WorkflowWorker.props(
             workerId,
             i,
-            this
+            workerLayer = this,
+            WorkflowWorkerConfig(
+              logStorageType = AmberConfig.faultToleranceLogStorage,
+              replayTo = None
+            )
           )
         }
         val ref =
