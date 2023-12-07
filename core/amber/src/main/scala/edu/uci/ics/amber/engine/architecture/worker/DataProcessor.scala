@@ -129,7 +129,7 @@ class DataProcessor(
   var currentInputIdx: Int = -1
   var currentBatchChannel: ChannelID = _
 
-  def InitTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
+  def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
   }
 

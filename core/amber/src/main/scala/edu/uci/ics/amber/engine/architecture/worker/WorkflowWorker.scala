@@ -3,8 +3,10 @@ package edu.uci.ics.amber.engine.architecture.worker
 import akka.actor.Props
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogGenerator, ReplayOrderEnforcer}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
@@ -48,7 +50,7 @@ object WorkflowWorker {
   final case class TimerBasedControlElement(control: ControlInvocation) extends DPInputQueueElement
   final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
 
-  final case class WorkflowWorkerConfig(logStorageType: String)
+  final case class WorkflowWorkerConfig(logStorageType: String, replayTo: Option[Long])
 }
 
 class WorkflowWorker(
@@ -64,7 +66,48 @@ class WorkflowWorker(
     logManager.sendCommitted
   )
   val timerService = new WorkerTimerService(actorService)
-  val dpThread = new DPThread(actorId, dp, logManager, inputQueue)
+
+  val dpThread =
+    new DPThread(actorId, dp, logManager, inputQueue)
+
+  def setupReplay(): Unit = {
+    if (workerConf.replayTo.isDefined) {
+
+      context.parent ! ReplayStatusUpdate(actorId, status = true)
+
+      val (processSteps, messages) = ReplayLogGenerator.generate(logStorage)
+      val replayTo = workerConf.replayTo.get
+      val onReplayComplete = () => {
+        logger.info("replay completed!")
+        context.parent ! ReplayStatusUpdate(actorId, status = false)
+      }
+      val orderEnforcer = new ReplayOrderEnforcer(
+        logManager,
+        processSteps,
+        startStep = logManager.getStep,
+        replayTo,
+        onReplayComplete
+      )
+      dp.inputGateway.addEnforcer(orderEnforcer)
+      messages.foreach(message =>
+        dp.inputGateway.getChannel(message.channel).acceptMessage(message)
+      )
+
+      logger.info(
+        s"setting up replay, " +
+          s"current step = ${logManager.getStep} " +
+          s"target step = ${workerConf.replayTo.get} " +
+          s"# of log record to replay = ${messages.size}"
+      )
+    }
+  }
+
+  override def initState(): Unit = {
+    dp.initTimerService(timerService)
+    dp.initOperator(workerIndex, workerLayer, currentOutputIterator = Iterator.empty)
+    setupReplay()
+    dpThread.start()
+  }
 
   def handleDirectInvocation: Receive = {
     case c: ControlInvocation =>
@@ -93,12 +136,6 @@ class WorkflowWorker(
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long = {
     dp.getQueuedCredit(channelID)
-  }
-
-  override def initState(): Unit = {
-    dp.InitTimerService(timerService)
-    dp.initOperator(workerIndex, workerLayer, currentOutputIterator = Iterator.empty)
-    dpThread.start()
   }
 
   override def postStop(): Unit = {
