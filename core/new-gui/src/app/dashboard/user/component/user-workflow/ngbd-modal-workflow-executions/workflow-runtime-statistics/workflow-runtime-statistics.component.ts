@@ -1,7 +1,7 @@
 import { AfterContentInit, Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
-import * as Chart from "chart.js";
+import Chart from 'chart.js/auto';
 
 @UntilDestroy()
 @Component({
@@ -9,15 +9,13 @@ import * as Chart from "chart.js";
   templateUrl: "./workflow-runtime-statistics.component.html",
   styleUrls: ["./workflow-runtime-statistics.component.scss"],
 })
-export class WorkflowRuntimeStatisticsComponent implements OnInit, AfterContentInit {
+export class WorkflowRuntimeStatisticsComponent implements OnInit {
   @Input()
   workflowRuntimeStatistics?: WorkflowRuntimeStatistics[];
 
   constructor() {}
 
-  ngOnInit(): void {}
-
-  ngAfterContentInit(): void {
+  ngOnInit(): void {
     if (this.workflowRuntimeStatistics === undefined) {
       return;
     }
@@ -32,6 +30,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit, AfterContentI
     const groupedStats = this.workflowRuntimeStatistics.reduce(
       (acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
         acc[stat.operatorId] = acc[stat.operatorId] || [];
+        if (acc[stat.operatorId].length > 0) {
+          stat.inputTupleCount = stat.inputTupleCount + acc[stat.operatorId][acc[stat.operatorId].length - 1].inputTupleCount;
+        }
         acc[stat.operatorId].push(stat);
         return acc;
       },
@@ -51,8 +52,8 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit, AfterContentI
     const labels = groupedStats[Object.keys(groupedStats)[0]].map((stat, index) => index * 0.5);
 
     // Create the chart 1 object
-    const chart1 = new Chart.Chart(ctx1, {
-      type: "line",
+    const chart1 = new Chart(ctx1, {
+      type: 'line',
       data: {
         labels: labels,
         datasets: datasets1,
