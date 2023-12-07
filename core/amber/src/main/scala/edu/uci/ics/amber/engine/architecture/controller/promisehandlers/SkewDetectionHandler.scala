@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerWorkloa
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseSkewMitigationHandler.PauseSkewMitigation
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SendImmutableStateHandler.SendImmutableState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SharePartitionHandler.SharePartition
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
@@ -65,11 +65,11 @@ object SkewDetectionHandler {
     if (
       loads(
         skewedWorkerCand
-      ).dataInputWorkload / Constants.defaultBatchSize > Constants.reshapeEtaThreshold && (loads(
+      ).dataInputWorkload / AmberConfig.defaultBatchSize > AmberConfig.reshapeEtaThreshold && (loads(
         skewedWorkerCand
-      ).dataInputWorkload / Constants.defaultBatchSize > Constants.reshapeTauThreshold + loads(
+      ).dataInputWorkload / AmberConfig.defaultBatchSize > AmberConfig.reshapeTauThreshold + loads(
         helperWorkerCand
-      ).dataInputWorkload / Constants.defaultBatchSize)
+      ).dataInputWorkload / AmberConfig.defaultBatchSize)
     ) {
       return true
     }
@@ -149,7 +149,7 @@ object SkewDetectionHandler {
           skewedAndHelperInFirstPhase(skewedWorker)
         ).dataInputWorkload - loads(
           skewedWorker
-        ).dataInputWorkload < Constants.reshapeHelperOverloadThreshold)
+        ).dataInputWorkload < AmberConfig.reshapeHelperOverloadThreshold)
       ) {
         // The skewed worker load has become less than helper worker but the helper worker has not become too overloaded
         retPairs.append((skewedWorker, skewedAndHelperInFirstPhase(skewedWorker)))
@@ -287,8 +287,8 @@ trait SkewDetectionHandler {
             SharePartition(
               skewedWorker,
               helperWorker,
-              Constants.reshapeFirstPhaseSharingNumerator,
-              Constants.reshapeFirstPhaseSharingDenominator
+              AmberConfig.reshapeFirstPhaseSharingNumerator,
+              AmberConfig.reshapeFirstPhaseSharingDenominator
             ),
             id
           )

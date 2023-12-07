@@ -6,7 +6,7 @@ import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.{AmberConfig}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -43,7 +43,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(path) =>
         val totalBytes: Long = new File(path).length()
-        val numWorkers: Int = Constants.currentWorkerNum
+        val numWorkers: Int = AmberConfig.numWorkerPerOperatorByDefault
 
         OpExecConfig
           .sourceLayer(
