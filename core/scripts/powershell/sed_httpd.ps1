@@ -6,6 +6,8 @@ $PHP_CONF = "C:\Users\Administrator\AppData\Roaming\Apache24\conf\extra\httpd-ph
 
 # Replace content in httpd.conf
 (Get-Content $HTTPD_CONF) -replace '#LoadModule rewrite_module', 'LoadModule rewrite_module' | Set-Content $HTTPD_CONF
+(Get-Content $HTTPD_CONF) -replace '#LoadModule headers_module', 'LoadModule headers_module' | Set-Content $HTTPD_CONF
+(Get-Content $HTTPD_CONF) -replace '#LoadModule deflate_module', 'LoadModule deflate_module' | Set-Content $HTTPD_CONF
 (Get-Content $HTTPD_CONF) -replace '# Include conf/extra/httpd-vhosts.conf', 'Include conf/extra/httpd-vhosts.conf' | Set-Content $HTTPD_CONF
 (Get-Content $HTTPD_CONF) -replace 'Listen 8080', 'Listen 8888' | Set-Content $HTTPD_CONF
 $PhpModuleLine = 'LoadModule php_module "C:\PHP\php8apache2_4.dll"'
