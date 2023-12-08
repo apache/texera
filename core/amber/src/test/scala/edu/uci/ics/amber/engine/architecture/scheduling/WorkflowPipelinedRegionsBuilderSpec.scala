@@ -28,7 +28,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 1)
   }
 
@@ -60,8 +60,8 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
-    val ancestorMapping = workflow.physicalPlan.regionAncestorMapping
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
+    val ancestorMapping = workflow.executionPlan.regionAncestorMapping
     assert(pipelinedRegions.size == 2)
 
     val buildRegion = pipelinedRegions
@@ -112,7 +112,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 2)
   }
 
@@ -153,7 +153,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 2)
   }
 
@@ -194,7 +194,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 2)
   }
 

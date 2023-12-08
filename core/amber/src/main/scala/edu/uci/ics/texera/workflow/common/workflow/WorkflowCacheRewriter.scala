@@ -3,14 +3,10 @@ package edu.uci.ics.texera.workflow.common.workflow
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan.schemaPropagationCheck
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
-
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 object WorkflowCacheRewriter {
 

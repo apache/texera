@@ -207,7 +207,7 @@ class WorkflowPipelinedRegionsBuilder(
     pipelinedRegionsDAG
       .vertexSet()
       .forEach(region =>
-        if (region.getOperators().contains(opId)) {
+        if (region.getOperators.contains(opId)) {
           regionsForOperator.add(region)
         }
       )

@@ -25,12 +25,12 @@ object Utils {
   ): Workflow = {
     val context = new WorkflowContext
     context.jobId = jobId
-    val texeraWorkflowCompiler = new WorkflowCompiler(
-      LogicalPlanPojo(operators, links, List[BreakpointInfo](), List(), List()),
+    val workflowCompiler = new WorkflowCompiler(
+      LogicalPlanPojo(operators, links, List(), List(), List()),
       context,
       new JobStateStore()
     )
-    texeraWorkflowCompiler.compile(WorkflowIdentity(workflowTag), resultStorage)
+    workflowCompiler.compile(WorkflowIdentity(workflowTag), resultStorage, None)
   }
 
 }

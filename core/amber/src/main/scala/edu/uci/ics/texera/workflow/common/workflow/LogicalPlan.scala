@@ -42,14 +42,6 @@ object LogicalPlan {
     )
   }
 
-  def schemaPropagationCheck(
-      logicalPlan: LogicalPlan,
-      errorList: ArrayBuffer[(String, Throwable)]
-  ): Map[OperatorIdentity, List[Option[Schema]]] = {
-    logicalPlan.propagateWorkflowSchema(logicalPlan.context, errorList)
-    logicalPlan.inputSchemaMap
-  }
-
 }
 
 case class LogicalPlan(
