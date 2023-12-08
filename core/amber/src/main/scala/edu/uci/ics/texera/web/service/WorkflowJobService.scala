@@ -91,11 +91,12 @@ class WorkflowJobService(
     logger.info("Compiling the logical plan into a physical plan.")
 
     try {
-      workflowCompiler = new WorkflowCompiler(request.logicalPlan, workflowContext, jobStateStore)
+      workflowCompiler = new WorkflowCompiler(request.logicalPlan, workflowContext)
       workflow = workflowCompiler.compile(
         WorkflowIdentity(workflowContext.jobId),
         resultService.opResultStorage,
-        lastCompletedLogicalPlan
+        lastCompletedLogicalPlan,
+        jobStateStore
       )
     } catch {
       case e: Throwable =>

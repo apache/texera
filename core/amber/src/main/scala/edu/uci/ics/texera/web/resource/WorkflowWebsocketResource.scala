@@ -19,13 +19,14 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUS
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 import org.jooq.types.UInteger
 
 import java.time.Instant
 import java.util.concurrent.atomic.AtomicInteger
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
 object WorkflowWebsocketResource {
@@ -101,12 +102,10 @@ class WorkflowWebsocketResource extends LazyLogging {
             uidOpt,
             UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
           )
-          val newPlan = LogicalPlan.apply(
-            editingTimeCompilationRequest.toLogicalPlanPojo,
-            workflowContext,
-            errorList = None
-//              stateStore
-          )
+
+          val workflowCompiler =
+            new WorkflowCompiler(editingTimeCompilationRequest.toLogicalPlanPojo, workflowContext)
+          val newPlan = workflowCompiler.compileLogicalPlan(stateStore)
 
           val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
             workflowStateOpt.get.lastCompletedLogicalPlan,

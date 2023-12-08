@@ -29,13 +29,14 @@ class SchemaPropagationResource extends LazyLogging {
 
     val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
-      val context = new WorkflowContext(userId = Option(sessionUser.getUser.getUid), wid=wid)
+    val context = new WorkflowContext(userId = Option(sessionUser.getUser.getUid), wid = wid)
 
-      // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
-      val responseContent = LogicalPlan(logicalPlanPojo,  context, errorList = None).inputSchemaMap.map(e =>
+    // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
+    val responseContent =
+      LogicalPlan(logicalPlanPojo, context, errorList = None).inputSchemaMap.map(e =>
         (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala)))
       )
-      SchemaPropagationResponse(0, responseContent, null)
+    SchemaPropagationResponse(0, responseContent, null)
 
   }
 
