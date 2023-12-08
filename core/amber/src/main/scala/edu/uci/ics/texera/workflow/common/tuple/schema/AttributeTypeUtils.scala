@@ -5,7 +5,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import java.sql.Timestamp
 import java.text.SimpleDateFormat
-import java.time.Instant
 import scala.util.Try
 import scala.util.control.Exception.allCatch
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -146,24 +145,38 @@ object AttributeTypeUtils extends Serializable {
     val parseError = new AttributeTypeException(
       s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
     )
-    val datetimeISOFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'")
-    val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+    // Extensive list of potential date formats
+    val dateFormats = List(
+      "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", // ISO format with milliseconds and UTC ('Z')
+      "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", // ISO format with milliseconds and timezone offset
+      "yyyy-MM-dd'T'HH:mm:ss'Z'", // ISO format without milliseconds and UTC ('Z')
+      "yyyy-MM-dd'T'HH:mm:ssXXX", // ISO format without milliseconds and timezone offset
+      "yyyy-MM-dd'T'HH:mm:ss", // ISO format without milliseconds and timezone
+      "yyyy-MM-dd HH:mm:ss", // Common datetime format
+      "dd/MM/yyyy HH:mm:ss", // European datetime format with slash separators
+      "MM/dd/yyyy HH:mm:ss", // US datetime format with slash separators
+      "yyyy-MM-dd", // Common date format
+      "dd/MM/yyyy", // European date format with slash separators
+      "MM/dd/yyyy", // US date format with slash separators
+      "M/d/yyyy", // US date format with single digit month/day
+      "d/M/yyyy", // European date format with single digit day/month
+      "yyyyMMdd", // Basic ISO date format
+      "dd-MMM-yyyy", // Date format with three-letter month
+      "yyMMddHHmmssZ", // Compact numeric date time with timezone
+      "yyyy-MM-dd'T'HH:mm:ss.SSSZ" // ISO format with milliseconds and numeric timezone
+      // Add more formats as needed
+    )
+
     fieldValue match {
       case str: String =>
-        (
-          // support ISO format with UTC {@code 2007-12-03T10:15:30.00Z}
-          Try(new Timestamp(Instant.parse(str.trim).toEpochMilli))
-            orElse
-              // support {@code yyyy-[m]m-[d]d hh:mm:ss[.f...]}
-              Try(Timestamp.valueOf(str.trim))
-            orElse
-              // support ISO format with timezone {@code 2007-12-03T10:15:30.00.000Z}
-              Try(new Timestamp(datetimeISOFormat.parse(fieldValue.toString.trim).getTime))
-            orElse
-              // support date format with timezone {@code 2007-12-03}
-              Try(new Timestamp(dateFormat.parse(fieldValue.toString.trim).getTime))
-        ).getOrElse(throw parseError)
-
+        dateFormats.view
+          .map { format =>
+            Try(new Timestamp(new SimpleDateFormat(format).parse(str.trim).getTime))
+          }
+          .find(_.isSuccess) match {
+          case Some(value) => value.get
+          case None        => throw parseError
+        }
       case long: java.lang.Long => new Timestamp(long)
       case timestamp: Timestamp => timestamp
       case date: java.util.Date => new Timestamp(date.getTime)
