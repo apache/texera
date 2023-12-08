@@ -34,10 +34,10 @@ class LineConfig {
   @JsonProperty(
     value = "mode",
     required = true,
-    defaultValue = "lines+markers"
+    defaultValue = "line with dots"
   )
   @JsonSchemaTitle("Line Mode")
-  var mode: LineMode = LineMode.LINES_MARKERS
+  var mode: LineMode = LineMode.LINE_WITH_DOTS
 
   @JsonProperty(value = "name", required = false)
   @JsonSchemaTitle("Line Name")

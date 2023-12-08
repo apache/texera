@@ -61,27 +61,31 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   def createPlotlyFigure(): String = {
     val linesCode = lines.asScala
       .map { lineConf =>
-        val xValue = lineConf.xValue
-        val yValue = lineConf.yValue
-        val mode = lineConf.mode.getMode
-        val color = if (lineConf.color != "") s"'color':'${lineConf.color}'" else ""
-        val name =
-          if (lineConf.name != "") s"'name':'${lineConf.name}'" else s"'name':'${lineConf.yValue}'"
+        val colorPart = if (lineConf.color != "") {
+          s"line={'color':'${lineConf.color}'}, marker={'color':'${lineConf.color}'}, "
+        } else {
+          ""
+        }
 
-        s"""        fig.add_trace(go.Scatter(
-           |            x=table['$xValue'],
-           |            y=table['$yValue'],
-           |            mode='$mode',
-           |            line={$color},
-           |            marker={$color},
-           |            $name
-           |        ))""".stripMargin
+        val namePart = if (lineConf.name != "") {
+          s"name='${lineConf.name}'"
+        } else {
+          s"name='${lineConf.yValue}'"
+        }
+
+        s"""fig.add_trace(go.Scatter(
+            x=table['${lineConf.xValue}'],
+            y=table['${lineConf.yValue}'],
+            mode='${lineConf.mode.getModeInPlotly}',
+            $colorPart
+            $namePart
+          ))"""
       }
       .mkString("\n")
 
     s"""
        |        fig = go.Figure()
-       |$linesCode
+       |        $linesCode
        |        fig.update_layout(title='$title',
        |                   xaxis_title='$xLabel',
        |                   yaxis_title='$yLabel')
