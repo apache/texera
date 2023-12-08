@@ -2,7 +2,11 @@ package edu.uci.ics.texera.workflow.common.storage
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.workflow.operators.sink.storage.{MemoryStorage, MongoDBSinkStorage, SinkStorageReader}
+import edu.uci.ics.texera.workflow.operators.sink.storage.{
+  MemoryStorage,
+  MongoDBSinkStorage,
+  SinkStorageReader
+}
 
 import java.util.concurrent.ConcurrentHashMap
 
