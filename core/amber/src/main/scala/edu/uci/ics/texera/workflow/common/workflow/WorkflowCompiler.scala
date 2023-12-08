@@ -34,7 +34,10 @@ class WorkflowCompiler(
     // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
     //  this plan will be compared in subsequent runs to check which operator can be replaced
     //  by cache.
-    val originalLogicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
+    var originalLogicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext, Some(errorList))
+    originalLogicalPlan = SinkInjectionTransformer.transform(
+      logicalPlanPojo.opsToViewResult, originalLogicalPlan
+    )
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(

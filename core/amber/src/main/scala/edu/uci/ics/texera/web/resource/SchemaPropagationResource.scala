@@ -5,12 +5,13 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.core.MediaType
 import javax.ws.rs._
+import javax.ws.rs.core.MediaType
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
@@ -25,26 +26,17 @@ class SchemaPropagationResource extends LazyLogging {
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): SchemaPropagationResponse = {
-    try {
-      val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
-      val context = new WorkflowContext
-      context.userId = Option(sessionUser.getUser.getUid)
-      context.wId = wid
+    val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
-//      val workflowCompiler = new WorkflowCompiler(logicalPlanPojo, context, new JobStateStore())
-//
-//      // ignore errors during propagation.
-//
-//      val responseContent = workflowCompiler.logicalPlan.inputSchemaMap.map(e =>
-//        (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala)))
-//      )
-      SchemaPropagationResponse(1, null, null)
-    } catch {
-      case e: Throwable =>
-        logger.warn("Caught error during schema propagation", e)
-        SchemaPropagationResponse(1, null, e.getMessage)
-    }
+      val context = new WorkflowContext(userId = Option(sessionUser.getUser.getUid), wid=wid)
+
+      // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
+      val responseContent = LogicalPlan(logicalPlanPojo,  context, errorList = None).inputSchemaMap.map(e =>
+        (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala)))
+      )
+      SchemaPropagationResponse(0, responseContent, null)
+
   }
 
 }

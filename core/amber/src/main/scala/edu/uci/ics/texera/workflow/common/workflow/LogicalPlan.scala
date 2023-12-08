@@ -35,11 +35,9 @@ object LogicalPlan {
     workflowDag
   }
 
-  def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext): LogicalPlan = {
-    SinkInjectionTransformer.transform(
-      pojo.opsToViewResult,
-      LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints)
-    )
+  def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext, errorList: Option[ArrayBuffer[(String, Throwable)]]): LogicalPlan = {
+    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints).propagateWorkflowSchema(errorList)
+
   }
 
 }
@@ -126,7 +124,7 @@ case class LogicalPlan(
     val newLink = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links :+ newLink
     val ret = this.copy(context, operators, newLinks, breakpoints)
-    ret.propagateWorkflowSchema(ret.context, null)
+    ret.propagateWorkflowSchema(null)
   }
 
   // returns a new logical plan with the given edge removed
@@ -139,7 +137,7 @@ case class LogicalPlan(
     val linkToRemove = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links.filter(l => l != linkToRemove)
     val ret = this.copy(context, operators, newLinks, breakpoints)
-    ret.propagateWorkflowSchema(ret.context, null)
+    ret.propagateWorkflowSchema( null)
   }
 
   def getDownstream(operatorID: String): List[OperatorDescriptor] = {
@@ -165,8 +163,7 @@ case class LogicalPlan(
   }
 
   def propagateWorkflowSchema(
-      context: WorkflowContext,
-      errorList: ArrayBuffer[(String, Throwable)]
+      errorList: Option[ArrayBuffer[(String, Throwable)]]
   ): LogicalPlan = {
 
     operators.foreach(operator => {
@@ -210,8 +207,11 @@ case class LogicalPlan(
         } catch {
           case e: Throwable =>
             logger.error("got error", e)
-            if (errorList != null)
-              errorList.append((opID, e))
+            errorList match {
+              case Some(list) =>list.append((opID, e))
+              case None =>
+            }
+
             Option.empty
         }
       }
