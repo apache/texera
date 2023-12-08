@@ -137,8 +137,8 @@ class WorkflowService(
     }
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
 
-    workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
-      workflowContext.wId,
+    workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
+      workflowContext.wid,
       workflowContext.userId,
       req.executionName,
       convertToJson(req.engineVersion)

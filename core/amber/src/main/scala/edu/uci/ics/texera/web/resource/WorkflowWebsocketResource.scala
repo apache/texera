@@ -103,7 +103,8 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
           val newPlan = LogicalPlan.apply(
             editingTimeCompilationRequest.toLogicalPlanPojo,
-            workflowContext
+            workflowContext,
+            errorList = None
 //              stateStore
           )
 

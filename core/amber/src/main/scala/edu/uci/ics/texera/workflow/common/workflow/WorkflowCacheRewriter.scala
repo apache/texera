@@ -105,21 +105,21 @@ object WorkflowCacheRewriter {
         } else {
           sink.setStorage(
             storage.create(
-              o.context.executionID + "_",
+              o.context.executionId + "_",
               storageKey,
               storageType
             )
           )
           sink.getStorage.setSchema(logicalPlan.outputSchemaMap(o.operatorIdentifier).head)
           // add the sink collection name to the JSON array of sinks
-          sinksPointers.add(o.context.executionID + "_" + storageKey)
+          sinksPointers.add(o.context.executionId + "_" + storageKey)
         }
       case _ =>
     }
     // update execution entry in MySQL to have pointers to the mongo collections
     resultsJSON.set("results", sinksPointers)
     ExecutionsMetadataPersistService.updateExistingExecutionVolumePointers(
-      logicalPlan.context.executionID,
+      logicalPlan.context.executionId,
       resultsJSON.toString
     )
   }

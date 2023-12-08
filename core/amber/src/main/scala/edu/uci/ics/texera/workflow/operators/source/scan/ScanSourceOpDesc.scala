@@ -76,7 +76,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
           email = splitNames.apply(0),
           fileName = splitNames.apply(1),
           context.userId.get,
-          context.wId
+          context.wid
         )
 
     } else {

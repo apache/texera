@@ -156,7 +156,7 @@ class WorkflowJobService(
     }
     resultService.attachToJob(jobStateStore, workflow.logicalPlan, client)
     jobStateStore.jobMetadataStore.updateState(jobInfo =>
-      updateWorkflowState(READY, jobInfo.withEid(workflowContext.executionID))
+      updateWorkflowState(READY, jobInfo.withEid(workflowContext.executionId))
         .withFatalErrors(Seq.empty)
     )
     jobStateStore.statsStore.updateState(stats =>
