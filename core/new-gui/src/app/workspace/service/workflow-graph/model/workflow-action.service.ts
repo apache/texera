@@ -30,6 +30,16 @@ import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
 
+export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
+export const DEFAULT_WORKFLOW = {
+  name: DEFAULT_WORKFLOW_NAME,
+  description: undefined,
+  wid: 0,
+  creationTime: undefined,
+  lastModifiedTime: undefined,
+  readonly: false,
+};
+
 /**
  *
  * WorkflowActionService exposes functions (actions) to modify the workflow graph model of Texera,
@@ -52,16 +62,6 @@ import { SharedModelChangeHandler } from "./shared-model-change-handler";
   providedIn: "root",
 })
 export class WorkflowActionService {
-  public static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
-  private static readonly DEFAULT_WORKFLOW = {
-    name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
-    description: undefined,
-    wid: undefined,
-    creationTime: undefined,
-    lastModifiedTime: undefined,
-    readonly: false,
-  };
-
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
@@ -101,7 +101,7 @@ export class WorkflowActionService {
       this.jointUIService
     );
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
-    this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
+    this.workflowMetadata = DEFAULT_WORKFLOW;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
     this.handleJointElementDrag();
@@ -721,7 +721,7 @@ export class WorkflowActionService {
       return;
     }
 
-    const newMetadata = workflowMetaData === undefined ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
+    const newMetadata = workflowMetaData === undefined ? DEFAULT_WORKFLOW : workflowMetaData;
     this.workflowMetadata = newMetadata;
     this.workflowMetadataChangeSubject.next(newMetadata);
   }
@@ -806,7 +806,7 @@ export class WorkflowActionService {
    * @param name
    */
   public setWorkflowName(name: string): void {
-    const newName = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
+    const newName = name.trim().length > 0 ? name : DEFAULT_WORKFLOW_NAME;
     this.setWorkflowMetadata({ ...this.workflowMetadata, name: newName });
   }
 
