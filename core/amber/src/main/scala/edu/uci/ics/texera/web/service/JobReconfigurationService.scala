@@ -9,7 +9,10 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.ModifyLogicRequest
-import edu.uci.ics.texera.web.model.websocket.response.{ModifyLogicCompletedEvent, ModifyLogicResponse}
+import edu.uci.ics.texera.web.model.websocket.response.{
+  ModifyLogicCompletedEvent,
+  ModifyLogicResponse
+}
 import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, JobStateStore}
 
 import java.util.UUID

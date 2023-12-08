@@ -2,7 +2,10 @@ package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.ExecutionPlan
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{WorkerModifyLogic, WorkerModifyLogicMultiple}
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
+  WorkerModifyLogic,
+  WorkerModifyLogicMultiple
+}
 import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc

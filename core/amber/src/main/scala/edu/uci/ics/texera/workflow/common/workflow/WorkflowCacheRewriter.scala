@@ -12,13 +12,14 @@ import scala.collection.mutable.ArrayBuffer
 object WorkflowCacheRewriter {
 
   def transform(
-                 logicalPlan: LogicalPlan,
-                 lastCompletedPlan: Option[LogicalPlan],
-                 storage: OpResultStorage,
-                 opsToReuseCache: Set[String],
-                 opsUsedCache: mutable.Set[String],
+      logicalPlan: LogicalPlan,
+      lastCompletedPlan: Option[LogicalPlan],
+      storage: OpResultStorage,
+      opsToReuseCache: Set[String],
+      opsUsedCache: mutable.Set[String]
   ): LogicalPlan = {
-    val validCachesFromLastExecution = new WorkflowCacheChecker(lastCompletedPlan, logicalPlan).getValidCacheReuse
+    val validCachesFromLastExecution =
+      new WorkflowCacheChecker(lastCompletedPlan, logicalPlan).getValidCacheReuse
 
     var resultPlan = logicalPlan
     // an operator can reuse cache if
@@ -73,9 +74,7 @@ object WorkflowCacheRewriter {
     )
 
     // output the operators that have used cache to outside
-      opsCanUseCache.foreach(opId =>
-        opsUsedCache.add(opId)
-      )
+    opsCanUseCache.foreach(opId => opsUsedCache.add(opId))
     resultPlan
 
   }

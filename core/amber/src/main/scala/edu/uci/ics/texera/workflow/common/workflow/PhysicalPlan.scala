@@ -2,7 +2,11 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  LayerIdentity,
+  LinkIdentity,
+  OperatorIdentity
+}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -14,7 +18,7 @@ object PhysicalPlan {
     new PhysicalPlan(operatorList.toList, links.toList)
   }
 
-  def apply(logicalPlan: LogicalPlan) : PhysicalPlan= {
+  def apply(logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(List(), List())
 
@@ -62,8 +66,6 @@ case class PhysicalPlan(
     operators: List[OpExecConfig],
     links: List[LinkIdentity]
 ) {
-
-
 
   @transient lazy val operatorMap: Map[LayerIdentity, OpExecConfig] =
     operators.map(o => (o.id, o)).toMap
@@ -158,7 +160,6 @@ case class PhysicalPlan(
     new TopologicalOrderIterator(dag).asScala
   }
 
-
   // returns a new physical plan with the operators added
   def addOperator(opExecConfig: OpExecConfig): PhysicalPlan = {
     this.copy(operators = opExecConfig :: operators)
@@ -197,7 +198,7 @@ case class PhysicalPlan(
     this.copy(operators = (operatorMap + (newOp.id -> newOp)).values.toList)
   }
 
-  def addSubPlan(subPlan: PhysicalPlan) : PhysicalPlan = {
+  def addSubPlan(subPlan: PhysicalPlan): PhysicalPlan = {
     var resultPlan = this
     // add all physical operators to physical DAG
     subPlan.operators.foreach(op => resultPlan = this.addOperator(op))
@@ -207,6 +208,5 @@ case class PhysicalPlan(
     )
     resultPlan
   }
-
 
 }

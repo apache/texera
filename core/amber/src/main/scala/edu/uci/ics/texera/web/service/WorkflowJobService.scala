@@ -43,7 +43,9 @@ class WorkflowJobService(
   val errorHandler: Throwable => Unit = { t =>
     {
       logger.error("error during execution", t)
-      jobStateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
+      jobStateStore.statsStore.updateState(stats =>
+        stats.withEndTimeStamp(System.currentTimeMillis())
+      )
       jobStateStore.jobMetadataStore.updateState { jobInfo =>
         updateWorkflowState(FAILED, jobInfo).addFatalErrors(
           WorkflowFatalError(
@@ -134,8 +136,7 @@ class WorkflowJobService(
     )
 
     jobBreakpointService = new JobBreakpointService(client, jobStateStore)
-    jobReconfigurationService =
-      new JobReconfigurationService(client, jobStateStore, workflow)
+    jobReconfigurationService = new JobReconfigurationService(client, jobStateStore, workflow)
     jobStatsService = new JobStatsService(client, jobStateStore, workflowContext)
     jobRuntimeService = new JobRuntimeService(
       client,
@@ -158,7 +159,9 @@ class WorkflowJobService(
       updateWorkflowState(READY, jobInfo.withEid(workflowContext.executionID))
         .withFatalErrors(Seq.empty)
     )
-    jobStateStore.statsStore.updateState(stats => stats.withStartTimeStamp(System.currentTimeMillis()))
+    jobStateStore.statsStore.updateState(stats =>
+      stats.withStartTimeStamp(System.currentTimeMillis())
+    )
     client.sendAsyncWithCallback[Unit](
       StartWorkflow(),
       _ =>

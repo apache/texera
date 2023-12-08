@@ -35,12 +35,14 @@ object LogicalPlan {
     workflowDag
   }
 
-
   def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext): LogicalPlan = {
     LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints)
   }
 
-  def schemaPropagationCheck(logicalPlan: LogicalPlan, errorList: ArrayBuffer[(String, Throwable)]): Map[OperatorIdentity, List[Option[Schema]]] = {
+  def schemaPropagationCheck(
+      logicalPlan: LogicalPlan,
+      errorList: ArrayBuffer[(String, Throwable)]
+  ): Map[OperatorIdentity, List[Option[Schema]]] = {
     logicalPlan.propagateWorkflowSchema(logicalPlan.context, errorList)
     logicalPlan.inputSchemaMap
   }
@@ -52,7 +54,7 @@ case class LogicalPlan(
     operators: List[OperatorDescriptor],
     links: List[OperatorLink],
     breakpoints: List[BreakpointInfo],
-    inputSchemaMap:Map[OperatorIdentity, List[Option[Schema]]] = Map.empty
+    inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = Map.empty
 ) extends LazyLogging {
 
   lazy val operatorMap: Map[String, OperatorDescriptor] =
@@ -81,7 +83,6 @@ case class LogicalPlan(
       })
       .toMap
 
-
   def getOperator(operatorID: String): OperatorDescriptor = operatorMap(operatorID)
 
   def getSourceOperators: List[String] = this.sourceOperators
@@ -100,7 +101,6 @@ case class LogicalPlan(
     upstream.toList
   }
 
-
   // returns a new logical plan with the given operator added
   def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
     // TODO: fix schema for the new operator
@@ -116,7 +116,7 @@ case class LogicalPlan(
       ),
       breakpoints.filter(b => b.operatorID != operatorId),
       inputSchemaMap.filter({
-        case (opId, schemas)=> opId.operator!= operatorId
+        case (opId, schemas) => opId.operator != operatorId
       })
     )
   }
@@ -169,12 +169,15 @@ case class LogicalPlan(
     OperatorSchemaInfo(inputSchemas, outputSchemas)
   }
 
-  def propagateWorkflowSchema(context: WorkflowContext, errorList: ArrayBuffer[(String, Throwable)])
-      :LogicalPlan = {
+  def propagateWorkflowSchema(
+      context: WorkflowContext,
+      errorList: ArrayBuffer[(String, Throwable)]
+  ): LogicalPlan = {
 
     operators.foreach(operator => {
-      if(operator.context==null){
-        operator.setContext(context)}
+      if (operator.context == null) {
+        operator.setContext(context)
+      }
     })
 
     // a map from an operator to the list of its input schema
@@ -212,7 +215,7 @@ case class LogicalPlan(
         } catch {
           case e: Throwable =>
             logger.error("got error", e)
-            if(errorList != null)
+            if (errorList != null)
               errorList.append((opID, e))
             Option.empty
         }
@@ -243,18 +246,22 @@ case class LogicalPlan(
       })
     })
 
-
-    this.copy(context, operators, links, breakpoints, inputSchemaMap
-      .filter({
-        case (_: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
-          !(schemas.exists(s => s.isEmpty) || schemas.isEmpty)
-      })
-      .map({
-        case (opId: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
-          (opId, schemas.toList)
-      })
-      .toMap)
+    this.copy(
+      context,
+      operators,
+      links,
+      breakpoints,
+      inputSchemaMap
+        .filter({
+          case (_: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
+            !(schemas.exists(s => s.isEmpty) || schemas.isEmpty)
+        })
+        .map({
+          case (opId: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
+            (opId, schemas.toList)
+        })
+        .toMap
+    )
   }
-
 
 }

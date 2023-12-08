@@ -16,16 +16,28 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstant
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: WorkflowContext, jobStateStore: JobStateStore) {
-  def compileLogicalPlan(opResultStorage: OpResultStorage,
-                         lastCompletedJob: Option[LogicalPlan] = Option.empty): (LogicalPlan,LogicalPlan) = {
+class WorkflowCompiler(
+    val logicalPlanPojo: LogicalPlanPojo,
+    workflowContext: WorkflowContext,
+    jobStateStore: JobStateStore
+) {
+  def compileLogicalPlan(
+      opResultStorage: OpResultStorage,
+      lastCompletedJob: Option[LogicalPlan] = Option.empty
+  ): (LogicalPlan, LogicalPlan) = {
     var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
 
     logicalPlan = SinkInjectionTransformer.transform(logicalPlanPojo.opsToViewResult, logicalPlan)
 
     val opsUsedCache = new mutable.HashSet[String]()
     val rewrittenLogicalPlan =
-      WorkflowCacheRewriter.transform(logicalPlan, lastCompletedJob, opResultStorage, logicalPlanPojo.opsToReuseResult.toSet, opsUsedCache)
+      WorkflowCacheRewriter.transform(
+        logicalPlan,
+        lastCompletedJob,
+        opResultStorage,
+        logicalPlanPojo.opsToReuseResult.toSet,
+        opsUsedCache
+      )
 
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
@@ -35,7 +47,6 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
     assignSinkStorage(logicalPlan, opResultStorage, opsUsedCache.toSet)
     (logicalPlan, rewrittenLogicalPlan)
   }
-
 
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
@@ -94,14 +105,9 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
       )
     }
 
-
-
     val (logicalPlan0, logicalPlan) = compileLogicalPlan(opResultStorage, lastCompletedJob)
 
-
     val physicalPlan = PhysicalPlan(logicalPlan)
-
-
 
     // create pipelined regions.
     val executionPlan = new WorkflowPipelinedRegionsBuilder(
@@ -119,8 +125,14 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
       assert(physicalPlan.getLayer(sourceLayer).inputPorts.isEmpty)
     }
 
-    new Workflow(workflowId, logicalPlan0, logicalPlan, physicalPlan, executionPlan, partitioningPlan)
-
+    new Workflow(
+      workflowId,
+      logicalPlan0,
+      logicalPlan,
+      physicalPlan,
+      executionPlan,
+      partitioningPlan
+    )
 
 //        // report compilation errors
 //        if (errorList.nonEmpty) {

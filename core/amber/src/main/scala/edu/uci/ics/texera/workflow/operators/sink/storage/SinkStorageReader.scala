@@ -7,7 +7,7 @@ trait SinkStorageReader {
   var schema: Schema = _
   def getSchema: Schema
 
-  def setSchema(schema:Schema) : Unit
+  def setSchema(schema: Schema): Unit
 
   def getAll: Iterable[Tuple]
 
