@@ -82,7 +82,7 @@ class WorkflowService(
       job.jobStateStore.jobMetadataStore.registerDiffHandler { (oldState, newState) =>
         {
           if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-            lastCompletedLogicalPlan = Option.apply(job.workflowCompiler.logicalPlan)
+            lastCompletedLogicalPlan = Option.apply(job.workflow.logicalPlan)
           }
 
           Iterable.empty

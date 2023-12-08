@@ -2,15 +2,15 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.architecture.linksemantics._
-import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
+import edu.uci.ics.amber.engine.architecture.scheduling.{ExecutionPlan, PipelinedRegion}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PartitioningPlan, PhysicalPlan}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
+class Workflow(val workflowId: WorkflowIdentity, val logicalPlan: LogicalPlan,val physicalPlan: PhysicalPlan, val executionPlan:ExecutionPlan, val partitioningPlan: PartitioningPlan)
     extends java.io.Serializable {
 
 //  def getDAG: DirectedAcyclicGraph[ActorVirtualIdentity, DefaultEdge] = {
@@ -72,7 +72,7 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
     val upstreamLinks = physicalPlan.getUpstreamLinks(opId)
     val upstreamWorkers = mutable.HashSet[ActorVirtualIdentity]()
     upstreamLinks
-      .map(link => physicalPlan.linkStrategies(link))
+      .map(link => partitioningPlan.strategies(link))
       .flatMap(linkStrategy => linkStrategy.getPartitioning.toList)
       .foreach {
         case (sender, _, _, receivers) =>
@@ -99,15 +99,11 @@ class Workflow(val workflowId: WorkflowIdentity, val physicalPlan: PhysicalPlan)
     upstreamOperatorToLayers
   }
 
-  def getInlinksIdsToWorkerLayer(layerIdentity: LayerIdentity): Set[LinkIdentity] = {
-    physicalPlan.getLayer(layerIdentity).inputToOrdinalMapping.keySet
-  }
-
   def getOperator(workerID: ActorVirtualIdentity): OpExecConfig =
     physicalPlan.operatorMap(VirtualIdentityUtils.getOperator(workerID))
 
   def getOperator(opID: LayerIdentity): OpExecConfig = physicalPlan.operatorMap(opID)
 
-  def getLink(linkID: LinkIdentity): LinkStrategy = physicalPlan.linkStrategies(linkID)
+  def getLink(linkID: LinkIdentity): LinkStrategy = partitioningPlan.strategies(linkID)
 
 }

@@ -38,21 +38,20 @@ class OpResultStorage extends Serializable with LazyLogging {
   def create(
       executionID: String = "",
       key: String,
-      schema: Schema,
       mode: String
   ): SinkStorageReader = {
     val storage: SinkStorageReader =
       if (mode == "memory") {
-        new MemoryStorage(schema)
+        new MemoryStorage
       } else {
         try {
-          new MongoDBSinkStorage(executionID + key, schema)
+          new MongoDBSinkStorage(executionID + key)
         } catch {
           case t: Throwable =>
             logger.warn("Failed to create mongo storage", t)
             logger.info(s"Fall back to memory storage for $key")
             // fall back to memory
-            new MemoryStorage(schema)
+            new MemoryStorage
         }
       }
     cache.put(key, storage)

@@ -11,7 +11,6 @@ import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.ModifyLogicRequest
 import edu.uci.ics.texera.web.model.websocket.response.{ModifyLogicCompletedEvent, ModifyLogicResponse}
 import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, JobStateStore}
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 
 import java.util.UUID
 import scala.util.{Failure, Success}
@@ -19,7 +18,6 @@ import scala.util.{Failure, Success}
 class JobReconfigurationService(
     client: AmberClient,
     stateStore: JobStateStore,
-    logicalPlan: LogicalPlan,
     workflow: Workflow
 ) extends SubscriptionManager {
 
@@ -59,11 +57,11 @@ class JobReconfigurationService(
   // they are not actually performed until the workflow is resumed
   def modifyOperatorLogic(modifyLogicRequest: ModifyLogicRequest): TexeraWebSocketEvent = {
     val newOp = modifyLogicRequest.operator
-    newOp.setContext(logicalPlan.context)
+    newOp.setContext(workflow.logicalPlan.context)
     val opId = newOp.operatorID
-    val currentOp = logicalPlan.operatorMap(opId)
+    val currentOp = workflow.logicalPlan.operatorMap(opId)
     val reconfiguredPhysicalOp =
-      currentOp.runtimeReconfiguration(newOp, logicalPlan.opSchemaInfo(opId))
+      currentOp.runtimeReconfiguration(newOp, workflow.logicalPlan.opSchemaInfo(opId))
     reconfiguredPhysicalOp match {
       case Failure(exception) => ModifyLogicResponse(opId, isValid = false, exception.getMessage)
       case Success(op) => {
@@ -96,6 +94,7 @@ class JobReconfigurationService(
     } else {
       val epochMarkers = FriesReconfigurationAlgorithm.scheduleReconfigurations(
         workflow.physicalPlan,
+        workflow.executionPlan,
         reconfigurations,
         reconfigurationId
       )

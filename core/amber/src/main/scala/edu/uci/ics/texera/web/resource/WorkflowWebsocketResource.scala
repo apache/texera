@@ -101,13 +101,12 @@ class WorkflowWebsocketResource extends LazyLogging {
             uidOpt,
             UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
           )
-          val newPlan = {
-            LogicalPlan.apply(
+          val newPlan = LogicalPlan.apply(
               editingTimeCompilationRequest.toLogicalPlanPojo(),
               workflowContext,
-              stateStore
+//              stateStore
             )
-          }
+
 
           val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
             workflowStateOpt.get.lastCompletedLogicalPlan,

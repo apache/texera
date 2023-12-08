@@ -139,6 +139,10 @@ case class OpExecConfig(
     inputPorts.isEmpty
   }
 
+  def isSinkOperator: Boolean = {
+    outputPorts.isEmpty
+  }
+
   def isPythonOperator: Boolean = {
     isInitWithCode // currently, only Python operators are initialized with code
   }

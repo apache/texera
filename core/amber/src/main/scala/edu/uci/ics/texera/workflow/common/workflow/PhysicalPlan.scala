@@ -1,15 +1,8 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
-import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.virtualidentity.util.toOperatorIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
-}
-
+import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity, OperatorIdentity}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -21,23 +14,56 @@ object PhysicalPlan {
     new PhysicalPlan(operatorList.toList, links.toList)
   }
 
-  def toOutLinks(
-      allLinks: Iterable[(OperatorIdentity, OperatorIdentity)]
-  ): Map[OperatorIdentity, Set[OperatorIdentity]] = {
-    allLinks
-      .groupBy(link => link._1)
-      .mapValues(links => links.map(link => link._2).toSet)
+  def apply(logicalPlan: LogicalPlan) : PhysicalPlan= {
+
+    var physicalPlan = PhysicalPlan(List(), List())
+
+    logicalPlan.operators.foreach(o => {
+      val subPlan = o.operatorExecutorMultiLayer(logicalPlan.opSchemaInfo(o.operatorID))
+      // add all physical operators to physical DAG
+      subPlan.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
+      // connect intra-operator links
+      subPlan.links.foreach((l: LinkIdentity) =>
+        physicalPlan = physicalPlan.addEdge(l.from, l.fromPort, l.to, l.toPort)
+      )
+    })
+
+    // connect inter-operator links
+    logicalPlan.links.foreach(link => {
+      val fromLogicalOp = logicalPlan.operatorMap(link.origin.operatorID).operatorIdentifier
+      val fromPort = link.origin.portOrdinal
+      val fromPortName = logicalPlan.operators
+        .filter(op => op.operatorID == link.origin.operatorID)
+        .head
+        .operatorInfo
+        .outputPorts(fromPort)
+        .displayName
+      val fromLayer = physicalPlan.findLayerForOutputPort(fromLogicalOp, fromPortName)
+
+      val toLogicalOp = logicalPlan.operatorMap(link.destination.operatorID).operatorIdentifier
+      val toPort = link.destination.portOrdinal
+      val toPortName = logicalPlan.operators
+        .filter(op => op.operatorID == link.destination.operatorID)
+        .head
+        .operatorInfo
+        .inputPorts(toPort)
+        .displayName
+      val toLayer = physicalPlan.findLayerForInputPort(toLogicalOp, toPortName)
+
+      physicalPlan = physicalPlan.addEdge(fromLayer, fromPort, toLayer, toPort)
+    })
+
+    physicalPlan
   }
 
 }
 
 case class PhysicalPlan(
     operators: List[OpExecConfig],
-    links: List[LinkIdentity],
-    linkStrategies: Map[LinkIdentity, LinkStrategy] = Map(),
-    regionsToSchedule: List[PipelinedRegion] = List.empty,
-    regionAncestorMapping: Map[PipelinedRegion, Set[PipelinedRegion]] = Map.empty
+    links: List[LinkIdentity]
 ) {
+
+
 
   @transient lazy val operatorMap: Map[LayerIdentity, OpExecConfig] =
     operators.map(o => (o.id, o)).toMap
@@ -132,15 +158,6 @@ case class PhysicalPlan(
     new TopologicalOrderIterator(dag).asScala
   }
 
-  def getAllRegions(): List[PipelinedRegion] = regionsToSchedule
-
-  def getOperatorsInRegion(region: PipelinedRegion): PhysicalPlan = {
-    val newOpIds = region.getOperators()
-    val newOps = operators.filter(op => newOpIds.contains(op.id))
-    val newLinks = links.filter(l => newOpIds.contains(l.from) && newOpIds.contains(l.to))
-    val newLinkStrategies = linkStrategies.filter(l => newLinks.contains(l._1))
-    PhysicalPlan(newOps, newLinks, newLinkStrategies, regionsToSchedule, regionAncestorMapping)
-  }
 
   // returns a new physical plan with the operators added
   def addOperator(opExecConfig: OpExecConfig): PhysicalPlan = {
@@ -179,5 +196,17 @@ case class PhysicalPlan(
   def setOperator(newOp: OpExecConfig): PhysicalPlan = {
     this.copy(operators = (operatorMap + (newOp.id -> newOp)).values.toList)
   }
+
+  def addSubPlan(subPlan: PhysicalPlan) : PhysicalPlan = {
+    var resultPlan = this
+    // add all physical operators to physical DAG
+    subPlan.operators.foreach(op => resultPlan = this.addOperator(op))
+    // connect intra-operator links
+    subPlan.links.foreach((l: LinkIdentity) =>
+      resultPlan = resultPlan.addEdge(l.from, l.fromPort, l.to, l.toPort)
+    )
+    resultPlan
+  }
+
 
 }

@@ -187,7 +187,7 @@ abstract class OperatorDescriptor extends PortDescriptor with Serializable {
 
   def getOutputSchema(schemas: Array[Schema]): Schema
 
-  def getOperatorVersion(): String = {
+  private def getOperatorVersion(): String = {
     val path = "core/amber/src/main/scala/"
     val operatorPath = path + this.getClass.getPackage.getName.replace(".", "/")
     OPversion.getVersion(this.getClass.getSimpleName, operatorPath)

@@ -2,16 +2,12 @@ package edu.uci.ics.amber.engine.e2e
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
-  LogicalPlan,
-  OperatorLink,
-  WorkflowCompiler
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, LogicalPlan, OperatorLink, WorkflowCompiler}
 
 object Utils {
 
@@ -25,10 +21,8 @@ object Utils {
     val context = new WorkflowContext
     context.jobId = jobId
     val texeraWorkflowCompiler = new WorkflowCompiler(
-      LogicalPlan(context, operators, links, List[BreakpointInfo]())
+      LogicalPlanPojo(operators, links, List[BreakpointInfo](), List(), List()), context, new JobStateStore()
     )
-    val logicalPlan = texeraWorkflowCompiler.logicalPlan
-    logicalPlan.inputSchemaMap = LogicalPlan.schemaPropagationCheck(logicalPlan, new JobStateStore())
     texeraWorkflowCompiler.compile(WorkflowIdentity(workflowTag), resultStorage)
   }
 

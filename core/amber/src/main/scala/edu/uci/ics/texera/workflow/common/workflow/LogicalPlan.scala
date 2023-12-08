@@ -1,15 +1,9 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
-import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -17,8 +11,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
-import java.time.Instant
-import scala.collection.immutable.Map
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{JavaConverters, mutable}
 
@@ -43,45 +35,14 @@ object LogicalPlan {
     workflowDag
   }
 
-  def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext, jobStateStore: JobStateStore): LogicalPlan = {
 
-    var logicalPlan =
-      LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
-    logicalPlan = SinkInjectionTransformer.transform(pojo.opsToViewResult, logicalPlan)
-
-    // remove previous error state
-    jobStateStore.jobMetadataStore.updateState { metadataStore =>
-      metadataStore.withFatalErrors(
-        metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
-      )
-    }
-    val errorList = new ArrayBuffer[(String, Throwable)]()
-    logicalPlan = logicalPlan.withInputSchemaMap(schemaPropagationCheck(logicalPlan, errorList))
-
-    // report compilation errors
-    if (errorList.nonEmpty) {
-      val jobErrors = errorList.map {
-        case (opId, err) =>
-          logicalPlan.logger.error("error occurred in logical plan compilation", err)
-          WorkflowFatalError(
-            COMPILATION_ERROR,
-            Timestamp(Instant.now),
-            err.toString,
-            err.getStackTrace.mkString("\n"),
-            opId
-          )
-      }
-      jobStateStore.jobMetadataStore.updateState(metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
-      )
-    }
-    logicalPlan
+  def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext): LogicalPlan = {
+    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
   }
 
   def schemaPropagationCheck(logicalPlan: LogicalPlan, errorList: ArrayBuffer[(String, Throwable)]): Map[OperatorIdentity, List[Option[Schema]]] = {
-    // initialize the logical plan with the current context.
-    logicalPlan.operators.foreach(_.setContext(logicalPlan.context))
-    logicalPlan.propagateWorkflowSchema(errorList)
+    logicalPlan.propagateWorkflowSchema(logicalPlan.context, errorList)
+    logicalPlan.inputSchemaMap
   }
 
 }
@@ -121,9 +82,7 @@ case class LogicalPlan(
       })
       .toMap
 
-  def withInputSchemaMap(map: Map[OperatorIdentity, List[Option[Schema]]]): LogicalPlan = {
-    new LogicalPlan(context, operators, links, breakpoints, opsToReuseCache, map)
-  }
+
   def getOperator(operatorID: String): OperatorDescriptor = operatorMap(operatorID)
 
   def getSourceOperators: List[String] = this.sourceOperators
@@ -146,8 +105,13 @@ case class LogicalPlan(
     links.filter(l => l.destination.operatorID == operatorID)
   }
 
+  def withInputSchemaMap(map: Map[OperatorIdentity, List[Option[Schema]]]): LogicalPlan = {
+    new LogicalPlan(context, operators, links, breakpoints, opsToReuseCache, map)
+  }
+
   // returns a new logical plan with the given operator added
   def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
+    // TODO: fix schema for the new operator
     this.copy(context, operators :+ operatorDescriptor, links, breakpoints, opsToReuseCache)
   }
 
@@ -159,7 +123,10 @@ case class LogicalPlan(
         l.origin.operatorID != operatorId && l.destination.operatorID != operatorId
       ),
       breakpoints.filter(b => b.operatorID != operatorId),
-      opsToReuseCache.filter(c => c != operatorId)
+      opsToReuseCache.filter(c => c != operatorId),
+      inputSchemaMap.filter({
+        case (opId, schemas)=> opId.operator!= operatorId
+      })
     )
   }
 
@@ -172,7 +139,8 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val newLink = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links :+ newLink
-    this.copy(context, operators, newLinks, breakpoints, opsToReuseCache)
+    val ret = this.copy(context, operators, newLinks, breakpoints, opsToReuseCache)
+    ret.propagateWorkflowSchema(ret.context, null)
   }
 
   // returns a new logical plan with the given edge removed
@@ -184,15 +152,8 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val linkToRemove = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links.filter(l => l != linkToRemove)
-    this.copy(context, operators, newLinks, breakpoints, opsToReuseCache)
-  }
-
-  // returns a new logical plan with the given edge removed
-  def removeEdge(
-      edge: OperatorLink
-  ): LogicalPlan = {
-    val newLinks = links.filter(l => l != edge)
-    this.copy(context, operators, newLinks, breakpoints, opsToReuseCache)
+    val ret = this.copy(context, operators, newLinks, breakpoints, opsToReuseCache)
+    ret.propagateWorkflowSchema(ret.context, null)
   }
 
   def getDownstream(operatorID: String): List[OperatorDescriptor] = {
@@ -217,8 +178,11 @@ case class LogicalPlan(
     OperatorSchemaInfo(inputSchemas, outputSchemas)
   }
 
-  def propagateWorkflowSchema(errorList: ArrayBuffer[(String, Throwable)])
-      : Map[OperatorIdentity, List[Option[Schema]]] = {
+  def propagateWorkflowSchema(context: WorkflowContext, errorList: ArrayBuffer[(String, Throwable)])
+      :LogicalPlan = {
+
+    operators.foreach(_.setContext(context))
+
     // a map from an operator to the list of its input schema
     val inputSchemaMap =
       new mutable.HashMap[OperatorIdentity, mutable.MutableList[Option[Schema]]]()
@@ -253,7 +217,9 @@ case class LogicalPlan(
           }
         } catch {
           case e: Throwable =>
-            errorList.append((opID, e))
+            logger.error("got error", e)
+            if(errorList != null)
+              errorList.append((opID, e))
             Option.empty
         }
       }
@@ -282,53 +248,19 @@ case class LogicalPlan(
         inputSchemaMap.update(dest.operatorIdentifier, destInputSchemas)
       })
     })
+    val schemas = inputSchemaMap
+      .filter({
+        case (_: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
+          !(schemas.exists(s => s.isEmpty) || schemas.isEmpty)
+      })
+      .map({
+        case (opId: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
+          (opId, schemas.toList)
+      })
+      .toMap
 
-      inputSchemaMap
-        .filter(e => !(e._2.exists(s => s.isEmpty) || e._2.isEmpty))
-        .map(e => (e._1, e._2.toList))
-        .toMap
+    this.copy(context, operators, links, breakpoints, opsToReuseCache, schemas)
   }
 
-  def toPhysicalPlan: PhysicalPlan = {
-
-    var physicalPlan = PhysicalPlan(List(), List())
-
-    operators.foreach(o => {
-      val ops = o.operatorExecutorMultiLayer(opSchemaInfo(o.operatorID))
-      // add all physical operators to physical DAG
-      ops.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
-      // connect intra-operator links
-      ops.links.foreach((l: LinkIdentity) =>
-        physicalPlan = physicalPlan.addEdge(l.from, l.fromPort, l.to, l.toPort)
-      )
-    })
-
-    // connect inter-operator links
-    links.foreach(link => {
-      val fromLogicalOp = operatorMap(link.origin.operatorID).operatorIdentifier
-      val fromPort = link.origin.portOrdinal
-      val fromPortName = operators
-        .filter(op => op.operatorID == link.origin.operatorID)
-        .head
-        .operatorInfo
-        .outputPorts(fromPort)
-        .displayName
-      val fromLayer = physicalPlan.findLayerForOutputPort(fromLogicalOp, fromPortName)
-
-      val toLogicalOp = operatorMap(link.destination.operatorID).operatorIdentifier
-      val toPort = link.destination.portOrdinal
-      val toPortName = operators
-        .filter(op => op.operatorID == link.destination.operatorID)
-        .head
-        .operatorInfo
-        .inputPorts(toPort)
-        .displayName
-      val toLayer = physicalPlan.findLayerForInputPort(toLogicalOp, toPortName)
-
-      physicalPlan = physicalPlan.addEdge(fromLayer, fromPort, toLayer, toPort)
-    })
-
-    physicalPlan
-  }
 
 }

@@ -1,13 +1,14 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.linksemantics._
+import edu.uci.ics.amber.engine.architecture.scheduling.ExecutionPlan
 import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class PartitionEnforcer(physicalPlan: PhysicalPlan) {
+class PartitionEnforcer(physicalPlan: PhysicalPlan, executionPlan: ExecutionPlan) {
 
   // a map of an operator to its output partition info
   val outputPartitionInfos = new mutable.HashMap[LayerIdentity, PartitionInfo]()
@@ -70,7 +71,7 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
     }
   }
 
-  def enforcePartition(): PhysicalPlan = {
+  def enforcePartition(): PartitioningPlan = {
 
     physicalPlan
       .topologicalIterator()
@@ -115,7 +116,7 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
       })
 
     // returns the complete physical plan with link strategies
-    physicalPlan.copy(linkStrategies = linkMapping.toMap)
+    new PartitioningPlan(linkMapping.toMap)
   }
 
 }

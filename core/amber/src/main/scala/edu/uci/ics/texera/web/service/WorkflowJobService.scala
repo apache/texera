@@ -135,7 +135,7 @@ class WorkflowJobService(
 
     jobBreakpointService = new JobBreakpointService(client, jobStateStore)
     jobReconfigurationService =
-      new JobReconfigurationService(client, jobStateStore, workflowCompiler.logicalPlan, workflow)
+      new JobReconfigurationService(client, jobStateStore, workflow)
     jobStatsService = new JobStatsService(client, jobStateStore, workflowContext)
     jobRuntimeService = new JobRuntimeService(
       client,
@@ -153,7 +153,7 @@ class WorkflowJobService(
         Duration.fromSeconds(10)
       )
     }
-    resultService.attachToJob(jobStateStore, workflowCompiler.logicalPlan, client)
+    resultService.attachToJob(jobStateStore, workflow.logicalPlan, client)
     jobStateStore.jobMetadataStore.updateState(jobInfo =>
       updateWorkflowState(READY, jobInfo.withEid(workflowContext.executionID))
         .withFatalErrors(Seq.empty)

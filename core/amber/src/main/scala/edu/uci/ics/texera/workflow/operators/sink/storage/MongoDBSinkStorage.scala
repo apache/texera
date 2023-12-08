@@ -11,12 +11,7 @@ import org.bson.Document
 
 import scala.collection.mutable
 
-class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
-
-  // For backward compatibility of old mongoDB(version < 5)
-  schema.getAttributeNames.stream.forEach(name =>
-    assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
-  )
+class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
   val commitBatchSize: Int = AmberConfig.sinkStorageMongoDBConfig.getInt("commit-batch-size")
   MongoDatabaseManager.dropCollection(id)
@@ -95,4 +90,12 @@ class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
   }
 
   override def getSchema: Schema = schema
+
+  override def setSchema(schema: Schema): Unit = {
+    // For backward compatibility of old mongoDB(version < 5)
+    schema.getAttributeNames.stream.forEach(name =>
+      assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
+    )
+    this.schema = schema
+  }
 }

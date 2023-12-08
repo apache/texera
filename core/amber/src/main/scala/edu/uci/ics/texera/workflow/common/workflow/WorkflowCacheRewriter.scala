@@ -15,7 +15,7 @@ object WorkflowCacheRewriter {
                  logicalPlan: LogicalPlan,
                  lastCompletedPlan: Option[LogicalPlan],
                  storage: OpResultStorage,
-                 opsToReuseCache: mutable.ListBuffer[String],
+                 opsToReuseCache: mutable.Set[String],
   ): LogicalPlan = {
     val validCachesFromLastExecution = new WorkflowCacheChecker(lastCompletedPlan, logicalPlan).getValidCacheReuse
 
@@ -24,7 +24,7 @@ object WorkflowCacheRewriter {
     // 1: the user wants the operator to reuse past result
     // 2: the operator is equivalent to the last run
     logicalPlan.opsToReuseCache.toSet.intersect(validCachesFromLastExecution).foreach(opId =>
-      opsToReuseCache.append(opId)
+      opsToReuseCache.add(opId)
     )
 
     // remove sinks directly connected to operators that are already reusing cache
@@ -72,8 +72,10 @@ object WorkflowCacheRewriter {
     assert(
       resultPlan.terminalOperators.forall(o => resultPlan.getOperator(o).isInstanceOf[SinkOpDesc])
     )
-    val errorList = new ArrayBuffer[(String, Throwable)]()
-    resultPlan.withInputSchemaMap(schemaPropagationCheck(resultPlan, errorList))
+
+
+//
+    resultPlan
 
   }
 

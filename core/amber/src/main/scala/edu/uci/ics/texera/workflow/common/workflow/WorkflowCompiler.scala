@@ -2,26 +2,42 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
+import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.workflow.common.{WorkflowContext, workflow}
+import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan.schemaPropagationCheck
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
 import scala.collection.mutable
-
-object WorkflowCompiler {
-
-
-
-}
+import scala.collection.mutable.ArrayBuffer
 
 class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: WorkflowContext, jobStateStore: JobStateStore) {
-  val logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext, jobStateStore)
+  def compileLogicalPlan(opResultStorage: OpResultStorage,
+                         lastCompletedJob: Option[LogicalPlan] = Option.empty): LogicalPlan = {
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
+
+    logicalPlan = SinkInjectionTransformer.transform(logicalPlanPojo.opsToViewResult, logicalPlan)
+
+    val opsToReuseCache = new mutable.HashSet[String]()
+    val rewrittenLogicalPlan =
+      WorkflowCacheRewriter.transform(logicalPlan, lastCompletedJob, opResultStorage, opsToReuseCache)
+
+    // assign sink storage to the logical plan after cache rewrite
+    // as it will be converted to the actual physical plan
+    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache.toSet)
+    // also assign sink storage to the original logical plan, as the original logical plan
+    // will be used to be compared to the subsequent runs
+    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache.toSet)
+    rewrittenLogicalPlan
+  }
+
 
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
@@ -49,10 +65,10 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
             storage.create(
               o.context.executionID + "_",
               storageKey,
-              logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
               storageType
             )
           )
+          sink.getStorage.setSchema(logicalPlan.outputSchemaMap(o.operatorIdentifier).head)
           // add the sink collection name to the JSON array of sinks
           sinksPointers.add(o.context.executionID + "_" + storageKey)
         }
@@ -60,7 +76,7 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
     }
     // update execution entry in MySQL to have pointers to the mongo collections
     resultsJSON.set("results", sinksPointers)
-    ExecutionsMetadataPersistService.updateExistingExecutionVolumnPointers(
+    ExecutionsMetadataPersistService.updateExistingExecutionVolumePointers(
       logicalPlan.context.executionID,
       resultsJSON.toString
     )
@@ -72,37 +88,57 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
       lastCompletedJob: Option[LogicalPlan] = Option.empty
   ): Workflow = {
 
+    val errorList = new ArrayBuffer[(String, Throwable)]()
+    // remove previous error state
+    jobStateStore.jobMetadataStore.updateState { metadataStore =>
+      metadataStore.withFatalErrors(
+        metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
+      )
+    }
 
-    val opsToReuseCache = new mutable.ListBuffer[String]()
-    val rewrittenLogicalPlan =
-      WorkflowCacheRewriter.transform(logicalPlan, lastCompletedJob, opResultStorage, opsToReuseCache)
+    val logicalPlan = compileLogicalPlan(opResultStorage, lastCompletedJob)
 
-    // assign sink storage to the logical plan after cache rewrite
-    // as it will be converted to the actual physical plan
-    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache.toSet)
-    // also assign sink storage to the original logical plan, as the original logical plan
-    // will be used to be compared to the subsequent runs
-    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache.toSet)
 
-    val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan
+    val physicalPlan = PhysicalPlan(logicalPlan)
+
+
 
     // create pipelined regions.
-    val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(
+    val executionPlan = new WorkflowPipelinedRegionsBuilder(
       workflowId,
       logicalPlan,
-      physicalPlan0,
+      physicalPlan,
       new MaterializationRewriter(logicalPlan.context, opResultStorage)
     ).buildPipelinedRegions()
 
     // assign link strategies
-    val physicalPlan2 = new PartitionEnforcer(physicalPlan1).enforcePartition()
+    val partitioningPlan = new PartitionEnforcer(physicalPlan, executionPlan).enforcePartition()
 
     // assert all source layers to have 0 input ports
-    physicalPlan2.getSourceOperators.foreach { sourceLayer =>
-      assert(physicalPlan2.getLayer(sourceLayer).inputPorts.isEmpty)
+    physicalPlan.getSourceOperators.foreach { sourceLayer =>
+      assert(physicalPlan.getLayer(sourceLayer).inputPorts.isEmpty)
     }
 
-    new Workflow(workflowId,  physicalPlan2)
+    new Workflow(workflowId, logicalPlan, physicalPlan, executionPlan, partitioningPlan)
+
+
+//        // report compilation errors
+//        if (errorList.nonEmpty) {
+//          val jobErrors = errorList.map {
+//            case (opId, err) =>
+////              logger.error("error occurred in logical plan compilation", err)
+//              WorkflowFatalError(
+//                COMPILATION_ERROR,
+//                Timestamp(Instant.now),
+//                err.toString,
+//                err.getStackTrace.mkString("\n"),
+//                opId
+//              )
+//          }
+//          jobStateStore.jobMetadataStore.updateState(metadataStore =>
+//            updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
+//          )
+//        }
   }
 
 }
