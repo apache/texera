@@ -38,12 +38,11 @@ class WorkflowCompiler(
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
-        originalLogicalPlan,
-        lastCompletedJob,
-        opResultStorage,
-        logicalPlanPojo.opsToReuseResult.toSet
-      )
-
+      originalLogicalPlan,
+      lastCompletedJob,
+      opResultStorage,
+      logicalPlanPojo.opsToReuseResult.toSet
+    )
 
     // the PhysicalPlan with topology expanded.
     val physicalPlan = PhysicalPlan(rewrittenLogicalPlan)
@@ -67,8 +66,8 @@ class WorkflowCompiler(
       assert(physicalPlan.getLayer(sourceLayer).inputPorts.isEmpty)
     }
     // assert all sink layers to have 0 output ports
-    physicalPlan.getSinkOperators.foreach{
-      sinkLayer => assert(physicalPlan.getLayer(sinkLayer).outputPorts.isEmpty)
+    physicalPlan.getSinkOperators.foreach { sinkLayer =>
+      assert(physicalPlan.getLayer(sinkLayer).outputPorts.isEmpty)
     }
 
     new Workflow(

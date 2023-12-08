@@ -75,7 +75,6 @@ object WorkflowCacheRewriter {
       resultPlan.terminalOperators.forall(o => resultPlan.getOperator(o).isInstanceOf[SinkOpDesc])
     )
 
-
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
     assignSinkStorage(logicalPlan, storage, opsCanUseCache)
@@ -87,17 +86,17 @@ object WorkflowCacheRewriter {
   }
 
   private def assignSinkStorage(
-                                 logicalPlan: LogicalPlan,
-                                 storage: OpResultStorage,
-                                 reuseStorageSet: Set[String] = Set()
-                               ): Unit = {
+      logicalPlan: LogicalPlan,
+      storage: OpResultStorage,
+      reuseStorageSet: Set[String] = Set()
+  ): Unit = {
     // create a JSON object that holds pointers to the workflow's results in Mongo
     // TODO in the future, will extract this logic from here when we need pointers to the stats storage
     val resultsJSON = objectMapper.createObjectNode()
     val sinksPointers = objectMapper.createArrayNode()
     // assign storage to texera-managed sinks before generating exec config
     logicalPlan.operators.foreach {
-      case o@(sink: ProgressiveSinkOpDesc) =>
+      case o @ (sink: ProgressiveSinkOpDesc) =>
         val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
         // due to the size limit of single document in mongoDB (16MB)
         // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.

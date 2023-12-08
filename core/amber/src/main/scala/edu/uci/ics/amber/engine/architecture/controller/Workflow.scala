@@ -38,8 +38,7 @@ class Workflow(
     */
   def getSourcesOfRegion(region: PipelinedRegion): Array[LayerIdentity] = {
     val sources = new ArrayBuffer[LayerIdentity]()
-    region
-      .getOperators
+    region.getOperators
       .foreach(opId => {
         val isSource = physicalPlan.getUpstream(opId).forall(up => !region.containsOperator(up))
         if (isSource) {
@@ -69,6 +68,5 @@ class Workflow(
     physicalPlan.operatorMap(VirtualIdentityUtils.getOperator(workerID))
 
   def getOpExecConfig(opID: LayerIdentity): OpExecConfig = physicalPlan.operatorMap(opID)
-
 
 }

@@ -47,8 +47,7 @@ abstract class SchedulingPolicy(
     workflow
       .getBlockingOutLinksOfRegion(region)
       .subsetOf(completedLinksOfRegion.getOrElse(region, new mutable.HashSet[LinkIdentity]())) &&
-    region
-      .getOperators
+    region.getOperators
       .forall(opId =>
         executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.COMPLETED
       )

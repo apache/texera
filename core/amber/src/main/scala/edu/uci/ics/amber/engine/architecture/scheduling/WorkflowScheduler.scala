@@ -170,8 +170,7 @@ class WorkflowScheduler(
         builtOpsInRegion.add(op)
       }
 
-      frontier = (region
-        .getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1))
+      frontier = (region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1))
         .filter(opId => {
           !builtOpsInRegion.contains(opId) && workflow.physicalPlan
             .getUpstream(opId)
