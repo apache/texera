@@ -11,7 +11,7 @@ case class EditingTimeCompilationRequest(
     opsToReuseResult: List[String]
 ) extends TexeraWebSocketRequest {
 
-  def toLogicalPlanPojo() = {
+  def toLogicalPlanPojo: LogicalPlanPojo = {
     LogicalPlanPojo(operators, links, breakpoints, opsToViewResult, opsToReuseResult)
   }
 }

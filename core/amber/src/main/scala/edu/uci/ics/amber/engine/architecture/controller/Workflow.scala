@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PartitioningPla
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class Workflow(val workflowId: WorkflowIdentity, val logicalPlan: LogicalPlan,val physicalPlan: PhysicalPlan, val executionPlan:ExecutionPlan, val partitioningPlan: PartitioningPlan)
+class Workflow(val workflowId: WorkflowIdentity, val originalLogicalPlan: LogicalPlan, val logicalPlan: LogicalPlan,val physicalPlan: PhysicalPlan, val executionPlan:ExecutionPlan, val partitioningPlan: PartitioningPlan)
     extends java.io.Serializable {
 
 //  def getDAG: DirectedAcyclicGraph[ActorVirtualIdentity, DefaultEdge] = {

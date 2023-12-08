@@ -2,16 +2,14 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan.schemaPropagationCheck
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
@@ -20,22 +18,22 @@ import scala.collection.mutable.ArrayBuffer
 
 class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: WorkflowContext, jobStateStore: JobStateStore) {
   def compileLogicalPlan(opResultStorage: OpResultStorage,
-                         lastCompletedJob: Option[LogicalPlan] = Option.empty): LogicalPlan = {
+                         lastCompletedJob: Option[LogicalPlan] = Option.empty): (LogicalPlan,LogicalPlan) = {
     var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
 
     logicalPlan = SinkInjectionTransformer.transform(logicalPlanPojo.opsToViewResult, logicalPlan)
 
-    val opsToReuseCache = new mutable.HashSet[String]()
+    val opsUsedCache = new mutable.HashSet[String]()
     val rewrittenLogicalPlan =
-      WorkflowCacheRewriter.transform(logicalPlan, lastCompletedJob, opResultStorage, opsToReuseCache)
+      WorkflowCacheRewriter.transform(logicalPlan, lastCompletedJob, opResultStorage, logicalPlanPojo.opsToReuseResult.toSet, opsUsedCache)
 
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
-    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache.toSet)
+    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsUsedCache.toSet)
     // also assign sink storage to the original logical plan, as the original logical plan
     // will be used to be compared to the subsequent runs
-    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache.toSet)
-    rewrittenLogicalPlan
+    assignSinkStorage(logicalPlan, opResultStorage, opsUsedCache.toSet)
+    (logicalPlan, rewrittenLogicalPlan)
   }
 
 
@@ -96,7 +94,9 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
       )
     }
 
-    val logicalPlan = compileLogicalPlan(opResultStorage, lastCompletedJob)
+
+
+    val (logicalPlan0, logicalPlan) = compileLogicalPlan(opResultStorage, lastCompletedJob)
 
 
     val physicalPlan = PhysicalPlan(logicalPlan)
@@ -119,7 +119,7 @@ class WorkflowCompiler(val logicalPlanPojo: LogicalPlanPojo, workflowContext: Wo
       assert(physicalPlan.getLayer(sourceLayer).inputPorts.isEmpty)
     }
 
-    new Workflow(workflowId, logicalPlan, physicalPlan, executionPlan, partitioningPlan)
+    new Workflow(workflowId, logicalPlan0, logicalPlan, physicalPlan, executionPlan, partitioningPlan)
 
 
 //        // report compilation errors

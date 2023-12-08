@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.common.base.Verify
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -37,7 +37,7 @@ object LogicalPlan {
 
 
   def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext): LogicalPlan = {
-    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints, pojo.opsToReuseResult)
+    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints)
   }
 
   def schemaPropagationCheck(logicalPlan: LogicalPlan, errorList: ArrayBuffer[(String, Throwable)]): Map[OperatorIdentity, List[Option[Schema]]] = {
@@ -52,7 +52,6 @@ case class LogicalPlan(
     operators: List[OperatorDescriptor],
     links: List[OperatorLink],
     breakpoints: List[BreakpointInfo],
-    opsToReuseCache: List[String] = List(),
     inputSchemaMap:Map[OperatorIdentity, List[Option[Schema]]] = Map.empty
 ) extends LazyLogging {
 
@@ -101,18 +100,11 @@ case class LogicalPlan(
     upstream.toList
   }
 
-  def getUpstreamEdges(operatorID: String): List[OperatorLink] = {
-    links.filter(l => l.destination.operatorID == operatorID)
-  }
-
-  def withInputSchemaMap(map: Map[OperatorIdentity, List[Option[Schema]]]): LogicalPlan = {
-    new LogicalPlan(context, operators, links, breakpoints, opsToReuseCache, map)
-  }
 
   // returns a new logical plan with the given operator added
   def addOperator(operatorDescriptor: OperatorDescriptor): LogicalPlan = {
     // TODO: fix schema for the new operator
-    this.copy(context, operators :+ operatorDescriptor, links, breakpoints, opsToReuseCache)
+    this.copy(context, operators :+ operatorDescriptor, links, breakpoints)
   }
 
   def removeOperator(operatorId: String): LogicalPlan = {
@@ -123,7 +115,6 @@ case class LogicalPlan(
         l.origin.operatorID != operatorId && l.destination.operatorID != operatorId
       ),
       breakpoints.filter(b => b.operatorID != operatorId),
-      opsToReuseCache.filter(c => c != operatorId),
       inputSchemaMap.filter({
         case (opId, schemas)=> opId.operator!= operatorId
       })
@@ -139,7 +130,7 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val newLink = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links :+ newLink
-    val ret = this.copy(context, operators, newLinks, breakpoints, opsToReuseCache)
+    val ret = this.copy(context, operators, newLinks, breakpoints)
     ret.propagateWorkflowSchema(ret.context, null)
   }
 
@@ -152,7 +143,7 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val linkToRemove = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links.filter(l => l != linkToRemove)
-    val ret = this.copy(context, operators, newLinks, breakpoints, opsToReuseCache)
+    val ret = this.copy(context, operators, newLinks, breakpoints)
     ret.propagateWorkflowSchema(ret.context, null)
   }
 
@@ -181,7 +172,10 @@ case class LogicalPlan(
   def propagateWorkflowSchema(context: WorkflowContext, errorList: ArrayBuffer[(String, Throwable)])
       :LogicalPlan = {
 
-    operators.foreach(_.setContext(context))
+    operators.foreach(operator => {
+      if(operator.context==null){
+        operator.setContext(context)}
+    })
 
     // a map from an operator to the list of its input schema
     val inputSchemaMap =
@@ -248,7 +242,9 @@ case class LogicalPlan(
         inputSchemaMap.update(dest.operatorIdentifier, destInputSchemas)
       })
     })
-    val schemas = inputSchemaMap
+
+
+    this.copy(context, operators, links, breakpoints, inputSchemaMap
       .filter({
         case (_: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
           !(schemas.exists(s => s.isEmpty) || schemas.isEmpty)
@@ -257,9 +253,7 @@ case class LogicalPlan(
         case (opId: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
           (opId, schemas.toList)
       })
-      .toMap
-
-    this.copy(context, operators, links, breakpoints, opsToReuseCache, schemas)
+      .toMap)
   }
 
 
