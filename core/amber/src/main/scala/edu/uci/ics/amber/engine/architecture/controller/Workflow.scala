@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.linksemantics._
 import edu.uci.ics.amber.engine.architecture.scheduling.{ExecutionPlan, PipelinedRegion}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
@@ -18,27 +17,6 @@ class Workflow(
     val executionPlan: ExecutionPlan,
     val partitioningPlan: PartitioningPlan
 ) extends java.io.Serializable {
-
-//  def getDAG: DirectedAcyclicGraph[ActorVirtualIdentity, DefaultEdge] = {
-//    val dag =
-//      new DirectedAcyclicGraph[ActorVirtualIdentity, DefaultEdge](classOf[DefaultEdge])
-//    physicalPlan.operators.flatMap(_.identifiers).foreach(worker => dag.addVertex(worker))
-//    physicalPlan.linkStrategies.values.foreach {
-//      case one: AllToOne =>
-//        one.from.identifiers.foreach(worker => dag.addEdge(worker, one.to.identifiers.head))
-//      case one: OneToOne =>
-//        one.from.identifiers.indices.foreach(i =>
-//          dag.addEdge(one.from.identifiers(i), one.to.identifiers(i))
-//        )
-//      case other =>
-//        other.from.identifiers.indices.foreach(i =>
-//          other.to.identifiers.indices.foreach(j =>
-//            dag.addEdge(other.from.identifiers(i), other.to.identifiers(j))
-//          )
-//        )
-//    }
-//    dag
-//  }
 
   def getBlockingOutLinksOfRegion(region: PipelinedRegion): Set[LinkIdentity] = {
     val outLinks = new mutable.HashSet[LinkIdentity]()
@@ -61,7 +39,7 @@ class Workflow(
   def getSourcesOfRegion(region: PipelinedRegion): Array[LayerIdentity] = {
     val sources = new ArrayBuffer[LayerIdentity]()
     region
-      .getOperators()
+      .getOperators
       .foreach(opId => {
         val isSource = physicalPlan.getUpstream(opId).forall(up => !region.containsOperator(up))
         if (isSource) {
@@ -71,31 +49,13 @@ class Workflow(
     sources.toArray
   }
 
-  def getWorkflowId(): WorkflowIdentity = workflowId
-
-  def getDirectUpstreamWorkers(vid: ActorVirtualIdentity): Iterable[ActorVirtualIdentity] = {
-    val opId = VirtualIdentityUtils.getOperator(vid)
-    val upstreamLinks = physicalPlan.getUpstreamLinks(opId)
-    val upstreamWorkers = mutable.HashSet[ActorVirtualIdentity]()
-    upstreamLinks
-      .map(link => partitioningPlan.strategies(link))
-      .flatMap(linkStrategy => linkStrategy.getPartitioning.toList)
-      .foreach {
-        case (sender, _, _, receivers) =>
-          if (receivers.contains(vid)) {
-            upstreamWorkers.add(sender)
-          }
-      }
-    upstreamWorkers
-  }
-
-  def getAllOperators: Iterable[OpExecConfig] = physicalPlan.operators
+  def getWorkflowId: WorkflowIdentity = workflowId
 
   /**
     * Returns the worker layer of the upstream operators that links to the `opId` operator's
     * worker layer.
     */
-  def getUpStreamConnectedWorkerLayers(
+  def getUpStreamConnectedOpExecConfig(
       opID: LayerIdentity
   ): mutable.HashMap[LayerIdentity, OpExecConfig] = {
     val upstreamOperatorToLayers = new mutable.HashMap[LayerIdentity, OpExecConfig]()
@@ -105,11 +65,10 @@ class Workflow(
     upstreamOperatorToLayers
   }
 
-  def getOperator(workerID: ActorVirtualIdentity): OpExecConfig =
+  def getOpExecConfig(workerID: ActorVirtualIdentity): OpExecConfig =
     physicalPlan.operatorMap(VirtualIdentityUtils.getOperator(workerID))
 
-  def getOperator(opID: LayerIdentity): OpExecConfig = physicalPlan.operatorMap(opID)
+  def getOpExecConfig(opID: LayerIdentity): OpExecConfig = physicalPlan.operatorMap(opID)
 
-  def getLink(linkID: LinkIdentity): LinkStrategy = partitioningPlan.strategies(linkID)
 
 }

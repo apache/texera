@@ -153,9 +153,9 @@ class WorkflowScheduler(
           workflow.physicalPlan
             .getUpstream(op)
             .filter(upStreamOp =>
-              builtOperators.contains(upStreamOp) && region.getOperators().contains(upStreamOp)
+              builtOperators.contains(upStreamOp) && region.getOperators.contains(upStreamOp)
             )
-            .map(upStreamOp => (upStreamOp, workflow.getOperator(upStreamOp)))
+            .map(upStreamOp => (upStreamOp, workflow.getOpExecConfig(upStreamOp)))
             .toArray // Last layer of upstream operators in the same region.
         if (!builtOperators.contains(op)) {
           buildOperator(
@@ -171,11 +171,11 @@ class WorkflowScheduler(
       }
 
       frontier = (region
-        .getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1))
+        .getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1))
         .filter(opId => {
           !builtOpsInRegion.contains(opId) && workflow.physicalPlan
             .getUpstream(opId)
-            .filter(region.getOperators().contains)
+            .filter(region.getOperators.contains)
             .forall(builtOperators.contains)
         })
     }
@@ -188,7 +188,7 @@ class WorkflowScheduler(
       actorRefService: AkkaActorRefMappingService,
       controllerActorService: AkkaActorService
   ): Unit = {
-    val workerLayer = workflow.getOperator(operatorIdentity)
+    val workerLayer = workflow.getOpExecConfig(operatorIdentity)
     workerLayer.build(
       controllerActorService,
       actorRefService,
@@ -198,7 +198,7 @@ class WorkflowScheduler(
   }
   private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
     val uninitializedPythonOperators = executionState.getPythonOperators(
       allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
     )
@@ -238,7 +238,7 @@ class WorkflowScheduler(
 
   private def activateAllLinks(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
     Future.collect(
       // activate all links
       workflow.partitioningPlan.strategies.values
@@ -258,7 +258,7 @@ class WorkflowScheduler(
 
   private def openAllOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
     val allNotOpenedOperators =
       allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
     Future
@@ -275,7 +275,7 @@ class WorkflowScheduler(
 
   private def startRegion(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
 
     allOperatorsInRegion
       .filter(opId =>
@@ -285,7 +285,7 @@ class WorkflowScheduler(
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
 
     val ops = workflow.getSourcesOfRegion(region)
-    if (!schedulingPolicy.getRunningRegions().contains(region)) {
+    if (!schedulingPolicy.getRunningRegions.contains(region)) {
       val futures = ops.flatMap { opId =>
         val opExecution = executionState.getOperatorExecution(opId)
         opExecution.getBuiltWorkerIds
@@ -301,7 +301,7 @@ class WorkflowScheduler(
       Future.collect(futures)
     } else {
       throw new WorkflowRuntimeException(
-        s"Start region called on an already running region: ${region.getOperators().mkString(",")}"
+        s"Start region called on an already running region: ${region.getOperators.mkString(",")}"
       )
     }
   }
@@ -328,9 +328,9 @@ class WorkflowScheduler(
       .flatMap(_ => openAllOperators(region))
       .flatMap(_ => startRegion(workflow, region))
       .map(_ => {
-        constructingRegions.remove(region.getId())
+        constructingRegions.remove(region.getId)
         schedulingPolicy.addToRunningRegions(Set(region), actorService)
-        startedRegions.add(region.getId())
+        startedRegions.add(region.getId)
       })
   }
 
@@ -338,7 +338,7 @@ class WorkflowScheduler(
       region: PipelinedRegion,
       actorService: AkkaActorService
   ): Future[Unit] = {
-    if (!schedulingPolicy.getRunningRegions().contains(region)) {
+    if (!schedulingPolicy.getRunningRegions.contains(region)) {
       Future
         .collect(
           executionState
@@ -354,7 +354,7 @@ class WorkflowScheduler(
         }
     } else {
       throw new WorkflowRuntimeException(
-        s"Resume region called on an already running region: ${region.getOperators().mkString(",")}"
+        s"Resume region called on an already running region: ${region.getOperators.mkString(",")}"
       )
     }
 
@@ -366,11 +366,11 @@ class WorkflowScheduler(
       akkaActorRefMappingService: AkkaActorRefMappingService,
       actorService: AkkaActorService
   ): Future[Unit] = {
-    if (constructingRegions.contains(region.getId())) {
+    if (constructingRegions.contains(region.getId)) {
       return Future(())
     }
-    if (!startedRegions.contains(region.getId())) {
-      constructingRegions.add(region.getId())
+    if (!startedRegions.contains(region.getId)) {
+      constructingRegions.add(region.getId)
       constructRegion(workflow, region, akkaActorRefMappingService, actorService)
       prepareAndStartRegion(workflow, region, actorService).rescue {
         case err: Throwable =>

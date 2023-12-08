@@ -41,7 +41,7 @@ class JobReconfigurationService(
       ) {
         val diff = newState.completedReconfigs -- oldState.completedReconfigs
         val newlyCompletedOps = diff
-          .map(workerId => workflow.getOperator(workerId).id)
+          .map(workerId => workflow.getOpExecConfig(workerId).id)
           .map(opId => opId.operator)
         if (newlyCompletedOps.nonEmpty) {
           List(ModifyLogicCompletedEvent(newlyCompletedOps.toList))

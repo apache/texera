@@ -23,7 +23,7 @@ trait LinkWorkersHandler {
   registerHandler { (msg: LinkWorkers, sender) =>
     {
       // get the list of (sender id, partitioning, set of receiver ids) from the link
-      val futures = cp.workflow.getLink(msg.link).getPartitioning.flatMap {
+      val futures = cp.workflow.partitioningPlan.strategies(msg.link).getPartitioning.flatMap {
         case (from, link, partitioning, tos) =>
           // send messages to sender worker and receiver workers
           Seq(send(AddPartitioning(link, partitioning), from)) ++ tos.map(
