@@ -7,7 +7,7 @@ import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
-import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { catchError, debounceTime, filter, mergeMap } from "rxjs/operators";
 
@@ -139,7 +139,7 @@ export class SchemaPropagationService {
     return this.httpClient
       .post<SchemaPropagationResponse>(
         `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${
-          this.workflowActionService.getWorkflow().wid
+          this.workflowActionService.getWorkflow().wid ?? DEFAULT_WORKFLOW.wid
         }`,
         JSON.stringify(body),
         { headers: { "Content-Type": "application/json" } }
@@ -323,6 +323,7 @@ export interface SchemaAttribute
 // input schema of an operator: an array of schemas at each input port
 export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
 export type PortInputSchema = ReadonlyArray<SchemaAttribute>;
+
 /**
  * The backend interface of the return object of a successful execution
  * of autocomplete API
