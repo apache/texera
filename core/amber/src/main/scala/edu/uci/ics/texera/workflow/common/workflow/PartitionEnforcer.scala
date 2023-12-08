@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdent
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
-class PartitionEnforcer(physicalPlan: PhysicalPlan, executionPlan: ExecutionPlan) {
+class PartitionEnforcer(physicalPlan: PhysicalPlan) {
 
   // a map of an operator to its output partition info
   val outputPartitionInfos = new mutable.HashMap[LayerIdentity, PartitionInfo]()

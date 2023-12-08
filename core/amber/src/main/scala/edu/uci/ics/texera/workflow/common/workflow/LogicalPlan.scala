@@ -36,7 +36,7 @@ object LogicalPlan {
   }
 
   def apply(pojo: LogicalPlanPojo, ctx: WorkflowContext): LogicalPlan = {
-    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints)
+    SinkInjectionTransformer.transform(pojo.opsToViewResult, LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints))
   }
 
   def schemaPropagationCheck(
