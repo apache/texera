@@ -21,6 +21,34 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
     assert(inferField(" 00\t") == INTEGER)
     assert(inferField("\t-.2 ") == DOUBLE)
     assert(inferField("\n False ") == BOOLEAN)
+    assert(inferField("07/10/96 4:5 PM, PDT") == TIMESTAMP)
+    assert(inferField("02/2/2020") == TIMESTAMP)
+    assert(inferField("\n\n02/2/23    ") == TIMESTAMP)
+    assert(inferField("   2023年8月7日   ") == TIMESTAMP)
+    assert(
+      inferField("2020-12-31T23:25:59.999Z") == TIMESTAMP
+    ) // ISO format with milliseconds and UTC
+    assert(inferField("2020-12-31T11:59:59+01:00") == TIMESTAMP) // ISO format with timezone offset
+    assert(
+      inferField("2020-12-31T11:59:59") == TIMESTAMP
+    ) // ISO format without milliseconds and timezone
+    assert(
+      inferField("31/12/2020 23:59:59") == TIMESTAMP
+    ) // European datetime format with slash separators
+    assert(
+      inferField("12/31/2020 11:59:59") == TIMESTAMP
+    ) // US datetime format with slash separators
+    assert(inferField("2020-12-31") == TIMESTAMP) // Common date format
+    assert(inferField("31-Dec-2020") == TIMESTAMP) // Date format with three-letter month
+    assert(
+      inferField("Wednesday, 31-Dec-20 23:59:59 GMT") == TIMESTAMP
+    ) // Verbose format with day and timezone
+    assert(
+      inferField("1 Jan 2020 05:30:00 GMT") == TIMESTAMP
+    ) // Another verbose format with timezone
+    assert(inferField("15-Aug-2020 20:20:20") == TIMESTAMP) // Day-Month-Year format with time
+    assert(inferField("2020年12月31日 23:59") == TIMESTAMP) // East Asian date format with time
+    assert(inferField("2020/12/31 23:59") == TIMESTAMP) // Alternate slash format with time
 
   }
 
