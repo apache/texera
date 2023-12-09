@@ -7,14 +7,9 @@ import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BreakpointInfo,
-  LogicalPlan,
-  OperatorLink,
-  WorkflowCompiler
-}
+import edu.uci.ics.texera.workflow.common.workflow.{OperatorLink, WorkflowCompiler}
 
-object Utils {
+object TestUtils {
 
   def buildWorkflow(
       operators: List[OperatorDescriptor],
@@ -27,10 +22,9 @@ object Utils {
     context.jobId = jobId
     val workflowCompiler = new WorkflowCompiler(
       LogicalPlanPojo(operators, links, List(), List(), List()),
-      context,
-      new JobStateStore()
+      context
     )
-    workflowCompiler.compile(WorkflowIdentity(workflowTag), resultStorage, None)
+    workflowCompiler.compile(WorkflowIdentity(workflowTag), resultStorage, None, new JobStateStore())
   }
 
 }
