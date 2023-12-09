@@ -37,13 +37,9 @@ object LogicalPlan {
 
   def apply(
       pojo: LogicalPlanPojo,
-      ctx: WorkflowContext,
-      errorList: Option[ArrayBuffer[(String, Throwable)]]
+      ctx: WorkflowContext
   ): LogicalPlan = {
-    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints).propagateWorkflowSchema(
-      errorList
-    )
-
+    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints)
   }
 
 }
@@ -129,8 +125,7 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val newLink = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links :+ newLink
-    val ret = this.copy(context, operators, newLinks, breakpoints)
-    ret.propagateWorkflowSchema(None)
+    this.copy(context, operators, newLinks, breakpoints)
   }
 
   // returns a new logical plan with the given edge removed
@@ -142,8 +137,7 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val linkToRemove = OperatorLink(OperatorPort(from, fromPort), OperatorPort(to, toPort))
     val newLinks = links.filter(l => l != linkToRemove)
-    val ret = this.copy(context, operators, newLinks, breakpoints)
-    ret.propagateWorkflowSchema(None)
+    this.copy(context, operators, newLinks, breakpoints)
   }
 
   def getDownstream(operatorID: String): List[OperatorDescriptor] = {

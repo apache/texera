@@ -33,7 +33,7 @@ class SchemaPropagationResource extends LazyLogging {
 
     // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
     val responseContent =
-      LogicalPlan(logicalPlanPojo, context, errorList = None).inputSchemaMap.map(e =>
+      LogicalPlan(logicalPlanPojo, context).propagateWorkflowSchema(errorList = None).inputSchemaMap.map(e =>
         (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala)))
       )
     SchemaPropagationResponse(0, responseContent, null)

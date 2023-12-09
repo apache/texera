@@ -31,11 +31,13 @@ class WorkflowCompiler(
       )
     }
 
-    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext, Some(errorList))
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
     logicalPlan = SinkInjectionTransformer.transform(
       logicalPlanPojo.opsToViewResult,
       logicalPlan
     )
+
+    logicalPlan = logicalPlan.propagateWorkflowSchema(Some(errorList))
 
     // report compilation errors
     if (errorList.nonEmpty) {

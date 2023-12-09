@@ -71,6 +71,8 @@ object WorkflowCacheRewriter {
       resultPlan.terminalOperators.forall(o => resultPlan.getOperator(o).isInstanceOf[SinkOpDesc])
     )
 
+    resultPlan.propagateWorkflowSchema(None)
+
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
     assignSinkStorage(logicalPlan, storage, opsCanUseCache)
