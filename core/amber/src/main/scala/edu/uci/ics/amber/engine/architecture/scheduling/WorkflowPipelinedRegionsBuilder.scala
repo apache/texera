@@ -46,7 +46,7 @@ object WorkflowPipelinedRegionsBuilder {
 
 class WorkflowPipelinedRegionsBuilder(
     val workflowId: WorkflowIdentity,
-    val logicalPlan: LogicalPlan,
+    var logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     val materializationRewriter: MaterializationRewriter
 ) {
@@ -253,7 +253,7 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  def buildPipelinedRegions(): ExecutionPlan = {
+  def buildPipelinedRegions():ExecutionPlan = {
     findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks()
     val allRegions = pipelinedRegionsDAG.iterator().asScala.toList

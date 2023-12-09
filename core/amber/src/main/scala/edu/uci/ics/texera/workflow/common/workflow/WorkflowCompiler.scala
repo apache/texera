@@ -70,7 +70,7 @@ class WorkflowCompiler(
     val originalLogicalPlan = compileLogicalPlan(jobStateStore)
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
-    val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
+    var rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
       originalLogicalPlan,
       lastCompletedJob,
       opResultStorage,
@@ -78,16 +78,20 @@ class WorkflowCompiler(
     )
 
     // the PhysicalPlan with topology expanded.
-    val physicalPlan = PhysicalPlan(rewrittenLogicalPlan)
+    var physicalPlan = PhysicalPlan(rewrittenLogicalPlan)
 
     // generate an ExecutionPlan with regions.
     //  currently, WorkflowPipelinedRegionsBuilder is the only ExecutionPlan generator.
-    val executionPlan = new WorkflowPipelinedRegionsBuilder(
+    val pipelinedRegionsBuilder = new WorkflowPipelinedRegionsBuilder(
       workflowId,
       rewrittenLogicalPlan,
       physicalPlan,
       new MaterializationRewriter(rewrittenLogicalPlan.context, opResultStorage)
-    ).buildPipelinedRegions()
+    )
+    val executionPlan = pipelinedRegionsBuilder.buildPipelinedRegions()
+
+    rewrittenLogicalPlan =pipelinedRegionsBuilder.logicalPlan
+    physicalPlan = pipelinedRegionsBuilder.physicalPlan
 
     // TODO: add resource allocator to incorporate PartitioningPlan below
 
