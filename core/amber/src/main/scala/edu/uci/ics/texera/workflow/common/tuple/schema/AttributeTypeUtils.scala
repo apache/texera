@@ -1,10 +1,10 @@
 package edu.uci.ics.texera.workflow.common.tuple.schema
+import com.github.sisyphsu.dateparser.DateParserUtils
 import com.google.common.base.Preconditions
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import java.sql.Timestamp
-import java.text.SimpleDateFormat
 import scala.util.Try
 import scala.util.control.Exception.allCatch
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -145,38 +145,8 @@ object AttributeTypeUtils extends Serializable {
     val parseError = new AttributeTypeException(
       s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
     )
-    // Extensive list of potential date formats
-    val dateFormats = List(
-      "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", // ISO format with milliseconds and UTC ('Z')
-      "yyyy-MM-dd'T'HH:mm:ss.SSSXXX", // ISO format with milliseconds and timezone offset
-      "yyyy-MM-dd'T'HH:mm:ss'Z'", // ISO format without milliseconds and UTC ('Z')
-      "yyyy-MM-dd'T'HH:mm:ssXXX", // ISO format without milliseconds and timezone offset
-      "yyyy-MM-dd'T'HH:mm:ss", // ISO format without milliseconds and timezone
-      "yyyy-MM-dd HH:mm:ss", // Common datetime format
-      "dd/MM/yyyy HH:mm:ss", // European datetime format with slash separators
-      "MM/dd/yyyy HH:mm:ss", // US datetime format with slash separators
-      "yyyy-MM-dd", // Common date format
-      "dd/MM/yyyy", // European date format with slash separators
-      "MM/dd/yyyy", // US date format with slash separators
-      "M/d/yyyy", // US date format with single digit month/day
-      "d/M/yyyy", // European date format with single digit day/month
-      "yyyyMMdd", // Basic ISO date format
-      "dd-MMM-yyyy", // Date format with three-letter month
-      "yyMMddHHmmssZ", // Compact numeric date time with timezone
-      "yyyy-MM-dd'T'HH:mm:ss.SSSZ" // ISO format with milliseconds and numeric timezone
-      // Add more formats as needed
-    )
-
     fieldValue match {
-      case str: String =>
-        dateFormats.view
-          .map { format =>
-            Try(new Timestamp(new SimpleDateFormat(format).parse(str.trim).getTime))
-          }
-          .find(_.isSuccess) match {
-          case Some(value) => value.get
-          case None        => throw parseError
-        }
+      case str: String          => new Timestamp(DateParserUtils.parseDate(str.trim).getTime)
       case long: java.lang.Long => new Timestamp(long)
       case timestamp: Timestamp => timestamp
       case date: java.util.Date => new Timestamp(date.getTime)
