@@ -22,7 +22,7 @@ class WorkflowCompiler(
     workflowContext: WorkflowContext
 ) extends LazyLogging {
 
-  def compileLogicalPlan(jobStateStore: JobStateStore) = {
+  def compileLogicalPlan(jobStateStore: JobStateStore): LogicalPlan = {
 
     val errorList = new ArrayBuffer[(String, Throwable)]()
     // remove previous error state
@@ -73,7 +73,7 @@ class WorkflowCompiler(
     val originalLogicalPlan = compileLogicalPlan(jobStateStore)
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
-    var rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
+    val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
       originalLogicalPlan,
       lastCompletedJob,
       opResultStorage,

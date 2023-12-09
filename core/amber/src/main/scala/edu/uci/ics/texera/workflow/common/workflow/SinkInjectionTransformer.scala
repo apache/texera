@@ -9,6 +9,9 @@ object SinkInjectionTransformer {
   def transform(opsToViewResult: List[String], oldPlan: LogicalPlan): LogicalPlan = {
     var logicalPlan = oldPlan
 
+    val existingSinks = logicalPlan.getTerminalOperators.filter(opId =>
+      logicalPlan.getOperator(opId).isInstanceOf[SinkOpDesc]
+    )
     // for any terminal operator without a sink, add a sink
     val nonSinkTerminalOps = logicalPlan.getTerminalOperators.filter(opId =>
       !logicalPlan.getOperator(opId).isInstanceOf[SinkOpDesc]
@@ -49,8 +52,11 @@ object SinkInjectionTransformer {
       assert(upstream.nonEmpty)
       if (upstream.nonEmpty && edge.nonEmpty) {
         // set upstream ID and port
-        sinkOp.setUpstreamId(upstream.get.operatorID)
-        sinkOp.setUpstreamPort(edge.get.origin.portOrdinal)
+        if (!existingSinks.contains(sinkOp.operatorID)) {
+          sinkOp.setUpstreamId(upstream.get.operatorID)
+          sinkOp.setUpstreamPort(edge.get.origin.portOrdinal)
+        }
+
         // set output mode for visualization operator
         (upstream.get, sinkOp) match {
           // match the combination of a visualization operator followed by a sink operator
