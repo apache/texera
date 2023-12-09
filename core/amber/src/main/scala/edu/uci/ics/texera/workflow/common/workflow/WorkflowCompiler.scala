@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.protobuf.timestamp.Timestamp
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
@@ -19,7 +20,7 @@ import scala.collection.mutable.ArrayBuffer
 class WorkflowCompiler(
     val logicalPlanPojo: LogicalPlanPojo,
     workflowContext: WorkflowContext
-) {
+) extends LazyLogging {
 
   def compileLogicalPlan(jobStateStore: JobStateStore) = {
 
@@ -43,7 +44,7 @@ class WorkflowCompiler(
     if (errorList.nonEmpty) {
       val jobErrors = errorList.map {
         case (opId, err) =>
-          //              logger.error("error occurred in logical plan compilation", err)
+          logger.error("error occurred in logical plan compilation", err)
           WorkflowFatalError(
             COMPILATION_ERROR,
             Timestamp(Instant.now),
@@ -92,7 +93,7 @@ class WorkflowCompiler(
     )
     val executionPlan = pipelinedRegionsBuilder.buildPipelinedRegions()
 
-    rewrittenLogicalPlan =pipelinedRegionsBuilder.logicalPlan
+    // get the updated physical plan
     physicalPlan = pipelinedRegionsBuilder.physicalPlan
 
     // TODO: add resource allocator to incorporate PartitioningPlan below

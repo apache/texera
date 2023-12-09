@@ -253,7 +253,7 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  def buildPipelinedRegions():ExecutionPlan = {
+  def buildPipelinedRegions(): ExecutionPlan = {
     findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks()
     val allRegions = pipelinedRegionsDAG.iterator().asScala.toList
