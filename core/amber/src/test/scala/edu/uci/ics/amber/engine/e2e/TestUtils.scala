@@ -24,7 +24,12 @@ object TestUtils {
       LogicalPlanPojo(operators, links, List(), List(), List()),
       context
     )
-    workflowCompiler.compile(WorkflowIdentity(workflowTag), resultStorage, None, new JobStateStore())
+    workflowCompiler.compile(
+      WorkflowIdentity(workflowTag),
+      resultStorage,
+      None,
+      new JobStateStore()
+    )
   }
 
 }
