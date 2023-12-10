@@ -5,7 +5,7 @@ import { environment } from "../../../../../environments/environment";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
 import { mockPoint } from "../../workflow-graph/model/mock-workflow-data";
 import { StubOperatorMetadataService } from "../../operator-metadata/stub-operator-metadata.service";
-import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { AutoAttributeCorrectionService } from "./auto-attribute-correction.service";
 import {
@@ -55,7 +55,7 @@ describe("AutoAttributeCorrectionService", () => {
     expect(service).toBeTruthy();
   }));
 
-  it("should propagate new attribute name when atteibute is renamed", fakeAsync(() => {
+  it("should propagate new attribute name when attribute is renamed", fakeAsync(() => {
     const workflowActionService: WorkflowActionService = TestBed.inject(WorkflowActionService);
     TestBed.inject(SchemaPropagationService);
     TestBed.inject(AutoAttributeCorrectionService);
@@ -64,10 +64,12 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.addLink(mockLinkAtoB);
 
     const req1 = httpTestingController.expectOne(
-      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req1.request.method === "POST");
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
+    expect(req1.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     req1.flush(mockSchemaPropagationResponse1);
     httpTestingController.verify();
 
@@ -75,10 +77,12 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.setOperatorProperty(mockSentimentOperatorA.operatorID, { testAttr: "test" });
     tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
     const req2 = httpTestingController.expectOne(
-      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req2.request.method === "POST");
-    expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
+    expect(req2.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     req2.flush(mockSchemaPropagationResponse2);
     httpTestingController.verify();
     flush();
@@ -98,10 +102,12 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.addLink(mockLinkAtoB);
 
     const req1 = httpTestingController.expectOne(
-      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req1.request.method === "POST");
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
+    expect(req1.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     req1.flush(mockSchemaPropagationResponse1);
     httpTestingController.verify();
 
@@ -109,10 +115,12 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.setOperatorProperty(mockSentimentOperatorA.operatorID, { testAttr: "test" });
     tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     const req2 = httpTestingController.expectOne(
-      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req2.request.method === "POST");
-    expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
+    expect(req2.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     req2.flush(mockSchemaPropagationResponse3);
     httpTestingController.verify();
     flush();
@@ -132,14 +140,18 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorC, mockPoint);
     workflowActionService.addLink(mockLinkAtoB);
-    httpTestingController.expectOne(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
+    httpTestingController.expectOne(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     workflowActionService.addLink(mockLinkBtoC);
 
     const req1 = httpTestingController.expectOne(
-      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req1.request.method === "POST");
-    expect(req1.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
+    expect(req1.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     req1.flush(mockSchemaPropagationResponse4);
     httpTestingController.verify();
 
@@ -147,10 +159,12 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.setOperatorProperty(mockSentimentOperatorA.operatorID, { testAttr: "test" });
     tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
     const req2 = httpTestingController.expectOne(
-      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     expect(req2.request.method === "POST");
-    expect(req2.request.url).toEqual(`${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/undefined`);
+    expect(req2.request.url).toEqual(
+      `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
+    );
     req2.flush(mockSchemaPropagationResponse5);
     httpTestingController.verify();
     flush();
