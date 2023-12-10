@@ -10,7 +10,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 
 /**
- * OperatorMenuFrameComponent is a panel that shows the operators.
+ * OperatorMenuComponent is a panel that shows the operators.
  *
  * This component gets all the operator metadata from OperatorMetaDataService,
  *  and then displays the operators, which are grouped using their group name from the metadata.
@@ -18,20 +18,20 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
  * Clicking a group name reveals the operators in the group, each operator is a sub-component: OperatorLabelComponent,
  *  this is implemented using Angular Material's expansion panel component: https://material.angular.io/components/expansion/overview
  *
- * OperatorMenuFrameComponent also includes a search box, which uses fuse.js to support fuzzy search on operator names.
+ * OperatorMenuComponent also includes a search box, which uses fuse.js to support fuzzy search on operator names.
  *
  */
 @UntilDestroy()
 @Component({
   selector: "texera-operator-panel",
-  templateUrl: "./operator-menu-frame.component.html",
-  styleUrls: ["./operator-menu-frame.component.scss"],
+  templateUrl: "operator-menu.component.html",
+  styleUrls: ["operator-menu.component.scss"],
   providers: [
     // uncomment this line for manual testing without opening backend server
     // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
   ],
 })
-export class OperatorMenuFrameComponent implements OnInit {
+export class OperatorMenuComponent implements OnInit {
   // a list of all operator's schema
   public operatorSchemaList: ReadonlyArray<OperatorSchema> = [];
   // a list of group names, sorted based on the groupOrder from OperatorMetadata

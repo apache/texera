@@ -5,16 +5,16 @@ import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { VersionsFrameComponent } from "./versions-frame.component";
+import { VersionsListComponent } from "./versions-list.component";
 
 describe("VersionsListDisplayComponent", () => {
-  let component: VersionsFrameComponent;
-  let fixture: ComponentFixture<VersionsFrameComponent>;
+  let component: VersionsListComponent;
+  let fixture: ComponentFixture<VersionsListComponent>;
   let workflowActionService: WorkflowActionService;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [VersionsFrameComponent],
+      declarations: [VersionsListComponent],
       providers: [WorkflowActionService],
       imports: [
         BrowserAnimationsModule,
@@ -27,7 +27,7 @@ describe("VersionsListDisplayComponent", () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(VersionsFrameComponent);
+    fixture = TestBed.createComponent(VersionsListComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();

@@ -1,0 +1,14 @@
+#left-panel-container {
+  width: 50%;
+  z-index: 2;
+  position: absolute;
+  top: 90px;
+  left: 15px;
+  user-select: none;
+}
+
+#left-panel-content {
+  min-height: 100%;
+  max-height: calc(100vh - 190px);
+  overflow-y: auto;
+}

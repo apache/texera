@@ -1,0 +1,11 @@
+<div
+  (mousedown)="mouseDown()"
+  (mouseleave)="mouseLeave()"
+  (mouseup)="mouseUp()"
+  [attr.id]="operatorLabelID"
+  [ngClass]="{ 'shake-animation': animate === 'reject',
+               'disable-drag-drop': !draggable}"
+  class="operator-label"
+  title="{{ operator?.additionalMetadata?.operatorDescription }}">
+  <span class="text"> {{ operator?.additionalMetadata?.userFriendlyName }} </span>
+</div>
