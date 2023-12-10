@@ -251,7 +251,7 @@ case class LogicalPlan(
           case (_: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
             !(schemas.exists(s => s.isEmpty) || schemas.isEmpty)
         })
-        .map({
+        .map({ // we need to convert to immutable data structures
           case (opId: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
             (opId, schemas.toList)
         })
