@@ -1,32 +1,39 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import edu.uci.ics.texera.Utils.objectMapper
+import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
 object WorkflowCacheRewriter {
 
   def transform(
       logicalPlan: LogicalPlan,
+      lastCompletedPlan: Option[LogicalPlan],
       storage: OpResultStorage,
-      availableCache: Set[String]
+      opsToReuseCache: Set[String]
   ): LogicalPlan = {
-    var resultPlan = logicalPlan
+    val validCachesFromLastExecution =
+      new WorkflowCacheChecker(lastCompletedPlan, logicalPlan).getValidCacheReuse
 
+    var resultPlan = logicalPlan
     // an operator can reuse cache if
     // 1: the user wants the operator to reuse past result
     // 2: the operator is equivalent to the last run
-    val opsToUseCache = logicalPlan.opsToReuseCache.toSet.intersect(availableCache)
+    val opsCanUseCache = opsToReuseCache.intersect(validCachesFromLastExecution)
 
     // remove sinks directly connected to operators that are already reusing cache
     val unnecessarySinks = resultPlan.getTerminalOperators.filter(sink => {
-      opsToUseCache.contains(resultPlan.getUpstream(sink).head.operatorID)
+      opsCanUseCache.contains(resultPlan.getUpstream(sink).head.operatorID)
     })
     unnecessarySinks.foreach(o => {
       resultPlan = resultPlan.removeOperator(o)
     })
 
-    opsToUseCache.foreach(opId => {
+    opsCanUseCache.foreach(opId => {
       val materializationReader = new CacheSourceOpDesc(opId, storage)
       resultPlan = resultPlan.addOperator(materializationReader)
       // replace the connection of all outgoing edges of opId with the cache
@@ -64,7 +71,61 @@ object WorkflowCacheRewriter {
       resultPlan.terminalOperators.forall(o => resultPlan.getOperator(o).isInstanceOf[SinkOpDesc])
     )
 
+    resultPlan.propagateWorkflowSchema(None)
+
+    // assign sink storage to the logical plan after cache rewrite
+    // as it will be converted to the actual physical plan
+    assignSinkStorage(resultPlan, storage, opsCanUseCache)
+    // also assign sink storage to the original logical plan, as the original logical plan
+    // will be used to be compared to the subsequent runs
+    assignSinkStorage(logicalPlan, storage, opsCanUseCache)
     resultPlan
+
+  }
+
+  private def assignSinkStorage(
+      logicalPlan: LogicalPlan,
+      storage: OpResultStorage,
+      reuseStorageSet: Set[String] = Set()
+  ): Unit = {
+    // create a JSON object that holds pointers to the workflow's results in Mongo
+    // TODO in the future, will extract this logic from here when we need pointers to the stats storage
+    val resultsJSON = objectMapper.createObjectNode()
+    val sinksPointers = objectMapper.createArrayNode()
+    // assign storage to texera-managed sinks before generating exec config
+    logicalPlan.operators.foreach {
+      case o @ (sink: ProgressiveSinkOpDesc) =>
+        val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
+        // due to the size limit of single document in mongoDB (16MB)
+        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
+        val storageType = {
+          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
+          else OpResultStorage.defaultStorageMode
+        }
+        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
+          sink.setStorage(storage.get(storageKey))
+        } else {
+          sink.setStorage(
+            storage.create(
+              o.context.executionId + "_",
+              storageKey,
+              storageType
+            )
+          )
+          sink.getStorage.setSchema(logicalPlan.outputSchemaMap(o.operatorIdentifier).head)
+          // add the sink collection name to the JSON array of sinks
+          sinksPointers.add(o.context.executionId + "_" + storageKey)
+        }
+        storage.get(storageKey)
+
+      case _ =>
+    }
+    // update execution entry in MySQL to have pointers to the mongo collections
+    resultsJSON.set("results", sinksPointers)
+    ExecutionsMetadataPersistService.updateExistingExecutionVolumePointers(
+      logicalPlan.context.executionId,
+      resultsJSON.toString
+    )
   }
 
 }

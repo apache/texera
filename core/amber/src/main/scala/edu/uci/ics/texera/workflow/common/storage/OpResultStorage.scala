@@ -1,14 +1,14 @@
 package edu.uci.ics.texera.workflow.common.storage
 
-import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MemoryStorage,
   MongoDBSinkStorage,
   SinkStorageReader
 }
+
+import java.util.concurrent.ConcurrentHashMap
 
 object OpResultStorage {
   val defaultStorageMode: String = AmberConfig.sinkStorageMode.toLowerCase
@@ -38,21 +38,20 @@ class OpResultStorage extends Serializable with LazyLogging {
   def create(
       executionID: String = "",
       key: String,
-      schema: Schema,
       mode: String
   ): SinkStorageReader = {
     val storage: SinkStorageReader =
       if (mode == "memory") {
-        new MemoryStorage(schema)
+        new MemoryStorage
       } else {
         try {
-          new MongoDBSinkStorage(executionID + key, schema)
+          new MongoDBSinkStorage(executionID + key)
         } catch {
           case t: Throwable =>
             logger.warn("Failed to create mongo storage", t)
             logger.info(s"Fall back to memory storage for $key")
             // fall back to memory
-            new MemoryStorage(schema)
+            new MemoryStorage
         }
       }
     cache.put(key, storage)
@@ -69,12 +68,10 @@ class OpResultStorage extends Serializable with LazyLogging {
     *            Currently it is the uuid inside the cache source or cache sink operator.
     */
   def remove(key: String): Unit = {
-    logger.debug(s"remove $key start")
     if (cache.contains(key)) {
       cache.get(key).clear()
     }
     cache.remove(key)
-    logger.debug(s"remove $key end")
   }
 
   /**

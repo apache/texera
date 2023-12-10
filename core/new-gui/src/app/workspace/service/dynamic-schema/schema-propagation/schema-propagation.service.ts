@@ -135,13 +135,21 @@ export class SchemaPropagationService {
   private invokeSchemaPropagationAPI(): Observable<SchemaPropagationResponse> {
     // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    // remove unnecessary information for schema propagation.
+    const body2 = {
+      operators: body.operators,
+      links: body.links,
+      breakpoints: [],
+      opsToReuseResult: [],
+      opsToViewResult: [],
+    };
     // make a http post request to the API endpoint with the logical plan object
     return this.httpClient
       .post<SchemaPropagationResponse>(
         `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${
           this.workflowActionService.getWorkflow().wid ?? DEFAULT_WORKFLOW.wid
         }`,
-        JSON.stringify(body),
+        JSON.stringify(body2),
         { headers: { "Content-Type": "application/json" } }
       )
       .pipe(

@@ -47,8 +47,7 @@ abstract class SchedulingPolicy(
     workflow
       .getBlockingOutLinksOfRegion(region)
       .subsetOf(completedLinksOfRegion.getOrElse(region, new mutable.HashSet[LinkIdentity]())) &&
-    region
-      .getOperators()
+    region.getOperators
       .forall(opId =>
         executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.COMPLETED
       )
@@ -69,15 +68,15 @@ abstract class SchedulingPolicy(
       workflow: Workflow,
       workerId: ActorVirtualIdentity
   ): Set[PipelinedRegion] = {
-    val opId = workflow.getOperator(workerId).id
-    runningRegions.filter(r => r.getOperators().contains(opId)).toSet
+    val opId = workflow.getOpExecConfig(workerId).id
+    runningRegions.filter(r => r.getOperators.contains(opId)).toSet
   }
 
   /**
     * A link's region is the region of the source operator of the link.
     */
   protected def getRegions(link: LinkIdentity): Set[PipelinedRegion] = {
-    runningRegions.filter(r => r.getOperators().contains(link.from)).toSet
+    runningRegions.filter(r => r.getOperators.contains(link.from)).toSet
   }
 
   // gets the ready regions that is not currently running
@@ -126,8 +125,8 @@ abstract class SchedulingPolicy(
     runningRegions --= regions
   }
 
-  def getRunningRegions(): Set[PipelinedRegion] = runningRegions.toSet
+  def getRunningRegions: Set[PipelinedRegion] = runningRegions.toSet
 
-  def getCompletedRegions(): Set[PipelinedRegion] = completedRegions.toSet
+  def getCompletedRegions: Set[PipelinedRegion] = completedRegions.toSet
 
 }

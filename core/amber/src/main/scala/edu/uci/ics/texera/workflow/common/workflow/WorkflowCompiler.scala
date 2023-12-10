@@ -1,105 +1,124 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import com.google.protobuf.timestamp.Timestamp
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
+import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
+import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants
 
-object WorkflowCompiler {
+import java.time.Instant
+import scala.collection.mutable.ArrayBuffer
 
-  def isSink(operatorID: String, workflowCompiler: WorkflowCompiler): Boolean = {
-    val outLinks =
-      workflowCompiler.logicalPlan.links.filter(link => link.origin.operatorID == operatorID)
-    outLinks.isEmpty
-  }
+class WorkflowCompiler(
+    val logicalPlanPojo: LogicalPlanPojo,
+    workflowContext: WorkflowContext
+) extends LazyLogging {
 
-}
+  def compileLogicalPlan(jobStateStore: JobStateStore): LogicalPlan = {
 
-class WorkflowCompiler(val logicalPlan: LogicalPlan) {
-
-  private def assignSinkStorage(
-      logicalPlan: LogicalPlan,
-      storage: OpResultStorage,
-      reuseStorageSet: Set[String] = Set()
-  ) = {
-    // create a JSON object that holds pointers to the workflow's results in Mongo
-    // TODO in the future, will extract this logic from here when we need pointers to the stats storage
-    val resultsJSON = objectMapper.createObjectNode()
-    val sinksPointers = objectMapper.createArrayNode()
-    // assign storage to texera-managed sinks before generating exec config
-    logicalPlan.operators.foreach {
-      case o @ (sink: ProgressiveSinkOpDesc) =>
-        val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
-        // due to the size limit of single document in mongoDB (16MB)
-        // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
-        val storageType = {
-          if (sink.getChartType.contains(VisualizationConstants.HTML_VIZ)) OpResultStorage.MEMORY
-          else OpResultStorage.defaultStorageMode
-        }
-        if (reuseStorageSet.contains(storageKey) && storage.contains(storageKey)) {
-          sink.setStorage(storage.get(storageKey))
-        } else {
-          sink.setStorage(
-            storage.create(
-              o.context.executionID + "_",
-              storageKey,
-              logicalPlan.outputSchemaMap(o.operatorIdentifier).head,
-              storageType
-            )
-          )
-          // add the sink collection name to the JSON array of sinks
-          sinksPointers.add(o.context.executionID + "_" + storageKey)
-        }
-      case _ =>
+    val errorList = new ArrayBuffer[(String, Throwable)]()
+    // remove previous error state
+    jobStateStore.jobMetadataStore.updateState { metadataStore =>
+      metadataStore.withFatalErrors(
+        metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
+      )
     }
-    // update execution entry in MySQL to have pointers to the mongo collections
-    resultsJSON.set("results", sinksPointers)
-    ExecutionsMetadataPersistService.updateExistingExecutionVolumnPointers(
-      logicalPlan.context.executionID,
-      resultsJSON.toString
+
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
+    logicalPlan = SinkInjectionTransformer.transform(
+      logicalPlanPojo.opsToViewResult,
+      logicalPlan
     )
+
+    logicalPlan = logicalPlan.propagateWorkflowSchema(Some(errorList))
+
+    // report compilation errors
+    if (errorList.nonEmpty) {
+      val jobErrors = errorList.map {
+        case (opId, err) =>
+          logger.error("error occurred in logical plan compilation", err)
+          WorkflowFatalError(
+            COMPILATION_ERROR,
+            Timestamp(Instant.now),
+            err.toString,
+            err.getStackTrace.mkString("\n"),
+            opId
+          )
+      }
+      jobStateStore.jobMetadataStore.updateState(metadataStore =>
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
+      )
+    }
+    logicalPlan
   }
 
-  def amberWorkflow(
+  def compile(
       workflowId: WorkflowIdentity,
       opResultStorage: OpResultStorage,
-      lastCompletedJob: Option[LogicalPlan] = Option.empty
+      lastCompletedJob: Option[LogicalPlan] = Option.empty,
+      jobStateStore: JobStateStore
   ): Workflow = {
-    val cacheReuses = new WorkflowCacheChecker(lastCompletedJob, logicalPlan).getValidCacheReuse()
-    val opsToReuseCache = cacheReuses.intersect(logicalPlan.opsToReuseCache.toSet)
-    val rewrittenLogicalPlan =
-      WorkflowCacheRewriter.transform(logicalPlan, opResultStorage, opsToReuseCache)
 
-    // assign sink storage to the logical plan after cache rewrite
-    // as it will be converted to the actual physical plan
-    assignSinkStorage(rewrittenLogicalPlan, opResultStorage, opsToReuseCache)
-    // also assign sink storage to the original logical plan, as the original logical plan
-    // will be used to be compared to the subsequent runs
-    assignSinkStorage(logicalPlan, opResultStorage, opsToReuseCache)
+    // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
+    //  this plan will be compared in subsequent runs to check which operator can be replaced
+    //  by cache.
+    val originalLogicalPlan = compileLogicalPlan(jobStateStore)
 
-    val physicalPlan0 = rewrittenLogicalPlan.toPhysicalPlan
+    // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
+    val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
+      originalLogicalPlan,
+      lastCompletedJob,
+      opResultStorage,
+      logicalPlanPojo.opsToReuseResult.toSet
+    )
 
-    // create pipelined regions.
-    val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(
+    // the PhysicalPlan with topology expanded.
+    var physicalPlan = PhysicalPlan(rewrittenLogicalPlan)
+
+    // generate an ExecutionPlan with regions.
+    //  currently, WorkflowPipelinedRegionsBuilder is the only ExecutionPlan generator.
+    val pipelinedRegionsBuilder = new WorkflowPipelinedRegionsBuilder(
       workflowId,
-      logicalPlan,
-      physicalPlan0,
-      new MaterializationRewriter(logicalPlan.context, opResultStorage)
-    ).buildPipelinedRegions()
+      rewrittenLogicalPlan,
+      physicalPlan,
+      new MaterializationRewriter(rewrittenLogicalPlan.context, opResultStorage)
+    )
+    val executionPlan = pipelinedRegionsBuilder.buildPipelinedRegions()
 
-    // assign link strategies
-    val physicalPlan2 = new PartitionEnforcer(physicalPlan1).enforcePartition()
+    // get the updated physical plan
+    physicalPlan = pipelinedRegionsBuilder.physicalPlan
+
+    // TODO: add resource allocator to incorporate PartitioningPlan below
+
+    // generate a PartitioningPlan, describing partitions between physical operators
+    val partitioningPlan = new PartitionEnforcer(physicalPlan).enforcePartition()
 
     // assert all source layers to have 0 input ports
-    physicalPlan2.getSourceOperators.foreach { sourceLayer =>
-      assert(physicalPlan2.getLayer(sourceLayer).inputPorts.isEmpty)
+    physicalPlan.getSourceOperators.foreach { sourceLayer =>
+      assert(physicalPlan.getLayer(sourceLayer).inputPorts.isEmpty)
+    }
+    // assert all sink layers to have 0 output ports
+    physicalPlan.getSinkOperators.foreach { sinkLayer =>
+      assert(physicalPlan.getLayer(sinkLayer).outputPorts.isEmpty)
     }
 
-    new Workflow(workflowId, physicalPlan2)
+    new Workflow(
+      workflowId,
+      originalLogicalPlan,
+      rewrittenLogicalPlan,
+      physicalPlan,
+      executionPlan,
+      partitioningPlan
+    )
+
   }
 
 }

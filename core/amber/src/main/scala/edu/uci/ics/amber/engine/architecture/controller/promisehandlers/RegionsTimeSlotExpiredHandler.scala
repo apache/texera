@@ -22,9 +22,9 @@ trait RegionsTimeSlotExpiredHandler {
   registerHandler { (msg: RegionsTimeSlotExpired, sender) =>
     {
       val notCompletedRegions =
-        msg.regions.diff(cp.workflowScheduler.schedulingPolicy.getCompletedRegions())
+        msg.regions.diff(cp.workflowScheduler.schedulingPolicy.getCompletedRegions)
 
-      if (notCompletedRegions.subsetOf(cp.workflowScheduler.schedulingPolicy.getRunningRegions())) {
+      if (notCompletedRegions.subsetOf(cp.workflowScheduler.schedulingPolicy.getRunningRegions)) {
         cp.workflowScheduler
           .onTimeSlotExpired(
             cp.workflow,

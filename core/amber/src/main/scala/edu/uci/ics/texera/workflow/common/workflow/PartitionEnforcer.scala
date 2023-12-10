@@ -70,7 +70,7 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
     }
   }
 
-  def enforcePartition(): PhysicalPlan = {
+  def enforcePartition(): PartitioningPlan = {
 
     physicalPlan
       .topologicalIterator()
@@ -115,7 +115,7 @@ class PartitionEnforcer(physicalPlan: PhysicalPlan) {
       })
 
     // returns the complete physical plan with link strategies
-    physicalPlan.copy(linkStrategies = linkMapping.toMap)
+    new PartitioningPlan(linkMapping.toMap)
   }
 
 }

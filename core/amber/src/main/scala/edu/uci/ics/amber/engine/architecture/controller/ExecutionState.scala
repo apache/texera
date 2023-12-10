@@ -14,11 +14,11 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, Workfl
 class ExecutionState(workflow: Workflow) {
 
   private val linkExecutions: Map[LinkIdentity, LinkExecution] =
-    workflow.physicalPlan.linkStrategies.map { link =>
+    workflow.partitioningPlan.strategies.map { link =>
       link._1 -> new LinkExecution(link._2.totalReceiversCount)
     }
   private val operatorExecutions: Map[LayerIdentity, OperatorExecution] =
-    workflow.getAllOperators.map { opConf =>
+    workflow.physicalPlan.operators.map { opConf =>
       opConf.id -> new OperatorExecution(opConf.id, opConf.numWorkers)
     }.toMap
 
@@ -52,7 +52,7 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllWorkersOfRegion(region: PipelinedRegion): Array[ActorVirtualIdentity] = {
     val allOperatorsInRegion =
-      region.getOperators() ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
 
     allOperatorsInRegion.flatMap(opId => getOperatorExecution(opId).getBuiltWorkerIds.toList)
   }

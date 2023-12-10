@@ -20,7 +20,7 @@ import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.e2e.Utils.buildWorkflow
+import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 import scala.concurrent.duration.DurationInt
@@ -57,10 +57,15 @@ class DataProcessingSpec
 
     client
       .registerCallback[WorkflowCompleted](evt => {
-        results = workflow.physicalPlan.getSinkOperators
-          .map(sinkOpId => workflow.physicalPlan.operatorMap(sinkOpId))
-          .filter(op => resultStorage.contains(op.id.operator))
-          .map { op => (op.id.operator, resultStorage.get(op.id.operator).getAll.toList) }
+        results = workflow.logicalPlan.getTerminalOperators
+          .map(sinkOpId => (sinkOpId, workflow.logicalPlan.getUpstream(sinkOpId).head.operatorID))
+          .filter {
+            case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
+          }
+          .map {
+            case (sinkOpId, upstreamOpId) =>
+              (sinkOpId, resultStorage.get(upstreamOpId).getAll.toList)
+          }
           .toMap
         completion.setDone()
       })

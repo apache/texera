@@ -60,10 +60,10 @@ class ClusterListener extends Actor with AmberLogging {
 
   private def forcefullyStop(jobService: WorkflowJobService, cause: Throwable): Unit = {
     jobService.client.shutdown()
-    jobService.stateStore.statsStore.updateState(stats =>
+    jobService.jobStateStore.statsStore.updateState(stats =>
       stats.withEndTimeStamp(System.currentTimeMillis())
     )
-    jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
+    jobService.jobStateStore.jobMetadataStore.updateState { jobInfo =>
       logger.error("forcefully stopping execution", cause)
       updateWorkflowState(FAILED, jobInfo).addFatalErrors(
         WorkflowFatalError(
@@ -85,24 +85,24 @@ class ClusterListener extends Actor with AmberLogging {
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (
-            jobService != null && jobService.stateStore.jobMetadataStore.getState.state != COMPLETED
+            jobService != null && jobService.jobStateStore.jobMetadataStore.getState.state != COMPLETED
           ) {
             if (AmberConfig.isFaultToleranceEnabled) {
               logger.info(
-                s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+                s"Trigger recovery process for execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
               )
               try {
                 futures.append(jobService.client.notifyNodeFailure(member.address))
               } catch {
                 case t: Throwable =>
                   logger.warn(
-                    s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
+                    s"execution ${jobService.workflow.getWorkflowId} cannot recover! forcing it to stop"
                   )
                   forcefullyStop(jobService, t)
               }
             } else {
               logger.info(
-                s"Kill execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+                s"Kill execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
               )
               forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
             }

@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
@@ -141,10 +140,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val ctx = new WorkflowContext()
     val logicalPlan = LogicalPlan(ctx, operators, links, List())
-    logicalPlan.initializeLogicalPlan(new JobStateStore())
-    val workflowCompiler = new WorkflowCompiler(logicalPlan)
-
-    val schemaResult = workflowCompiler.logicalPlan.propagateWorkflowSchema()._1
+    val schemaResult = logicalPlan.propagateWorkflowSchema(None).inputSchemaMap
 
     assert(schemaResult(mlTrainingOp.operatorIdentifier).head.get.equals(dataSchema))
     assert(schemaResult(mlTrainingOp.operatorIdentifier)(1).get.equals(dataSchema))

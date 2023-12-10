@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.e2e.TestOperators
-import edu.uci.ics.amber.engine.e2e.Utils.buildWorkflow
+import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.workflow.{OperatorLink, OperatorPort}
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.{
@@ -28,7 +28,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 1)
   }
 
@@ -60,8 +60,8 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
-    val ancestorMapping = workflow.physicalPlan.regionAncestorMapping
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
+    val ancestorMapping = workflow.executionPlan.regionAncestorMapping
     assert(pipelinedRegions.size == 2)
 
     val buildRegion = pipelinedRegions
@@ -112,7 +112,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 2)
   }
 
@@ -153,7 +153,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 2)
   }
 
@@ -194,7 +194,7 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.physicalPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
     assert(pipelinedRegions.size == 2)
   }
 

@@ -46,16 +46,16 @@ object WorkflowPipelinedRegionsBuilder {
 
 class WorkflowPipelinedRegionsBuilder(
     val workflowId: WorkflowIdentity,
-    val logicalPlan: LogicalPlan,
+    var logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     val materializationRewriter: MaterializationRewriter
 ) {
-  var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] =
+  private var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] =
     new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
       classOf[DefaultEdge]
     )
 
-  var materializationWriterReaderPairs = new mutable.HashMap[LayerIdentity, LayerIdentity]()
+  private val materializationWriterReaderPairs = new mutable.HashMap[LayerIdentity, LayerIdentity]()
 
   /**
     * Uses the outLinks and operatorToOpExecConfig to create a DAG similar to the workflow but with all
@@ -63,13 +63,12 @@ class WorkflowPipelinedRegionsBuilder(
     *
     * @return
     */
-  private def getBlockingEdgesRemovedDAG(): PhysicalPlan = {
+  private def getBlockingEdgesRemovedDAG: PhysicalPlan = {
     val edgesToRemove = new mutable.MutableList[LinkIdentity]()
 
     physicalPlan.allOperatorIds.foreach(opId => {
       val upstreamOps = physicalPlan.getUpstream(opId)
       upstreamOps.foreach(upOpId => {
-
         physicalPlan.links
           .filter(l => l.from == upOpId && l.to == opId)
           .foreach(link => {
@@ -110,7 +109,7 @@ class WorkflowPipelinedRegionsBuilder(
     */
   private def addMaterializationOperatorIfNeeded(): Boolean = {
     // create regions
-    val dagWithoutBlockingEdges = getBlockingEdgesRemovedDAG()
+    val dagWithoutBlockingEdges = getBlockingEdgesRemovedDAG
     val sourceOperators = dagWithoutBlockingEdges.sourceOperators
     pipelinedRegionsDAG = new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
       classOf[DefaultEdge]
@@ -208,7 +207,7 @@ class WorkflowPipelinedRegionsBuilder(
     pipelinedRegionsDAG
       .vertexSet()
       .forEach(region =>
-        if (region.getOperators().contains(opId)) {
+        if (region.getOperators.contains(opId)) {
           regionsForOperator.add(region)
         }
       )
@@ -254,7 +253,7 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  def buildPipelinedRegions(): PhysicalPlan = {
+  def buildPipelinedRegions(): ExecutionPlan = {
     findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks()
     val allRegions = pipelinedRegionsDAG.iterator().asScala.toList
@@ -265,6 +264,6 @@ class WorkflowPipelinedRegionsBuilder(
         region -> pipelinedRegionsDAG.getAncestors(region).asScala.toSet
       }
       .toMap
-    this.physicalPlan.copy(regionsToSchedule = allRegions, regionAncestorMapping = ancestors)
+    new ExecutionPlan(regionsToSchedule = allRegions, regionAncestorMapping = ancestors)
   }
 }

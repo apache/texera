@@ -34,7 +34,7 @@ trait LocalBreakpointTriggeredHandler {
     {
       // get the operator where the worker triggers breakpoint
       val targetOp = cp.executionState.getOperatorExecution(sender)
-      val opID = cp.workflow.getOperator(sender).id
+      val opID = cp.workflow.getOpExecConfig(sender).id
       // get global breakpoints given local breakpoints
       val unResolved = msg.localBreakpoints
         .filter {

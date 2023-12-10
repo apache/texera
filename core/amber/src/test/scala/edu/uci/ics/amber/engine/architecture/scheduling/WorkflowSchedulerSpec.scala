@@ -2,10 +2,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
-import edu.uci.ics.amber.engine.common.{VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
-import edu.uci.ics.amber.engine.e2e.Utils.buildWorkflow
+import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.workflow.{OperatorLink, OperatorPort}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -41,7 +41,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     val executionState = new ExecutionState(workflow)
     val scheduler =
       new WorkflowScheduler(
-        workflow.physicalPlan.regionsToSchedule.toBuffer,
+        workflow.executionPlan.regionsToSchedule.toBuffer,
         executionState,
         ControllerConfig.default,
         null
@@ -62,7 +62,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         VirtualIdentityUtils.createWorkerIdentity(layerId, 0)
       )
     assert(nextRegions.isEmpty)
-    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 1)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
   }
 
   "Scheduler" should "correctly schedule regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
@@ -105,7 +105,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     val executionState = new ExecutionState(workflow)
     val scheduler =
       new WorkflowScheduler(
-        workflow.physicalPlan.regionsToSchedule.toBuffer,
+        workflow.executionPlan.regionsToSchedule.toBuffer,
         executionState,
         ControllerConfig.default,
         null
@@ -167,7 +167,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       )
     )
     assert(nextRegions.nonEmpty)
-    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 1)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
     scheduler.schedulingPolicy.addToRunningRegions(nextRegions, null)
     Set(probeCsv.operatorID, hashJoin1.operatorID, hashJoin2.operatorID, sink.operatorID).foreach(
       opID => setOperatorCompleted(workflow, executionState, opID)
@@ -180,7 +180,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       VirtualIdentityUtils.createWorkerIdentity(probeLayerId, 0)
     )
     assert(nextRegions.isEmpty)
-    assert(scheduler.schedulingPolicy.getCompletedRegions().size == 2)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 2)
   }
 
 }

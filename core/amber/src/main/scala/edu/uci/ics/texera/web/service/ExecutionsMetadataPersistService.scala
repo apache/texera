@@ -80,7 +80,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     }
   }
 
-  def updateExistingExecutionVolumnPointers(eid: Long, pointers: String): Unit = {
+  def updateExistingExecutionVolumePointers(eid: Long, pointers: String): Unit = {
     if (!userSystemEnabled) return
     try {
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))

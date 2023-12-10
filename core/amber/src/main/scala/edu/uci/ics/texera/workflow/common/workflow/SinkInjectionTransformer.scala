@@ -51,6 +51,7 @@ object SinkInjectionTransformer {
         // set upstream ID and port
         sinkOp.setUpstreamId(upstream.get.operatorID)
         sinkOp.setUpstreamPort(edge.get.origin.portOrdinal)
+
         // set output mode for visualization operator
         (upstream.get, sinkOp) match {
           // match the combination of a visualization operator followed by a sink operator

@@ -150,8 +150,8 @@ class JobStatsService(
         new util.ArrayList[WorkflowRuntimeStatistics]()
       for ((operatorId, stat) <- operatorStatistics) {
         val execution = new WorkflowRuntimeStatistics()
-        execution.setWorkflowId(workflowContext.wId)
-        execution.setExecutionId(UInteger.valueOf(workflowContext.executionID))
+        execution.setWorkflowId(workflowContext.wid)
+        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId))
         execution.setOperatorId(operatorId)
         execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
         execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))

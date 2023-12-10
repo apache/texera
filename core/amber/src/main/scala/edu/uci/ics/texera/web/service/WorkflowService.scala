@@ -79,10 +79,10 @@ class WorkflowService(
 
   jobService.subscribe { job: WorkflowJobService =>
     {
-      job.stateStore.jobMetadataStore.registerDiffHandler { (oldState, newState) =>
+      job.jobStateStore.jobMetadataStore.registerDiffHandler { (oldState, newState) =>
         {
           if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-            lastCompletedLogicalPlan = Option.apply(job.workflowCompiler.logicalPlan)
+            lastCompletedLogicalPlan = Option.apply(job.workflow.originalLogicalPlan)
           }
 
           Iterable.empty
@@ -107,7 +107,7 @@ class WorkflowService(
     var localDisposable = Disposable.empty()
     jobService.subscribe { job: WorkflowJobService =>
       localDisposable.dispose()
-      val subscriptions = job.stateStore.getAllStores
+      val subscriptions = job.jobStateStore.getAllStores
         .map(_.getWebsocketEventObservable)
         .map(evtPub =>
           evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
@@ -119,7 +119,7 @@ class WorkflowService(
 
   def disconnect(): Unit = {
     lifeCycleManager.decreaseUserCount(
-      Option(jobService.getValue).map(_.stateStore.jobMetadataStore.getState.state)
+      Option(jobService.getValue).map(_.jobStateStore.jobMetadataStore.getState.state)
     )
   }
 
@@ -137,8 +137,8 @@ class WorkflowService(
     }
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
 
-    workflowContext.executionID = ExecutionsMetadataPersistService.insertNewExecution(
-      workflowContext.wId,
+    workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
+      workflowContext.wid,
       workflowContext.userId,
       req.executionName,
       convertToJson(req.engineVersion)
@@ -151,9 +151,9 @@ class WorkflowService(
       lastCompletedLogicalPlan
     )
 
-    lifeCycleManager.registerCleanUpOnStateChange(job.stateStore)
+    lifeCycleManager.registerCleanUpOnStateChange(job.jobStateStore)
     jobService.onNext(job)
-    if (job.stateStore.jobMetadataStore.getState.fatalErrors.isEmpty) {
+    if (job.jobStateStore.jobMetadataStore.getState.fatalErrors.isEmpty) {
       job.startWorkflow()
     }
   }

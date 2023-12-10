@@ -12,7 +12,7 @@ object WorkflowCacheChecker {
       newPlan: LogicalPlan,
       request: EditingTimeCompilationRequest
   ): Map[String, String] = {
-    val validCacheOps = new WorkflowCacheChecker(oldPlan, newPlan).getValidCacheReuse()
+    val validCacheOps = new WorkflowCacheChecker(oldPlan, newPlan).getValidCacheReuse
     val cacheUpdateResult = request.opsToReuseResult
       .map(o => (o, if (validCacheOps.contains(o)) "cache valid" else "cache invalid"))
       .toMap
@@ -26,7 +26,7 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
   private val equivalenceClass = new mutable.HashMap[String, Int]()
   private var nextClassId: Int = 0
 
-  private def getNextClassId(): Int = {
+  private def getNextClassId: Int = {
     nextClassId += 1
     nextClassId
   }
@@ -34,7 +34,7 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
   // checks the validity of the cache given the old plan and the new plan
   // returns a set of operator IDs that can be reused
   // the operatorID is also the storage key
-  def getValidCacheReuse(): Set[String] = {
+  def getValidCacheReuse: Set[String] = {
     if (oldWorkflowOpt.isEmpty) {
       return Set()
     }
@@ -67,7 +67,7 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
 
         // check if the old workflow contains the same operator content
         val newOpClassId = if (oldOp == null) {
-          getNextClassId() // operator not found, create a new class
+          getNextClassId // operator not found, create a new class
         } else {
           // check its inputs are all in the same equivalence class
           val oldId = "old-" + oldOp.operatorID
@@ -77,7 +77,7 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
           if (oldOpUpstreamClasses.equals(newOpUpstreamClasses)) {
             equivalenceClass(oldId) // same equivalence class
           } else {
-            getNextClassId() // inputs are no the same, new class
+            getNextClassId // inputs are no the same, new class
           }
         }
         equivalenceClass.put("new-" + opId, newOpClassId)

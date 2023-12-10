@@ -14,7 +14,7 @@ import java.net.URL
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.collection.JavaConversions._
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 
 class BulkDownloaderOpExec(
@@ -94,14 +94,14 @@ class BulkDownloaderOpExec(
             case Some(contentStream) =>
               if (contentStream.available() > 0) {
                 val filename =
-                  s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
+                  s"w${workflowContext.wid}-e${workflowContext.executionId}-${urlObj.getHost
                     .replace(".", "")}.download"
                 UserFileResource
                   .saveFile(
                     workflowContext.userId.get,
                     filename,
                     contentStream,
-                    s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
+                    s"downloaded by execution ${workflowContext.executionId} of workflow ${workflowContext.wid}. Original URL = $url"
                   )
                 filename
               } else {
