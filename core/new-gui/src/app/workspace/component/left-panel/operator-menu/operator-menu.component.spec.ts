@@ -103,6 +103,14 @@ describe("OperatorPanelComponent", () => {
     expect(component.groupNamesOrdered.length).toEqual(mockOperatorGroup.length);
   });
 
+  it("should have all group names shown in the UI side panel", () => {
+    const groupNamesInUI = fixture.debugElement
+      .queryAll(By.css(".operator-submenu-title"))
+      .map(el => el.nativeElement.querySelector(".ant-collapse-header").innerText);
+
+    expect(groupNamesInUI).toEqual(mockOperatorGroup.map(group => group.groupName));
+  });
+
   it("should create child operator label component for all operators", () => {
     const operatorLabels = fixture.debugElement
       .queryAll(By.directive(OperatorLabelComponent))
