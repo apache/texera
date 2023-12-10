@@ -68,12 +68,10 @@ class OpResultStorage extends Serializable with LazyLogging {
     *            Currently it is the uuid inside the cache source or cache sink operator.
     */
   def remove(key: String): Unit = {
-    logger.debug(s"remove $key start")
     if (cache.contains(key)) {
       cache.get(key).clear()
     }
     cache.remove(key)
-    logger.debug(s"remove $key end")
   }
 
   /**
