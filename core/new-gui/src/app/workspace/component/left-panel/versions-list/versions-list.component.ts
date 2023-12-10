@@ -7,11 +7,11 @@ import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type
 
 @UntilDestroy()
 @Component({
-  selector: "texera-version-frame",
-  templateUrl: "./versions-frame.component.html",
-  styleUrls: ["./versions-frame.component.scss"],
+  selector: "texera-version-list",
+  templateUrl: "versions-list.component.html",
+  styleUrls: ["versions-list.component.scss"],
 })
-export class VersionsFrameComponent implements OnInit {
+export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
 
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];

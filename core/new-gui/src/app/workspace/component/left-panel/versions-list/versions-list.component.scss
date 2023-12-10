@@ -1,0 +1,18 @@
+#versions-list ::ng-deep {
+  .ant-table-content {
+    font-size: 11px;
+  }
+  .ant-table-cell {
+    padding-right: 0;
+  }
+}
+
+.version-link {
+  color: black;
+  font-size: 11px;
+  padding: 0;
+}
+
+#close-version {
+  width: 100%;
+}

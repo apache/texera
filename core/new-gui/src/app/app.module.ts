@@ -64,8 +64,8 @@ import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dia
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
 import { MenuComponent } from "./workspace/component/menu/menu.component";
-import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-label/operator-label.component";
-import { OperatorMenuFrameComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-menu-frame.component";
+import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu/operator-label/operator-label.component";
+import { OperatorMenuComponent } from "./workspace/component/left-panel/operator-menu/operator-menu.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelToggleComponent } from "./workspace/component/result-panel-toggle/result-panel-toggle.component";
@@ -89,7 +89,7 @@ import { BreakpointPropertyEditFrameComponent } from "./workspace/component/prop
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { VersionsFrameComponent } from "./workspace/component/left-panel/versions-frame/versions-frame.component";
+import { VersionsListComponent } from "./workspace/component/left-panel/versions-list/versions-list.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
@@ -134,6 +134,7 @@ import { PublicProjectComponent } from "./dashboard/user/component/user-project/
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
+import { NzResizableModule } from "ng-zorro-antd/resizable";
 
 registerLocaleData(en);
 
@@ -144,9 +145,9 @@ registerLocaleData(en);
     AppComponent,
     WorkspaceComponent,
     MenuComponent,
-    OperatorMenuFrameComponent,
+    OperatorMenuComponent,
     PropertyEditorComponent,
-    VersionsFrameComponent,
+    VersionsListComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
@@ -276,6 +277,7 @@ registerLocaleData(en);
     MarkdownModule.forRoot(),
     DragDropModule,
     NzAlertModule,
+    NzResizableModule,
   ],
   providers: [
     AuthGuardService,

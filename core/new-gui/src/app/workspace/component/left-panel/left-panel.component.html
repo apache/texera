@@ -1,3 +1,19 @@
-<ndc-dynamic
-  [ndcDynamicComponent]="frameComponentConfig?.component"
-  [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
+<mat-expansion-panel
+  [expanded]="true"
+  hideToggle
+  cdkDrag
+  cdkDragBoundary="texera-workspace"
+  id="left-panel-container"
+  nz-resizable
+  [nzMinWidth]="175"
+  [nzMaxWidth]="screenWidth*0.5"
+  [style.width.px]="width"
+  (nzResize)="onResize($event)">
+  <mat-expansion-panel-header cdkDragHandle>
+    <mat-panel-title>Operators</mat-panel-title>
+  </mat-expansion-panel-header>
+  <div id="left-panel-content">
+    <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
+  </div>
+  <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
+</mat-expansion-panel>

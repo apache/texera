@@ -1,22 +1,21 @@
-import { mockScanSourceSchema } from "../../../service/operator-metadata/mock-operator-metadata.data";
+import {
+  mockOperatorGroup,
+  mockOperatorMetaData,
+  mockOperatorSchemaList,
+  mockScanSourceSchema,
+} from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { UndoRedoService } from "../../../service/undo-redo/undo-redo.service";
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { By } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
-import * as c from "./operator-menu-frame.component";
-import { OperatorMenuFrameComponent } from "./operator-menu-frame.component";
+import * as c from "./operator-menu.component";
+import { OperatorMenuComponent } from "./operator-menu.component";
 import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../service/operator-metadata/stub-operator-metadata.service";
 import { GroupInfo, OperatorSchema } from "../../../types/operator-schema.interface";
 import { RouterTestingModule } from "@angular/router/testing";
-
-import {
-  mockOperatorGroup,
-  mockOperatorMetaData,
-  mockOperatorSchemaList,
-} from "../../../service/operator-metadata/mock-operator-metadata.data";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { JointUIService } from "../../../service/joint-ui/joint-ui.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
@@ -24,12 +23,12 @@ import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
 
 describe("OperatorPanelComponent", () => {
-  let component: OperatorMenuFrameComponent;
-  let fixture: ComponentFixture<OperatorMenuFrameComponent>;
+  let component: OperatorMenuComponent;
+  let fixture: ComponentFixture<OperatorMenuComponent>;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [OperatorMenuFrameComponent, OperatorLabelComponent],
+      declarations: [OperatorMenuComponent, OperatorLabelComponent],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -46,7 +45,7 @@ describe("OperatorPanelComponent", () => {
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(OperatorMenuFrameComponent);
+    fixture = TestBed.createComponent(OperatorMenuComponent);
     fixture.detectChanges();
     component = fixture.componentInstance;
   });
@@ -56,9 +55,7 @@ describe("OperatorPanelComponent", () => {
   });
 
   it("should sort group names correctly based on order", () => {
-    const groups = mockOperatorGroup;
-
-    const result = c.getGroupNamesSorted(groups);
+    const result = c.getGroupNamesSorted(mockOperatorGroup);
 
     expect(result).toEqual(["Source", "Analysis", "View Results"]);
   });
@@ -108,7 +105,7 @@ describe("OperatorPanelComponent", () => {
 
   it("should have all group names shown in the UI side panel", () => {
     const groupNamesInUI = fixture.debugElement
-      .queryAll(By.css(".texera-workspace-operator-panel-subgroup"))
+      .queryAll(By.css(".operator-submenu-title"))
       .map(el => el.nativeElement.querySelector(".ant-collapse-header").innerText);
 
     expect(groupNamesInUI).toEqual(mockOperatorGroup.map(group => group.groupName));

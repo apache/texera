@@ -1,0 +1,57 @@
+.disable-drag-drop {
+  color: rgb(151, 151, 151);
+  &:hover {
+    border-color: rgb(217, 217, 217);
+  }
+}
+
+.operator-label {
+  width: 100%;
+  height: calc(100% - 1px);
+  display: flex;
+  align-content: center;
+  border-radius: 3px;
+  border: 1px solid rgba(0, 0, 0, 0);
+  transition: border-color 0.3s, color 0.3s;
+  overflow: hidden;
+  &:hover {
+    border-color: rgba(64, 169, 255, 1);
+    > .text {
+      transform: translateX(10px);
+    }
+  }
+  > .text {
+    user-select: none;
+    transition: transform 0.5s 0.1s;
+  }
+}
+
+.shake-animation {
+  animation: shake 0.5s linear;
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(-10px);
+    color: rgb(255, 120, 117);
+    border-color: rgb(255, 120, 117);
+  }
+  17% {
+    transform: translateX(10px);
+  }
+  33% {
+    transform: translateX(-10px);
+  }
+  50% {
+    transform: translateX(7px);
+  }
+  67% {
+    transform: translateX(-5px);
+  }
+  83% {
+    transform: translateX(3px);
+  }
+  100% {
+    transform: translateX(0px);
+  }
+}
