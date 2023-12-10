@@ -89,7 +89,7 @@ import { BreakpointPropertyEditFrameComponent } from "./workspace/component/prop
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { VersionsFrameComponent } from "./workspace/component/left-panel/versions-frame/versions-frame.component";
+import { VersionsListComponent } from "./workspace/component/left-panel/versions-list/versions-list.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
@@ -147,7 +147,7 @@ registerLocaleData(en);
     MenuComponent,
     OperatorMenuComponent,
     PropertyEditorComponent,
-    VersionsFrameComponent,
+    VersionsListComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,

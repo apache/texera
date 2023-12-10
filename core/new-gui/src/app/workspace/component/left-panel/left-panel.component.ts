@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
-import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
+import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { ComponentType } from "@angular/cdk/overlay";
 import {
   OPEN_VERSIONS_FRAME_EVENT,
@@ -16,7 +16,7 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent implements OnInit {
-  currentComponent: ComponentType<OperatorMenuComponent | VersionsFrameComponent>;
+  currentComponent: ComponentType<OperatorMenuComponent | VersionsListComponent>;
   screenWidth = window.innerWidth;
   width = 200;
   id = -1;
@@ -43,7 +43,7 @@ export class LeftPanelComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(
         event =>
-          (this.currentComponent = event === OPEN_VERSIONS_FRAME_EVENT ? VersionsFrameComponent : OperatorMenuComponent)
+          (this.currentComponent = event === OPEN_VERSIONS_FRAME_EVENT ? VersionsListComponent : OperatorMenuComponent)
       );
   }
 }
