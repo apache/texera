@@ -24,12 +24,7 @@ object PhysicalPlan {
 
     logicalPlan.operators.foreach(o => {
       val subPlan = o.operatorExecutorMultiLayer(logicalPlan.opSchemaInfo(o.operatorID))
-      // add all physical operators to physical DAG
-      subPlan.operators.foreach(op => physicalPlan = physicalPlan.addOperator(op))
-      // connect intra-operator links
-      subPlan.links.foreach((l: LinkIdentity) =>
-        physicalPlan = physicalPlan.addEdge(l.from, l.fromPort, l.to, l.toPort)
-      )
+      physicalPlan = physicalPlan.addSubPlan(subPlan)
     })
 
     // connect inter-operator links
@@ -92,7 +87,7 @@ case class PhysicalPlan(
 
   def getSinkOperators: List[LayerIdentity] = this.sinkOperators
 
-  def findLayerForInputPort(opName: OperatorIdentity, portName: String): LayerIdentity = {
+  private def findLayerForInputPort(opName: OperatorIdentity, portName: String): LayerIdentity = {
     val candidateLayers = layersOfLogicalOperator(opName).filter(op =>
       op.inputPorts.map(_.displayName).contains(portName)
     )
@@ -198,10 +193,10 @@ case class PhysicalPlan(
     this.copy(operators = (operatorMap + (newOp.id -> newOp)).values.toList)
   }
 
-  def addSubPlan(subPlan: PhysicalPlan): PhysicalPlan = {
-    var resultPlan = this
+  private def addSubPlan(subPlan: PhysicalPlan): PhysicalPlan = {
+    var resultPlan = this.copy(operators, links)
     // add all physical operators to physical DAG
-    subPlan.operators.foreach(op => resultPlan = this.addOperator(op))
+    subPlan.operators.foreach(op => resultPlan = resultPlan.addOperator(op))
     // connect intra-operator links
     subPlan.links.foreach((l: LinkIdentity) =>
       resultPlan = resultPlan.addEdge(l.from, l.fromPort, l.to, l.toPort)
