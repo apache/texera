@@ -75,10 +75,10 @@ object WorkflowCacheRewriter {
 
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
-    assignSinkStorage(logicalPlan, storage, opsCanUseCache)
+    assignSinkStorage(resultPlan, storage, opsCanUseCache)
     // also assign sink storage to the original logical plan, as the original logical plan
     // will be used to be compared to the subsequent runs
-    assignSinkStorage(resultPlan, storage, opsCanUseCache)
+    assignSinkStorage(logicalPlan, storage, opsCanUseCache)
     resultPlan
 
   }
@@ -116,6 +116,8 @@ object WorkflowCacheRewriter {
           // add the sink collection name to the JSON array of sinks
           sinksPointers.add(o.context.executionId + "_" + storageKey)
         }
+        storage.get(storageKey)
+
       case _ =>
     }
     // update execution entry in MySQL to have pointers to the mongo collections
