@@ -443,12 +443,16 @@ export class ExecuteWorkflowService {
       ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
     );
 
-    const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(
-      op => !workflowGraph.isOperatorDisabled(op)
+    const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(op =>
+      isDefined(subDag)
+        ? subDag.operators.map(operator => operator.operatorID).includes(op)
+        : !workflowGraph.isOperatorDisabled(op)
     );
 
-    const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
-      op => !workflowGraph.isOperatorDisabled(op)
+    const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(op =>
+      isDefined(subDag)
+        ? subDag.operators.map(operator => operator.operatorID).includes(op)
+        : !workflowGraph.isOperatorDisabled(op)
     );
 
     return { operators, links, breakpoints, opsToViewResult, opsToReuseResult };
