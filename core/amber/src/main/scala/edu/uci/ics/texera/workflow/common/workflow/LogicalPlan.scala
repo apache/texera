@@ -96,9 +96,9 @@ case class LogicalPlan(
   }
 
   // returns a new logical plan with the given operator added
-  def addOperator(operatorDescriptor: LogicalOp): LogicalPlan = {
+  def addOperator(op: LogicalOp): LogicalPlan = {
     // TODO: fix schema for the new operator
-    this.copy(context, operators :+ operatorDescriptor, links, breakpoints)
+    this.copy(context, operators :+ op, links, breakpoints)
   }
 
   def removeOperator(opId: OperatorIdentity): LogicalPlan = {
