@@ -1116,7 +1116,6 @@ export class WorkflowGraph {
     const subDagOperators: OperatorPredicate[] = [];
     const subDagLinks: OperatorLink[] = [];
 
-    // Function to perform DFS traversal
     function dfs(currentOperatorId: string, graph: WorkflowGraph) {
       if (visited.has(currentOperatorId)) {
         return;
@@ -1124,7 +1123,6 @@ export class WorkflowGraph {
 
       visited.add(currentOperatorId);
 
-      // Get OperatorPredicate for the current operatorId
       const currentOperator = graph.getOperator(currentOperatorId);
       if (currentOperator) {
         subDagOperators.push(currentOperator);
@@ -1133,7 +1131,7 @@ export class WorkflowGraph {
         const connectedLinks = graph.getAllLinks().filter(link => link.target.operatorID === currentOperatorId);
         connectedLinks.forEach(link => {
           subDagLinks.push(link);
-          dfs(link.source.operatorID, graph); // Recursively visit the source of the link
+          dfs(link.source.operatorID, graph);
         });
       }
     }

@@ -405,10 +405,10 @@ export class ExecuteWorkflowService {
       );
     };
 
+    const subDag = isDefined(targetOperatorId) ? workflowGraph.getSubDag(targetOperatorId) : undefined;
+
     const operators: LogicalOperator[] = (
-      isDefined(targetOperatorId)
-        ? workflowGraph.getSubDag(targetOperatorId).operators
-        : workflowGraph.getAllEnabledOperators()
+      isDefined(subDag) ? subDag.operators : workflowGraph.getAllEnabledOperators()
     ).map(op => {
       let logicalOp: LogicalOperator = {
         ...op.operatorProperties,
@@ -426,9 +426,7 @@ export class ExecuteWorkflowService {
       return logicalOp;
     });
 
-    const links: LogicalLink[] = (
-      isDefined(targetOperatorId) ? workflowGraph.getSubDag(targetOperatorId).links : workflowGraph.getAllEnabledLinks()
-    ).map(link => ({
+    const links: LogicalLink[] = (isDefined(subDag) ? subDag.links : workflowGraph.getAllEnabledLinks()).map(link => ({
       origin: {
         operatorID: link.source.operatorID,
         portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID),
