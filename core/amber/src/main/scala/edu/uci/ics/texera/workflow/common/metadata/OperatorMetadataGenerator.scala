@@ -93,6 +93,8 @@ object OperatorMetadataGenerator {
 
   def generateOperatorJsonSchema(opDescClass: Class[_ <: LogicalOp]): JsonNode = {
     val jsonSchema = jsonSchemaGenerator.generateJsonSchema(opDescClass).asInstanceOf[ObjectNode]
+    // remove operatorID from json schema
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorID")
     // remove operatorId from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorId")
     // remove operatorType from json schema
