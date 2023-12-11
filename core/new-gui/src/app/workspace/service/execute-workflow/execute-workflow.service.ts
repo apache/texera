@@ -8,7 +8,7 @@ import {
   ExecutionStateInfo,
   LogicalLink,
   LogicalOperator,
-  LogicalPlan
+  LogicalPlan,
 } from "../../types/execute-workflow.interface";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
@@ -16,7 +16,7 @@ import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from "../../type
 import {
   WorkflowFatalError,
   OperatorCurrentTuples,
-  TexeraWebsocketEvent
+  TexeraWebsocketEvent,
 } from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
@@ -53,11 +53,11 @@ export const RESUME_WORKFLOW_ENDPOINT = "resume";
  * @author Henry Chen
  */
 @Injectable({
-  providedIn: "root"
+  providedIn: "root",
 })
 export class ExecuteWorkflowService {
   private currentState: ExecutionStateInfo = {
-    state: ExecutionState.Uninitialized
+    state: ExecutionState.Uninitialized,
   };
   private executionStateStream = new Subject<{
     previous: ExecutionStateInfo;
@@ -142,11 +142,11 @@ export class ExecuteWorkflowService {
         currentTupleUpdate[event.operatorID] = event;
         const newCurrentTuples: Record<string, OperatorCurrentTuples> = {
           ...currentTupleUpdate,
-          ...pausedCurrentTuples
+          ...pausedCurrentTuples,
         };
         return {
           state: ExecutionState.Paused,
-          currentTuples: newCurrentTuples
+          currentTuples: newCurrentTuples,
         };
       case "BreakpointTriggeredEvent":
         return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
@@ -155,7 +155,7 @@ export class ExecuteWorkflowService {
           state: ExecutionState.Failed,
           errorMessages: event.fatalErrors.map(err => {
             return { ...err, message: err.message.replace("\\n", "<br>") };
-          })
+          }),
         };
       default:
         return undefined;
@@ -188,10 +188,13 @@ export class ExecuteWorkflowService {
     }
   }
 
-  public executeWorkflowAmberTexera(executionName: string, targetOperatorId: string|undefined = undefined): void {
+  public executeWorkflowAmberTexera(executionName: string, targetOperatorId: string | undefined = undefined): void {
     // get the current workflow graph
 
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph(), targetOperatorId);
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+      this.workflowActionService.getTexeraGraph(),
+      targetOperatorId
+    );
     console.log(logicalPlan);
     this.sendExecutionRequest(executionName, logicalPlan);
   }
@@ -200,7 +203,7 @@ export class ExecuteWorkflowService {
     const workflowExecuteRequest = {
       executionName: executionName,
       engineVersion: version.hash,
-      logicalPlan: logicalPlan
+      logicalPlan: logicalPlan,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -214,7 +217,7 @@ export class ExecuteWorkflowService {
     if (resultPaginationInfo) {
       sessionSetObject(PAGINATION_INFO_STORAGE_KEY, {
         ...resultPaginationInfo,
-        newWorkflowExecuted: true
+        newWorkflowExecuted: true,
       });
     }
   }
@@ -309,7 +312,7 @@ export class ExecuteWorkflowService {
     const operator: LogicalOperator = {
       ...op.operatorProperties,
       operatorID: op.operatorID,
-      operatorType: op.operatorType
+      operatorType: op.operatorType,
     };
     this.workflowWebsocketService.send("ModifyLogicRequest", { operator });
   }
@@ -323,7 +326,7 @@ export class ExecuteWorkflowService {
 
   public resetExecutionState(): void {
     this.currentState = {
-      state: ExecutionState.Uninitialized
+      state: ExecutionState.Uninitialized,
     };
   }
 
@@ -338,7 +341,7 @@ export class ExecuteWorkflowService {
     // emit event
     this.executionStateStream.next({
       previous: previousState,
-      current: this.currentState
+      current: this.currentState,
     });
   }
 
@@ -380,7 +383,10 @@ export class ExecuteWorkflowService {
    * @param workflowGraph
    * @param targetOperatorId
    */
-  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly, targetOperatorId: string| undefined = undefined): LogicalPlan {
+  public static getLogicalPlanRequest(
+    workflowGraph: WorkflowGraphReadonly,
+    targetOperatorId: string | undefined = undefined
+  ): LogicalPlan {
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
     };
@@ -400,39 +406,39 @@ export class ExecuteWorkflowService {
     };
 
     const operators: LogicalOperator[] = (
-      isDefined(targetOperatorId)?
-      workflowGraph.getSubDag(targetOperatorId).operators :workflowGraph.getAllEnabledOperators()
+      isDefined(targetOperatorId)
+        ? workflowGraph.getSubDag(targetOperatorId).operators
+        : workflowGraph.getAllEnabledOperators()
     ).map(op => {
       let logicalOp: LogicalOperator = {
         ...op.operatorProperties,
         operatorID: op.operatorID,
-        operatorType: op.operatorType
+        operatorType: op.operatorType,
       };
       logicalOp = {
         ...logicalOp,
-        inputPorts: op.inputPorts
+        inputPorts: op.inputPorts,
       };
       logicalOp = {
         ...logicalOp,
-        outputPorts: op.outputPorts
+        outputPorts: op.outputPorts,
       };
       return logicalOp;
     });
 
     const links: LogicalLink[] = (
-      isDefined(targetOperatorId)?
-        workflowGraph.getSubDag(targetOperatorId).links :workflowGraph.getAllEnabledLinks()
+      isDefined(targetOperatorId) ? workflowGraph.getSubDag(targetOperatorId).links : workflowGraph.getAllEnabledLinks()
     ).map(link => ({
       origin: {
         operatorID: link.source.operatorID,
         portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID),
-        portName: getOutputPortName(link.source.operatorID, link.source.portID)
+        portName: getOutputPortName(link.source.operatorID, link.source.portID),
       },
       destination: {
         operatorID: link.target.operatorID,
         portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID),
-        portName: getInputPortName(link.target.operatorID, link.target.portID)
-      }
+        portName: getInputPortName(link.target.operatorID, link.target.portID),
+      },
     }));
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries()).map(e =>

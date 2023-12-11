@@ -1112,13 +1112,12 @@ export class WorkflowGraph {
   }
 
   public getSubDag(targetOperatorId: string) {
-
     const visited: Set<string> = new Set();
     const subDagOperators: OperatorPredicate[] = [];
     const subDagLinks: OperatorLink[] = [];
 
     // Function to perform DFS traversal
-    function dfs(currentOperatorId: string, graph:WorkflowGraph) {
+    function dfs(currentOperatorId: string, graph: WorkflowGraph) {
       if (visited.has(currentOperatorId)) {
         return;
       }

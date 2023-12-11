@@ -111,8 +111,10 @@
     nz-menu-item
     *ngIf="operatorMenuService.effectivelyHighlightedOperators.value.length === 1 && isWorkflowModifiable"
     (click)="operatorMenuService.executeUpToOperator()">
-    <span nz-icon nzType="play-circle" nzTheme="outline"></span>
+    <span
+      nz-icon
+      nzType="play-circle"
+      nzTheme="outline"></span>
     execute to this operator
   </li>
-
 </ul>
