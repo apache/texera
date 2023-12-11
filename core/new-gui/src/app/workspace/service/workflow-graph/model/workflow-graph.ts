@@ -1110,4 +1110,35 @@ export class WorkflowGraph {
           on input ports of the target operator ${link.target.operatorID}`);
     }
   }
+
+  public getSubDag(targetOperatorId: string) {
+
+    const visited: Set<string> = new Set();
+    const subDagOperators: OperatorPredicate[] = [];
+    const subDagLinks: OperatorLink[] = [];
+
+    // Function to perform DFS traversal
+    function dfs(currentOperatorId: string, graph:WorkflowGraph) {
+      if (visited.has(currentOperatorId)) {
+        return;
+      }
+
+      visited.add(currentOperatorId);
+
+      // Get OperatorPredicate for the current operatorId
+      const currentOperator = graph.getOperator(currentOperatorId);
+      if (currentOperator) {
+        subDagOperators.push(currentOperator);
+
+        // Find links connected to the current operator
+        const connectedLinks = graph.getAllLinks().filter(link => link.target.operatorID === currentOperatorId);
+        connectedLinks.forEach(link => {
+          subDagLinks.push(link);
+          dfs(link.source.operatorID, graph); // Recursively visit the source of the link
+        });
+      }
+    }
+    dfs(targetOperatorId, this);
+    return { operators: subDagOperators, links: subDagLinks };
+  }
 }
