@@ -12,8 +12,8 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{OperatorLink, OperatorPort}
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, LogicalPort}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -38,8 +38,8 @@ class PauseSpec
   }
 
   def shouldPause(
-      operators: List[OperatorDescriptor],
-      links: List[OperatorLink]
+      operators: List[LogicalOp],
+      links: List[LogicalLink]
   ): Unit = {
     val client =
       new AmberClient(
@@ -67,11 +67,14 @@ class PauseSpec
   "Engine" should "be able to pause csv->sink workflow" in {
     val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
-    logger.info(s"csv-id ${csvOpDesc.operatorID}, sink-id ${sink.operatorID}")
+    logger.info(s"csv-id ${csvOpDesc.operatorIdentifier}, sink-id ${sink.operatorIdentifier}")
     shouldPause(
       List(csvOpDesc, sink),
       List(
-        OperatorLink(OperatorPort(csvOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+        LogicalLink(
+          LogicalPort(csvOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
+        )
       )
     )
   }
@@ -81,16 +84,19 @@ class PauseSpec
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
     val sink = TestOperators.sinkOpDesc()
     logger.info(
-      s"csv-id ${csvOpDesc.operatorID}, keyword-id ${keywordOpDesc.operatorID}, sink-id ${sink.operatorID}"
+      s"csv-id ${csvOpDesc.operatorIdentifier}, keyword-id ${keywordOpDesc.operatorIdentifier}, sink-id ${sink.operatorIdentifier}"
     )
     shouldPause(
       List(csvOpDesc, keywordOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(csvOpDesc.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(csvOpDesc.operatorIdentifier, 0),
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+        LogicalLink(
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
+        )
       )
     )
   }

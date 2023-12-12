@@ -20,6 +20,7 @@ import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
@@ -46,8 +47,8 @@ class DataProcessingSpec
     resultStorage.close()
   }
 
-  def executeWorkflow(workflow: Workflow): Map[String, List[ITuple]] = {
-    var results: Map[String, List[ITuple]] = null
+  def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[ITuple]] = {
+    var results: Map[OperatorIdentity, List[ITuple]] = null
     val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
     val completion = Promise[Unit]
     client.registerCallback[FatalError](evt => {
@@ -57,8 +58,10 @@ class DataProcessingSpec
 
     client
       .registerCallback[WorkflowCompleted](evt => {
-        results = workflow.logicalPlan.getTerminalOperators
-          .map(sinkOpId => (sinkOpId, workflow.logicalPlan.getUpstream(sinkOpId).head.operatorID))
+        results = workflow.logicalPlan.getTerminalOperatorIds
+          .map(sinkOpId =>
+            (sinkOpId, workflow.logicalPlan.getUpstreamOps(sinkOpId).head.operatorIdentifier)
+          )
           .filter {
             case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
           }
@@ -113,14 +116,14 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(headerlessCsvOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        LogicalLink(
+          LogicalPort(headerlessCsvOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
         )
       ),
       resultStorage
     )
-    val results = executeWorkflow(workflow)(sink.operatorID)
+    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
     assert(results.size == 100)
   }
@@ -131,14 +134,14 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(headerlessCsvOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        LogicalLink(
+          LogicalPort(headerlessCsvOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
         )
       ),
       resultStorage
     )
-    val results = executeWorkflow(workflow)(sink.operatorID)
+    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
     assert(results.size == 100)
   }
@@ -149,14 +152,14 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(jsonlOp, sink),
       List(
-        OperatorLink(
-          OperatorPort(jsonlOp.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        LogicalLink(
+          LogicalPort(jsonlOp.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
         )
       ),
       resultStorage
     )
-    val results = executeWorkflow(workflow)(sink.operatorID)
+    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
     assert(results.size == 100)
 
@@ -178,14 +181,14 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(jsonlOp, sink),
       List(
-        OperatorLink(
-          OperatorPort(jsonlOp.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        LogicalLink(
+          LogicalPort(jsonlOp.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
         )
       ),
       resultStorage
     )
-    val results = executeWorkflow(workflow)(sink.operatorID)
+    val results = executeWorkflow(workflow)(sink.operatorIdentifier)
 
     assert(results.size == 1000)
 
@@ -208,11 +211,14 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(headerlessCsvOpDesc, keywordOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(headerlessCsvOpDesc.operatorIdentifier, 0),
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+        LogicalLink(
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
+        )
       ),
       resultStorage
     )
@@ -228,11 +234,14 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(headerlessCsvOpDesc, wordCountOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc.operatorID, 0),
-          OperatorPort(wordCountOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(headerlessCsvOpDesc.operatorIdentifier, 0),
+          LogicalPort(wordCountOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(OperatorPort(wordCountOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+        LogicalLink(
+          LogicalPort(wordCountOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
+        )
       ),
       resultStorage
     )
@@ -248,7 +257,10 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(csvOpDesc, sink),
       List(
-        OperatorLink(OperatorPort(csvOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+        LogicalLink(
+          LogicalPort(csvOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
+        )
       ),
       resultStorage
     )
@@ -262,11 +274,14 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(csvOpDesc, keywordOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(csvOpDesc.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(csvOpDesc.operatorIdentifier, 0),
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(OperatorPort(keywordOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+        LogicalLink(
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
+        )
       ),
       resultStorage
     )
@@ -282,15 +297,18 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(csvOpDesc, keywordOpDesc, countOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(csvOpDesc.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(csvOpDesc.operatorIdentifier, 0),
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(
-          OperatorPort(keywordOpDesc.operatorID, 0),
-          OperatorPort(countOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
+          LogicalPort(countOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(OperatorPort(countOpDesc.operatorID, 0), OperatorPort(sink.operatorID, 0))
+        LogicalLink(
+          LogicalPort(countOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
+        )
       ),
       resultStorage
     )
@@ -310,17 +328,17 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(csvOpDesc, keywordOpDesc, averageAndGroupByOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(csvOpDesc.operatorID, 0),
-          OperatorPort(keywordOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(csvOpDesc.operatorIdentifier, 0),
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(
-          OperatorPort(keywordOpDesc.operatorID, 0),
-          OperatorPort(averageAndGroupByOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
+          LogicalPort(averageAndGroupByOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(
-          OperatorPort(averageAndGroupByOpDesc.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        LogicalLink(
+          LogicalPort(averageAndGroupByOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
         )
       ),
       resultStorage
@@ -341,17 +359,17 @@ class DataProcessingSpec
         sink
       ),
       List(
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc1.operatorID, 0),
-          OperatorPort(joinOpDesc.operatorID, 0)
+        LogicalLink(
+          LogicalPort(headerlessCsvOpDesc1.operatorIdentifier, 0),
+          LogicalPort(joinOpDesc.operatorIdentifier, 0)
         ),
-        OperatorLink(
-          OperatorPort(headerlessCsvOpDesc2.operatorID, 0),
-          OperatorPort(joinOpDesc.operatorID, 1)
+        LogicalLink(
+          LogicalPort(headerlessCsvOpDesc2.operatorIdentifier, 0),
+          LogicalPort(joinOpDesc.operatorIdentifier, 1)
         ),
-        OperatorLink(
-          OperatorPort(joinOpDesc.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        LogicalLink(
+          LogicalPort(joinOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
         )
       ),
       resultStorage
@@ -367,7 +385,7 @@ class DataProcessingSpec
   //    val (id, workflow) = buildWorkflow(
   //      List(asterixDBOp, sink),
   //      List(
-  //        OperatorLink(OperatorPort(asterixDBOp.operatorID, 0), OperatorPort(sink.operatorID, 0))
+  //        OperatorLink(OperatorPort(asterixDBOp.operatorIdentifier, 0), OperatorPort(sink.operatorIdentifier, 0))
   //      )
   //    )
   //    executeWorkflow(id, workflow)
@@ -388,9 +406,9 @@ class DataProcessingSpec
     val workflow = buildWorkflow(
       List(inMemoryMsSQLSourceOpDesc, sink),
       List(
-        OperatorLink(
-          OperatorPort(inMemoryMsSQLSourceOpDesc.operatorID, 0),
-          OperatorPort(sink.operatorID, 0)
+        LogicalLink(
+          LogicalPort(inMemoryMsSQLSourceOpDesc.operatorIdentifier, 0),
+          LogicalPort(sink.operatorIdentifier, 0)
         )
       ),
       resultStorage

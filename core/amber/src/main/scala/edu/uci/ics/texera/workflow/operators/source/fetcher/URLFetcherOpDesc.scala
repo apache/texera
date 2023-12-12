@@ -43,9 +43,13 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       .build()
   }
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig = {
     OpExecConfig
       .sourceLayer(
+        executionId,
         operatorIdentifier,
         OpExecInitInfo(_ =>
           new URLFetcherOpExec(

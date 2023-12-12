@@ -28,7 +28,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
 
   def layerID(): LayerIdentity = {
     counter += 1
-    LayerIdentity("" + counter, "" + counter, "" + counter)
+    LayerIdentity("" + counter, "" + counter)
   }
 
   def mkDataMessage(

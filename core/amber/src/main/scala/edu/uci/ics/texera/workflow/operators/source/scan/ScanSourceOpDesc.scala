@@ -66,7 +66,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       throw new RuntimeException("no input file name")
     }
 
-    if (context.userId.isDefined) {
+    if (getContext.userId.isDefined) {
       // if context has a valid user ID, the fileName will be in the following format:
       //    ownerName/fileName
       // resolve fileName to be the actual file path.
@@ -75,8 +75,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
         .getFilePath(
           email = splitNames.apply(0),
           fileName = splitNames.apply(1),
-          context.userId.get,
-          context.wid
+          getContext.userId.get,
+          getContext.wid
         )
 
     } else {

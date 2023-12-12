@@ -16,14 +16,12 @@ message ActorVirtualIdentity {
 }
 
 // final case class LayerIdentity (
-//    workflow: String,
 //    operator: String,
 //    layerID: String
 // )
 message LayerIdentity{
-  string workflow = 1;
-  string operator = 2;
-  string layerID = 3;
+  string operator = 1;
+  string layerID = 2;
 }
 
 // final case class LinkIdentity (
@@ -37,20 +35,18 @@ message LinkIdentity {
   int32 toPort = 4;
 }
 
-// final case class LinkIdentity (
-//    workflow: String,
-//    operator: String
+// final case class OperatorIdentity (
+//    id: String
 // )
 message OperatorIdentity {
-  string workflow = 1;
-  string operator = 2;
+  string id = 1;
 }
 
 // final case class WorkflowIdentity (
-//    id: String
+//    executionId: Long
 // )
 message WorkflowIdentity {
-  string id = 1;
+  int64 executionId = 1;
 }
 
 

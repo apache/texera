@@ -36,7 +36,7 @@ class SchemaPropagationResource extends LazyLogging {
       LogicalPlan(logicalPlanPojo, context)
         .propagateWorkflowSchema(errorList = None)
         .inputSchemaMap
-        .map(e => (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala))))
+        .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributesScala))))
     SchemaPropagationResponse(0, responseContent, null)
 
   }

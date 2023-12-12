@@ -47,9 +47,13 @@ class UrlVizOpDesc extends VisualizationOperator {
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig =
     OpExecConfig
       .manyToOneLayer(
+        executionId,
         operatorIdentifier,
         OpExecInitInfo(_ => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo))
       )

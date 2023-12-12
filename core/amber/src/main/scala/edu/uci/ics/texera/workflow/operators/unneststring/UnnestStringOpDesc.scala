@@ -38,8 +38,12 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
       outputPorts = List(OutputPort())
     )
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig = {
     OpExecConfig.oneToOneLayer(
+      executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new UnnestStringOpExec(this, operatorSchemaInfo))
     )

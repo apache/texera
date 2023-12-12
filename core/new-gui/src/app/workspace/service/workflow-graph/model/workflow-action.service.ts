@@ -10,7 +10,7 @@ import {
   Comment,
   CommentBox,
   OperatorLink,
-  OperatorPort,
+  LogicalPort,
   OperatorPredicate,
   Point,
   PortDescription,
@@ -423,7 +423,7 @@ export class WorkflowActionService {
    * @param source
    * @param target
    */
-  public deleteLink(source: OperatorPort, target: OperatorPort): void {
+  public deleteLink(source: LogicalPort, target: LogicalPort): void {
     const link = this.getTexeraGraph().getLink(source, target);
     this.deleteLinkWithID(link.linkID);
   }
@@ -439,7 +439,7 @@ export class WorkflowActionService {
     });
   }
 
-  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+  public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
     this.texeraGraph.bundleActions(() => {
       this.texeraGraph.setPortProperty(operatorPortID, newProperty);
     });
@@ -521,12 +521,12 @@ export class WorkflowActionService {
     this.highlightCommentBoxes(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasCommentBox(id)));
   }
 
-  public highlightPorts(multiSelect: boolean, ...ports: OperatorPort[]): void {
+  public highlightPorts(multiSelect: boolean, ...ports: LogicalPort[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightPorts(...ports);
   }
 
-  public unhighlightPorts(...ports: OperatorPort[]): void {
+  public unhighlightPorts(...ports: LogicalPort[]): void {
     this.getJointGraphWrapper().unhighlightPorts(...ports);
   }
 

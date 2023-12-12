@@ -5,18 +5,17 @@ import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.{OperatorLink, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, WorkflowCompiler}
 
 object TestUtils {
 
   def buildWorkflow(
-      operators: List[OperatorDescriptor],
-      links: List[OperatorLink],
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
       resultStorage: OpResultStorage = new OpResultStorage(),
-      jobId: String = "workflow_test",
-      workflowTag: String = "workflow_test"
+      jobId: String = "workflow_test"
   ): Workflow = {
     val context = new WorkflowContext
     context.jobId = jobId
@@ -24,8 +23,9 @@ object TestUtils {
       LogicalPlanPojo(operators, links, List(), List(), List()),
       context
     )
+    val workflowIdentity = WorkflowIdentity(context.executionId)
     workflowCompiler.compile(
-      WorkflowIdentity(workflowTag),
+      workflowIdentity,
       resultStorage,
       None,
       new JobStateStore()

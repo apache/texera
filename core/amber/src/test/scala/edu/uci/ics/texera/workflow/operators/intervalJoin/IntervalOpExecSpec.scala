@@ -28,7 +28,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def layerID(): LayerIdentity = {
     counter += 1
-    LayerIdentity("" + counter, "" + counter, "" + counter)
+    LayerIdentity("" + counter, "" + counter)
   }
 
   def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {

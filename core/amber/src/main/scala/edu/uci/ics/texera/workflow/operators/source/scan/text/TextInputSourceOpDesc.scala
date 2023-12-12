@@ -19,8 +19,12 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var textInput: String = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig =
     OpExecConfig.sourceLayer(
+      executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new TextInputSourceOpExec(this))
     )

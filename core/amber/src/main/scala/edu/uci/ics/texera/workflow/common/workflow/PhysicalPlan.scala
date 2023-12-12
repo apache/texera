@@ -18,31 +18,35 @@ object PhysicalPlan {
     new PhysicalPlan(operatorList.toList, links.toList)
   }
 
-  def apply(logicalPlan: LogicalPlan): PhysicalPlan = {
+  def apply(executionId: Long, logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(List(), List())
 
-    logicalPlan.operators.foreach(o => {
-      val subPlan = o.operatorExecutorMultiLayer(logicalPlan.opSchemaInfo(o.operatorID))
+    logicalPlan.operators.foreach(op => {
+      val subPlan =
+        op.operatorExecutorMultiLayer(
+          executionId,
+          logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
+        )
       physicalPlan = physicalPlan.addSubPlan(subPlan)
     })
 
     // connect inter-operator links
     logicalPlan.links.foreach(link => {
-      val fromLogicalOp = logicalPlan.operatorMap(link.origin.operatorID).operatorIdentifier
+      val fromLogicalOp = logicalPlan.getOperator(link.origin.operatorId).operatorIdentifier
       val fromPort = link.origin.portOrdinal
       val fromPortName = logicalPlan.operators
-        .filter(op => op.operatorID == link.origin.operatorID)
+        .filter(op => op.operatorIdentifier == link.origin.operatorId)
         .head
         .operatorInfo
         .outputPorts(fromPort)
         .displayName
       val fromLayer = physicalPlan.findLayerForOutputPort(fromLogicalOp, fromPortName)
 
-      val toLogicalOp = logicalPlan.operatorMap(link.destination.operatorID).operatorIdentifier
+      val toLogicalOp = logicalPlan.getOperator(link.destination.operatorId).operatorIdentifier
       val toPort = link.destination.portOrdinal
       val toPortName = logicalPlan.operators
-        .filter(op => op.operatorID == link.destination.operatorID)
+        .filter(op => op.operatorIdentifier == link.destination.operatorId)
         .head
         .operatorInfo
         .inputPorts(toPort)

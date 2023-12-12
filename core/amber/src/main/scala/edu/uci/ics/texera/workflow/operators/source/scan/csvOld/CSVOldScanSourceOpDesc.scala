@@ -34,7 +34,10 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSVOld")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
@@ -42,6 +45,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(_) =>
         OpExecConfig.sourceLayer(
+          executionId,
           operatorIdentifier,
           OpExecInitInfo(_ => new CSVOldScanSourceOpExec(this))
         )

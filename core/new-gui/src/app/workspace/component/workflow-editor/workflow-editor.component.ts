@@ -22,7 +22,7 @@ import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, OperatorPort, Point } from "../../types/workflow-common.interface";
+import { OperatorLink, LogicalPort, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, buffer, debounceTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -982,7 +982,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         // set the multi-select mode
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
 
-        const clickedPortID: OperatorPort = {
+        const clickedPortID: LogicalPort = {
           operatorID: event[0].model.id as string,
           portID: event[2].getAttribute("port") as string,
         };

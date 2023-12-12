@@ -20,9 +20,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple2;
-import scala.util.Left;
 
-import java.io.Serializable;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.function.Function;
@@ -73,7 +71,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         AttributeType xType = operatorSchemaInfo.inputSchemas()[0].getAttribute(xColumn).getType();
         AttributeType yType = operatorSchemaInfo.inputSchemas()[0].getAttribute(yColumn).getType();
         Set<AttributeType> allowedAttributeTypesNumbersOnly = EnumSet.of(DOUBLE, INTEGER); //currently, the frontend has limitation it doesn't accept axes of type long
@@ -87,7 +85,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if (isGeometric) {
             numWorkers = 1;
         }
-        return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
+        return OpExecConfig.oneToOneLayer(executionId, this.operatorIdentifier(),
                         OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
                 .withIsOneToManyOp(true).withNumWorkers(numWorkers);
     }

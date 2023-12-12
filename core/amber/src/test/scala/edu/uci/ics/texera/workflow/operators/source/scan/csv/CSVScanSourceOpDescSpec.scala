@@ -100,7 +100,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), Array(emptySchema))
     assert(
       csvScanSourceOpDesc
-        .operatorExecutor(operatorSchemaInfo)
+        .operatorExecutor(0, operatorSchemaInfo)
         .numWorkers == 1
     )
   }

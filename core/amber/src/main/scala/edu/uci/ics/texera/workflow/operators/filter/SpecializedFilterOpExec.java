@@ -20,7 +20,7 @@ public class SpecializedFilterOpExec extends FilterOpExec {
 
     public Boolean filterFunc(Tuple tuple) {
         return opDesc.predicates
-                .stream().anyMatch(predicate -> predicate.evaluate(tuple, opDesc.context()));
+                .stream().anyMatch(predicate -> predicate.evaluate(tuple, opDesc.getContext()));
     }
 
 }

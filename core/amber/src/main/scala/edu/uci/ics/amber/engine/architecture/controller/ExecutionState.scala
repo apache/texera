@@ -19,7 +19,11 @@ class ExecutionState(workflow: Workflow) {
     }
   private val operatorExecutions: Map[LayerIdentity, OperatorExecution] =
     workflow.physicalPlan.operators.map { opConf =>
-      opConf.id -> new OperatorExecution(opConf.id, opConf.numWorkers)
+      opConf.id -> new OperatorExecution(
+        executionId = workflow.workflowId.executionId,
+        opConf.id,
+        opConf.numWorkers
+      )
     }.toMap
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =

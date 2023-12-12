@@ -11,7 +11,7 @@ export interface Point
     y: number;
   }> {}
 
-export interface OperatorPort
+export interface LogicalPort
   extends Readonly<{
     operatorID: string;
     portID: string;
@@ -75,8 +75,8 @@ export interface CommentBox {
 export interface OperatorLink
   extends Readonly<{
     linkID: string;
-    source: OperatorPort;
-    target: OperatorPort;
+    source: LogicalPort;
+    target: LogicalPort;
   }> {}
 
 export interface BreakpointSchema

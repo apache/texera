@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.web.model.websocket.event.{
   PaginatedResultEvent,
@@ -162,8 +163,8 @@ class JobResultService(
 ) extends SubscriptionManager
     with LazyLogging {
 
-  var sinkOperators: mutable.HashMap[String, ProgressiveSinkOpDesc] =
-    mutable.HashMap[String, ProgressiveSinkOpDesc]()
+  var sinkOperators: mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc] =
+    mutable.HashMap[OperatorIdentity, ProgressiveSinkOpDesc]()
   private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
 
@@ -223,7 +224,7 @@ class JobResultService(
         newState.resultInfo.foreach {
           case (opId, info) =>
             val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
-            buf(opId) = JobResultService.convertWebResultUpdate(
+            buf(opId.id) = JobResultService.convertWebResultUpdate(
               sinkOperators(opId),
               oldInfo.tupleCount,
               info.tupleCount
@@ -241,7 +242,7 @@ class JobResultService(
 
     // For operators connected to a sink and sinks,
     // create result service so that the results can be displayed.
-    logicalPlan.getTerminalOperators.map(sink => {
+    logicalPlan.getTerminalOperatorIds.map(sink => {
       logicalPlan.getOperator(sink) match {
         case sinkOp: ProgressiveSinkOpDesc =>
           sinkOperators += ((sinkOp.getUpstreamId.get, sinkOp))
@@ -254,7 +255,7 @@ class JobResultService(
   def handleResultPagination(request: ResultPaginationRequest): TexeraWebSocketEvent = {
     // calculate from index (pageIndex starts from 1 instead of 0)
     val from = request.pageSize * (request.pageIndex - 1)
-    val opId = request.operatorID
+    val opId = OperatorIdentity(request.operatorID)
     val paginationIterable =
       if (sinkOperators.contains(opId)) {
         sinkOperators(opId).getStorage.getRange(from, from + request.pageSize)
@@ -269,7 +270,7 @@ class JobResultService(
 
   private def onResultUpdate(): Unit = {
     workflowStateStore.resultStore.updateState { _ =>
-      val newInfo: Map[String, OperatorResultMetadata] = sinkOperators.map {
+      val newInfo: Map[OperatorIdentity, OperatorResultMetadata] = sinkOperators.map {
         case (id, sink) =>
           val count = sink.getStorage.getCount.toInt
           val mode = sink.getOutputMode

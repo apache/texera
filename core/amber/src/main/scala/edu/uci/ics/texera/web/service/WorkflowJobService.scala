@@ -93,7 +93,7 @@ class WorkflowJobService(
     try {
       workflowCompiler = new WorkflowCompiler(request.logicalPlan, workflowContext)
       workflow = workflowCompiler.compile(
-        WorkflowIdentity(workflowContext.jobId),
+        WorkflowIdentity(workflowContext.executionId),
         resultService.opResultStorage,
         lastCompletedLogicalPlan,
         jobStateStore

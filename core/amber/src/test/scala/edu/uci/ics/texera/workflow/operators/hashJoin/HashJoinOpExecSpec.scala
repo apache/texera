@@ -24,7 +24,7 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def layerID(): LayerIdentity = {
     counter += 1
-    LayerIdentity("" + counter, "" + counter, "" + counter)
+    LayerIdentity("" + counter, "" + counter)
   }
 
   def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {

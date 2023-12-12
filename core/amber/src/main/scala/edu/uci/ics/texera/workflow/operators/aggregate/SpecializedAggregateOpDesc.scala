@@ -31,12 +31,14 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
   var groupByKeys: List[String] = _
 
   override def aggregateOperatorExecutor(
+      executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     if (aggregations.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
     AggregateOpDesc.opExecPhysicalPlan(
+      executionId,
       operatorIdentifier,
       aggregations.map(agg => agg.getAggFunc(operatorSchemaInfo.inputSchemas(0))),
       groupByKeys,

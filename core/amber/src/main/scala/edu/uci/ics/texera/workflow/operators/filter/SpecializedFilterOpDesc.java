@@ -18,6 +18,7 @@ import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
+
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
     @JsonProperty(value = "predicates", required = true)
@@ -25,8 +26,9 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public List<FilterPredicate> predicates;
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         return OpExecConfig.oneToOneLayer(
+                executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) x -> new SpecializedFilterOpExec(this)));
     }

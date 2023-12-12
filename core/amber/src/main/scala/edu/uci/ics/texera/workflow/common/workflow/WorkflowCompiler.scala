@@ -4,7 +4,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
 import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
@@ -24,7 +24,7 @@ class WorkflowCompiler(
 
   def compileLogicalPlan(jobStateStore: JobStateStore): LogicalPlan = {
 
-    val errorList = new ArrayBuffer[(String, Throwable)]()
+    val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
     jobStateStore.jobMetadataStore.updateState { metadataStore =>
       metadataStore.withFatalErrors(
@@ -50,7 +50,7 @@ class WorkflowCompiler(
             Timestamp(Instant.now),
             err.toString,
             err.getStackTrace.mkString("\n"),
-            opId
+            opId.id
           )
       }
       jobStateStore.jobMetadataStore.updateState(metadataStore =>
@@ -77,11 +77,11 @@ class WorkflowCompiler(
       originalLogicalPlan,
       lastCompletedJob,
       opResultStorage,
-      logicalPlanPojo.opsToReuseResult.toSet
+      logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
     )
 
     // the PhysicalPlan with topology expanded.
-    var physicalPlan = PhysicalPlan(rewrittenLogicalPlan)
+    var physicalPlan = PhysicalPlan(workflowId.executionId, rewrittenLogicalPlan)
 
     // generate an ExecutionPlan with regions.
     //  currently, WorkflowPipelinedRegionsBuilder is the only ExecutionPlan generator.

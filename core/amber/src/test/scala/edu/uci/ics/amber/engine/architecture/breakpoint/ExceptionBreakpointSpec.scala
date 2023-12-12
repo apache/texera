@@ -23,9 +23,9 @@ class ExceptionBreakpointSpec
 //  private val logicalPlan1 =
 //    """{
 //      |"operators":[
-//      |{"tableName":"D:\\small_input.csv","operatorID":"Scan","operatorType":"LocalScanSource","delimiter":","},
-//      |{"attributeName":0,"keyword":"asia","operatorID":"KeywordSearch1","operatorType":"KeywordMatcher"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
+//      |{"tableName":"D:\\small_input.csv","operatorId":"Scan","operatorType":"LocalScanSource","delimiter":","},
+//      |{"attributeName":0,"keyword":"asia","operatorId":"KeywordSearch1","operatorType":"KeywordMatcher"},
+//      |{"operatorId":"Sink","operatorType":"Sink"}],
 //      |"links":[
 //      |{"origin":"Scan","destination":"KeywordSearch1"},
 //      |{"origin":"KeywordSearch1","destination":"Sink"}]
@@ -34,9 +34,9 @@ class ExceptionBreakpointSpec
 //  private val logicalPlan2 =
 //    """{
 //      |"operators":[
-//      |{"limit":10000,"delay":0,"operatorID":"Gen","operatorType":"Generate"},
-//      |{"operatorID":"Count","operatorType":"Aggregation"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
+//      |{"limit":10000,"delay":0,"operatorId":"Gen","operatorType":"Generate"},
+//      |{"operatorId":"Count","operatorType":"Aggregation"},
+//      |{"operatorId":"Sink","operatorType":"Sink"}],
 //      |"links":[
 //      |{"origin":"Gen","destination":"Count"},
 //      |{"origin":"Count","destination":"Sink"}]
