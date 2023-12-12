@@ -67,7 +67,7 @@ class JobReconfigurationService(
       currentOp.runtimeReconfiguration(
         workflow.workflowId.executionId,
         newOp,
-        workflow.logicalPlan.opSchemaInfo(opId)
+        workflow.logicalPlan.getOpSchemaInfo(opId)
       )
     reconfiguredPhysicalOp match {
       case Failure(exception) => ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)

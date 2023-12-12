@@ -74,6 +74,7 @@ case class LogicalPlan(
   def getTopologicalOpIds: util.Iterator[OperatorIdentity] = jgraphtDag.iterator()
 
   def getOperator(opId: String): LogicalOp = operatorMap(OperatorIdentity(opId))
+
   def getOperator(opId: OperatorIdentity): LogicalOp = operatorMap(opId)
 
   def getSourceOperatorIds: List[OperatorIdentity] =
@@ -156,7 +157,7 @@ case class LogicalPlan(
     outputSchemaMap(opId)
   }
 
-  def opSchemaInfo(opId: OperatorIdentity): OperatorSchemaInfo = {
+  def getOpSchemaInfo(opId: OperatorIdentity): OperatorSchemaInfo = {
     val op = getOperator(opId)
     val inputSchemas: Array[Schema] =
       if (op.isInstanceOf[SourceOperatorDescriptor]) {
@@ -219,6 +220,7 @@ case class LogicalPlan(
             Option.empty
         }
       }
+
       // exception: if op is a source operator, use its output schema as input schema for autocomplete
       if (op.isInstanceOf[SourceOperatorDescriptor]) {
         inputSchemaMap.update(

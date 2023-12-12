@@ -24,7 +24,10 @@ object PhysicalPlan {
 
     logicalPlan.operators.foreach(op => {
       val subPlan =
-        op.operatorExecutorMultiLayer(executionId, logicalPlan.opSchemaInfo(op.operatorIdentifier))
+        op.operatorExecutorMultiLayer(
+          executionId,
+          logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
+        )
       physicalPlan = physicalPlan.addSubPlan(subPlan)
     })
 
