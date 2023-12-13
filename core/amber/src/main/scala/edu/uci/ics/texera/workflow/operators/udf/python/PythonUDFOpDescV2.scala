@@ -11,14 +11,14 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor {
+class PythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -66,7 +66,10 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
   )
   var outputColumns: List[Attribute] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
@@ -89,10 +92,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
 
     if (workers > 1)
       OpExecConfig
-        .oneToOneLayer(
-          operatorIdentifier,
-          OpExecInitInfo(code)
-        )
+        .oneToOneLayer(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           numWorkers = workers,
           derivePartition = _ => UnknownPartition(),
@@ -105,10 +105,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
       OpExecConfig
-        .manyToOneLayer(
-          operatorIdentifier,
-          OpExecInitInfo(code)
-        )
+        .manyToOneLayer(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           derivePartition = _ => UnknownPartition(),
           isOneToManyOp = true,
@@ -166,9 +163,10 @@ class PythonUDFOpDescV2 extends OperatorDescriptor {
   }
 
   override def runtimeReconfiguration(
-      newOpDesc: OperatorDescriptor,
+      executionId: Long,
+      newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
   ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
-    Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
+    Success(newOpDesc.operatorExecutor(executionId, operatorSchemaInfo), None)
   }
 }

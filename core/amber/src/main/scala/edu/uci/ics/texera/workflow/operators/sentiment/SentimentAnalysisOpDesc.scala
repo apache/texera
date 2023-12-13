@@ -38,10 +38,14 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
   @JsonPropertyDescription("column name of the sentiment analysis result")
   var resultAttribute: String = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig = {
     if (attribute == null)
       throw new RuntimeException("sentiment analysis: attribute is null")
     OpExecConfig.oneToOneLayer(
+      executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new SentimentAnalysisOpExec(this, operatorSchemaInfo))
     )

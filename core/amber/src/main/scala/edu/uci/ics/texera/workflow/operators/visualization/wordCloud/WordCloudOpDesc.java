@@ -24,9 +24,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple2;
-import scala.util.Left;
 
-import java.io.Serializable;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
@@ -64,29 +62,29 @@ public class WordCloudOpDesc extends VisualizationOperator {
             .add(partialAggregateSchema).build();
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer");
     }
 
     @Override
-    public PhysicalPlan operatorExecutorMultiLayer(OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalPlan operatorExecutorMultiLayer(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         if (topN == null) {
             topN = 100;
         }
 
         LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
-        OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
+        OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(executionId,
                 this.operatorIdentifier(),
-                OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable)worker -> new WordCloudOpPartialExec(textColumn))
+                OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpPartialExec(textColumn))
         ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
 
         LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
-        OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
-                this.operatorIdentifier(),
-                        OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable)worker -> new WordCloudOpFinalExec(topN))
-        ).withId(finalId).withIsOneToManyOp(true)
+        OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(executionId,
+                        this.operatorIdentifier(),
+                        OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpFinalExec(topN))
+                ).withId(finalId).withIsOneToManyOp(true)
                 .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 
         OpExecConfig[] layers = {partialLayer, finalLayer};

@@ -30,8 +30,15 @@ class RegexOpDesc extends FilterOpDesc {
   @JsonPropertyDescription("regex match is case sensitive")
   var caseInsensitive: Boolean = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, OpExecInitInfo(_ => new RegexOpExec(this)))
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig = {
+    OpExecConfig.oneToOneLayer(
+      executionId,
+      operatorIdentifier,
+      OpExecInitInfo(_ => new RegexOpExec(this))
+    )
   }
 
   override def operatorInfo: OperatorInfo =

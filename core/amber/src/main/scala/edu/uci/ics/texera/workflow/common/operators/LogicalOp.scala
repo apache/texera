@@ -158,27 +158,30 @@ trait StateTransferFunc
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot")
   )
 )
-abstract class OperatorDescriptor extends PortDescriptor with Serializable {
+abstract class LogicalOp extends PortDescriptor with Serializable {
 
   @JsonIgnore
-  var context: WorkflowContext = _
+  private var context: WorkflowContext = _
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
-  var operatorID: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
+  private val operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()
-  def operatorIdentifier: OperatorIdentity = OperatorIdentity(context.jobId, operatorID)
+  def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
-  def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  def operatorExecutor(executionId: Long, operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
     throw new UnsupportedOperationException(
       "operator " + operatorIdentifier + " is not migrated to new OpExec API"
     )
   }
 
   // a logical operator corresponds multiple physical operators (a small DAG)
-  def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
-    new PhysicalPlan(List(operatorExecutor(operatorSchemaInfo)), List())
+  def operatorExecutorMultiLayer(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalPlan = {
+    new PhysicalPlan(List(operatorExecutor(executionId, operatorSchemaInfo)), List())
   }
 
   def operatorInfo: OperatorInfo
@@ -202,12 +205,14 @@ abstract class OperatorDescriptor extends PortDescriptor with Serializable {
 
   override def toString: String = ToStringBuilder.reflectionToString(this)
 
+  def getContext: WorkflowContext = this.context
   def setContext(workflowContext: WorkflowContext): Unit = {
     this.context = workflowContext
   }
 
   def runtimeReconfiguration(
-      newOpDesc: OperatorDescriptor,
+      executionId: Long,
+      newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
   ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
     throw new UnsupportedOperationException(

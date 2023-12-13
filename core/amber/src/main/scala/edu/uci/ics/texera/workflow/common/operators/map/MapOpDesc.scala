@@ -1,15 +1,16 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.util.{Failure, Success, Try}
 
-abstract class MapOpDesc extends OperatorDescriptor {
+abstract class MapOpDesc extends LogicalOp {
 
   override def runtimeReconfiguration(
-      newOpDesc: OperatorDescriptor,
+      executionId: Long,
+      newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
   ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
     val newSchemas = newOpDesc.getOutputSchema(operatorSchemaInfo.inputSchemas)
@@ -20,7 +21,7 @@ abstract class MapOpDesc extends OperatorDescriptor {
         )
       )
     } else {
-      Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
+      Success(newOpDesc.operatorExecutor(executionId, operatorSchemaInfo), None)
     }
   }
 

@@ -15,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo}
 
@@ -32,7 +32,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
   }
 }
 """)
-class HashJoinOpDesc[K] extends OperatorDescriptor {
+class HashJoinOpDesc[K] extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")
@@ -51,7 +51,10 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonPropertyDescription("select the join type to execute")
   var joinType: JoinType = JoinType.INNER
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def operatorExecutor(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): OpExecConfig = {
     val partitionRequirement = List(
       Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)))),
       Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))))
@@ -82,6 +85,7 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
 
     OpExecConfig
       .oneToOneLayer(
+        executionId,
         operatorIdentifier,
         OpExecInitInfo(_ =>
           new HashJoinOpExec[K](

@@ -14,7 +14,8 @@ import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
-class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends Serializable {
+class OperatorExecution(val executionId: Long, layerIdentity: LayerIdentity, numWorkers: Int)
+    extends Serializable {
   /*
    * Variables related to runtime information
    */
@@ -67,7 +68,9 @@ class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends S
 
   def setAllWorkerState(state: WorkerState): Unit = {
     (0 until numWorkers).foreach { i =>
-      getWorkerInfo(VirtualIdentityUtils.createWorkerIdentity(layerIdentity, i)).state = state
+      getWorkerInfo(
+        VirtualIdentityUtils.createWorkerIdentity(executionId, layerIdentity, i)
+      ).state = state
     }
   }
 

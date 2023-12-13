@@ -62,6 +62,7 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = scatterplotOpDesc.getOutputSchema(Array(wrongTypesSchema))
     assertThrows[IllegalArgumentException] {
       scatterplotOpDesc.operatorExecutor(
+        0,
         OperatorSchemaInfo(Array(wrongTypesSchema), Array(outputSchema))
       )
     }

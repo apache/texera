@@ -6,7 +6,6 @@ import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
@@ -14,10 +13,7 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Function1;
 import scala.Option;
-import scala.Tuple2;
-import scala.util.Either;
 
 import java.util.List;
 
@@ -52,14 +48,14 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public List<Attribute> columns;
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         OpExecInitInfo exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return OpExecConfig.sourceLayer(operatorIdentifier(), exec).withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)
+            return OpExecConfig.sourceLayer(executionId, operatorIdentifier(), exec).withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)
                     .withIsOneToManyOp(true).withLocationPreference(Option.empty());
         } else {
-            return OpExecConfig.sourceLayer(operatorIdentifier(), exec).withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
+            return OpExecConfig.sourceLayer(executionId, operatorIdentifier(), exec).withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
         }
 
     }

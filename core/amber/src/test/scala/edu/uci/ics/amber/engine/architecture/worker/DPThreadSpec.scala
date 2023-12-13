@@ -35,14 +35,14 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   private val dataChannelID = ChannelID(senderID, identifier, false)
   private val controlChannelID = ChannelID(senderID, identifier, true)
   private val operator = mock[OperatorExecutor]
-  private val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+  private val operatorIdentity = OperatorIdentity("testOperator")
   private val layerId1 =
-    LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
+    LayerIdentity(operatorIdentity.id, "1st-layer")
   private val layerId2 =
-    LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
+    LayerIdentity(operatorIdentity.id, "1st-layer")
   private val mockLink = LinkIdentity(layerId1, 0, layerId2, 0)
   private val opExecConfig = OpExecConfig
-    .oneToOneLayer(operatorIdentity, OpExecInitInfo(_ => operator))
+    .oneToOneLayer(1, operatorIdentity, OpExecInitInfo(_ => operator))
     .copy(inputToOrdinalMapping = Map(mockLink -> 0), outputToOrdinalMapping = Map(mockLink -> 0))
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
   private val logStorage = ReplayLogStorage.getLogStorage(None)

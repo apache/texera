@@ -29,12 +29,12 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("TypeCasting Units")
     @JsonPropertyDescription("Multiple type castings")
-    public List<TypeCastingUnit> typeCastingUnits= new ArrayList<>();
+    public List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public OpExecConfig operatorExecutor(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        return OpExecConfig.oneToOneLayer(operatorIdentifier(),
+        return OpExecConfig.oneToOneLayer(executionId, operatorIdentifier(),
                 OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])));
     }
 

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -14,7 +15,7 @@ object WorkflowCacheRewriter {
       logicalPlan: LogicalPlan,
       lastCompletedPlan: Option[LogicalPlan],
       storage: OpResultStorage,
-      opsToReuseCache: Set[String]
+      opsToReuseCache: Set[OperatorIdentity]
   ): LogicalPlan = {
     val validCachesFromLastExecution =
       new WorkflowCacheChecker(lastCompletedPlan, logicalPlan).getValidCacheReuse
@@ -26,8 +27,8 @@ object WorkflowCacheRewriter {
     val opsCanUseCache = opsToReuseCache.intersect(validCachesFromLastExecution)
 
     // remove sinks directly connected to operators that are already reusing cache
-    val unnecessarySinks = resultPlan.getTerminalOperators.filter(sink => {
-      opsCanUseCache.contains(resultPlan.getUpstream(sink).head.operatorID)
+    val unnecessarySinks = resultPlan.getTerminalOperatorIds.filter(sink => {
+      opsCanUseCache.contains(resultPlan.getUpstreamOps(sink).head.operatorIdentifier)
     })
     unnecessarySinks.foreach(o => {
       resultPlan = resultPlan.removeOperator(o)
@@ -40,14 +41,14 @@ object WorkflowCacheRewriter {
       val edgesToReplace = resultPlan.getDownstreamEdges(opId)
       edgesToReplace.foreach(e => {
         resultPlan = resultPlan.removeEdge(
-          e.origin.operatorID,
-          e.destination.operatorID,
+          e.origin.operatorId,
+          e.destination.operatorId,
           e.origin.portOrdinal,
           e.destination.portOrdinal
         )
         resultPlan = resultPlan.addEdge(
-          materializationReader.operatorID,
-          e.destination.operatorID,
+          materializationReader.operatorIdentifier,
+          e.destination.operatorId,
           0,
           e.destination.portOrdinal
         )
@@ -56,9 +57,9 @@ object WorkflowCacheRewriter {
 
     // after an operator is replaced with reading from cached result
     // its upstream operators can be removed if it's not used by other sinks
-    val allOperators = resultPlan.operators.map(op => op.operatorID).toSet
+    val allOperators = resultPlan.operators.map(op => op.operatorIdentifier).toSet
     val sinkOps =
-      resultPlan.operators.filter(op => op.isInstanceOf[SinkOpDesc]).map(o => o.operatorID)
+      resultPlan.operators.filter(op => op.isInstanceOf[SinkOpDesc]).map(o => o.operatorIdentifier)
     val usefulOperators = sinkOps ++ sinkOps.flatMap(o => resultPlan.getAncestorOpIds(o)).toSet
     // remove operators that are no longer reachable by any sink
     allOperators
@@ -68,7 +69,9 @@ object WorkflowCacheRewriter {
       })
 
     assert(
-      resultPlan.terminalOperators.forall(o => resultPlan.getOperator(o).isInstanceOf[SinkOpDesc])
+      resultPlan.getTerminalOperatorIds.forall(o =>
+        resultPlan.getOperator(o).isInstanceOf[SinkOpDesc]
+      )
     )
 
     resultPlan.propagateWorkflowSchema(None)
@@ -86,7 +89,7 @@ object WorkflowCacheRewriter {
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
       storage: OpResultStorage,
-      reuseStorageSet: Set[String] = Set()
+      reuseStorageSet: Set[OperatorIdentity] = Set()
   ): Unit = {
     // create a JSON object that holds pointers to the workflow's results in Mongo
     // TODO in the future, will extract this logic from here when we need pointers to the stats storage
@@ -95,7 +98,7 @@ object WorkflowCacheRewriter {
     // assign storage to texera-managed sinks before generating exec config
     logicalPlan.operators.foreach {
       case o @ (sink: ProgressiveSinkOpDesc) =>
-        val storageKey = sink.getUpstreamId.getOrElse(o.operatorID)
+        val storageKey = sink.getUpstreamId.getOrElse(o.operatorIdentifier)
         // due to the size limit of single document in mongoDB (16MB)
         // for sinks visualizing HTMLs which could possibly be large in size, we always use the memory storage.
         val storageType = {
@@ -107,14 +110,14 @@ object WorkflowCacheRewriter {
         } else {
           sink.setStorage(
             storage.create(
-              o.context.executionId + "_",
+              o.getContext.executionId + "_",
               storageKey,
               storageType
             )
           )
-          sink.getStorage.setSchema(logicalPlan.outputSchemaMap(o.operatorIdentifier).head)
+          sink.getStorage.setSchema(logicalPlan.getOpOutputSchemas(o.operatorIdentifier).head)
           // add the sink collection name to the JSON array of sinks
-          sinksPointers.add(o.context.executionId + "_" + storageKey)
+          sinksPointers.add(o.getContext.executionId + "_" + storageKey)
         }
         storage.get(storageKey)
 
