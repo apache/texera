@@ -46,7 +46,7 @@ class URILogStorage(logFolderURI: URI) extends ReplayLogStorage with LazyLogging
     }
   }
 
-  override def deleteFolder(): Unit = {
+  override def deleteStorage(): Unit = {
     // delete the entire log folder if exists
     if (fileSystem.exists(folderPath)) {
       fileSystem.delete(folderPath, true)

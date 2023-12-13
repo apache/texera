@@ -107,5 +107,5 @@ abstract class ReplayLogStorage {
 
   def getReader(logFileName: String): ReplayLogReader
 
-  def deleteFolder(): Unit
+  def deleteStorage(): Unit
 }

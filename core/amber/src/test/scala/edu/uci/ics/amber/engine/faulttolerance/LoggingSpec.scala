@@ -58,7 +58,7 @@ class LoggingSpec
 
   "determinant logger" should "log processing steps in local storage" in {
     val logStorage = ReplayLogStorage.getLogStorage(Some(new URI("file:///recovery-logs/tmp")))
-    logStorage.deleteFolder()
+    logStorage.deleteStorage()
     val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
     payloadToLog.foreach { payload =>
       val channel = ChannelID(CONTROLLER, SELF, isControl = true)
@@ -70,7 +70,7 @@ class LoggingSpec
     logManager.sendCommitted(null)
     logManager.terminate()
     val logRecords = logStorage.getReader("tmpLog").mkLogRecordIterator().toArray
-    logStorage.deleteFolder()
+    logStorage.deleteStorage()
     assert(logRecords.length == 15)
   }
 

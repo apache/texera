@@ -35,7 +35,7 @@ class ReplaySpec
         override def mkLogRecordIterator(): Iterator[ReplayLogRecord] = iter.toIterator
       }
 
-    override def deleteFolder(): Unit = ???
+    override def deleteStorage(): Unit = ???
   }
 
   private val actorId = ActorVirtualIdentity("test")

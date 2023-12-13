@@ -26,7 +26,7 @@ class EmptyLogStorage extends ReplayLogStorage {
     )
   }
 
-  override def deleteFolder(): Unit = {
+  override def deleteStorage(): Unit = {
     // empty
   }
 
