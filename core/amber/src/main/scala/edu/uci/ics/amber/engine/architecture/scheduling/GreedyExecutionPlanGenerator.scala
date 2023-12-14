@@ -180,19 +180,21 @@ class GreedyExecutionPlanGenerator(
   private def connectRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
-
     @tailrec
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
       tryConnectRegionDAG() match {
         case Left(dag) => dag
         case Right(links) =>
-          links.foreach(link => addMaterializationToLink(link, matReaderWriterPairs))
+          links.foreach { link =>
+            physicalPlan = replaceLinkWithMaterialization(link, matReaderWriterPairs)
+          }
           recConnectRegionDAG()
       }
     }
 
     // the region is partially connected successfully.
     val regionDAG: DirectedAcyclicGraph[Region, DefaultEdge] = recConnectRegionDAG()
+
     // try to add dependencies between materialization writer and reader regions
     try {
       matReaderWriterPairs.foreach {
@@ -269,7 +271,7 @@ class GreedyExecutionPlanGenerator(
     )
   }
 
-  private def addMaterializationToLink(
+  private def replaceLinkWithMaterialization(
       physicalLink: PhysicalLink,
       writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
   ): PhysicalPlan = {
