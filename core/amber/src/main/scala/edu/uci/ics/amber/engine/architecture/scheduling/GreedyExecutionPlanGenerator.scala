@@ -184,10 +184,10 @@ class GreedyExecutionPlanGenerator(
     @tailrec
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
       tryConnectRegionDAG() match {
-        case Left(dag) => dag // Return the DAG if it's a Left value
+        case Left(dag) => dag
         case Right(links) =>
           links.foreach(link => addMaterializationToLink(link, matReaderWriterPairs))
-          recConnectRegionDAG() // Recursively call connectRegionDAG until a Left value is obtained
+          recConnectRegionDAG()
       }
     }
 
