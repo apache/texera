@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.GreedyExecutionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -17,9 +17,8 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.{asScalaIteratorConverter, asScalaSetConverter}
-import scala.util.{Failure, Success, Try}
 
-object WorkflowPipelinedRegionsBuilder {
+object GreedyExecutionPlanGenerator {
 
   def replaceVertex[V](
       graph: DirectedAcyclicGraph[V, DefaultEdge],
@@ -45,12 +44,12 @@ object WorkflowPipelinedRegionsBuilder {
 
 }
 
-class WorkflowPipelinedRegionsBuilder(
+class GreedyExecutionPlanGenerator(
     val workflowId: WorkflowIdentity,
     var logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     val opResultStorage: OpResultStorage
-) extends LazyLogging {
+) extends ExecutionPlanGenerator with LazyLogging {
 
   /**
     * create Links between the regions of operators `prevInOrderOperator` and `nextInOrderOperator`.
@@ -259,13 +258,13 @@ class WorkflowPipelinedRegionsBuilder(
     regionDAG
   }
 
-  def buildPipelinedRegions(): ExecutionPlan = {
+  def generate(): (ExecutionPlan, PhysicalPlan) = {
     val regionDAG = populateTerminalOperatorsForBlockingLinks(connectRegionDAG())
     val regions = regionDAG.iterator().asScala.toList
     val ancestors = regions.map { region =>
       region -> regionDAG.getAncestors(region).asScala.toSet
     }.toMap
-    new ExecutionPlan(regionsToSchedule = regions, regionAncestorMapping = ancestors)
+    (new ExecutionPlan(regionsToSchedule = regions, regionAncestorMapping = ancestors), physicalPlan)
   }
 
   private def addMaterializationToLink(
