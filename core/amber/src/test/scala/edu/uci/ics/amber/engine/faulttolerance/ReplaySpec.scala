@@ -28,18 +28,14 @@ class ReplaySpec
     with BeforeAndAfterAll {
 
   class IterableReadOnlyLogStore(iter: Iterable[ReplayLogRecord]) extends ReplayLogStorage {
-    override def getWriter: ReplayLogStorage.ReplayLogWriter = ???
+    override def getWriter(logFileName: String): ReplayLogStorage.ReplayLogWriter = ???
 
-    override def getReader: ReplayLogStorage.ReplayLogReader =
+    override def getReader(logFileName: String): ReplayLogStorage.ReplayLogReader =
       new ReplayLogReader(null) {
         override def mkLogRecordIterator(): Iterator[ReplayLogRecord] = iter.toIterator
       }
 
-    override def isLogAvailableForRead: Boolean = true
-
-    override def deleteLog(): Unit = ???
-
-    override def cleanPartiallyWrittenLogFile(): Unit = ???
+    override def deleteStorage(): Unit = ???
   }
 
   private val actorId = ActorVirtualIdentity("test")

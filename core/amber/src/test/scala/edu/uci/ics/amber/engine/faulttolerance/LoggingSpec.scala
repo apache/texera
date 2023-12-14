@@ -29,6 +29,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
+import java.net.URI
+
 class LoggingSpec
     extends TestKit(ActorSystem("LoggingSpec"))
     with ImplicitSender
@@ -55,10 +57,9 @@ class LoggingSpec
   )
 
   "determinant logger" should "log processing steps in local storage" in {
-    val tempLogFileName = "tempLogFile"
-    val logStorage = ReplayLogStorage.getLogStorage("local", tempLogFileName)
-    logStorage.deleteLog()
-    val logManager = ReplayLogManager.createLogManager(logStorage, x => {})
+    val logStorage = ReplayLogStorage.getLogStorage(Some(new URI("file:///recovery-logs/tmp")))
+    logStorage.deleteStorage()
+    val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
     payloadToLog.foreach { payload =>
       val channel = ChannelID(CONTROLLER, SELF, isControl = true)
       val msgOpt = Some(WorkflowFIFOMessage(channel, 0, payload))
@@ -68,8 +69,8 @@ class LoggingSpec
     }
     logManager.sendCommitted(null)
     logManager.terminate()
-    val logRecords = logStorage.getReader.mkLogRecordIterator().toArray
-    logStorage.deleteLog()
+    val logRecords = logStorage.getReader("tmpLog").mkLogRecordIterator().toArray
+    logStorage.deleteStorage()
     assert(logRecords.length == 15)
   }
 

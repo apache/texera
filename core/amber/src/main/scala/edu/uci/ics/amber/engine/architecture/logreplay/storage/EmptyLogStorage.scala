@@ -10,7 +10,7 @@ import org.apache.hadoop.io.IOUtils.NullOutputStream
 import java.io.{DataInputStream, DataOutputStream}
 
 class EmptyLogStorage extends ReplayLogStorage {
-  override def getWriter: ReplayLogWriter = {
+  override def getWriter(logFileName: String): ReplayLogWriter = {
     new ReplayLogWriter(
       new DataOutputStream(
         new NullOutputStream()
@@ -18,7 +18,7 @@ class EmptyLogStorage extends ReplayLogStorage {
     )
   }
 
-  override def getReader: ReplayLogReader = {
+  override def getReader(logFileName: String): ReplayLogReader = {
     new ReplayLogReader(() =>
       new DataInputStream(
         new NullInputStream()
@@ -26,13 +26,8 @@ class EmptyLogStorage extends ReplayLogStorage {
     )
   }
 
-  override def deleteLog(): Unit = {
+  override def deleteStorage(): Unit = {
     // empty
   }
 
-  override def cleanPartiallyWrittenLogFile(): Unit = {
-    // empty
-  }
-
-  override def isLogAvailableForRead: Boolean = false
 }
