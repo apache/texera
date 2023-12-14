@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Updating Homebrew..."
+echo "Updating Apt..."
 sudo apt update && sudo apt upgrade
 # Install PHP, Apache, mysql-client and Composer
 sudo apt install php apache2 composer
