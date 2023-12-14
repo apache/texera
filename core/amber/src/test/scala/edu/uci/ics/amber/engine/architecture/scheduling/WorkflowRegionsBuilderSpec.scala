@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
+class WorkflowRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
   "Pipelined Regions" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()

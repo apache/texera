@@ -37,7 +37,7 @@ import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowScheduler(
-    regionsToSchedule: mutable.Buffer[PipelinedRegion],
+    regionsToSchedule: mutable.Buffer[Region],
     executionState: ExecutionState,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
@@ -55,8 +55,8 @@ class WorkflowScheduler(
   private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val activatedLink = new mutable.HashSet[PhysicalLinkIdentity]()
 
-  private val constructingRegions = new mutable.HashSet[PipelinedRegionIdentity]()
-  private val startedRegions = new mutable.HashSet[PipelinedRegionIdentity]()
+  private val constructingRegions = new mutable.HashSet[RegionIdentity]()
+  private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
   def startWorkflow(
       workflow: Workflow,
@@ -90,12 +90,12 @@ class WorkflowScheduler(
 
   def onTimeSlotExpired(
       workflow: Workflow,
-      timeExpiredRegions: Set[PipelinedRegion],
+      timeExpiredRegions: Set[Region],
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     val nextRegions = schedulingPolicy.onTimeSlotExpired(workflow)
-    var regionsToPause: Set[PipelinedRegion] = Set()
+    var regionsToPause: Set[Region] = Set()
     if (nextRegions.nonEmpty) {
       regionsToPause = timeExpiredRegions
     }
@@ -123,7 +123,7 @@ class WorkflowScheduler(
 
   private def doSchedulingWork(
       workflow: Workflow,
-      regions: Set[PipelinedRegion],
+      regions: Set[Region],
       akkaActorRefMappingService: AkkaActorRefMappingService,
       actorService: AkkaActorService
   ): Future[Seq[Unit]] = {
@@ -140,7 +140,7 @@ class WorkflowScheduler(
 
   private def constructRegion(
       workflow: Workflow,
-      region: PipelinedRegion,
+      region: Region,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
   ): Unit = {
@@ -187,7 +187,7 @@ class WorkflowScheduler(
       controllerConfig
     )
   }
-  private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
+  private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
     val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
@@ -225,7 +225,7 @@ class WorkflowScheduler(
       )
   }
 
-  private def activateAllLinks(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
+  private def activateAllLinks(workflow: Workflow, region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
     Future.collect(
@@ -245,7 +245,7 @@ class WorkflowScheduler(
     )
   }
 
-  private def openAllOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
+  private def openAllOperators(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
     val allNotOpenedOperators =
@@ -262,7 +262,7 @@ class WorkflowScheduler(
       .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
   }
 
-  private def startRegion(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
+  private def startRegion(workflow: Workflow, region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
       region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
 
@@ -297,7 +297,7 @@ class WorkflowScheduler(
 
   private def prepareAndStartRegion(
       workflow: Workflow,
-      region: PipelinedRegion,
+      region: Region,
       actorService: AkkaActorService
   ): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
@@ -324,7 +324,7 @@ class WorkflowScheduler(
   }
 
   private def resumeRegion(
-      region: PipelinedRegion,
+      region: Region,
       actorService: AkkaActorService
   ): Future[Unit] = {
     if (!schedulingPolicy.getRunningRegions.contains(region)) {
@@ -351,7 +351,7 @@ class WorkflowScheduler(
 
   private def scheduleRegion(
       workflow: Workflow,
-      region: PipelinedRegion,
+      region: Region,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       actorService: AkkaActorService
   ): Future[Unit] = {

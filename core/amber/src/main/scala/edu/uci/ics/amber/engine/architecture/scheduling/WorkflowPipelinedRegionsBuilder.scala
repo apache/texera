@@ -1,18 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
-import edu.uci.ics.texera.workflow.common.workflow.{
-  LogicalPlan,
-  MaterializationRewriter,
-  PhysicalPlan
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
+import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
 import scala.collection.mutable
@@ -49,42 +47,38 @@ class WorkflowPipelinedRegionsBuilder(
     val workflowId: WorkflowIdentity,
     var logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
-    val materializationRewriter: MaterializationRewriter
+    val opResultStorage: OpResultStorage
 ) extends LazyLogging {
-  private var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] =
-    new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
+  private var pipelinedRegionsDAG: DirectedAcyclicGraph[Region, DefaultEdge] =
+    new DirectedAcyclicGraph[Region, DefaultEdge](
       classOf[DefaultEdge]
     )
-
-  private val materializationWriterReaderPairs =
-    new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
 
   /**
     * create a DAG similar to the physical DAG but with all blocking links removed.
     *
     * @return
     */
-  private def getBlockingEdgesRemovedDAG: PhysicalPlan = {
-    val edgesToRemove = new mutable.MutableList[PhysicalLinkIdentity]()
+  private def removeBlockingEdges(): PhysicalPlan = {
+    val edgesToRemove = physicalPlan.operators
+      .map(_.id)
+      .flatMap { physicalOpId =>
+        {
+          physicalPlan
+            .getUpstreamPhysicalOpIds(physicalOpId)
+            .flatMap { upstreamPhysicalOpId =>
+              physicalPlan.links
+                .filter(l => l.fromOp.id == upstreamPhysicalOpId && l.toOp.id == physicalOpId)
+                .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
+                .map(_.id)
+            }
+        }
+      }
 
-    physicalPlan.operators
-      .map(physicalOp => physicalOp.id)
-      .foreach(physicalOpId => {
-        val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
-        upstreamPhysicalOpIds.foreach(upstreamPhysicalOpId => {
-          physicalPlan.links
-            .filter(l => l.fromOp.id == upstreamPhysicalOpId && l.toOp.id == physicalOpId)
-            .foreach(link => {
-              if (physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link)) {
-                edgesToRemove += link.id
-              }
-            })
-        })
-      })
-
-    val linksAfterRemoval = physicalPlan.links.filter(link => !edgesToRemove.contains(link.id))
-
-    new PhysicalPlan(physicalPlan.operators, linksAfterRemoval)
+    new PhysicalPlan(
+      physicalPlan.operators,
+      physicalPlan.links.filterNot(e => edgesToRemove.contains(e.id))
+    )
   }
 
   /**
@@ -112,20 +106,21 @@ class WorkflowPipelinedRegionsBuilder(
     * are added to force dependent input links of an operator to come from different regions.
     */
   private def addMaterializationOperatorIfNeeded(): Boolean = {
+
+    val matReaderWriterPairs =
+      new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     // create regions
-    val dagWithoutBlockingEdges = getBlockingEdgesRemovedDAG
-    val sourcePhysicalOpIds = dagWithoutBlockingEdges.getSourceOperatorIds
-    pipelinedRegionsDAG = new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
+    val nonBlockingDAG = removeBlockingEdges()
+
+    pipelinedRegionsDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
       classOf[DefaultEdge]
     )
-    var regionCount = 1
-    sourcePhysicalOpIds.foreach(sourcePhysicalOpId => {
-      val operatorsInRegion =
-        dagWithoutBlockingEdges.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
-      val regionId = PipelinedRegionIdentity(workflowId, regionCount.toString)
-      pipelinedRegionsDAG.addVertex(PipelinedRegion(regionId, operatorsInRegion.toSet.toArray))
-      regionCount += 1
-    })
+    nonBlockingDAG.getSourceOperatorIds.zipWithIndex.map {
+      case (sourcePhysicalOpId, index) =>
+        val operatorsInRegion =
+          nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
+        Region(RegionIdentity(workflowId, (index + 1).toString), operatorsInRegion)
+    }.foreach(region=>pipelinedRegionsDAG.addVertex(region))
 
     // add dependencies among regions
     physicalPlan
@@ -143,17 +138,11 @@ class WorkflowPipelinedRegionsBuilder(
               )
             } catch {
               case _: java.lang.IllegalArgumentException =>
-                logger.info(
-                  "trying to add materialziations, current pairs" + materializationWriterReaderPairs.size
-                )
                 // edge causes a cycle
-                this.physicalPlan = materializationRewriter
-                  .addMaterializationToLink(
-                    physicalPlan,
-                    logicalPlan,
-                    inputProcessingOrderForOp(i),
-                    materializationWriterReaderPairs
-                  )
+                this.physicalPlan = addMaterializationToLink(
+                  inputProcessingOrderForOp(i),
+                  matReaderWriterPairs
+                )
                 return false
             }
           }
@@ -171,13 +160,10 @@ class WorkflowPipelinedRegionsBuilder(
         if (allInputBlocking) {
           upstreamPhysicalOpIds.foreach(upstreamPhysicalOpId => {
             physicalPlan.getLinksBetween(upstreamPhysicalOpId, physicalOpId).foreach { link =>
-              this.physicalPlan = materializationRewriter
-                .addMaterializationToLink(
-                  physicalPlan,
-                  logicalPlan,
-                  link,
-                  materializationWriterReaderPairs
-                )
+              this.physicalPlan = addMaterializationToLink(
+                link,
+                matReaderWriterPairs
+              )
             }
           })
           return false
@@ -185,7 +171,7 @@ class WorkflowPipelinedRegionsBuilder(
       })
 
     // add dependencies between materialization writer and reader regions
-    for ((writer, reader) <- materializationWriterReaderPairs) {
+    for ((writer, reader) <- matReaderWriterPairs) {
       try {
         addEdgeBetweenRegions(writer, reader)
       } catch {
@@ -207,8 +193,8 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  private def getPipelinedRegionsFromOperatorId(opId: PhysicalOpIdentity): Set[PipelinedRegion] = {
-    val regionsForOperator = new mutable.HashSet[PipelinedRegion]()
+  private def getPipelinedRegionsFromOperatorId(opId: PhysicalOpIdentity): Set[Region] = {
+    val regionsForOperator = new mutable.HashSet[Region]()
     pipelinedRegionsDAG
       .vertexSet()
       .forEach(region =>
@@ -221,7 +207,7 @@ class WorkflowPipelinedRegionsBuilder(
 
   private def populateTerminalOperatorsForBlockingLinks(): Unit = {
     val regionTerminalOperatorInOtherRegions =
-      new mutable.HashMap[PipelinedRegion, ArrayBuffer[PhysicalOpIdentity]]()
+      new mutable.HashMap[Region, ArrayBuffer[PhysicalOpIdentity]]()
     this.physicalPlan
       .topologicalIterator()
       .foreach(physicalOpId => {
@@ -275,5 +261,88 @@ class WorkflowPipelinedRegionsBuilder(
       }
       .toMap
     new ExecutionPlan(regionsToSchedule = allRegions, regionAncestorMapping = ancestors)
+  }
+
+  def addMaterializationToLink(
+      physicalLink: PhysicalLink,
+      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
+  ): PhysicalPlan = {
+    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
+    // are different due to partial rewrite
+    val fromOp = physicalPlan.getOperator(physicalLink.id.from)
+    val fromOutputPort = fromOp.getPortIdxForOutputLinkId(physicalLink.id)
+
+    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
+    // are different due to partial rewrite
+    val toOp = physicalPlan.getOperator(physicalLink.id.to)
+    val toInputPort = toOp.getPortIdxForInputLinkId(physicalLink.id)
+
+    val (matWriterLogicalOp: ProgressiveSinkOpDesc, matWriterPhysicalOp: PhysicalOp) =
+      createMatWriter(fromOp, fromOutputPort)
+
+    val matReaderPhysicalOp: PhysicalOp = createMatReader(matWriterLogicalOp)
+
+    // create 2 links for materialization
+    val readerToDestLink = PhysicalLink(matReaderPhysicalOp, 0, toOp, toInputPort)
+    val sourceToWriterLink = PhysicalLink(fromOp, fromOutputPort, matWriterPhysicalOp, 0)
+
+    // add the pair to the map for later adding edges between 2 regions.
+    writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
+
+    physicalPlan
+      .removeEdge(physicalLink)
+      .addOperator(matWriterPhysicalOp)
+      .addOperator(matReaderPhysicalOp)
+      .addEdge(readerToDestLink)
+      .addEdge(sourceToWriterLink)
+      .setOperatorUnblockPort(toOp.id, toInputPort)
+      .populatePartitioningOnLinks()
+
+  }
+
+  private def createMatReader(matWriterLogicalOp: ProgressiveSinkOpDesc): PhysicalOp = {
+    val materializationReader = new CacheSourceOpDesc(
+      matWriterLogicalOp.operatorIdentifier,
+      opResultStorage: OpResultStorage
+    )
+    materializationReader.setContext(logicalPlan.context)
+    materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
+    val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
+    val matReaderOp = materializationReader.getPhysicalOp(
+      logicalPlan.context.executionId,
+      OperatorSchemaInfo(Array(), matReaderOutputSchema)
+    )
+    matReaderOp
+  }
+
+  private def createMatWriter(
+      fromOp: PhysicalOp,
+      fromOutputPortIdx: Int
+  ) = {
+    val matWriterLogicalOp = new ProgressiveSinkOpDesc()
+    matWriterLogicalOp.setContext(logicalPlan.context)
+    val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
+    val fromOpInputSchema: Array[Schema] =
+      if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {
+        logicalPlan.getOpInputSchemas(fromLogicalOp.operatorIdentifier).map(s => s.get).toArray
+      } else {
+        Array()
+      }
+    val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromOutputPortIdx)
+    // we currently expect only one output schema
+    val matWriterOutputSchema =
+      matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
+    val matWriterPhysicalOp = matWriterLogicalOp.getPhysicalOp(
+      logicalPlan.context.executionId,
+      OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
+    )
+    matWriterLogicalOp.setStorage(
+      opResultStorage.create(
+        key = matWriterLogicalOp.operatorIdentifier,
+        mode = OpResultStorage.defaultStorageMode
+      )
+    )
+    opResultStorage.get(matWriterLogicalOp.operatorIdentifier).setSchema(matWriterOutputSchema)
+    (matWriterLogicalOp, matWriterPhysicalOp)
   }
 }

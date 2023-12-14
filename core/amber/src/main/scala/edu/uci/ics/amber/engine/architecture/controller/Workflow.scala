@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.scheduling.{ExecutionPlan, PipelinedRegion}
+import edu.uci.ics.amber.engine.architecture.scheduling.{ExecutionPlan, Region}
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 
@@ -12,7 +12,7 @@ class Workflow(
     val executionPlan: ExecutionPlan
 ) extends java.io.Serializable {
 
-  def getBlockingOutPhysicalLinksOfRegion(region: PipelinedRegion): Set[PhysicalLinkIdentity] = {
+  def getBlockingOutPhysicalLinksOfRegion(region: Region): Set[PhysicalLinkIdentity] = {
     region.blockingDownstreamPhysicalOpIdsInOtherRegions.flatMap {
       case (physicalOpId, toPort) =>
         physicalPlan
@@ -27,7 +27,7 @@ class Workflow(
   /**
     * Returns the operators in a region whose all inputs are from operators that are not in this region.
     */
-  def getSourcePhysicalOpsOfRegion(region: PipelinedRegion): Array[PhysicalOpIdentity] = {
+  def getSourcePhysicalOpsOfRegion(region: Region): List[PhysicalOpIdentity] = {
     region.getOperators
       .filter(physicalOpId =>
         physicalPlan

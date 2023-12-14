@@ -89,7 +89,7 @@ class WorkflowCompiler(
       workflowId,
       rewrittenLogicalPlan,
       physicalPlan,
-      new MaterializationRewriter(rewrittenLogicalPlan.context, opResultStorage)
+      opResultStorage
     )
     val executionPlan = pipelinedRegionsBuilder.buildPipelinedRegions()
 

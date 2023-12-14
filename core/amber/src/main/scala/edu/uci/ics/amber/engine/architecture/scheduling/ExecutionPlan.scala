@@ -1,9 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 class ExecutionPlan(
-    val regionsToSchedule: List[PipelinedRegion] = List.empty,
-    val regionAncestorMapping: Map[PipelinedRegion, Set[PipelinedRegion]] = Map.empty
+    val regionsToSchedule: List[Region] = List.empty,
+    val regionAncestorMapping: Map[Region, Set[Region]] = Map.empty
 ) {
 
-  def getAllRegions: List[PipelinedRegion] = regionsToSchedule
+  def getAllRegions: List[Region] = regionsToSchedule
 }
