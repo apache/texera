@@ -28,7 +28,7 @@ class Workflow(
     * Returns the operators in a region whose all inputs are from operators that are not in this region.
     */
   def getSourcePhysicalOpsOfRegion(region: Region): List[PhysicalOpIdentity] = {
-    region.getOperators
+    region.getPhysicalOpIds
       .filter(physicalOpId =>
         physicalPlan
           .getUpstreamPhysicalOpIds(physicalOpId)

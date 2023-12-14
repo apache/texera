@@ -162,11 +162,11 @@ class WorkflowScheduler(
       }
 
       frontier =
-        (region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1))
+        (region.getPhysicalOpIds ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1))
           .filter(physicalOpId => {
             !builtOpsInRegion.contains(physicalOpId) && workflow.physicalPlan
               .getUpstreamPhysicalOpIds(physicalOpId)
-              .filter(region.getOperators.contains)
+              .filter(region.getPhysicalOpIds.contains)
               .forall(builtOperators.contains)
           })
     }
@@ -189,7 +189,7 @@ class WorkflowScheduler(
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
+      region.getPhysicalOpIds ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
     val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
       allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
     )
@@ -227,7 +227,7 @@ class WorkflowScheduler(
 
   private def activateAllLinks(workflow: Workflow, region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
+      region.getPhysicalOpIds ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
     Future.collect(
       // activate all links
       workflow.physicalPlan.links
@@ -247,7 +247,7 @@ class WorkflowScheduler(
 
   private def openAllOperators(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
+      region.getPhysicalOpIds ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
     val allNotOpenedOperators =
       allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
     Future
@@ -264,7 +264,7 @@ class WorkflowScheduler(
 
   private def startRegion(workflow: Workflow, region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
+      region.getPhysicalOpIds ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
 
     allOperatorsInRegion
       .filter(opId =>
@@ -290,7 +290,7 @@ class WorkflowScheduler(
       Future.collect(futures)
     } else {
       throw new WorkflowRuntimeException(
-        s"Start region called on an already running region: ${region.getOperators.mkString(",")}"
+        s"Start region called on an already running region: ${region.getPhysicalOpIds.mkString(",")}"
       )
     }
   }
@@ -343,7 +343,7 @@ class WorkflowScheduler(
         }
     } else {
       throw new WorkflowRuntimeException(
-        s"Resume region called on an already running region: ${region.getOperators.mkString(",")}"
+        s"Resume region called on an already running region: ${region.getPhysicalOpIds.mkString(",")}"
       )
     }
 

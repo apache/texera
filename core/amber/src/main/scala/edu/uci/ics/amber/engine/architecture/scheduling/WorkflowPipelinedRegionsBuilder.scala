@@ -13,6 +13,10 @@ import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
+import scala.collection.convert.ImplicitConversions.{
+  `collection AsScalaIterable`,
+  `iterator asScala`
+}
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.{asScalaIteratorConverter, asScalaSetConverter}
@@ -49,7 +53,6 @@ class WorkflowPipelinedRegionsBuilder(
     var physicalPlan: PhysicalPlan,
     val opResultStorage: OpResultStorage
 ) extends LazyLogging {
-  private var regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](classOf[DefaultEdge])
 
   /**
     * create a DAG similar to the physical DAG but with all blocking links removed.
@@ -86,7 +89,7 @@ class WorkflowPipelinedRegionsBuilder(
   private def addEdgeBetweenRegions(
       prevInOrderOperator: PhysicalOpIdentity,
       nextInOrderOperator: PhysicalOpIdentity,
-      regionDAG:DirectedAcyclicGraph[Region, DefaultEdge]
+      regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): Unit = {
     val prevInOrderRegions = getRegionsFromOperatorId(prevInOrderOperator, regionDAG)
     val nextInOrderRegions = getRegionsFromOperatorId(nextInOrderOperator, regionDAG)
@@ -104,14 +107,15 @@ class WorkflowPipelinedRegionsBuilder(
     * Returns a new DAG with materialization writer and reader operators added, if needed. These operators
     * are added to force dependent input links of an operator to come from different regions.
     */
-  private def addMaterializationOperatorIfNeeded(): Option[DirectedAcyclicGraph[Region, DefaultEdge]] = {
+  private def addMaterializationOperatorIfNeeded()
+      : Option[DirectedAcyclicGraph[Region, DefaultEdge]] = {
 
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     // create regions
     val nonBlockingDAG = removeBlockingEdges()
 
-    regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
+    val regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
       classOf[DefaultEdge]
     )
     nonBlockingDAG.getSourceOperatorIds.zipWithIndex
@@ -188,7 +192,8 @@ class WorkflowPipelinedRegionsBuilder(
     Some(regionDAG)
   }
 
-  private def findAllPipelinedRegionsAndAddDependencies():DirectedAcyclicGraph[Region, DefaultEdge] = {
+  private def findAllPipelinedRegionsAndAddDependencies()
+      : DirectedAcyclicGraph[Region, DefaultEdge] = {
     var regionDAG = addMaterializationOperatorIfNeeded()
     while (regionDAG.isEmpty) {
       regionDAG = addMaterializationOperatorIfNeeded()
@@ -197,21 +202,15 @@ class WorkflowPipelinedRegionsBuilder(
   }
 
   private def getRegionsFromOperatorId(
-                                        opId: PhysicalOpIdentity,
-                                        regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
-                                      ): Set[Region] = {
-    val regionsForOperator = mutable.Set[Region]()
-
-    regionDAG.vertexSet().forEach { region =>
-      if (region.getOperators.contains(opId)) {
-        regionsForOperator += region
-      }
-    }
-
-    regionsForOperator.toSet
+      physicalOpId: PhysicalOpIdentity,
+      regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
+  ): Set[Region] = {
+    regionDAG.vertexSet().filter(region => region.contains(physicalOpId)).toSet
   }
 
-  private def populateTerminalOperatorsForBlockingLinks(regionDAG:DirectedAcyclicGraph[Region, DefaultEdge]): Unit = {
+  private def populateTerminalOperatorsForBlockingLinks(
+      regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
+  ): Unit = {
     val regionTerminalOperatorInOtherRegions =
       mutable.HashMap[Region, ArrayBuffer[PhysicalOpIdentity]]()
 
@@ -247,19 +246,12 @@ class WorkflowPipelinedRegionsBuilder(
   }
 
   def buildPipelinedRegions(): ExecutionPlan = {
-    regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
-      classOf[DefaultEdge]
-    )
-    findAllPipelinedRegionsAndAddDependencies()
+    val regionDAG = findAllPipelinedRegionsAndAddDependencies()
     populateTerminalOperatorsForBlockingLinks(regionDAG)
     val allRegions = regionDAG.iterator().asScala.toList
-    val ancestors = regionDAG
-      .iterator()
-      .asScala
-      .map { region =>
-        region -> regionDAG.getAncestors(region).asScala.toSet
-      }
-      .toMap
+    val ancestors = allRegions.map { region =>
+      region -> regionDAG.getAncestors(region).asScala.toSet
+    }.toMap
     new ExecutionPlan(regionsToSchedule = allRegions, regionAncestorMapping = ancestors)
   }
 

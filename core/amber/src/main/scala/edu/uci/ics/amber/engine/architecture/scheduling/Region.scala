@@ -15,7 +15,11 @@ case class Region(
 
   def getId: RegionIdentity = id
 
-  def getOperators: List[PhysicalOpIdentity] = operators
+  def getPhysicalOpIds: List[PhysicalOpIdentity] = operators
+
+  def contains(physicalOpId: PhysicalOpIdentity): Boolean = {
+    operators.contains(physicalOpId)
+  }
 
   def containsOperator(opId: PhysicalOpIdentity): Boolean = {
     this.operators.contains(opId)

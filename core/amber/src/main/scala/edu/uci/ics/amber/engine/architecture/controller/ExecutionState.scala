@@ -58,7 +58,7 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllWorkersOfRegion(region: Region): List[ActorVirtualIdentity] = {
     val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
+      region.getPhysicalOpIds ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
 
     allOperatorsInRegion.flatMap(opId => getOperatorExecution(opId).getBuiltWorkerIds.toList)
   }
