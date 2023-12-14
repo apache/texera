@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
+import scala.annotation.tailrec
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -49,21 +50,21 @@ class GreedyExecutionPlanGenerator(
     var logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     val opResultStorage: OpResultStorage
-) extends ExecutionPlanGenerator with LazyLogging {
+) extends ExecutionPlanGenerator
+    with LazyLogging {
 
   /**
-    * create Links between the regions of operators `prevInOrderOperator` and `nextInOrderOperator`.
-    * Throws an IllegalArgumentException if the addition of an edge causes a cycle.
+    * Create RegionLinks between the regions of operators `prevInOrderOpId` and `nextInOrderOpId`.
+    * The links are to be added to the region DAG separately.
     */
-  @throws(classOf[java.lang.IllegalArgumentException])
   private def createLinks(
-      prevInOrderOperator: PhysicalOpIdentity,
-      nextInOrderOperator: PhysicalOpIdentity,
+      prevInOrderOpId: PhysicalOpIdentity,
+      nextInOrderOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): List[RegionLink] = {
 
-    val prevInOrderRegions = getRegionsFromOperatorId(prevInOrderOperator, regionDAG)
-    val nextInOrderRegions = getRegionsFromOperatorId(nextInOrderOperator, regionDAG)
+    val prevInOrderRegions = getRegions(prevInOrderOpId, regionDAG)
+    val nextInOrderRegions = getRegions(nextInOrderOpId, regionDAG)
 
     prevInOrderRegions.flatMap { prevRegion =>
       nextInOrderRegions
@@ -72,7 +73,11 @@ class GreedyExecutionPlanGenerator(
     }.toList
   }
 
-  private def createRegions(nonBlockingDAG: PhysicalPlan): List[Region] = {
+  /**
+    * Create Regions based on the PhysicalPlan. The Region are to be added to regionDAG separately.
+    */
+  private def createRegions(physicalPlan: PhysicalPlan): List[Region] = {
+    val nonBlockingDAG = physicalPlan.removeBlockingEdges()
     nonBlockingDAG.getSourceOperatorIds.zipWithIndex
       .map {
         case (sourcePhysicalOpId, index) =>
@@ -102,27 +107,22 @@ class GreedyExecutionPlanGenerator(
   private def tryConnectRegionDAG()
       : Either[DirectedAcyclicGraph[Region, DefaultEdge], List[PhysicalLink]] = {
 
+    // creates an empty regionDAG
     val regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](classOf[DefaultEdge])
 
-    val nonBlockingDAG = physicalPlan.removeBlockingEdges()
-
     // add Regions as vertices
-    createRegions(nonBlockingDAG).foreach(region => regionDAG.addVertex(region))
+    createRegions(physicalPlan).foreach(region => regionDAG.addVertex(region))
 
-    // add regionLinks as edges
+    // add regionLinks as edges, if failed, return the problematic PhysicalLinks.
     physicalPlan
       .topologicalIterator()
       .foreach(physicalOpId => {
-        handleAllBlockingInput(physicalOpId) match {
-          case Some(links) => return Right(links)
-          case None        =>
-        }
-        handleDependentLinks(physicalOpId, regionDAG) match {
-          case Left(_)      =>
-          case Right(links) => return Right(links)
-        }
+        (handleAllBlockingInput(physicalOpId) ++ handleDependentLinks(physicalOpId, regionDAG))
+          .map(links => return Right(links))
       })
 
+    // if success, a partially connected region DAG without edges between materialization operators is returned.
+    // The edges between materialization are to be added later.
     Left(regionDAG)
   }
 
@@ -146,7 +146,7 @@ class GreedyExecutionPlanGenerator(
   private def handleDependentLinks(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
-  ): Either[DirectedAcyclicGraph[Region, DefaultEdge], List[PhysicalLink]] = {
+  ): Option[List[PhysicalLink]] = {
     // for operators like HashJoin that have an order among their blocking and pipelined inputs
     physicalPlan
       .getOperator(physicalOpId)
@@ -162,10 +162,10 @@ class GreedyExecutionPlanGenerator(
           } catch {
             case _: IllegalArgumentException =>
               // adding the edge causes cycle. return the link materialization replacement
-              return Right(List(nextLink))
+              return Some(List(nextLink))
           }
       }
-    Left(regionDAG)
+    None
   }
 
   /**
@@ -180,20 +180,19 @@ class GreedyExecutionPlanGenerator(
   private def connectRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
-    var reginDAGOpt: Option[DirectedAcyclicGraph[Region, DefaultEdge]] = None
 
-    while (reginDAGOpt.isEmpty) {
-      reginDAGOpt = tryConnectRegionDAG() match {
-        case Left(dag) => Some(dag)
+    @tailrec
+    def recConnectRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
+      tryConnectRegionDAG() match {
+        case Left(dag) => dag // Return the DAG if it's a Left value
         case Right(links) =>
-          links.foreach(link => {
-            physicalPlan = addMaterializationToLink(link, matReaderWriterPairs)
-          })
-          None
+          links.foreach(link => addMaterializationToLink(link, matReaderWriterPairs))
+          recConnectRegionDAG() // Recursively call connectRegionDAG until a Left value is obtained
       }
     }
+
     // the region is partially connected successfully.
-    val regionDAG = reginDAGOpt.get
+    val regionDAG: DirectedAcyclicGraph[Region, DefaultEdge] = recConnectRegionDAG()
     // try to add dependencies between materialization writer and reader regions
     try {
       matReaderWriterPairs.foreach {
@@ -213,7 +212,7 @@ class GreedyExecutionPlanGenerator(
 
   }
 
-  private def getRegionsFromOperatorId(
+  private def getRegions(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): Set[Region] = {
@@ -234,7 +233,7 @@ class GreedyExecutionPlanGenerator(
           .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
 
         blockingLinks.foreach { _ =>
-          val prevInOrderRegions = getRegionsFromOperatorId(upstreamPhysicalOpId, regionDAG)
+          val prevInOrderRegions = getRegions(upstreamPhysicalOpId, regionDAG)
           prevInOrderRegions.foreach { prevInOrderRegion =>
             val regionEntry = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
               prevInOrderRegion,
@@ -264,7 +263,10 @@ class GreedyExecutionPlanGenerator(
     val ancestors = regions.map { region =>
       region -> regionDAG.getAncestors(region).asScala.toSet
     }.toMap
-    (new ExecutionPlan(regionsToSchedule = regions, regionAncestorMapping = ancestors), physicalPlan)
+    (
+      new ExecutionPlan(regionsToSchedule = regions, regionAncestorMapping = ancestors),
+      physicalPlan
+    )
   }
 
   private def addMaterializationToLink(
