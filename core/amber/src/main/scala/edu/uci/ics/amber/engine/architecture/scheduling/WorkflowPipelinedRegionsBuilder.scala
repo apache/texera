@@ -49,10 +49,7 @@ class WorkflowPipelinedRegionsBuilder(
     var physicalPlan: PhysicalPlan,
     val opResultStorage: OpResultStorage
 ) extends LazyLogging {
-  private var pipelinedRegionsDAG: DirectedAcyclicGraph[Region, DefaultEdge] =
-    new DirectedAcyclicGraph[Region, DefaultEdge](
-      classOf[DefaultEdge]
-    )
+  private var regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](classOf[DefaultEdge])
 
   /**
     * create a DAG similar to the physical DAG but with all blocking links removed.
@@ -82,22 +79,24 @@ class WorkflowPipelinedRegionsBuilder(
   }
 
   /**
-    * Adds an edge between the regions of operator `prevInOrderOperator` to the regions of the operator `nextInOrderOperator`.
-    * Throws IllegalArgumentException when the addition of an edge causes a cycle.
+    * Adds an edge between the regions of operators `prevInOrderOperator` and `nextInOrderOperator`.
+    * Throws an IllegalArgumentException if the addition of an edge causes a cycle.
     */
   @throws(classOf[java.lang.IllegalArgumentException])
   private def addEdgeBetweenRegions(
       prevInOrderOperator: PhysicalOpIdentity,
-      nextInOrderOperator: PhysicalOpIdentity
+      nextInOrderOperator: PhysicalOpIdentity,
+      regionDAG:DirectedAcyclicGraph[Region, DefaultEdge]
   ): Unit = {
-    val prevInOrderRegions = getPipelinedRegionsFromOperatorId(prevInOrderOperator)
-    val nextInOrderRegions = getPipelinedRegionsFromOperatorId(nextInOrderOperator)
-    for (prevInOrderRegion <- prevInOrderRegions) {
-      for (nextInOrderRegion <- nextInOrderRegions) {
-        if (!pipelinedRegionsDAG.getDescendants(prevInOrderRegion).contains(nextInOrderRegion)) {
-          pipelinedRegionsDAG.addEdge(prevInOrderRegion, nextInOrderRegion)
-        }
-      }
+    val prevInOrderRegions = getRegionsFromOperatorId(prevInOrderOperator, regionDAG)
+    val nextInOrderRegions = getRegionsFromOperatorId(nextInOrderOperator, regionDAG)
+
+    for {
+      prevRegion <- prevInOrderRegions
+      nextRegion <- nextInOrderRegions
+      if !regionDAG.getDescendants(prevRegion).contains(nextRegion)
+    } {
+      regionDAG.addEdge(prevRegion, nextRegion)
     }
   }
 
@@ -105,22 +104,24 @@ class WorkflowPipelinedRegionsBuilder(
     * Returns a new DAG with materialization writer and reader operators added, if needed. These operators
     * are added to force dependent input links of an operator to come from different regions.
     */
-  private def addMaterializationOperatorIfNeeded(): Boolean = {
+  private def addMaterializationOperatorIfNeeded(): Option[DirectedAcyclicGraph[Region, DefaultEdge]] = {
 
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     // create regions
     val nonBlockingDAG = removeBlockingEdges()
 
-    pipelinedRegionsDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
+    regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
       classOf[DefaultEdge]
     )
-    nonBlockingDAG.getSourceOperatorIds.zipWithIndex.map {
-      case (sourcePhysicalOpId, index) =>
-        val operatorsInRegion =
-          nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
-        Region(RegionIdentity(workflowId, (index + 1).toString), operatorsInRegion)
-    }.foreach(region=>pipelinedRegionsDAG.addVertex(region))
+    nonBlockingDAG.getSourceOperatorIds.zipWithIndex
+      .map {
+        case (sourcePhysicalOpId, index) =>
+          val operatorsInRegion =
+            nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
+          Region(RegionIdentity(workflowId, (index + 1).toString), operatorsInRegion)
+      }
+      .foreach(region => regionDAG.addVertex(region))
 
     // add dependencies among regions
     physicalPlan
@@ -134,7 +135,8 @@ class WorkflowPipelinedRegionsBuilder(
             try {
               addEdgeBetweenRegions(
                 inputProcessingOrderForOp(i - 1).fromOp.id,
-                inputProcessingOrderForOp(i).fromOp.id
+                inputProcessingOrderForOp(i).fromOp.id,
+                regionDAG
               )
             } catch {
               case _: java.lang.IllegalArgumentException =>
@@ -143,7 +145,7 @@ class WorkflowPipelinedRegionsBuilder(
                   inputProcessingOrderForOp(i),
                   matReaderWriterPairs
                 )
-                return false
+                return None
             }
           }
         }
@@ -166,14 +168,14 @@ class WorkflowPipelinedRegionsBuilder(
               )
             }
           })
-          return false
+          return None
         }
       })
 
     // add dependencies between materialization writer and reader regions
     for ((writer, reader) <- matReaderWriterPairs) {
       try {
-        addEdgeBetweenRegions(writer, reader)
+        addEdgeBetweenRegions(writer, reader, regionDAG)
       } catch {
         case _: java.lang.IllegalArgumentException =>
           // edge causes a cycle. Code shouldn't reach here.
@@ -183,81 +185,79 @@ class WorkflowPipelinedRegionsBuilder(
       }
     }
 
-    true
+    Some(regionDAG)
   }
 
-  private def findAllPipelinedRegionsAndAddDependencies(): Unit = {
-    var traversedAllOperators = addMaterializationOperatorIfNeeded()
-    while (!traversedAllOperators) {
-      traversedAllOperators = addMaterializationOperatorIfNeeded()
+  private def findAllPipelinedRegionsAndAddDependencies():DirectedAcyclicGraph[Region, DefaultEdge] = {
+    var regionDAG = addMaterializationOperatorIfNeeded()
+    while (regionDAG.isEmpty) {
+      regionDAG = addMaterializationOperatorIfNeeded()
     }
+    regionDAG.get
   }
 
-  private def getPipelinedRegionsFromOperatorId(opId: PhysicalOpIdentity): Set[Region] = {
-    val regionsForOperator = new mutable.HashSet[Region]()
-    pipelinedRegionsDAG
-      .vertexSet()
-      .forEach(region =>
-        if (region.getOperators.contains(opId)) {
-          regionsForOperator.add(region)
-        }
-      )
+  private def getRegionsFromOperatorId(
+                                        opId: PhysicalOpIdentity,
+                                        regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
+                                      ): Set[Region] = {
+    val regionsForOperator = mutable.Set[Region]()
+
+    regionDAG.vertexSet().forEach { region =>
+      if (region.getOperators.contains(opId)) {
+        regionsForOperator += region
+      }
+    }
+
     regionsForOperator.toSet
   }
 
-  private def populateTerminalOperatorsForBlockingLinks(): Unit = {
+  private def populateTerminalOperatorsForBlockingLinks(regionDAG:DirectedAcyclicGraph[Region, DefaultEdge]): Unit = {
     val regionTerminalOperatorInOtherRegions =
-      new mutable.HashMap[Region, ArrayBuffer[PhysicalOpIdentity]]()
-    this.physicalPlan
-      .topologicalIterator()
-      .foreach(physicalOpId => {
-        val upstreamPhysicalOpIds = this.physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
-        upstreamPhysicalOpIds.foreach(upstreamPhysicalOpId => {
-          physicalPlan
-            .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-            .foreach(upstreamPhysicalLink => {
-              if (
-                physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLink)
-              ) {
-                val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamPhysicalOpId)
-                for (prevInOrderRegion <- prevInOrderRegions) {
-                  if (
-                    !regionTerminalOperatorInOtherRegions.contains(
-                      prevInOrderRegion
-                    ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion)
-                      .contains(physicalOpId)
-                  ) {
-                    val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
-                      prevInOrderRegion,
-                      new ArrayBuffer[PhysicalOpIdentity]()
-                    )
-                    terminalOps.append(physicalOpId)
-                    regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
-                  }
-                }
-              }
-            })
+      mutable.HashMap[Region, ArrayBuffer[PhysicalOpIdentity]]()
 
-        })
-      })
+    physicalPlan.topologicalIterator().foreach { physicalOpId =>
+      val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
+      upstreamPhysicalOpIds.foreach { upstreamPhysicalOpId =>
+        val blockingLinks = physicalPlan
+          .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
+          .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
+
+        blockingLinks.foreach { _ =>
+          val prevInOrderRegions = getRegionsFromOperatorId(upstreamPhysicalOpId, regionDAG)
+          prevInOrderRegions.foreach { prevInOrderRegion =>
+            val regionEntry = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
+              prevInOrderRegion,
+              ArrayBuffer[PhysicalOpIdentity]()
+            )
+            if (!regionEntry.contains(physicalOpId)) {
+              regionEntry.append(physicalOpId)
+              regionTerminalOperatorInOtherRegions(prevInOrderRegion) = regionEntry
+            }
+          }
+        }
+      }
+    }
 
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
       val newRegion = region.copy(blockingDownstreamPhysicalOpIdsInOtherRegions =
         terminalOps.toArray.map(opId => (opId, 0))
       )
-      replaceVertex(pipelinedRegionsDAG, region, newRegion)
+      replaceVertex(regionDAG, region, newRegion)
     }
   }
 
   def buildPipelinedRegions(): ExecutionPlan = {
+    regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
+      classOf[DefaultEdge]
+    )
     findAllPipelinedRegionsAndAddDependencies()
-    populateTerminalOperatorsForBlockingLinks()
-    val allRegions = pipelinedRegionsDAG.iterator().asScala.toList
-    val ancestors = pipelinedRegionsDAG
+    populateTerminalOperatorsForBlockingLinks(regionDAG)
+    val allRegions = regionDAG.iterator().asScala.toList
+    val ancestors = regionDAG
       .iterator()
       .asScala
       .map { region =>
-        region -> pipelinedRegionsDAG.getAncestors(region).asScala.toSet
+        region -> regionDAG.getAncestors(region).asScala.toSet
       }
       .toMap
     new ExecutionPlan(regionsToSchedule = allRegions, regionAncestorMapping = ancestors)
