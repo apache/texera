@@ -2,6 +2,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
 
+case class RegionLink(fromRegion: Region, toRegion: Region)
+
 case class RegionIdentity(workflowId: WorkflowIdentity, pipelineId: String)
 
 // A pipelined region can have a single source. A source is an operator with

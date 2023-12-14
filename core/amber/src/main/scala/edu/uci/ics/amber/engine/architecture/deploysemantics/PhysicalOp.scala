@@ -395,7 +395,7 @@ case class PhysicalOp(
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
-  def getInputLinksInProcessingOrder: Array[PhysicalLink] = {
+  def getInputLinksInProcessingOrder: List[PhysicalLink] = {
     val dependencyDag =
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
     dependency.foreach({
@@ -416,7 +416,7 @@ case class PhysicalOp(
     while (topologicalIterator.hasNext) {
       processingOrder.append(topologicalIterator.next())
     }
-    processingOrder.toArray
+    processingOrder.toList
   }
 
   def identifiers: Array[ActorVirtualIdentity] = {

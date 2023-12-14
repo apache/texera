@@ -13,13 +13,11 @@ import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 
-import scala.collection.convert.ImplicitConversions.{
-  `collection AsScalaIterable`,
-  `iterator asScala`
-}
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.{asScalaIteratorConverter, asScalaSetConverter}
+import scala.util.{Failure, Success, Try}
 
 object WorkflowPipelinedRegionsBuilder {
 
@@ -55,69 +53,27 @@ class WorkflowPipelinedRegionsBuilder(
 ) extends LazyLogging {
 
   /**
-    * create a DAG similar to the physical DAG but with all blocking links removed.
-    *
-    * @return
-    */
-  private def removeBlockingEdges(): PhysicalPlan = {
-    val edgesToRemove = physicalPlan.operators
-      .map(_.id)
-      .flatMap { physicalOpId =>
-        {
-          physicalPlan
-            .getUpstreamPhysicalOpIds(physicalOpId)
-            .flatMap { upstreamPhysicalOpId =>
-              physicalPlan.links
-                .filter(l => l.fromOp.id == upstreamPhysicalOpId && l.toOp.id == physicalOpId)
-                .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
-                .map(_.id)
-            }
-        }
-      }
-
-    new PhysicalPlan(
-      physicalPlan.operators,
-      physicalPlan.links.filterNot(e => edgesToRemove.contains(e.id))
-    )
-  }
-
-  /**
-    * Adds an edge between the regions of operators `prevInOrderOperator` and `nextInOrderOperator`.
+    * create Links between the regions of operators `prevInOrderOperator` and `nextInOrderOperator`.
     * Throws an IllegalArgumentException if the addition of an edge causes a cycle.
     */
   @throws(classOf[java.lang.IllegalArgumentException])
-  private def addEdgeBetweenRegions(
+  private def createLinks(
       prevInOrderOperator: PhysicalOpIdentity,
       nextInOrderOperator: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
-  ): Unit = {
+  ): List[RegionLink] = {
+
     val prevInOrderRegions = getRegionsFromOperatorId(prevInOrderOperator, regionDAG)
     val nextInOrderRegions = getRegionsFromOperatorId(nextInOrderOperator, regionDAG)
 
-    for {
-      prevRegion <- prevInOrderRegions
-      nextRegion <- nextInOrderRegions
-      if !regionDAG.getDescendants(prevRegion).contains(nextRegion)
-    } {
-      regionDAG.addEdge(prevRegion, nextRegion)
-    }
+    prevInOrderRegions.flatMap { prevRegion =>
+      nextInOrderRegions
+        .filterNot(nextRegion => regionDAG.getDescendants(prevRegion).contains(nextRegion))
+        .map(nextRegion => RegionLink(prevRegion, nextRegion))
+    }.toList
   }
 
-  /**
-    * Returns a new DAG with materialization writer and reader operators added, if needed. These operators
-    * are added to force dependent input links of an operator to come from different regions.
-    */
-  private def addMaterializationOperatorIfNeeded()
-      : Option[DirectedAcyclicGraph[Region, DefaultEdge]] = {
-
-    val matReaderWriterPairs =
-      new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
-    // create regions
-    val nonBlockingDAG = removeBlockingEdges()
-
-    val regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](
-      classOf[DefaultEdge]
-    )
+  private def createRegions(nonBlockingDAG: PhysicalPlan): List[Region] = {
     nonBlockingDAG.getSourceOperatorIds.zipWithIndex
       .map {
         case (sourcePhysicalOpId, index) =>
@@ -125,80 +81,137 @@ class WorkflowPipelinedRegionsBuilder(
             nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
           Region(RegionIdentity(workflowId, (index + 1).toString), operatorsInRegion)
       }
-      .foreach(region => regionDAG.addVertex(region))
+  }
 
-    // add dependencies among regions
+  /**
+    * Try connect the regions in the DAG while respecting the dependencies of PhysicalLinks (e.g., HashJoin).
+    * This function returns either a successful connected region DAG, or a list of PhysicalLinks that should be
+    * replaced for materialization.
+    *
+    * This function builds a region DAG from scratch. It first adds all the regions into the DAG. Then it starts adding
+    * edges on the DAG. To do so, it examines each PhysicalOp and checks its input links. The links will be problematic
+    * if they have one of the following two properties:
+    *   1. The link's toOp (this PhysicalOp) has and only has blocking links;
+    *   2. The link's toOp (this PhysicalOp) has another link that has higher priority to run than this link
+    *   (aka, it has a dependency).
+    * If such links are found, the function will terminate after this PhysicalOp and return the list of links.
+    *
+    * If the function finds no such links for all PhysicalOps, it will return the connected Region DAG.
+    *
+    *  @return Either a partially connected region DAG, or a list of PhysicalLinks for materialization replacement.
+    */
+  private def tryConnectRegionDAG()
+      : Either[DirectedAcyclicGraph[Region, DefaultEdge], List[PhysicalLink]] = {
+
+    val regionDAG = new DirectedAcyclicGraph[Region, DefaultEdge](classOf[DefaultEdge])
+
+    val nonBlockingDAG = physicalPlan.removeBlockingEdges()
+
+    // add Regions as vertices
+    createRegions(nonBlockingDAG).foreach(region => regionDAG.addVertex(region))
+
+    // add regionLinks as edges
     physicalPlan
       .topologicalIterator()
       .foreach(physicalOpId => {
-        // For operators like HashJoin that have an order among their blocking and pipelined inputs
-        val inputProcessingOrderForOp =
-          physicalPlan.getOperator(physicalOpId).getInputLinksInProcessingOrder
-        if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
-          for (i <- 1 until inputProcessingOrderForOp.length) {
-            try {
-              addEdgeBetweenRegions(
-                inputProcessingOrderForOp(i - 1).fromOp.id,
-                inputProcessingOrderForOp(i).fromOp.id,
-                regionDAG
-              )
-            } catch {
-              case _: java.lang.IllegalArgumentException =>
-                // edge causes a cycle
-                this.physicalPlan = addMaterializationToLink(
-                  inputProcessingOrderForOp(i),
-                  matReaderWriterPairs
-                )
-                return None
-            }
-          }
+        handleAllBlockingInput(physicalOpId) match {
+          case Some(links) => return Right(links)
+          case None        =>
         }
-
-        // For operators that have only blocking input links. add materialization to all input links.
-        val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
-
-        val allInputBlocking =
-          upstreamPhysicalOpIds.nonEmpty && upstreamPhysicalOpIds.forall(upstreamPhysicalOpId =>
-            physicalPlan
-              .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-              .forall(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
-          )
-        if (allInputBlocking) {
-          upstreamPhysicalOpIds.foreach(upstreamPhysicalOpId => {
-            physicalPlan.getLinksBetween(upstreamPhysicalOpId, physicalOpId).foreach { link =>
-              this.physicalPlan = addMaterializationToLink(
-                link,
-                matReaderWriterPairs
-              )
-            }
-          })
-          return None
+        handleDependentLinks(physicalOpId, regionDAG) match {
+          case Left(_)      =>
+          case Right(links) => return Right(links)
         }
       })
 
-    // add dependencies between materialization writer and reader regions
-    for ((writer, reader) <- matReaderWriterPairs) {
-      try {
-        addEdgeBetweenRegions(writer, reader, regionDAG)
-      } catch {
-        case _: java.lang.IllegalArgumentException =>
-          // edge causes a cycle. Code shouldn't reach here.
-          throw new WorkflowRuntimeException(
-            s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${writer.logicalOpId.id} and ${reader.logicalOpId.id}"
-          )
-      }
-    }
-
-    Some(regionDAG)
+    Left(regionDAG)
   }
 
-  private def findAllPipelinedRegionsAndAddDependencies()
-      : DirectedAcyclicGraph[Region, DefaultEdge] = {
-    var regionDAG = addMaterializationOperatorIfNeeded()
-    while (regionDAG.isEmpty) {
-      regionDAG = addMaterializationOperatorIfNeeded()
+  private def handleAllBlockingInput(
+      physicalOpId: PhysicalOpIdentity
+  ): Option[List[PhysicalLink]] = {
+    // for operators that have only blocking input links
+    val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
+    if (physicalPlan.areAllInputBlocking(physicalOpId)) {
+      // return all links for materialization replacement
+      return Some(
+        upstreamPhysicalOpIds
+          .flatMap { upstreamPhysicalOpId =>
+            physicalPlan.getLinksBetween(upstreamPhysicalOpId, physicalOpId)
+          }
+      )
     }
-    regionDAG.get
+    None
+  }
+
+  private def handleDependentLinks(
+      physicalOpId: PhysicalOpIdentity,
+      regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
+  ): Either[DirectedAcyclicGraph[Region, DefaultEdge], List[PhysicalLink]] = {
+    // for operators like HashJoin that have an order among their blocking and pipelined inputs
+    physicalPlan
+      .getOperator(physicalOpId)
+      .getInputLinksInProcessingOrder
+      .sliding(2, 1)
+      .foreach {
+        case List(prevLink, nextLink) =>
+          // Create edges between regions
+          val regionLinks = createLinks(prevLink.fromOp.id, nextLink.fromOp.id, regionDAG)
+          // Attempt to add edges to regionDAG
+          try {
+            regionLinks.foreach(link => regionDAG.addEdge(link.fromRegion, link.toRegion))
+          } catch {
+            case _: IllegalArgumentException =>
+              // adding the edge causes cycle. return the link materialization replacement
+              return Right(List(nextLink))
+          }
+      }
+    Left(regionDAG)
+  }
+
+  /**
+    * This function creates and connects a region DAG while conducting materialization replacement.
+    * It keeps attempting to create a region DAG from the given PhysicalPlan. When failed, a list
+    * of PhysicalLinks that causes the failure will be given to conduct materialization replacement,
+    * which changes the PhysicalPlan. It keeps attempting with the updated PhysicalPLan until a
+    * region DAG is built after connecting materialized pairs.
+    *
+    * @return a fully connected region DAG.
+    */
+  private def connectRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
+    val matReaderWriterPairs =
+      new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
+    var reginDAGOpt: Option[DirectedAcyclicGraph[Region, DefaultEdge]] = None
+
+    while (reginDAGOpt.isEmpty) {
+      reginDAGOpt = tryConnectRegionDAG() match {
+        case Left(dag) => Some(dag)
+        case Right(links) =>
+          links.foreach(link => {
+            physicalPlan = addMaterializationToLink(link, matReaderWriterPairs)
+          })
+          None
+      }
+    }
+    // the region is partially connected successfully.
+    val regionDAG = reginDAGOpt.get
+    // try to add dependencies between materialization writer and reader regions
+    try {
+      matReaderWriterPairs.foreach {
+        case (writer, reader) =>
+          createLinks(writer, reader, regionDAG).foreach(link =>
+            regionDAG.addEdge(link.fromRegion, link.toRegion)
+          )
+      }
+      regionDAG
+    } catch {
+      case _: java.lang.IllegalArgumentException =>
+        // a cycle is detected. it should not reach here.
+        throw new WorkflowRuntimeException(
+          "PipelinedRegionsBuilder: Cyclic dependency between regions detected"
+        )
+    }
+
   }
 
   private def getRegionsFromOperatorId(
@@ -210,7 +223,7 @@ class WorkflowPipelinedRegionsBuilder(
 
   private def populateTerminalOperatorsForBlockingLinks(
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
-  ): Unit = {
+  ): DirectedAcyclicGraph[Region, DefaultEdge] = {
     val regionTerminalOperatorInOtherRegions =
       mutable.HashMap[Region, ArrayBuffer[PhysicalOpIdentity]]()
 
@@ -243,19 +256,19 @@ class WorkflowPipelinedRegionsBuilder(
       )
       replaceVertex(regionDAG, region, newRegion)
     }
+    regionDAG
   }
 
   def buildPipelinedRegions(): ExecutionPlan = {
-    val regionDAG = findAllPipelinedRegionsAndAddDependencies()
-    populateTerminalOperatorsForBlockingLinks(regionDAG)
-    val allRegions = regionDAG.iterator().asScala.toList
-    val ancestors = allRegions.map { region =>
+    val regionDAG = populateTerminalOperatorsForBlockingLinks(connectRegionDAG())
+    val regions = regionDAG.iterator().asScala.toList
+    val ancestors = regions.map { region =>
       region -> regionDAG.getAncestors(region).asScala.toSet
     }.toMap
-    new ExecutionPlan(regionsToSchedule = allRegions, regionAncestorMapping = ancestors)
+    new ExecutionPlan(regionsToSchedule = regions, regionAncestorMapping = ancestors)
   }
 
-  def addMaterializationToLink(
+  private def addMaterializationToLink(
       physicalLink: PhysicalLink,
       writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
   ): PhysicalPlan = {
@@ -310,7 +323,7 @@ class WorkflowPipelinedRegionsBuilder(
   private def createMatWriter(
       fromOp: PhysicalOp,
       fromOutputPortIdx: Int
-  ) = {
+  ): (ProgressiveSinkOpDesc, PhysicalOp) = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
     matWriterLogicalOp.setContext(logicalPlan.context)
     val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
