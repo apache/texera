@@ -10,18 +10,4 @@ class Workflow(
     val logicalPlan: LogicalPlan,
     val physicalPlan: PhysicalPlan,
     val executionPlan: ExecutionPlan
-) extends java.io.Serializable {
-
-  /**
-    * Returns the operators in a region whose all inputs are from operators that are not in this region.
-    */
-  def getSourcePhysicalOpsOfRegion(region: Region): List[PhysicalOpIdentity] = {
-    region.physicalOpIds
-      .filter(physicalOpId =>
-        physicalPlan
-          .getUpstreamPhysicalOpIds(physicalOpId)
-          .forall(upstreamOpId => !region.physicalOpIds.contains(upstreamOpId))
-      )
-  }
-
-}
+) extends java.io.Serializable {}

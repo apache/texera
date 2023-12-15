@@ -17,7 +17,6 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import scala.annotation.tailrec
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.{asScalaIteratorConverter, asScalaSetConverter}
 
 object GreedyExecutionPlanGenerator {
@@ -236,39 +235,41 @@ class GreedyExecutionPlanGenerator(
   private def populateTerminalOperatorsForBlockingLinks(
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): DirectedAcyclicGraph[Region, DefaultEdge] = {
-    val regionTerminalOperatorInOtherRegions =
-      mutable.HashMap[Region, ArrayBuffer[PhysicalOpIdentity]]()
 
-    physicalPlan.topologicalIterator().foreach { physicalOpId =>
+    val blockingLinks = physicalPlan.topologicalIterator().flatMap { physicalOpId =>
       val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
-      upstreamPhysicalOpIds.foreach { upstreamPhysicalOpId =>
-        val blockingLinks = physicalPlan
+      upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
+        physicalPlan
           .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
           .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
-
-        blockingLinks.foreach { _ =>
-          val prevInOrderRegions = getRegions(upstreamPhysicalOpId, regionDAG)
-          prevInOrderRegions.foreach { prevInOrderRegion =>
-            val regionEntry = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
-              prevInOrderRegion,
-              ArrayBuffer[PhysicalOpIdentity]()
-            )
-            if (!regionEntry.contains(physicalOpId)) {
-              regionEntry.append(physicalOpId)
-              regionTerminalOperatorInOtherRegions(prevInOrderRegion) = regionEntry
-            }
-          }
-        }
+          .map(_.id)
       }
     }
 
-    for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
+    blockingLinks
+      .flatMap { linkId =>
+        val upstreamRegions = getRegions(linkId.from, regionDAG)
+        upstreamRegions.map(region => region -> linkId).groupBy(_._1).mapValues(_.map(_._2).toList)
+      }
+      .foreach {
+        case (region, links) =>
+          val newRegion = region.copy(downstreamLinkIds = links)
+          replaceVertex(regionDAG, region, newRegion)
+      }
 
-      val newRegion = region.copy(
-        blockingLinkIds = region.physicalLinkIds.filter(link => terminalOps.contains(link.to))
-      )
-      replaceVertex(regionDAG, region, newRegion)
-    }
+    blockingLinks
+      .flatMap { linkId =>
+        val downstreamRegions = getRegions(linkId.to, regionDAG)
+        downstreamRegions
+          .map(region => region -> linkId)
+          .groupBy(_._1)
+          .mapValues(_.map(_._2).toList)
+      }
+      .foreach {
+        case (region, links) =>
+          val newRegion = region.copy(upstreamLinkIds = links)
+          replaceVertex(regionDAG, region, newRegion)
+      }
     regionDAG
   }
 
