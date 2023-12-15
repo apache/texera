@@ -25,18 +25,18 @@ object WorkflowService {
 
   def getAllWorkflowService: Iterable[WorkflowService] = wIdToWorkflowState.values().asScala
 
-  def mkWorkflowStateId(wId: Int): String = {
-    wId.toString
+  def mkWorkflowStateId(workflowId: Long): String = {
+    workflowId.toString
   }
   def getOrCreate(
-      wId: Int,
+      workflowId: Long,
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
     wIdToWorkflowState.compute(
-      mkWorkflowStateId(wId),
+      mkWorkflowStateId(workflowId),
       (_, v) => {
         if (v == null) {
-          new WorkflowService(wId, cleanupTimeout)
+          new WorkflowService(workflowId, cleanupTimeout)
         } else {
           v
         }
@@ -46,29 +46,29 @@ object WorkflowService {
 }
 
 class WorkflowService(
-    val wId: Int,
-    cleanUpTimeout: Int
+                       val workflowId: Long,
+                       cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
   // state across execution:
   var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
-  var jobService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
+  var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
   val resultService: ExecutionResultService =
     new ExecutionResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
-    new ResultExportService(opResultStorage, UInteger.valueOf(wId))
+    new ResultExportService(opResultStorage, UInteger.valueOf(workflowId))
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
-    s"wid=$wId",
+    s"wid=$workflowId",
     cleanUpTimeout,
     () => {
       opResultStorage.close()
-      WorkflowService.wIdToWorkflowState.remove(mkWorkflowStateId(wId))
-      if (jobService.getValue != null) {
+      WorkflowService.wIdToWorkflowState.remove(mkWorkflowStateId(workflowId))
+      if (executionService.getValue != null) {
         // shutdown client
-        jobService.getValue.client.shutdown()
+        executionService.getValue.client.shutdown()
       }
       unsubscribeAll()
     }
@@ -76,7 +76,7 @@ class WorkflowService(
 
   var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
 
-  jobService.subscribe { job: WorkflowExecutionService =>
+  executionService.subscribe { job: WorkflowExecutionService =>
     {
       job.executionStateStore.metadataStore.registerDiffHandler { (oldState, newState) =>
         {
@@ -104,7 +104,7 @@ class WorkflowService(
 
   def connectToJob(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     var localDisposable = Disposable.empty()
-    jobService.subscribe { job: WorkflowExecutionService =>
+    executionService.subscribe { job: WorkflowExecutionService =>
       localDisposable.dispose()
       val subscriptions = job.executionStateStore.getAllStores
         .map(_.getWebsocketEventObservable)
@@ -118,20 +118,20 @@ class WorkflowService(
 
   def disconnect(): Unit = {
     lifeCycleManager.decreaseUserCount(
-      Option(jobService.getValue).map(_.executionStateStore.metadataStore.getState.state)
+      Option(executionService.getValue).map(_.executionStateStore.metadataStore.getState.state)
     )
   }
 
   private[this] def createWorkflowContext(
       uidOpt: Option[UInteger]
   ): WorkflowContext = {
-    new WorkflowContext(uidOpt, UInteger.valueOf(wId))
+    new WorkflowContext(uidOpt, UInteger.valueOf(workflowId))
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
-    if (jobService.getValue != null) {
+    if (executionService.getValue != null) {
       //unsubscribe all
-      jobService.getValue.unsubscribeAll()
+      executionService.getValue.unsubscribeAll()
     }
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
 
@@ -150,7 +150,7 @@ class WorkflowService(
     )
 
     lifeCycleManager.registerCleanUpOnStateChange(job.executionStateStore)
-    jobService.onNext(job)
+    executionService.onNext(job)
     if (job.executionStateStore.metadataStore.getState.fatalErrors.isEmpty) {
       job.startWorkflow()
     }
@@ -165,7 +165,7 @@ class WorkflowService(
 
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
-    Option(jobService.getValue).foreach(_.unsubscribeAll())
+    Option(executionService.getValue).foreach(_.unsubscribeAll())
     resultService.unsubscribeAll()
   }
 
