@@ -24,6 +24,7 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 
 class DPThreadSpec extends AnyFlatSpec with MockFactory {
@@ -53,8 +54,9 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
       outputPortToLinkMapping = Map(0 -> List(mockLink))
     )
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
-  private val logStorage = ReplayLogStorage.getLogStorage("none", "log")
-  private val logManager: ReplayLogManager = ReplayLogManager.createLogManager(logStorage, x => {})
+  private val logStorage = ReplayLogStorage.getLogStorage(None)
+  private val logManager: ReplayLogManager =
+    ReplayLogManager.createLogManager(logStorage, "none", x => {})
 
   "DP Thread" should "handle pause/resume during processing" in {
     val dp = new DataProcessor(identifier, x => {})
@@ -151,15 +153,16 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.registerInput(anotherSender, mockLink.id)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
-    val logStorage = ReplayLogStorage.getLogStorage("local", "DPSpecTemp")
-    logStorage.deleteLog()
-    val logManager: ReplayLogManager = ReplayLogManager.createLogManager(logStorage, x => {})
+    val logStorage = ReplayLogStorage.getLogStorage(Some(new URI("file:///recovery-logs/tmp")))
+    logStorage.deleteStorage()
+    val logManager: ReplayLogManager =
+      ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
     val dpThread = new DPThread(identifier, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
       (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
     }
-    val dataChannelID2 = ChannelID(anotherSender, identifier, false)
+    val dataChannelID2 = ChannelID(anotherSender, identifier, isControl = false)
     val message1 = WorkflowFIFOMessage(dataChannelID, 0, DataFrame(tuples.slice(0, 100)))
     val message2 = WorkflowFIFOMessage(dataChannelID, 1, DataFrame(tuples.slice(100, 200)))
     val message3 = WorkflowFIFOMessage(dataChannelID2, 0, DataFrame(tuples.slice(300, 1000)))
@@ -177,8 +180,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     }
     logManager.sendCommitted(null) // drain in-mem records to flush
     logManager.terminate()
-    val logs = logStorage.getReader.mkLogRecordIterator().toArray
-    logStorage.deleteLog()
+    val logs = logStorage.getReader("tmpLog").mkLogRecordIterator().toArray
+    logStorage.deleteStorage()
     assert(logs.length > 1)
   }
 

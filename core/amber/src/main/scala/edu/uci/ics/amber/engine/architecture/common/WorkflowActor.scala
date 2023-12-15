@@ -82,9 +82,9 @@ abstract class WorkflowActor(logStorageType: String, val actorId: ActorVirtualId
     new AkkaMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
 
   val logStorage: ReplayLogStorage =
-    ReplayLogStorage.getLogStorage(logStorageType, getLogName)
+    ReplayLogStorage.getLogStorage(None)
   val logManager: ReplayLogManager =
-    ReplayLogManager.createLogManager(logStorage, sendMessageFromLogWriterToActor)
+    ReplayLogManager.createLogManager(logStorage, getLogName, sendMessageFromLogWriterToActor)
 
   def getLogName: String = actorId.name.replace("Worker:", "")
 

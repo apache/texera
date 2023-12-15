@@ -75,7 +75,7 @@ class WorkflowWorker(
 
       context.parent ! ReplayStatusUpdate(actorId, status = true)
 
-      val (processSteps, messages) = ReplayLogGenerator.generate(logStorage)
+      val (processSteps, messages) = ReplayLogGenerator.generate(logStorage, getLogName)
       val replayTo = workerConf.replayTo.get
       val onReplayComplete = () => {
         logger.info("replay completed!")

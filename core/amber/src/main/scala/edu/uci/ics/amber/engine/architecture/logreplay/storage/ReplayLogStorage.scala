@@ -13,10 +13,10 @@ import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.
 }
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 
 import java.io.{DataInputStream, DataOutputStream}
+import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 
 object ReplayLogStorage {
@@ -39,8 +39,11 @@ object ReplayLogStorage {
   }
 
   // For debugging purpose only
-  def fetchAllLogRecords(storage: ReplayLogStorage): Iterable[ReplayLogRecord] = {
-    val reader = storage.getReader
+  def fetchAllLogRecords(
+      storage: ReplayLogStorage,
+      logFileName: String
+  ): Iterable[ReplayLogRecord] = {
+    val reader = storage.getReader(logFileName)
     val recordIter = reader.mkLogRecordIterator()
     val buffer = new ArrayBuffer[ReplayLogRecord]()
     while (recordIter.hasNext) {
@@ -90,38 +93,19 @@ object ReplayLogStorage {
     }
   }
 
-  def getLogStorage(storageType: String, name: String): ReplayLogStorage = {
-    storageType match {
-      case "local" => new LocalFSLogStorage(name)
-      case "hdfs" =>
-        val hdfsIP: String =
-          AmberConfig.faultToleranceLogStorage
-        new HDFSLogStorage(name, hdfsIP)
-      case "none" =>
-        new EmptyLogStorage()
-      case other => throw new RuntimeException("Cannot support log storage type of " + other)
+  def getLogStorage(logFolderURI: Option[URI]): ReplayLogStorage = {
+    logFolderURI match {
+      case Some(value) => new URILogStorage(value)
+      case None        => new EmptyLogStorage()
     }
   }
 }
 
 abstract class ReplayLogStorage {
 
-  def getWriter: ReplayLogWriter
+  def getWriter(logFileName: String): ReplayLogWriter
 
-  def getReader: ReplayLogReader
+  def getReader(logFileName: String): ReplayLogReader
 
-  def isLogAvailableForRead: Boolean
-
-  def deleteLog(): Unit
-
-  def cleanPartiallyWrittenLogFile(): Unit
-
-  protected def copyReadableLogRecords(writer: ReplayLogWriter): Unit = {
-    val recordIterator = getReader.mkLogRecordIterator()
-    while (recordIterator.hasNext) {
-      writer.writeLogRecord(recordIterator.next())
-    }
-    writer.close()
-  }
-
+  def deleteStorage(): Unit
 }

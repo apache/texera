@@ -86,14 +86,11 @@ object AmberConfig {
     getConfSource.getBoolean("reconfiguration.enable-transactional-reconfiguration")
 
   // Fault tolerance configuration
-  val isFaultToleranceEnabled: Boolean =
-    getConfSource.getBoolean("fault-tolerance.enable-determinant-logging")
-  val delayBeforeRecovery: Long = getConfSource.getLong("fault-tolerance.delay-before-recovery")
   val faultToleranceLogFlushIntervalInMs: Long =
     getConfSource.getLong("fault-tolerance.log-flush-interval-ms")
-  val faultToleranceLogStorage: String = getConfSource.getString("fault-tolerance.log-storage-type")
-  val faultToleranceHDFSAddress: String =
-    getConfSource.getString("fault-tolerance.hdfs-storage.address")
+  val faultToleranceLogRootFolder: String =
+    getConfSource.getString("fault-tolerance.log-storage-uri")
+  val isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
 
   // Storage configuration
   val sinkStorageMode: String = getConfSource.getString("storage.mode")

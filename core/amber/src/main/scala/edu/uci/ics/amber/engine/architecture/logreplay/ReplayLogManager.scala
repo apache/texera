@@ -15,6 +15,7 @@ case object TerminateSignal extends ReplayLogRecord
 object ReplayLogManager {
   def createLogManager(
       logStorage: ReplayLogStorage,
+      logFileName: String,
       handler: WorkflowFIFOMessage => Unit
   ): ReplayLogManager = {
     logStorage match {
@@ -22,7 +23,7 @@ object ReplayLogManager {
         new EmptyReplayLogManagerImpl(handler)
       case other =>
         val manager = new ReplayLogManagerImpl(handler)
-        manager.setupWriter(other.getWriter)
+        manager.setupWriter(other.getWriter(logFileName))
         manager
     }
   }

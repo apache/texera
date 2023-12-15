@@ -12,6 +12,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 
@@ -23,7 +24,7 @@ object ControllerConfig {
       monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
       skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
-      logStorageType = AmberConfig.faultToleranceLogStorage,
+      logStorageType = AmberConfig.faultToleranceLogRootFolder,
       replayTo = None
     )
 }
@@ -87,7 +88,7 @@ class Controller(
     if (controllerConfig.replayTo.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
 
-      val (processSteps, messages) = ReplayLogGenerator.generate(logStorage)
+      val (processSteps, messages) = ReplayLogGenerator.generate(logStorage, getLogName)
       val replayTo = controllerConfig.replayTo.get
       val onReplayComplete = () => {
         globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
