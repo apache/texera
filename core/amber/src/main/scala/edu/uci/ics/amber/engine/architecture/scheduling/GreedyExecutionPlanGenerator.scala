@@ -257,19 +257,20 @@ class GreedyExecutionPlanGenerator(
           replaceVertex(regionDAG, region, newRegion)
       }
 
-    blockingLinks
-      .flatMap { linkId =>
-        val downstreamRegions = getRegions(linkId.to, regionDAG)
-        downstreamRegions
-          .map(region => region -> linkId)
-          .groupBy(_._1)
-          .mapValues(_.map(_._2).toList)
-      }
-      .foreach {
-        case (region, links) =>
-          val newRegion = region.copy(upstreamLinkIds = links)
-          replaceVertex(regionDAG, region, newRegion)
-      }
+    regionDAG
+      .vertexSet()
+      .toList
+      .foreach(region => {
+        val sourceOpIds = region.physicalOpIds
+          .filter(physicalOpId =>
+            physicalPlan
+              .getUpstreamPhysicalOpIds(physicalOpId)
+              .forall(upstreamOpId => !region.physicalOpIds.contains(upstreamOpId))
+          )
+        val newRegion = region.copy(sourcePhysicalOpIds = sourceOpIds)
+        replaceVertex(regionDAG, region, newRegion)
+      })
+
     regionDAG
   }
 

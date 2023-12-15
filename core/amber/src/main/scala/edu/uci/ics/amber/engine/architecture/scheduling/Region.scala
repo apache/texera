@@ -16,9 +16,9 @@ case class Region(
     id: RegionIdentity,
     physicalOpIds: List[PhysicalOpIdentity],
     physicalLinkIds: List[PhysicalLinkIdentity],
-    // links where this region receives blocking output (of the upstream region).
-    upstreamLinkIds: List[PhysicalLinkIdentity] = List.empty,
-    // links where this region generates blocking output.
+    // operators whose all inputs are from upstream region.
+    sourcePhysicalOpIds: List[PhysicalOpIdentity] = List.empty,
+    // links to downstream regions, where this region generates blocking output.
     downstreamLinkIds: List[PhysicalLinkIdentity] = List.empty
 ) {
 
