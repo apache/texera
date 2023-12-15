@@ -61,22 +61,22 @@ class GreedyExecutionPlanGenerator(
     with LazyLogging {
 
   /**
-    * Create RegionLinks between the regions of operators `prevInOrderOpId` and `nextInOrderOpId`.
+    * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpIId`.
     * The links are to be added to the region DAG separately.
     */
   private def createLinks(
-      prevInOrderOpId: PhysicalOpIdentity,
-      nextInOrderOpId: PhysicalOpIdentity,
+      upstreamOpId: PhysicalOpIdentity,
+      downstreamOpIId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): List[RegionLink] = {
 
-    val prevInOrderRegions = getRegions(prevInOrderOpId, regionDAG)
-    val nextInOrderRegions = getRegions(nextInOrderOpId, regionDAG)
+    val upstreamRegions = getRegions(upstreamOpId, regionDAG)
+    val downstreamRegions = getRegions(downstreamOpIId, regionDAG)
 
-    prevInOrderRegions.flatMap { prevRegion =>
-      nextInOrderRegions
-        .filterNot(nextRegion => regionDAG.getDescendants(prevRegion).contains(nextRegion))
-        .map(nextRegion => RegionLink(prevRegion, nextRegion))
+    upstreamRegions.flatMap { upstreamRegion =>
+      downstreamRegions
+        .filterNot(regionDAG.getDescendants(upstreamRegion).contains(_))
+        .map(downstreamRegion => RegionLink(upstreamRegion, downstreamRegion))
     }.toList
   }
 

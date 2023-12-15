@@ -166,12 +166,12 @@ case class PhysicalOp(
     outputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
-    // execution dependency of ports
+    // execution dependency of ports: (dependee, depender)
     dependency: Map[Int, Int] = Map(),
     isOneToManyOp: Boolean = false
 ) {
 
-  // all the "dependee" links are also blocking inputs
+  // all the "depender" links are also blocking inputs
   private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
@@ -399,16 +399,16 @@ case class PhysicalOp(
     val dependencyDag =
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
     dependency.foreach({
-      case (successor: Int, predecessor: Int) =>
-        val prevInOrder = inputPortToLinkMapping(predecessor).head
-        val nextInOrder = inputPortToLinkMapping(successor).head
-        if (!dependencyDag.containsVertex(prevInOrder)) {
-          dependencyDag.addVertex(prevInOrder)
+      case (dependee: Int, depender: Int) =>
+        val upstreamLink = inputPortToLinkMapping(depender).head
+        val downstreamLink = inputPortToLinkMapping(dependee).head
+        if (!dependencyDag.containsVertex(upstreamLink)) {
+          dependencyDag.addVertex(upstreamLink)
         }
-        if (!dependencyDag.containsVertex(nextInOrder)) {
-          dependencyDag.addVertex(nextInOrder)
+        if (!dependencyDag.containsVertex(downstreamLink)) {
+          dependencyDag.addVertex(downstreamLink)
         }
-        dependencyDag.addEdge(prevInOrder, nextInOrder)
+        dependencyDag.addEdge(upstreamLink, downstreamLink)
     })
     val topologicalIterator =
       new TopologicalOrderIterator[PhysicalLink, DefaultEdge](dependencyDag)
