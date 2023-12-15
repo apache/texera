@@ -452,7 +452,7 @@ case class PhysicalOp(
             i,
             physicalOp = this,
             WorkflowWorkerConfig(
-              logStorageType = AmberConfig.faultToleranceLogStorage,
+              logStorageType = AmberConfig.faultToleranceLogRootFolder,
               replayTo = None
             )
           )
