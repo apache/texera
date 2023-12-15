@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
@@ -12,7 +12,7 @@ abstract class MapOpDesc extends LogicalOp {
       executionId: Long,
       newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
+  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     val newSchemas = newOpDesc.getOutputSchema(operatorSchemaInfo.inputSchemas)
     if (!newSchemas.equals(operatorSchemaInfo.outputSchemas(0))) {
       Failure(
@@ -21,7 +21,7 @@ abstract class MapOpDesc extends LogicalOp {
         )
       )
     } else {
-      Success(newOpDesc.operatorExecutor(executionId, operatorSchemaInfo), None)
+      Success(newOpDesc.getPhysicalOp(executionId, operatorSchemaInfo), None)
     }
   }
 

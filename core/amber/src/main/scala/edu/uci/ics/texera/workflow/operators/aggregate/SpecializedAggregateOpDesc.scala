@@ -37,7 +37,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     if (aggregations.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
-    AggregateOpDesc.opExecPhysicalPlan(
+    AggregateOpDesc.getPhysicalPlan(
       executionId,
       operatorIdentifier,
       aggregations.map(agg => agg.getAggFunc(operatorSchemaInfo.inputSchemas(0))),

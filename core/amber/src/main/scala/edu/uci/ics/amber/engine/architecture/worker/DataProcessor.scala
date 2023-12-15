@@ -2,13 +2,12 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecConfig,
   OpExecInitInfoWithCode,
   OpExecInitInfoWithFunc
 }
@@ -38,8 +37,8 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
@@ -57,7 +56,7 @@ object DataProcessor {
 
     override def inMemSize: Long = 0
   }
-  case class FinalizeLink(link: LinkIdentity) extends SpecialDataTuple
+  case class FinalizeLink(link: PhysicalLinkIdentity) extends SpecialDataTuple
   case class FinalizeOperator() extends SpecialDataTuple
 
   class DPOutputIterator extends Iterator[(ITuple, Option[Int])] {
@@ -96,28 +95,29 @@ class DataProcessor(
     with Serializable {
 
   @transient var workerIdx: Int = 0
-  @transient var opConf: OpExecConfig = _
+  @transient var physicalOp: PhysicalOp = _
   @transient var operator: IOperatorExecutor = _
 
   def initOperator(
       workerIdx: Int,
-      opConf: OpExecConfig,
+      physicalOp: PhysicalOp,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
-    this.operator = opConf.opExecInitInfo match {
+    this.operator = physicalOp.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
       case OpExecInitInfoWithFunc(opGen) =>
-        opGen((workerIdx, opConf))
+        opGen((workerIdx, physicalOp))
     }
-    this.opConf = opConf
+    this.physicalOp = physicalOp
     this.upstreamLinkStatus.setAllUpstreamLinkIds(
-      if (opConf.isSourceOperator)
+      if (physicalOp.isSourceOperator) {
         Set(
-          LinkIdentity(SOURCE_STARTER_OP, 0, opConf.id, 0)
+          PhysicalLinkIdentity(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
         ) // special case for source operator
-      else
-        opConf.inputToOrdinalMapping.keySet
+      } else {
+        physicalOp.getAllInputLinks.map(_.id).toSet
+      }
     )
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }
@@ -135,7 +135,7 @@ class DataProcessor(
 
   @transient var adaptiveBatchingMonitor: WorkerTimerService = _
 
-  def getOperatorId: LayerIdentity = VirtualIdentityUtils.getOperator(actorId)
+  def getOperatorId: PhysicalOpIdentity = VirtualIdentityUtils.getPhysicalOpId(actorId)
   def getWorkerIndex: Int = VirtualIdentityUtils.getWorkerIndex(actorId)
 
   // inner dependencies
@@ -158,7 +158,7 @@ class DataProcessor(
   protected var inputTupleCount = 0L
   protected var outputTupleCount = 0L
 
-  def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
+  def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLinkIdentity): Unit = {
     upstreamLinkStatus.registerInput(identifier, input)
   }
 
@@ -167,17 +167,16 @@ class DataProcessor(
   }
 
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
-    val inputLink = upstreamLinkStatus.getInputLink(identifier)
-    if (inputLink.from == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!opConf.inputToOrdinalMapping.contains(inputLink)) 0
-    else opConf.inputToOrdinalMapping(inputLink)
+    val inputLinkId = upstreamLinkStatus.getInputLinkId(identifier)
+    if (inputLinkId.from == SOURCE_STARTER_OP) 0 // special case for source operator
+    else if (!physicalOp.getAllInputLinks.map(_.id).contains(inputLinkId)) 0
+    else physicalOp.getPortIdxForInputLinkId(inputLinkId)
   }
 
-  def getOutputLinkByPort(outputPort: Option[Int]): List[LinkIdentity] = {
-    if (outputPort.isEmpty) {
-      opConf.outputToOrdinalMapping.keySet.toList
-    } else {
-      opConf.outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
+  def getOutputLinkByPort(outputPort: Option[Int]): List[PhysicalLink] = {
+    outputPort match {
+      case Some(port) => physicalOp.getLinksOnOutputPort(port)
+      case None       => physicalOp.getAllOutputLinks
     }
   }
 
@@ -268,7 +267,7 @@ class DataProcessor(
           outputTupleCount += 1
           // println(s"send output $outputTuple at step $totalValidStep")
           val outLinks = getOutputLinkByPort(outputPortOpt)
-          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
+          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link.id))
         }
     }
   }
@@ -321,7 +320,7 @@ class DataProcessor(
         initBatch(channel, tuples)
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
-        val currentLink = upstreamLinkStatus.getInputLink(channel.from)
+        val currentLink = upstreamLinkStatus.getInputLinkId(channel.from)
         upstreamLinkStatus.markWorkerEOF(channel.from)
         if (upstreamLinkStatus.isLinkEOF(currentLink)) {
           initBatch(channel, Array.empty)

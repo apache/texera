@@ -11,23 +11,25 @@ object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
   )
   lazy val messagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
+      edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
-      edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity,
-      edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity,
-      edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+      edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
+      edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
     )
   private lazy val ProtoBytes: _root_.scala.Array[Byte] =
       scalapb.Encoding.fromBase64(scala.collection.immutable.Seq(
   """CjVlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL3ZpcnR1YWxpZGVudGl0eS5wcm90bxIfZWR1LnVjaS5pY3MuYW1iZ
-  XIuZW5naW5lLmNvbW1vbhoVc2NhbGFwYi9zY2FsYXBiLnByb3RvIjUKFEFjdG9yVmlydHVhbElkZW50aXR5Eh0KBG5hbWUYASABK
-  AlCCeI/BhIEbmFtZVIEbmFtZSJiCg1MYXllcklkZW50aXR5EikKCG9wZXJhdG9yGAEgASgJQg3iPwoSCG9wZXJhdG9yUghvcGVyY
-  XRvchImCgdsYXllcklEGAIgASgJQgziPwkSB2xheWVySURSB2xheWVySUQi/AEKDExpbmtJZGVudGl0eRJQCgRmcm9tGAEgASgLM
-  i4uZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5MYXllcklkZW50aXR5QgziPwkSBGZyb23wAQFSBGZyb20SKQoIZnJvb
-  VBvcnQYAiABKAVCDeI/ChIIZnJvbVBvcnRSCGZyb21Qb3J0EkoKAnRvGAMgASgLMi4uZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lL
-  mNvbW1vbi5MYXllcklkZW50aXR5QgriPwcSAnRv8AEBUgJ0bxIjCgZ0b1BvcnQYBCABKAVCC+I/CBIGdG9Qb3J0UgZ0b1BvcnQiK
-  woQT3BlcmF0b3JJZGVudGl0eRIXCgJpZBgBIAEoCUIH4j8EEgJpZFICaWQiRgoQV29ya2Zsb3dJZGVudGl0eRIyCgtleGVjdXRpb
-  25JZBgBIAEoA0IQ4j8NEgtleGVjdXRpb25JZFILZXhlY3V0aW9uSWRCCeI/BkgAWAB4AWIGcHJvdG8z"""
+  XIuZW5naW5lLmNvbW1vbhoVc2NhbGFwYi9zY2FsYXBiLnByb3RvIkYKEFdvcmtmbG93SWRlbnRpdHkSMgoLZXhlY3V0aW9uSWQYA
+  SABKANCEOI/DRILZXhlY3V0aW9uSWRSC2V4ZWN1dGlvbklkIjUKFEFjdG9yVmlydHVhbElkZW50aXR5Eh0KBG5hbWUYASABKAlCC
+  eI/BhIEbmFtZVIEbmFtZSIrChBPcGVyYXRvcklkZW50aXR5EhcKAmlkGAEgASgJQgfiPwQSAmlkUgJpZCKsAQoSUGh5c2ljYWxPc
+  ElkZW50aXR5EmgKC2xvZ2ljYWxPcElkGAEgASgLMjEuZWR1LnVjaS5pY3MuYW1iZXIuZW5naW5lLmNvbW1vbi5PcGVyYXRvcklkZ
+  W50aXR5QhPiPxASC2xvZ2ljYWxPcElk8AEBUgtsb2dpY2FsT3BJZBIsCglsYXllck5hbWUYAiABKAlCDuI/CxIJbGF5ZXJOYW1lU
+  glsYXllck5hbWUijgIKFFBoeXNpY2FsTGlua0lkZW50aXR5ElUKBGZyb20YASABKAsyMy5lZHUudWNpLmljcy5hbWJlci5lbmdpb
+  mUuY29tbW9uLlBoeXNpY2FsT3BJZGVudGl0eUIM4j8JEgRmcm9t8AEBUgRmcm9tEikKCGZyb21Qb3J0GAIgASgFQg3iPwoSCGZyb
+  21Qb3J0Ughmcm9tUG9ydBJPCgJ0bxgDIAEoCzIzLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZS5jb21tb24uUGh5c2ljYWxPcElkZ
+  W50aXR5QgriPwcSAnRv8AEBUgJ0bxIjCgZ0b1BvcnQYBCABKAVCC+I/CBIGdG9Qb3J0UgZ0b1BvcnRCCeI/BkgAWAB4AWIGcHJvd
+  G8z"""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)

@@ -1,9 +1,8 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
@@ -11,28 +10,28 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object AggregateOpDesc {
 
-  def opExecPhysicalPlan(
+  def getPhysicalPlan(
       executionId: Long,
       id: OperatorIdentity,
       aggFuncs: List[DistributedAggregation[Object]],
       groupByKeys: List[String],
       schemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
-    val partialLayer =
-      OpExecConfig
-        .oneToOneLayer(
+    val partialPhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(
           executionId,
-          makeLayer(id, "localAgg"),
+          PhysicalOpIdentity(id, "localAgg"),
           OpExecInitInfo(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         // a hacky solution to have unique port names for reference purpose
         .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
 
-    val finalLayer = if (groupByKeys == null || groupByKeys.isEmpty) {
-      OpExecConfig
-        .localLayer(
+    val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
+      PhysicalOp
+        .localPhysicalOp(
           executionId,
-          makeLayer(id, "globalAgg"),
+          PhysicalOpIdentity(id, "globalAgg"),
           OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         // a hacky solution to have unique port names for reference purpose
@@ -42,10 +41,10 @@ object AggregateOpDesc {
         if (groupByKeys == null) Array()
         else groupByKeys.indices.toArray // group by columns are always placed in the beginning
 
-      OpExecConfig
-        .hashLayer(
+      PhysicalOp
+        .hashPhysicalOp(
           executionId,
-          makeLayer(id, "globalAgg"),
+          PhysicalOpIdentity(id, "globalAgg"),
           OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
           partitionColumns
         )
@@ -53,8 +52,8 @@ object AggregateOpDesc {
     }
 
     new PhysicalPlan(
-      List(partialLayer, finalLayer),
-      List(LinkIdentity(partialLayer.id, 0, finalLayer.id, 0))
+      List(partialPhysicalOp, finalPhysicalOp),
+      List(PhysicalLink(partialPhysicalOp, 0, finalPhysicalOp, 0))
     )
   }
 
@@ -62,14 +61,14 @@ object AggregateOpDesc {
 
 abstract class AggregateOpDesc extends LogicalOp {
 
-  override def operatorExecutor(
+  override def getPhysicalOp(
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): OpExecConfig = {
-    throw new UnsupportedOperationException("multi-layer op should use operatorExecutorMultiLayer")
+  ): PhysicalOp = {
+    throw new UnsupportedOperationException("should implement `getPhysicalPlan` instead")
   }
 
-  override def operatorExecutorMultiLayer(
+  override def getPhysicalPlan(
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {

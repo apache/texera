@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
 
 case class PipelinedRegionIdentity(workflowId: WorkflowIdentity, pipelineId: String)
 
@@ -8,17 +8,17 @@ case class PipelinedRegionIdentity(workflowId: WorkflowIdentity, pipelineId: Str
 // only blocking inputs or no inputs at all.
 case class PipelinedRegion(
     id: PipelinedRegionIdentity,
-    operators: Array[LayerIdentity],
+    operators: Array[PhysicalOpIdentity],
     // These are the operators that receive blocking inputs from this region
     // Array[(ActorId, toPort)]
-    blockingDownstreamOperatorsInOtherRegions: Array[(LayerIdentity, Int)] = Array.empty
+    blockingDownstreamPhysicalOpIdsInOtherRegions: Array[(PhysicalOpIdentity, Int)] = Array.empty
 ) {
 
   def getId: PipelinedRegionIdentity = id
 
-  def getOperators: Array[LayerIdentity] = operators
+  def getOperators: Array[PhysicalOpIdentity] = operators
 
-  def containsOperator(opId: LayerIdentity): Boolean = {
+  def containsOperator(opId: PhysicalOpIdentity): Boolean = {
     this.operators.contains(opId)
   }
 }

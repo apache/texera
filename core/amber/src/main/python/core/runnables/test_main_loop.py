@@ -38,9 +38,10 @@ from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
     ControlInvocationV2,
     ControlPayloadV2,
-    LayerIdentity,
-    LinkIdentity,
+    PhysicalLinkIdentity,
     ReturnInvocationV2,
+    PhysicalOpIdentity,
+    OperatorIdentity,
 )
 from pytexera.udf.examples.count_batch_operator import CountBatchOperator
 from pytexera.udf.examples.echo_operator import EchoOperator
@@ -53,9 +54,9 @@ class TestMainLoop:
 
     @pytest.fixture
     def mock_link(self):
-        return LinkIdentity(
-            from_=LayerIdentity("from", "from", "from"),
-            to=LayerIdentity("to", "to", "to"),
+        return PhysicalLinkIdentity(
+            from_=PhysicalOpIdentity(OperatorIdentity("from"), "from"),
+            to=PhysicalOpIdentity(OperatorIdentity("to"), "to"),
         )
 
     @pytest.fixture

@@ -18,7 +18,7 @@ trait EvaluatePythonExpressionHandler {
   registerHandler { (msg: EvaluatePythonExpression, sender) =>
     {
       val operatorId = new OperatorIdentity(msg.operatorId)
-      val operator = cp.workflow.physicalPlan.getSingleLayerOfLogicalOperator(operatorId)
+      val operator = cp.workflow.physicalPlan.getSinglePhysicalOpOfLogicalOp(operatorId)
       val opExecution = cp.executionState.getOperatorExecution(operator.id)
 
       Future

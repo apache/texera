@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
@@ -15,18 +15,18 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
-    override def operatorExecutor(
+    override def getPhysicalOp(
         executionId: Long,
         operatorSchemaInfo: OperatorSchemaInfo
-    ): OpExecConfig = ???
+    ): PhysicalOp = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
   }
   private class TempTestSinkOpDesc extends SinkOpDesc {
-    override def operatorExecutor(
+    override def getPhysicalOp(
         executionId: Long,
         operatorSchemaInfo: OperatorSchemaInfo
-    ): OpExecConfig = ???
+    ): PhysicalOp = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
     override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -62,10 +62,10 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val mlTrainingOp = new LogicalOp() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlTrainingOp")
-      override def operatorExecutor(
+      override def getPhysicalOp(
           executionId: Long,
           operatorSchemaInfo: OperatorSchemaInfo
-      ): OpExecConfig = ???
+      ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
@@ -87,10 +87,10 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val mlInferOp = new LogicalOp() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlInferOp")
-      override def operatorExecutor(
+      override def getPhysicalOp(
           executionId: Long,
           operatorSchemaInfo: OperatorSchemaInfo
-      ): OpExecConfig = ???
+      ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(

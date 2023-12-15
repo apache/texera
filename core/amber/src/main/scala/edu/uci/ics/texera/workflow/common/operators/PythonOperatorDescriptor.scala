@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
@@ -8,15 +8,15 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends LogicalOp {
-  override def operatorExecutor(
+  override def getPhysicalOp(
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): OpExecConfig = {
+  ): PhysicalOp = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
     if (asSource()) {
 
-      OpExecConfig
-        .sourceLayer(
+      PhysicalOp
+        .sourcePhysicalOp(
           executionId,
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
@@ -24,8 +24,8 @@ trait PythonOperatorDescriptor extends LogicalOp {
         .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
-      OpExecConfig
-        .oneToOneLayer(
+      PhysicalOp
+        .oneToOnePhysicalOp(
           executionId,
           operatorIdentifier,
           OpExecInitInfo(generatedCode)

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.OPversion
@@ -75,6 +75,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.Hierar
 import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.DumbbellPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.linechart.LineChartOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
+import org.apache.zookeeper.KeeperException.UnimplementedException
 
 import java.util.UUID
 import scala.util.Try
@@ -170,18 +171,16 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   var operatorVersion: String = getOperatorVersion()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
-  def operatorExecutor(executionId: Long, operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    throw new UnsupportedOperationException(
-      "operator " + operatorIdentifier + " is not migrated to new OpExec API"
-    )
+  def getPhysicalOp(executionId: Long, operatorSchemaInfo: OperatorSchemaInfo): PhysicalOp = {
+    throw new UnimplementedException()
   }
 
   // a logical operator corresponds multiple physical operators (a small DAG)
-  def operatorExecutorMultiLayer(
+  def getPhysicalPlan(
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
-    new PhysicalPlan(List(operatorExecutor(executionId, operatorSchemaInfo)), List())
+    new PhysicalPlan(List(getPhysicalOp(executionId, operatorSchemaInfo)), List())
   }
 
   def operatorInfo: OperatorInfo
@@ -214,7 +213,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
       executionId: Long,
       newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
+  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     throw new UnsupportedOperationException(
       "operator " + getClass.getSimpleName + " does not support reconfiguration"
     )

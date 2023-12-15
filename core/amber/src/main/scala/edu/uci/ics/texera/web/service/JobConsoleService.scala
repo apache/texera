@@ -71,8 +71,10 @@ class JobConsoleService(
         .registerCallback[ConsoleMessageTriggered]((evt: ConsoleMessageTriggered) => {
           stateStore.consoleStore.updateState { jobInfo =>
             val opId =
-              VirtualIdentityUtils.getOperator(ActorVirtualIdentity(evt.consoleMessage.workerId))
-            addConsoleMessage(jobInfo, opId.operator, evt.consoleMessage)
+              VirtualIdentityUtils.getPhysicalOpId(
+                ActorVirtualIdentity(evt.consoleMessage.workerId)
+              )
+            addConsoleMessage(jobInfo, opId.logicalOpId.id, evt.consoleMessage)
           }
         })
     )

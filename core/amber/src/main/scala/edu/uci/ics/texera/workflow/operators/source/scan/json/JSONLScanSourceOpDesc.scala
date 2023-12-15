@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.Utils.objectMapper
@@ -25,10 +25,10 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("JSONL")
 
   @throws[IOException]
-  override def operatorExecutor(
+  override def getPhysicalOp(
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): OpExecConfig = {
+  ): PhysicalOp = {
     filePath match {
       case Some(path) =>
         // count lines and partition the task to each worker
@@ -43,8 +43,8 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
         val numWorkers = AmberConfig.numWorkerPerOperatorByDefault
 
-        OpExecConfig
-          .sourceLayer(
+        PhysicalOp
+          .sourcePhysicalOp(
             executionId,
             operatorIdentifier,
             OpExecInitInfo(p => {

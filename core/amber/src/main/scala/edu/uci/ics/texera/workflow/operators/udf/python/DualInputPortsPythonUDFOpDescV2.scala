@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -65,14 +65,14 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   )
   var outputColumns: List[Attribute] = List()
 
-  override def operatorExecutor(
+  override def getPhysicalOp(
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): OpExecConfig = {
+  ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1)
-      OpExecConfig
-        .oneToOneLayer(executionId, operatorIdentifier, OpExecInitInfo(code))
+      PhysicalOp
+        .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           numWorkers = workers,
           blockingInputs = List(0),
@@ -80,15 +80,17 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
           derivePartition = _ => UnknownPartition()
         )
         .withInputPorts(operatorInfo.inputPorts)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
-      OpExecConfig
-        .manyToOneLayer(executionId, operatorIdentifier, OpExecInitInfo(code))
+      PhysicalOp
+        .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           blockingInputs = List(0),
           dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()
         )
         .withInputPorts(operatorInfo.inputPorts)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo =

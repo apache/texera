@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogGenerator, ReplayOrderEnforcer}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
@@ -28,14 +28,14 @@ object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       workerIndex: Int,
-      workerLayer: OpExecConfig,
+      physicalOp: PhysicalOp,
       workerConf: WorkflowWorkerConfig
   ): Props =
     Props(
       new WorkflowWorker(
         id,
         workerIndex: Int,
-        workerLayer: OpExecConfig,
+        physicalOp: PhysicalOp,
         workerConf
       )
     )
@@ -56,7 +56,7 @@ object WorkflowWorker {
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     workerIndex: Int,
-    workerLayer: OpExecConfig,
+    physicalOp: PhysicalOp,
     workerConf: WorkflowWorkerConfig
 ) extends WorkflowActor(workerConf.logStorageType, actorId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
@@ -104,7 +104,7 @@ class WorkflowWorker(
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)
-    dp.initOperator(workerIndex, workerLayer, currentOutputIterator = Iterator.empty)
+    dp.initOperator(workerIndex, physicalOp, currentOutputIterator = Iterator.empty)
     setupReplay()
     dpThread.start()
   }

@@ -1,10 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{
-  LayerIdentity,
-  LinkIdentity,
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity,
   WorkflowIdentity
 }
 import edu.uci.ics.texera.workflow.common.workflow.{
@@ -49,38 +50,41 @@ class WorkflowPipelinedRegionsBuilder(
     var logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     val materializationRewriter: MaterializationRewriter
-) {
+) extends LazyLogging {
   private var pipelinedRegionsDAG: DirectedAcyclicGraph[PipelinedRegion, DefaultEdge] =
     new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
       classOf[DefaultEdge]
     )
 
-  private val materializationWriterReaderPairs = new mutable.HashMap[LayerIdentity, LayerIdentity]()
+  private val materializationWriterReaderPairs =
+    new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
 
   /**
-    * Uses the outLinks and operatorToOpExecConfig to create a DAG similar to the workflow but with all
-    * blocking links removed.
+    * create a DAG similar to the physical DAG but with all blocking links removed.
     *
     * @return
     */
   private def getBlockingEdgesRemovedDAG: PhysicalPlan = {
-    val edgesToRemove = new mutable.MutableList[LinkIdentity]()
+    val edgesToRemove = new mutable.MutableList[PhysicalLinkIdentity]()
 
-    physicalPlan.allOperatorIds.foreach(opId => {
-      val upstreamOps = physicalPlan.getUpstream(opId)
-      upstreamOps.foreach(upOpId => {
-        physicalPlan.links
-          .filter(l => l.from == upOpId && l.to == opId)
-          .foreach(link => {
-            if (physicalPlan.operatorMap(opId).isInputBlocking(link)) {
-              edgesToRemove += link
-            }
-          })
+    physicalPlan.operators
+      .map(physicalOp => physicalOp.id)
+      .foreach(physicalOpId => {
+        val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
+        upstreamPhysicalOpIds.foreach(upstreamPhysicalOpId => {
+          physicalPlan.links
+            .filter(l => l.fromOp.id == upstreamPhysicalOpId && l.toOp.id == physicalOpId)
+            .foreach(link => {
+              if (physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link)) {
+                edgesToRemove += link.id
+              }
+            })
+        })
       })
-    })
 
-    val linksAfterRemoval = physicalPlan.links.filter(link => !edgesToRemove.contains(link))
-    new PhysicalPlan(physicalPlan.operatorMap.values.toList, linksAfterRemoval)
+    val linksAfterRemoval = physicalPlan.links.filter(link => !edgesToRemove.contains(link.id))
+
+    new PhysicalPlan(physicalPlan.operators, linksAfterRemoval)
   }
 
   /**
@@ -89,8 +93,8 @@ class WorkflowPipelinedRegionsBuilder(
     */
   @throws(classOf[java.lang.IllegalArgumentException])
   private def addEdgeBetweenRegions(
-      prevInOrderOperator: LayerIdentity,
-      nextInOrderOperator: LayerIdentity
+      prevInOrderOperator: PhysicalOpIdentity,
+      nextInOrderOperator: PhysicalOpIdentity
   ): Unit = {
     val prevInOrderRegions = getPipelinedRegionsFromOperatorId(prevInOrderOperator)
     val nextInOrderRegions = getPipelinedRegionsFromOperatorId(nextInOrderOperator)
@@ -110,14 +114,14 @@ class WorkflowPipelinedRegionsBuilder(
   private def addMaterializationOperatorIfNeeded(): Boolean = {
     // create regions
     val dagWithoutBlockingEdges = getBlockingEdgesRemovedDAG
-    val sourceOperators = dagWithoutBlockingEdges.sourceOperators
+    val sourcePhysicalOpIds = dagWithoutBlockingEdges.getSourceOperatorIds
     pipelinedRegionsDAG = new DirectedAcyclicGraph[PipelinedRegion, DefaultEdge](
       classOf[DefaultEdge]
     )
     var regionCount = 1
-    sourceOperators.foreach(sourceOp => {
+    sourcePhysicalOpIds.foreach(sourcePhysicalOpId => {
       val operatorsInRegion =
-        dagWithoutBlockingEdges.getDescendants(sourceOp) :+ sourceOp
+        dagWithoutBlockingEdges.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
       val regionId = PipelinedRegionIdentity(workflowId, regionCount.toString)
       pipelinedRegionsDAG.addVertex(PipelinedRegion(regionId, operatorsInRegion.toSet.toArray))
       regionCount += 1
@@ -126,18 +130,22 @@ class WorkflowPipelinedRegionsBuilder(
     // add dependencies among regions
     physicalPlan
       .topologicalIterator()
-      .foreach(opId => {
+      .foreach(physicalOpId => {
         // For operators like HashJoin that have an order among their blocking and pipelined inputs
-        val inputProcessingOrderForOp = physicalPlan.operatorMap(opId).getInputProcessingOrder()
+        val inputProcessingOrderForOp =
+          physicalPlan.getOperator(physicalOpId).getInputLinksInProcessingOrder
         if (inputProcessingOrderForOp != null && inputProcessingOrderForOp.length > 1) {
           for (i <- 1 until inputProcessingOrderForOp.length) {
             try {
               addEdgeBetweenRegions(
-                inputProcessingOrderForOp(i - 1).from,
-                inputProcessingOrderForOp(i).from
+                inputProcessingOrderForOp(i - 1).fromOp.id,
+                inputProcessingOrderForOp(i).fromOp.id
               )
             } catch {
               case _: java.lang.IllegalArgumentException =>
+                logger.info(
+                  "trying to add materialziations, current pairs" + materializationWriterReaderPairs.size
+                )
                 // edge causes a cycle
                 this.physicalPlan = materializationRewriter
                   .addMaterializationToLink(
@@ -152,15 +160,17 @@ class WorkflowPipelinedRegionsBuilder(
         }
 
         // For operators that have only blocking input links. add materialization to all input links.
-        val upstreamOps = physicalPlan.getUpstream(opId)
+        val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
 
-        val allInputBlocking = upstreamOps.nonEmpty && upstreamOps.forall(upstreamOp =>
-          findAllLinks(upstreamOp, opId)
-            .forall(link => physicalPlan.operatorMap(opId).isInputBlocking(link))
-        )
+        val allInputBlocking =
+          upstreamPhysicalOpIds.nonEmpty && upstreamPhysicalOpIds.forall(upstreamPhysicalOpId =>
+            physicalPlan
+              .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
+              .forall(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
+          )
         if (allInputBlocking) {
-          upstreamOps.foreach(upstreamOp => {
-            findAllLinks(upstreamOp, opId).foreach { link =>
+          upstreamPhysicalOpIds.foreach(upstreamPhysicalOpId => {
+            physicalPlan.getLinksBetween(upstreamPhysicalOpId, physicalOpId).foreach { link =>
               this.physicalPlan = materializationRewriter
                 .addMaterializationToLink(
                   physicalPlan,
@@ -182,17 +192,12 @@ class WorkflowPipelinedRegionsBuilder(
         case _: java.lang.IllegalArgumentException =>
           // edge causes a cycle. Code shouldn't reach here.
           throw new WorkflowRuntimeException(
-            s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${writer.operator} and ${reader.operator}"
+            s"PipelinedRegionsBuilder: Cyclic dependency between regions of ${writer.logicalOpId.id} and ${reader.logicalOpId.id}"
           )
       }
     }
 
     true
-  }
-
-  private def findAllLinks(from: LayerIdentity, to: LayerIdentity): List[LinkIdentity] = {
-    physicalPlan.links.filter(link => link.from == from && link.to == to)
-
   }
 
   private def findAllPipelinedRegionsAndAddDependencies(): Unit = {
@@ -202,7 +207,7 @@ class WorkflowPipelinedRegionsBuilder(
     }
   }
 
-  private def getPipelinedRegionsFromOperatorId(opId: LayerIdentity): Set[PipelinedRegion] = {
+  private def getPipelinedRegionsFromOperatorId(opId: PhysicalOpIdentity): Set[PipelinedRegion] = {
     val regionsForOperator = new mutable.HashSet[PipelinedRegion]()
     pipelinedRegionsDAG
       .vertexSet()
@@ -216,37 +221,42 @@ class WorkflowPipelinedRegionsBuilder(
 
   private def populateTerminalOperatorsForBlockingLinks(): Unit = {
     val regionTerminalOperatorInOtherRegions =
-      new mutable.HashMap[PipelinedRegion, ArrayBuffer[LayerIdentity]]()
+      new mutable.HashMap[PipelinedRegion, ArrayBuffer[PhysicalOpIdentity]]()
     this.physicalPlan
       .topologicalIterator()
-      .foreach(opId => {
-        val upstreamOps = this.physicalPlan.getUpstream(opId)
-        upstreamOps.foreach(upstreamOp => {
-          findAllLinks(upstreamOp, opId).foreach(linkFromUpstreamOp => {
-            if (physicalPlan.operatorMap(opId).isInputBlocking(linkFromUpstreamOp)) {
-              val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamOp)
-              for (prevInOrderRegion <- prevInOrderRegions) {
-                if (
-                  !regionTerminalOperatorInOtherRegions.contains(
-                    prevInOrderRegion
-                  ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion).contains(opId)
-                ) {
-                  val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
-                    prevInOrderRegion,
-                    new ArrayBuffer[LayerIdentity]()
-                  )
-                  terminalOps.append(opId)
-                  regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
+      .foreach(physicalOpId => {
+        val upstreamPhysicalOpIds = this.physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
+        upstreamPhysicalOpIds.foreach(upstreamPhysicalOpId => {
+          physicalPlan
+            .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
+            .foreach(upstreamPhysicalLink => {
+              if (
+                physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLink)
+              ) {
+                val prevInOrderRegions = getPipelinedRegionsFromOperatorId(upstreamPhysicalOpId)
+                for (prevInOrderRegion <- prevInOrderRegions) {
+                  if (
+                    !regionTerminalOperatorInOtherRegions.contains(
+                      prevInOrderRegion
+                    ) || !regionTerminalOperatorInOtherRegions(prevInOrderRegion)
+                      .contains(physicalOpId)
+                  ) {
+                    val terminalOps = regionTerminalOperatorInOtherRegions.getOrElseUpdate(
+                      prevInOrderRegion,
+                      new ArrayBuffer[PhysicalOpIdentity]()
+                    )
+                    terminalOps.append(physicalOpId)
+                    regionTerminalOperatorInOtherRegions(prevInOrderRegion) = terminalOps
+                  }
                 }
               }
-            }
-          })
+            })
 
         })
       })
 
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
-      val newRegion = region.copy(blockingDownstreamOperatorsInOtherRegions =
+      val newRegion = region.copy(blockingDownstreamPhysicalOpIdsInOtherRegions =
         terminalOps.toArray.map(opId => (opId, 0))
       )
       replaceVertex(pipelinedRegionsDAG, region, newRegion)

@@ -1,9 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import java.sql.Timestamp
-
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  OperatorIdentity,
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -14,6 +16,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
+import java.sql.Timestamp
 import scala.collection.mutable.ArrayBuffer
 import scala.util.Random.{nextInt, nextLong}
 
@@ -24,11 +27,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: IntervalJoinOpDesc = _
   var counter: Int = 0
 
-  def linkID(): LinkIdentity = LinkIdentity(layerID(), fromPort = 0, layerID(), toPort = 0)
+  def physicalLinkId(): PhysicalLinkIdentity =
+    PhysicalLinkIdentity(physicalOpId(), fromPort = 0, physicalOpId(), toPort = 0)
 
-  def layerID(): LayerIdentity = {
+  def physicalOpId(): PhysicalOpIdentity = {
     counter += 1
-    LayerIdentity("" + counter, "" + counter)
+    PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
   }
 
   def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {

@@ -36,7 +36,7 @@ trait PauseHandler {
       cp.controllerTimerService.disableSkewHandling()
       Future
         .collect(cp.executionState.getAllOperatorExecutions.map {
-          case (layerId, opExecution) =>
+          case (physicalOpId, opExecution) =>
             // create a buffer for the current input tuple
             // since we need to show them on the frontend
             val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
@@ -63,7 +63,9 @@ trait PauseHandler {
               )
               .map { ret =>
                 // for each paused operator, send the input tuple
-                sendToClient(ReportCurrentProcessingTuple(layerId.operator, buffer.toArray))
+                sendToClient(
+                  ReportCurrentProcessingTuple(physicalOpId.logicalOpId.id, buffer.toArray)
+                )
               }
         }.toSeq)
         .map { ret =>

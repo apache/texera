@@ -96,18 +96,13 @@ class WorkflowCompiler(
     // get the updated physical plan
     physicalPlan = pipelinedRegionsBuilder.physicalPlan
 
-    // TODO: add resource allocator to incorporate PartitioningPlan below
-
-    // generate a PartitioningPlan, describing partitions between physical operators
-    val partitioningPlan = new PartitionEnforcer(physicalPlan).enforcePartition()
-
     // assert all source layers to have 0 input ports
-    physicalPlan.getSourceOperators.foreach { sourceLayer =>
-      assert(physicalPlan.getLayer(sourceLayer).inputPorts.isEmpty)
+    physicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
+      assert(physicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
     }
     // assert all sink layers to have 0 output ports
-    physicalPlan.getSinkOperators.foreach { sinkLayer =>
-      assert(physicalPlan.getLayer(sinkLayer).outputPorts.isEmpty)
+    physicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
+      assert(physicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
     }
 
     new Workflow(
@@ -115,8 +110,7 @@ class WorkflowCompiler(
       originalLogicalPlan,
       rewrittenLogicalPlan,
       physicalPlan,
-      executionPlan,
-      partitioningPlan
+      executionPlan
     )
 
   }

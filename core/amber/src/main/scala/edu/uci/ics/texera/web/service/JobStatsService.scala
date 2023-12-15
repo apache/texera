@@ -215,7 +215,7 @@ class JobStatsService(
           var operatorId = "unknown operator"
           var workerId = ""
           if (evt.fromActor.isDefined) {
-            operatorId = VirtualIdentityUtils.getOperator(evt.fromActor.get).operator
+            operatorId = VirtualIdentityUtils.getPhysicalOpId(evt.fromActor.get).logicalOpId.id
             workerId = evt.fromActor.get.name
           }
           stateStore.statsStore.updateState(stats =>

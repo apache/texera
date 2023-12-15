@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
@@ -46,7 +46,7 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[PipelinedRe
   override def onLinkCompletion(
       workflow: Workflow,
       executionState: ExecutionState,
-      linkId: LinkIdentity
+      linkId: PhysicalLinkIdentity
   ): Set[PipelinedRegion] = {
     val regions = getRegions(linkId)
     regions.foreach(r => completedLinksOfRegion.addBinding(r, linkId))

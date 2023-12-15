@@ -21,9 +21,9 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
+  OperatorIdentity,
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import org.scalatest.BeforeAndAfterAll
@@ -40,10 +40,10 @@ class LoggingSpec
   private val identifier2 = ActorVirtualIdentity("worker-2")
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val layerId1 =
-    LayerIdentity(operatorIdentity.id, "1st-layer")
+    PhysicalOpIdentity(operatorIdentity, "1st-layer")
   private val layerId2 =
-    LayerIdentity(operatorIdentity.id, "2nd-layer")
-  private val mockLink = LinkIdentity(layerId1, 0, layerId2, 0)
+    PhysicalOpIdentity(operatorIdentity, "2nd-layer")
+  private val mockLink = PhysicalLinkIdentity(layerId1, 0, layerId2, 0)
 
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(

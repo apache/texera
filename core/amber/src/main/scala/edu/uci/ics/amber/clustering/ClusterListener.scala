@@ -96,7 +96,7 @@ class ClusterListener extends Actor with AmberLogging {
               } catch {
                 case t: Throwable =>
                   logger.warn(
-                    s"execution ${jobService.workflow.getWorkflowId} cannot recover! forcing it to stop"
+                    s"execution ${jobService.workflow.workflowId} cannot recover! forcing it to stop"
                   )
                   forcefullyStop(jobService, t)
               }

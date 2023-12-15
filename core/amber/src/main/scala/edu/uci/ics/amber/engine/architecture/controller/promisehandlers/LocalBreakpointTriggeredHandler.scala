@@ -34,7 +34,7 @@ trait LocalBreakpointTriggeredHandler {
     {
       // get the operator where the worker triggers breakpoint
       val targetOp = cp.executionState.getOperatorExecution(sender)
-      val opID = cp.workflow.getOpExecConfig(sender).id
+      val physicalOpId = cp.workflow.physicalPlan.getPhysicalOpByWorkerId(sender).id
       // get global breakpoints given local breakpoints
       val unResolved = msg.localBreakpoints
         .filter {
@@ -81,7 +81,7 @@ trait LocalBreakpointTriggeredHandler {
                   .map { gbp =>
                     // attach new version if not resolved
                     execute(
-                      AssignGlobalBreakpoint(gbp, opID.operator),
+                      AssignGlobalBreakpoint(gbp, physicalOpId.logicalOpId.id),
                       CONTROLLER
                     )
                   }
@@ -102,7 +102,9 @@ trait LocalBreakpointTriggeredHandler {
                     .unit
                 } else {
                   // other wise, report to frontend and pause entire workflow
-                  sendToClient(BreakpointTriggered(mutable.HashMap.empty, opID.operator))
+                  sendToClient(
+                    BreakpointTriggered(mutable.HashMap.empty, physicalOpId.logicalOpId.id)
+                  )
                   execute(PauseWorkflow(), CONTROLLER)
                 }
               }

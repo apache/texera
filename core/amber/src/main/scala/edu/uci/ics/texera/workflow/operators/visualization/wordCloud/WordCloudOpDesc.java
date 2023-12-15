@@ -4,12 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
-import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity;
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
-import edu.uci.ics.amber.engine.common.virtualidentity.util;
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -62,33 +62,33 @@ public class WordCloudOpDesc extends VisualizationOperator {
             .add(partialAggregateSchema).build();
 
     @Override
-    public OpExecConfig operatorExecutor(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
-        throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer");
+    public PhysicalOp getPhysicalOp(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
+        throw new UnsupportedOperationException("opExec implemented in getPhysicalPlan");
     }
 
     @Override
-    public PhysicalPlan operatorExecutorMultiLayer(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalPlan getPhysicalPlan(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         if (topN == null) {
             topN = 100;
         }
 
-        LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
-        OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(executionId,
+        PhysicalOpIdentity partialId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
+        PhysicalOp partialLayer = PhysicalOp.oneToOnePhysicalOp(executionId,
                 this.operatorIdentifier(),
-                OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpPartialExec(textColumn))
+                OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpPartialExec(textColumn))
         ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
 
-        LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
-        OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(executionId,
+        PhysicalOpIdentity finalId = new PhysicalOpIdentity(operatorIdentifier(), "global");
+        PhysicalOp finalLayer = PhysicalOp.manyToOnePhysicalOp(executionId,
                         this.operatorIdentifier(),
-                        OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpFinalExec(topN))
+                        OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpFinalExec(topN))
                 ).withId(finalId).withIsOneToManyOp(true)
                 .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 
-        OpExecConfig[] layers = {partialLayer, finalLayer};
-        LinkIdentity[] links = {new LinkIdentity(partialLayer.id(), 0, finalLayer.id(), 0)};
+        PhysicalOp[] layers = {partialLayer, finalLayer};
+        PhysicalLink[] links = {PhysicalLink.apply(partialLayer, 0, finalLayer, 0)};
 
         return PhysicalPlan.apply(layers, links);
     }
