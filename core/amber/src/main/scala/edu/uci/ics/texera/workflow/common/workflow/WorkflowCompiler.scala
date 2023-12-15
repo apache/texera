@@ -18,11 +18,13 @@ import java.time.Instant
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowCompiler(
-    val logicalPlanPojo: LogicalPlanPojo,
     workflowContext: WorkflowContext
 ) extends LazyLogging {
 
-  def compileLogicalPlan(jobStateStore: ExecutionStateStore): LogicalPlan = {
+  def compileLogicalPlan(
+      logicalPlanPojo: LogicalPlanPojo,
+      jobStateStore: ExecutionStateStore
+  ): LogicalPlan = {
 
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
@@ -32,13 +34,13 @@ class WorkflowCompiler(
       )
     }
 
-    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
     logicalPlan = SinkInjectionTransformer.transform(
       logicalPlanPojo.opsToViewResult,
       logicalPlan
     )
 
-    logicalPlan = logicalPlan.propagateWorkflowSchema(Some(errorList))
+    logicalPlan = logicalPlan.propagateWorkflowSchema(workflowContext, Some(errorList))
 
     // report compilation errors
     if (errorList.nonEmpty) {
@@ -61,6 +63,7 @@ class WorkflowCompiler(
   }
 
   def compile(
+      logicalPlanPojo: LogicalPlanPojo,
       opResultStorage: OpResultStorage,
       lastCompletedJob: Option[LogicalPlan] = Option.empty,
       jobStateStore: ExecutionStateStore
@@ -69,10 +72,11 @@ class WorkflowCompiler(
     // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
     //  this plan will be compared in subsequent runs to check which operator can be replaced
     //  by cache.
-    val originalLogicalPlan = compileLogicalPlan(jobStateStore)
+    val originalLogicalPlan = compileLogicalPlan(logicalPlanPojo, jobStateStore)
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
+      workflowContext,
       originalLogicalPlan,
       lastCompletedJob,
       opResultStorage,

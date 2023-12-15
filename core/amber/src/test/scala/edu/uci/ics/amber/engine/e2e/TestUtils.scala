@@ -17,10 +17,10 @@ object TestUtils {
   ): Workflow = {
     val context = new WorkflowContext()
     val workflowCompiler = new WorkflowCompiler(
-      LogicalPlanPojo(operators, links, List(), List(), List()),
       context
     )
     workflowCompiler.compile(
+      LogicalPlanPojo(operators, links, List(), List(), List()),
       resultStorage,
       None,
       new ExecutionStateStore()

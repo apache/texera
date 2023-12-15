@@ -90,8 +90,9 @@ class WorkflowExecutionService(
     logger.info("Compiling the logical plan into a physical plan.")
 
     try {
-      workflowCompiler = new WorkflowCompiler(request.logicalPlan, workflowContext)
+      workflowCompiler = new WorkflowCompiler(workflowContext)
       workflow = workflowCompiler.compile(
+        request.logicalPlan,
         resultService.opResultStorage,
         lastCompletedLogicalPlan,
         executionStateStore
