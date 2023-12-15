@@ -13,15 +13,15 @@ import edu.uci.ics.texera.web.model.websocket.response.{
   ModifyLogicCompletedEvent,
   ModifyLogicResponse
 }
-import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, JobStateStore}
+import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, ExecutionStateStore}
 
 import java.util.UUID
 import scala.util.{Failure, Success}
 
 class JobReconfigurationService(
-    client: AmberClient,
-    stateStore: JobStateStore,
-    workflow: Workflow
+                                 client: AmberClient,
+                                 stateStore: ExecutionStateStore,
+                                 workflow: Workflow
 ) extends SubscriptionManager {
 
   // monitors notification from the engine that a reconfiguration on a worker is completed

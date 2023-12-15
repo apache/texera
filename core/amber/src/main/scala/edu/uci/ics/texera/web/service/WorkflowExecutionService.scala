@@ -14,8 +14,8 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
@@ -31,22 +31,22 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompile
 import java.time.Instant
 import scala.collection.mutable
 
-class WorkflowJobService(
-    workflowContext: WorkflowContext,
-    resultService: JobResultService,
-    request: WorkflowExecuteRequest,
-    lastCompletedLogicalPlan: Option[LogicalPlan]
+class WorkflowExecutionService(
+                                workflowContext: WorkflowContext,
+                                resultService: ExecutionResultService,
+                                request: WorkflowExecuteRequest,
+                                lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
-  logger.info("Creating a new execution job.")
+  logger.info("Creating a new execution.")
 
   val errorHandler: Throwable => Unit = { t =>
     {
       logger.error("error during execution", t)
-      jobStateStore.statsStore.updateState(stats =>
+      executionStateStore.statsStore.updateState(stats =>
         stats.withEndTimeStamp(System.currentTimeMillis())
       )
-      jobStateStore.jobMetadataStore.updateState { jobInfo =>
+      executionStateStore.metadataStore.updateState { jobInfo =>
         updateWorkflowState(FAILED, jobInfo).addFatalErrors(
           WorkflowFatalError(
             EXECUTION_FAILURE,
@@ -60,25 +60,25 @@ class WorkflowJobService(
     }
   }
   val wsInput = new WebsocketInput(errorHandler)
-  val jobStateStore = new JobStateStore()
+  val executionStateStore = new ExecutionStateStore()
 
   addSubscription(
-    jobStateStore.jobMetadataStore.registerDiffHandler((oldState, newState) => {
-      val outputEvts = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
+    executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
+      val outputEvents = new mutable.ArrayBuffer[TexeraWebSocketEvent]()
       // Update workflow state
       if (newState.state != oldState.state || newState.isRecovering != oldState.isRecovering) {
         // Check if is recovering
         if (newState.isRecovering && newState.state != COMPLETED) {
-          outputEvts.append(WorkflowStateEvent("Recovering"))
+          outputEvents.append(WorkflowStateEvent("Recovering"))
         } else {
-          outputEvts.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
+          outputEvents.append(WorkflowStateEvent(Utils.aggregatedStateToString(newState.state)))
         }
       }
       // Check if new error occurred
       if (newState.fatalErrors != oldState.fatalErrors) {
-        outputEvts.append(WorkflowErrorEvent(newState.fatalErrors))
+        outputEvents.append(WorkflowErrorEvent(newState.fatalErrors))
       }
-      outputEvts
+      outputEvents
     })
   )
 
@@ -96,12 +96,12 @@ class WorkflowJobService(
         WorkflowIdentity(workflowContext.executionId),
         resultService.opResultStorage,
         lastCompletedLogicalPlan,
-        jobStateStore
+        executionStateStore
       )
     } catch {
       case e: Throwable =>
         logger.error("error occurred during physical plan compilation", e)
-        jobStateStore.jobMetadataStore.updateState { metadataStore =>
+        executionStateStore.metadataStore.updateState { metadataStore =>
           updateWorkflowState(FAILED, metadataStore)
             .addFatalErrors(
               WorkflowFatalError(
@@ -136,17 +136,17 @@ class WorkflowJobService(
       errorHandler
     )
 
-    jobBreakpointService = new JobBreakpointService(client, jobStateStore)
-    jobReconfigurationService = new JobReconfigurationService(client, jobStateStore, workflow)
-    jobStatsService = new JobStatsService(client, jobStateStore, workflowContext)
+    jobBreakpointService = new JobBreakpointService(client, executionStateStore)
+    jobReconfigurationService = new JobReconfigurationService(client, executionStateStore, workflow)
+    jobStatsService = new JobStatsService(client, executionStateStore, workflowContext)
     jobRuntimeService = new JobRuntimeService(
       client,
-      jobStateStore,
+      executionStateStore,
       wsInput,
       jobBreakpointService,
       jobReconfigurationService
     )
-    jobConsoleService = new JobConsoleService(client, jobStateStore, wsInput, jobBreakpointService)
+    jobConsoleService = new JobConsoleService(client, executionStateStore, wsInput, jobBreakpointService)
 
     logger.info("Starting the workflow execution.")
     for (pair <- request.logicalPlan.breakpoints) {
@@ -155,18 +155,18 @@ class WorkflowJobService(
         Duration.fromSeconds(10)
       )
     }
-    resultService.attachToJob(jobStateStore, workflow.logicalPlan, client)
-    jobStateStore.jobMetadataStore.updateState(jobInfo =>
+    resultService.attachToJob(executionStateStore, workflow.logicalPlan, client)
+    executionStateStore.metadataStore.updateState(jobInfo =>
       updateWorkflowState(READY, jobInfo.withEid(workflowContext.executionId))
         .withFatalErrors(Seq.empty)
     )
-    jobStateStore.statsStore.updateState(stats =>
+    executionStateStore.statsStore.updateState(stats =>
       stats.withStartTimeStamp(System.currentTimeMillis())
     )
     client.sendAsyncWithCallback[Unit](
       StartWorkflow(),
       _ =>
-        jobStateStore.jobMetadataStore.updateState(jobInfo =>
+        executionStateStore.metadataStore.updateState(jobInfo =>
           if (jobInfo.state != FAILED) {
             updateWorkflowState(RUNNING, jobInfo)
           } else {

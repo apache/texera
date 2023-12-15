@@ -10,8 +10,8 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBr
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{ReportFaultedTupleEvent, TexeraWebSocketEvent}
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
 import edu.uci.ics.texera.web.workflowruntimestate.{BreakpointFault, OperatorBreakpoints}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
@@ -27,7 +27,7 @@ import scala.collection.mutable
 
 class JobBreakpointService(
     client: AmberClient,
-    stateStore: JobStateStore
+    stateStore: ExecutionStateStore
 ) extends SubscriptionManager {
 
   registerCallbackOnBreakpoint()
@@ -58,7 +58,7 @@ class JobBreakpointService(
     addSubscription(
       client
         .registerCallback[BreakpointTriggered]((evt: BreakpointTriggered) => {
-          stateStore.jobMetadataStore.updateState { oldState =>
+          stateStore.metadataStore.updateState { oldState =>
             updateWorkflowState(PAUSED, oldState)
           }
           stateStore.breakpointStore.updateState { jobInfo =>

@@ -13,7 +13,7 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
-import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUSED, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
@@ -87,17 +87,16 @@ class WorkflowWebsocketResource extends LazyLogging {
         case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
           val stateStore = if (jobStateOpt.isDefined) {
             val currentState =
-              jobStateOpt.get.jobStateStore.jobMetadataStore.getState.state
+              jobStateOpt.get.executionStateStore.metadataStore.getState.state
             if (currentState == RUNNING || currentState == PAUSED) {
               // disable check if the workflow execution is active.
               return
             }
-            jobStateOpt.get.jobStateStore
+            jobStateOpt.get.executionStateStore
           } else {
-            new JobStateStore()
+            new ExecutionStateStore()
           }
           val workflowContext = new WorkflowContext(
-            "default",
             uidOpt,
             UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
           )
@@ -113,7 +112,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
           sessionState.send(CacheStatusUpdateEvent(validateResult))
           if (jobStateOpt.isEmpty) {
-            sessionState.send(WorkflowErrorEvent(stateStore.jobMetadataStore.getState.fatalErrors))
+            sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
@@ -137,7 +136,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           "unknown operator"
         )
         if (jobStateOpt.isDefined) {
-          jobStateOpt.get.jobStateStore.jobMetadataStore.updateState { metadataStore =>
+          jobStateOpt.get.executionStateStore.metadataStore.updateState { metadataStore =>
             metadataStore
               .withFatalErrors(metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR))
               .addFatalErrors(errEvt)

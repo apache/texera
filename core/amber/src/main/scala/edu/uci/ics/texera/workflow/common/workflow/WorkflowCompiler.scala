@@ -6,8 +6,8 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
@@ -22,11 +22,11 @@ class WorkflowCompiler(
     workflowContext: WorkflowContext
 ) extends LazyLogging {
 
-  def compileLogicalPlan(jobStateStore: JobStateStore): LogicalPlan = {
+  def compileLogicalPlan(jobStateStore: ExecutionStateStore): LogicalPlan = {
 
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
-    jobStateStore.jobMetadataStore.updateState { metadataStore =>
+    jobStateStore.metadataStore.updateState { metadataStore =>
       metadataStore.withFatalErrors(
         metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
       )
@@ -53,7 +53,7 @@ class WorkflowCompiler(
             opId.id
           )
       }
-      jobStateStore.jobMetadataStore.updateState(metadataStore =>
+      jobStateStore.metadataStore.updateState(metadataStore =>
         updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
       )
     }
@@ -64,7 +64,7 @@ class WorkflowCompiler(
       workflowId: WorkflowIdentity,
       opResultStorage: OpResultStorage,
       lastCompletedJob: Option[LogicalPlan] = Option.empty,
-      jobStateStore: JobStateStore
+      jobStateStore: ExecutionStateStore
   ): Workflow = {
 
     // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks

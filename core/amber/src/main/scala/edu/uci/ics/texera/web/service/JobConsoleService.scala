@@ -19,8 +19,8 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
   PythonExpressionEvaluateRequest
 }
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.{
   EvaluatedValueList,
@@ -33,10 +33,10 @@ import java.time.Instant
 import scala.collection.mutable
 
 class JobConsoleService(
-    client: AmberClient,
-    stateStore: JobStateStore,
-    wsInput: WebsocketInput,
-    breakpointService: JobBreakpointService
+                         client: AmberClient,
+                         stateStore: ExecutionStateStore,
+                         wsInput: WebsocketInput,
+                         breakpointService: JobBreakpointService
 ) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 
@@ -107,10 +107,10 @@ class JobConsoleService(
 
   //Receive retry request
   addSubscription(wsInput.subscribe((req: RetryRequest, uidOpt) => {
-    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
+    stateStore.metadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
     client.sendAsyncWithCallback[Unit](
       RetryWorkflow(req.workers.map(x => ActorVirtualIdentity(x))),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
+      _ => stateStore.metadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
     )
   }))
 

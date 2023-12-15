@@ -10,9 +10,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
-import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
+import edu.uci.ics.texera.web.service.{WorkflowExecutionService, WorkflowService}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 
@@ -58,12 +58,12 @@ class ClusterListener extends Actor with AmberLogging {
       .map(_.address)
   }
 
-  private def forcefullyStop(jobService: WorkflowJobService, cause: Throwable): Unit = {
+  private def forcefullyStop(jobService: WorkflowExecutionService, cause: Throwable): Unit = {
     jobService.client.shutdown()
-    jobService.jobStateStore.statsStore.updateState(stats =>
+    jobService.executionStateStore.statsStore.updateState(stats =>
       stats.withEndTimeStamp(System.currentTimeMillis())
     )
-    jobService.jobStateStore.jobMetadataStore.updateState { jobInfo =>
+    jobService.executionStateStore.metadataStore.updateState { jobInfo =>
       logger.error("forcefully stopping execution", cause)
       updateWorkflowState(FAILED, jobInfo).addFatalErrors(
         WorkflowFatalError(
@@ -85,11 +85,11 @@ class ClusterListener extends Actor with AmberLogging {
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (
-            jobService != null && jobService.jobStateStore.jobMetadataStore.getState.state != COMPLETED
+            jobService != null && jobService.executionStateStore.metadataStore.getState.state != COMPLETED
           ) {
             if (AmberConfig.isFaultToleranceEnabled) {
               logger.info(
-                s"Trigger recovery process for execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
+                s"Trigger recovery process for execution id = ${jobService.executionStateStore.metadataStore.getState.eid}"
               )
               try {
                 futures.append(jobService.client.notifyNodeFailure(member.address))
@@ -102,7 +102,7 @@ class ClusterListener extends Actor with AmberLogging {
               }
             } else {
               logger.info(
-                s"Kill execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
+                s"Kill execution id = ${jobService.executionStateStore.metadataStore.getState.eid}"
               )
               forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
             }

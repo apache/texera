@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web
 import java.time.{LocalDateTime, Duration => JDuration}
 import akka.actor.Cancellable
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.{JobMetadataStore, WorkflowAggregatedState}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 
@@ -70,9 +70,9 @@ class WorkflowLifecycleManager(id: String, cleanUpTimeout: Int, cleanUpCallback:
     }
   }
 
-  def registerCleanUpOnStateChange(stateStore: JobStateStore): Unit = {
+  def registerCleanUpOnStateChange(stateStore: ExecutionStateStore): Unit = {
     cleanUpJob.cancel()
-    stateStore.jobMetadataStore.getStateObservable.subscribe { newState: JobMetadataStore =>
+    stateStore.metadataStore.getStateObservable.subscribe { newState: JobMetadataStore =>
       setCleanUpDeadline(newState.state)
     }
   }

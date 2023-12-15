@@ -23,8 +23,8 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   OperatorStatisticsUpdateEvent,
   WorkerAssignmentUpdateEvent
 }
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.{
   OperatorRuntimeStats,
@@ -40,9 +40,9 @@ import org.jooq.types.UInteger
 import java.util
 
 class JobStatsService(
-    client: AmberClient,
-    stateStore: JobStateStore,
-    workflowContext: WorkflowContext
+                       client: AmberClient,
+                       stateStore: ExecutionStateStore,
+                       workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
@@ -185,7 +185,7 @@ class JobStatsService(
     addSubscription(
       client
         .registerCallback[WorkflowRecoveryStatus]((evt: WorkflowRecoveryStatus) => {
-          stateStore.jobMetadataStore.updateState { jobMetadata =>
+          stateStore.metadataStore.updateState { jobMetadata =>
             jobMetadata.withIsRecovering(evt.isRecovering)
           }
         })
@@ -200,7 +200,7 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.jobMetadataStore.updateState(jobInfo =>
+          stateStore.metadataStore.updateState(jobInfo =>
             updateWorkflowState(COMPLETED, jobInfo)
           )
         })
@@ -221,7 +221,7 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.jobMetadataStore.updateState { jobInfo =>
+          stateStore.metadataStore.updateState { jobInfo =>
             logger.error("error occurred in execution", evt.e)
             updateWorkflowState(FAILED, jobInfo).addFatalErrors(
               WorkflowFatalError(

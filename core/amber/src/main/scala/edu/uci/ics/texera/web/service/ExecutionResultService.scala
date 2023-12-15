@@ -17,9 +17,9 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   WebResultUpdateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request.ResultPaginationRequest
-import edu.uci.ics.texera.web.service.JobResultService.WebResultUpdate
+import edu.uci.ics.texera.web.service.ExecutionResultService.WebResultUpdate
 import edu.uci.ics.texera.web.storage.{
-  JobStateStore,
+  ExecutionStateStore,
   OperatorResultMetadata,
   WorkflowResultStore,
   WorkflowStateStore
@@ -37,7 +37,7 @@ import java.util.UUID
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
 
-object JobResultService {
+object ExecutionResultService {
 
   val defaultPageSize: Int = 5
 
@@ -90,7 +90,7 @@ object JobResultService {
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val numTuples = storage.getCount
-        val maxPageIndex = Math.ceil(numTuples / JobResultService.defaultPageSize.toDouble).toInt
+        val maxPageIndex = Math.ceil(numTuples / ExecutionResultService.defaultPageSize.toDouble).toInt
         WebPaginationUpdate(
           PaginationMode(),
           newTupleCount,
@@ -151,13 +151,13 @@ object JobResultService {
 }
 
 /**
-  * WorkflowResultService manages the materialized result of all sink operators in one workflow execution.
+  * ExecutionResultService manages the materialized result of all sink operators in one workflow execution.
   *
   * On each result update from the engine, WorkflowResultService
   *  - update the result data for each operator,
   *  - send result update event to the frontend
   */
-class JobResultService(
+class ExecutionResultService(
     val opResultStorage: OpResultStorage,
     val workflowStateStore: WorkflowStateStore
 ) extends SubscriptionManager
@@ -169,9 +169,9 @@ class JobResultService(
   private var resultUpdateCancellable: Cancellable = _
 
   def attachToJob(
-      stateStore: JobStateStore,
-      logicalPlan: LogicalPlan,
-      client: AmberClient
+                   stateStore: ExecutionStateStore,
+                   logicalPlan: LogicalPlan,
+                   client: AmberClient
   ): Unit = {
 
     if (resultUpdateCancellable != null && !resultUpdateCancellable.isCancelled) {
@@ -180,7 +180,7 @@ class JobResultService(
 
     unsubscribeAll()
 
-    addSubscription(stateStore.jobMetadataStore.getStateObservable.subscribe {
+    addSubscription(stateStore.metadataStore.getStateObservable.subscribe {
       newState: JobMetadataStore =>
         {
           if (newState.state == RUNNING) {
@@ -224,7 +224,7 @@ class JobResultService(
         newState.resultInfo.foreach {
           case (opId, info) =>
             val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
-            buf(opId.id) = JobResultService.convertWebResultUpdate(
+            buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
               sinkOperators(opId),
               oldInfo.tupleCount,
               info.tupleCount

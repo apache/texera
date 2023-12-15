@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{
   WorkflowAggregatedState
 }
 
-object JobStateStore {
+object ExecutionStateStore {
 
   // Update the state of the specified execution if user system is enabled.
   // Update the execution only from backend
@@ -24,14 +24,14 @@ object JobStateStore {
 }
 
 // states that within one execution.
-class JobStateStore {
+class ExecutionStateStore {
   val statsStore = new StateStore(JobStatsStore())
-  val jobMetadataStore = new StateStore(JobMetadataStore())
+  val metadataStore = new StateStore(JobMetadataStore())
   val consoleStore = new StateStore(JobConsoleStore())
   val breakpointStore = new StateStore(JobBreakpointStore())
   val reconfigurationStore = new StateStore(JobReconfigurationStore())
 
   def getAllStores: Iterable[StateStore[_]] = {
-    Iterable(statsStore, consoleStore, breakpointStore, jobMetadataStore, reconfigurationStore)
+    Iterable(statsStore, consoleStore, breakpointStore, metadataStore, reconfigurationStore)
   }
 }

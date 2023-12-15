@@ -55,10 +55,10 @@ class WorkflowService(
   var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
-  var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
+  var jobService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
-  val resultService: JobResultService =
-    new JobResultService(opResultStorage, stateStore)
+  val resultService: ExecutionResultService =
+    new ExecutionResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
     new ResultExportService(opResultStorage, UInteger.valueOf(wId))
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
@@ -77,9 +77,9 @@ class WorkflowService(
 
   var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
 
-  jobService.subscribe { job: WorkflowJobService =>
+  jobService.subscribe { job: WorkflowExecutionService =>
     {
-      job.jobStateStore.jobMetadataStore.registerDiffHandler { (oldState, newState) =>
+      job.executionStateStore.metadataStore.registerDiffHandler { (oldState, newState) =>
         {
           if (oldState.state != COMPLETED && newState.state == COMPLETED) {
             lastCompletedLogicalPlan = Option.apply(job.workflow.originalLogicalPlan)
@@ -105,9 +105,9 @@ class WorkflowService(
 
   def connectToJob(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     var localDisposable = Disposable.empty()
-    jobService.subscribe { job: WorkflowJobService =>
+    jobService.subscribe { job: WorkflowExecutionService =>
       localDisposable.dispose()
-      val subscriptions = job.jobStateStore.getAllStores
+      val subscriptions = job.executionStateStore.getAllStores
         .map(_.getWebsocketEventObservable)
         .map(evtPub =>
           evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
@@ -119,7 +119,7 @@ class WorkflowService(
 
   def disconnect(): Unit = {
     lifeCycleManager.decreaseUserCount(
-      Option(jobService.getValue).map(_.jobStateStore.jobMetadataStore.getState.state)
+      Option(jobService.getValue).map(_.executionStateStore.metadataStore.getState.state)
     )
   }
 
@@ -144,16 +144,16 @@ class WorkflowService(
       convertToJson(req.engineVersion)
     )
 
-    val job = new WorkflowJobService(
+    val job = new WorkflowExecutionService(
       workflowContext,
       resultService,
       req,
       lastCompletedLogicalPlan
     )
 
-    lifeCycleManager.registerCleanUpOnStateChange(job.jobStateStore)
+    lifeCycleManager.registerCleanUpOnStateChange(job.executionStateStore)
     jobService.onNext(job)
-    if (job.jobStateStore.jobMetadataStore.getState.fatalErrors.isEmpty) {
+    if (job.executionStateStore.metadataStore.getState.fatalErrors.isEmpty) {
       job.startWorkflow()
     }
   }
