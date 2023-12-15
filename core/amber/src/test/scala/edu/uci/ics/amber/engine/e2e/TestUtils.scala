@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -22,7 +21,6 @@ object TestUtils {
       context
     )
     workflowCompiler.compile(
-      context.executionId,
       resultStorage,
       None,
       new ExecutionStateStore()

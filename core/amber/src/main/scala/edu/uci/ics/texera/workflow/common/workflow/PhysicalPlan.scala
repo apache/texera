@@ -7,11 +7,11 @@ import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  ExecutionIdentity,
   OperatorIdentity,
   PhysicalLinkIdentity,
   PhysicalOpIdentity
 }
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -24,14 +24,14 @@ object PhysicalPlan {
     new PhysicalPlan(operatorList.toSet, links.toSet)
   }
 
-  def apply(executionId: ExecutionIdentity, logicalPlan: LogicalPlan): PhysicalPlan = {
+  def apply(workflowContext: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
     logicalPlan.operators.foreach(op => {
       val subPlan =
         op.getPhysicalPlan(
-          executionId,
+          workflowContext.executionId,
           logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
         )
       physicalPlan = physicalPlan.addSubPlan(subPlan)

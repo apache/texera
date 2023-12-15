@@ -63,7 +63,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       scheduler.schedulingPolicy.onWorkerCompletion(
         workflow,
         executionState,
-        VirtualIdentityUtils.createWorkerIdentity(workflow.executionId, physicalOpId, 0)
+        VirtualIdentityUtils.createWorkerIdentity(workflow.context.executionId, physicalOpId, 0)
       )
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
@@ -128,7 +128,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       scheduler.schedulingPolicy.onWorkerCompletion(
         workflow,
         executionState,
-        VirtualIdentityUtils.createWorkerIdentity(workflow.executionId, physicalOpId, 0)
+        VirtualIdentityUtils.createWorkerIdentity(workflow.context.executionId, physicalOpId, 0)
       )
     assert(nextRegions.isEmpty)
 
@@ -189,7 +189,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       workflow,
       executionState,
       VirtualIdentityUtils.createWorkerIdentity(
-        workflow.executionId,
+        workflow.context.executionId,
         probePhysicalOpId,
         0
       )
