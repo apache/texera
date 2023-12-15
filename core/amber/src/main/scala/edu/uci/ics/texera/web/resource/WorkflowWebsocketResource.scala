@@ -28,10 +28,6 @@ import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
 
-object WorkflowWebsocketResource {
-  val nextExecutionID = new AtomicInteger(0)
-}
-
 @ServerEndpoint(
   value = "/wsapi/workflow-websocket",
   configurator = classOf[ServletAwareConfigurator]
@@ -96,10 +92,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           } else {
             new ExecutionStateStore()
           }
-          val workflowContext = new WorkflowContext(
-            uidOpt,
-            UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
-          )
+          val workflowContext = new WorkflowContext(uidOpt, UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId))
 
           val workflowCompiler =
             new WorkflowCompiler(editingTimeCompilationRequest.toLogicalPlanPojo, workflowContext)

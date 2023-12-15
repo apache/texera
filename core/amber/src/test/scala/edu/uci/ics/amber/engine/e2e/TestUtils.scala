@@ -14,11 +14,9 @@ object TestUtils {
   def buildWorkflow(
       operators: List[LogicalOp],
       links: List[LogicalLink],
-      resultStorage: OpResultStorage = new OpResultStorage(),
-      jobId: String = "workflow_test"
+      resultStorage: OpResultStorage = new OpResultStorage()
   ): Workflow = {
-    val context = new WorkflowContext
-    context.jobId = jobId
+    val context = new WorkflowContext()
     val workflowCompiler = new WorkflowCompiler(
       LogicalPlanPojo(operators, links, List(), List(), List()),
       context

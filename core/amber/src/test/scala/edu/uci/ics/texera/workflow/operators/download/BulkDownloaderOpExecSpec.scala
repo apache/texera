@@ -38,7 +38,7 @@ class BulkDownloaderOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: BulkDownloaderOpExec = _
   before {
     opExec = new BulkDownloaderOpExec(
-      new WorkflowContext("job1", Some(UInteger.valueOf(1)), UInteger.valueOf(1), 1),
+      new WorkflowContext(Some(UInteger.valueOf(1)), UInteger.valueOf(1), 1),
       "url",
       "url result",
       OperatorSchemaInfo(Array(tupleSchema), Array(resultSchema))
