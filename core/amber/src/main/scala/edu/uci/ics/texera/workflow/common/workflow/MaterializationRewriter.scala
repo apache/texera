@@ -91,11 +91,11 @@ class MaterializationRewriter(
     writerReaderPairs(matWriterOp.id) = matReaderOp.id
 
     physicalPlan
-      .removeEdge(physicalLink)
+      .removeLink(physicalLink)
       .addOperator(matWriterOp)
       .addOperator(matReaderOp)
-      .addEdge(readerToDestLink)
-      .addEdge(sourceToWriterLink)
+      .addLink(readerToDestLink)
+      .addLink(sourceToWriterLink)
       .setOperatorUnblockPort(toOp.id, toInputPortIdx)
       .populatePartitioningOnLinks()
 

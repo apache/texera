@@ -58,7 +58,7 @@ object PhysicalPlan {
         .displayName
       val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan = physicalPlan.addEdge(fromOp, fromPort, toOp, toPort)
+      physicalPlan = physicalPlan.addLink(fromOp, fromPort, toOp, toPort)
     })
 
     physicalPlan.populatePartitioningOnLinks()
@@ -173,25 +173,20 @@ case class PhysicalPlan(
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }
-
-  /**
-    * returns a new physical plan with the operators added
-    */
   def addOperator(physicalOp: PhysicalOp): PhysicalPlan = {
     this.copy(operators = physicalOp :: operators)
   }
 
-  def addEdge(physicalLink: PhysicalLink): PhysicalPlan = {
-    addEdge(physicalLink.fromOp, physicalLink.fromPort, physicalLink.toOp, physicalLink.toPort)
+  def addLink(physicalLink: PhysicalLink): PhysicalPlan = {
+    addLink(physicalLink.fromOp, physicalLink.fromPort, physicalLink.toOp, physicalLink.toPort)
   }
 
-  def addEdge(
+  def addLink(
       fromOp: PhysicalOp,
       fromPort: Int,
       toOp: PhysicalOp,
       toPort: Int
   ): PhysicalPlan = {
-//    logger.info("adding edge")
     val newOperators = operatorMap +
       (fromOp.id -> getOperator(fromOp.id).addOutput(toOp, fromPort, toPort)) +
       (toOp.id -> getOperator(toOp.id).addInput(fromOp, fromPort, toPort))
@@ -199,8 +194,7 @@ case class PhysicalPlan(
     this.copy(newOperators.values.toList, links :+ PhysicalLink(fromOp, fromPort, toOp, toPort))
   }
 
-  // returns a new physical plan with the edges removed
-  def removeEdge(
+  def removeLink(
       link: PhysicalLink
   ): PhysicalPlan = {
     val fromOpId = link.fromOp.id
@@ -212,7 +206,6 @@ case class PhysicalPlan(
     val newOperators = operatorMap +
       (fromOpId -> updatedFromOp) +
       (toOpId -> updatedToOp)
-//    logger.info("remove edge" + link.toString)
     this.copy(operators = newOperators.values.toList, links.filter(l => l.id != link.id))
   }
 
@@ -232,7 +225,7 @@ case class PhysicalPlan(
     subPlan.operators.foreach(op => resultPlan = resultPlan.addOperator(op))
     // connect intra-operator links
     subPlan.links.foreach((physicalLink: PhysicalLink) =>
-      resultPlan = resultPlan.addEdge(physicalLink)
+      resultPlan = resultPlan.addLink(physicalLink)
     )
     resultPlan
   }
