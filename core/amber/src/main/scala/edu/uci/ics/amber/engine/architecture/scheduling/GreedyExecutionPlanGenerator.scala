@@ -336,11 +336,11 @@ class GreedyExecutionPlanGenerator(
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
 
     physicalPlan
-      .removeEdge(physicalLink)
+      .removeLink(physicalLink)
       .addOperator(matWriterPhysicalOp)
       .addOperator(matReaderPhysicalOp)
-      .addEdge(readerToDestLink)
-      .addEdge(sourceToWriterLink)
+      .addLink(readerToDestLink)
+      .addLink(sourceToWriterLink)
       .setOperatorUnblockPort(toOp.id, toInputPort)
       .populatePartitioningOnLinks()
 
