@@ -40,19 +40,14 @@ object WorkflowCacheRewriter {
       // replace the connection of all outgoing edges of opId with the cache
       val edgesToReplace = resultPlan.getDownstreamEdges(opId)
       edgesToReplace.foreach(e => {
-        resultPlan = resultPlan.removeEdge(
-          e.origin.operatorId,
-          e.destination.operatorId,
-          e.origin.portOrdinal,
-          e.destination.portOrdinal
-        )
-        resultPlan = resultPlan.addEdge(
+        resultPlan = resultPlan.removeEdge(e).addEdge(
           materializationReader.operatorIdentifier,
           e.destination.operatorId,
           0,
           e.destination.portOrdinal
         )
       })
+      resultPlan = resultPlan.removeOperator(opId)
     })
 
     // after an operator is replaced with reading from cached result

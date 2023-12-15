@@ -126,6 +126,11 @@ case class LogicalPlan(
     this.copy(context, operators, newLinks, breakpoints)
   }
 
+  def removeEdge(linkToRemove: LogicalLink): LogicalPlan = {
+    val newLinks = links.filter(l => l != linkToRemove)
+    this.copy(context, operators, newLinks, breakpoints)
+  }
+
   // returns a new logical plan with the given edge removed
   def removeEdge(
       from: OperatorIdentity,
@@ -134,8 +139,7 @@ case class LogicalPlan(
       toPort: Int = 0
   ): LogicalPlan = {
     val linkToRemove = LogicalLink(LogicalPort(from, fromPort), LogicalPort(to, toPort))
-    val newLinks = links.filter(l => l != linkToRemove)
-    this.copy(context, operators, newLinks, breakpoints)
+    removeEdge(linkToRemove)
   }
 
   def getDownstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
