@@ -17,7 +17,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
