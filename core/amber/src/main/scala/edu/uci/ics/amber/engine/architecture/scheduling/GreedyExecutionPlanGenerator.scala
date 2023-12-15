@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Sche
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
 import scala.collection.convert.ImplicitConversions.{
@@ -20,7 +20,6 @@ import scala.collection.convert.ImplicitConversions.{
   `iterable AsScalaIterable`
 }
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.{asScalaIteratorConverter, asScalaSetConverter}
 
 object GreedyExecutionPlanGenerator {
 
@@ -103,7 +102,7 @@ class GreedyExecutionPlanGenerator(
             physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
               .getDownstreamPhysicalLinkIds(operatorId)
           })
-          Region(RegionIdentity(workflowId, (index + 1).toString), operatorIds, linkIds)
+          Region(RegionIdentity((index + 1).toString), operatorIds, linkIds)
       }
   }
 
@@ -236,7 +235,7 @@ class GreedyExecutionPlanGenerator(
       case _: java.lang.IllegalArgumentException =>
         // a cycle is detected. it should not reach here.
         throw new WorkflowRuntimeException(
-          "PipelinedRegionsBuilder: Cyclic dependency between regions detected"
+          "Cyclic dependency between regions detected"
         )
     }
 

@@ -14,7 +14,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
 
-  "Pipelined Regions" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
+  "ExecutionPlanGenerator" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
@@ -32,11 +32,11 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.executionPlan.regions
-    assert(pipelinedRegions.size == 1)
+    val regions = workflow.executionPlan.regions
+    assert(regions.size == 1)
   }
 
-  "Pipelined Regions" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
+  "ExecutionPlanGenerator" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
@@ -64,17 +64,17 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.executionPlan.regions
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.executionPlan.regions
+    assert(regions.size == 2)
 
-    val buildRegion = pipelinedRegions
+    val buildRegion = regions
       .find(v =>
         v.physicalOpIds.exists(op =>
           OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
         )
       )
       .get
-    val probeRegion = pipelinedRegions
+    val probeRegion = regions
       .find(v =>
         v.physicalOpIds.exists(op =>
           OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
@@ -92,7 +92,7 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
     )
   }
 
-  "Pipelined Regions" should "correctly find regions in csv->->filter->join->sink workflow" in {
+  "ExecutionPlanGenerator" should "correctly find regions in csv->->filter->join->sink workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
@@ -123,11 +123,11 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regions
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.executionPlan.regions
+    assert(regions.size == 2)
   }
 
-  "Pipelined Regions" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
+  "ExecutionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
     val buildCsv = TestOperators.headerlessSmallCsvScanOpDesc()
     val probeCsv = TestOperators.smallCsvScanOpDesc()
     val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
@@ -164,11 +164,11 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regions
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.executionPlan.regions
+    assert(regions.size == 2)
   }
 
-  "Pipelined Regions" should "correctly find regions in csv->split->training-infer workflow" in {
+  "ExecutionPlanGenerator" should "correctly find regions in csv->split->training-infer workflow" in {
     val csv = TestOperators.headerlessSmallCsvScanOpDesc()
     val split = new SplitOpDesc()
     val training = new PythonUDFOpDescV2()
@@ -205,8 +205,8 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regions
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.executionPlan.regions
+    assert(regions.size == 2)
   }
 
 }
