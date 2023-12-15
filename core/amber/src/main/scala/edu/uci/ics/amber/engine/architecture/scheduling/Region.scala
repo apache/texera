@@ -23,7 +23,4 @@ case class Region(
     operators.contains(physicalOpId)
   }
 
-  def containsOperator(opId: PhysicalOpIdentity): Boolean = {
-    this.operators.contains(opId)
-  }
 }

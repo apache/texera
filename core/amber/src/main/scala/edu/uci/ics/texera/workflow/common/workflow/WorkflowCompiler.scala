@@ -87,6 +87,7 @@ class WorkflowCompiler(
     //  currently, GreedyExecutionPlanGenerator is the only ExecutionPlan generator.
     val executionPlanGenerator = new GreedyExecutionPlanGenerator(
       workflowId,
+      workflowContext,
       rewrittenLogicalPlan,
       physicalPlan,
       opResultStorage

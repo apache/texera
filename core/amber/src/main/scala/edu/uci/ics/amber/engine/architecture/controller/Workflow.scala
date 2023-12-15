@@ -32,7 +32,7 @@ class Workflow(
       .filter(physicalOpId =>
         physicalPlan
           .getUpstreamPhysicalOpIds(physicalOpId)
-          .forall(up => !region.containsOperator(up))
+          .forall(up => !region.contains(up))
       )
   }
 

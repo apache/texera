@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, Phys
 import edu.uci.ics.amber.engine.architecture.scheduling.GreedyExecutionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
@@ -46,11 +47,18 @@ object GreedyExecutionPlanGenerator {
 }
 
 class GreedyExecutionPlanGenerator(
-    val workflowId: WorkflowIdentity,
-    var logicalPlan: LogicalPlan,
+    workflowId: WorkflowIdentity,
+    workflowContext: WorkflowContext,
+    logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
-    val opResultStorage: OpResultStorage
-) extends ExecutionPlanGenerator
+    opResultStorage: OpResultStorage
+) extends ExecutionPlanGenerator(
+      workflowId,
+      workflowContext,
+      logicalPlan,
+      physicalPlan,
+      opResultStorage
+    )
     with LazyLogging {
 
   /**
@@ -313,11 +321,11 @@ class GreedyExecutionPlanGenerator(
       matWriterLogicalOp.operatorIdentifier,
       opResultStorage: OpResultStorage
     )
-    materializationReader.setContext(logicalPlan.context)
+    materializationReader.setContext(workflowContext)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOp = materializationReader.getPhysicalOp(
-      logicalPlan.context.executionId,
+      workflowContext.executionId,
       OperatorSchemaInfo(Array(), matReaderOutputSchema)
     )
     matReaderOp
@@ -328,7 +336,7 @@ class GreedyExecutionPlanGenerator(
       fromOutputPortIdx: Int
   ): (ProgressiveSinkOpDesc, PhysicalOp) = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
-    matWriterLogicalOp.setContext(logicalPlan.context)
+    matWriterLogicalOp.setContext(workflowContext)
     val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
     val fromOpInputSchema: Array[Schema] =
       if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {
@@ -341,7 +349,7 @@ class GreedyExecutionPlanGenerator(
     val matWriterOutputSchema =
       matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
     val matWriterPhysicalOp = matWriterLogicalOp.getPhysicalOp(
-      logicalPlan.context.executionId,
+      workflowContext.executionId,
       OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
     )
     matWriterLogicalOp.setStorage(
