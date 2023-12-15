@@ -38,7 +38,7 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
     // TODO: use multiple workers
-    PhysicalOp.sourcePhysicalOperator(
+    PhysicalOp.sourcePhysicalOp(
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new TwitterSearchSourceOpExec(this, operatorSchemaInfo))

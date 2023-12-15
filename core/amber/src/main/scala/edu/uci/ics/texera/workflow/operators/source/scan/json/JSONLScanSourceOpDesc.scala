@@ -44,7 +44,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         val numWorkers = AmberConfig.numWorkerPerOperatorByDefault
 
         PhysicalOp
-          .sourcePhysicalOperator(
+          .sourcePhysicalOp(
             executionId,
             operatorIdentifier,
             OpExecInitInfo(p => {

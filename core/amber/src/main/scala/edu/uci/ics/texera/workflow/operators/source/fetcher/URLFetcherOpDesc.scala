@@ -48,7 +48,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     PhysicalOp
-      .sourcePhysicalOperator(
+      .sourcePhysicalOp(
         executionId,
         operatorIdentifier,
         OpExecInitInfo(_ =>

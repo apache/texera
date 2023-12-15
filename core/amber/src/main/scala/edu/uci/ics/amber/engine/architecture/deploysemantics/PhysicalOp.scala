@@ -41,7 +41,7 @@ object PhysicalOp {
     *  2) it only has 1 worker actor.
     *  3) it has no input ports.
     */
-  def sourcePhysicalOperator(
+  def sourcePhysicalOp(
       executionId: Long,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo

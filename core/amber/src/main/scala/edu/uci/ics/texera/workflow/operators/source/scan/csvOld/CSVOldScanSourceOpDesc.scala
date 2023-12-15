@@ -44,7 +44,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
     filePath match {
       case Some(_) =>
-        PhysicalOp.sourcePhysicalOperator(
+        PhysicalOp.sourcePhysicalOp(
           executionId,
           operatorIdentifier,
           OpExecInitInfo(_ => new CSVOldScanSourceOpExec(this))

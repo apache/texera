@@ -28,7 +28,7 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
-    PhysicalOp.sourcePhysicalOperator(
+    PhysicalOp.sourcePhysicalOp(
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))

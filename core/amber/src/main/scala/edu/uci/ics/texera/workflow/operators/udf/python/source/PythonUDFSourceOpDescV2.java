@@ -52,10 +52,10 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
         OpExecInitInfo exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return PhysicalOp.sourcePhysicalOperator(executionId, operatorIdentifier(), exec).withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)
+            return PhysicalOp.sourcePhysicalOp(executionId, operatorIdentifier(), exec).withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)
                     .withIsOneToManyOp(true).withLocationPreference(Option.empty());
         } else {
-            return PhysicalOp.sourcePhysicalOperator(executionId, operatorIdentifier(), exec).withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
+            return PhysicalOp.sourcePhysicalOp(executionId, operatorIdentifier(), exec).withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
         }
 
     }

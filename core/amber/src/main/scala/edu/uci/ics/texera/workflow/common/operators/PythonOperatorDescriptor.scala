@@ -16,7 +16,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
     if (asSource()) {
 
       PhysicalOp
-        .sourcePhysicalOperator(
+        .sourcePhysicalOp(
           executionId,
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
