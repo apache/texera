@@ -129,7 +129,18 @@ abstract class WorkflowActor(logStorageType: String, val actorId: ActorVirtualId
 
   def receiveDeadLetterMessage: Receive = {
     case MessageBecomesDeadLetter(msg) =>
-      actorRefMappingService.removeActorRef(msg.internalMessage.channel.from)
+      val dest = msg.internalMessage.channel.to
+      if (dest == actorId) {
+        actorService.scheduleOnce(
+          100.millis,
+          () => {
+            logger.warn(s"sending message to self failed, retry sending $msg to self directly.")
+            self ! msg
+          }
+        )
+      } else {
+        actorRefMappingService.removeActorRef(dest)
+      }
   }
 
   def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit
