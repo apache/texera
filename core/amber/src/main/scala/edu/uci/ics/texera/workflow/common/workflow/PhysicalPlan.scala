@@ -24,14 +24,14 @@ object PhysicalPlan {
     new PhysicalPlan(operatorList.toSet, links.toSet)
   }
 
-  def apply(workflowContext: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
+  def apply(context: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
     logicalPlan.operators.foreach(op => {
       val subPlan =
         op.getPhysicalPlan(
-          workflowContext.executionId,
+          context.executionId,
           logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
         )
       physicalPlan = physicalPlan.addSubPlan(subPlan)

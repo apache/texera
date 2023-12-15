@@ -18,7 +18,7 @@ import java.time.Instant
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowCompiler(
-    workflowContext: WorkflowContext
+    context: WorkflowContext
 ) extends LazyLogging {
 
   def compileLogicalPlan(
@@ -40,7 +40,7 @@ class WorkflowCompiler(
       logicalPlan
     )
 
-    logicalPlan = logicalPlan.propagateWorkflowSchema(workflowContext, Some(errorList))
+    logicalPlan = logicalPlan.propagateWorkflowSchema(context, Some(errorList))
 
     // report compilation errors
     if (errorList.nonEmpty) {
@@ -76,7 +76,7 @@ class WorkflowCompiler(
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
-      workflowContext,
+      context,
       originalLogicalPlan,
       lastCompletedJob,
       opResultStorage,
@@ -84,16 +84,15 @@ class WorkflowCompiler(
     )
 
     // the PhysicalPlan with topology expanded.
-    val physicalPlan = PhysicalPlan(workflowContext, rewrittenLogicalPlan)
+    val physicalPlan = PhysicalPlan(context, rewrittenLogicalPlan)
 
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
-      workflowContext,
       rewrittenLogicalPlan,
       physicalPlan,
       opResultStorage
-    ).generate()
+    ).generate(context)
 
     // validate the plan
     // TODO: generalize validation to each plan
@@ -107,7 +106,7 @@ class WorkflowCompiler(
     }
 
     Workflow(
-      workflowContext,
+      context,
       originalLogicalPlan,
       rewrittenLogicalPlan,
       updatedPhysicalPlan,
