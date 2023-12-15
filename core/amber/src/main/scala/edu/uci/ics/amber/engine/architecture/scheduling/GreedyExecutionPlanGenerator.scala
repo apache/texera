@@ -188,7 +188,7 @@ class GreedyExecutionPlanGenerator(
     *
     * @return a fully connected region DAG.
     */
-  private def connectRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
+  private def createRegionDAG(): DirectedAcyclicGraph[Region, DefaultEdge] = {
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     @tailrec
@@ -206,6 +206,15 @@ class GreedyExecutionPlanGenerator(
     // the region is partially connected successfully.
     val regionDAG: DirectedAcyclicGraph[Region, DefaultEdge] = recConnectRegionDAG()
 
+    // the update physical plan's all source operators should have 0 input ports
+    physicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
+      assert(physicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
+    }
+    // the update physical plan's all sink operators should have 0 output ports
+    physicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
+      assert(physicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
+    }
+
     // try to add dependencies between materialization writer and reader regions
     try {
       matReaderWriterPairs.foreach {
@@ -214,7 +223,6 @@ class GreedyExecutionPlanGenerator(
             regionDAG.addEdge(link.fromRegion, link.toRegion)
           )
       }
-      regionDAG
     } catch {
       case _: java.lang.IllegalArgumentException =>
         // a cycle is detected. it should not reach here.
@@ -223,6 +231,31 @@ class GreedyExecutionPlanGenerator(
         )
     }
 
+    // mark source operators in each region
+    populateSourceOperators(regionDAG)
+
+    // mark links that go to downstream regions
+    populateDownstreamLinks(regionDAG)
+
+  }
+
+  private def populateSourceOperators(
+      regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
+  ): DirectedAcyclicGraph[Region, DefaultEdge] = {
+    regionDAG
+      .vertexSet()
+      .toList
+      .foreach(region => {
+        val sourceOpIds = region.physicalOpIds
+          .filter(physicalOpId =>
+            physicalPlan
+              .getUpstreamPhysicalOpIds(physicalOpId)
+              .forall(upstreamOpId => !region.physicalOpIds.contains(upstreamOpId))
+          )
+        val newRegion = region.copy(sourcePhysicalOpIds = sourceOpIds)
+        replaceVertex(regionDAG, region, newRegion)
+      })
+    regionDAG
   }
 
   private def getRegions(
@@ -232,7 +265,7 @@ class GreedyExecutionPlanGenerator(
     regionDAG.vertexSet().filter(region => region.physicalOpIds.contains(physicalOpId)).toSet
   }
 
-  private def populateTerminalOperatorsForBlockingLinks(
+  private def populateDownstreamLinks(
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): DirectedAcyclicGraph[Region, DefaultEdge] = {
 
@@ -256,26 +289,12 @@ class GreedyExecutionPlanGenerator(
           val newRegion = region.copy(downstreamLinkIds = links)
           replaceVertex(regionDAG, region, newRegion)
       }
-
-    regionDAG
-      .vertexSet()
-      .toList
-      .foreach(region => {
-        val sourceOpIds = region.physicalOpIds
-          .filter(physicalOpId =>
-            physicalPlan
-              .getUpstreamPhysicalOpIds(physicalOpId)
-              .forall(upstreamOpId => !region.physicalOpIds.contains(upstreamOpId))
-          )
-        val newRegion = region.copy(sourcePhysicalOpIds = sourceOpIds)
-        replaceVertex(regionDAG, region, newRegion)
-      })
-
     regionDAG
   }
 
   def generate(): (ExecutionPlan, PhysicalPlan) = {
-    val regionDAG = populateTerminalOperatorsForBlockingLinks(connectRegionDAG())
+    val regionDAG = createRegionDAG()
+
     val regions = regionDAG.iterator().asScala.toList
     val ancestors = regions.map { region =>
       region -> regionDAG.getAncestors(region).asScala.toSet

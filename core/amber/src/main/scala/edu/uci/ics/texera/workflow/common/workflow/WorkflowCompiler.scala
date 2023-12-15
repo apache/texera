@@ -85,23 +85,13 @@ class WorkflowCompiler(
 
     // generate an ExecutionPlan with regions.
     //  currently, GreedyExecutionPlanGenerator is the only ExecutionPlan generator.
-    val executionPlanGenerator = new GreedyExecutionPlanGenerator(
+    val (executionPlan, updatedPhysicalPlan) = new GreedyExecutionPlanGenerator(
       workflowId,
       workflowContext,
       rewrittenLogicalPlan,
       physicalPlan,
       opResultStorage
-    )
-    val (executionPlan, updatedPhysicalPlan) = executionPlanGenerator.generate()
-
-    // assert all source layers to have 0 input ports
-    updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
-    }
-    // assert all sink layers to have 0 output ports
-    updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
-    }
+    ).generate()
 
     new Workflow(
       workflowId,
