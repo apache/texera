@@ -5,6 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -25,7 +26,7 @@ class LimitOpDesc extends LogicalOp {
   var limit: Int = _
 
   override def getPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     val limitPerWorker = equallyPartitionGoal(limit, AmberConfig.numWorkerPerOperatorByDefault)
@@ -49,7 +50,7 @@ class LimitOpDesc extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 
   override def runtimeReconfiguration(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       newLogicalOp: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {

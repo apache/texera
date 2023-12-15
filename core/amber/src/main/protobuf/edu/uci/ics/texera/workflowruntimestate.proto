@@ -4,6 +4,7 @@ package edu.uci.ics.texera.web;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
@@ -95,6 +96,6 @@ message WorkflowFatalError {
 message JobMetadataStore{
   WorkflowAggregatedState state = 1;
   repeated WorkflowFatalError fatal_errors = 2;
-  int64 eid = 3;
+  edu.uci.ics.amber.engine.common.ExecutionIdentity executionId = 3 [(scalapb.field).no_box = true];
   bool is_recovering = 4;
 }

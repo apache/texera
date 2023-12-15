@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ExecutionIdentity,
   OperatorIdentity,
   PhysicalLinkIdentity,
   PhysicalOpIdentity
@@ -23,7 +24,7 @@ object PhysicalPlan {
     new PhysicalPlan(operatorList.toSet, links.toSet)
   }
 
-  def apply(executionId: Long, logicalPlan: LogicalPlan): PhysicalPlan = {
+  def apply(executionId: ExecutionIdentity, logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 

@@ -6,7 +6,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
@@ -17,13 +16,13 @@ import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   READY,
   RUNNING
 }
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
@@ -93,7 +92,7 @@ class WorkflowExecutionService(
     try {
       workflowCompiler = new WorkflowCompiler(request.logicalPlan, workflowContext)
       workflow = workflowCompiler.compile(
-        ExecutionIdentity(workflowContext.executionId),
+        workflowContext.executionId,
         resultService.opResultStorage,
         lastCompletedLogicalPlan,
         executionStateStore
@@ -158,7 +157,7 @@ class WorkflowExecutionService(
     }
     resultService.attachToJob(executionStateStore, workflow.logicalPlan, client)
     executionStateStore.metadataStore.updateState(jobInfo =>
-      updateWorkflowState(READY, jobInfo.withEid(workflowContext.executionId))
+      updateWorkflowState(READY, jobInfo.withExecutionId(workflowContext.executionId))
         .withFatalErrors(Seq.empty)
     )
     executionStateStore.statsStore.updateState(stats =>

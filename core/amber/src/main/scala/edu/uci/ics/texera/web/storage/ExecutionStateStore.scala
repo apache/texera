@@ -18,7 +18,7 @@ object ExecutionStateStore {
       state: WorkflowAggregatedState,
       metadataStore: JobMetadataStore
   ): JobMetadataStore = {
-    ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.eid, state)
+    ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.executionId, state)
     metadataStore.withState(state)
   }
 }

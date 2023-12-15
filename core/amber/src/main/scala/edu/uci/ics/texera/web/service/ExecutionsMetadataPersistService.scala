@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
@@ -37,7 +38,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       uid: Option[UInteger],
       executionName: String,
       environmentVersion: String
-  ): Long = {
+  ): ExecutionIdentity = {
     if (!userSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(wid)
@@ -50,14 +51,17 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     newExecution.setEnvironmentVersion(environmentVersion)
     workflowExecutionsDao.insert(newExecution)
-    newExecution.getEid.longValue()
+    ExecutionIdentity(newExecution.getEid.longValue())
   }
 
-  def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {
+  def tryUpdateExistingExecution(
+      executionId: ExecutionIdentity,
+      state: WorkflowAggregatedState
+  ): Unit = {
     if (!userSystemEnabled) return
     try {
       val code = maptoStatusCode(state)
-      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(executionId.id))
       execution.setStatus(code)
       execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
       workflowExecutionsDao.update(execution)
@@ -81,10 +85,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     }
   }
 
-  def updateExistingExecutionVolumePointers(eid: Long, pointers: String): Unit = {
+  def updateExistingExecutionVolumePointers(
+      executionId: ExecutionIdentity,
+      pointers: String
+  ): Unit = {
     if (!userSystemEnabled) return
     try {
-      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(executionId.id))
       execution.setResult(pointers)
       workflowExecutionsDao.update(execution)
     } catch {

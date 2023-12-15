@@ -21,9 +21,8 @@ object TestUtils {
       LogicalPlanPojo(operators, links, List(), List(), List()),
       context
     )
-    val executionId = ExecutionIdentity(context.executionId)
     workflowCompiler.compile(
-      executionId,
+      context.executionId,
       resultStorage,
       None,
       new ExecutionStateStore()

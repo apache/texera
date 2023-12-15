@@ -9,7 +9,7 @@ package edu.uci.ics.texera.web.workflowruntimestate
 final case class JobMetadataStore(
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
     fatalErrors: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError] = _root_.scala.Seq.empty,
-    eid: _root_.scala.Long = 0L,
+    executionId: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance,
     isRecovering: _root_.scala.Boolean = false
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[JobMetadataStore] {
     @transient
@@ -29,9 +29,9 @@ final case class JobMetadataStore(
       }
       
       {
-        val __value = eid
-        if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(3, __value)
+        val __value = executionId
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
@@ -65,9 +65,11 @@ final case class JobMetadataStore(
         __m.writeTo(_output__)
       };
       {
-        val __v = eid
-        if (__v != 0L) {
-          _output__.writeInt64(3, __v)
+        val __v = executionId
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance) {
+          _output__.writeTag(3, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
         }
       };
       {
@@ -82,7 +84,7 @@ final case class JobMetadataStore(
     def addFatalErrors(__vs: edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError*): JobMetadataStore = addAllFatalErrors(__vs)
     def addAllFatalErrors(__vs: Iterable[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]): JobMetadataStore = copy(fatalErrors = fatalErrors ++ __vs)
     def withFatalErrors(__v: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]): JobMetadataStore = copy(fatalErrors = __v)
-    def withEid(__v: _root_.scala.Long): JobMetadataStore = copy(eid = __v)
+    def withExecutionId(__v: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity): JobMetadataStore = copy(executionId = __v)
     def withIsRecovering(__v: _root_.scala.Boolean): JobMetadataStore = copy(isRecovering = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
@@ -92,8 +94,8 @@ final case class JobMetadataStore(
         }
         case 2 => fatalErrors
         case 3 => {
-          val __t = eid
-          if (__t != 0L) __t else null
+          val __t = executionId
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance) __t else null
         }
         case 4 => {
           val __t = isRecovering
@@ -106,7 +108,7 @@ final case class JobMetadataStore(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PEnum(state.scalaValueDescriptor)
         case 2 => _root_.scalapb.descriptors.PRepeated(fatalErrors.iterator.map(_.toPMessage).toVector)
-        case 3 => _root_.scalapb.descriptors.PLong(eid)
+        case 3 => executionId.toPMessage
         case 4 => _root_.scalapb.descriptors.PBoolean(isRecovering)
       }
     }
@@ -120,7 +122,7 @@ object JobMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.te
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore = {
     var __state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED
     val __fatalErrors: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]
-    var __eid: _root_.scala.Long = 0L
+    var __executionId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = _root_.scala.None
     var __isRecovering: _root_.scala.Boolean = false
     var _done__ = false
     while (!_done__) {
@@ -131,8 +133,8 @@ object JobMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.te
           __state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(_input__.readEnum())
         case 18 =>
           __fatalErrors += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError](_input__)
-        case 24 =>
-          __eid = _input__.readInt64()
+        case 26 =>
+          __executionId = _root_.scala.Some(__executionId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 32 =>
           __isRecovering = _input__.readBool()
         case tag => _input__.skipField(tag)
@@ -141,7 +143,7 @@ object JobMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.te
     edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
         state = __state,
         fatalErrors = __fatalErrors.result(),
-        eid = __eid,
+        executionId = __executionId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance),
         isRecovering = __isRecovering
     )
   }
@@ -151,7 +153,7 @@ object JobMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.te
       edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
         state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
         fatalErrors = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]]).getOrElse(_root_.scala.Seq.empty),
-        eid = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        executionId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance),
         isRecovering = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -162,6 +164,7 @@ object JobMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.te
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
       case 2 => __out = edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+      case 3 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
     }
     __out
   }
@@ -174,28 +177,28 @@ object JobMetadataStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.te
   lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
     state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
     fatalErrors = _root_.scala.Seq.empty,
-    eid = 0L,
+    executionId = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity.defaultInstance,
     isRecovering = false
   )
   implicit class JobMetadataStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore](_l) {
     def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
     def fatalErrors: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError]] = field(_.fatalErrors)((c_, f_) => c_.copy(fatalErrors = f_))
-    def eid: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.eid)((c_, f_) => c_.copy(eid = f_))
+    def executionId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = field(_.executionId)((c_, f_) => c_.copy(executionId = f_))
     def isRecovering: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isRecovering)((c_, f_) => c_.copy(isRecovering = f_))
   }
   final val STATE_FIELD_NUMBER = 1
   final val FATAL_ERRORS_FIELD_NUMBER = 2
-  final val EID_FIELD_NUMBER = 3
+  final val EXECUTIONID_FIELD_NUMBER = 3
   final val IS_RECOVERING_FIELD_NUMBER = 4
   def of(
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState,
     fatalErrors: _root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError],
-    eid: _root_.scala.Long,
+    executionId: edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity,
     isRecovering: _root_.scala.Boolean
   ): _root_.edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore = _root_.edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore(
     state,
     fatalErrors,
-    eid,
+    executionId,
     isRecovering
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.JobMetadataStore])

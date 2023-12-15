@@ -19,7 +19,7 @@ class ExecutionState(workflow: Workflow) {
   private val operatorExecutions: Map[PhysicalOpIdentity, OperatorExecution] =
     workflow.physicalPlan.operators.map { physicalOp =>
       physicalOp.id -> new OperatorExecution(
-        executionId = workflow.executionId.id,
+        executionId = workflow.executionId,
         physicalOp.id,
         physicalOp.numWorkers
       )

@@ -7,6 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -32,7 +33,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
 
     @Override
-    public PhysicalOp getPhysicalOp(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
         return PhysicalOp.oneToOnePhysicalOp(executionId, operatorIdentifier(),
                 OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])));

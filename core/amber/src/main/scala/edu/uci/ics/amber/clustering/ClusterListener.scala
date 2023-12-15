@@ -89,7 +89,7 @@ class ClusterListener extends Actor with AmberLogging {
           ) {
             if (AmberConfig.isFaultToleranceEnabled) {
               logger.info(
-                s"Trigger recovery process for execution id = ${jobService.executionStateStore.metadataStore.getState.eid}"
+                s"Trigger recovery process for execution id = ${jobService.executionStateStore.metadataStore.getState.executionId.id}"
               )
               try {
                 futures.append(jobService.client.notifyNodeFailure(member.address))
@@ -102,7 +102,7 @@ class ClusterListener extends Actor with AmberLogging {
               }
             } else {
               logger.info(
-                s"Kill execution id = ${jobService.executionStateStore.metadataStore.getState.eid}"
+                s"Kill execution id = ${jobService.executionStateStore.metadataStore.getState.executionId.id}"
               )
               forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
             }

@@ -81,7 +81,7 @@ class WorkflowCompiler(
     )
 
     // the PhysicalPlan with topology expanded.
-    val physicalPlan = PhysicalPlan(executionId.id, rewrittenLogicalPlan)
+    val physicalPlan = PhysicalPlan(executionId, rewrittenLogicalPlan)
 
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
