@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.scheduling.GreedyExecutionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyExecutionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -21,7 +21,7 @@ import scala.collection.convert.ImplicitConversions.{
 }
 import scala.collection.mutable
 
-object GreedyExecutionPlanGenerator {
+object ExpansionGreedyExecutionPlanGenerator {
 
   def replaceVertex(
       graph: DirectedAcyclicGraph[Region, RegionLink],
@@ -53,7 +53,7 @@ object GreedyExecutionPlanGenerator {
 
 }
 
-class GreedyExecutionPlanGenerator(
+class ExpansionGreedyExecutionPlanGenerator(
     workflowId: WorkflowIdentity,
     workflowContext: WorkflowContext,
     logicalPlan: LogicalPlan,
