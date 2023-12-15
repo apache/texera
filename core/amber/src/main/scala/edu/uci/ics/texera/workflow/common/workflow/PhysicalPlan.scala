@@ -372,26 +372,25 @@ case class PhysicalPlan(
 
   /**
     * create a DAG similar to the physical DAG but with all blocking links removed.
-    *
-    * @return
     */
-  def removeBlockingEdges(): PhysicalPlan = {
-    val edgesToRemove = operators
-      .map(_.id)
-      .flatMap { physicalOpId =>
+  def removeBlockingLinks(): PhysicalPlan = {
+    val linksToRemove = operators
+      .flatMap { physicalOp =>
         {
 
-          getUpstreamPhysicalOpIds(physicalOpId)
+          getUpstreamPhysicalOpIds(physicalOp.id)
             .flatMap { upstreamPhysicalOpId =>
               links
-                .filter(l => l.fromOp.id == upstreamPhysicalOpId && l.toOp.id == physicalOpId)
-                .filter(link => getOperator(physicalOpId).isInputLinkBlocking(link))
+                .filter(link =>
+                  link.fromOp.id == upstreamPhysicalOpId && link.toOp.id == physicalOp.id
+                )
+                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
                 .map(_.id)
             }
         }
       }
 
-    this.copy(operators, links.filterNot(e => edgesToRemove.contains(e.id)))
+    this.copy(operators, links.filterNot(e => linksToRemove.contains(e.id)))
   }
 
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {

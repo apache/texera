@@ -92,7 +92,7 @@ class ExpansionGreedyRegionPlanGenerator(
     * Create Regions based on the PhysicalPlan. The Region are to be added to regionDAG separately.
     */
   private def createRegions(physicalPlan: PhysicalPlan): List[Region] = {
-    val nonBlockingDAG = physicalPlan.removeBlockingEdges()
+    val nonBlockingDAG = physicalPlan.removeBlockingLinks()
     nonBlockingDAG.getSourceOperatorIds.zipWithIndex
       .map {
         case (sourcePhysicalOpId, index) =>
