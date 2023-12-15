@@ -45,8 +45,8 @@ class WorkflowExecutionService(
       executionStateStore.statsStore.updateState(stats =>
         stats.withEndTimeStamp(System.currentTimeMillis())
       )
-      executionStateStore.metadataStore.updateState { jobInfo =>
-        updateWorkflowState(FAILED, jobInfo).addFatalErrors(
+      executionStateStore.metadataStore.updateState { metadataStore =>
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(
           WorkflowFatalError(
             EXECUTION_FAILURE,
             Timestamp(Instant.now),
@@ -122,11 +122,11 @@ class WorkflowExecutionService(
   // Runtime starts from here:
   logger.info("Initialing an AmberClient, runtime starting...")
   var client: AmberClient = _
-  var jobBreakpointService: JobBreakpointService = _
-  var jobReconfigurationService: JobReconfigurationService = _
-  var jobStatsService: JobStatsService = _
-  var jobRuntimeService: JobRuntimeService = _
-  var jobConsoleService: JobConsoleService = _
+  var executionBreakpointService: ExecutionBreakpointService = _
+  var executionReconfigurationService: ExecutionReconfigurationService = _
+  var executionStatsService: ExecutionStatsService = _
+  var executionRuntimeService: ExecutionRuntimeService = _
+  var executionConsoleService: ExecutionConsoleService = _
 
   def startWorkflow(): Unit = {
     client = TexeraWebApplication.createAmberRuntime(
@@ -135,29 +135,30 @@ class WorkflowExecutionService(
       errorHandler
     )
 
-    jobBreakpointService = new JobBreakpointService(client, executionStateStore)
-    jobReconfigurationService = new JobReconfigurationService(client, executionStateStore, workflow)
-    jobStatsService = new JobStatsService(client, executionStateStore, workflowContext)
-    jobRuntimeService = new JobRuntimeService(
+    executionBreakpointService = new ExecutionBreakpointService(client, executionStateStore)
+    executionReconfigurationService =
+      new ExecutionReconfigurationService(client, executionStateStore, workflow)
+    executionStatsService = new ExecutionStatsService(client, executionStateStore, workflowContext)
+    executionRuntimeService = new ExecutionRuntimeService(
       client,
       executionStateStore,
       wsInput,
-      jobBreakpointService,
-      jobReconfigurationService
+      executionBreakpointService,
+      executionReconfigurationService
     )
-    jobConsoleService =
-      new JobConsoleService(client, executionStateStore, wsInput, jobBreakpointService)
+    executionConsoleService =
+      new ExecutionConsoleService(client, executionStateStore, wsInput, executionBreakpointService)
 
     logger.info("Starting the workflow execution.")
     for (pair <- request.logicalPlan.breakpoints) {
       Await.result(
-        jobBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
+        executionBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
         Duration.fromSeconds(10)
       )
     }
-    resultService.attachToJob(executionStateStore, workflow.logicalPlan, client)
-    executionStateStore.metadataStore.updateState(jobInfo =>
-      updateWorkflowState(READY, jobInfo.withExecutionId(workflowContext.executionId))
+    resultService.attachToExecution(executionStateStore, workflow.logicalPlan, client)
+    executionStateStore.metadataStore.updateState(metadataStore =>
+      updateWorkflowState(READY, metadataStore.withExecutionId(workflowContext.executionId))
         .withFatalErrors(Seq.empty)
     )
     executionStateStore.statsStore.updateState(stats =>
@@ -166,11 +167,11 @@ class WorkflowExecutionService(
     client.sendAsyncWithCallback[Unit](
       StartWorkflow(),
       _ =>
-        executionStateStore.metadataStore.updateState(jobInfo =>
-          if (jobInfo.state != FAILED) {
-            updateWorkflowState(RUNNING, jobInfo)
+        executionStateStore.metadataStore.updateState(metadataStore =>
+          if (metadataStore.state != FAILED) {
+            updateWorkflowState(RUNNING, metadataStore)
           } else {
-            jobInfo
+            metadataStore
           }
         )
     )
@@ -180,11 +181,11 @@ class WorkflowExecutionService(
     super.unsubscribeAll()
     if (client != null) {
       // runtime created
-      jobBreakpointService.unsubscribeAll()
-      jobRuntimeService.unsubscribeAll()
-      jobConsoleService.unsubscribeAll()
-      jobStatsService.unsubscribeAll()
-      jobReconfigurationService.unsubscribeAll()
+      executionBreakpointService.unsubscribeAll()
+      executionRuntimeService.unsubscribeAll()
+      executionConsoleService.unsubscribeAll()
+      executionStatsService.unsubscribeAll()
+      executionReconfigurationService.unsubscribeAll()
     }
   }
 

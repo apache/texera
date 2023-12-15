@@ -15,7 +15,7 @@ object WorkerExecutionCompletedHandler {
   final case class WorkerExecutionCompleted() extends ControlCommand[Unit]
 }
 
-/** indicate a worker has completed its job
+/** indicate a worker has completed its execution
   * i.e. received and processed all data from upstreams
   * note that this doesn't mean all the output of this worker
   * has been received by the downstream workers.

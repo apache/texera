@@ -1,12 +1,11 @@
 package edu.uci.ics.texera.web.storage
 
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
-
 import edu.uci.ics.texera.web.workflowruntimestate.{
-  JobBreakpointStore,
-  JobMetadataStore,
-  JobConsoleStore,
-  JobStatsStore,
+  ExecutionBreakpointStore,
+  ExecutionConsoleStore,
+  ExecutionMetadataStore,
+  ExecutionStatsStore,
   WorkflowAggregatedState
 }
 
@@ -16,8 +15,8 @@ object ExecutionStateStore {
   // Update the execution only from backend
   def updateWorkflowState(
       state: WorkflowAggregatedState,
-      metadataStore: JobMetadataStore
-  ): JobMetadataStore = {
+      metadataStore: ExecutionMetadataStore
+  ): ExecutionMetadataStore = {
     ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.executionId, state)
     metadataStore.withState(state)
   }
@@ -25,11 +24,11 @@ object ExecutionStateStore {
 
 // states that within one execution.
 class ExecutionStateStore {
-  val statsStore = new StateStore(JobStatsStore())
-  val metadataStore = new StateStore(JobMetadataStore())
-  val consoleStore = new StateStore(JobConsoleStore())
-  val breakpointStore = new StateStore(JobBreakpointStore())
-  val reconfigurationStore = new StateStore(JobReconfigurationStore())
+  val statsStore = new StateStore(ExecutionStatsStore())
+  val metadataStore = new StateStore(ExecutionMetadataStore())
+  val consoleStore = new StateStore(ExecutionConsoleStore())
+  val breakpointStore = new StateStore(ExecutionBreakpointStore())
+  val reconfigurationStore = new StateStore(ExecutionReconfigurationStore())
 
   def getAllStores: Iterable[StateStore[_]] = {
     Iterable(statsStore, consoleStore, breakpointStore, metadataStore, reconfigurationStore)

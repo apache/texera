@@ -39,7 +39,7 @@ import org.jooq.types.UInteger
 
 import java.util
 
-class JobStatsService(
+class ExecutionStatsService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
     workflowContext: WorkflowContext
@@ -134,8 +134,8 @@ class JobStatsService(
     addSubscription(
       client
         .registerCallback[WorkflowStatusUpdate]((evt: WorkflowStatusUpdate) => {
-          stateStore.statsStore.updateState { jobInfo =>
-            jobInfo.withOperatorInfo(evt.operatorStatistics)
+          stateStore.statsStore.updateState { statsStore =>
+            statsStore.withOperatorInfo(evt.operatorStatistics)
           }
         })
     )
@@ -168,8 +168,8 @@ class JobStatsService(
     addSubscription(
       client
         .registerCallback[WorkerAssignmentUpdate]((evt: WorkerAssignmentUpdate) => {
-          stateStore.statsStore.updateState { jobInfo =>
-            jobInfo.withOperatorWorkerMapping(
+          stateStore.statsStore.updateState { statsStore =>
+            statsStore.withOperatorWorkerMapping(
               evt.workerMapping
                 .map({
                   case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds)
@@ -185,8 +185,8 @@ class JobStatsService(
     addSubscription(
       client
         .registerCallback[WorkflowRecoveryStatus]((evt: WorkflowRecoveryStatus) => {
-          stateStore.metadataStore.updateState { jobMetadata =>
-            jobMetadata.withIsRecovering(evt.isRecovering)
+          stateStore.metadataStore.updateState { metadataStore =>
+            metadataStore.withIsRecovering(evt.isRecovering)
           }
         })
     )
@@ -200,7 +200,9 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.metadataStore.updateState(jobInfo => updateWorkflowState(COMPLETED, jobInfo))
+          stateStore.metadataStore.updateState(metadataStore =>
+            updateWorkflowState(COMPLETED, metadataStore)
+          )
         })
     )
   }
@@ -219,9 +221,9 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.metadataStore.updateState { jobInfo =>
+          stateStore.metadataStore.updateState { metadataStore =>
             logger.error("error occurred in execution", evt.e)
-            updateWorkflowState(FAILED, jobInfo).addFatalErrors(
+            updateWorkflowState(FAILED, metadataStore).addFatalErrors(
               WorkflowFatalError(
                 EXECUTION_FAILURE,
                 Timestamp(Instant.now),

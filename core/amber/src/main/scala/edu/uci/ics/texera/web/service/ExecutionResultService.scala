@@ -24,7 +24,7 @@ import edu.uci.ics.texera.web.storage.{
   WorkflowResultStore,
   WorkflowStateStore
 }
-import edu.uci.ics.texera.web.workflowruntimestate.JobMetadataStore
+import edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
@@ -169,7 +169,7 @@ class ExecutionResultService(
   private val resultPullingFrequency = AmberConfig.executionResultPollingInSecs
   private var resultUpdateCancellable: Cancellable = _
 
-  def attachToJob(
+  def attachToExecution(
       stateStore: ExecutionStateStore,
       logicalPlan: LogicalPlan,
       client: AmberClient
@@ -182,7 +182,7 @@ class ExecutionResultService(
     unsubscribeAll()
 
     addSubscription(stateStore.metadataStore.getStateObservable.subscribe {
-      newState: JobMetadataStore =>
+      newState: ExecutionMetadataStore =>
         {
           if (newState.state == RUNNING) {
             if (resultUpdateCancellable == null || resultUpdateCancellable.isCancelled) {

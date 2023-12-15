@@ -77,16 +77,17 @@ class WorkflowService(
 
   var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
 
-  executionService.subscribe { job: WorkflowExecutionService =>
+  executionService.subscribe { executionService: WorkflowExecutionService =>
     {
-      job.executionStateStore.metadataStore.registerDiffHandler { (oldState, newState) =>
-        {
-          if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-            lastCompletedLogicalPlan = Option.apply(job.workflow.originalLogicalPlan)
-          }
+      executionService.executionStateStore.metadataStore.registerDiffHandler {
+        (oldState, newState) =>
+          {
+            if (oldState.state != COMPLETED && newState.state == COMPLETED) {
+              lastCompletedLogicalPlan = Option.apply(executionService.workflow.originalLogicalPlan)
+            }
 
-          Iterable.empty
-        }
+            Iterable.empty
+          }
       }
     }
   }
@@ -103,14 +104,14 @@ class WorkflowService(
     new CompositeDisposable(subscriptions :+ errorSubscription: _*)
   }
 
-  def connectToJob(onNext: TexeraWebSocketEvent => Unit): Disposable = {
+  def connectToExecution(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     var localDisposable = Disposable.empty()
-    executionService.subscribe { job: WorkflowExecutionService =>
+    executionService.subscribe { executionService: WorkflowExecutionService =>
       localDisposable.dispose()
-      val subscriptions = job.executionStateStore.getAllStores
+      val subscriptions = executionService.executionStateStore.getAllStores
         .map(_.getWebsocketEventObservable)
         .map(evtPub =>
-          evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
+          evtPub.subscribe { events: Iterable[TexeraWebSocketEvent] => events.foreach(onNext) }
         )
         .toSeq
       localDisposable = new CompositeDisposable(subscriptions: _*)
@@ -129,7 +130,7 @@ class WorkflowService(
     new WorkflowContext(uidOpt, workflowId)
   }
 
-  def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
+  def initExecutionService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
     if (executionService.getValue != null) {
       //unsubscribe all
       executionService.getValue.unsubscribeAll()
@@ -143,17 +144,17 @@ class WorkflowService(
       convertToJson(req.engineVersion)
     )
 
-    val job = new WorkflowExecutionService(
+    val execution = new WorkflowExecutionService(
       workflowContext,
       resultService,
       req,
       lastCompletedLogicalPlan
     )
 
-    lifeCycleManager.registerCleanUpOnStateChange(job.executionStateStore)
-    executionService.onNext(job)
-    if (job.executionStateStore.metadataStore.getState.fatalErrors.isEmpty) {
-      job.startWorkflow()
+    lifeCycleManager.registerCleanUpOnStateChange(execution.executionStateStore)
+    executionService.onNext(execution)
+    if (execution.executionStateStore.metadataStore.getState.fatalErrors.isEmpty) {
+      execution.startWorkflow()
     }
   }
 

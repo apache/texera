@@ -13,12 +13,12 @@ import edu.uci.ics.texera.web.model.websocket.response.{
   ModifyLogicCompletedEvent,
   ModifyLogicResponse
 }
-import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, ExecutionStateStore}
+import edu.uci.ics.texera.web.storage.{ExecutionReconfigurationStore, ExecutionStateStore}
 
 import java.util.UUID
 import scala.util.{Failure, Success}
 
-class JobReconfigurationService(
+class ExecutionReconfigurationService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
     workflow: Workflow
@@ -27,7 +27,7 @@ class JobReconfigurationService(
   // monitors notification from the engine that a reconfiguration on a worker is completed
   client.registerCallback[WorkerModifyLogicComplete]((evt: WorkerModifyLogicComplete) => {
     stateStore.reconfigurationStore.updateState(old => {
-      old.copy(completedReconfigs = old.completedReconfigs + evt.workerID)
+      old.copy(completedReconfigurations = old.completedReconfigurations + evt.workerID)
     })
   })
 
@@ -36,10 +36,10 @@ class JobReconfigurationService(
   addSubscription(
     stateStore.reconfigurationStore.registerDiffHandler((oldState, newState) => {
       if (
-        oldState.completedReconfigs != newState.completedReconfigs
+        oldState.completedReconfigurations != newState.completedReconfigurations
         && oldState.currentReconfigId == newState.currentReconfigId
       ) {
-        val diff = newState.completedReconfigs -- oldState.completedReconfigs
+        val diff = newState.completedReconfigurations -- oldState.completedReconfigurations
         val newlyCompletedOps = diff
           .map(workerId => workflow.physicalPlan.getPhysicalOpByWorkerId(workerId).id)
           .map(opId => opId.logicalOpId.id)
@@ -73,7 +73,7 @@ class JobReconfigurationService(
       case Failure(exception) => ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
       case Success(op) => {
         stateStore.reconfigurationStore.updateState(old =>
-          old.copy(unscheduledReconfigs = old.unscheduledReconfigs :+ op)
+          old.copy(unscheduledReconfigurations = old.unscheduledReconfigurations :+ op)
         )
         ModifyLogicResponse(opId.id, isValid = true, "")
       }
@@ -87,7 +87,7 @@ class JobReconfigurationService(
   // in the non-transaction mode, they are not synchronized, this is faster, but can lead to consistency issues
   // for details, see the Fries reconfiguration paper
   def performReconfigurationOnResume(): Unit = {
-    val reconfigurations = stateStore.reconfigurationStore.getState.unscheduledReconfigs
+    val reconfigurations = stateStore.reconfigurationStore.getState.unscheduledReconfigurations
     if (reconfigurations.isEmpty) {
       return
     }
@@ -112,7 +112,7 @@ class JobReconfigurationService(
 
     // clear all un-scheduled reconfigurations, start a new reconfiguration ID
     stateStore.reconfigurationStore.updateState(old =>
-      JobReconfigurationStore(Some(reconfigurationId))
+      ExecutionReconfigurationStore(Some(reconfigurationId))
     )
   }
 

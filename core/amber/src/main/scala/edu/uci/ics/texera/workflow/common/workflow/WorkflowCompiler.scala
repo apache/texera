@@ -23,12 +23,12 @@ class WorkflowCompiler(
 
   def compileLogicalPlan(
       logicalPlanPojo: LogicalPlanPojo,
-      jobStateStore: ExecutionStateStore
+      executionStateStore: ExecutionStateStore
   ): LogicalPlan = {
 
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
-    jobStateStore.metadataStore.updateState { metadataStore =>
+    executionStateStore.metadataStore.updateState { metadataStore =>
       metadataStore.withFatalErrors(
         metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
       )
@@ -44,7 +44,7 @@ class WorkflowCompiler(
 
     // report compilation errors
     if (errorList.nonEmpty) {
-      val jobErrors = errorList.map {
+      val executionErrors = errorList.map {
         case (opId, err) =>
           logger.error("error occurred in logical plan compilation", err)
           WorkflowFatalError(
@@ -55,8 +55,8 @@ class WorkflowCompiler(
             opId.id
           )
       }
-      jobStateStore.metadataStore.updateState(metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
+      executionStateStore.metadataStore.updateState(metadataStore =>
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors: _*)
       )
     }
     logicalPlan
@@ -65,20 +65,20 @@ class WorkflowCompiler(
   def compile(
       logicalPlanPojo: LogicalPlanPojo,
       opResultStorage: OpResultStorage,
-      lastCompletedJob: Option[LogicalPlan] = Option.empty,
-      jobStateStore: ExecutionStateStore
+      lastCompletedExecutionLogicalPlan: Option[LogicalPlan] = Option.empty,
+      executionStateStore: ExecutionStateStore
   ): Workflow = {
 
     // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
     //  this plan will be compared in subsequent runs to check which operator can be replaced
     //  by cache.
-    val originalLogicalPlan = compileLogicalPlan(logicalPlanPojo, jobStateStore)
+    val originalLogicalPlan = compileLogicalPlan(logicalPlanPojo, executionStateStore)
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
       context,
       originalLogicalPlan,
-      lastCompletedJob,
+      lastCompletedExecutionLogicalPlan,
       opResultStorage,
       logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
     )

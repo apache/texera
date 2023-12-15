@@ -58,14 +58,14 @@ class ClusterListener extends Actor with AmberLogging {
       .map(_.address)
   }
 
-  private def forcefullyStop(jobService: WorkflowExecutionService, cause: Throwable): Unit = {
-    jobService.client.shutdown()
-    jobService.executionStateStore.statsStore.updateState(stats =>
+  private def forcefullyStop(executionService: WorkflowExecutionService, cause: Throwable): Unit = {
+    executionService.client.shutdown()
+    executionService.executionStateStore.statsStore.updateState(stats =>
       stats.withEndTimeStamp(System.currentTimeMillis())
     )
-    jobService.executionStateStore.metadataStore.updateState { jobInfo =>
+    executionService.executionStateStore.metadataStore.updateState { metadataStore =>
       logger.error("forcefully stopping execution", cause)
-      updateWorkflowState(FAILED, jobInfo).addFatalErrors(
+      updateWorkflowState(FAILED, metadataStore).addFatalErrors(
         WorkflowFatalError(
           EXECUTION_FAILURE,
           Timestamp(Instant.now),
@@ -83,28 +83,31 @@ class ClusterListener extends Actor with AmberLogging {
         logger.info("Cluster node " + member + " is down!")
         val futures = new ArrayBuffer[Future[Any]]
         WorkflowService.getAllWorkflowServices.foreach { workflow =>
-          val jobService = workflow.executionService.getValue
+          val executionService = workflow.executionService.getValue
           if (
-            jobService != null && jobService.executionStateStore.metadataStore.getState.state != COMPLETED
+            executionService != null && executionService.executionStateStore.metadataStore.getState.state != COMPLETED
           ) {
             if (AmberConfig.isFaultToleranceEnabled) {
               logger.info(
-                s"Trigger recovery process for execution id = ${jobService.executionStateStore.metadataStore.getState.executionId.id}"
+                s"Trigger recovery process for execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
               )
               try {
-                futures.append(jobService.client.notifyNodeFailure(member.address))
+                futures.append(executionService.client.notifyNodeFailure(member.address))
               } catch {
                 case t: Throwable =>
                   logger.warn(
-                    s"execution ${jobService.workflow.context.executionId.id} cannot recover! forcing it to stop"
+                    s"execution ${executionService.workflow.context.executionId.id} cannot recover! forcing it to stop"
                   )
-                  forcefullyStop(jobService, t)
+                  forcefullyStop(executionService, t)
               }
             } else {
               logger.info(
-                s"Kill execution id = ${jobService.executionStateStore.metadataStore.getState.executionId.id}"
+                s"Kill execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
               )
-              forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
+              forcefullyStop(
+                executionService,
+                new RuntimeException("fault tolerance is not enabled")
+              )
             }
           }
         }
