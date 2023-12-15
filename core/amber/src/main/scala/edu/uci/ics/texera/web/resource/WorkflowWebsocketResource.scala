@@ -5,7 +5,11 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, WorkflowErrorEvent, WorkflowStateEvent}
+import edu.uci.ics.texera.web.model.websocket.event.{
+  CacheStatusUpdateEvent,
+  WorkflowErrorEvent,
+  WorkflowStateEvent
+}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
@@ -87,7 +91,10 @@ class WorkflowWebsocketResource extends LazyLogging {
           } else {
             new ExecutionStateStore()
           }
-          val workflowContext = new WorkflowContext(uidOpt, UInteger.valueOf(sessionState.getCurrentWorkflowState.get.workflowId))
+          val workflowContext = new WorkflowContext(
+            uidOpt,
+            UInteger.valueOf(sessionState.getCurrentWorkflowState.get.workflowId)
+          )
 
           val workflowCompiler =
             new WorkflowCompiler(editingTimeCompilationRequest.toLogicalPlanPojo, workflowContext)

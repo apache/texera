@@ -40,9 +40,9 @@ import org.jooq.types.UInteger
 import java.util
 
 class JobStatsService(
-                       client: AmberClient,
-                       stateStore: ExecutionStateStore,
-                       workflowContext: WorkflowContext
+    client: AmberClient,
+    stateStore: ExecutionStateStore,
+    workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
@@ -200,9 +200,7 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.metadataStore.updateState(jobInfo =>
-            updateWorkflowState(COMPLETED, jobInfo)
-          )
+          stateStore.metadataStore.updateState(jobInfo => updateWorkflowState(COMPLETED, jobInfo))
         })
     )
   }

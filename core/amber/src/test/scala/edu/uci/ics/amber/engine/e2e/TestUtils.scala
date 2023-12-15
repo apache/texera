@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.e2e
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -21,9 +21,9 @@ object TestUtils {
       LogicalPlanPojo(operators, links, List(), List(), List()),
       context
     )
-    val workflowIdentity = WorkflowIdentity(context.executionId)
+    val executionId = ExecutionIdentity(context.executionId)
     workflowCompiler.compile(
-      workflowIdentity,
+      executionId,
       resultStorage,
       None,
       new ExecutionStateStore()

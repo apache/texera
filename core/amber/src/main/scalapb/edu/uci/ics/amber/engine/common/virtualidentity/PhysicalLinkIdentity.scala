@@ -5,13 +5,6 @@
 
 package edu.uci.ics.amber.engine.common.virtualidentity
 
-/** final case class PhysicalLinkIdentity (
-  *    from: PhysicalOpIdentity,
-  *    fromPort: Int,
-  *    to: PhysicalOpIdentity,
-  *    toPort: Int
-  * )
-  */
 @SerialVersionUID(0L)
 final case class PhysicalLinkIdentity(
     from: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,

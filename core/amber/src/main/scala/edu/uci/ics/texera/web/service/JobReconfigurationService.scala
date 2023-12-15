@@ -19,9 +19,9 @@ import java.util.UUID
 import scala.util.{Failure, Success}
 
 class JobReconfigurationService(
-                                 client: AmberClient,
-                                 stateStore: ExecutionStateStore,
-                                 workflow: Workflow
+    client: AmberClient,
+    stateStore: ExecutionStateStore,
+    workflow: Workflow
 ) extends SubscriptionManager {
 
   // monitors notification from the engine that a reconfiguration on a worker is completed
@@ -65,7 +65,7 @@ class JobReconfigurationService(
     val currentOp = workflow.logicalPlan.getOperator(opId)
     val reconfiguredPhysicalOp =
       currentOp.runtimeReconfiguration(
-        workflow.workflowId.executionId,
+        workflow.executionId.id,
         newOp,
         workflow.logicalPlan.getOpSchemaInfo(opId)
       )

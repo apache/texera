@@ -6,7 +6,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
@@ -32,10 +32,10 @@ import java.time.Instant
 import scala.collection.mutable
 
 class WorkflowExecutionService(
-                                workflowContext: WorkflowContext,
-                                resultService: ExecutionResultService,
-                                request: WorkflowExecuteRequest,
-                                lastCompletedLogicalPlan: Option[LogicalPlan]
+    workflowContext: WorkflowContext,
+    resultService: ExecutionResultService,
+    request: WorkflowExecuteRequest,
+    lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
   logger.info("Creating a new execution.")
@@ -93,7 +93,7 @@ class WorkflowExecutionService(
     try {
       workflowCompiler = new WorkflowCompiler(request.logicalPlan, workflowContext)
       workflow = workflowCompiler.compile(
-        WorkflowIdentity(workflowContext.executionId),
+        ExecutionIdentity(workflowContext.executionId),
         resultService.opResultStorage,
         lastCompletedLogicalPlan,
         executionStateStore
@@ -146,7 +146,8 @@ class WorkflowExecutionService(
       jobBreakpointService,
       jobReconfigurationService
     )
-    jobConsoleService = new JobConsoleService(client, executionStateStore, wsInput, jobBreakpointService)
+    jobConsoleService =
+      new JobConsoleService(client, executionStateStore, wsInput, jobBreakpointService)
 
     logger.info("Starting the workflow execution.")
     for (pair <- request.logicalPlan.breakpoints) {

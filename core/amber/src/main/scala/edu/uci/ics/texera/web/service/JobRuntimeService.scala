@@ -17,11 +17,11 @@ import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 class JobRuntimeService(
-                         client: AmberClient,
-                         stateStore: ExecutionStateStore,
-                         wsInput: WebsocketInput,
-                         breakpointService: JobBreakpointService,
-                         reconfigurationService: JobReconfigurationService
+    client: AmberClient,
+    stateStore: ExecutionStateStore,
+    wsInput: WebsocketInput,
+    breakpointService: JobBreakpointService,
+    reconfigurationService: JobReconfigurationService
 ) extends SubscriptionManager
     with LazyLogging {
 

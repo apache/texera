@@ -5,10 +5,6 @@
 
 package edu.uci.ics.amber.engine.common.virtualidentity
 
-/** final case class ActorVirtualIdentity (
-  *    name: String
-  * )
-  */
 @SerialVersionUID(0L)
 final case class ActorVirtualIdentity(
     name: _root_.scala.Predef.String

@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 
 case class Workflow(
-    workflowId: WorkflowIdentity,
+    executionId: ExecutionIdentity,
     originalLogicalPlan: LogicalPlan,
     logicalPlan: LogicalPlan,
     physicalPlan: PhysicalPlan,

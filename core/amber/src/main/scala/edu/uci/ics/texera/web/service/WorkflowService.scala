@@ -46,8 +46,8 @@ object WorkflowService {
 }
 
 class WorkflowService(
-                       val workflowId: Long,
-                       cleanUpTimeout: Int
+    val workflowId: Long,
+    cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
   // state across execution:

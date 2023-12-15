@@ -90,7 +90,8 @@ object ExecutionResultService {
     val webUpdate = (webOutputMode, sink.getOutputMode) match {
       case (PaginationMode(), SET_SNAPSHOT) =>
         val numTuples = storage.getCount
-        val maxPageIndex = Math.ceil(numTuples / ExecutionResultService.defaultPageSize.toDouble).toInt
+        val maxPageIndex =
+          Math.ceil(numTuples / ExecutionResultService.defaultPageSize.toDouble).toInt
         WebPaginationUpdate(
           PaginationMode(),
           newTupleCount,
@@ -169,9 +170,9 @@ class ExecutionResultService(
   private var resultUpdateCancellable: Cancellable = _
 
   def attachToJob(
-                   stateStore: ExecutionStateStore,
-                   logicalPlan: LogicalPlan,
-                   client: AmberClient
+      stateStore: ExecutionStateStore,
+      logicalPlan: LogicalPlan,
+      client: AmberClient
   ): Unit = {
 
     if (resultUpdateCancellable != null && !resultUpdateCancellable.isCancelled) {

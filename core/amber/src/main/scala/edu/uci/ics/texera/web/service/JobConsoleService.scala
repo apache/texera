@@ -33,10 +33,10 @@ import java.time.Instant
 import scala.collection.mutable
 
 class JobConsoleService(
-                         client: AmberClient,
-                         stateStore: ExecutionStateStore,
-                         wsInput: WebsocketInput,
-                         breakpointService: JobBreakpointService
+    client: AmberClient,
+    stateStore: ExecutionStateStore,
+    wsInput: WebsocketInput,
+    breakpointService: JobBreakpointService
 ) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 

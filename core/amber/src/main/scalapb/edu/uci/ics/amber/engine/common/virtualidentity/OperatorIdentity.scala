@@ -5,10 +5,6 @@
 
 package edu.uci.ics.amber.engine.common.virtualidentity
 
-/** final case class OperatorIdentity (
-  *    id: String
-  * )
-  */
 @SerialVersionUID(0L)
 final case class OperatorIdentity(
     id: _root_.scala.Predef.String

@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -52,13 +52,13 @@ object ExpansionGreedyRegionPlanGenerator {
 }
 
 class ExpansionGreedyRegionPlanGenerator(
-    workflowId: WorkflowIdentity,
+    executionId: ExecutionIdentity,
     workflowContext: WorkflowContext,
     logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
 ) extends RegionPlanGenerator(
-      workflowId,
+      executionId,
       workflowContext,
       logicalPlan,
       physicalPlan,

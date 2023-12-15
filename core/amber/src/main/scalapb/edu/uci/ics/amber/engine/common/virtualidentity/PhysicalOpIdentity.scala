@@ -5,11 +5,6 @@
 
 package edu.uci.ics.amber.engine.common.virtualidentity
 
-/** final case class PhysicalOpIdentity (
-  *    logicalOpId: String,
-  *    layerName: String
-  * )
-  */
 @SerialVersionUID(0L)
 final case class PhysicalOpIdentity(
     logicalOpId: edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity,
