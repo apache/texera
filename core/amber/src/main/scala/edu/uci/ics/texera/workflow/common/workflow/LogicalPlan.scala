@@ -115,7 +115,8 @@ case class LogicalPlan(
 
   def addLink(
       from: OperatorIdentity,
-      fromPort: Int = 0, // by default, we have only one output port, thus giving a default port index 0
+      fromPort: Int =
+        0, // by default, we have only one output port, thus giving a default port index 0
       to: OperatorIdentity,
       toPort: Int
   ): LogicalPlan = {

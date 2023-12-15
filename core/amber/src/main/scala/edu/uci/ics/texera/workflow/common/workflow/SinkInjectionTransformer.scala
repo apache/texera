@@ -26,7 +26,7 @@ object SinkInjectionTransformer {
         val sink = new ProgressiveSinkOpDesc()
         logicalPlan = logicalPlan
           .addOperator(sink)
-          .addLink(op.operatorIdentifier,outPort,  sink.operatorIdentifier, toPort=0)
+          .addLink(op.operatorIdentifier, outPort, sink.operatorIdentifier, toPort = 0)
       })
     })
 
