@@ -5,7 +5,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 
-abstract class ExecutionPlanGenerator(
+abstract class RegionPlanGenerator(
     workflowId: WorkflowIdentity,
     workflowContext: WorkflowContext,
     logicalPlan: LogicalPlan,
@@ -13,6 +13,6 @@ abstract class ExecutionPlanGenerator(
     opResultStorage: OpResultStorage
 ) {
 
-  def generate(): (ExecutionPlan, PhysicalPlan)
+  def generate(): (RegionPlan, PhysicalPlan)
 
 }

@@ -101,7 +101,7 @@ class JobReconfigurationService(
     } else {
       val epochMarkers = FriesReconfigurationAlgorithm.scheduleReconfigurations(
         workflow.physicalPlan,
-        workflow.executionPlan,
+        workflow.regionPlan,
         reconfigurations,
         reconfigurationId
       )

@@ -12,9 +12,9 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
+class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
 
-  "ExecutionPlanGenerator" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
@@ -32,11 +32,11 @@ class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFac
       )
     )
 
-    val regions = workflow.executionPlan.regions
+    val regions = workflow.regionPlan.regions
     assert(regions.size == 1)
   }
 
-  "ExecutionPlanGenerator" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
@@ -64,7 +64,7 @@ class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFac
       )
     )
 
-    val regions = workflow.executionPlan.regions
+    val regions = workflow.regionPlan.regions
     assert(regions.size == 2)
 
     val buildRegion = regions
@@ -82,8 +82,8 @@ class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFac
       )
       .get
 
-    assert(workflow.executionPlan.getUpstreamRegions(probeRegion).size == 1)
-    assert(workflow.executionPlan.getUpstreamRegions(probeRegion).contains(buildRegion))
+    assert(workflow.regionPlan.getUpstreamRegions(probeRegion).size == 1)
+    assert(workflow.regionPlan.getUpstreamRegions(probeRegion).contains(buildRegion))
     assert(buildRegion.downstreamLinkIds.length == 1)
     assert(
       buildRegion.downstreamLinkIds.exists(linkId =>
@@ -92,7 +92,7 @@ class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFac
     )
   }
 
-  "ExecutionPlanGenerator" should "correctly find regions in csv->->filter->join->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->->filter->join->sink workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
@@ -123,11 +123,11 @@ class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFac
         )
       )
     )
-    val regions = workflow.executionPlan.regions
+    val regions = workflow.regionPlan.regions
     assert(regions.size == 2)
   }
 
-  "ExecutionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
     val buildCsv = TestOperators.headerlessSmallCsvScanOpDesc()
     val probeCsv = TestOperators.smallCsvScanOpDesc()
     val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
@@ -164,11 +164,11 @@ class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFac
         )
       )
     )
-    val regions = workflow.executionPlan.regions
+    val regions = workflow.regionPlan.regions
     assert(regions.size == 2)
   }
 
-  "ExecutionPlanGenerator" should "correctly find regions in csv->split->training-infer workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->split->training-infer workflow" in {
     val csv = TestOperators.headerlessSmallCsvScanOpDesc()
     val split = new SplitOpDesc()
     val training = new PythonUDFOpDescV2()
@@ -205,7 +205,7 @@ class ExpansionGreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFac
         )
       )
     )
-    val regions = workflow.executionPlan.regions
+    val regions = workflow.regionPlan.regions
     assert(regions.size == 2)
   }
 

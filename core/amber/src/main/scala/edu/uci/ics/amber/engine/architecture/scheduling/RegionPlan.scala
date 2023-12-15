@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-case class ExecutionPlan(
+case class RegionPlan(
     regions: List[Region],
     regionLinks: List[RegionLink]
 ) {

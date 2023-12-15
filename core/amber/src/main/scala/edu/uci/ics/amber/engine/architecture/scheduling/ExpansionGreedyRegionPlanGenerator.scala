@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyExecutionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -21,7 +21,7 @@ import scala.collection.convert.ImplicitConversions.{
 }
 import scala.collection.mutable
 
-object ExpansionGreedyExecutionPlanGenerator {
+object ExpansionGreedyRegionPlanGenerator {
 
   def replaceVertex(
       graph: DirectedAcyclicGraph[Region, RegionLink],
@@ -53,13 +53,13 @@ object ExpansionGreedyExecutionPlanGenerator {
 
 }
 
-class ExpansionGreedyExecutionPlanGenerator(
+class ExpansionGreedyRegionPlanGenerator(
     workflowId: WorkflowIdentity,
     workflowContext: WorkflowContext,
     logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
-) extends ExecutionPlanGenerator(
+) extends RegionPlanGenerator(
       workflowId,
       workflowContext,
       logicalPlan,
@@ -300,11 +300,11 @@ class ExpansionGreedyExecutionPlanGenerator(
     regionDAG
   }
 
-  def generate(): (ExecutionPlan, PhysicalPlan) = {
+  def generate(): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG()
     (
-      ExecutionPlan(regions = regionDAG.toList, regionLinks = regionDAG.edgeSet().toList),
+      RegionPlan(regions = regionDAG.toList, regionLinks = regionDAG.edgeSet().toList),
       physicalPlan
     )
   }

@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyExecutionPlanGenerator
+import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
@@ -83,9 +83,9 @@ class WorkflowCompiler(
     // the PhysicalPlan with topology expanded.
     val physicalPlan = PhysicalPlan(workflowId.executionId, rewrittenLogicalPlan)
 
-    // generate an ExecutionPlan with regions.
-    //  currently, ExpansionGreedyExecutionPlanGenerator is the only ExecutionPlan generator.
-    val (executionPlan, updatedPhysicalPlan) = new ExpansionGreedyExecutionPlanGenerator(
+    // generate an RegionPlan with regions.
+    //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflowId,
       workflowContext,
       rewrittenLogicalPlan,
@@ -98,7 +98,7 @@ class WorkflowCompiler(
       originalLogicalPlan,
       rewrittenLogicalPlan,
       updatedPhysicalPlan,
-      executionPlan
+      regionPlan
     )
 
   }
