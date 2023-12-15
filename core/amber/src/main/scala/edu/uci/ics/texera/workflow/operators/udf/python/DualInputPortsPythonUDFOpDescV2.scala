@@ -80,6 +80,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
           derivePartition = _ => UnknownPartition()
         )
         .withInputPorts(operatorInfo.inputPorts)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
@@ -89,6 +90,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
           derivePartition = _ => UnknownPartition()
         )
         .withInputPorts(operatorInfo.inputPorts)
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo =
