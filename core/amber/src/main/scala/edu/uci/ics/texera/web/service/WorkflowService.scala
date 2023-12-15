@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -25,11 +26,11 @@ object WorkflowService {
 
   def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
-  def mkWorkflowStateId(workflowId: Long): String = {
+  def mkWorkflowStateId(workflowId: WorkflowIdentity): String = {
     workflowId.toString
   }
   def getOrCreate(
-      workflowId: Long,
+      workflowId: WorkflowIdentity,
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
     workflowServiceMapping.compute(
@@ -46,7 +47,7 @@ object WorkflowService {
 }
 
 class WorkflowService(
-    val workflowId: Long,
+    val workflowId: WorkflowIdentity,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
@@ -59,9 +60,9 @@ class WorkflowService(
   val resultService: ExecutionResultService =
     new ExecutionResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
-    new ResultExportService(opResultStorage, UInteger.valueOf(workflowId))
+    new ResultExportService(opResultStorage, UInteger.valueOf(workflowId.id))
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
-    s"wid=$workflowId",
+    s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
       opResultStorage.close()
@@ -125,7 +126,7 @@ class WorkflowService(
   private[this] def createWorkflowContext(
       uidOpt: Option[UInteger]
   ): WorkflowContext = {
-    new WorkflowContext(uidOpt, UInteger.valueOf(workflowId))
+    new WorkflowContext(uidOpt, workflowId)
   }
 
   def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
@@ -136,7 +137,7 @@ class WorkflowService(
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
-      workflowContext.wid,
+      workflowContext.workflowId,
       workflowContext.userId,
       req.executionName,
       convertToJson(req.engineVersion)

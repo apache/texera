@@ -10,6 +10,10 @@ option (scalapb.options) = {
   no_default_values_in_constructor: true
 };
 
+message WorkflowIdentity {
+  int64 id = 1;
+}
+
 message ExecutionIdentity {
   int64 id = 1;
 }

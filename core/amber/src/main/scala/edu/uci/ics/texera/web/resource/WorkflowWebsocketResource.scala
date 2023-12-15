@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.resource
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -20,7 +21,6 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import org.jooq.types.UInteger
 
 import java.time.Instant
 import javax.websocket._
@@ -55,13 +55,14 @@ class WorkflowWebsocketResource extends LazyLogging {
     val jobStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
       request match {
-        case wIdRequest: RegisterWorkflowIdRequest =>
+        case registerWorkflowIdRequest: RegisterWorkflowIdRequest =>
           // hack to refresh frontend run button state
           sessionState.send(WorkflowStateEvent("Uninitialized"))
-          val workflowState = WorkflowService.getOrCreate(wIdRequest.workflowId)
+          val workflowState =
+            WorkflowService.getOrCreate(WorkflowIdentity(registerWorkflowIdRequest.workflowId))
           sessionState.subscribe(workflowState)
           sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-          sessionState.send(RegisterWIdResponse("wid registered"))
+          sessionState.send(RegisterWIdResponse("workflowId registered"))
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
@@ -93,7 +94,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           }
           val workflowContext = new WorkflowContext(
             uidOpt,
-            UInteger.valueOf(sessionState.getCurrentWorkflowState.get.workflowId)
+            sessionState.getCurrentWorkflowState.get.workflowId
           )
 
           val workflowCompiler =

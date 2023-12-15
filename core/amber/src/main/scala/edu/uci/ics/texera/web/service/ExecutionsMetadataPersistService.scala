@@ -3,7 +3,7 @@ package edu.uci.ics.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.Utils.maptoStatusCode
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
@@ -28,20 +28,20 @@ object ExecutionsMetadataPersistService extends LazyLogging {
   /**
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
-    * @param wid     the given workflow
+    * @param workflowId     the given workflow
     * @param uid     user id that initiated the execution
     * @return generated execution ID
     */
 
   def insertNewExecution(
-      wid: UInteger,
+      workflowId: WorkflowIdentity,
       uid: Option[UInteger],
       executionName: String,
       environmentVersion: String
   ): ExecutionIdentity = {
     if (!userSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
-    val vid = getLatestVersion(wid)
+    val vid = getLatestVersion(UInteger.valueOf(workflowId.id))
     val newExecution = new WorkflowExecutions()
     if (executionName != "") {
       newExecution.setName(executionName)
