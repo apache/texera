@@ -38,13 +38,13 @@ object WorkflowCacheRewriter {
       val materializationReader = new CacheSourceOpDesc(opId, storage)
       resultPlan = resultPlan.addOperator(materializationReader)
       // replace the connection of all outgoing edges of opId with the cache
-      val edgesToReplace = resultPlan.getDownstreamEdges(opId)
-      edgesToReplace.foreach(e => {
-        resultPlan = resultPlan.removeEdge(e).addEdge(
+      val edgesToReplace = resultPlan.getDownstreamLinks(opId)
+      edgesToReplace.foreach(edge => {
+        resultPlan = resultPlan.removeLink(edge).addLink(
           materializationReader.operatorIdentifier,
-          e.destination.operatorId,
           0,
-          e.destination.portOrdinal
+          edge.destination.operatorId,
+          edge.destination.portOrdinal
         )
       })
       resultPlan = resultPlan.removeOperator(opId)
