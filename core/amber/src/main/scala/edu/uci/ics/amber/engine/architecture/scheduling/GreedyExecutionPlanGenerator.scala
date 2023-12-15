@@ -269,7 +269,7 @@ class GreedyExecutionPlanGenerator(
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): DirectedAcyclicGraph[Region, DefaultEdge] = {
 
-    val blockingLinks = physicalPlan.topologicalIterator().flatMap { physicalOpId =>
+    val blockingLinkIds = physicalPlan.topologicalIterator().flatMap { physicalOpId =>
       val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
       upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
         physicalPlan
@@ -279,7 +279,7 @@ class GreedyExecutionPlanGenerator(
       }
     }
 
-    blockingLinks
+    blockingLinkIds
       .flatMap { linkId =>
         val upstreamRegions = getRegions(linkId.from, regionDAG)
         upstreamRegions.map(region => region -> linkId).groupBy(_._1).mapValues(_.map(_._2).toList)
