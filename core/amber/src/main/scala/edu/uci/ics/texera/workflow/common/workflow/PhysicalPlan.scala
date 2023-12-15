@@ -361,7 +361,13 @@ case class PhysicalPlan(
     } else {
       // we must re-distribute the input partitions
       val physicalLink =
-        PhysicalLink(fromPhysicalOp, fromPort, toPhysicalOp, inputPort, requiredPartitionInfo)
+        PhysicalLink(
+          fromPhysicalOp,
+          fromPort,
+          toPhysicalOp,
+          inputPort,
+          requiredPartitionInfo
+        )
       val outputPart = requiredPartitionInfo
       (physicalLink, outputPart)
     }

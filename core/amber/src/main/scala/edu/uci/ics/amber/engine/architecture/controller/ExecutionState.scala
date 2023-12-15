@@ -19,11 +19,11 @@ class ExecutionState(workflow: Workflow) {
       link.id -> new LinkExecution(link.totalReceiversCount)
     }.toMap
   private val operatorExecutions: Map[PhysicalOpIdentity, OperatorExecution] =
-    workflow.physicalPlan.operators.map { opConf =>
-      opConf.id -> new OperatorExecution(
+    workflow.physicalPlan.operators.map { physicalOp =>
+      physicalOp.id -> new OperatorExecution(
         executionId = workflow.workflowId.executionId,
-        opConf.id,
-        opConf.numWorkers
+        physicalOp.id,
+        physicalOp.numWorkers
       )
     }.toMap
 

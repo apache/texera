@@ -95,28 +95,28 @@ class DataProcessor(
     with Serializable {
 
   @transient var workerIdx: Int = 0
-  @transient var opConf: PhysicalOp = _
+  @transient var physicalOp: PhysicalOp = _
   @transient var operator: IOperatorExecutor = _
 
   def initOperator(
       workerIdx: Int,
-      opConf: PhysicalOp,
+      physicalOp: PhysicalOp,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
-    this.operator = opConf.opExecInitInfo match {
+    this.operator = physicalOp.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
       case OpExecInitInfoWithFunc(opGen) =>
-        opGen((workerIdx, opConf))
+        opGen((workerIdx, physicalOp))
     }
-    this.opConf = opConf
+    this.physicalOp = physicalOp
     this.upstreamLinkStatus.setAllUpstreamLinkIds(
-      if (opConf.isSourceOperator) {
+      if (physicalOp.isSourceOperator) {
         Set(
-          PhysicalLinkIdentity(SOURCE_STARTER_OP, 0, opConf.id, 0)
+          PhysicalLinkIdentity(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
         ) // special case for source operator
       } else {
-        opConf.getAllInputLinks.map(_.id).toSet
+        physicalOp.getAllInputLinks.map(_.id).toSet
       }
     )
     this.outputIterator.setTupleOutput(currentOutputIterator)
@@ -169,14 +169,14 @@ class DataProcessor(
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
     val inputLinkId = upstreamLinkStatus.getInputLinkId(identifier)
     if (inputLinkId.from == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!opConf.getAllInputLinks.map(_.id).contains(inputLinkId)) 0
-    else opConf.getPortIdxForInputLinkId(inputLinkId)
+    else if (!physicalOp.getAllInputLinks.map(_.id).contains(inputLinkId)) 0
+    else physicalOp.getPortIdxForInputLinkId(inputLinkId)
   }
 
   def getOutputLinkByPort(outputPort: Option[Int]): List[PhysicalLink] = {
     outputPort match {
-      case Some(port) => opConf.getLinksOnOutputPort(port)
-      case None       => opConf.getAllOutputLinks
+      case Some(port) => physicalOp.getLinksOnOutputPort(port)
+      case None       => physicalOp.getAllOutputLinks
     }
   }
 
