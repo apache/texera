@@ -214,15 +214,6 @@ class ExpansionGreedyRegionPlanGenerator(
     // the region is partially connected successfully.
     val regionDAG: DirectedAcyclicGraph[Region, RegionLink] = recConnectRegionDAG()
 
-    // the update physical plan's all source operators should have 0 input ports
-    physicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
-      assert(physicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
-    }
-    // the update physical plan's all sink operators should have 0 output ports
-    physicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
-      assert(physicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
-    }
-
     // try to add dependencies between materialization writer and reader regions
     try {
       matReaderWriterPairs.foreach {

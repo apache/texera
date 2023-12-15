@@ -93,6 +93,17 @@ class WorkflowCompiler(
       opResultStorage
     ).generate()
 
+    // validate the plan
+    // TODO: generalize validation to each plan
+    // the updated physical plan's all source operators should have 0 input ports
+    updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
+      assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
+    }
+    // the updated physical plan's all sink operators should have 0 output ports
+    updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
+      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
+    }
+
     new Workflow(
       workflowId,
       originalLogicalPlan,
