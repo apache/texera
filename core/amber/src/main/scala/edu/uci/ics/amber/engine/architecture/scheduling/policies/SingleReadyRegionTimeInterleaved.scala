@@ -61,7 +61,7 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[Region])
     breakable {
       while (regionsScheduleOrder.nonEmpty) {
         val nextRegion = regionsScheduleOrder.head
-        val upstreamRegions = workflow.executionPlan.regionAncestorMapping(nextRegion)
+        val upstreamRegions = workflow.executionPlan.getUpstreamRegions(nextRegion)
         if (upstreamRegions.forall(completedRegions.contains)) {
           assert(!scheduledRegions.contains(nextRegion))
           currentlyExecutingRegions.add(nextRegion)

@@ -32,7 +32,7 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regions
     assert(pipelinedRegions.size == 1)
   }
 
@@ -64,8 +64,7 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
-    val ancestorMapping = workflow.executionPlan.regionAncestorMapping
+    val pipelinedRegions = workflow.executionPlan.regions
     assert(pipelinedRegions.size == 2)
 
     val buildRegion = pipelinedRegions
@@ -83,8 +82,8 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
       )
       .get
 
-    assert(ancestorMapping(probeRegion).size == 1)
-    assert(ancestorMapping(probeRegion).contains(buildRegion))
+    assert(workflow.executionPlan.getUpstreamRegions(probeRegion).size == 1)
+    assert(workflow.executionPlan.getUpstreamRegions(probeRegion).contains(buildRegion))
     assert(buildRegion.downstreamLinkIds.length == 1)
     assert(
       buildRegion.downstreamLinkIds.exists(linkId =>
@@ -124,7 +123,7 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regions
     assert(pipelinedRegions.size == 2)
   }
 
@@ -165,7 +164,7 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regions
     assert(pipelinedRegions.size == 2)
   }
 
@@ -206,7 +205,7 @@ class GreedyExecutionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
+    val pipelinedRegions = workflow.executionPlan.regions
     assert(pipelinedRegions.size == 2)
   }
 

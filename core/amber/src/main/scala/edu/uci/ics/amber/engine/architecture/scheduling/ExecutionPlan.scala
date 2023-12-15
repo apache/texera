@@ -1,9 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-class ExecutionPlan(
-    val regionsToSchedule: List[Region] = List.empty,
-    val regionAncestorMapping: Map[Region, Set[Region]] = Map.empty
+case class ExecutionPlan(
+    regions: List[Region],
+    regionLinks: List[RegionLink]
 ) {
 
-  def getAllRegions: List[Region] = regionsToSchedule
+  def getUpstreamRegions(region: Region): Set[Region] = {
+    regionLinks.filter(link => link.toRegion == region).map(_.fromRegion).toSet
+  }
+
 }
