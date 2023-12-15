@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 
 case class RegionLink(fromRegion: Region, toRegion: Region)
 
@@ -10,17 +14,21 @@ case class RegionIdentity(workflowId: WorkflowIdentity, pipelineId: String)
 // only blocking inputs or no inputs at all.
 case class Region(
     id: RegionIdentity,
-    operators: List[PhysicalOpIdentity],
-    // These are the operators that receive blocking inputs from this region
-    blockingDownstreamPhysicalOpIdsInOtherRegions: Array[(PhysicalOpIdentity, Int)] = Array.empty
+    physicalOpIds: List[PhysicalOpIdentity],
+    physicalLinkIds: List[PhysicalLinkIdentity],
+    // These are the operators that receive blocking inputs from this region,
+    // we mark output links from this region as blocking.
+    blockingLinkIds: List[PhysicalLinkIdentity] = List.empty
 ) {
 
-  def getId: RegionIdentity = id
-
-  def getPhysicalOpIds: List[PhysicalOpIdentity] = operators
-
-  def contains(physicalOpId: PhysicalOpIdentity): Boolean = {
-    operators.contains(physicalOpId)
+  /**
+    * Return all PhysicalOpIds that this region may affect.
+    * This includes:
+    *   1) operators in this region;
+    *   2) operators not in this region but blocked by this region.
+    */
+  def getEffectiveOperators: List[PhysicalOpIdentity] = {
+    physicalOpIds ++ blockingLinkIds.map(linkId => linkId.to)
   }
 
 }

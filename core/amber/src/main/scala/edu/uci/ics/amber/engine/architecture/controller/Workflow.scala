@@ -12,27 +12,15 @@ class Workflow(
     val executionPlan: ExecutionPlan
 ) extends java.io.Serializable {
 
-  def getBlockingOutPhysicalLinksOfRegion(region: Region): Set[PhysicalLinkIdentity] = {
-    region.blockingDownstreamPhysicalOpIdsInOtherRegions.flatMap {
-      case (physicalOpId, toPort) =>
-        physicalPlan
-          .getUpstreamPhysicalOpIds(physicalOpId)
-          .filter(upstreamPhysicalOpId => region.operators.contains(upstreamPhysicalOpId))
-          .map(upstreamPhysicalOpId =>
-            PhysicalLinkIdentity(upstreamPhysicalOpId, 0, physicalOpId, toPort)
-          )
-    }.toSet
-  }
-
   /**
     * Returns the operators in a region whose all inputs are from operators that are not in this region.
     */
   def getSourcePhysicalOpsOfRegion(region: Region): List[PhysicalOpIdentity] = {
-    region.getPhysicalOpIds
+    region.physicalOpIds
       .filter(physicalOpId =>
         physicalPlan
           .getUpstreamPhysicalOpIds(physicalOpId)
-          .forall(up => !region.contains(up))
+          .forall(upstreamOpId => !region.physicalOpIds.contains(upstreamOpId))
       )
   }
 

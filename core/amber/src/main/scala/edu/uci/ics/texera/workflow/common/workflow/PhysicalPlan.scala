@@ -158,12 +158,16 @@ case class PhysicalPlan(
     dag.incomingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeSource(e)).toList
   }
 
-  def getUpstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): List[PhysicalLink] = {
-    links.filter(l => l.toOp.id == physicalOpId)
+  def getUpstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): List[PhysicalLinkIdentity] = {
+    links.filter(l => l.toOp.id == physicalOpId).map(_.id)
   }
 
   def getDownstreamPhysicalOpIds(physicalOpId: PhysicalOpIdentity): List[PhysicalOpIdentity] = {
     dag.outgoingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeTarget(e)).toList
+  }
+
+  def getDownstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): List[PhysicalLinkIdentity] = {
+    links.filter(l => l.fromOp.id == physicalOpId).map(_.id)
   }
 
   def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): List[PhysicalOpIdentity] = {
@@ -286,7 +290,7 @@ case class PhysicalPlan(
         // all input PhysicalOpIds connected to this port
         val inputPhysicalOps = physicalOp.getOpsOnInputPort(port)
 
-        val fromPort = getUpstreamPhysicalLinks(physicalOp.id).head.fromPort
+        val fromPort = getUpstreamPhysicalLinkIds(physicalOp.id).head.fromPort
 
         // the output partition info of each link connected from each input PhysicalOp
         // for each input PhysicalOp connected on this port

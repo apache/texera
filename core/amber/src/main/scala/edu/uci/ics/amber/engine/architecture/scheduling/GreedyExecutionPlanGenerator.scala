@@ -89,9 +89,13 @@ class GreedyExecutionPlanGenerator(
     nonBlockingDAG.getSourceOperatorIds.zipWithIndex
       .map {
         case (sourcePhysicalOpId, index) =>
-          val operatorsInRegion =
+          val operatorIds =
             nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
-          Region(RegionIdentity(workflowId, (index + 1).toString), operatorsInRegion)
+          val linkIds = operatorIds.flatMap(operatorId => {
+            physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
+              .getDownstreamPhysicalLinkIds(operatorId)
+          })
+          Region(RegionIdentity(workflowId, (index + 1).toString), operatorIds, linkIds)
       }
   }
 
@@ -226,7 +230,7 @@ class GreedyExecutionPlanGenerator(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, DefaultEdge]
   ): Set[Region] = {
-    regionDAG.vertexSet().filter(region => region.contains(physicalOpId)).toSet
+    regionDAG.vertexSet().filter(region => region.physicalOpIds.contains(physicalOpId)).toSet
   }
 
   private def populateTerminalOperatorsForBlockingLinks(
@@ -259,8 +263,9 @@ class GreedyExecutionPlanGenerator(
     }
 
     for ((region, terminalOps) <- regionTerminalOperatorInOtherRegions) {
-      val newRegion = region.copy(blockingDownstreamPhysicalOpIdsInOtherRegions =
-        terminalOps.toArray.map(opId => (opId, 0))
+
+      val newRegion = region.copy(
+        blockingLinkIds = region.physicalLinkIds.filter(link => terminalOps.contains(link.to))
       )
       replaceVertex(regionDAG, region, newRegion)
     }

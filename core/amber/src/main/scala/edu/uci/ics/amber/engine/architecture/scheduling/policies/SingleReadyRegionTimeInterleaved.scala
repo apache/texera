@@ -19,12 +19,11 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[Region])
   var currentlyExecutingRegions = new mutable.LinkedHashSet[Region]()
 
   override def checkRegionCompleted(
-      workflow: Workflow,
       executionState: ExecutionState,
       region: Region
   ): Unit = {
-    super.checkRegionCompleted(workflow, executionState, region)
-    if (isRegionCompleted(workflow, executionState, region)) {
+    super.checkRegionCompleted(executionState, region)
+    if (isRegionCompleted(executionState, region)) {
       currentlyExecutingRegions.remove(region)
     }
   }
@@ -35,8 +34,8 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[Region])
       workerId: ActorVirtualIdentity
   ): Set[Region] = {
     val regions = getRegions(workflow, workerId)
-    regions.foreach(r => checkRegionCompleted(workflow, executionState, r))
-    if (regions.exists(r => isRegionCompleted(workflow, executionState, r))) {
+    regions.foreach(region => checkRegionCompleted(executionState, region))
+    if (regions.exists(region => isRegionCompleted(executionState, region))) {
       getNextSchedulingWork(workflow)
     } else {
       Set()
@@ -49,9 +48,9 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[Region])
       linkId: PhysicalLinkIdentity
   ): Set[Region] = {
     val regions = getRegions(linkId)
-    regions.foreach(r => completedLinksOfRegion.addBinding(r, linkId))
-    regions.foreach(r => checkRegionCompleted(workflow, executionState, r))
-    if (regions.exists(r => isRegionCompleted(workflow, executionState, r))) {
+    regions.foreach(region => completedLinksOfRegion.addBinding(region, linkId))
+    regions.foreach(region => checkRegionCompleted(executionState, region))
+    if (regions.exists(region => isRegionCompleted(executionState, region))) {
       getNextSchedulingWork(workflow)
     } else {
       Set()

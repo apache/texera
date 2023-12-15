@@ -70,14 +70,14 @@ class WorkflowRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
     val buildRegion = pipelinedRegions
       .find(v =>
-        v.operators.toList.exists(op =>
+        v.physicalOpIds.toList.exists(op =>
           OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
         )
       )
       .get
     val probeRegion = pipelinedRegions
       .find(v =>
-        v.operators.toList.exists(op =>
+        v.physicalOpIds.toList.exists(op =>
           OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
         )
       )
@@ -85,10 +85,10 @@ class WorkflowRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
 
     assert(ancestorMapping(probeRegion).size == 1)
     assert(ancestorMapping(probeRegion).contains(buildRegion))
-    assert(buildRegion.blockingDownstreamPhysicalOpIdsInOtherRegions.length == 1)
+    assert(buildRegion.blockingLinkIds.length == 1)
     assert(
-      buildRegion.blockingDownstreamPhysicalOpIdsInOtherRegions.exists(pair =>
-        OperatorIdentity(pair._1.logicalOpId.id) == joinOpDesc.operatorIdentifier
+      buildRegion.blockingLinkIds.exists(linkId =>
+        linkId.to.logicalOpId == joinOpDesc.operatorIdentifier
       )
     )
   }
