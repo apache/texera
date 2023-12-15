@@ -20,10 +20,10 @@ import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
 
 object WorkflowService {
-  private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
+  private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
 
-  def getAllWorkflowService: Iterable[WorkflowService] = wIdToWorkflowState.values().asScala
+  def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
   def mkWorkflowStateId(workflowId: Long): String = {
     workflowId.toString
@@ -32,7 +32,7 @@ object WorkflowService {
       workflowId: Long,
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
-    wIdToWorkflowState.compute(
+    workflowServiceMapping.compute(
       mkWorkflowStateId(workflowId),
       (_, v) => {
         if (v == null) {
@@ -65,7 +65,7 @@ class WorkflowService(
     cleanUpTimeout,
     () => {
       opResultStorage.close()
-      WorkflowService.wIdToWorkflowState.remove(mkWorkflowStateId(workflowId))
+      WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
       if (executionService.getValue != null) {
         // shutdown client
         executionService.getValue.client.shutdown()

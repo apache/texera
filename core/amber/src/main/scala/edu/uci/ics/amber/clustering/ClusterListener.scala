@@ -82,7 +82,7 @@ class ClusterListener extends Actor with AmberLogging {
       case MemberRemoved(member, status) =>
         logger.info("Cluster node " + member + " is down!")
         val futures = new ArrayBuffer[Future[Any]]
-        WorkflowService.getAllWorkflowService.foreach { workflow =>
+        WorkflowService.getAllWorkflowServices.foreach { workflow =>
           val jobService = workflow.executionService.getValue
           if (
             jobService != null && jobService.executionStateStore.metadataStore.getState.state != COMPLETED
