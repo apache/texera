@@ -25,8 +25,8 @@ export class ErrorFrameComponent implements OnInit, OnChanges {
 
   ngOnChanges(changes: SimpleChanges): void {
     let newOperatorId = changes.operatorId?.currentValue;
-    if(this.operatorId !== newOperatorId){
-      this.operatorId = newOperatorId
+    if (this.operatorId !== newOperatorId) {
+      this.operatorId = newOperatorId;
       this.renderError();
     }
   }
