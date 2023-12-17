@@ -168,6 +168,8 @@ export class ResultPanelComponent implements OnInit {
         const errorMessages = this.executeWorkflowService.getErrorMessages();
         if (errorMessages.filter(msg => msg.operatorId === this.currentOperatorId).length > 0) {
           this.displayError(this.currentOperatorId);
+        } else {
+          this.frameComponentConfigs.delete("Static Error");
         }
       }
     } else {
