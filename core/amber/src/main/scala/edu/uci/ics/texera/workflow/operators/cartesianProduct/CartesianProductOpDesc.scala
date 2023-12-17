@@ -31,7 +31,7 @@ class CartesianProductOpDesc extends LogicalOp {
           TODO : refactor to parallelize this operator for better performance and scalability
            - can consider hash partition on larger input, broadcast smaller table to each partition
          */
-        numWorkers = 1,
+        parallelizable = false,
         blockingInputs = List(0),
         dependency = Map(1 -> 0)
       )

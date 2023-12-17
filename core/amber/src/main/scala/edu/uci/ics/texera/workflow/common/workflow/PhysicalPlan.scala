@@ -61,7 +61,7 @@ object PhysicalPlan {
       physicalPlan = physicalPlan.addLink(fromOp, fromPort, toOp, toPort)
     })
 
-    physicalPlan.populatePartitioningOnLinks()
+    physicalPlan
   }
 
 }
@@ -337,21 +337,21 @@ case class PhysicalPlan(
     if (
       upstreamPartitionInfo.satisfies(
         requiredPartitionInfo
-      ) && fromPhysicalOp.numWorkers == toPhysicalOp.numWorkers
+      ) && fromPhysicalOp.parallelizable == toPhysicalOp.parallelizable
     ) {
       val physicalLink = new PhysicalLink(
         fromPhysicalOp,
         fromPort,
         toPhysicalOp,
         inputPort,
-        partitionings = fromPhysicalOp.identifiers.indices
+        partitionings = fromPhysicalOp.getIdentifiers.indices
           .map(i =>
             (
-              OneToOnePartitioning(defaultBatchSize, Array(toPhysicalOp.identifiers(i))),
-              Array(toPhysicalOp.identifiers(i))
+              OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getIdentifiers(i))),
+              List(toPhysicalOp.getIdentifiers(i))
             )
           )
-          .toArray
+          .toList
       )
       val outputPart = upstreamPartitionInfo
       (physicalLink, outputPart)

@@ -74,7 +74,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
-          numWorkers = workers,
+          parallelizable = true,
           blockingInputs = List(0),
           dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()
@@ -85,6 +85,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
+          parallelizable = false,
           blockingInputs = List(0),
           dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()

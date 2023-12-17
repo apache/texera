@@ -151,6 +151,7 @@ class WorkflowScheduler(
         if (!builtOperators.contains(op)) {
           buildOperator(
             workflow,
+            region.id,
             op,
             executionState.getOperatorExecution(op),
             akkaActorRefMappingService,
@@ -169,10 +170,12 @@ class WorkflowScheduler(
             .forall(builtOperators.contains)
         })
     }
+
   }
 
   private def buildOperator(
       workflow: Workflow,
+      regionId: RegionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecution: OperatorExecution,
       actorRefService: AkkaActorRefMappingService,
@@ -183,7 +186,10 @@ class WorkflowScheduler(
       controllerActorService,
       actorRefService,
       opExecution,
-      controllerConfig
+      workflow.regionPlan.regions
+        .find(region => region.id == regionId)
+        .map(region => region.config.get)
+        .get
     )
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {

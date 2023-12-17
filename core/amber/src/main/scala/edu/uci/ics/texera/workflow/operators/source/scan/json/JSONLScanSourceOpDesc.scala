@@ -41,21 +41,20 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         val count: Int = lines.map(_ => 1).sum
         reader.close()
 
-        val numWorkers = AmberConfig.numWorkerPerOperatorByDefault
-
         PhysicalOp
           .sourcePhysicalOp(
             executionId,
             operatorIdentifier,
             OpExecInitInfo(p => {
               val i = p._1
-              val startOffset: Int = offsetValue + count / numWorkers * i
+              val workerCount = p._2.getIdentifiers.length
+              val startOffset: Int = offsetValue + count / workerCount * i
               val endOffset: Int =
-                offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
+                offsetValue + (if (i != workerCount - 1) count / workerCount * (i + 1) else count)
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
             })
           )
-          .copy(numWorkers = numWorkers)
+          .copy(parallelizable = true)
 
       case None =>
         throw new RuntimeException("File path is not provided.")

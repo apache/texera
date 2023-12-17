@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -98,6 +99,12 @@ class ExpansionGreedyRegionPlanGenerator(
         case (sourcePhysicalOpId, index) =>
           val operatorIds =
             nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
+          val config = RegionConfig(
+            operatorIds
+              .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+              .map(physicalOp => physicalOp.id -> physicalOp.numWorkers)
+              .toMap
+          )
           val linkIds = operatorIds.flatMap(operatorId => {
             physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
               .getDownstreamPhysicalLinkIds(operatorId)
@@ -186,6 +193,8 @@ class ExpansionGreedyRegionPlanGenerator(
     None
   }
 
+
+
   /**
     * This function creates and connects a region DAG while conducting materialization replacement.
     * It keeps attempting to create a region DAG from the given PhysicalPlan. When failed, a list
@@ -235,6 +244,8 @@ class ExpansionGreedyRegionPlanGenerator(
     // mark links that go to downstream regions
     populateDownstreamLinks(regionDAG)
 
+    // generate the region configs
+    populateRegionConfigs(regionDAG)
   }
 
   private def populateSourceOperators(
@@ -292,12 +303,37 @@ class ExpansionGreedyRegionPlanGenerator(
     regionDAG
   }
 
+  def populateRegionConfigs(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): DirectedAcyclicGraph[Region, RegionLink] = {
+    regionDAG.vertexSet().toList.foreach(region => {
+      val config = RegionConfig(region.getEffectiveOperators.map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+        .map { physicalOp =>
+        {
+          val workerCount =
+            if (physicalOp.parallelizable) AmberConfig.numWorkerPerOperatorByDefault
+            else 1
+          physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
+        }
+        }
+        .toMap)
+      val newRegion = region.copy(config = Some(config))
+      replaceVertex(regionDAG, region, newRegion)
+    })
+    regionDAG
+  }
+
   def generate(): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG()
+
+    regionDAG.toList.foreach(region =>
+      region.config.get.workerConfigs.foreach {
+        case (physicalOpId, workerConfigs) =>
+          physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
+      }
+    )
     (
       RegionPlan(regions = regionDAG.toSet, regionLinks = regionDAG.edgeSet().toSet),
-      physicalPlan
+      physicalPlan.populatePartitioningOnLinks()
     )
   }
 
@@ -334,7 +370,6 @@ class ExpansionGreedyRegionPlanGenerator(
       .addLink(readerToDestLink)
       .addLink(sourceToWriterLink)
       .setOperatorUnblockPort(toOp.id, toInputPort)
-      .populatePartitioningOnLinks()
 
   }
 

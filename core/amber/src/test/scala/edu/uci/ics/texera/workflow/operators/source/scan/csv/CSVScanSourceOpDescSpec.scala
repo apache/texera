@@ -101,7 +101,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(
       csvScanSourceOpDesc
         .getPhysicalOp(0, operatorSchemaInfo)
-        .numWorkers == 1
+        .parallelizable == false
     )
   }
 

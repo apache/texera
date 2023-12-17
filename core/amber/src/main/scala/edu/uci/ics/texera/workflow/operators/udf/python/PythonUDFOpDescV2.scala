@@ -94,7 +94,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
-          numWorkers = workers,
+          parallelizable = true,
           derivePartition = _ => UnknownPartition(),
           isOneToManyOp = true,
           inputPorts = opInfo.inputPorts,
@@ -107,6 +107,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
+          parallelizable = false,
           derivePartition = _ => UnknownPartition(),
           isOneToManyOp = true,
           inputPorts = opInfo.inputPorts,

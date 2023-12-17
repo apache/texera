@@ -46,7 +46,6 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(path) =>
         val totalBytes: Long = new File(path).length()
-        val numWorkers: Int = AmberConfig.numWorkerPerOperatorByDefault
 
         PhysicalOp
           .sourcePhysicalOp(
@@ -54,11 +53,12 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
             operatorIdentifier,
             OpExecInitInfo(p => {
               val i = p._1
+              val workerCount = p._2.getIdentifiers.length
               // TODO: add support for limit
               // TODO: add support for offset
-              val startOffset: Long = totalBytes / numWorkers * i
+              val startOffset: Long = totalBytes / workerCount * i
               val endOffset: Long =
-                if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
+                if (i != workerCount - 1) totalBytes / workerCount * (i + 1) else totalBytes
               new ParallelCSVScanSourceOpExec(
                 this,
                 startOffset,
@@ -66,7 +66,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               )
             })
           )
-          .withNumWorkers(numWorkers)
+          .withParallelizable(true)
 
       case None =>
         throw new RuntimeException("File path is not provided.")

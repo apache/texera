@@ -21,7 +21,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .copy(parallelizable = numWorkers() > 1, dependency = dependency().toMap)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
       PhysicalOp
@@ -30,7 +30,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .copy(parallelizable = numWorkers() > 1, dependency = dependency().toMap)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }

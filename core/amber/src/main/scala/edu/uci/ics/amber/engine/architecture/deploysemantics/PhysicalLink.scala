@@ -31,7 +31,7 @@ object PhysicalLink {
       fromPort,
       toPhysicalOp,
       inputPort,
-      Array()
+      List()
     )
   }
   def apply(
@@ -41,65 +41,65 @@ object PhysicalLink {
       inputPort: Int,
       partitionInfo: PartitionInfo
   ): PhysicalLink = {
-    val partitionings: Array[(Partitioning, Array[ActorVirtualIdentity])] = partitionInfo match {
+    val partitionings: List[(Partitioning, List[ActorVirtualIdentity])] = partitionInfo match {
       case HashPartition(hashColumnIndices) =>
-        fromPhysicalOp.identifiers
+        fromPhysicalOp.getIdentifiers
           .map(_ =>
             (
               HashBasedShufflePartitioning(
                 defaultBatchSize,
-                toPhysicalOp.identifiers,
+                toPhysicalOp.getIdentifiers,
                 hashColumnIndices
               ),
-              toPhysicalOp.identifiers
+              toPhysicalOp.getIdentifiers
             )
           )
 
       case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
-        fromPhysicalOp.identifiers
+        fromPhysicalOp.getIdentifiers
           .map(_ =>
             (
               RangeBasedShufflePartitioning(
                 defaultBatchSize,
-                toPhysicalOp.identifiers,
+                toPhysicalOp.getIdentifiers,
                 rangeColumnIndices,
                 rangeMin,
                 rangeMax
               ),
-              toPhysicalOp.identifiers
+              toPhysicalOp.getIdentifiers
             )
           )
 
       case SinglePartition() =>
-        assert(toPhysicalOp.numWorkers == 1)
-        fromPhysicalOp.identifiers
+        assert(toPhysicalOp.parallelizable == false)
+        fromPhysicalOp.getIdentifiers
           .map(_ =>
             (
-              OneToOnePartitioning(defaultBatchSize, Array(toPhysicalOp.identifiers.head)),
-              toPhysicalOp.identifiers
+              OneToOnePartitioning(defaultBatchSize, Array(toPhysicalOp.getIdentifiers.head)),
+              toPhysicalOp.getIdentifiers
             )
           )
 
       case BroadcastPartition() =>
-        fromPhysicalOp.identifiers
+        fromPhysicalOp.getIdentifiers
           .map(_ =>
             (
-              BroadcastPartitioning(defaultBatchSize, toPhysicalOp.identifiers),
-              toPhysicalOp.identifiers
+              BroadcastPartitioning(defaultBatchSize, toPhysicalOp.getIdentifiers),
+              toPhysicalOp.getIdentifiers
             )
           )
 
       case UnknownPartition() =>
-        fromPhysicalOp.identifiers
+        fromPhysicalOp.getIdentifiers
           .map(_ =>
             (
-              RoundRobinPartitioning(defaultBatchSize, toPhysicalOp.identifiers),
-              toPhysicalOp.identifiers
+              RoundRobinPartitioning(defaultBatchSize, toPhysicalOp.getIdentifiers),
+              toPhysicalOp.getIdentifiers
             )
           )
 
       case _ =>
-        Array()
+        List()
 
     }
 
@@ -119,10 +119,10 @@ class PhysicalLink(
     @transient
     val toOp: PhysicalOp,
     val toPort: Int,
-    val partitionings: Array[(Partitioning, Array[ActorVirtualIdentity])]
+    val partitionings: List[(Partitioning, List[ActorVirtualIdentity])]
 ) extends Serializable {
 
   val id: PhysicalLinkIdentity = PhysicalLinkIdentity(fromOp.id, fromPort, toOp.id, toPort)
-  def totalReceiversCount: Long = toOp.numWorkers
+  def totalReceiversCount: Long = toOp.getIdentifiers.length
 
 }

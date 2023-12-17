@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -76,7 +75,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         PhysicalOp partialLayer = PhysicalOp.oneToOnePhysicalOp(executionId,
                 this.operatorIdentifier(),
                 OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpPartialExec(textColumn))
-        ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
+        ).withId(partialId).withIsOneToManyOp(true).withParallelizable(false).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
 

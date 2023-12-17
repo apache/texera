@@ -16,6 +16,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
   RoundRobinPreference
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
+import edu.uci.ics.amber.engine.architecture.scheduling.RegionConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -32,6 +33,7 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object PhysicalOp {
@@ -57,7 +59,7 @@ object PhysicalOp {
       executionId,
       physicalOpId,
       opExecInitInfo,
-      numWorkers = 1,
+      parallelizable = false,
       locationPreference = Option(new PreferController()),
       inputPorts = List.empty
     )
@@ -92,7 +94,7 @@ object PhysicalOp {
       executionId,
       physicalOpId,
       opExecInitInfo,
-      numWorkers = 1,
+      parallelizable = false,
       partitionRequirement = List(Option(SinglePartition())),
       derivePartition = _ => SinglePartition()
     )
@@ -146,8 +148,8 @@ case class PhysicalOp(
     id: PhysicalOpIdentity,
     // information regarding initializing an operator executor instance
     opExecInitInfo: OpExecInitInfo,
-    // preference of parallelism (total number of workers)
-    numWorkers: Int = AmberConfig.numWorkerPerOperatorByDefault,
+    // preference of parallelism
+    parallelizable: Boolean = true,
     // input/output schemas
     schemaInfo: Option[OperatorSchemaInfo] = None,
     // preference of worker placement
@@ -321,7 +323,8 @@ case class PhysicalOp(
   /**
     * creates a copy with the number of workers specified
     */
-  def withNumWorkers(numWorkers: Int): PhysicalOp = this.copy(numWorkers = numWorkers)
+  def withParallelizable(parallelizable: Boolean): PhysicalOp =
+    this.copy(parallelizable = parallelizable)
 
   /**
     * creates a copy with the specified property that whether this operator is one-to-many
@@ -419,25 +422,30 @@ case class PhysicalOp(
     processingOrder.toList
   }
 
-  def identifiers: Array[ActorVirtualIdentity] = {
-    (0 until numWorkers).map { i => identifier(i) }.toArray
+  val identifiers: mutable.HashSet[ActorVirtualIdentity] = mutable.HashSet()
+  def getIdentifiers: List[ActorVirtualIdentity] = identifiers.toList
+  def identifier(i: Int): ActorVirtualIdentity = {
+    VirtualIdentityUtils.createWorkerIdentity(executionId, id, i)
   }
 
-  def identifier(i: Int): ActorVirtualIdentity = {
-    VirtualIdentityUtils.createWorkerIdentity(executionId, id.logicalOpId.id, id.layerName, i)
+  def assignWorkers(workerCount: Int): Unit = {
+    (0 until workerCount).foreach(workerIdx => {
+      identifiers.add(VirtualIdentityUtils.createWorkerIdentity(executionId, id, workerIdx))
+    })
   }
 
   def build(
       controllerActorService: AkkaActorService,
       actorRefService: AkkaActorRefMappingService,
       opExecution: OperatorExecution,
-      controllerConf: ControllerConfig
+      regionConfig: RegionConfig
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,
       controllerActorService.self.path.address
     )
-    (0 until numWorkers)
+    val workerCount = regionConfig.workerConfigs(id).length
+    (0 until workerCount)
       .foreach(i => {
         val workerId: ActorVirtualIdentity =
           VirtualIdentityUtils.createWorkerIdentity(opExecution.executionId, id, i)
