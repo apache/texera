@@ -123,6 +123,6 @@ class PhysicalLink(
 ) extends Serializable {
 
   val id: PhysicalLinkIdentity = PhysicalLinkIdentity(fromOp.id, fromPort, toOp.id, toPort)
-  def totalReceiversCount: Long = toOp.getIdentifiers.length
+  def totalReceiversCount: Long = partitionings.length
 
 }
