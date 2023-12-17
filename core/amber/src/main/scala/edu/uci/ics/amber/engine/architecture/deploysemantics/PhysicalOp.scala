@@ -166,12 +166,12 @@ case class PhysicalOp(
     outputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
-    // execution dependency of ports: (dependee, depender)
+    // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
     dependency: Map[Int, Int] = Map(),
     isOneToManyOp: Boolean = false
 ) {
 
-  // all the "depender" links are also blocking inputs
+  // all the "dependee" links are also blocking inputs
   private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
@@ -399,9 +399,9 @@ case class PhysicalOp(
     val dependencyDag =
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
     dependency.foreach({
-      case (dependee: Int, depender: Int) =>
-        val upstreamLink = inputPortToLinkMapping(depender).head
-        val downstreamLink = inputPortToLinkMapping(dependee).head
+      case (depender: Int, dependee: Int) =>
+        val upstreamLink = inputPortToLinkMapping(dependee).head
+        val downstreamLink = inputPortToLinkMapping(depender).head
         if (!dependencyDag.containsVertex(upstreamLink)) {
           dependencyDag.addVertex(upstreamLink)
         }
