@@ -69,17 +69,17 @@ class ExpansionGreedyRegionPlanGenerator(
     with LazyLogging {
 
   /**
-    * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpIId`.
+    * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
     * The links are to be added to the region DAG separately.
     */
   private def createLinks(
       upstreamOpId: PhysicalOpIdentity,
-      downstreamOpIId: PhysicalOpIdentity,
+      downstreamOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): List[RegionLink] = {
 
     val upstreamRegions = getRegions(upstreamOpId, regionDAG)
-    val downstreamRegions = getRegions(downstreamOpIId, regionDAG)
+    val downstreamRegions = getRegions(downstreamOpId, regionDAG)
 
     upstreamRegions.flatMap { upstreamRegion =>
       downstreamRegions
@@ -151,7 +151,8 @@ class ExpansionGreedyRegionPlanGenerator(
     if (physicalPlan.areAllInputBlocking(physicalOpId)) {
       // for operators that have only blocking input links return all links for materialization replacement
       return Some(
-        physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
+        physicalPlan
+          .getUpstreamPhysicalOpIds(physicalOpId)
           .flatMap { upstreamPhysicalOpId =>
             physicalPlan.getLinksBetween(upstreamPhysicalOpId, physicalOpId)
           }
