@@ -148,12 +148,10 @@ class ExpansionGreedyRegionPlanGenerator(
   private def handleAllBlockingInput(
       physicalOpId: PhysicalOpIdentity
   ): Option[List[PhysicalLink]] = {
-    // for operators that have only blocking input links
-    val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
     if (physicalPlan.areAllInputBlocking(physicalOpId)) {
-      // return all links for materialization replacement
+      // for operators that have only blocking input links return all links for materialization replacement
       return Some(
-        upstreamPhysicalOpIds
+        physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
           .flatMap { upstreamPhysicalOpId =>
             physicalPlan.getLinksBetween(upstreamPhysicalOpId, physicalOpId)
           }
@@ -180,7 +178,7 @@ class ExpansionGreedyRegionPlanGenerator(
             regionLinks.foreach(link => regionDAG.addEdge(link.fromRegion, link.toRegion, link))
           } catch {
             case _: IllegalArgumentException =>
-              // adding the edge causes cycle. return the link materialization replacement
+              // adding the edge causes cycle. return the link for materialization replacement
               return Some(List(nextLink))
           }
       }
