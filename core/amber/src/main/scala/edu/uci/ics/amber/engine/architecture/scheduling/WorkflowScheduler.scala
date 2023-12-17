@@ -188,7 +188,7 @@ class WorkflowScheduler(
       opExecution,
       workflow.regionPlan.regions
         .find(region => region.id == regionId)
-        .map(region => region.config.get)
+        .map(region => region.config.get.workerConfigs(physicalOp.id))
         .get
     )
   }
