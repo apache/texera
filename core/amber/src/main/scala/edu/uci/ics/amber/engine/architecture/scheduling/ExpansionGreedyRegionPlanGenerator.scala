@@ -193,8 +193,6 @@ class ExpansionGreedyRegionPlanGenerator(
     None
   }
 
-
-
   /**
     * This function creates and connects a region DAG while conducting materialization replacement.
     * It keeps attempting to create a region DAG from the given PhysicalPlan. When failed, a list
@@ -303,21 +301,29 @@ class ExpansionGreedyRegionPlanGenerator(
     regionDAG
   }
 
-  def populateRegionConfigs(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): DirectedAcyclicGraph[Region, RegionLink] = {
-    regionDAG.vertexSet().toList.foreach(region => {
-      val config = RegionConfig(region.getEffectiveOperators.map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-        .map { physicalOp =>
-        {
-          val workerCount =
-            if (physicalOp.parallelizable) AmberConfig.numWorkerPerOperatorByDefault
-            else 1
-          physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
-        }
-        }
-        .toMap)
-      val newRegion = region.copy(config = Some(config))
-      replaceVertex(regionDAG, region, newRegion)
-    })
+  def populateRegionConfigs(
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): DirectedAcyclicGraph[Region, RegionLink] = {
+    regionDAG
+      .vertexSet()
+      .toList
+      .foreach(region => {
+        val config = RegionConfig(
+          region.getEffectiveOperators
+            .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+            .map { physicalOp =>
+              {
+                val workerCount =
+                  if (physicalOp.parallelizable) AmberConfig.numWorkerPerOperatorByDefault
+                  else 1
+                physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
+              }
+            }
+            .toMap
+        )
+        val newRegion = region.copy(config = Some(config))
+        replaceVertex(regionDAG, region, newRegion)
+      })
     regionDAG
   }
 
