@@ -394,11 +394,10 @@ case class PhysicalPlan(
   }
 
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {
-    val upstreamPhysicalOpIds = getUpstreamPhysicalOpIds(physicalOpId)
 
-    upstreamPhysicalOpIds.nonEmpty && upstreamPhysicalOpIds.forall { upstreamPhysicalOpId =>
-      getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-        .forall(link => getOperator(upstreamPhysicalOpId).isInputLinkBlocking(link))
+    val upstreamPhysicalLinkIds = getUpstreamPhysicalLinkIds(physicalOpId)
+    upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
+      getOperator(physicalOpId).isInputLinkBlocking(getLink(upstreamPhysicalLinkId))
     }
   }
 
