@@ -282,15 +282,12 @@ class ExpansionGreedyRegionPlanGenerator(
       .toList
 
     blockingLinkIds
-      .flatMap { linkId =>
-        val upstreamRegions = getRegions(linkId.from, regionDAG)
-        upstreamRegions.map(region => region -> linkId)
-      }
+      .flatMap { linkId =>getRegions(linkId.from, regionDAG).map(region => region -> linkId)}
       .groupBy(_._1)
-      .mapValues(_.map(_._2).toList)
+      .mapValues(_.map(_._2))
       .foreach {
         case (region, links) =>
-          val newRegion = region.copy(downstreamLinkIds = links)
+          val newRegion = region.copy(downstreamLinkIds = links.toSet.toList)
           replaceVertex(regionDAG, region, newRegion)
       }
     regionDAG
