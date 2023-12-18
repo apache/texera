@@ -126,8 +126,7 @@ case class LogicalPlan(
   }
 
   def removeLink(linkToRemove: LogicalLink): LogicalPlan = {
-    val newLinks = links.filter(l => l != linkToRemove)
-    this.copy(context, operators, newLinks, breakpoints)
+    this.copy(context, operators, links.filter(l => l != linkToRemove), breakpoints)
   }
 
   def getDownstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
