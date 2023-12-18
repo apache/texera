@@ -20,6 +20,7 @@ import scala.collection.convert.ImplicitConversions.{
   `iterable AsScalaIterable`
 }
 import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 
 object ExpansionGreedyRegionPlanGenerator {
 
@@ -267,21 +268,26 @@ class ExpansionGreedyRegionPlanGenerator(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): DirectedAcyclicGraph[Region, RegionLink] = {
 
-    val blockingLinkIds = physicalPlan.topologicalIterator().flatMap { physicalOpId =>
-      val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
-      upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
-        physicalPlan
-          .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-          .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
-          .map(_.id)
+    val blockingLinkIds = physicalPlan
+      .topologicalIterator()
+      .flatMap { physicalOpId =>
+        val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
+        upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
+          physicalPlan
+            .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
+            .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
+            .map(_.id)
+        }
       }
-    }
+      .toList
 
     blockingLinkIds
       .flatMap { linkId =>
         val upstreamRegions = getRegions(linkId.from, regionDAG)
-        upstreamRegions.map(region => region -> linkId).groupBy(_._1).mapValues(_.map(_._2).toList)
+        upstreamRegions.map(region => region -> linkId)
       }
+      .groupBy(_._1)
+      .mapValues(_.map(_._2).toList)
       .foreach {
         case (region, links) =>
           val newRegion = region.copy(downstreamLinkIds = links)
