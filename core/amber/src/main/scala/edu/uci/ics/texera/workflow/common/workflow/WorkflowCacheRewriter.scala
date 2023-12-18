@@ -37,22 +37,18 @@ object WorkflowCacheRewriter {
     opsCanUseCache.foreach(opId => {
       val materializationReader = new CacheSourceOpDesc(opId, storage)
       resultPlan = resultPlan.addOperator(materializationReader)
-      // replace the connection of all outgoing edges of opId with the cache
-      val edgesToReplace = resultPlan.getDownstreamEdges(opId)
-      edgesToReplace.foreach(e => {
-        resultPlan = resultPlan.removeEdge(
-          e.origin.operatorId,
-          e.destination.operatorId,
-          e.origin.portOrdinal,
-          e.destination.portOrdinal
-        )
-        resultPlan = resultPlan.addEdge(
-          materializationReader.operatorIdentifier,
-          e.destination.operatorId,
-          0,
-          e.destination.portOrdinal
-        )
+      // replace all outgoing links of the original operator with the new links from cache
+      val linksToReplace = resultPlan.getDownstreamLinks(opId)
+      linksToReplace.foreach(link => {
+        resultPlan = resultPlan
+          .removeLink(link)
+          .addLink(
+            from = materializationReader.operatorIdentifier,
+            to = link.destination.operatorId,
+            toPort = link.destination.portOrdinal
+          )
       })
+      resultPlan = resultPlan.removeOperator(opId)
     })
 
     // after an operator is replaced with reading from cached result
