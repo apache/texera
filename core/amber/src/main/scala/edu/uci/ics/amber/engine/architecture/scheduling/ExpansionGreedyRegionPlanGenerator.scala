@@ -20,7 +20,6 @@ import scala.collection.convert.ImplicitConversions.{
   `iterable AsScalaIterable`
 }
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 
 object ExpansionGreedyRegionPlanGenerator {
 
