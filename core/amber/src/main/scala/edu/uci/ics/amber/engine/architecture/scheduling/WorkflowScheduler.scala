@@ -1,19 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionState,
-  OperatorExecution,
-  Workflow
-}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, OperatorExecution, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
@@ -164,8 +157,7 @@ class WorkflowScheduler(
       frontier = region.getEffectiveOperators
         .filter(physicalOpId => {
           !builtOpsInRegion.contains(physicalOpId) && workflow.physicalPlan
-            .getUpstreamPhysicalOpIds(physicalOpId)
-            .filter(region.physicalOpIds.contains)
+            .getUpstreamPhysicalOpIds(physicalOpId).intersect(region.physicalOpIds)
             .forall(builtOperators.contains)
         })
     }
@@ -189,7 +181,7 @@ class WorkflowScheduler(
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion = region.getEffectiveOperators
     val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
-      allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
+      allOperatorsInRegion.diff(initializedPythonOperators)
     )
     Future
       .collect(
@@ -245,7 +237,7 @@ class WorkflowScheduler(
   private def openAllOperators(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion = region.getEffectiveOperators
     val allNotOpenedOperators =
-      allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
+      allOperatorsInRegion.diff(openedOperators)
     Future
       .collect(
         executionState
