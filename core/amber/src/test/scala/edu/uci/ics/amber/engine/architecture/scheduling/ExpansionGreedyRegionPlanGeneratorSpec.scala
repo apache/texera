@@ -84,7 +84,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
 
     assert(workflow.regionPlan.getUpstreamRegions(probeRegion).size == 1)
     assert(workflow.regionPlan.getUpstreamRegions(probeRegion).contains(buildRegion))
-    assert(buildRegion.downstreamLinkIds.length == 1)
+    assert(buildRegion.downstreamLinkIds.size == 1)
     assert(
       buildRegion.downstreamLinkIds.exists(linkId =>
         linkId.to.logicalOpId == joinOpDesc.operatorIdentifier
