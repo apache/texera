@@ -282,7 +282,7 @@ class ExpansionGreedyRegionPlanGenerator(
       .toSet
 
     blockingLinkIds
-      .flatMap { linkId =>getRegions(linkId.from, regionDAG).map(region => region -> linkId)}
+      .flatMap { linkId => getRegions(linkId.from, regionDAG).map(region => region -> linkId) }
       .groupBy(_._1)
       .mapValues(_.map(_._2))
       .foreach {

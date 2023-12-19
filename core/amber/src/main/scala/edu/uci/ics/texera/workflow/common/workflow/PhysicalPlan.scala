@@ -25,7 +25,7 @@ object PhysicalPlan {
 
   def apply(executionId: Long, logicalPlan: LogicalPlan): PhysicalPlan = {
 
-    var physicalPlan = PhysicalPlan(operators=Set.empty, links=Set.empty)
+    var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
     logicalPlan.operators.foreach(op => {
       val subPlan =

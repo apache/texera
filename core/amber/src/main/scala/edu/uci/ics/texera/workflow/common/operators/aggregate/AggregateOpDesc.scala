@@ -52,7 +52,7 @@ object AggregateOpDesc {
     }
 
     new PhysicalPlan(
-      operators= Set(partialPhysicalOp, finalPhysicalOp),
+      operators = Set(partialPhysicalOp, finalPhysicalOp),
       links = Set(PhysicalLink(partialPhysicalOp, 0, finalPhysicalOp, 0))
     )
   }
