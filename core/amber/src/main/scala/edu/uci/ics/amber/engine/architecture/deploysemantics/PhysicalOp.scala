@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics
 import akka.actor.Deploy
 import akka.remote.RemoteScope
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, OperatorExecution}
+import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
   OpExecInitInfoWithCode,
@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
   RoundRobinPreference
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.scheduling.{RegionConfig, WorkerConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
