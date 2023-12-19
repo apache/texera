@@ -170,8 +170,8 @@ case class PhysicalPlan(
     links.filter(l => l.fromOp.id == physicalOpId).map(_.id)
   }
 
-  def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): List[PhysicalOpIdentity] = {
-    dag.getDescendants(physicalOpId).asScala.toList
+  def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
+    dag.getDescendants(physicalOpId).asScala.toSet
   }
 
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {

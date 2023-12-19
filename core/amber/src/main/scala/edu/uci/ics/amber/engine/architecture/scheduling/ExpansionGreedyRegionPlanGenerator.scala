@@ -98,7 +98,7 @@ class ExpansionGreedyRegionPlanGenerator(
       .map {
         case (sourcePhysicalOpId, index) =>
           val operatorIds =
-            nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) :+ sourcePhysicalOpId
+            nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
           val linkIds = operatorIds.flatMap(operatorId => {
             physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
               .getDownstreamPhysicalLinkIds(operatorId)
@@ -287,7 +287,7 @@ class ExpansionGreedyRegionPlanGenerator(
       .mapValues(_.map(_._2))
       .foreach {
         case (region, links) =>
-          val newRegion = region.copy(downstreamLinkIds = links.toSet.toList)
+          val newRegion = region.copy(downstreamLinkIds = links.toSet)
           replaceVertex(regionDAG, region, newRegion)
       }
     regionDAG

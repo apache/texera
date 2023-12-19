@@ -10,12 +10,12 @@ case class RegionIdentity(id: String)
 // only blocking inputs or no inputs at all.
 case class Region(
     id: RegionIdentity,
-    physicalOpIds: List[PhysicalOpIdentity],
-    physicalLinkIds: List[PhysicalLinkIdentity],
+    physicalOpIds: Set[PhysicalOpIdentity],
+    physicalLinkIds: Set[PhysicalLinkIdentity],
     // operators whose all inputs are from upstream region.
-    sourcePhysicalOpIds: List[PhysicalOpIdentity] = List.empty,
+    sourcePhysicalOpIds: Set[PhysicalOpIdentity] = Set.empty,
     // links to downstream regions, where this region generates blocking output.
-    downstreamLinkIds: List[PhysicalLinkIdentity] = List.empty
+    downstreamLinkIds: Set[PhysicalLinkIdentity] = Set.empty
 ) {
 
   /**
@@ -24,7 +24,7 @@ case class Region(
     *   1) operators in this region;
     *   2) operators not in this region but blocked by this region (connected by the downstream links).
     */
-  def getEffectiveOperators: List[PhysicalOpIdentity] = {
+  def getEffectiveOperators: Set[PhysicalOpIdentity] = {
     physicalOpIds ++ downstreamLinkIds.map(linkId => linkId.to)
   }
 

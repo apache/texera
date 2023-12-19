@@ -145,7 +145,7 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Unit = {
     val builtOpsInRegion = new mutable.HashSet[PhysicalOpIdentity]()
-    var frontier: Iterable[PhysicalOpIdentity] = region.sourcePhysicalOpIds
+    var frontier = region.sourcePhysicalOpIds
     while (frontier.nonEmpty) {
       frontier.foreach { (op: PhysicalOpIdentity) =>
         if (!builtOperators.contains(op)) {

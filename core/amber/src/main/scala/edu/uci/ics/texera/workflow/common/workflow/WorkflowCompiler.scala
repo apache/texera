@@ -104,7 +104,7 @@ class WorkflowCompiler(
       assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
     }
 
-    new Workflow(
+    Workflow(
       workflowId,
       originalLogicalPlan,
       rewrittenLogicalPlan,
