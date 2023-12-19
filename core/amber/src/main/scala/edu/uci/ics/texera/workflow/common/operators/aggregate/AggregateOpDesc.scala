@@ -52,8 +52,8 @@ object AggregateOpDesc {
     }
 
     new PhysicalPlan(
-      List(partialPhysicalOp, finalPhysicalOp),
-      List(PhysicalLink(partialPhysicalOp, 0, finalPhysicalOp, 0))
+      operators= Set(partialPhysicalOp, finalPhysicalOp),
+      links = Set(PhysicalLink(partialPhysicalOp, 0, finalPhysicalOp, 0))
     )
   }
 

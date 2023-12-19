@@ -77,7 +77,7 @@ class ExpansionGreedyRegionPlanGenerator(
       upstreamOpId: PhysicalOpIdentity,
       downstreamOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): List[RegionLink] = {
+  ): Set[RegionLink] = {
 
     val upstreamRegions = getRegions(upstreamOpId, regionDAG)
     val downstreamRegions = getRegions(downstreamOpId, regionDAG)
@@ -86,13 +86,13 @@ class ExpansionGreedyRegionPlanGenerator(
       downstreamRegions
         .filterNot(regionDAG.getDescendants(upstreamRegion).contains(_))
         .map(downstreamRegion => RegionLink(upstreamRegion, downstreamRegion))
-    }.toList
+    }
   }
 
   /**
     * Create Regions based on the PhysicalPlan. The Region are to be added to regionDAG separately.
     */
-  private def createRegions(physicalPlan: PhysicalPlan): List[Region] = {
+  private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val nonBlockingDAG = physicalPlan.removeBlockingLinks()
     nonBlockingDAG.getSourceOperatorIds.zipWithIndex
       .map {
@@ -118,14 +118,14 @@ class ExpansionGreedyRegionPlanGenerator(
     *   1. The link's toOp (this PhysicalOp) has and only has blocking links;
     *   2. The link's toOp (this PhysicalOp) has another link that has higher priority to run than this link
     *   (aka, it has a dependency).
-    * If such links are found, the function will terminate after this PhysicalOp and return the list of links.
+    * If such links are found, the function will terminate after this PhysicalOp and return the set of links.
     *
     * If the function finds no such links for all PhysicalOps, it will return the connected Region DAG.
     *
-    *  @return Either a partially connected region DAG, or a list of PhysicalLinks for materialization replacement.
+    *  @return Either a partially connected region DAG, or a set of PhysicalLinks for materialization replacement.
     */
   private def tryConnectRegionDAG()
-      : Either[DirectedAcyclicGraph[Region, RegionLink], List[PhysicalLink]] = {
+      : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLink]] = {
 
     // creates an empty regionDAG
     val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
@@ -148,7 +148,7 @@ class ExpansionGreedyRegionPlanGenerator(
 
   private def handleAllBlockingInput(
       physicalOpId: PhysicalOpIdentity
-  ): Option[List[PhysicalLink]] = {
+  ): Option[Set[PhysicalLink]] = {
     if (physicalPlan.areAllInputBlocking(physicalOpId)) {
       // for operators that have only blocking input links return all links for materialization replacement
       return Some(
@@ -165,7 +165,7 @@ class ExpansionGreedyRegionPlanGenerator(
   private def handleDependentLinks(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Option[List[PhysicalLink]] = {
+  ): Option[Set[PhysicalLink]] = {
     // for operators like HashJoin that have an order among their blocking and pipelined inputs
     physicalPlan
       .getOperator(physicalOpId)
@@ -181,7 +181,7 @@ class ExpansionGreedyRegionPlanGenerator(
           } catch {
             case _: IllegalArgumentException =>
               // adding the edge causes cycle. return the link for materialization replacement
-              return Some(List(nextLink))
+              return Some(Set(nextLink))
           }
       }
     None
@@ -279,7 +279,7 @@ class ExpansionGreedyRegionPlanGenerator(
             .map(_.id)
         }
       }
-      .toList
+      .toSet
 
     blockingLinkIds
       .flatMap { linkId =>getRegions(linkId.from, regionDAG).map(region => region -> linkId)}
@@ -297,7 +297,7 @@ class ExpansionGreedyRegionPlanGenerator(
 
     val regionDAG = createRegionDAG()
     (
-      RegionPlan(regions = regionDAG.toList, regionLinks = regionDAG.edgeSet().toList),
+      RegionPlan(regions = regionDAG.toSet, regionLinks = regionDAG.edgeSet().toSet),
       physicalPlan
     )
   }

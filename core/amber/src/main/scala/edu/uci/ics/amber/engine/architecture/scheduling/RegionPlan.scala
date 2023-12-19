@@ -1,12 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 case class RegionPlan(
-    regions: List[Region],
-    regionLinks: List[RegionLink]
+    regions: Set[Region],
+    regionLinks: Set[RegionLink]
 ) {
 
   def getUpstreamRegions(region: Region): Set[Region] = {
-    regionLinks.filter(link => link.toRegion == region).map(_.fromRegion).toSet
+    regionLinks.filter(link => link.toRegion == region).map(_.fromRegion)
   }
 
 }

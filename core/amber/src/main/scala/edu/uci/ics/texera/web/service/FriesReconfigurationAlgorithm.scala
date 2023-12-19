@@ -27,10 +27,10 @@ object FriesReconfigurationAlgorithm {
       regionPlan: RegionPlan,
       reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
       epochMarkerId: String
-  ): List[(PhysicalOpIdentity, EpochMarker)] = {
+  ): Set[(PhysicalOpIdentity, EpochMarker)] = {
     // independently schedule reconfigurations for each region:
     regionPlan.regions
-      .map(region => physicalPlan.getSubPlan(region.physicalOpIds.toSet))
+      .map(region => physicalPlan.getSubPlan(region.physicalOpIds))
       .flatMap(regionSubPlan => computeMCS(regionSubPlan, reconfigurations, epochMarkerId))
   }
 

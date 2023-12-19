@@ -180,7 +180,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
       executionId: Long,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
-    new PhysicalPlan(List(getPhysicalOp(executionId, operatorSchemaInfo)), List())
+    new PhysicalPlan(operators=Set(getPhysicalOp(executionId, operatorSchemaInfo)), links=Set.empty)
   }
 
   def operatorInfo: OperatorInfo
