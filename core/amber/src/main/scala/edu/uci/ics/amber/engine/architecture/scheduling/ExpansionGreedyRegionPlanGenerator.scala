@@ -99,12 +99,6 @@ class ExpansionGreedyRegionPlanGenerator(
         case (sourcePhysicalOpId, index) =>
           val operatorIds =
             nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
-          val config = RegionConfig(
-            operatorIds
-              .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-              .map(physicalOp => physicalOp.id -> physicalOp.numWorkers)
-              .toMap
-          )
           val linkIds = operatorIds.flatMap(operatorId => {
             physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
               .getDownstreamPhysicalLinkIds(operatorId)
