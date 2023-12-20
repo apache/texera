@@ -96,13 +96,11 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        partitionRequirement = partitionRequirement,
-        derivePartition = joinDerivePartition,
-        blockingInputs = List(0)
-      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts((operatorInfo.outputPorts))
+      .withBlockingInputs(List(0))
+      .withPartitionRequirement(partitionRequirement)
+      .withDerivePartition(joinDerivePartition)
       .withDependencies(Map(1 -> 0))
   }
 

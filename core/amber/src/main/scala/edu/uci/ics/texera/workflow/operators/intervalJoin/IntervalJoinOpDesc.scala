@@ -88,12 +88,10 @@ class IntervalJoinOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo(_ => new IntervalJoinOpExec(operatorSchemaInfo, this))
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        partitionRequirement = partitionRequirement,
-        blockingInputs = List(0)
-      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withBlockingInputs(List(0))
+      .withPartitionRequirement(partitionRequirement)
       .withDependencies(Map(1 -> 0))
   }
 

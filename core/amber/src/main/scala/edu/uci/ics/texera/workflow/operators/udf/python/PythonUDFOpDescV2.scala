@@ -93,25 +93,22 @@ class PythonUDFOpDescV2 extends LogicalOp {
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          derivePartition = _ => UnknownPartition(),
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement
-        )
+        .withDerivePartition(_ => UnknownPartition())
+        .withPartitionRequirement(partitionRequirement)
+        .withInputPorts(opInfo.inputPorts)
+        .withOutputPorts(opInfo.outputPorts)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
         .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          derivePartition = _ => UnknownPartition(),
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement
-        )
+        .withDerivePartition(_ => UnknownPartition())
+        .withPartitionRequirement(partitionRequirement)
+        .withInputPorts(opInfo.inputPorts)
+        .withOutputPorts(opInfo.outputPorts)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
         .withDependencies(dependencies)

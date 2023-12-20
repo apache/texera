@@ -33,6 +33,7 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -170,7 +171,9 @@ case class PhysicalOp(
     blockingInputs: List[Int] = List(),
     // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
     dependencies: Map[Int, Int] = Map(),
-    isOneToManyOp: Boolean = false
+    isOneToManyOp: Boolean = false,
+    // hint for number of workers
+    suggestedWorkerNum: Option[Int] = None
 ) {
 
   // all the "dependee" links are also blocking inputs
@@ -244,6 +247,63 @@ case class PhysicalOp(
   }
 
   /**
+    * creates a copy with the blocking input port indices
+    */
+  def withBlockingInputs(blockingInputs: List[Int]): PhysicalOp = {
+    this.copy(blockingInputs = blockingInputs)
+  }
+
+  /**
+    * creates a copy with suggested worker number. This is only to be used by Python UDF operators.
+    */
+  def withSuggestedWorkerNum(workerNum: Int): PhysicalOp = {
+    this.copy(suggestedWorkerNum = Some(workerNum))
+  }
+
+  /**
+    * creates a copy with the new id
+    */
+  def withId(id: PhysicalOpIdentity): PhysicalOp = this.copy(id = id)
+
+  /**
+    * creates a copy with the partition requirements
+    */
+  def withPartitionRequirement(partitionRequirements: List[Option[PartitionInfo]]): PhysicalOp = {
+    this.copy(partitionRequirement = partitionRequirements)
+  }
+
+  /**
+    * creates a copy with the partition info derive function
+    */
+  def withDerivePartition(derivePartition: List[PartitionInfo] => PartitionInfo): PhysicalOp = {
+    this.copy(derivePartition = derivePartition)
+  }
+
+  /**
+    * creates a copy with the parallelizable specified
+    */
+  def withParallelizable(parallelizable: Boolean): PhysicalOp =
+    this.copy(parallelizable = parallelizable)
+
+  /**
+    * creates a copy with the dependencies specified
+    */
+  def withDependencies(dependencies: Map[Int, Int]): PhysicalOp =
+    this.copy(dependencies = dependencies)
+
+  /**
+    * creates a copy with the specified property that whether this operator is one-to-many
+    */
+  def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
+    this.copy(isOneToManyOp = isOneToManyOp)
+
+  /**
+    * creates a copy with the schema information
+    */
+  def withOperatorSchemaInfo(schemaInfo: OperatorSchemaInfo): PhysicalOp =
+    this.copy(schemaInfo = Some(schemaInfo))
+
+  /**
     * creates a copy with an additional input operator specified on an input port
     */
   def addInput(fromOp: PhysicalOp, fromPort: Int, toPort: Int): PhysicalOp = {
@@ -314,35 +374,6 @@ case class PhysicalOp(
       ))
     )
   }
-
-  /**
-    * creates a copy with the new id
-    */
-  def withId(id: PhysicalOpIdentity): PhysicalOp = this.copy(id = id)
-
-  /**
-    * creates a copy with the parallelizable specified
-    */
-  def withParallelizable(parallelizable: Boolean): PhysicalOp =
-    this.copy(parallelizable = parallelizable)
-
-  /**
-    * creates a copy with the dependencies specified
-    */
-  def withDependencies(dependencies: Map[Int, Int]): PhysicalOp =
-    this.copy(dependencies = dependencies)
-
-  /**
-    * creates a copy with the specified property that whether this operator is one-to-many
-    */
-  def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
-    this.copy(isOneToManyOp = isOneToManyOp)
-
-  /**
-    * creates a copy with the schema information
-    */
-  def withOperatorSchemaInfo(schemaInfo: OperatorSchemaInfo): PhysicalOp =
-    this.copy(schemaInfo = Some(schemaInfo))
 
   /**
     * returns all input links on a specific input port

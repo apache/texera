@@ -73,21 +73,18 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          blockingInputs = List(0),
-          derivePartition = _ => UnknownPartition()
-        )
+        .withBlockingInputs(List(0))
+        .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
         .withDependencies(Map(1 -> 0))
         .withInputPorts(operatorInfo.inputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          blockingInputs = List(0),
-          derivePartition = _ => UnknownPartition()
-        )
+        .withBlockingInputs(List(0))
+        .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
         .withInputPorts(operatorInfo.inputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
