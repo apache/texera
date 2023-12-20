@@ -102,7 +102,7 @@ object WorkflowExecutionsResource {
       inputTupleCount: UInteger,
       outputTupleCount: UInteger,
       status: Byte
-                                      )
+  )
 }
 
 case class ExecutionGroupBookmarkRequest(
@@ -165,9 +165,9 @@ class WorkflowExecutionsResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   @Path("/{wid}/{eid}")
   def retrieveWorkflowRuntimeStatistics(
-                                         @PathParam("wid") wid: UInteger,
-                                         @PathParam("eid") eid: UInteger
-                                       ): List[WorkflowRuntimeStatistics] = {
+      @PathParam("wid") wid: UInteger,
+      @PathParam("eid") eid: UInteger
+  ): List[WorkflowRuntimeStatistics] = {
     context
       .select(
         WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
@@ -176,12 +176,15 @@ class WorkflowExecutionsResource {
         WORKFLOW_RUNTIME_STATISTICS.STATUS
       )
       .from(WORKFLOW_RUNTIME_STATISTICS)
-      .where(WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID.eq(wid).and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid)))
+      .where(
+        WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
+          .eq(wid)
+          .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
+      )
       .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
       .fetchInto(classOf[WorkflowRuntimeStatistics])
       .toList
   }
-
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */
   @PUT
