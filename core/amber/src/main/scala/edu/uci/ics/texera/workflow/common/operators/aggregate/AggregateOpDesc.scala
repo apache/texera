@@ -24,8 +24,9 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "localAgg"),
           OpExecInitInfo(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
+        .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
+        .copy(inputPorts = List(InputPort("in")))
 
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
       PhysicalOp
@@ -34,8 +35,9 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
+        .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
+        .copy(outputPorts = List(OutputPort("out")))
     } else {
       val partitionColumns: Array[Int] =
         if (groupByKeys == null) Array()
@@ -48,7 +50,8 @@ object AggregateOpDesc {
           OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
           partitionColumns
         )
-        .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
+        .withIsOneToManyOp(true)
+        .copy(outputPorts = List(OutputPort("out")))
     }
 
     new PhysicalPlan(
@@ -73,7 +76,7 @@ abstract class AggregateOpDesc extends LogicalOp {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     var plan = aggregateOperatorExecutor(executionId, operatorSchemaInfo)
-    plan.operators.foreach(op => plan = plan.setOperator(op.copy(isOneToManyOp = true)))
+    plan.operators.foreach(op => plan = plan.setOperator(op.withIsOneToManyOp(true)))
     plan
   }
 
