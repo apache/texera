@@ -321,7 +321,7 @@ case class PhysicalOp(
   def withId(id: PhysicalOpIdentity): PhysicalOp = this.copy(id = id)
 
   /**
-    * creates a copy with the number of workers specified
+    * creates a copy with the parallelizable specified
     */
   def withParallelizable(parallelizable: Boolean): PhysicalOp =
     this.copy(parallelizable = parallelizable)
