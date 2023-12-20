@@ -21,9 +21,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
     }
 
     const groupedStats = this.groupStatsByOperatorId(this.workflowRuntimeStatistics);
-    const datasets1 = this.createDatasets(groupedStats);
+    const datasets = this.createDatasets(groupedStats);
 
-    this.createChart(datasets1);
+    this.createChart(datasets);
   }
 
   groupStatsByOperatorId(stats: WorkflowRuntimeStatistics[]): Record<string, WorkflowRuntimeStatistics[]> {
@@ -40,13 +40,20 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   createDatasets(groupedStats: Record<string, WorkflowRuntimeStatistics[]>): any[] {
     return Object.keys(groupedStats).map((operatorId, index) => {
+      let operatorName = operatorId.split("-")[0];
+      // Exclude data if operatorName is "ProgressiveSinkOpDesc"
+      if (operatorName === "ProgressiveSinkOpDesc") {
+        return null;
+      }
+
+      let uuidLast6Digits = operatorId.slice(-6);
       return {
         x: this.createLabels(groupedStats[operatorId]),
         y: groupedStats[operatorId].map(stat => stat.inputTupleCount),
         mode: 'lines',
-        name: operatorId
+        name: operatorName + "-" + uuidLast6Digits
       };
-    });
+    }).filter(item => item !== null);
   }
 
   createLabels(stats: WorkflowRuntimeStatistics[]): number[] {
