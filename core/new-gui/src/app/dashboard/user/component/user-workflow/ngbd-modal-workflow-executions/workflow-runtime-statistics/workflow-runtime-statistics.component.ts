@@ -2,6 +2,8 @@ import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
 import * as Plotly from "plotly.js-dist-min";
+import { MatTabChangeEvent } from "@angular/material/tabs";
+import * as assert from "assert";
 
 @UntilDestroy()
 @Component({
@@ -13,64 +15,84 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   @Input()
   workflowRuntimeStatistics?: WorkflowRuntimeStatistics[];
 
+  private tab_index = 0;
+  private groupedStats?: Record<string, WorkflowRuntimeStatistics[]>;
+  public metrics: string[] = ["Input Tuple Count", "Output Tuple Count"];
+
   constructor() {}
 
   ngOnInit(): void {
-    if (this.workflowRuntimeStatistics === undefined) {
+    if (!this.workflowRuntimeStatistics) {
       return;
     }
 
-    const groupedStats = this.groupStatsByOperatorId(this.workflowRuntimeStatistics);
-    const datasets = this.createDatasets(groupedStats);
-
-    this.createChart(datasets);
+    this.groupedStats = this.groupStatsByOperatorId();
+    this.createChart();
   }
 
-  groupStatsByOperatorId(stats: WorkflowRuntimeStatistics[]): Record<string, WorkflowRuntimeStatistics[]> {
-    return stats.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
-      acc[stat.operatorId] = acc[stat.operatorId] || [];
-      if (acc[stat.operatorId].length > 0) {
-        stat.inputTupleCount =
-          stat.inputTupleCount + acc[stat.operatorId][acc[stat.operatorId].length - 1].inputTupleCount;
-      }
-      acc[stat.operatorId].push(stat);
-      return acc;
-    }, {});
+  onTabChanged(event: MatTabChangeEvent): void {
+    this.tab_index = event.index;
+    this.createChart();
   }
 
-  createDatasets(groupedStats: Record<string, WorkflowRuntimeStatistics[]>): any[] {
-    return Object.keys(groupedStats)
-      .map((operatorId, index) => {
-        let operatorName = operatorId.split("-")[0];
-        // Exclude data if operatorName is "ProgressiveSinkOpDesc"
+  private groupStatsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
+    return (
+      this.workflowRuntimeStatistics?.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
+        const statsArray = acc[stat.operatorId] || [];
+        const lastStat = statsArray[statsArray.length - 1];
+
+        if (lastStat) {
+          stat.inputTupleCount += lastStat.inputTupleCount;
+          stat.outputTupleCount += lastStat.outputTupleCount;
+        }
+
+        acc[stat.operatorId] = [...statsArray, stat];
+        return acc;
+      }, {}) || {}
+    );
+  }
+
+  private createDatasets(): any[] {
+    if (!this.groupedStats) {
+      return [];
+    }
+
+    return Object.keys(this.groupedStats)
+      .map(operatorId => {
+        const operatorName = operatorId.split("-")[0];
+        const uuidLast6Digits = operatorId.slice(-6);
+
         if (operatorName === "ProgressiveSinkOpDesc") {
           return null;
         }
 
-        let uuidLast6Digits = operatorId.slice(-6);
+        const yValues = this.tab_index === 0 ? "inputTupleCount" : "outputTupleCount";
+        if (!this.groupedStats) {
+          return null;
+        }
+        const stats = this.groupedStats[operatorId];
+
         return {
-          x: this.createLabels(groupedStats[operatorId]),
-          y: groupedStats[operatorId].map(stat => stat.inputTupleCount),
+          x: stats.map((_, index) => index * 0.5),
+          y: stats.map(stat => stat[yValues]),
           mode: "lines",
-          name: operatorName + "-" + uuidLast6Digits,
+          name: `${operatorName}-${uuidLast6Digits}`,
         };
       })
-      .filter(item => item !== null);
+      .filter(Boolean);
   }
 
-  createLabels(stats: WorkflowRuntimeStatistics[]): number[] {
-    return stats.map((stat, index) => index * 0.5);
-  }
+  private createChart(): void {
+    const datasets = this.createDatasets();
 
-  createChart(datasets: any[]): void {
+    if (!datasets || datasets.length === 0) {
+      return;
+    }
+
     const layout = {
-      title: "Input Tuple Count",
-      xaxis: {
-        title: "Time (s)",
-      },
-      yaxis: {
-        title: "Tuple Count",
-      },
+      title: this.metrics[this.tab_index],
+      xaxis: { title: "Time (s)" },
+      yaxis: { title: this.metrics[this.tab_index] },
     };
 
     Plotly.newPlot("chart", datasets, layout);

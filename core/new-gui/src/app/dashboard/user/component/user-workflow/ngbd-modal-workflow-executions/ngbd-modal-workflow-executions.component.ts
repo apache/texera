@@ -726,7 +726,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
       .pipe(untilDestroyed(this))
       .subscribe(workflowRuntimeStatistics => {
-        console.log(workflowRuntimeStatistics);
         this.runtimeStatisticsModal.create({
           nzTitle: "Runtime Statistics",
           nzStyle: { top: "5px", width: "98vw", height: "92vh" },
