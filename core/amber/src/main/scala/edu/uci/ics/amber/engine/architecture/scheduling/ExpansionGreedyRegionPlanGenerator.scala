@@ -295,7 +295,7 @@ class ExpansionGreedyRegionPlanGenerator(
     regionDAG
   }
 
-  def populateRegionConfigs(
+  private def populateRegionConfigs(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): DirectedAcyclicGraph[Region, RegionLink] = {
     regionDAG
