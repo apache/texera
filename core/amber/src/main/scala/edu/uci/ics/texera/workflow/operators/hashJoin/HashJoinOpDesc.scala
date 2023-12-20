@@ -101,9 +101,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
         outputPorts = operatorInfo.outputPorts,
         partitionRequirement = partitionRequirement,
         derivePartition = joinDerivePartition,
-        blockingInputs = List(0),
-        dependency = Map(1 -> 0)
+        blockingInputs = List(0)
       )
+      .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =

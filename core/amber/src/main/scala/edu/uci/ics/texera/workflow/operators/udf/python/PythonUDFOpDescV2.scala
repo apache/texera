@@ -77,7 +77,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
     } else {
       opInfo.inputPorts.map(_ => None)
     }
-    val dependency: Map[Int, Int] = if (inputPorts != null) {
+    val dependencies: Map[Int, Int] = if (inputPorts != null) {
       inputPorts.zipWithIndex
         .filter {
           case (port, _) => port.dependencies != null
@@ -94,27 +94,27 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
-          parallelizable = true,
           derivePartition = _ => UnknownPartition(),
           isOneToManyOp = true,
           inputPorts = opInfo.inputPorts,
           outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
+          partitionRequirement = partitionRequirement
         )
+        .withParallelizable(true)
+        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
-          parallelizable = false,
           derivePartition = _ => UnknownPartition(),
           isOneToManyOp = true,
           inputPorts = opInfo.inputPorts,
           outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
+          partitionRequirement = partitionRequirement
         )
+        .withParallelizable(true)
+        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 

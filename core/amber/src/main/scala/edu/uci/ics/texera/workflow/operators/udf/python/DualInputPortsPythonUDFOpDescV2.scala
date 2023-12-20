@@ -74,24 +74,24 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
-          parallelizable = true,
           blockingInputs = List(0),
-          dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()
         )
+        .withParallelizable(true)
+        .withDependencies(Map(1 -> 0))
         .withInputPorts(operatorInfo.inputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
-          parallelizable = false,
           blockingInputs = List(0),
-          dependency = Map(1 -> 0),
           derivePartition = _ => UnknownPartition()
         )
+        .withParallelizable(false)
         .withInputPorts(operatorInfo.inputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =

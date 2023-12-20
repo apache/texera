@@ -169,18 +169,18 @@ case class PhysicalOp(
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
     // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
-    dependency: Map[Int, Int] = Map(),
+    dependencies: Map[Int, Int] = Map(),
     isOneToManyOp: Boolean = false
 ) {
 
   // all the "dependee" links are also blocking inputs
-  private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
+  private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependencies.values).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
-  /*
-   * Helper functions related to compile-time operations
-   */
+  /**
+    * Helper functions related to compile-time operations
+    */
 
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
@@ -327,6 +327,12 @@ case class PhysicalOp(
     this.copy(parallelizable = parallelizable)
 
   /**
+    * creates a copy with the dependencies specified
+    */
+  def withDependencies(dependencies: Map[Int, Int]): PhysicalOp =
+    this.copy(dependencies = dependencies)
+
+  /**
     * creates a copy with the specified property that whether this operator is one-to-many
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
@@ -401,7 +407,7 @@ case class PhysicalOp(
   def getInputLinksInProcessingOrder: List[PhysicalLink] = {
     val dependencyDag =
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
-    dependency.foreach({
+    dependencies.foreach({
       case (depender: Int, dependee: Int) =>
         val upstreamLink = inputPortToLinkMapping(dependee).head
         val downstreamLink = inputPortToLinkMapping(depender).head

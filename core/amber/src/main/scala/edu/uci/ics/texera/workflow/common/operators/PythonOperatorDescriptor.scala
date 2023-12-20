@@ -14,14 +14,14 @@ trait PythonOperatorDescriptor extends LogicalOp {
   ): PhysicalOp = {
     val generatedCode = generatePythonCode(operatorSchemaInfo)
     if (asSource()) {
-
       PhysicalOp
         .sourcePhysicalOp(
           executionId,
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .copy(parallelizable = numWorkers() > 1, dependency = dependency().toMap)
+        .withParallelizable(parallelizable())
+        .withDependencies(dependencies())
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
       PhysicalOp
@@ -30,14 +30,14 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .copy(parallelizable = numWorkers() > 1, dependency = dependency().toMap)
+        .withParallelizable(parallelizable())
+        .withDependencies(dependencies())
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 
-  def numWorkers(): Int = AmberConfig.numWorkerPerOperatorByDefault
-
-  def dependency(): mutable.Map[Int, Int] = mutable.Map()
+  def parallelizable(): Boolean = false
+  def dependencies(): Map[Int, Int] = Map()
 
   def asSource(): Boolean = false
 
