@@ -43,6 +43,9 @@ class OperatorExecution(val executionId: Long, physicalOpId: PhysicalOpIdentity,
     )
   }
   def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = {
+    if (!workers.contains(id)) {
+      initializeWorkerInfo(id)
+    }
     workers.get(id)
   }
 
