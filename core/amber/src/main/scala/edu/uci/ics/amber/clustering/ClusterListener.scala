@@ -7,7 +7,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.{AmberLogging, AmberUtils, Constants}
+import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
@@ -53,17 +53,17 @@ class ClusterListener extends Actor with AmberLogging {
   private def getAllAddressExcludingMaster: Iterable[Address] = {
     cluster.state.members
       .filter { member =>
-        member.address != Constants.masterNodeAddr
+        member.address != AmberConfig.masterNodeAddr
       }
       .map(_.address)
   }
 
   private def forcefullyStop(jobService: WorkflowJobService, cause: Throwable): Unit = {
     jobService.client.shutdown()
-    jobService.stateStore.statsStore.updateState(stats =>
+    jobService.jobStateStore.statsStore.updateState(stats =>
       stats.withEndTimeStamp(System.currentTimeMillis())
     )
-    jobService.stateStore.jobMetadataStore.updateState { jobInfo =>
+    jobService.jobStateStore.jobMetadataStore.updateState { jobInfo =>
       logger.error("forcefully stopping execution", cause)
       updateWorkflowState(FAILED, jobInfo).addFatalErrors(
         WorkflowFatalError(
@@ -85,24 +85,24 @@ class ClusterListener extends Actor with AmberLogging {
         WorkflowService.getAllWorkflowService.foreach { workflow =>
           val jobService = workflow.jobService.getValue
           if (
-            jobService != null && jobService.stateStore.jobMetadataStore.getState.state != COMPLETED
+            jobService != null && jobService.jobStateStore.jobMetadataStore.getState.state != COMPLETED
           ) {
-            if (AmberUtils.amberConfig.getBoolean("fault-tolerance.enable-determinant-logging")) {
+            if (AmberConfig.isFaultToleranceEnabled) {
               logger.info(
-                s"Trigger recovery process for execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+                s"Trigger recovery process for execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
               )
               try {
                 futures.append(jobService.client.notifyNodeFailure(member.address))
               } catch {
                 case t: Throwable =>
                   logger.warn(
-                    s"execution ${jobService.workflow.getWorkflowId()} cannot recover! forcing it to stop"
+                    s"execution ${jobService.workflow.workflowId} cannot recover! forcing it to stop"
                   )
                   forcefullyStop(jobService, t)
               }
             } else {
               logger.info(
-                s"Kill execution id = ${jobService.stateStore.jobMetadataStore.getState.eid}"
+                s"Kill execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
               )
               forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
             }
@@ -118,9 +118,8 @@ class ClusterListener extends Actor with AmberLogging {
       state.send(ClusterStatusUpdateEvent(numWorkerNodesInCluster))
     }
 
-    Constants.currentWorkerNum = numWorkerNodesInCluster * Constants.numWorkerPerNode
     logger.info(
-      "---------Now we have " + numWorkerNodesInCluster + s" nodes in the cluster [current default #worker per operator=${Constants.currentWorkerNum}]---------"
+      "---------Now we have " + numWorkerNodesInCluster + s" nodes in the cluster---------"
     )
 
   }

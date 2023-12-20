@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.Constants;
+import edu.uci.ics.amber.engine.common.AmberConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -20,9 +20,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple2;
-import scala.util.Left;
 
-import java.io.Serializable;
 import java.util.EnumSet;
 import java.util.Set;
 import java.util.function.Function;
@@ -64,8 +62,6 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     @JsonPropertyDescription("plot on a map")
     public boolean isGeometric;
 
-    private int numWorkers = Constants.currentWorkerNum();
-
     @Override
     public String chartType() {
         if (isGeometric) {
@@ -75,7 +71,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
         AttributeType xType = operatorSchemaInfo.inputSchemas()[0].getAttribute(xColumn).getType();
         AttributeType yType = operatorSchemaInfo.inputSchemas()[0].getAttribute(yColumn).getType();
         Set<AttributeType> allowedAttributeTypesNumbersOnly = EnumSet.of(DOUBLE, INTEGER); //currently, the frontend has limitation it doesn't accept axes of type long
@@ -85,12 +81,13 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if (!allowedAttributeTypesNumbersOnly.contains(yType)) {
             throw new IllegalArgumentException(yColumn + " is not a number \n");
         }
+        int numWorkers = AmberConfig.numWorkerPerOperatorByDefault();
         if (isGeometric) {
             numWorkers = 1;
         }
-        return OpExecConfig.oneToOneLayer(this.operatorIdentifier(),
-                        OpExecInitInfo.apply((Function<Tuple2<Object, OpExecConfig>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
-                .withIsOneToManyOp(true);
+        return PhysicalOp.oneToOnePhysicalOp(executionId, this.operatorIdentifier(),
+                        OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
+                .withIsOneToManyOp(true).withNumWorkers(numWorkers);
     }
 
     @Override

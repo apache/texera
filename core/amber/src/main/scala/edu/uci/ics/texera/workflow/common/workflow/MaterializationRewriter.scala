@@ -1,7 +1,8 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.virtualidentity.{LayerIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -19,31 +20,37 @@ class MaterializationRewriter(
   def addMaterializationToLink(
       physicalPlan: PhysicalPlan,
       logicalPlan: LogicalPlan,
-      linkId: LinkIdentity,
-      writerReaderPairs: mutable.HashMap[LayerIdentity, LayerIdentity]
+      physicalLink: PhysicalLink,
+      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
   ): PhysicalPlan = {
+    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
+    // are different due to partial rewrite
+    val fromOp = physicalPlan.getOperator(physicalLink.id.from)
+    val fromOutputPortIdx = fromOp.getPortIdxForOutputLinkId(physicalLink.id)
 
-    val fromOpId = linkId.from
-    val fromOp = physicalPlan.operatorMap(fromOpId)
-    val fromOutputPortIdx = fromOp.outputToOrdinalMapping(linkId)
-    val fromOutputPortName = fromOp.outputPorts(fromOutputPortIdx).displayName
-    val toOpId = linkId.to
-    val toOp = physicalPlan.operatorMap(toOpId)
-    val toInputPortIdx = physicalPlan.operatorMap(toOpId).inputToOrdinalMapping(linkId)
-    val toInputPortName = toOp.inputPorts(toInputPortIdx).displayName
+    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
+    // are different due to partial rewrite
+    val toOp = physicalPlan.getOperator(physicalLink.id.to)
+    val toInputPortIdx = toOp.getPortIdxForInputLinkId(physicalLink.id)
 
     val materializationWriter = new ProgressiveSinkOpDesc()
     materializationWriter.setContext(context)
 
     val fromOpIdInputSchema: Array[Schema] =
-      if (!logicalPlan.operatorMap(fromOpId.operator).isInstanceOf[SourceOperatorDescriptor])
+      if (
+        !logicalPlan
+          .getOperator(OperatorIdentity(fromOp.id.logicalOpId.id))
+          .isInstanceOf[SourceOperatorDescriptor]
+      )
         logicalPlan
-          .inputSchemaMap(logicalPlan.operatorMap(fromOpId.operator).operatorIdentifier)
+          .inputSchemaMap(
+            logicalPlan.getOperator(fromOp.id.logicalOpId.id).operatorIdentifier
+          )
           .map(s => s.get)
           .toArray
       else Array()
     val matWriterInputSchema = logicalPlan
-      .operatorMap(fromOpId.operator)
+      .getOperator(fromOp.id.logicalOpId.id)
       .getOutputSchemas(
         fromOpIdInputSchema
       )(fromOutputPortIdx)
@@ -51,66 +58,47 @@ class MaterializationRewriter(
       materializationWriter.getOutputSchemas(Array(matWriterInputSchema))(0)
     materializationWriter.setStorage(
       opResultStorage.create(
-        key = materializationWriter.operatorID,
-        schema = matWriterOutputSchema,
+        key = materializationWriter.operatorIdentifier,
         mode = OpResultStorage.defaultStorageMode
       )
     )
-    val matWriterOpExecConfig =
-      materializationWriter.operatorExecutor(
+    opResultStorage.get(materializationWriter.operatorIdentifier).setSchema(matWriterOutputSchema)
+    val matWriterOp =
+      materializationWriter.getPhysicalOp(
+        context.executionId,
         OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
       )
 
     val materializationReader = new CacheSourceOpDesc(
-      materializationWriter.operatorID,
+      materializationWriter.operatorIdentifier,
       opResultStorage: OpResultStorage
     )
     materializationReader.setContext(context)
     materializationReader.schema = materializationWriter.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
-    val matReaderOpExecConfig =
-      materializationReader.operatorExecutor(
+    val matReaderOp =
+      materializationReader.getPhysicalOp(
+        context.executionId,
         OperatorSchemaInfo(Array(), matReaderOutputSchema)
       )
 
     // create 2 links for materialization
-    val readerToDestLink = LinkIdentity(matReaderOpExecConfig.id, 0, toOpId, toInputPortIdx)
-    val sourceToWriterLink = LinkIdentity(fromOpId, fromOutputPortIdx, matWriterOpExecConfig.id, 0)
+    val readerToDestLink = PhysicalLink(matReaderOp, 0, toOp, toInputPortIdx)
+    val sourceToWriterLink =
+      PhysicalLink(fromOp, fromOutputPortIdx, matWriterOp, 0)
+
     // add the pair to the map for later adding edges between 2 regions.
-    writerReaderPairs(matWriterOpExecConfig.id) = matReaderOpExecConfig.id
+    writerReaderPairs(matWriterOp.id) = matReaderOp.id
 
     physicalPlan
-      .addOperator(matWriterOpExecConfig)
-      .addOperator(matReaderOpExecConfig)
-      .addEdge(
-        fromOpId,
-        fromOutputPortIdx,
-        matWriterOpExecConfig.id,
-        0
-      )
-      .addEdge(
-        matReaderOpExecConfig.id,
-        0,
-        toOpId,
-        toInputPortIdx
-      )
-      .removeEdge(linkId)
-      .setOperator(
-        toOp.copy(
-          // update the input mapping by replacing the original link with the new link from materialization.
-          inputToOrdinalMapping =
-            toOp.inputToOrdinalMapping - linkId + (readerToDestLink -> toInputPortIdx),
-          // the dest operator's input port is not blocking anymore.
-          blockingInputs = toOp.blockingInputs.filter(e => e != toInputPortIdx)
-        )
-      )
-      .setOperator(
-        fromOp.copy(
-          // update the output mapping by replacing the original link with the new link to materialization.
-          outputToOrdinalMapping =
-            fromOp.outputToOrdinalMapping - linkId + (sourceToWriterLink -> fromOutputPortIdx)
-        )
-      )
+      .removeLink(physicalLink)
+      .addOperator(matWriterOp)
+      .addOperator(matReaderOp)
+      .addLink(readerToDestLink)
+      .addLink(sourceToWriterLink)
+      .setOperatorUnblockPort(toOp.id, toInputPortIdx)
+      .populatePartitioningOnLinks()
+
   }
 
 }

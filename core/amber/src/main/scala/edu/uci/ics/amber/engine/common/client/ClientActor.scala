@@ -28,7 +28,6 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
 
 import scala.collection.mutable
 
@@ -46,8 +45,6 @@ private[client] class ClientActor extends Actor with AmberLogging {
   var controlId = 0L
   val promiseMap = new mutable.LongMap[Promise[Any]]()
   var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
-
-  private val controlChannelId = ChannelID(CLIENT, CONTROLLER, isControl = true)
 
   private def getQueuedCredit(channel: ChannelID): Long = {
     0L // client does not have queued credits
@@ -74,14 +71,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
           sender ! e
       }
     case commandRequest: CommandRequest =>
-      controller ! NetworkMessage(
-        0,
-        WorkflowFIFOMessage(
-          controlChannelId,
-          controlId,
-          ControlInvocation(controlId, commandRequest.command)
-        )
-      )
+      controller ! ControlInvocation(controlId, commandRequest.command)
       promiseMap(controlId) = commandRequest.promise
       controlId += 1
     case req: ObservableRequest =>

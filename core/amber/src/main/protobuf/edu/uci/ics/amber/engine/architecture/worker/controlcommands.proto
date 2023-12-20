@@ -29,11 +29,11 @@ message OpenOperatorV2 {}
 
 message UpdateInputLinkingV2 {
     common.ActorVirtualIdentity identifier = 1 [(scalapb.field).no_box = true];
-    common.LinkIdentity input_link = 2 [(scalapb.field).no_box = true];
+    common.PhysicalLinkIdentity input_link = 2 [(scalapb.field).no_box = true];
 }
 
 message AddPartitioningV2 {
-    common.LinkIdentity tag = 1 [(scalapb.field).no_box = true];
+    common.PhysicalLinkIdentity tag = 1 [(scalapb.field).no_box = true];
     architecture.sendsemantics.Partitioning partitioning = 2 [(scalapb.field).no_box = true];
 }
 
@@ -47,7 +47,7 @@ message QueryCurrentInputTupleV2 {
 }
 
 message LinkOrdinal {
-    common.LinkIdentity link_id = 1 [(scalapb.field).no_box = true];
+    common.PhysicalLinkIdentity link_id = 1 [(scalapb.field).no_box = true];
     int64 port_ordinal = 2;
 }
 
@@ -99,7 +99,7 @@ message QuerySelfWorkloadMetricsV2{
 }
 
 message LinkCompletedV2 {
-    common.LinkIdentity link_id = 1 [(scalapb.field).no_box = true];
+    common.PhysicalLinkIdentity link_id = 1 [(scalapb.field).no_box = true];
 }
 
 

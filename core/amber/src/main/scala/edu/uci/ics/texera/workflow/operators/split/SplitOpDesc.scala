@@ -2,21 +2,21 @@ package edu.uci.ics.texera.workflow.operators.split
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 
 import scala.util.Random
 
-class SplitOpDesc extends OperatorDescriptor {
+class SplitOpDesc extends LogicalOp {
 
   @JsonProperty(value = "training percentage", required = false, defaultValue = "80")
   @JsonPropertyDescription("percentage of training split data (default 80%)")
@@ -24,11 +24,18 @@ class SplitOpDesc extends OperatorDescriptor {
 
   // Store random seeds for each executor to satisfy the fault tolerance requirement.
   @JsonIgnore
-  val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
+  val seeds: Array[Int] = Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig
-      .oneToOneLayer(operatorIdentifier, OpExecInitInfo(p => new SplitOpExec(p._1, this)))
+  override def getPhysicalOp(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo(p => new SplitOpExec(p._1, this))
+      )
       .withPorts(operatorInfo)
   }
 

@@ -3,6 +3,7 @@
     <a href="/">
       <img
         alt="Texera"
+        height="{{userSystemEnabled?75:38}}"
         src="assets/logos/full_logo_small.png" />
     </a>
   </div>
@@ -16,8 +17,7 @@
           *ngIf="displayParticularWorkflowVersion"
           nz-button
           nzType="text"
-          title="back"
-          class="particular-version-metadata">
+          title="back">
           <i
             nz-icon
             nzTheme="outline"
@@ -34,11 +34,7 @@
             [(ngModel)]="currentWorkflowName"
             class="workflow-name"
             placeholder="Untitled Workflow" />
-          <span
-            *ngIf="displayParticularWorkflowVersion"
-            class="particular-version-metadata">
-            {{particularVersionDate}}
-          </span>
+          <span *ngIf="displayParticularWorkflowVersion"> {{particularVersionDate}} </span>
         </label>
         <button
           *ngIf="displayParticularWorkflowVersion"

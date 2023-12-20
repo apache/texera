@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkflowStatusUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils
@@ -52,15 +52,17 @@ class JobStatsService(
 
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
-      storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
-        case ((newId, newStats), (oldId, oldStats)) =>
-          val res = OperatorRuntimeStats(
-            newStats.state,
-            newStats.inputCount - oldStats.inputCount,
-            newStats.outputCount - oldStats.outputCount
-          )
-          (newId, res)
-      })
+      if (AmberConfig.isUserSystemEnabled) {
+        storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
+          case ((newId, newStats), (oldId, oldStats)) =>
+            val res = OperatorRuntimeStats(
+              newStats.state,
+              newStats.inputCount - oldStats.inputCount,
+              newStats.outputCount - oldStats.outputCount
+            )
+            (newId, res)
+        })
+      }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
@@ -142,19 +144,24 @@ class JobStatsService(
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
   ): Unit = {
-    val list: util.ArrayList[WorkflowRuntimeStatistics] =
-      new util.ArrayList[WorkflowRuntimeStatistics]()
-    for ((operatorId, stat) <- operatorStatistics) {
-      val execution = new WorkflowRuntimeStatistics()
-      execution.setWorkflowId(workflowContext.wId)
-      execution.setExecutionId(UInteger.valueOf(workflowContext.executionID))
-      execution.setOperatorId(operatorId)
-      execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
-      execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
-      execution.setStatus(maptoStatusCode(stat.state))
-      list.add(execution)
+    // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
+    try {
+      val list: util.ArrayList[WorkflowRuntimeStatistics] =
+        new util.ArrayList[WorkflowRuntimeStatistics]()
+      for ((operatorId, stat) <- operatorStatistics) {
+        val execution = new WorkflowRuntimeStatistics()
+        execution.setWorkflowId(workflowContext.wid)
+        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId))
+        execution.setOperatorId(operatorId)
+        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
+        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
+        execution.setStatus(maptoStatusCode(stat.state))
+        list.add(execution)
+      }
+      workflowRuntimeStatisticsDao.insert(list)
+    } catch {
+      case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
     }
-    workflowRuntimeStatisticsDao.insert(list)
   }
 
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {
@@ -208,7 +215,7 @@ class JobStatsService(
           var operatorId = "unknown operator"
           var workerId = ""
           if (evt.fromActor.isDefined) {
-            operatorId = VirtualIdentityUtils.getOperator(evt.fromActor.get).operator
+            operatorId = VirtualIdentityUtils.getPhysicalOpId(evt.fromActor.get).logicalOpId.id
             workerId = evt.fromActor.get.name
           }
           stateStore.statsStore.updateState(stats =>

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 
 import scala.collection.mutable
@@ -35,6 +35,7 @@ import scala.util.control.Breaks.{break, breakable}
   */
 class FlowControl {
 
+  private val maxByteAllowed = AmberConfig.maxCreditAllowedInBytesPerChannel
   private var inflightCredit: Long = 0
   private var queuedCredit: Long = 0
   private val stashedMessages: mutable.Queue[NetworkMessage] = new mutable.Queue()
@@ -48,9 +49,9 @@ class FlowControl {
     val creditNeeded = getInMemSize(msg.internalMessage)
     // assume the biggest message can pass through flow control
     assert(
-      creditNeeded <= Constants.maxCreditAllowedInBytesPerChannel,
+      creditNeeded <= maxByteAllowed,
       s"Message $msg is too big to send through flow control, " +
-        s"max credit = ${Constants.maxCreditAllowedInBytesPerChannel} bytes " +
+        s"max credit = $maxByteAllowed bytes " +
         s"while the message size is $creditNeeded bytes."
     )
     if (stashedMessages.isEmpty) {
@@ -96,6 +97,6 @@ class FlowControl {
   }
 
   def getCredit: Long = {
-    Constants.maxCreditAllowedInBytesPerChannel - inflightCredit - queuedCredit
+    maxByteAllowed - inflightCredit - queuedCredit
   }
 }

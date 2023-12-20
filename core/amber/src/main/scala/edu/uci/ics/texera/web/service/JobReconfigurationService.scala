@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EpochMarkerHandler.PropagateEpochMarker
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.WorkerModifyLogicComplete
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
@@ -14,7 +14,6 @@ import edu.uci.ics.texera.web.model.websocket.response.{
   ModifyLogicResponse
 }
 import edu.uci.ics.texera.web.storage.{JobReconfigurationStore, JobStateStore}
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
 import java.util.UUID
 import scala.util.{Failure, Success}
@@ -22,7 +21,6 @@ import scala.util.{Failure, Success}
 class JobReconfigurationService(
     client: AmberClient,
     stateStore: JobStateStore,
-    workflowCompiler: WorkflowCompiler,
     workflow: Workflow
 ) extends SubscriptionManager {
 
@@ -43,8 +41,8 @@ class JobReconfigurationService(
       ) {
         val diff = newState.completedReconfigs -- oldState.completedReconfigs
         val newlyCompletedOps = diff
-          .map(workerId => workflow.getOperator(workerId).id)
-          .map(opId => opId.operator)
+          .map(workerId => workflow.physicalPlan.getPhysicalOpByWorkerId(workerId).id)
+          .map(opId => opId.logicalOpId.id)
         if (newlyCompletedOps.nonEmpty) {
           List(ModifyLogicCompletedEvent(newlyCompletedOps.toList))
         } else {
@@ -62,18 +60,22 @@ class JobReconfigurationService(
   // they are not actually performed until the workflow is resumed
   def modifyOperatorLogic(modifyLogicRequest: ModifyLogicRequest): TexeraWebSocketEvent = {
     val newOp = modifyLogicRequest.operator
-    newOp.setContext(workflowCompiler.logicalPlan.context)
-    val opId = newOp.operatorID
-    val currentOp = workflowCompiler.logicalPlan.operatorMap(opId)
+    newOp.setContext(workflow.logicalPlan.context)
+    val opId = newOp.operatorIdentifier
+    val currentOp = workflow.logicalPlan.getOperator(opId)
     val reconfiguredPhysicalOp =
-      currentOp.runtimeReconfiguration(newOp, workflowCompiler.logicalPlan.opSchemaInfo(opId))
+      currentOp.runtimeReconfiguration(
+        workflow.workflowId.executionId,
+        newOp,
+        workflow.logicalPlan.getOpSchemaInfo(opId)
+      )
     reconfiguredPhysicalOp match {
-      case Failure(exception) => ModifyLogicResponse(opId, isValid = false, exception.getMessage)
+      case Failure(exception) => ModifyLogicResponse(opId.id, isValid = false, exception.getMessage)
       case Success(op) => {
         stateStore.reconfigurationStore.updateState(old =>
           old.copy(unscheduledReconfigs = old.unscheduledReconfigs :+ op)
         )
-        ModifyLogicResponse(opId, isValid = true, "")
+        ModifyLogicResponse(opId.id, isValid = true, "")
       }
     }
   }
@@ -92,13 +94,14 @@ class JobReconfigurationService(
 
     // schedule all pending reconfigurations to the engine
     val reconfigurationId = UUID.randomUUID().toString
-    if (!Constants.enableTransactionalReconfiguration) {
+    if (!AmberConfig.enableTransactionalReconfiguration) {
       reconfigurations.foreach(reconfig => {
         client.sendAsync(ModifyLogic(reconfig._1, reconfig._2))
       })
     } else {
       val epochMarkers = FriesReconfigurationAlgorithm.scheduleReconfigurations(
         workflow.physicalPlan,
+        workflow.executionPlan,
         reconfigurations,
         reconfigurationId
       )

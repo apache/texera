@@ -4,10 +4,10 @@ import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionState, Workflow}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RegionsTimeSlotExpiredHandler.RegionsTimeSlotExpired
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
@@ -46,7 +46,7 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[PipelinedRe
   override def onLinkCompletion(
       workflow: Workflow,
       executionState: ExecutionState,
-      linkId: LinkIdentity
+      linkId: PhysicalLinkIdentity
   ): Set[PipelinedRegion] = {
     val regions = getRegions(linkId)
     regions.foreach(r => completedLinksOfRegion.addBinding(r, linkId))
@@ -62,7 +62,7 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[PipelinedRe
     breakable {
       while (regionsScheduleOrder.nonEmpty) {
         val nextRegion = regionsScheduleOrder.head
-        val upstreamRegions = workflow.physicalPlan.regionAncestorMapping(nextRegion)
+        val upstreamRegions = workflow.executionPlan.regionAncestorMapping(nextRegion)
         if (upstreamRegions.forall(completedRegions.contains)) {
           assert(!scheduledRegions.contains(nextRegion))
           currentlyExecutingRegions.add(nextRegion)
@@ -92,7 +92,7 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[PipelinedRe
   ): Unit = {
     regions.foreach(r => runningRegions.add(r))
     actorService.sendToSelfOnce(
-      FiniteDuration.apply(Constants.timeSlotExpirationDurationInMs, MILLISECONDS),
+      FiniteDuration.apply(AmberConfig.timeSlotExpirationDurationInMs, MILLISECONDS),
       ControlInvocation(
         AsyncRPCClient.IgnoreReplyAndDoNotLog,
         RegionsTimeSlotExpired(regions)

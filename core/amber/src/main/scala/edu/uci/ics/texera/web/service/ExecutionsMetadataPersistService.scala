@@ -1,13 +1,14 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberUtils
 import edu.uci.ics.texera.Utils.maptoStatusCode
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -18,8 +19,7 @@ import java.sql.Timestamp
   */
 object ExecutionsMetadataPersistService extends LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
-  private final val userSystemEnabled: Boolean =
-    AmberUtils.amberConfig.getBoolean("user-sys.enabled")
+  private final val userSystemEnabled: Boolean = AmberConfig.isUserSystemEnabled
   private val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
@@ -38,7 +38,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       executionName: String,
       environmentVersion: String
   ): Long = {
-    if (!userSystemEnabled) return -1
+    if (!userSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(wid)
     val newExecution = new WorkflowExecutions()
@@ -81,7 +81,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     }
   }
 
-  def updateExistingExecutionVolumnPointers(eid: Long, pointers: String): Unit = {
+  def updateExistingExecutionVolumePointers(eid: Long, pointers: String): Unit = {
     if (!userSystemEnabled) return
     try {
       val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))

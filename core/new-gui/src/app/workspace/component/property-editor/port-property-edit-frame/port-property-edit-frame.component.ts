@@ -1,5 +1,5 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
-import { OperatorPort, PortDescription } from "../../../types/workflow-common.interface";
+import { LogicalPort, PortDescription } from "../../../types/workflow-common.interface";
 import { Subject } from "rxjs";
 import { createOutputFormChangeEventStream } from "../../../../common/formly/formly-utils";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -27,7 +27,7 @@ Quill.register("modules/cursors", QuillCursors);
   styleUrls: ["./port-property-edit-frame.component.scss"],
 })
 export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
-  @Input() currentPortID: OperatorPort | undefined;
+  @Input() currentPortID: LogicalPort | undefined;
 
   // whether the editor can be edited
   interactive: boolean = true;
@@ -110,7 +110,7 @@ export class PortPropertyEditFrameComponent implements OnInit, OnChanges {
     this.editingTitle = false;
   }
 
-  private showPortPropertyEditor(operatorPortID: OperatorPort): void {
+  private showPortPropertyEditor(operatorPortID: LogicalPort): void {
     if (!this.workflowActionService.getTexeraGraph().hasPort(operatorPortID)) {
       throw new Error(
         `change property editor: operator port ${operatorPortID.operatorID}, ${operatorPortID.portID}} does not exist`

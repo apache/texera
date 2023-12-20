@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -21,7 +21,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Schema
 }
 
-class BulkDownloaderOpDesc extends OperatorDescriptor {
+class BulkDownloaderOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL Attribute")
@@ -38,13 +38,17 @@ class BulkDownloaderOpDesc extends OperatorDescriptor {
   )
   var resultAttribute: String = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    assert(context.userId.isDefined)
-    OpExecConfig.oneToOneLayer(
+  override def getPhysicalOp(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
+    assert(getContext.userId.isDefined)
+    PhysicalOp.oneToOnePhysicalOp(
+      executionId,
       operatorIdentifier,
       OpExecInitInfo(_ =>
         new BulkDownloaderOpExec(
-          context,
+          getContext,
           urlAttribute,
           resultAttribute,
           operatorSchemaInfo

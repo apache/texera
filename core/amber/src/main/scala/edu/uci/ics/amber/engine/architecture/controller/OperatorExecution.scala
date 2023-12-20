@@ -6,15 +6,16 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
-class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends Serializable {
+class OperatorExecution(val executionId: Long, physicalOpId: PhysicalOpIdentity, numWorkers: Int)
+    extends Serializable {
   /*
    * Variables related to runtime information
    */
@@ -67,7 +68,9 @@ class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends S
 
   def setAllWorkerState(state: WorkerState): Unit = {
     (0 until numWorkers).foreach { i =>
-      getWorkerInfo(VirtualIdentityUtils.createWorkerIdentity(layerIdentity, i)).state = state
+      getWorkerInfo(
+        VirtualIdentityUtils.createWorkerIdentity(executionId, physicalOpId, i)
+      ).state = state
     }
   }
 

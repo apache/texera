@@ -470,7 +470,7 @@ export class MenuComponent implements OnInit {
             : "" +
               this.datePipe.transform(
                 this.workflowActionService.getWorkflowMetadata().creationTime,
-                "MM/dd/yyyy HH:mm:ss zzz",
+                "MM/dd/yyyy HH:mm:ss",
                 Intl.DateTimeFormat().resolvedOptions().timeZone,
                 "en"
               );

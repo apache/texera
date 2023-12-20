@@ -6,11 +6,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
 
 import scala.collection.mutable
 
@@ -34,7 +34,7 @@ object OutputManager {
     }
 
     // if reshape is enabled, wrap the original partitioner in a reshape partitioner
-    if (Constants.reshapeSkewHandlingEnabled) {
+    if (AmberConfig.reshapeSkewHandlingEnabled) {
       partitioner match {
         case p @ (_: RoundRobinPartitioner | _: HashBasedShufflePartitioner |
             _: RangeBasedShufflePartitioner) =>
@@ -68,16 +68,19 @@ class OutputManager(
     dataOutputPort: NetworkOutputGateway
 ) {
 
-  val partitioners = mutable.HashMap[LinkIdentity, Partitioner]()
+  val partitioners = mutable.HashMap[PhysicalLinkIdentity, Partitioner]()
 
   val networkOutputBuffers =
-    mutable.HashMap[(LinkIdentity, ActorVirtualIdentity), NetworkOutputBuffer]()
+    mutable.HashMap[(PhysicalLinkIdentity, ActorVirtualIdentity), NetworkOutputBuffer]()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
     * @param partitioning Partitioning, describes how and whom to send to.
     */
-  def addPartitionerWithPartitioning(link: LinkIdentity, partitioning: Partitioning): Unit = {
+  def addPartitionerWithPartitioning(
+      link: PhysicalLinkIdentity,
+      partitioning: Partitioning
+  ): Unit = {
     val partitioner = toPartitioner(partitioning)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
@@ -93,7 +96,7 @@ class OutputManager(
     */
   def passTupleToDownstream(
       tuple: ITuple,
-      outputPort: LinkIdentity
+      outputPort: PhysicalLinkIdentity
   ): Unit = {
     val partitioner =
       partitioners.getOrElse(outputPort, throw new RuntimeException("output port not found"))
@@ -106,7 +109,7 @@ class OutputManager(
   def emitEpochMarker(epochMarker: EpochMarker): Unit = {
     // find the network output ports within the scope of the marker
     val outputsWithinScope =
-      networkOutputBuffers.filter(out => epochMarker.scope.links.contains(out._1._1))
+      networkOutputBuffers.filter(out => epochMarker.scope.links.map(_.id).contains(out._1._1))
     // flush all network buffers of this operator, emit epoch marker to network
     outputsWithinScope.foreach(kv => {
       kv._2.flush()

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
@@ -47,9 +47,13 @@ class UrlVizOpDesc extends VisualizationOperator {
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    OpExecConfig
-      .manyToOneLayer(
+  override def getPhysicalOp(
+      executionId: Long,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp =
+    PhysicalOp
+      .manyToOnePhysicalOp(
+        executionId,
         operatorIdentifier,
         OpExecInitInfo(_ => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo))
       )
