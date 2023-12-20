@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
-import * as Plotly from 'plotly.js-dist-min';
+import * as Plotly from "plotly.js-dist-min";
 
 @UntilDestroy()
 @Component({
@@ -39,21 +39,23 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   }
 
   createDatasets(groupedStats: Record<string, WorkflowRuntimeStatistics[]>): any[] {
-    return Object.keys(groupedStats).map((operatorId, index) => {
-      let operatorName = operatorId.split("-")[0];
-      // Exclude data if operatorName is "ProgressiveSinkOpDesc"
-      if (operatorName === "ProgressiveSinkOpDesc") {
-        return null;
-      }
+    return Object.keys(groupedStats)
+      .map((operatorId, index) => {
+        let operatorName = operatorId.split("-")[0];
+        // Exclude data if operatorName is "ProgressiveSinkOpDesc"
+        if (operatorName === "ProgressiveSinkOpDesc") {
+          return null;
+        }
 
-      let uuidLast6Digits = operatorId.slice(-6);
-      return {
-        x: this.createLabels(groupedStats[operatorId]),
-        y: groupedStats[operatorId].map(stat => stat.inputTupleCount),
-        mode: 'lines',
-        name: operatorName + "-" + uuidLast6Digits
-      };
-    }).filter(item => item !== null);
+        let uuidLast6Digits = operatorId.slice(-6);
+        return {
+          x: this.createLabels(groupedStats[operatorId]),
+          y: groupedStats[operatorId].map(stat => stat.inputTupleCount),
+          mode: "lines",
+          name: operatorName + "-" + uuidLast6Digits,
+        };
+      })
+      .filter(item => item !== null);
   }
 
   createLabels(stats: WorkflowRuntimeStatistics[]): number[] {
@@ -62,15 +64,15 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   createChart(datasets: any[]): void {
     const layout = {
-      title: 'Input Tuple Count',
+      title: "Input Tuple Count",
       xaxis: {
-        title: 'Time (s)'
+        title: "Time (s)",
       },
       yaxis: {
-        title: 'Tuple Count'
-      }
+        title: "Tuple Count",
+      },
     };
-  
+
     Plotly.newPlot("chart", datasets, layout);
   }
 }
