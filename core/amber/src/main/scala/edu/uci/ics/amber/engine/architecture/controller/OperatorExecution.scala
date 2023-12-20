@@ -31,19 +31,18 @@ class OperatorExecution(val executionId: Long, physicalOpId: PhysicalOpIdentity,
 
   def statistics: Array[WorkerStatistics] = workers.values.asScala.map(_.stats).toArray
 
-  def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = {
-    if (!workers.containsKey(id)) {
-      workers.put(
+  def initializeWorkerInfo(id: ActorVirtualIdentity): Unit = {
+    workers.put(
+      id,
+      WorkerInfo(
         id,
-        WorkerInfo(
-          id,
-          UNINITIALIZED,
-          WorkerStatistics(UNINITIALIZED, 0, 0),
-          mutable.HashSet(ChannelID(CONTROLLER, id, isControl = true)),
-          null
-        )
+        UNINITIALIZED,
+        WorkerStatistics(UNINITIALIZED, 0, 0),
+        mutable.HashSet(ChannelID(CONTROLLER, id, isControl = true))
       )
-    }
+    )
+  }
+  def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = {
     workers.get(id)
   }
 

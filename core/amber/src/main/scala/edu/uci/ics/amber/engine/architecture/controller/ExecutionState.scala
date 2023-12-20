@@ -1,8 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import akka.actor.Address
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerInfo
 import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -61,14 +59,6 @@ class ExecutionState(workflow: Workflow) {
       region.getOperators ++ region.blockingDownstreamPhysicalOpIdsInOtherRegions.map(_._1)
 
     allOperatorsInRegion.flatMap(opId => getOperatorExecution(opId).getBuiltWorkerIds.toList)
-  }
-
-  def getAllWorkerInfoOfAddress(address: Address): Iterable[WorkerInfo] = {
-    operatorExecutions.values
-      .flatMap(x => {
-        x.getBuiltWorkerIds.map(x.getWorkerInfo)
-      })
-      .filter(info => info.ref.path.address == address)
   }
 
   def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {

@@ -64,7 +64,7 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.startWorkflow(workflow)
-    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
   def onWorkerCompletion(
@@ -75,7 +75,7 @@ class WorkflowScheduler(
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule =
       schedulingPolicy.onWorkerCompletion(workflow, executionState, workerId)
-    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
   def onLinkCompletion(
@@ -85,7 +85,7 @@ class WorkflowScheduler(
       linkId: PhysicalLinkIdentity
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, linkId)
-    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
   def onTimeSlotExpired(
@@ -100,7 +100,7 @@ class WorkflowScheduler(
       regionsToPause = timeExpiredRegions
     }
 
-    doSchedulingWork(workflow, nextRegions, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegions, akkaActorService)
       .flatMap(_ => {
         val pauseFutures = new ArrayBuffer[Future[Unit]]()
         regionsToPause.foreach(stoppingRegion => {
@@ -124,14 +124,11 @@ class WorkflowScheduler(
   private def doSchedulingWork(
       workflow: Workflow,
       regions: Set[PipelinedRegion],
-      akkaActorRefMappingService: AkkaActorRefMappingService,
       actorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     if (regions.nonEmpty) {
       Future.collect(
-        regions.toArray.map(r =>
-          scheduleRegion(workflow, r, akkaActorRefMappingService, actorService)
-        )
+        regions.toArray.map(r => scheduleRegion(workflow, r, actorService))
       )
     } else {
       Future(Seq())
@@ -141,7 +138,6 @@ class WorkflowScheduler(
   private def constructRegion(
       workflow: Workflow,
       region: PipelinedRegion,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
   ): Unit = {
     val builtOpsInRegion = new mutable.HashSet[PhysicalOpIdentity]()
@@ -153,7 +149,6 @@ class WorkflowScheduler(
             workflow,
             op,
             executionState.getOperatorExecution(op),
-            akkaActorRefMappingService,
             akkaActorService
           )
           builtOperators.add(op)
@@ -176,13 +171,11 @@ class WorkflowScheduler(
       workflow: Workflow,
       physicalOpId: PhysicalOpIdentity,
       opExecution: OperatorExecution,
-      actorRefService: AkkaActorRefMappingService,
       controllerActorService: AkkaActorService
   ): Unit = {
     val physicalOp = workflow.physicalPlan.getOperator(physicalOpId)
     physicalOp.build(
       controllerActorService,
-      actorRefService,
       opExecution,
       controllerConfig
     )
@@ -352,7 +345,6 @@ class WorkflowScheduler(
   private def scheduleRegion(
       workflow: Workflow,
       region: PipelinedRegion,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
       actorService: AkkaActorService
   ): Future[Unit] = {
     if (constructingRegions.contains(region.getId)) {
@@ -360,7 +352,7 @@ class WorkflowScheduler(
     }
     if (!startedRegions.contains(region.getId)) {
       constructingRegions.add(region.getId)
-      constructRegion(workflow, region, akkaActorRefMappingService, actorService)
+      constructRegion(workflow, region, actorService)
       prepareAndStartRegion(workflow, region, actorService).rescue {
         case err: Throwable =>
           // this call may come from client or worker(by execution completed)
