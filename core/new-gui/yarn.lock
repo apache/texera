@@ -2873,11 +2873,6 @@
     "@jridgewell/resolve-uri" "3.1.0"
     "@jridgewell/sourcemap-codec" "1.4.14"
 
-"@kurkle/color@^0.3.0":
-  version "0.3.2"
-  resolved "https://registry.yarnpkg.com/@kurkle/color/-/color-0.3.2.tgz#5acd38242e8bde4f9986e7913c8fdf49d3aa199f"
-  integrity sha512-fuscdXJ9G1qb7W8VdHi+IwRqij3lBkosAm4ydQtEmbY58OzHXqQhvlxqEkoz0yssNVn38bcpRWgA9PP+OGoisw==
-
 "@leichtgewicht/ip-codec@^2.0.1":
   version "2.0.4"
   resolved "https://registry.yarnpkg.com/@leichtgewicht/ip-codec/-/ip-codec-2.0.4.tgz#b2ac626d6cb9c8718ab459166d4bb405b8ffa78b"
@@ -3868,13 +3863,6 @@
   dependencies:
     "@types/d3" "^4"
 
-"@types/chart.js@4.4.1":
-  version "2.9.41"
-  resolved "https://registry.yarnpkg.com/@types/chart.js/-/chart.js-2.9.41.tgz#4148cdc87d4f98fad44b2883271cd0fa57f05e0d"
-  integrity sha512-3dvkDvueckY83UyUXtJMalYoH6faOLkWQoaTlJgB4Djde3oORmNP0Jw85HtzTuXyliUHcdp704s0mZFQKio/KQ==
-  dependencies:
-    moment "^2.10.2"
-
 "@types/connect-history-api-fallback@^1.3.5":
   version "1.3.5"
   resolved "https://registry.yarnpkg.com/@types/connect-history-api-fallback/-/connect-history-api-fallback-1.3.5.tgz#d1f7a8a09d0ed5a57aee5ae9c18ab9b803205dae"
@@ -4604,6 +4592,18 @@
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/@types/parse-json/-/parse-json-4.0.0.tgz#2f8bb441434d163b35fb8ffdccd7138927ffb8c0"
   integrity sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==
+
+"@types/plotly.js-dist-min@^2.3.4":
+  version "2.3.4"
+  resolved "https://registry.yarnpkg.com/@types/plotly.js-dist-min/-/plotly.js-dist-min-2.3.4.tgz#dcac506a1e5dc87aa84d0dc910830127f3cd4482"
+  integrity sha512-ISwLFV6Zs/v3DkaRFLyk2rvYAfVdnYP2VVVy7h+fBDWw52sn7sMUzytkWiN4M75uxr1uz1uiBioePTDpAfoFIg==
+  dependencies:
+    "@types/plotly.js" "*"
+
+"@types/plotly.js@*":
+  version "2.12.31"
+  resolved "https://registry.yarnpkg.com/@types/plotly.js/-/plotly.js-2.12.31.tgz#fb4651bdd819baf746bd0a793dd4de35e30d0ccd"
+  integrity sha512-FmzZQquzgTnQnywzyg7zlTTD4UFOroJ6/ac2KAueLCMQF7c+dwjZxgRohHB7Qzz0dZpFgic0VSkC2re7j6oluQ==
 
 "@types/prettier@^2.1.5":
   version "2.7.3"
@@ -6350,13 +6350,6 @@ chardet@^0.7.0:
   version "0.7.0"
   resolved "https://registry.yarnpkg.com/chardet/-/chardet-0.7.0.tgz#90094849f0937f2eedc2425d0d28a9e5f0cbad9e"
   integrity sha512-mT8iDcrh03qDGRRmoA2hmBJnxpllMR+0/0qlzjqZES6NdiWDcZkCNAk4rPFZ9Q85r27unkiNNg8ZOiwZXBHwcA==
-
-chart.js@^4.4.1:
-  version "4.4.1"
-  resolved "https://registry.yarnpkg.com/chart.js/-/chart.js-4.4.1.tgz#ac5dc0e69a7758909158a96fe80ce43b3bb96a9f"
-  integrity sha512-C74QN1bxwV1v2PEujhmKjOZ7iUM4w6BWs23Md/6aOZZSlwMzeCIDGuZay++rBgChYru7/+QFeoQW0fQoP534Dg==
-  dependencies:
-    "@kurkle/color" "^0.3.0"
 
 check-more-types@^2.24.0:
   version "2.24.0"
@@ -11789,11 +11782,6 @@ mkdirp@^1.0.3, mkdirp@^1.0.4, mkdirp@~1.0.4:
   resolved "https://registry.yarnpkg.com/mkdirp/-/mkdirp-1.0.4.tgz#3eb5ed62622756d79a5f0e2a221dfebad75c2f7e"
   integrity sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==
 
-moment@^2.10.2:
-  version "2.29.4"
-  resolved "https://registry.yarnpkg.com/moment/-/moment-2.29.4.tgz#3dbe052889fe7c1b2ed966fcb3a77328964ef108"
-  integrity sha512-5LC9SOxjSc2HF6vO2CyuTDNivEdoz2IvyJJGj6X8DJ0eFyfszE0QiEd+iXmBvUP3WHxSjFH/vIsA0EN00cgr8w==
-
 monaco-editor@0.34.0:
   version "0.34.0"
   resolved "https://registry.yarnpkg.com/monaco-editor/-/monaco-editor-0.34.0.tgz#b1749870a1f795dbfc4dc03d8e9b646ddcbeefa7"
@@ -12672,6 +12660,11 @@ pkg-dir@^4.1.0:
   integrity sha512-HRDzbaKjC+AOWVXxAU/x54COGeIv9eb+6CkDSQoNTt4XyWoIJvuPsXizxu/Fr23EiekbtZwmh1IcIG/l/a10GQ==
   dependencies:
     find-up "^4.0.0"
+
+plotly.js-dist-min@^2.27.1:
+  version "2.27.1"
+  resolved "https://registry.yarnpkg.com/plotly.js-dist-min/-/plotly.js-dist-min-2.27.1.tgz#6594b6b7e9b39deaa60849be3f5f905fedaf91d5"
+  integrity sha512-fFPFityhOkDtjoIVd/9IJQbEEuKEjfmNALBVLZyHwLIkry5ygE4ZC/XENRqLnWR3rNJdTtEaxhM5zflcWTRlDA==
 
 popper.js@1.16.1:
   version "1.16.1"

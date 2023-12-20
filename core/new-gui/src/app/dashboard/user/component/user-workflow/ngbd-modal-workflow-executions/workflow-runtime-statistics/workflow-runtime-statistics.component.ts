@@ -1,7 +1,7 @@
-import { AfterContentInit, Component, Input, OnInit } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
-import Chart from "chart.js/auto";
+import * as Plotly from 'plotly.js-dist-min';
 
 @UntilDestroy()
 @Component({
@@ -20,20 +20,10 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       return;
     }
 
-    const ctx1 = this.getCanvasContext("chart1");
-    if (ctx1 === null) {
-      return;
-    }
-
     const groupedStats = this.groupStatsByOperatorId(this.workflowRuntimeStatistics);
     const datasets1 = this.createDatasets(groupedStats);
-    const labels = this.createLabels(groupedStats);
 
-    this.createChart(ctx1, labels, datasets1);
-  }
-
-  getCanvasContext(elementId: string): CanvasRenderingContext2D | null {
-    return (document.getElementById(elementId) as HTMLCanvasElement).getContext("2d");
+    this.createChart(datasets1);
   }
 
   groupStatsByOperatorId(stats: WorkflowRuntimeStatistics[]): Record<string, WorkflowRuntimeStatistics[]> {
@@ -51,47 +41,29 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   createDatasets(groupedStats: Record<string, WorkflowRuntimeStatistics[]>): any[] {
     return Object.keys(groupedStats).map((operatorId, index) => {
       return {
-        label: operatorId,
-        data: groupedStats[operatorId].map(stat => stat.inputTupleCount),
-        fill: false,
+        x: this.createLabels(groupedStats[operatorId]),
+        y: groupedStats[operatorId].map(stat => stat.inputTupleCount),
+        mode: 'lines',
+        name: operatorId
       };
     });
   }
 
-  createLabels(groupedStats: Record<string, WorkflowRuntimeStatistics[]>): number[] {
-    return groupedStats[Object.keys(groupedStats)[0]].map((stat, index) => index * 0.5);
+  createLabels(stats: WorkflowRuntimeStatistics[]): number[] {
+    return stats.map((stat, index) => index * 0.5);
   }
 
-  createChart(ctx: CanvasRenderingContext2D, labels: number[], datasets: any[]): void {
-    new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: labels,
-        datasets: datasets,
+  createChart(datasets: any[]): void {
+    const layout = {
+      title: 'Input Tuple Count',
+      xaxis: {
+        title: 'Time (s)'
       },
-      options: {
-        responsive: true,
-        plugins: {
-          title: {
-            display: true,
-            text: "Input Tuple Count",
-          },
-        },
-        scales: {
-          y: {
-            title: {
-              display: true,
-              text: "Tuple Count",
-            },
-          },
-          x: {
-            title: {
-              display: true,
-              text: "Time (s)",
-            },
-          },
-        },
-      },
-    });
+      yaxis: {
+        title: 'Tuple Count'
+      }
+    };
+  
+    Plotly.newPlot("chart", datasets, layout);
   }
 }
