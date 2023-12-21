@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
+import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.JobStateStore
@@ -81,36 +81,35 @@ class WorkflowCompiler(
     )
 
     // the PhysicalPlan with topology expanded.
-    var physicalPlan = PhysicalPlan(workflowId.executionId, rewrittenLogicalPlan)
+    val physicalPlan = PhysicalPlan(workflowId.executionId, rewrittenLogicalPlan)
 
-    // generate an ExecutionPlan with regions.
-    //  currently, WorkflowPipelinedRegionsBuilder is the only ExecutionPlan generator.
-    val pipelinedRegionsBuilder = new WorkflowPipelinedRegionsBuilder(
+    // generate an RegionPlan with regions.
+    //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       workflowId,
+      workflowContext,
       rewrittenLogicalPlan,
       physicalPlan,
-      new MaterializationRewriter(rewrittenLogicalPlan.context, opResultStorage)
-    )
-    val executionPlan = pipelinedRegionsBuilder.buildPipelinedRegions()
+      opResultStorage
+    ).generate()
 
-    // get the updated physical plan
-    physicalPlan = pipelinedRegionsBuilder.physicalPlan
-
-    // assert all source layers to have 0 input ports
-    physicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
-      assert(physicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
+    // validate the plan
+    // TODO: generalize validation to each plan
+    // the updated physical plan's all source operators should have 0 input ports
+    updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
+      assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
     }
-    // assert all sink layers to have 0 output ports
-    physicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
-      assert(physicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
+    // the updated physical plan's all sink operators should have 0 output ports
+    updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
+      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
     }
 
-    new Workflow(
+    Workflow(
       workflowId,
       originalLogicalPlan,
       rewrittenLogicalPlan,
-      physicalPlan,
-      executionPlan
+      updatedPhysicalPlan,
+      regionPlan
     )
 
   }

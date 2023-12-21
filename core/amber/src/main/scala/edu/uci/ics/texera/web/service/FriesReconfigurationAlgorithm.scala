@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.ExecutionPlan
+import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlan
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
   WorkerModifyLogic,
   WorkerModifyLogicMultiple
@@ -24,14 +24,15 @@ object FriesReconfigurationAlgorithm {
 
   def scheduleReconfigurations(
       physicalPlan: PhysicalPlan,
-      executionPlan: ExecutionPlan,
+      regionPlan: RegionPlan,
       reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
       epochMarkerId: String
-  ): List[(PhysicalOpIdentity, EpochMarker)] = {
+  ): Set[(PhysicalOpIdentity, EpochMarker)] = {
     // independently schedule reconfigurations for each region:
-    executionPlan.getAllRegions
-      .map(region => physicalPlan.getSubPlan(region.getOperators.toSet))
+    regionPlan.regions
+      .map(region => physicalPlan.getSubPlan(region.physicalOpIds))
       .flatMap(regionSubPlan => computeMCS(regionSubPlan, reconfigurations, epochMarkerId))
+      .toSet
   }
 
   private def computeMCS(

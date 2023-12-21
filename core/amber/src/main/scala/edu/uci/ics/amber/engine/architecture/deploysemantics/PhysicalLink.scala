@@ -113,8 +113,10 @@ object PhysicalLink {
   }
 }
 class PhysicalLink(
+    @transient
     val fromOp: PhysicalOp,
     val fromPort: Int,
+    @transient
     val toOp: PhysicalOp,
     val toPort: Int,
     val partitionings: Array[(Partitioning, Array[ActorVirtualIdentity])]

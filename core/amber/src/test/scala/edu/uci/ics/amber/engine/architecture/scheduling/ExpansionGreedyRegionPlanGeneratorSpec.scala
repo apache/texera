@@ -12,9 +12,9 @@ import edu.uci.ics.texera.workflow.operators.udf.python.{
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
+class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactory {
 
-  "Pipelined Regions" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in headerlessCsv->keyword->sink workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
@@ -32,11 +32,11 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
-    assert(pipelinedRegions.size == 1)
+    val regions = workflow.regionPlan.regions
+    assert(regions.size == 1)
   }
 
-  "Pipelined Regions" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
@@ -64,36 +64,35 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
-    val ancestorMapping = workflow.executionPlan.regionAncestorMapping
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.regionPlan.regions
+    assert(regions.size == 2)
 
-    val buildRegion = pipelinedRegions
+    val buildRegion = regions
       .find(v =>
-        v.operators.toList.exists(op =>
+        v.physicalOpIds.exists(op =>
           OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
         )
       )
       .get
-    val probeRegion = pipelinedRegions
+    val probeRegion = regions
       .find(v =>
-        v.operators.toList.exists(op =>
+        v.physicalOpIds.exists(op =>
           OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
         )
       )
       .get
 
-    assert(ancestorMapping(probeRegion).size == 1)
-    assert(ancestorMapping(probeRegion).contains(buildRegion))
-    assert(buildRegion.blockingDownstreamPhysicalOpIdsInOtherRegions.length == 1)
+    assert(workflow.regionPlan.getUpstreamRegions(probeRegion).size == 1)
+    assert(workflow.regionPlan.getUpstreamRegions(probeRegion).contains(buildRegion))
+    assert(buildRegion.downstreamLinkIds.size == 1)
     assert(
-      buildRegion.blockingDownstreamPhysicalOpIdsInOtherRegions.exists(pair =>
-        OperatorIdentity(pair._1.logicalOpId.id) == joinOpDesc.operatorIdentifier
+      buildRegion.downstreamLinkIds.exists(linkId =>
+        linkId.to.logicalOpId == joinOpDesc.operatorIdentifier
       )
     )
   }
 
-  "Pipelined Regions" should "correctly find regions in csv->->filter->join->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->->filter->join->sink workflow" in {
     val headerlessCsvOpDesc1 = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
@@ -124,11 +123,11 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.regionPlan.regions
+    assert(regions.size == 2)
   }
 
-  "Pipelined Regions" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
     val buildCsv = TestOperators.headerlessSmallCsvScanOpDesc()
     val probeCsv = TestOperators.smallCsvScanOpDesc()
     val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
@@ -165,11 +164,11 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.regionPlan.regions
+    assert(regions.size == 2)
   }
 
-  "Pipelined Regions" should "correctly find regions in csv->split->training-infer workflow" in {
+  "RegionPlanGenerator" should "correctly find regions in csv->split->training-infer workflow" in {
     val csv = TestOperators.headerlessSmallCsvScanOpDesc()
     val split = new SplitOpDesc()
     val training = new PythonUDFOpDescV2()
@@ -206,8 +205,8 @@ class WorkflowPipelinedRegionsBuilderSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val pipelinedRegions = workflow.executionPlan.regionsToSchedule
-    assert(pipelinedRegions.size == 2)
+    val regions = workflow.regionPlan.regions
+    assert(regions.size == 2)
   }
 
 }

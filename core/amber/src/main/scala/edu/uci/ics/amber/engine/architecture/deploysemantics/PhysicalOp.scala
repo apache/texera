@@ -166,7 +166,7 @@ case class PhysicalOp(
     outputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
-    // execution dependency of ports
+    // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
     dependency: Map[Int, Int] = Map(),
     isOneToManyOp: Boolean = false
 ) {
@@ -395,20 +395,20 @@ case class PhysicalOp(
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
-  def getInputLinksInProcessingOrder: Array[PhysicalLink] = {
+  def getInputLinksInProcessingOrder: List[PhysicalLink] = {
     val dependencyDag =
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
     dependency.foreach({
-      case (successor: Int, predecessor: Int) =>
-        val prevInOrder = inputPortToLinkMapping(predecessor).head
-        val nextInOrder = inputPortToLinkMapping(successor).head
-        if (!dependencyDag.containsVertex(prevInOrder)) {
-          dependencyDag.addVertex(prevInOrder)
+      case (depender: Int, dependee: Int) =>
+        val upstreamLink = inputPortToLinkMapping(dependee).head
+        val downstreamLink = inputPortToLinkMapping(depender).head
+        if (!dependencyDag.containsVertex(upstreamLink)) {
+          dependencyDag.addVertex(upstreamLink)
         }
-        if (!dependencyDag.containsVertex(nextInOrder)) {
-          dependencyDag.addVertex(nextInOrder)
+        if (!dependencyDag.containsVertex(downstreamLink)) {
+          dependencyDag.addVertex(downstreamLink)
         }
-        dependencyDag.addEdge(prevInOrder, nextInOrder)
+        dependencyDag.addEdge(upstreamLink, downstreamLink)
     })
     val topologicalIterator =
       new TopologicalOrderIterator[PhysicalLink, DefaultEdge](dependencyDag)
@@ -416,7 +416,7 @@ case class PhysicalOp(
     while (topologicalIterator.hasNext) {
       processingOrder.append(topologicalIterator.next())
     }
-    processingOrder.toArray
+    processingOrder.toList
   }
 
   def identifiers: Array[ActorVirtualIdentity] = {
