@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics
 
 import akka.actor.Deploy
 import akka.remote.RemoteScope
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
+import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, OperatorExecution}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
@@ -429,7 +429,6 @@ case class PhysicalOp(
 
   def build(
       controllerActorService: AkkaActorService,
-      actorRefService: AkkaActorRefMappingService,
       opExecution: OperatorExecution,
       controllerConf: ControllerConfig
   ): Unit = {
@@ -457,12 +456,12 @@ case class PhysicalOp(
             )
           )
         }
-        val ref =
-          controllerActorService.actorOf(
-            workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
-          )
-        actorRefService.registerActorRef(workerId, ref)
-        opExecution.getWorkerInfo(workerId).ref = ref
+        // Note: At this point, we don't know if the actor is fully initialized.
+        // Thus, the ActorRef returned from `controllerActorService.actorOf` is ignored.
+        controllerActorService.actorOf(
+          workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
+        )
+        opExecution.initializeWorkerInfo(workerId)
       })
   }
 }

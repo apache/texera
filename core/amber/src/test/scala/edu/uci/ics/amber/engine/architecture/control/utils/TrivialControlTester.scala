@@ -35,7 +35,11 @@ class TrivialControlTester(
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long = 0L
 
-  override def initState(): Unit = {}
+  override def preStart(): Unit = {
+    transferService.initialize()
+  }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
+  override def initState(): Unit = {}
 }
