@@ -28,7 +28,9 @@ trait LinkWorkersHandler {
         .zip(partitionings)
         .flatMap({
           case (upstreamWorkerId, (partitioning, receiverWorkers)) =>
-            Seq(send(AddPartitioning(msg.linkId, partitioning), upstreamWorkerId)) ++ receiverWorkers.map(
+            Seq(
+              send(AddPartitioning(msg.linkId, partitioning), upstreamWorkerId)
+            ) ++ receiverWorkers.map(
               send(UpdateInputLinking(upstreamWorkerId, msg.linkId), _)
             )
         })
