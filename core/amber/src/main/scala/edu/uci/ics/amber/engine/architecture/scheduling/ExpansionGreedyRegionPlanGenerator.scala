@@ -15,11 +15,9 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.{
-  `collection AsScalaIterable`,
-  `iterable AsScalaIterable`
-}
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
 object ExpansionGreedyRegionPlanGenerator {
 
@@ -296,7 +294,10 @@ class ExpansionGreedyRegionPlanGenerator(
 
     val regionDAG = createRegionDAG()
     (
-      RegionPlan(regions = regionDAG.toSet, regionLinks = regionDAG.edgeSet().toSet),
+      RegionPlan(
+        regions = regionDAG.iterator().asScala.toList,
+        regionLinks = regionDAG.edgeSet().toSet
+      ),
       physicalPlan
     )
   }

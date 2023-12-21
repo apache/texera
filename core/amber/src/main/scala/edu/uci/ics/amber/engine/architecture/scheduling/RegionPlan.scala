@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 case class RegionPlan(
-    regions: Set[Region],
+    // regions in topological order of the regionDAG
+    regions: List[Region],
     regionLinks: Set[RegionLink]
 ) {
 
