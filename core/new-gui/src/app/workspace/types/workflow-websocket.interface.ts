@@ -192,7 +192,7 @@ export type TexeraWebsocketRequestTypeMap = {
 };
 
 export type TexeraWebsocketEventTypeMap = {
-  RegisterWIdResponse: RegisterWIdEvent;
+  RegisterWorkflowIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
   WorkflowStateEvent: WorkflowStateInfo;
   OperatorStatisticsUpdateEvent: OperatorStatsUpdate;

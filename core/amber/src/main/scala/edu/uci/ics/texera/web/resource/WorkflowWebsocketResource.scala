@@ -62,7 +62,7 @@ class WorkflowWebsocketResource extends LazyLogging {
             WorkflowService.getOrCreate(WorkflowIdentity(registerWorkflowIdRequest.workflowId))
           sessionState.subscribe(workflowState)
           sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-          sessionState.send(RegisterWIdResponse("workflowId registered"))
+          sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
