@@ -53,7 +53,7 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
   def removeActorRef(id: ActorVirtualIdentity): Unit = {
     if (actorRefMapping.contains(id)) {
       val ref = actorRefMapping.remove(id).get
-      logger.error(s"actor $id is not reachable anymore, it might have crashed. old ref = $ref")
+      logger.warn(s"actor $id is not reachable anymore, it might have crashed. old ref = $ref")
     }
   }
 
@@ -89,14 +89,14 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
           queriedActorVirtualIdentities.add(id)
         } catch {
           case e: Throwable =>
-            logger.error(
+            logger.warn(
               "Failed to fetch actorRef for " + id + " parentRef = " + actorService.parent
             )
         }
       }
     } else {
       // on controller, wait for actor ref registration.
-      logger.error(s"unknown identifier: $id")
+      logger.warn(s"unknown identifier: $id")
       val toNotifySet = toNotifyOnRegistration.getOrElseUpdate(id, mutable.HashSet[ActorRef]())
       replyTo.foreach(toNotifySet.add)
     }
