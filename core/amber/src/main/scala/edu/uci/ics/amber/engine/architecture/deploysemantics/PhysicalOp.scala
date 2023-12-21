@@ -456,6 +456,8 @@ case class PhysicalOp(
             )
           )
         }
+        // Note: At this point, we don't know if the actor is fully initialized.
+        // Thus, the ActorRef returned from `controllerActorService.actorOf` is ignored.
         controllerActorService.actorOf(
           workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
         )
