@@ -6,9 +6,9 @@
 package edu.uci.ics.amber.engine.common.virtualidentity
 
 @SerialVersionUID(0L)
-final case class WorkflowIdentity(
+final case class ExecutionIdentity(
     id: _root_.scala.Long
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[WorkflowIdentity] {
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionIdentity] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
@@ -38,7 +38,7 @@ final case class WorkflowIdentity(
         }
       };
     }
-    def withId(__v: _root_.scala.Long): WorkflowIdentity = copy(id = __v)
+    def withId(__v: _root_.scala.Long): ExecutionIdentity = copy(id = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -54,13 +54,13 @@ final case class WorkflowIdentity(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.WorkflowIdentity])
+    def companion = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.common.ExecutionIdentity])
 }
 
-object WorkflowIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity = {
+object ExecutionIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity = {
     var __id: _root_.scala.Long = 0L
     var _done__ = false
     while (!_done__) {
@@ -72,34 +72,34 @@ object WorkflowIdentity extends scalapb.GeneratedMessageCompanion[edu.uci.ics.am
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity(
+    edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity(
         id = __id
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity(
+      edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity(
         id = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = VirtualidentityProto.javaDescriptor.getMessageTypes().get(1)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = VirtualidentityProto.scalaDescriptor.messages(1)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity(
     id = 0L
   )
-  implicit class WorkflowIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity](_l) {
+  implicit class ExecutionIdentityLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity](_l) {
     def id: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.id)((c_, f_) => c_.copy(id = f_))
   }
   final val ID_FIELD_NUMBER = 1
   def of(
     id: _root_.scala.Long
-  ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity(
+  ): _root_.edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity = _root_.edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity(
     id
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.WorkflowIdentity])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.ExecutionIdentity])
 }

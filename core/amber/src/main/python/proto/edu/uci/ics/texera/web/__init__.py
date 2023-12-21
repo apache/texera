@@ -46,7 +46,7 @@ class OperatorBreakpoints(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class JobBreakpointStore(betterproto.Message):
+class ExecutionBreakpointStore(betterproto.Message):
     operator_info: Dict[str, "OperatorBreakpoints"] = betterproto.map_field(
         1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
@@ -70,7 +70,7 @@ class OperatorConsole(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class JobConsoleStore(betterproto.Message):
+class ExecutionConsoleStore(betterproto.Message):
     operator_console: Dict[str, "OperatorConsole"] = betterproto.map_field(
         1, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
@@ -90,7 +90,7 @@ class OperatorRuntimeStats(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class JobStatsStore(betterproto.Message):
+class ExecutionStatsStore(betterproto.Message):
     start_time_stamp: int = betterproto.int64_field(1)
     end_time_stamp: int = betterproto.int64_field(2)
     operator_info: Dict[str, "OperatorRuntimeStats"] = betterproto.map_field(
@@ -112,11 +112,14 @@ class WorkflowFatalError(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class JobMetadataStore(betterproto.Message):
+class ExecutionMetadataStore(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
     fatal_errors: List["WorkflowFatalError"] = betterproto.message_field(2)
-    eid: int = betterproto.int64_field(3)
+    execution_id: "__amber_engine_common__.ExecutionIdentity" = (
+        betterproto.message_field(3)
+    )
     is_recovering: bool = betterproto.bool_field(4)
 
 
+from ...amber.engine import common as __amber_engine_common__
 from ...amber.engine.architecture import worker as __amber_engine_architecture_worker__

@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.common
 
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
@@ -13,16 +14,16 @@ object VirtualIdentityUtils {
   private val workerNamePattern: Regex = raw"Worker:WF(\w+)-(.+)-(\w+)-(\d+)".r
 
   def createWorkerIdentity(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       operator: String,
       layerName: String,
       workerId: Int
   ): ActorVirtualIdentity = {
-    ActorVirtualIdentity(s"Worker:WF$executionId-$operator-$layerName-$workerId")
+    ActorVirtualIdentity(s"Worker:WF${executionId.id}-$operator-$layerName-$workerId")
   }
 
   def createWorkerIdentity(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       workerId: Int
   ): ActorVirtualIdentity = {

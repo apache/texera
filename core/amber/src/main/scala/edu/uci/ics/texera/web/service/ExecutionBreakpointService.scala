@@ -10,8 +10,8 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.AssignBr
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.texera.web.SubscriptionManager
 import edu.uci.ics.texera.web.model.websocket.event.{ReportFaultedTupleEvent, TexeraWebSocketEvent}
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.BreakpointFault.BreakpointTuple
 import edu.uci.ics.texera.web.workflowruntimestate.{BreakpointFault, OperatorBreakpoints}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
@@ -25,9 +25,9 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 
 import scala.collection.mutable
 
-class JobBreakpointService(
+class ExecutionBreakpointService(
     client: AmberClient,
-    stateStore: JobStateStore
+    stateStore: ExecutionStateStore
 ) extends SubscriptionManager {
 
   registerCallbackOnBreakpoint()
@@ -58,10 +58,10 @@ class JobBreakpointService(
     addSubscription(
       client
         .registerCallback[BreakpointTriggered]((evt: BreakpointTriggered) => {
-          stateStore.jobMetadataStore.updateState { oldState =>
+          stateStore.metadataStore.updateState { oldState =>
             updateWorkflowState(PAUSED, oldState)
           }
-          stateStore.breakpointStore.updateState { jobInfo =>
+          stateStore.breakpointStore.updateState { breakpointStore =>
             val breakpointEvts = evt.faultedTupleMap.map { elem =>
               val workerName = elem._1.name
               val faultedTuple = elem._2
@@ -76,19 +76,21 @@ class JobBreakpointService(
                 Some(BreakpointTuple(faultedTuple.id, faultedTuple.isInput, tupleList))
               )
             }.toArray
-            val newInfo = jobInfo.operatorInfo
+            val newInfo = breakpointStore.operatorInfo
               .getOrElse(evt.operatorID, OperatorBreakpoints())
               .withUnresolvedBreakpoints(breakpointEvts)
-            jobInfo.addOperatorInfo((evt.operatorID, newInfo))
+            breakpointStore.addOperatorInfo((evt.operatorID, newInfo))
           }
         })
     )
   }
 
   def clearTriggeredBreakpoints(): Unit = {
-    stateStore.breakpointStore.updateState { jobInfo =>
-      jobInfo.withOperatorInfo(
-        jobInfo.operatorInfo.map(pair => pair._1 -> pair._2.withUnresolvedBreakpoints(Seq.empty))
+    stateStore.breakpointStore.updateState { breakpointStore =>
+      breakpointStore.withOperatorInfo(
+        breakpointStore.operatorInfo.map(pair =>
+          pair._1 -> pair._2.withUnresolvedBreakpoints(Seq.empty)
+        )
       )
     }
   }

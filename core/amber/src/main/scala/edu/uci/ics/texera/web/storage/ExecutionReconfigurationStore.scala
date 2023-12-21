@@ -4,8 +4,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
-case class JobReconfigurationStore(
+case class ExecutionReconfigurationStore(
     currentReconfigId: Option[String] = None,
-    unscheduledReconfigs: List[(PhysicalOp, Option[StateTransferFunc])] = List(),
-    completedReconfigs: Set[ActorVirtualIdentity] = Set()
+    unscheduledReconfigurations: List[(PhysicalOp, Option[StateTransferFunc])] = List(),
+    completedReconfigurations: Set[ActorVirtualIdentity] = Set()
 )

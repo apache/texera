@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.resource
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
@@ -29,12 +30,15 @@ class SchemaPropagationResource extends LazyLogging {
 
     val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
-    val context = new WorkflowContext(userId = Option(sessionUser.getUser.getUid), wid = wid)
+    val context = new WorkflowContext(
+      userId = Option(sessionUser.getUser.getUid),
+      workflowId = WorkflowIdentity(wid.toString.toLong)
+    )
 
     // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
     val responseContent =
-      LogicalPlan(logicalPlanPojo, context)
-        .propagateWorkflowSchema(errorList = None)
+      LogicalPlan(logicalPlanPojo)
+        .propagateWorkflowSchema(context, errorList = None)
         .inputSchemaMap
         .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributesScala))))
     SchemaPropagationResponse(0, responseContent, null)

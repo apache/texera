@@ -7,15 +7,22 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, Wor
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ExecutionIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
-class OperatorExecution(val executionId: Long, physicalOpId: PhysicalOpIdentity, numWorkers: Int)
-    extends Serializable {
+class OperatorExecution(
+    val executionId: ExecutionIdentity,
+    physicalOpId: PhysicalOpIdentity,
+    numWorkers: Int
+) extends Serializable {
   /*
    * Variables related to runtime information
    */

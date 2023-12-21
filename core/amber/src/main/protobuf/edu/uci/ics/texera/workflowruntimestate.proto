@@ -4,6 +4,7 @@ package edu.uci.ics.texera.web;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
@@ -47,7 +48,7 @@ message OperatorBreakpoints{
   repeated BreakpointFault unresolved_breakpoints = 1;
 }
 
-message JobBreakpointStore{
+message ExecutionBreakpointStore{
   map<string, OperatorBreakpoints> operator_info = 1;
 }
 
@@ -60,7 +61,7 @@ message OperatorConsole{
   map<string, EvaluatedValueList> evaluate_expr_results = 2;
 }
 
-message JobConsoleStore{
+message ExecutionConsoleStore{
   map<string, OperatorConsole> operator_console = 1;
 }
 
@@ -75,7 +76,7 @@ message OperatorRuntimeStats{
   int64 output_count = 3;
 }
 
-message JobStatsStore {
+message ExecutionStatsStore {
   int64 startTimeStamp = 1;
   int64 endTimeStamp = 2;
   map<string, OperatorRuntimeStats> operator_info = 3;
@@ -92,9 +93,9 @@ message WorkflowFatalError {
   string workerId = 6;
 }
 
-message JobMetadataStore{
+message ExecutionMetadataStore{
   WorkflowAggregatedState state = 1;
   repeated WorkflowFatalError fatal_errors = 2;
-  int64 eid = 3;
+  edu.uci.ics.amber.engine.common.ExecutionIdentity executionId = 3 [(scalapb.field).no_box = true];
   bool is_recovering = 4;
 }

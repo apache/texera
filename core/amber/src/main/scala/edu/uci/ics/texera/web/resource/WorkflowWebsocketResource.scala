@@ -3,6 +3,7 @@ package edu.uci.ics.texera.web.resource
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -13,24 +14,18 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
-import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUSED, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
-import org.jooq.types.UInteger
 
 import java.time.Instant
-import java.util.concurrent.atomic.AtomicInteger
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
-
-object WorkflowWebsocketResource {
-  val nextExecutionID = new AtomicInteger(0)
-}
 
 @ServerEndpoint(
   value = "/wsapi/workflow-websocket",
@@ -57,16 +52,17 @@ class WorkflowWebsocketResource extends LazyLogging {
       .map(_.asInstanceOf[User].getUid)
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
-    val jobStateOpt = workflowStateOpt.flatMap(x => Option(x.jobService.getValue))
+    val executionStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
       request match {
-        case wIdRequest: RegisterWIdRequest =>
+        case registerWorkflowIdRequest: RegisterWorkflowIdRequest =>
           // hack to refresh frontend run button state
           sessionState.send(WorkflowStateEvent("Uninitialized"))
-          val workflowState = WorkflowService.getOrCreate(wIdRequest.wId)
+          val workflowState =
+            WorkflowService.getOrCreate(WorkflowIdentity(registerWorkflowIdRequest.workflowId))
           sessionState.subscribe(workflowState)
           sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
-          sessionState.send(RegisterWIdResponse("wid registered"))
+          sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
         case heartbeat: HeartBeatRequest =>
           sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
@@ -79,32 +75,36 @@ class WorkflowWebsocketResource extends LazyLogging {
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
-            val jobService = workflowStateOpt.get.jobService.getValue
+            val executionService = workflowStateOpt.get.executionService.getValue
             val modifyLogicResponse =
-              jobService.jobReconfigurationService.modifyOperatorLogic(modifyLogicRequest)
+              executionService.executionReconfigurationService.modifyOperatorLogic(
+                modifyLogicRequest
+              )
             sessionState.send(modifyLogicResponse)
           }
         case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
-          val stateStore = if (jobStateOpt.isDefined) {
+          val stateStore = if (executionStateOpt.isDefined) {
             val currentState =
-              jobStateOpt.get.jobStateStore.jobMetadataStore.getState.state
+              executionStateOpt.get.executionStateStore.metadataStore.getState.state
             if (currentState == RUNNING || currentState == PAUSED) {
               // disable check if the workflow execution is active.
               return
             }
-            jobStateOpt.get.jobStateStore
+            executionStateOpt.get.executionStateStore
           } else {
-            new JobStateStore()
+            new ExecutionStateStore()
           }
           val workflowContext = new WorkflowContext(
-            "default",
             uidOpt,
-            UInteger.valueOf(sessionState.getCurrentWorkflowState.get.wId)
+            sessionState.getCurrentWorkflowState.get.workflowId
           )
 
           val workflowCompiler =
-            new WorkflowCompiler(editingTimeCompilationRequest.toLogicalPlanPojo, workflowContext)
-          val newPlan = workflowCompiler.compileLogicalPlan(stateStore)
+            new WorkflowCompiler(workflowContext)
+          val newPlan = workflowCompiler.compileLogicalPlan(
+            editingTimeCompilationRequest.toLogicalPlanPojo,
+            stateStore
+          )
 
           val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
             workflowStateOpt.get.lastCompletedLogicalPlan,
@@ -112,18 +112,18 @@ class WorkflowWebsocketResource extends LazyLogging {
             editingTimeCompilationRequest
           )
           sessionState.send(CacheStatusUpdateEvent(validateResult))
-          if (jobStateOpt.isEmpty) {
-            sessionState.send(WorkflowErrorEvent(stateStore.jobMetadataStore.getState.fatalErrors))
+          if (executionStateOpt.isEmpty) {
+            sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
-            case Some(workflow) => workflow.initJobService(workflowExecuteRequest, uidOpt)
+            case Some(workflow) => workflow.initExecutionService(workflowExecuteRequest, uidOpt)
             case None           => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
-          workflowStateOpt.map(_.jobService.getValue) match {
+          workflowStateOpt.map(_.executionService.getValue) match {
             case Some(value) => value.wsInput.onNext(other, uidOpt)
-            case None        => throw new IllegalStateException("workflow job is not initialized")
+            case None        => throw new IllegalStateException("workflow execution is not initialized")
           }
       }
     } catch {
@@ -136,8 +136,8 @@ class WorkflowWebsocketResource extends LazyLogging {
           err.getStackTrace.mkString("\n"),
           "unknown operator"
         )
-        if (jobStateOpt.isDefined) {
-          jobStateOpt.get.jobStateStore.jobMetadataStore.updateState { metadataStore =>
+        if (executionStateOpt.isDefined) {
+          executionStateOpt.get.executionStateStore.metadataStore.updateState { metadataStore =>
             metadataStore
               .withFatalErrors(metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR))
               .addFatalErrors(errEvt)

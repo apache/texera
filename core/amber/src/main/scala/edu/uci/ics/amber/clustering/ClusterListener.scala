@@ -10,9 +10,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
-import edu.uci.ics.texera.web.service.{WorkflowJobService, WorkflowService}
+import edu.uci.ics.texera.web.service.{WorkflowExecutionService, WorkflowService}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 
@@ -58,14 +58,14 @@ class ClusterListener extends Actor with AmberLogging {
       .map(_.address)
   }
 
-  private def forcefullyStop(jobService: WorkflowJobService, cause: Throwable): Unit = {
-    jobService.client.shutdown()
-    jobService.jobStateStore.statsStore.updateState(stats =>
+  private def forcefullyStop(executionService: WorkflowExecutionService, cause: Throwable): Unit = {
+    executionService.client.shutdown()
+    executionService.executionStateStore.statsStore.updateState(stats =>
       stats.withEndTimeStamp(System.currentTimeMillis())
     )
-    jobService.jobStateStore.jobMetadataStore.updateState { jobInfo =>
+    executionService.executionStateStore.metadataStore.updateState { metadataStore =>
       logger.error("forcefully stopping execution", cause)
-      updateWorkflowState(FAILED, jobInfo).addFatalErrors(
+      updateWorkflowState(FAILED, metadataStore).addFatalErrors(
         WorkflowFatalError(
           EXECUTION_FAILURE,
           Timestamp(Instant.now),
@@ -82,29 +82,32 @@ class ClusterListener extends Actor with AmberLogging {
       case MemberRemoved(member, status) =>
         logger.info("Cluster node " + member + " is down!")
         val futures = new ArrayBuffer[Future[Any]]
-        WorkflowService.getAllWorkflowService.foreach { workflow =>
-          val jobService = workflow.jobService.getValue
+        WorkflowService.getAllWorkflowServices.foreach { workflow =>
+          val executionService = workflow.executionService.getValue
           if (
-            jobService != null && jobService.jobStateStore.jobMetadataStore.getState.state != COMPLETED
+            executionService != null && executionService.executionStateStore.metadataStore.getState.state != COMPLETED
           ) {
             if (AmberConfig.isFaultToleranceEnabled) {
               logger.info(
-                s"Trigger recovery process for execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
+                s"Trigger recovery process for execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
               )
               try {
-                futures.append(jobService.client.notifyNodeFailure(member.address))
+                futures.append(executionService.client.notifyNodeFailure(member.address))
               } catch {
                 case t: Throwable =>
                   logger.warn(
-                    s"execution ${jobService.workflow.workflowId} cannot recover! forcing it to stop"
+                    s"execution ${executionService.workflow.context.executionId.id} cannot recover! forcing it to stop"
                   )
-                  forcefullyStop(jobService, t)
+                  forcefullyStop(executionService, t)
               }
             } else {
               logger.info(
-                s"Kill execution id = ${jobService.jobStateStore.jobMetadataStore.getState.eid}"
+                s"Kill execution id = ${executionService.executionStateStore.metadataStore.getState.executionId.id}"
               )
-              forcefullyStop(jobService, new RuntimeException("fault tolerance is not enabled"))
+              forcefullyStop(
+                executionService,
+                new RuntimeException("fault tolerance is not enabled")
+              )
             }
           }
         }

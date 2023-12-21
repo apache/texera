@@ -23,9 +23,9 @@ import { BreakpointFaultedTuple, BreakpointTriggerInfo, ConsoleUpdateEvent } fro
  * 2. value is the payload this request/event needs
  */
 
-export interface RegisterWIdRequest
+export interface RegisterWorkflowIdRequest
   extends Readonly<{
-    wId: number;
+    workflowId: number;
   }> {}
 
 export interface WorkflowExecuteRequest
@@ -174,7 +174,7 @@ export type WorkflowStateInfo = Readonly<{
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
-  RegisterWIdRequest: RegisterWIdRequest;
+  RegisterWorkflowIdRequest: RegisterWorkflowIdRequest;
   AddBreakpointRequest: BreakpointInfo;
   EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
@@ -192,7 +192,7 @@ export type TexeraWebsocketRequestTypeMap = {
 };
 
 export type TexeraWebsocketEventTypeMap = {
-  RegisterWIdResponse: RegisterWIdEvent;
+  RegisterWorkflowIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
   WorkflowStateEvent: WorkflowStateInfo;
   OperatorStatisticsUpdateEvent: OperatorStatsUpdate;

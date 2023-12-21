@@ -23,8 +23,8 @@ import edu.uci.ics.texera.web.model.websocket.event.{
   OperatorStatisticsUpdateEvent,
   WorkerAssignmentUpdateEvent
 }
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.{
   OperatorRuntimeStats,
@@ -39,9 +39,9 @@ import org.jooq.types.UInteger
 
 import java.util
 
-class JobStatsService(
+class ExecutionStatsService(
     client: AmberClient,
-    stateStore: JobStateStore,
+    stateStore: ExecutionStateStore,
     workflowContext: WorkflowContext
 ) extends SubscriptionManager
     with LazyLogging {
@@ -134,8 +134,8 @@ class JobStatsService(
     addSubscription(
       client
         .registerCallback[WorkflowStatusUpdate]((evt: WorkflowStatusUpdate) => {
-          stateStore.statsStore.updateState { jobInfo =>
-            jobInfo.withOperatorInfo(evt.operatorStatistics)
+          stateStore.statsStore.updateState { statsStore =>
+            statsStore.withOperatorInfo(evt.operatorStatistics)
           }
         })
     )
@@ -150,8 +150,8 @@ class JobStatsService(
         new util.ArrayList[WorkflowRuntimeStatistics]()
       for ((operatorId, stat) <- operatorStatistics) {
         val execution = new WorkflowRuntimeStatistics()
-        execution.setWorkflowId(workflowContext.wid)
-        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId))
+        execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
+        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
         execution.setOperatorId(operatorId)
         execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
         execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
@@ -168,8 +168,8 @@ class JobStatsService(
     addSubscription(
       client
         .registerCallback[WorkerAssignmentUpdate]((evt: WorkerAssignmentUpdate) => {
-          stateStore.statsStore.updateState { jobInfo =>
-            jobInfo.withOperatorWorkerMapping(
+          stateStore.statsStore.updateState { statsStore =>
+            statsStore.withOperatorWorkerMapping(
               evt.workerMapping
                 .map({
                   case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds)
@@ -185,8 +185,8 @@ class JobStatsService(
     addSubscription(
       client
         .registerCallback[WorkflowRecoveryStatus]((evt: WorkflowRecoveryStatus) => {
-          stateStore.jobMetadataStore.updateState { jobMetadata =>
-            jobMetadata.withIsRecovering(evt.isRecovering)
+          stateStore.metadataStore.updateState { metadataStore =>
+            metadataStore.withIsRecovering(evt.isRecovering)
           }
         })
     )
@@ -200,8 +200,8 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.jobMetadataStore.updateState(jobInfo =>
-            updateWorkflowState(COMPLETED, jobInfo)
+          stateStore.metadataStore.updateState(metadataStore =>
+            updateWorkflowState(COMPLETED, metadataStore)
           )
         })
     )
@@ -221,9 +221,9 @@ class JobStatsService(
           stateStore.statsStore.updateState(stats =>
             stats.withEndTimeStamp(System.currentTimeMillis())
           )
-          stateStore.jobMetadataStore.updateState { jobInfo =>
+          stateStore.metadataStore.updateState { metadataStore =>
             logger.error("error occurred in execution", evt.e)
-            updateWorkflowState(FAILED, jobInfo).addFatalErrors(
+            updateWorkflowState(FAILED, metadataStore).addFatalErrors(
               WorkflowFatalError(
                 EXECUTION_FAILURE,
                 Timestamp(Instant.now),

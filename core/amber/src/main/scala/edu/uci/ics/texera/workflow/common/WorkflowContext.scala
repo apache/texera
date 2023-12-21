@@ -1,13 +1,17 @@
 package edu.uci.ics.texera.workflow.common
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import org.jooq.types.UInteger
 
 object WorkflowContext {
-  val DEFAULT_EXECUTION_ID = 1
+  val DEFAULT_EXECUTION_ID: ExecutionIdentity = ExecutionIdentity(1L)
+  val DEFAULT_WORKFLOW_ID: WorkflowIdentity = WorkflowIdentity(1L)
 }
 class WorkflowContext(
-    var jobId: String = "default",
     var userId: Option[UInteger] = None,
-    var wid: UInteger = UInteger.valueOf(0),
-    var executionId: Long = DEFAULT_EXECUTION_ID
+    var workflowId: WorkflowIdentity = DEFAULT_WORKFLOW_ID,
+    var executionId: ExecutionIdentity = DEFAULT_EXECUTION_ID
 )

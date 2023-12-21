@@ -6,15 +6,15 @@
 package edu.uci.ics.texera.web.workflowruntimestate
 
 @SerialVersionUID(0L)
-final case class JobBreakpointStore(
+final case class ExecutionBreakpointStore(
     operatorInfo: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints] = _root_.scala.collection.immutable.Map.empty
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[JobBreakpointStore] {
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[ExecutionBreakpointStore] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
       operatorInfo.foreach { __item =>
-        val __value = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore._typemapper_operatorInfo.toBase(__item)
+        val __value = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore._typemapper_operatorInfo.toBase(__item)
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
       __size
@@ -29,35 +29,35 @@ final case class JobBreakpointStore(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       operatorInfo.foreach { __v =>
-        val __m = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore._typemapper_operatorInfo.toBase(__v)
+        val __m = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore._typemapper_operatorInfo.toBase(__v)
         _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
     }
     def clearOperatorInfo = copy(operatorInfo = _root_.scala.collection.immutable.Map.empty)
-    def addOperatorInfo(__vs: (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)*): JobBreakpointStore = addAllOperatorInfo(__vs)
-    def addAllOperatorInfo(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)]): JobBreakpointStore = copy(operatorInfo = operatorInfo ++ __vs)
-    def withOperatorInfo(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]): JobBreakpointStore = copy(operatorInfo = __v)
+    def addOperatorInfo(__vs: (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)*): ExecutionBreakpointStore = addAllOperatorInfo(__vs)
+    def addAllOperatorInfo(__vs: Iterable[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)]): ExecutionBreakpointStore = copy(operatorInfo = operatorInfo ++ __vs)
+    def withOperatorInfo(__v: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]): ExecutionBreakpointStore = copy(operatorInfo = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore._typemapper_operatorInfo.toBase(_)).toSeq
+        case 1 => operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore._typemapper_operatorInfo.toBase(_)).toSeq
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PRepeated(operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore._typemapper_operatorInfo.toBase(_).toPMessage).toVector)
+        case 1 => _root_.scalapb.descriptors.PRepeated(operatorInfo.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore._typemapper_operatorInfo.toBase(_).toPMessage).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.JobBreakpointStore])
+    def companion = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.ExecutionBreakpointStore])
 }
 
-object JobBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore = {
+object ExecutionBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore = {
     val __operatorInfo: _root_.scala.collection.mutable.Builder[(_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints), _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]] = _root_.scala.collection.immutable.Map.newBuilder[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]
     var _done__ = false
     while (!_done__) {
@@ -65,19 +65,19 @@ object JobBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __operatorInfo += edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore._typemapper_operatorInfo.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry](_input__))
+          __operatorInfo += edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore._typemapper_operatorInfo.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry](_input__))
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore(
+    edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore(
         operatorInfo = __operatorInfo.result()
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore(
-        operatorInfo = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore._typemapper_operatorInfo.toCustom(_)).toMap
+      edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore(
+        operatorInfo = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore._typemapper_operatorInfo.toCustom(_)).toMap
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -86,16 +86,16 @@ object JobBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry
+      case 1 => __out = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
     Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
-      _root_.edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry
+      _root_.edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry
     )
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore(
+  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore(
     operatorInfo = _root_.scala.collection.immutable.Map.empty
   )
   @SerialVersionUID(0L)
@@ -163,13 +163,13 @@ object JobBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
         }
       }
       def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry
-      // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.JobBreakpointStore.OperatorInfoEntry])
+      def companion = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry
+      // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.ExecutionBreakpointStore.OperatorInfoEntry])
   }
   
-  object OperatorInfoEntry extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry] {
-    implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry] = this
-    def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry = {
+  object OperatorInfoEntry extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry] {
+    implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry] = this
+    def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry = {
       var __key: _root_.scala.Predef.String = ""
       var __value: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints] = _root_.scala.None
       var _done__ = false
@@ -184,22 +184,22 @@ object JobBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
           case tag => _input__.skipField(tag)
         }
       }
-      edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry(
+      edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry(
           key = __key,
           value = __value
       )
     }
-    implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry] = _root_.scalapb.descriptors.Reads{
+    implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry] = _root_.scalapb.descriptors.Reads{
       case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
         _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-        edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry(
+        edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry(
           key = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
           value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]])
         )
       case _ => throw new RuntimeException("Expected PMessage")
     }
-    def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.javaDescriptor.getNestedTypes().get(0)
-    def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.scalaDescriptor.nestedMessages(0)
+    def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.javaDescriptor.getNestedTypes().get(0)
+    def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.scalaDescriptor.nestedMessages(0)
     def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
       var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
       (__number: @_root_.scala.unchecked) match {
@@ -209,11 +209,11 @@ object JobBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     }
     lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
     def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-    lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry(
+    lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry(
       key = "",
       value = _root_.scala.None
     )
-    implicit class OperatorInfoEntryLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry](_l) {
+    implicit class OperatorInfoEntryLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry](_l) {
       def key: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.key)((c_, f_) => c_.copy(key = f_))
       def value: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints] = field(_.getValue)((c_, f_) => c_.copy(value = Option(f_)))
       def optionalValue: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]] = field(_.value)((c_, f_) => c_.copy(value = f_))
@@ -221,28 +221,28 @@ object JobBreakpointStore extends scalapb.GeneratedMessageCompanion[edu.uci.ics.
     final val KEY_FIELD_NUMBER = 1
     final val VALUE_FIELD_NUMBER = 2
     @transient
-    implicit val keyValueMapper: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)] =
-      _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)](__m => (__m.key, __m.getValue))(__p => edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry(__p._1, Some(__p._2)))
+    implicit val keyValueMapper: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)] =
+      _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)](__m => (__m.key, __m.getValue))(__p => edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry(__p._1, Some(__p._2)))
     def of(
       key: _root_.scala.Predef.String,
       value: _root_.scala.Option[edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]
-    ): _root_.edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry = _root_.edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry(
+    ): _root_.edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry = _root_.edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry(
       key,
       value
     )
-    // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.JobBreakpointStore.OperatorInfoEntry])
+    // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.ExecutionBreakpointStore.OperatorInfoEntry])
   }
   
-  implicit class JobBreakpointStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore](_l) {
+  implicit class ExecutionBreakpointStoreLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore](_l) {
     def operatorInfo: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]] = field(_.operatorInfo)((c_, f_) => c_.copy(operatorInfo = f_))
   }
   final val OPERATOR_INFO_FIELD_NUMBER = 1
   @transient
-  private[workflowruntimestate] val _typemapper_operatorInfo: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)]]
+  private[workflowruntimestate] val _typemapper_operatorInfo: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore.OperatorInfoEntry, (_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints)]]
   def of(
     operatorInfo: _root_.scala.collection.immutable.Map[_root_.scala.Predef.String, edu.uci.ics.texera.web.workflowruntimestate.OperatorBreakpoints]
-  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore = _root_.edu.uci.ics.texera.web.workflowruntimestate.JobBreakpointStore(
+  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore = _root_.edu.uci.ics.texera.web.workflowruntimestate.ExecutionBreakpointStore(
     operatorInfo
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.JobBreakpointStore])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.ExecutionBreakpointStore])
 }

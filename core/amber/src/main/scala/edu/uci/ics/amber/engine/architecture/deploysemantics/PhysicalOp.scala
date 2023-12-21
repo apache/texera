@@ -20,6 +20,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ExecutionIdentity,
   OperatorIdentity,
   PhysicalLinkIdentity,
   PhysicalOpIdentity
@@ -42,14 +43,14 @@ object PhysicalOp {
     *  3) it has no input ports.
     */
   def sourcePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     sourcePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def sourcePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
@@ -63,28 +64,28 @@ object PhysicalOp {
     )
 
   def oneToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     oneToOnePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def oneToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     PhysicalOp(executionId, physicalOpId, opExecInitInfo = opExecInitInfo)
 
   def manyToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     manyToOnePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def manyToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
@@ -99,14 +100,14 @@ object PhysicalOp {
   }
 
   def localPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     localPhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def localPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
@@ -115,7 +116,7 @@ object PhysicalOp {
   }
 
   def hashPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExec: OpExecInitInfo,
       hashColumnIndices: Array[Int]
@@ -123,7 +124,7 @@ object PhysicalOp {
     hashPhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExec, hashColumnIndices)
 
   def hashPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo,
       hashColumnIndices: Array[Int]
@@ -141,7 +142,7 @@ object PhysicalOp {
 
 case class PhysicalOp(
     // the execution id number
-    executionId: Long,
+    executionId: ExecutionIdentity,
     // the identifier of this PhysicalOp
     id: PhysicalOpIdentity,
     // information regarding initializing an operator executor instance

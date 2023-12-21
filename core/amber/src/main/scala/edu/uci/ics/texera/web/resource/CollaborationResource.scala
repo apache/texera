@@ -50,7 +50,7 @@ class CollaborationResource extends LazyLogging {
           case Some(uId) =>
             sessionIdUIdMap(senderSessId) = uId.intValue()
             val wId = wIdRequest.wId
-            logger.info("New session from " + uId + " on workflow with wid: " + wId)
+            logger.info("New session from " + uId + " on workflow with workflowId: " + wId)
             wId
           case None =>
             // use a fixed wid for reconnection
