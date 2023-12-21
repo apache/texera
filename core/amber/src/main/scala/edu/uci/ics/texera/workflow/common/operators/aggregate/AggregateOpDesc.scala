@@ -2,7 +2,11 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
@@ -11,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 object AggregateOpDesc {
 
   def getPhysicalPlan(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       id: OperatorIdentity,
       aggFuncs: List[DistributedAggregation[Object]],
       groupByKeys: List[String],
@@ -65,14 +69,14 @@ object AggregateOpDesc {
 abstract class AggregateOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     throw new UnsupportedOperationException("should implement `getPhysicalPlan` instead")
   }
 
   override def getPhysicalPlan(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     var plan = aggregateOperatorExecutor(executionId, operatorSchemaInfo)
@@ -81,7 +85,7 @@ abstract class AggregateOpDesc extends LogicalOp {
   }
 
   def aggregateOperatorExecutor(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan
 

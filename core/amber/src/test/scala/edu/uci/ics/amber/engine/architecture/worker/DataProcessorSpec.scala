@@ -23,6 +23,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
+import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -34,13 +35,15 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val operatorIdentity: OperatorIdentity = OperatorIdentity("testOperator")
   private val operator = mock[OperatorExecutor]
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("testUpstream"), "main")
-  private val upstreamOp = PhysicalOp(executionId = 1, id = upstreamOpId, opExecInitInfo = null)
+  private val upstreamOp =
+    PhysicalOp(executionId = DEFAULT_EXECUTION_ID, id = upstreamOpId, opExecInitInfo = null)
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testOperator"), "main")
-  private val testOp = PhysicalOp(executionId = 1, id = testOpId, opExecInitInfo = null)
+  private val testOp =
+    PhysicalOp(executionId = DEFAULT_EXECUTION_ID, id = testOpId, opExecInitInfo = null)
   private val link = PhysicalLink(upstreamOp, 0, testOp, 0)
   private val physicalOp =
     PhysicalOp
-      .oneToOnePhysicalOp(1, operatorIdentity, OpExecInitInfo(_ => operator))
+      .oneToOnePhysicalOp(DEFAULT_EXECUTION_ID, operatorIdentity, OpExecInitInfo(_ => operator))
       .addInput(link.fromOp, 0, 0)
   private val outputHandler = mock[WorkflowFIFOMessage => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]

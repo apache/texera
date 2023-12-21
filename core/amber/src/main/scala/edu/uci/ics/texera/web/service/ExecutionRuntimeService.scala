@@ -12,16 +12,16 @@ import edu.uci.ics.texera.web.model.websocket.request.{
   WorkflowPauseRequest,
   WorkflowResumeRequest
 }
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
-class JobRuntimeService(
+class ExecutionRuntimeService(
     client: AmberClient,
-    stateStore: JobStateStore,
+    stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
-    breakpointService: JobBreakpointService,
-    reconfigurationService: JobReconfigurationService
+    breakpointService: ExecutionBreakpointService,
+    reconfigurationService: ExecutionReconfigurationService
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -32,12 +32,16 @@ class JobRuntimeService(
 
   // Receive Paused from Amber
   addSubscription(client.registerCallback[WorkflowPaused]((evt: WorkflowPaused) => {
-    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(PAUSED, jobInfo))
+    stateStore.metadataStore.updateState(metadataStore =>
+      updateWorkflowState(PAUSED, metadataStore)
+    )
   }))
 
   // Receive Pause
   addSubscription(wsInput.subscribe((req: WorkflowPauseRequest, uidOpt) => {
-    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(PAUSING, jobInfo))
+    stateStore.metadataStore.updateState(metadataStore =>
+      updateWorkflowState(PAUSING, metadataStore)
+    )
     client.sendAsync(PauseWorkflow())
   }))
 
@@ -45,10 +49,15 @@ class JobRuntimeService(
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
     breakpointService.clearTriggeredBreakpoints()
     reconfigurationService.performReconfigurationOnResume()
-    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
+    stateStore.metadataStore.updateState(metadataStore =>
+      updateWorkflowState(RESUMING, metadataStore)
+    )
     client.sendAsyncWithCallback[Unit](
       ResumeWorkflow(),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
+      _ =>
+        stateStore.metadataStore.updateState(metadataStore =>
+          updateWorkflowState(RUNNING, metadataStore)
+        )
     )
   }))
 
@@ -56,7 +65,9 @@ class JobRuntimeService(
   addSubscription(wsInput.subscribe((req: WorkflowKillRequest, uidOpt) => {
     client.shutdown()
     stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
-    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(KILLED, jobInfo))
+    stateStore.metadataStore.updateState(metadataStore =>
+      updateWorkflowState(KILLED, metadataStore)
+    )
   }))
 
 }

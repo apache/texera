@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.service.{ExecutionsMetadataPersistService, WorkflowCacheChecker}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
@@ -12,6 +13,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstant
 object WorkflowCacheRewriter {
 
   def transform(
+      context: WorkflowContext,
       logicalPlan: LogicalPlan,
       lastCompletedPlan: Option[LogicalPlan],
       storage: OpResultStorage,
@@ -70,20 +72,21 @@ object WorkflowCacheRewriter {
       )
     )
 
-    resultPlan.propagateWorkflowSchema(None)
+    resultPlan.propagateWorkflowSchema(context, None)
 
     // assign sink storage to the logical plan after cache rewrite
     // as it will be converted to the actual physical plan
-    assignSinkStorage(resultPlan, storage, opsCanUseCache)
+    assignSinkStorage(resultPlan, context, storage, opsCanUseCache)
     // also assign sink storage to the original logical plan, as the original logical plan
     // will be used to be compared to the subsequent runs
-    assignSinkStorage(logicalPlan, storage, opsCanUseCache)
+    assignSinkStorage(logicalPlan, context, storage, opsCanUseCache)
     resultPlan
 
   }
 
   private def assignSinkStorage(
       logicalPlan: LogicalPlan,
+      context: WorkflowContext,
       storage: OpResultStorage,
       reuseStorageSet: Set[OperatorIdentity] = Set()
   ): Unit = {
@@ -122,7 +125,7 @@ object WorkflowCacheRewriter {
     // update execution entry in MySQL to have pointers to the mongo collections
     resultsJSON.set("results", sinksPointers)
     ExecutionsMetadataPersistService.updateExistingExecutionVolumePointers(
-      logicalPlan.context.executionId,
+      context.executionId,
       resultsJSON.toString
     )
   }

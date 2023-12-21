@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.AmberConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -71,7 +72,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public PhysicalOp getPhysicalOp(long executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
         AttributeType xType = operatorSchemaInfo.inputSchemas()[0].getAttribute(xColumn).getType();
         AttributeType yType = operatorSchemaInfo.inputSchemas()[0].getAttribute(yColumn).getType();
         Set<AttributeType> allowedAttributeTypesNumbersOnly = EnumSet.of(DOUBLE, INTEGER); //currently, the frontend has limitation it doesn't accept axes of type long

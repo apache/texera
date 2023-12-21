@@ -22,6 +22,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -64,18 +65,18 @@ class WorkerSpec
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val physicalOp1 = PhysicalOp(
-    executionId = 1,
+    executionId = DEFAULT_EXECUTION_ID,
     id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
     opExecInitInfo = null
   )
   private val physicalOp2 = PhysicalOp(
-    executionId = 1,
+    executionId = DEFAULT_EXECUTION_ID,
     id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
     opExecInitInfo = null
   )
   private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
   private val physicalOp = PhysicalOp
-    .oneToOnePhysicalOp(0, operatorIdentity, OpExecInitInfo(_ => mockOpExecutor))
+    .oneToOnePhysicalOp(DEFAULT_EXECUTION_ID, operatorIdentity, OpExecInitInfo(_ => mockOpExecutor))
     .copy(
       inputPortToLinkMapping = Map(0 -> List(mockLink)),
       outputPortToLinkMapping = Map(0 -> List(mockLink))

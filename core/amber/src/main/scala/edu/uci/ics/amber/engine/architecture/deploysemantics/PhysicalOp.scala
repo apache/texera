@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics
 
 import akka.actor.Deploy
 import akka.remote.RemoteScope
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
+import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
@@ -21,6 +21,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ExecutionIdentity,
   OperatorIdentity,
   PhysicalLinkIdentity,
   PhysicalOpIdentity
@@ -45,14 +46,14 @@ object PhysicalOp {
     *  3) it has no input ports.
     */
   def sourcePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     sourcePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def sourcePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
@@ -66,28 +67,28 @@ object PhysicalOp {
     )
 
   def oneToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     oneToOnePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def oneToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     PhysicalOp(executionId, physicalOpId, opExecInitInfo = opExecInitInfo)
 
   def manyToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     manyToOnePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def manyToOnePhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
@@ -102,14 +103,14 @@ object PhysicalOp {
   }
 
   def localPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     localPhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
 
   def localPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
@@ -118,7 +119,7 @@ object PhysicalOp {
   }
 
   def hashPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExec: OpExecInitInfo,
       hashColumnIndices: Array[Int]
@@ -126,7 +127,7 @@ object PhysicalOp {
     hashPhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExec, hashColumnIndices)
 
   def hashPhysicalOp(
-      executionId: Long,
+      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecInitInfo: OpExecInitInfo,
       hashColumnIndices: Array[Int]
@@ -144,7 +145,7 @@ object PhysicalOp {
 
 case class PhysicalOp(
     // the execution id number
-    executionId: Long,
+    executionId: ExecutionIdentity,
     // the identifier of this PhysicalOp
     id: PhysicalOpIdentity,
     // information regarding initializing an operator executor instance
@@ -473,7 +474,6 @@ case class PhysicalOp(
 
   def build(
       controllerActorService: AkkaActorService,
-      actorRefService: AkkaActorRefMappingService,
       opExecution: OperatorExecution,
       workerConfigs: List[WorkerConfig]
   ): Unit = {
@@ -502,12 +502,12 @@ case class PhysicalOp(
             )
           )
         }
-        val ref =
-          controllerActorService.actorOf(
-            workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
-          )
-        actorRefService.registerActorRef(workerId, ref)
-        opExecution.getWorkerInfo(workerId).ref = ref
+        // Note: At this point, we don't know if the actor is fully initialized.
+        // Thus, the ActorRef returned from `controllerActorService.actorOf` is ignored.
+        controllerActorService.actorOf(
+          workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
+        )
+        opExecution.initializeWorkerInfo(workerId)
       })
   }
 }

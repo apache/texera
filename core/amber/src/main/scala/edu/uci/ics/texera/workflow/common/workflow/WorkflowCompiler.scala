@@ -4,10 +4,10 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
-import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
@@ -18,31 +18,33 @@ import java.time.Instant
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowCompiler(
-    val logicalPlanPojo: LogicalPlanPojo,
-    workflowContext: WorkflowContext
+    context: WorkflowContext
 ) extends LazyLogging {
 
-  def compileLogicalPlan(jobStateStore: JobStateStore): LogicalPlan = {
+  def compileLogicalPlan(
+      logicalPlanPojo: LogicalPlanPojo,
+      executionStateStore: ExecutionStateStore
+  ): LogicalPlan = {
 
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
-    jobStateStore.jobMetadataStore.updateState { metadataStore =>
+    executionStateStore.metadataStore.updateState { metadataStore =>
       metadataStore.withFatalErrors(
         metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
       )
     }
 
-    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo, workflowContext)
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
     logicalPlan = SinkInjectionTransformer.transform(
       logicalPlanPojo.opsToViewResult,
       logicalPlan
     )
 
-    logicalPlan = logicalPlan.propagateWorkflowSchema(Some(errorList))
+    logicalPlan = logicalPlan.propagateWorkflowSchema(context, Some(errorList))
 
     // report compilation errors
     if (errorList.nonEmpty) {
-      val jobErrors = errorList.map {
+      val executionErrors = errorList.map {
         case (opId, err) =>
           logger.error("error occurred in logical plan compilation", err)
           WorkflowFatalError(
@@ -53,45 +55,44 @@ class WorkflowCompiler(
             opId.id
           )
       }
-      jobStateStore.jobMetadataStore.updateState(metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(jobErrors: _*)
+      executionStateStore.metadataStore.updateState(metadataStore =>
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors: _*)
       )
     }
     logicalPlan
   }
 
   def compile(
-      workflowId: WorkflowIdentity,
+      logicalPlanPojo: LogicalPlanPojo,
       opResultStorage: OpResultStorage,
-      lastCompletedJob: Option[LogicalPlan] = Option.empty,
-      jobStateStore: JobStateStore
+      lastCompletedExecutionLogicalPlan: Option[LogicalPlan] = Option.empty,
+      executionStateStore: ExecutionStateStore
   ): Workflow = {
 
     // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
     //  this plan will be compared in subsequent runs to check which operator can be replaced
     //  by cache.
-    val originalLogicalPlan = compileLogicalPlan(jobStateStore)
+    val originalLogicalPlan = compileLogicalPlan(logicalPlanPojo, executionStateStore)
 
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
+      context,
       originalLogicalPlan,
-      lastCompletedJob,
+      lastCompletedExecutionLogicalPlan,
       opResultStorage,
       logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
     )
 
     // the PhysicalPlan with topology expanded.
-    val physicalPlan = PhysicalPlan(workflowId.executionId, rewrittenLogicalPlan)
+    val physicalPlan = PhysicalPlan(context, rewrittenLogicalPlan)
 
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
-      workflowId,
-      workflowContext,
       rewrittenLogicalPlan,
       physicalPlan,
       opResultStorage
-    ).generate()
+    ).generate(context)
 
     // validate the plan
     // TODO: generalize validation to each plan
@@ -105,7 +106,7 @@ class WorkflowCompiler(
     }
 
     Workflow(
-      workflowId,
+      context,
       originalLogicalPlan,
       rewrittenLogicalPlan,
       updatedPhysicalPlan,
