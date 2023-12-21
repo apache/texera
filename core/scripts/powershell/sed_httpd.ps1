@@ -1,15 +1,18 @@
-
+Write-Host "Reading arguments..."
+$dbUsername = $args[0]
+$dbPassword = $args[1]
 Write-Host "configuring apache2"
-$HTTPD_CONF = "C:\Users\Administrator\AppData\Roaming\Apache24\conf\httpd.conf"
-$VHOST_CONF = "C:\Users\Administrator\AppData\Roaming\Apache24\conf\extra\httpd-vhosts.conf"
-$PHP_CONF = "C:\Users\Administrator\AppData\Roaming\Apache24\conf\extra\httpd-php.conf"
+$HTTPD_CONF = ".\Apache24\conf\httpd.conf"
+$VHOST_CONF = ".\Apache24\conf\extra\httpd-vhosts.conf"
+$PHP_CONF = ".\Apache24\conf\extra\httpd-php.conf"
 
 # Replace content in httpd.conf
 (Get-Content $HTTPD_CONF) -replace '#LoadModule rewrite_module', 'LoadModule rewrite_module' | Set-Content $HTTPD_CONF
+(Get-Content $HTTPD_CONF) -replace 'Listen 80', 'Listen 8888' | Set-Content $HTTPD_CONF
 (Get-Content $HTTPD_CONF) -replace '#LoadModule headers_module', 'LoadModule headers_module' | Set-Content $HTTPD_CONF
 (Get-Content $HTTPD_CONF) -replace '#LoadModule deflate_module', 'LoadModule deflate_module' | Set-Content $HTTPD_CONF
 (Get-Content $HTTPD_CONF) -replace '# Include conf/extra/httpd-vhosts.conf', 'Include conf/extra/httpd-vhosts.conf' | Set-Content $HTTPD_CONF
-(Get-Content $HTTPD_CONF) -replace 'Listen 8080', 'Listen 8888' | Set-Content $HTTPD_CONF
+(Get-Content $HTTPD_CONF) -replace '#Include conf/extra/httpd-vhosts.conf', 'Include conf/extra/httpd-vhosts.conf' | Set-Content $HTTPD_CONF
 $PhpModuleLine = 'LoadModule php_module "C:\PHP\php8apache2_4.dll"'
 
 Add-Content -Path $HTTPD_CONF -Value $PhpModuleLine
@@ -51,13 +54,11 @@ if (-Not (Test-Path $PHP_CONF)) {
 
 # Restart Apache
 Write-Host "Restarting Apache..."
-Restart-Service -Name "Apache"
+Restart-Service -Name "texeraapache2"
 
 # Publish assets
 Set-Location c:\flarum
 Write-Host "Configuring flarum..."
-$dbUsername = Read-Host -Prompt "Enter your database username"
-$dbPassword = Read-Host -Prompt "Enter your database password"
 $configPath = "config.php"
 $configContent = Get-Content $configPath -Raw
 
