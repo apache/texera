@@ -480,17 +480,16 @@ case class PhysicalOp(
     )
 
     workerIds.foreach(workerId => {
-      val idx = VirtualIdentityUtils.getWorkerIndex(workerId)
-      val workerConfig = workerConfigs(idx)
+      val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
+      val workerConfig = workerConfigs(workerIndex)
       val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
-      val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, idx)
+      val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
 
       val workflowWorker = if (this.isPythonOperator) {
-        PythonWorkflowWorker.props(workerId)
+        PythonWorkflowWorker.props(workerId, workerConfig)
       } else {
         WorkflowWorker.props(
           workerId,
-          idx,
           physicalOp = this,
           workerConfig
         )
