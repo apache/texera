@@ -7,8 +7,8 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
@@ -105,9 +105,8 @@ class WorkerSpec
     TestActorRef(
       new WorkflowWorker(
         identifier1,
-        workerIndex,
         physicalOp,
-        WorkflowWorkerConfig(logStorageType = "none", replayTo = None)
+        WorkerConfig(logStorageType = "none", replayTo = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager
