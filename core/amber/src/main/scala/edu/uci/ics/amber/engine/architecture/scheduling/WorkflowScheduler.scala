@@ -221,9 +221,6 @@ class WorkflowScheduler(
       .onSuccess(_ =>
         uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
       )
-      .onFailure(_ => {
-        logger.info("Failed!!!!!!!")
-      })
   }
 
   private def activateAllLinks(workflow: Workflow, region: Region): Future[Seq[Unit]] = {

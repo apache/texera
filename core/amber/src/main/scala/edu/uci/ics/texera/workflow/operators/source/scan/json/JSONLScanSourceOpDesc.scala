@@ -54,7 +54,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
             })
           )
-          .copy(parallelizable = true)
+          .withParallelizable(true)
 
       case None =>
         throw new RuntimeException("File path is not provided.")

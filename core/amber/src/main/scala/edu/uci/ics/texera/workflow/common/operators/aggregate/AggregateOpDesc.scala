@@ -42,7 +42,7 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .copy(outputPorts = List(OutputPort("out")))
+        .withOutputPorts(List(OutputPort("out")))
     } else {
       val partitionColumns: Array[Int] =
         if (groupByKeys == null) Array()
@@ -57,7 +57,8 @@ object AggregateOpDesc {
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
-        .copy(outputPorts = List(OutputPort("out")))
+        // a hacky solution to have unique port names for reference purpose
+        .withOutputPorts(List(OutputPort("out")))
     }
 
     new PhysicalPlan(
