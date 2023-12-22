@@ -50,7 +50,7 @@ class OperatorExecution(
     )
   }
   def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = {
-    if (!workers.contains(id)) {
+    if (!workers.containsKey(id)) {
       initializeWorkerInfo(id)
     }
     workers.get(id)
