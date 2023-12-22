@@ -382,8 +382,6 @@ class ExpansionGreedyRegionPlanGenerator(
       .addLink(readerToDestLink)
       .addLink(sourceToWriterLink)
       .setOperatorUnblockPort(toOp.id, toInputPort)
-//      .populatePartitioningOnLinks()
-
   }
 
   private def createMatReader(
