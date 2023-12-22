@@ -1,9 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
-  getBatchSize,
-  toPartitioner
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{getBatchSize, toPartitioner}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberConfig
@@ -11,6 +8,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
+import org.jooq.exception.MappingException
 
 import scala.collection.mutable
 
@@ -99,7 +97,7 @@ class OutputManager(
       outputPort: PhysicalLinkIdentity
   ): Unit = {
     val partitioner =
-      partitioners.getOrElse(outputPort, throw new RuntimeException("output port not found"))
+      partitioners.getOrElse(outputPort, throw new MappingException("output port not found"))
     val it = partitioner.getBucketIndex(tuple)
     it.foreach(bucketIndex =>
       networkOutputBuffers((outputPort, partitioner.allReceivers(bucketIndex))).addTuple(tuple)

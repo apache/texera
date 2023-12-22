@@ -1,19 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionState,
-  OperatorExecution,
-  Workflow
-}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, OperatorExecution, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
@@ -26,11 +19,7 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
@@ -41,7 +30,7 @@ class WorkflowScheduler(
     executionState: ExecutionState,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
-) {
+) extends LazyLogging {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(
       AmberConfig.schedulingPolicyName,
@@ -50,7 +39,7 @@ class WorkflowScheduler(
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built
-  private val builtOperators = new mutable.HashSet[PhysicalOpIdentity]()
+  private val builtPhysicalOpIds = new mutable.HashSet[PhysicalOpIdentity]()
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val activatedLink = new mutable.HashSet[PhysicalLinkIdentity]()
@@ -143,18 +132,18 @@ class WorkflowScheduler(
     val builtOpsInRegion = new mutable.HashSet[PhysicalOpIdentity]()
     var frontier = region.sourcePhysicalOpIds
     while (frontier.nonEmpty) {
-      frontier.foreach { (op: PhysicalOpIdentity) =>
-        if (!builtOperators.contains(op)) {
+      frontier.foreach { (physicalOpId: PhysicalOpIdentity) =>
+        if (!builtPhysicalOpIds.contains(physicalOpId)) {
           buildOperator(
             workflow,
             region.id,
-            op,
-            executionState.getOperatorExecution(op),
+            physicalOpId,
+            executionState.getOperatorExecution(physicalOpId),
             akkaActorService
           )
-          builtOperators.add(op)
+          builtPhysicalOpIds.add(physicalOpId)
         }
-        builtOpsInRegion.add(op)
+        builtOpsInRegion.add(physicalOpId)
       }
 
       frontier = region.getEffectiveOperators
@@ -162,7 +151,7 @@ class WorkflowScheduler(
           !builtOpsInRegion.contains(physicalOpId) && workflow.physicalPlan
             .getUpstreamPhysicalOpIds(physicalOpId)
             .intersect(region.physicalOpIds)
-            .forall(builtOperators.contains)
+            .forall(builtPhysicalOpIds.contains)
         })
     }
 
@@ -219,7 +208,10 @@ class WorkflowScheduler(
       )
       .onSuccess(_ =>
         uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
-      )
+      ).onFailure(_=>
+      {
+        logger.info("Failed!!!!!!!")
+      })
   }
 
   private def activateAllLinks(workflow: Workflow, region: Region): Future[Seq[Unit]] = {

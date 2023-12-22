@@ -27,11 +27,11 @@ trait LinkWorkersHandler {
       val futures = senderWorkers
         .zip(partitionings)
         .flatMap({
-          case (upstreamWorkerId, (partitioning, receiverWorkers)) =>
+          case (senderWorker, (partitioning, receiverWorkers)) =>
             Seq(
-              send(AddPartitioning(msg.linkId, partitioning), upstreamWorkerId)
+              send(AddPartitioning(msg.linkId, partitioning), senderWorker)
             ) ++ receiverWorkers.map(
-              send(UpdateInputLinking(upstreamWorkerId, msg.linkId), _)
+              send(UpdateInputLinking(senderWorker, msg.linkId), _)
             )
         })
 

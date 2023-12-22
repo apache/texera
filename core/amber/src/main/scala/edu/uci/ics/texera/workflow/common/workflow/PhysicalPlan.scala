@@ -338,7 +338,7 @@ case class PhysicalPlan(
     if (
       upstreamPartitionInfo.satisfies(
         requiredPartitionInfo
-      ) && fromPhysicalOp.parallelizable == toPhysicalOp.parallelizable
+      ) && fromPhysicalOp.getIdentifiers.length == toPhysicalOp.getIdentifiers.length
     ) {
       val physicalLink = new PhysicalLink(
         fromPhysicalOp,
@@ -348,7 +348,7 @@ case class PhysicalPlan(
         partitionings = fromPhysicalOp.getIdentifiers.indices
           .map(i =>
             (
-              OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getIdentifiers(i))),
+              OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getIdentifiers(i ))),
               List(toPhysicalOp.getIdentifiers(i))
             )
           )

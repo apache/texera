@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -15,11 +16,9 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.{
-  `collection AsScalaIterable`,
-  `iterable AsScalaIterable`
-}
+import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `iterable AsScalaIterable`}
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
 object ExpansionGreedyRegionPlanGenerator {
 
@@ -191,7 +190,7 @@ class ExpansionGreedyRegionPlanGenerator(
     *
     * @return a fully connected region DAG.
     */
-  private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
+  private def createRegionDAG(context: WorkflowContext): DirectedAcyclicGraph[Region, RegionLink] = {
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     @tailrec
@@ -200,7 +199,7 @@ class ExpansionGreedyRegionPlanGenerator(
         case Left(dag) => dag
         case Right(links) =>
           links.foreach { link =>
-            physicalPlan = replaceLinkWithMaterialization(link, matReaderWriterPairs)
+            physicalPlan = replaceLinkWithMaterialization(link,context, matReaderWriterPairs)
           }
           recConnectRegionDAG()
       }
@@ -326,6 +325,15 @@ class ExpansionGreedyRegionPlanGenerator(
   def generate(context: WorkflowContext): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG(context)
+
+    regionDAG.toList.foreach(region =>
+      region.config.get.workerConfigs.foreach {
+        case (physicalOpId, workerConfigs) =>
+          physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
+      }
+    )
+    physicalPlan = physicalPlan.populatePartitioningOnLinks()
+
     (
       RegionPlan(
         regions = regionDAG.iterator().asScala.toList,
@@ -369,7 +377,7 @@ class ExpansionGreedyRegionPlanGenerator(
       .addLink(readerToDestLink)
       .addLink(sourceToWriterLink)
       .setOperatorUnblockPort(toOp.id, toInputPort)
-      .populatePartitioningOnLinks()
+//      .populatePartitioningOnLinks()
 
   }
 

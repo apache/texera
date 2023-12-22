@@ -10,6 +10,6 @@ abstract class RegionPlanGenerator(
     opResultStorage: OpResultStorage
 ) {
 
-  def generate(): (RegionPlan, PhysicalPlan)
+  def generate(context: WorkflowContext): (RegionPlan, PhysicalPlan)
 
 }
