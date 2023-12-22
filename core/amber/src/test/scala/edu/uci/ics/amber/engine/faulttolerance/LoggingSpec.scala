@@ -37,7 +37,7 @@ class LoggingSpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
-  private val identifier2 = ActorVirtualIdentity("worker-2")
+  private val identifier2 = ActorVirtualIdentity("Worker:WF1-operator-layer-2")
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val layerId1 =
     PhysicalOpIdentity(operatorIdentity, "1st-layer")
