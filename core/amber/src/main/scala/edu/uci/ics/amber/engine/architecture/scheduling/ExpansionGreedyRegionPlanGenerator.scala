@@ -16,7 +16,10 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `iterable AsScalaIterable`}
+import scala.collection.convert.ImplicitConversions.{
+  `collection AsScalaIterable`,
+  `iterable AsScalaIterable`
+}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
@@ -190,7 +193,9 @@ class ExpansionGreedyRegionPlanGenerator(
     *
     * @return a fully connected region DAG.
     */
-  private def createRegionDAG(context: WorkflowContext): DirectedAcyclicGraph[Region, RegionLink] = {
+  private def createRegionDAG(
+      context: WorkflowContext
+  ): DirectedAcyclicGraph[Region, RegionLink] = {
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     @tailrec
@@ -199,7 +204,7 @@ class ExpansionGreedyRegionPlanGenerator(
         case Left(dag) => dag
         case Right(links) =>
           links.foreach { link =>
-            physicalPlan = replaceLinkWithMaterialization(link,context, matReaderWriterPairs)
+            physicalPlan = replaceLinkWithMaterialization(link, context, matReaderWriterPairs)
           }
           recConnectRegionDAG()
       }

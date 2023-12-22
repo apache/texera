@@ -19,7 +19,6 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ExecutionIdentity,
@@ -27,7 +26,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalLinkIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
@@ -35,7 +34,6 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.collection.immutable.List
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
@@ -182,6 +180,8 @@ case class PhysicalOp(
   private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependencies.values).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
+
+  private val workerIds: mutable.HashSet[ActorVirtualIdentity] = mutable.HashSet()
 
   /**
     * Helper functions related to compile-time operations
@@ -461,15 +461,11 @@ case class PhysicalOp(
     processingOrder.toList
   }
 
-  val identifiers: mutable.HashSet[ActorVirtualIdentity] = mutable.HashSet()
-  def getIdentifiers: List[ActorVirtualIdentity] = identifiers.toList
-  def identifier(i: Int): ActorVirtualIdentity = {
-    VirtualIdentityUtils.createWorkerIdentity(executionId, id, i)
-  }
+  def getWorkerIds: List[ActorVirtualIdentity] = workerIds.toList
 
   def assignWorkers(workerCount: Int): Unit = {
     (0 until workerCount).foreach(workerIdx => {
-      identifiers.add(VirtualIdentityUtils.createWorkerIdentity(executionId, id, workerIdx))
+      workerIds.add(VirtualIdentityUtils.createWorkerIdentity(executionId, id, workerIdx))
     })
   }
 
@@ -482,34 +478,30 @@ case class PhysicalOp(
       controllerActorService.getClusterNodeAddresses,
       controllerActorService.self.path.address
     )
-    val workerCount = workerConfigs.length
-    (0 until workerCount)
-      .foreach(i => {
-        val workerId: ActorVirtualIdentity =
-          VirtualIdentityUtils.createWorkerIdentity(opExecution.executionId, id, i)
-        val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
-        val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, i)
 
-        val workflowWorker = if (this.isPythonOperator) {
-          PythonWorkflowWorker.props(workerId)
-        } else {
-          WorkflowWorker.props(
-            workerId,
-            i,
-            physicalOp = this,
-            WorkflowWorkerConfig(
-              logStorageType = AmberConfig.faultToleranceLogRootFolder,
-              replayTo = None
-            )
-          )
-        }
-        // Note: At this point, we don't know if the actor is fully initialized.
-        // Thus, the ActorRef returned from `controllerActorService.actorOf` is ignored.
-        controllerActorService.actorOf(
-          workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
+    workerIds.foreach(workerId => {
+      val idx = VirtualIdentityUtils.getWorkerIndex(workerId)
+      val workerConfig = workerConfigs(idx)
+      val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
+      val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, idx)
+
+      val workflowWorker = if (this.isPythonOperator) {
+        PythonWorkflowWorker.props(workerId)
+      } else {
+        WorkflowWorker.props(
+          workerId,
+          idx,
+          physicalOp = this,
+          workerConfig
         )
-        logger.info("Built " + workerId)
-        opExecution.initializeWorkerInfo(workerId)
-      })
+      }
+      // Note: At this point, we don't know if the actor is fully initialized.
+      // Thus, the ActorRef returned from `controllerActorService.actorOf` is ignored.
+      controllerActorService.actorOf(
+        workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
+      )
+      logger.info("Built " + workerId)
+      opExecution.initializeWorkerInfo(workerId)
+    })
   }
 }

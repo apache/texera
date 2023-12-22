@@ -43,58 +43,58 @@ object PhysicalLink {
   ): PhysicalLink = {
     val partitionings: List[(Partitioning, List[ActorVirtualIdentity])] = partitionInfo match {
       case HashPartition(hashColumnIndices) =>
-        fromPhysicalOp.getIdentifiers
+        fromPhysicalOp.getWorkerIds
           .map(_ =>
             (
               HashBasedShufflePartitioning(
                 defaultBatchSize,
-                toPhysicalOp.getIdentifiers,
+                toPhysicalOp.getWorkerIds,
                 hashColumnIndices
               ),
-              toPhysicalOp.getIdentifiers
+              toPhysicalOp.getWorkerIds
             )
           )
 
       case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
-        fromPhysicalOp.getIdentifiers
+        fromPhysicalOp.getWorkerIds
           .map(_ =>
             (
               RangeBasedShufflePartitioning(
                 defaultBatchSize,
-                toPhysicalOp.getIdentifiers,
+                toPhysicalOp.getWorkerIds,
                 rangeColumnIndices,
                 rangeMin,
                 rangeMax
               ),
-              toPhysicalOp.getIdentifiers
+              toPhysicalOp.getWorkerIds
             )
           )
 
       case SinglePartition() =>
         assert(toPhysicalOp.parallelizable == false)
-        fromPhysicalOp.getIdentifiers
+        fromPhysicalOp.getWorkerIds
           .map(_ =>
             (
-              OneToOnePartitioning(defaultBatchSize, Array(toPhysicalOp.getIdentifiers.head)),
-              toPhysicalOp.getIdentifiers
+              OneToOnePartitioning(defaultBatchSize, Array(toPhysicalOp.getWorkerIds.head)),
+              toPhysicalOp.getWorkerIds
             )
           )
 
       case BroadcastPartition() =>
-        fromPhysicalOp.getIdentifiers
+        fromPhysicalOp.getWorkerIds
           .map(_ =>
             (
-              BroadcastPartitioning(defaultBatchSize, toPhysicalOp.getIdentifiers),
-              toPhysicalOp.getIdentifiers
+              BroadcastPartitioning(defaultBatchSize, toPhysicalOp.getWorkerIds),
+              toPhysicalOp.getWorkerIds
             )
           )
 
       case UnknownPartition() =>
-        fromPhysicalOp.getIdentifiers
+        fromPhysicalOp.getWorkerIds
           .map(_ =>
             (
-              RoundRobinPartitioning(defaultBatchSize, toPhysicalOp.getIdentifiers),
-              toPhysicalOp.getIdentifiers
+              RoundRobinPartitioning(defaultBatchSize, toPhysicalOp.getWorkerIds),
+              toPhysicalOp.getWorkerIds
             )
           )
 

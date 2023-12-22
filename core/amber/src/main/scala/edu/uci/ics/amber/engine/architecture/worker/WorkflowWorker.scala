@@ -8,14 +8,14 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogGenerator, ReplayOrderEnforcer}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
   DPInputQueueElement,
   FIFOMessageElement,
-  TimerBasedControlElement,
-  WorkflowWorkerConfig
+  TimerBasedControlElement
 }
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -29,7 +29,7 @@ object WorkflowWorker {
       id: ActorVirtualIdentity,
       workerIndex: Int,
       physicalOp: PhysicalOp,
-      workerConf: WorkflowWorkerConfig
+      workerConf: WorkerConfig
   ): Props =
     Props(
       new WorkflowWorker(
@@ -49,15 +49,13 @@ object WorkflowWorker {
   final case class FIFOMessageElement(msg: WorkflowFIFOMessage) extends DPInputQueueElement
   final case class TimerBasedControlElement(control: ControlInvocation) extends DPInputQueueElement
   final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
-
-  final case class WorkflowWorkerConfig(logStorageType: String, replayTo: Option[Long])
 }
 
 class WorkflowWorker(
     actorId: ActorVirtualIdentity,
     workerIndex: Int,
     physicalOp: PhysicalOp,
-    workerConf: WorkflowWorkerConfig
+    workerConf: WorkerConfig
 ) extends WorkflowActor(workerConf.logStorageType, actorId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()

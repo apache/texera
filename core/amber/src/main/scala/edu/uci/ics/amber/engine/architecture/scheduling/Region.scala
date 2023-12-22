@@ -1,12 +1,16 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
 
 case class RegionLink(fromRegion: Region, toRegion: Region)
 
 case class RegionIdentity(id: String)
 
-case class WorkerConfig()
+case class WorkerConfig(
+    logStorageType: String = AmberConfig.faultToleranceLogRootFolder,
+    replayTo: Option[Long] = None
+)
 case class RegionConfig(
     workerConfigs: Map[PhysicalOpIdentity, List[WorkerConfig]]
 )
