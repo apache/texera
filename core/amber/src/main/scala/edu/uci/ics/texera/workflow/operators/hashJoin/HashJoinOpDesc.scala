@@ -5,7 +5,7 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -53,6 +53,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
   var joinType: JoinType = JoinType.INNER
 
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
@@ -86,6 +87,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
 
     PhysicalOp
       .oneToOnePhysicalOp(
+        workflowId,
         executionId,
         operatorIdentifier,
         OpExecInitInfo(_ =>

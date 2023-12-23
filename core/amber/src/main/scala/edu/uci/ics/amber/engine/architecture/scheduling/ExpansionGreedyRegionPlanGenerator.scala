@@ -350,6 +350,7 @@ class ExpansionGreedyRegionPlanGenerator(
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOp = materializationReader.getPhysicalOp(
+      context.workflowId,
       context.executionId,
       OperatorSchemaInfo(Array(), matReaderOutputSchema)
     )
@@ -375,6 +376,7 @@ class ExpansionGreedyRegionPlanGenerator(
     val matWriterOutputSchema =
       matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
     val matWriterPhysicalOp = matWriterLogicalOp.getPhysicalOp(
+      context.workflowId,
       context.executionId,
       OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
     )

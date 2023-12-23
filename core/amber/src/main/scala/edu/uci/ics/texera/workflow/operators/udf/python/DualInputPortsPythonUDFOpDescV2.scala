@@ -5,7 +5,7 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -67,13 +67,14 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   var outputColumns: List[Attribute] = List()
 
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1)
       PhysicalOp
-        .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
+        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           numWorkers = workers,
           blockingInputs = List(0),
@@ -84,7 +85,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
       PhysicalOp
-        .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
+        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           blockingInputs = List(0),
           dependency = Map(1 -> 0),

@@ -11,7 +11,7 @@ import scala.util.matching.Regex
 
 object VirtualIdentityUtils {
 
-  private val workerNamePattern: Regex = raw"Worker:WF(\w+)-(.+)-(\w+)-(\d+)".r
+  private val workerNamePattern: Regex = raw"Worker:WF(\d+)-(.+)-(\w+)-(\d+)".r
 
   def createWorkerIdentity(
       executionId: ExecutionIdentity,

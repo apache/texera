@@ -3,13 +3,14 @@ package edu.uci.ics.texera.workflow.common.operators
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends LogicalOp {
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
@@ -18,6 +19,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
 
       PhysicalOp
         .sourcePhysicalOp(
+          workflowId,
           executionId,
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
@@ -27,6 +29,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
     } else {
       PhysicalOp
         .oneToOnePhysicalOp(
+          workflowId,
           executionId,
           operatorIdentifier,
           OpExecInitInfo(generatedCode)

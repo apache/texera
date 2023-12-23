@@ -31,6 +31,7 @@ object PhysicalPlan {
     logicalPlan.operators.foreach(op => {
       val subPlan =
         op.getPhysicalPlan(
+          context.workflowId,
           context.executionId,
           logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
         )

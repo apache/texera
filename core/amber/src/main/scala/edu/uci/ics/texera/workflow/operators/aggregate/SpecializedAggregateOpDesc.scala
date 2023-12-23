@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -32,6 +32,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
   var groupByKeys: List[String] = _
 
   override def aggregateOperatorExecutor(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
@@ -39,6 +40,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
     AggregateOpDesc.getPhysicalPlan(
+      workflowId,
       executionId,
       operatorIdentifier,
       aggregations.map(agg => agg.getAggFunc(operatorSchemaInfo.inputSchemas(0))),
