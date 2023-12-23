@@ -8,30 +8,26 @@ unzip httpd-2.4.58-win64-VS17.zip > /dev/null 2>&1
 rm -- "-- Win64 VS17  --"
 rm httpd-2.4.58-win64-VS17.zip
 rm ReadMe.txt
-echo "registering apache2 as a service"
-powershell.exe -ExecutionPolicy Bypass -File ./scripts/powershell/replaceroot.ps1
 
-powershell.exe -Command "./Apache24/bin/httpd.exe -k install -n 'texeraapache2'" 
+
+echo "replace apache2 serverroot"
+powershell.exe -ExecutionPolicy Bypass -File ./scripts/powershell/replaceroot.ps1 
+
+
 echo "installing php"
-rm -rf C:/php
-current_dir=$(pwd)
-echo " cur d $current_dir"
-cd C:
 curl -O "https://windows.php.net/downloads/releases/php-8.3.1-Win32-vs16-x64.zip"
 mkdir php
 cd php
 unzip ../php-8.3.1-Win32-vs16-x64.zip > /dev/null 2>&1
 cd ..
+rm php-8.3.1-Win32-vs16-x64.zip
 
-read -p "have you installed composer?(Y/N):" answer1
-if [[ $answer1 == "N" || $answer1 == "n" ]]
-then
-    curl -o Composer-Setup.exe https://getcomposer.org/Composer-Setup.exe
-    powershell.exe -Command "& {Start-Process .\Composer-Setup.exe -Wait}"
-    rm Composer-Setup.exe
-fi
-echo $current_dir
-cd $current_dir
+
+echo "installing composer"
+curl -o Composer-Setup.exe https://getcomposer.org/Composer-Setup.exe
+powershell.exe -Command "& {Start-Process .\Composer-Setup.exe -Wait}"
+rm Composer-Setup.exe
+
 
 echo "reading your database username and password"
 
@@ -52,8 +48,8 @@ done < ./amber/src/main/resources/application.conf
 
 #setting up database
 echo "Setting up mysql database for flarum..."
-#mysql -u root -p < ./scripts/sql/flarum.sql
 powershell.exe -ExecutionPolicy Bypass -File ./scripts/powershell/configuremysql.ps1
+rm Composer-Setup.exe
 
 #create flarum
 powershell.exe -ExecutionPolicy Bypass -File ./scripts/powershell/sed_phpini.ps1
@@ -66,7 +62,6 @@ echo "downloading view extension"
 current_dir=$(pwd)
 echo $current_dir
 cd c:\\flarum
-echo "we are at" $(pwd)
 powershell.exe -Command "& {composer require michaelbelgium/flarum-discussion-views}"
 echo "downloading byobu extension"
 powershell.exe -Command "& {composer require fof/byobu:'*'}"
@@ -76,3 +71,6 @@ cp ./scripts/.htaccess c:\\flarum\\public\\.htaccess
 
 #apache2 configuration
 powershell.exe -ExecutionPolicy Bypass -File ./scripts/powershell/sed_httpd.ps1 $username $password
+
+#start apache2
+./Apache24/bin/httpd.exe

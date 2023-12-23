@@ -98,3 +98,5 @@ client_secret_*
 StoredCredential*
 **/apache2/
 **/Apache24/
+**/php/
+Composer-Setup.exe

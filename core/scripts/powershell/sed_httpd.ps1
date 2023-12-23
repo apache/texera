@@ -1,3 +1,4 @@
+$phpCurrentDir = (pwd).Path + "/php"
 Write-Host "Reading arguments..."
 $dbUsername = $args[0]
 $dbPassword = $args[1]
@@ -19,7 +20,10 @@ Add-Content -Path $HTTPD_CONF -Value $PhpModuleLine
 $PhpModuleLine1 = 'Include conf/extra/httpd-php.conf'
 
 Add-Content -Path $HTTPD_CONF -Value $PhpModuleLine1
-$PhpModuleLine2 = 'PHPIniDir "C:/php"'
+
+#$PhpModuleLine2 = 'PHPIniDir "C:/php"'
+$PhpModuleLine2 = "PHPIniDir `"$phpCurrentDir`""
+
 
 Add-Content -Path $HTTPD_CONF -Value $PhpModuleLine2
 
@@ -52,9 +56,8 @@ if (-Not (Test-Path $PHP_CONF)) {
 </VirtualHost>
 "@ | Add-Content $VHOST_CONF
 
-# Restart Apache
-Write-Host "Restarting Apache..."
-Restart-Service -Name "texeraapache2"
+
+
 
 # Publish assets
 Set-Location c:\flarum
@@ -71,3 +74,6 @@ $configContent | Set-Content $configPath
 php flarum assets:publish
 Write-Host "Flarum installation completed. You can now access your flarum forum."
 Write-Host "Please go to http://localhost:8888/"
+
+# Restart Apache
+Write-Host "Restarting Apache..."
