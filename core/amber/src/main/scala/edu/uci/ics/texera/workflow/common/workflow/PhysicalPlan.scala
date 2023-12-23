@@ -237,7 +237,7 @@ case class PhysicalPlan(
   }
 
   def getPhysicalOpByWorkerId(workerId: ActorVirtualIdentity): PhysicalOp =
-    getOperator(VirtualIdentityUtils.getPhysicalOpId(workerId))
+    operators.find(physicalOp => physicalOp.identifiers.contains(workerId)).get
 
   def getLinksBetween(
       from: PhysicalOpIdentity,

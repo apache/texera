@@ -21,6 +21,7 @@ object VirtualIdentityUtils {
       layerName: String,
       workerId: Int
   ): ActorVirtualIdentity = {
+
     ActorVirtualIdentity(
       s"Worker:WF${workflowId.id}-E${executionId.id}-$operator-$layerName-$workerId"
     )
@@ -52,6 +53,18 @@ object VirtualIdentityUtils {
     workerId.name match {
       case workerNamePattern(_, _, _, _, idx) =>
         idx.toInt
+    }
+  }
+
+  def toShorterString(workerId: ActorVirtualIdentity): String = {
+    workerId.name match {
+      case workerNamePattern(workflowId, executionId, operatorName, layerName, workerIndex) =>
+        val operatorPattern: Regex = raw"(\w+)-(.+)-(\w+)".r
+        val shorterName = operatorName match {
+          case operatorPattern(op, _, a) => op + "-" + a.takeRight(6)
+        }
+        s"WF$workflowId-E$executionId-$shorterName-$layerName-$workerIndex"
+      case _ => workerId.toString
     }
   }
 }
