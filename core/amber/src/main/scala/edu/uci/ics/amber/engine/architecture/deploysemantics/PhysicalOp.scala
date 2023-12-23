@@ -467,7 +467,13 @@ case class PhysicalOp(
   }
 
   def identifier(i: Int): ActorVirtualIdentity = {
-    VirtualIdentityUtils.createWorkerIdentity(executionId, id.logicalOpId.id, id.layerName, i)
+    VirtualIdentityUtils.createWorkerIdentity(
+      workflowId,
+      executionId,
+      id.logicalOpId.id,
+      id.layerName,
+      i
+    )
   }
 
   def build(
@@ -482,7 +488,7 @@ case class PhysicalOp(
     (0 until numWorkers)
       .foreach(i => {
         val workerId: ActorVirtualIdentity =
-          VirtualIdentityUtils.createWorkerIdentity(opExecution.executionId, id, i)
+          VirtualIdentityUtils.createWorkerIdentity(workflowId, executionId, id, i)
         val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
         val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, i)
 

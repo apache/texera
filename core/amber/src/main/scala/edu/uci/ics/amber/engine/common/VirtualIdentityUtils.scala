@@ -4,42 +4,53 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ExecutionIdentity,
   OperatorIdentity,
-  PhysicalOpIdentity
+  PhysicalOpIdentity,
+  WorkflowIdentity
 }
 
 import scala.util.matching.Regex
 
 object VirtualIdentityUtils {
 
-  private val workerNamePattern: Regex = raw"Worker:WF(\d+)-(.+)-(\w+)-(\d+)".r
+  private val workerNamePattern: Regex = raw"Worker:WF(\d+)-E(\d+)-(.+)-(\w+)-(\d+)".r
 
   def createWorkerIdentity(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operator: String,
       layerName: String,
       workerId: Int
   ): ActorVirtualIdentity = {
-    ActorVirtualIdentity(s"Worker:WF${executionId.id}-$operator-$layerName-$workerId")
+    ActorVirtualIdentity(
+      s"Worker:WF${workflowId.id}-E${executionId.id}-$operator-$layerName-$workerId"
+    )
   }
 
   def createWorkerIdentity(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
       workerId: Int
   ): ActorVirtualIdentity = {
-    createWorkerIdentity(executionId, physicalOpId.logicalOpId.id, physicalOpId.layerName, workerId)
+    createWorkerIdentity(
+      workflowId,
+      executionId,
+      physicalOpId.logicalOpId.id,
+      physicalOpId.layerName,
+      workerId
+    )
   }
 
   def getPhysicalOpId(workerId: ActorVirtualIdentity): PhysicalOpIdentity = {
     workerId.name match {
-      case workerNamePattern(_, operator, layerName, _) =>
+      case workerNamePattern(_, _, operator, layerName, _) =>
         PhysicalOpIdentity(OperatorIdentity(operator), layerName)
     }
   }
 
   def getWorkerIndex(workerId: ActorVirtualIdentity): Int = {
     workerId.name match {
-      case workerNamePattern(_, _, _, idx) =>
+      case workerNamePattern(_, _, _, _, idx) =>
         idx.toInt
     }
   }
