@@ -22,7 +22,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -65,18 +68,25 @@ class WorkerSpec
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val physicalOp1 = PhysicalOp(
-    executionId = DEFAULT_EXECUTION_ID,
     id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+    workflowId = DEFAULT_WORKFLOW_ID,
+    executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
   private val physicalOp2 = PhysicalOp(
+    id = PhysicalOpIdentity(operatorIdentity, "2nd-physical-op"),
+    workflowId = DEFAULT_WORKFLOW_ID,
     executionId = DEFAULT_EXECUTION_ID,
-    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
     opExecInitInfo = null
   )
   private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
   private val physicalOp = PhysicalOp
-    .oneToOnePhysicalOp(DEFAULT_EXECUTION_ID, operatorIdentity, OpExecInitInfo(_ => mockOpExecutor))
+    .oneToOnePhysicalOp(
+      DEFAULT_WORKFLOW_ID,
+      DEFAULT_EXECUTION_ID,
+      operatorIdentity,
+      OpExecInitInfo(_ => mockOpExecutor)
+    )
     .copy(
       inputPortToLinkMapping = Map(0 -> List(mockLink)),
       outputPortToLinkMapping = Map(0 -> List(mockLink))
@@ -179,16 +189,28 @@ class WorkerSpec
     sendControlToWorker(worker, Array(invocation, updateInputLinking))
     worker ! NetworkMessage(
       3,
-      WorkflowFIFOMessage(ChannelID(identifier2, identifier1, false), 0, DataFrame(batch1))
+      WorkflowFIFOMessage(
+        ChannelID(identifier2, identifier1, isControl = false),
+        0,
+        DataFrame(batch1)
+      )
     )
     worker ! NetworkMessage(
       2,
-      WorkflowFIFOMessage(ChannelID(identifier2, identifier1, false), 1, DataFrame(batch2))
+      WorkflowFIFOMessage(
+        ChannelID(identifier2, identifier1, isControl = false),
+        1,
+        DataFrame(batch2)
+      )
     )
     Thread.sleep(1000)
     worker ! NetworkMessage(
       4,
-      WorkflowFIFOMessage(ChannelID(identifier2, identifier1, false), 2, DataFrame(batch3))
+      WorkflowFIFOMessage(
+        ChannelID(identifier2, identifier1, isControl = false),
+        2,
+        DataFrame(batch3)
+      )
     )
     //wait test to finish
     Thread.sleep(3000)
@@ -206,11 +228,15 @@ class WorkerSpec
     val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
     worker ! NetworkMessage(
       1,
-      WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), 1, updateInputLinking)
+      WorkflowFIFOMessage(
+        ChannelID(CONTROLLER, identifier1, isControl = true),
+        1,
+        updateInputLinking
+      )
     )
     worker ! NetworkMessage(
       0,
-      WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), 0, invocation)
+      WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, isControl = true), 0, invocation)
     )
     Random
       .shuffle((0 until 50).map { i =>
@@ -218,7 +244,7 @@ class WorkerSpec
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
-            ChannelID(identifier2, identifier1, false),
+            ChannelID(identifier2, identifier1, isControl = false),
             i,
             DataFrame(Array(ITuple(i)))
           )
@@ -234,7 +260,7 @@ class WorkerSpec
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
-            ChannelID(identifier2, identifier1, false),
+            ChannelID(identifier2, identifier1, isControl = false),
             i,
             DataFrame(Array(ITuple(i)))
           )
