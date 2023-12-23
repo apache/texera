@@ -4,9 +4,9 @@ should right click on gitbash and click run this as an administrator)"
 
 echo "installing apache2"
 curl -O "https://www.apachelounge.com/download/VS17/binaries/httpd-2.4.58-win64-VS17.zip"
-unzip httpd-2.4.58-win64-VS17.zip
-rm -- Win64 VS17  --
-echo "now remove this Wing4 file manually"
+unzip httpd-2.4.58-win64-VS17.zip > /dev/null 2>&1
+rm -- "-- Win64 VS17  --"
+rm httpd-2.4.58-win64-VS17.zip
 rm ReadMe.txt
 echo "registering apache2 as a service"
 powershell.exe -ExecutionPolicy Bypass -File ./scripts/powershell/replaceroot.ps1
@@ -20,7 +20,7 @@ cd C:
 curl -O "https://windows.php.net/downloads/releases/php-8.3.1-Win32-vs16-x64.zip"
 mkdir php
 cd php
-unzip ../php-8.3.1-Win32-vs16-x64.zip
+unzip ../php-8.3.1-Win32-vs16-x64.zip > /dev/null 2>&1
 cd ..
 
 read -p "have you installed composer?(Y/N):" answer1
