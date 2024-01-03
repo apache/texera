@@ -94,14 +94,14 @@ class BulkDownloaderOpExec(
             case Some(contentStream) =>
               if (contentStream.available() > 0) {
                 val filename =
-                  s"w${workflowContext.wid}-e${workflowContext.executionId}-${urlObj.getHost
+                  s"w${workflowContext.workflowId.id}-e${workflowContext.executionId.id}-${urlObj.getHost
                     .replace(".", "")}.download"
                 UserFileResource
                   .saveFile(
                     workflowContext.userId.get,
                     filename,
                     contentStream,
-                    s"downloaded by execution ${workflowContext.executionId} of workflow ${workflowContext.wid}. Original URL = $url"
+                    s"downloaded by execution ${workflowContext.executionId.id} of workflow ${workflowContext.workflowId.id}. Original URL = $url"
                   )
                 filename
               } else {

@@ -9,43 +9,32 @@ from betterproto.grpc.grpclib_server import ServiceBase
 
 @dataclass(eq=False, repr=False)
 class WorkflowIdentity(betterproto.Message):
-    """final case class WorkflowIdentity (    executionId: Long )"""
+    id: int = betterproto.int64_field(1)
 
-    execution_id: int = betterproto.int64_field(1)
+
+@dataclass(eq=False, repr=False)
+class ExecutionIdentity(betterproto.Message):
+    id: int = betterproto.int64_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class ActorVirtualIdentity(betterproto.Message):
-    """final case class ActorVirtualIdentity (    name: String )"""
-
     name: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class OperatorIdentity(betterproto.Message):
-    """final case class OperatorIdentity (    id: String )"""
-
     id: str = betterproto.string_field(1)
 
 
 @dataclass(eq=False, repr=False)
 class PhysicalOpIdentity(betterproto.Message):
-    """
-    final case class PhysicalOpIdentity (    logicalOpId: String,    layerName:
-    String )
-    """
-
     logical_op_id: "OperatorIdentity" = betterproto.message_field(1)
     layer_name: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class PhysicalLinkIdentity(betterproto.Message):
-    """
-    final case class PhysicalLinkIdentity (    from: PhysicalOpIdentity,
-    fromPort: Int,    to: PhysicalOpIdentity,    toPort: Int )
-    """
-
     from_: "PhysicalOpIdentity" = betterproto.message_field(1)
     from_port: int = betterproto.int32_field(2)
     to: "PhysicalOpIdentity" = betterproto.message_field(3)

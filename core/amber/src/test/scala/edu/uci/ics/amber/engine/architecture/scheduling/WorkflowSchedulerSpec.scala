@@ -43,7 +43,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     val executionState = new ExecutionState(workflow)
     val scheduler =
       new WorkflowScheduler(
-        workflow.executionPlan.regionsToSchedule.toBuffer,
+        workflow.regionPlan.regions.toBuffer,
         executionState,
         ControllerConfig.default,
         null
@@ -63,7 +63,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       scheduler.schedulingPolicy.onWorkerCompletion(
         workflow,
         executionState,
-        VirtualIdentityUtils.createWorkerIdentity(workflow.workflowId.executionId, physicalOpId, 0)
+        VirtualIdentityUtils.createWorkerIdentity(workflow.context.executionId, physicalOpId, 0)
       )
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
@@ -110,7 +110,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     val executionState = new ExecutionState(workflow)
     val scheduler =
       new WorkflowScheduler(
-        workflow.executionPlan.regionsToSchedule.toBuffer,
+        workflow.regionPlan.regions.toBuffer,
         executionState,
         ControllerConfig.default,
         null
@@ -128,7 +128,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       scheduler.schedulingPolicy.onWorkerCompletion(
         workflow,
         executionState,
-        VirtualIdentityUtils.createWorkerIdentity(workflow.workflowId.executionId, physicalOpId, 0)
+        VirtualIdentityUtils.createWorkerIdentity(workflow.context.executionId, physicalOpId, 0)
       )
     assert(nextRegions.isEmpty)
 
@@ -189,7 +189,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       workflow,
       executionState,
       VirtualIdentityUtils.createWorkerIdentity(
-        workflow.workflowId.executionId,
+        workflow.context.executionId,
         probePhysicalOpId,
         0
       )

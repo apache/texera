@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionState, Workflow}
-import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
+import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
@@ -12,7 +12,7 @@ import scala.collection.mutable
 object SchedulingPolicy {
   def createPolicy(
       policyName: String,
-      scheduleOrder: mutable.Buffer[PipelinedRegion]
+      scheduleOrder: mutable.Buffer[Region]
   ): SchedulingPolicy = {
     if (policyName.equals("single-ready-region")) {
       new SingleReadyRegion(scheduleOrder)
@@ -27,41 +27,38 @@ object SchedulingPolicy {
 }
 
 abstract class SchedulingPolicy(
-    protected val regionsScheduleOrder: mutable.Buffer[PipelinedRegion]
+    protected val regionsScheduleOrder: mutable.Buffer[Region]
 ) {
 
   // regions sent by the policy to be scheduled at least once
-  protected val scheduledRegions = new mutable.HashSet[PipelinedRegion]()
-  protected val completedRegions = new mutable.HashSet[PipelinedRegion]()
+  protected val scheduledRegions = new mutable.HashSet[Region]()
+  protected val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
-  protected val runningRegions = new mutable.HashSet[PipelinedRegion]()
+  protected val runningRegions = new mutable.HashSet[Region]()
   protected val completedLinksOfRegion =
-    new mutable.HashMap[PipelinedRegion, mutable.Set[PhysicalLinkIdentity]]
-      with mutable.MultiMap[PipelinedRegion, PhysicalLinkIdentity]
+    new mutable.HashMap[Region, mutable.Set[PhysicalLinkIdentity]]
+      with mutable.MultiMap[Region, PhysicalLinkIdentity]
 
   protected def isRegionCompleted(
-      workflow: Workflow,
       executionState: ExecutionState,
-      region: PipelinedRegion
+      region: Region
   ): Boolean = {
 
-    workflow
-      .getBlockingOutPhysicalLinksOfRegion(region)
+    region.downstreamLinkIds
       .subsetOf(
         completedLinksOfRegion.getOrElse(region, new mutable.HashSet[PhysicalLinkIdentity]())
       ) &&
-    region.getOperators
+    region.physicalOpIds
       .forall(opId =>
         executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.COMPLETED
       )
   }
 
   protected def checkRegionCompleted(
-      workflow: Workflow,
       executionState: ExecutionState,
-      region: PipelinedRegion
+      region: Region
   ): Unit = {
-    if (isRegionCompleted(workflow, executionState, region)) {
+    if (isRegionCompleted(executionState, region)) {
       runningRegions.remove(region)
       completedRegions.add(region)
     }
@@ -70,22 +67,22 @@ abstract class SchedulingPolicy(
   protected def getRegions(
       workflow: Workflow,
       workerId: ActorVirtualIdentity
-  ): Set[PipelinedRegion] = {
+  ): Set[Region] = {
     val opId = workflow.physicalPlan.getPhysicalOpByWorkerId(workerId).id
-    runningRegions.filter(r => r.getOperators.contains(opId)).toSet
+    runningRegions.filter(r => r.physicalOpIds.contains(opId)).toSet
   }
 
   /**
     * A link's region is the region of the source operator of the link.
     */
-  protected def getRegions(link: PhysicalLinkIdentity): Set[PipelinedRegion] = {
-    runningRegions.filter(r => r.getOperators.contains(link.from)).toSet
+  protected def getRegions(link: PhysicalLinkIdentity): Set[Region] = {
+    runningRegions.filter(r => r.physicalOpIds.contains(link.from)).toSet
   }
 
   // gets the ready regions that is not currently running
-  protected def getNextSchedulingWork(workflow: Workflow): Set[PipelinedRegion]
+  protected def getNextSchedulingWork(workflow: Workflow): Set[Region]
 
-  def startWorkflow(workflow: Workflow): Set[PipelinedRegion] = {
+  def startWorkflow(workflow: Workflow): Set[Region] = {
     val regions = getNextSchedulingWork(workflow)
     if (regions.isEmpty) {
       throw new WorkflowRuntimeException(
@@ -99,9 +96,9 @@ abstract class SchedulingPolicy(
       workflow: Workflow,
       executionState: ExecutionState,
       workerId: ActorVirtualIdentity
-  ): Set[PipelinedRegion] = {
+  ): Set[Region] = {
     val regions = getRegions(workflow, workerId)
-    regions.foreach(r => checkRegionCompleted(workflow, executionState, r))
+    regions.foreach(region => checkRegionCompleted(executionState, region))
     getNextSchedulingWork(workflow)
   }
 
@@ -109,27 +106,27 @@ abstract class SchedulingPolicy(
       workflow: Workflow,
       executionState: ExecutionState,
       link: PhysicalLinkIdentity
-  ): Set[PipelinedRegion] = {
+  ): Set[Region] = {
     val regions = getRegions(link)
-    regions.foreach(r => completedLinksOfRegion.addBinding(r, link))
-    regions.foreach(r => checkRegionCompleted(workflow, executionState, r))
+    regions.foreach(region => completedLinksOfRegion.addBinding(region, link))
+    regions.foreach(region => checkRegionCompleted(executionState, region))
     getNextSchedulingWork(workflow)
   }
 
-  def onTimeSlotExpired(workflow: Workflow): Set[PipelinedRegion] = {
+  def onTimeSlotExpired(workflow: Workflow): Set[Region] = {
     getNextSchedulingWork(workflow)
   }
 
-  def addToRunningRegions(regions: Set[PipelinedRegion], actorService: AkkaActorService): Unit = {
+  def addToRunningRegions(regions: Set[Region], actorService: AkkaActorService): Unit = {
     runningRegions ++= regions
   }
 
-  def removeFromRunningRegion(regions: Set[PipelinedRegion]): Unit = {
+  def removeFromRunningRegion(regions: Set[Region]): Unit = {
     runningRegions --= regions
   }
 
-  def getRunningRegions: Set[PipelinedRegion] = runningRegions.toSet
+  def getRunningRegions: Set[Region] = runningRegions.toSet
 
-  def getCompletedRegions: Set[PipelinedRegion] = completedRegions.toSet
+  def getCompletedRegions: Set[Region] = completedRegions.toSet
 
 }

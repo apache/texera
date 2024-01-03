@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.unittest.workflow.operators.visualization.scatterplot
 
+import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -62,7 +63,7 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = scatterplotOpDesc.getOutputSchema(Array(wrongTypesSchema))
     assertThrows[IllegalArgumentException] {
       scatterplotOpDesc.getPhysicalOp(
-        0,
+        DEFAULT_EXECUTION_ID,
         OperatorSchemaInfo(Array(wrongTypesSchema), Array(outputSchema))
       )
     }
