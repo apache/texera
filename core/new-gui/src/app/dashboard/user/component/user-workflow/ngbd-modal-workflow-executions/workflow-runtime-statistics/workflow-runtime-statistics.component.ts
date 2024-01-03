@@ -21,13 +21,12 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   constructor() {}
 
   ngOnInit(): void {
-    /*if (!this.workflowRuntimeStatistics) {
+    if (!this.workflowRuntimeStatistics) {
       return;
-    }
+    
 
     this.groupedStats = this.groupStatsByOperatorId();
-    this.createChart();
-    */
+    //this.createChart();
   }
 
   onTabChanged(event: MatTabChangeEvent): void {
