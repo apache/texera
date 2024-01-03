@@ -10,7 +10,7 @@ import { NotificationService } from "../../../../../common/service/notification/
 import Fuse from "fuse.js";
 import { ChartType } from "src/app/workspace/types/visualization.interface";
 import { ceil } from "lodash";
-import { NzModalService } from "ng-zorro-antd/modal";
+import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
 
 const MAX_TEXT_SIZE = 20;
@@ -113,6 +113,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public setOfEid = new Set<number>();
   public setOfExecution = new Set<WorkflowExecutionsEntry>();
   public averageProcessingTimeDivider: number = 10;
+  modalRef?: NzModalRef;
 
   constructor(
     public activeModal: NgbActiveModal,
@@ -726,7 +727,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
       .pipe(untilDestroyed(this))
       .subscribe(workflowRuntimeStatistics => {
-        this.runtimeStatisticsModal.create({
+        this.modalRef = this.runtimeStatisticsModal.create({
           nzTitle: "Runtime Statistics",
           nzStyle: { top: "5px", width: "98vw", height: "92vh" },
           nzFooter: null, // null indicates that the footer of the window would be hidden
