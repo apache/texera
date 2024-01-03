@@ -10,7 +10,7 @@ import { MatTabChangeEvent } from "@angular/material/tabs";
   templateUrl: "./workflow-runtime-statistics.component.html",
   styleUrls: ["./workflow-runtime-statistics.component.scss"],
 })
-export class WorkflowRuntimeStatisticsComponent implements OnInit {
+export class WorkflowRuntimeStatisticsComponent {
   @Input()
   workflowRuntimeStatistics?: WorkflowRuntimeStatistics[];
 
@@ -19,15 +19,6 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   public metrics: string[] = ["Input Tuple Count", "Output Tuple Count"];
 
   constructor() {}
-
-  ngOnInit(): void {
-    if (!this.workflowRuntimeStatistics) {
-      return;
-    }
-
-    //this.groupedStats = this.groupStatsByOperatorId();
-    //this.createChart();
-  }
 
   onTabChanged(event: MatTabChangeEvent): void {
     this.tab_index = event.index;
