@@ -723,7 +723,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       return;
     }
 
-    this.workflowExecutionsService
+    /*this.workflowExecutionsService
       .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
       .pipe(untilDestroyed(this))
       .subscribe(workflowRuntimeStatistics => {
@@ -737,7 +737,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
             workflowRuntimeStatistics: workflowRuntimeStatistics,
           },
         });
-      });
+      });*/
   }
 
   private updatePaginatedExecutions(): void {
