@@ -10,13 +10,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputGateway
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
+import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, IgnoreReply}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.texera.Utils
 
 import java.nio.file.Path
@@ -36,7 +33,7 @@ object PythonWorkflowWorker {
 
 class PythonWorkflowWorker(
     actorId: ActorVirtualIdentity
-) extends WorkflowActor(actorId) {
+) extends WorkflowActor(logStorageType = "none", actorId) {
 
   // For receiving the Python server port number that will be available later
   private lazy val portNumberPromise = Promise[Int]()
@@ -59,17 +56,8 @@ class PythonWorkflowWorker(
   private val networkInputGateway = new NetworkInputGateway(actorId)
   private val networkOutputGateway = new NetworkOutputGateway(
     actorId,
-    x => {
-      self ! TriggerSend(x)
-    }
+    logManager.sendCommitted
   )
-
-  def handleSendFromDP: Receive = {
-    case TriggerSend(msg) =>
-      transferService.send(msg)
-  }
-
-  override def receive: Receive = super.receive orElse handleSendFromDP
 
   override def handleInputMessage(messageId: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     val channel = networkInputGateway.getChannel(workflowMsg.channel)
@@ -87,14 +75,21 @@ class PythonWorkflowWorker(
     sender ! NetworkAck(messageId, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
   }
 
-  /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
-    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit()
+  override def receiveCreditMessages: Receive = {
+    case WorkflowActor.CreditRequest(channel) =>
+      pythonProxyClient.enqueueActorCommand(CreditUpdate())
+      sender ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
+    case WorkflowActor.CreditResponse(channel, credit) =>
+      transferService.updateChannelCreditFromReceiver(channel, credit)
   }
 
-  override def handleBackpressure(isBackpressured: Boolean): Unit = {
-    val backpressureMessage = ControlInvocation(IgnoreReply, Backpressure(isBackpressured))
-    pythonProxyClient.enqueueCommand(backpressureMessage, ChannelID(SELF, SELF, isControl = true))
+  /** flow-control */
+  override def getQueuedCredit(channelID: ChannelID): Long = {
+    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit
+  }
+
+  override def handleBackpressure(enableBackpressure: Boolean): Unit = {
+    pythonProxyClient.enqueueActorCommand(Backpressure(enableBackpressure))
   }
 
   override def postStop(): Unit = {

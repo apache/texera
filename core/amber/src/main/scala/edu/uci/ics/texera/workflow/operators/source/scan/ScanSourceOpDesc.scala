@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.commons.lang3.builder.EqualsBuilder
+import org.jooq.types.UInteger
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
@@ -66,7 +67,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       throw new RuntimeException("no input file name")
     }
 
-    if (context.userId.isDefined) {
+    if (getContext.userId.isDefined) {
       // if context has a valid user ID, the fileName will be in the following format:
       //    ownerName/fileName
       // resolve fileName to be the actual file path.
@@ -75,8 +76,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
         .getFilePath(
           email = splitNames.apply(0),
           fileName = splitNames.apply(1),
-          context.userId.get,
-          context.wId
+          getContext.userId.get,
+          UInteger.valueOf(getContext.workflowId.id)
         )
 
     } else {

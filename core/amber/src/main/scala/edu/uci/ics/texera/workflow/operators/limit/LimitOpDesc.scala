@@ -2,30 +2,39 @@ package edu.uci.ics.texera.workflow.operators.limit
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{OperatorDescriptor, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
 import scala.util.{Success, Try}
 
-class LimitOpDesc extends OperatorDescriptor {
+class LimitOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Limit")
   @JsonPropertyDescription("the max number of output rows")
   var limit: Int = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    val limitPerWorker = equallyPartitionGoal(limit, Constants.currentWorkerNum)
-    OpExecConfig.oneToOneLayer(operatorIdentifier, p => new LimitOpExec(limitPerWorker(p._1)))
+  override def getPhysicalOp(
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
+    val limitPerWorker = equallyPartitionGoal(limit, AmberConfig.numWorkerPerOperatorByDefault)
+    PhysicalOp.oneToOnePhysicalOp(
+      executionId,
+      operatorIdentifier,
+      OpExecInitInfo(p => new LimitOpExec(limitPerWorker(p._1)))
+    )
   }
 
   override def operatorInfo: OperatorInfo =
@@ -41,15 +50,16 @@ class LimitOpDesc extends OperatorDescriptor {
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
 
   override def runtimeReconfiguration(
-      newOpDesc: OperatorDescriptor,
+      executionId: ExecutionIdentity,
+      newLogicalOp: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
-    val newOpExecConfig = newOpDesc.operatorExecutor(operatorSchemaInfo)
+  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+    val newPhysicalOp = newLogicalOp.getPhysicalOp(executionId, operatorSchemaInfo)
     val stateTransferFunc: StateTransferFunc = (oldOp, newOp) => {
       val oldLimitOp = oldOp.asInstanceOf[LimitOpExec]
       val newLimitOp = newOp.asInstanceOf[LimitOpExec]
       newLimitOp.count = oldLimitOp.count
     }
-    Success(newOpExecConfig, Some(stateTransferFunc))
+    Success(newPhysicalOp, Some(stateTransferFunc))
   }
 }

@@ -6,10 +6,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWork
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
 
 object LinkWorkersHandler {
-  final case class LinkWorkers(link: LinkIdentity) extends ControlCommand[Unit]
+  final case class LinkWorkers(linkId: PhysicalLinkIdentity) extends ControlCommand[Unit]
 }
 
 /** add a data transfer partitioning to the sender workers and update input linking
@@ -22,14 +22,18 @@ trait LinkWorkersHandler {
 
   registerHandler { (msg: LinkWorkers, sender) =>
     {
-      // get the list of (sender id, partitioning, set of receiver ids) from the link
-      val futures = cp.workflow.getLink(msg.link).getPartitioning.flatMap {
-        case (from, link, partitioning, tos) =>
-          // send messages to sender worker and receiver workers
-          Seq(send(AddPartitioning(link, partitioning), from)) ++ tos.map(
-            send(UpdateInputLinking(from, msg.link), _)
-          )
-      }
+      val partitionings = cp.workflow.physicalPlan.getLink(msg.linkId).partitionings
+      val senderWorkers = cp.workflow.physicalPlan.getOperator(msg.linkId.from).identifiers
+      val futures = senderWorkers
+        .zip(partitionings)
+        .flatMap({
+          case (upstreamWorkerId, (partitioning, receiverWorkers)) =>
+            Seq(
+              send(AddPartitioning(msg.linkId, partitioning), upstreamWorkerId)
+            ) ++ receiverWorkers.map(
+              send(UpdateInputLinking(upstreamWorkerId, msg.linkId), _)
+            )
+        })
 
       Future.collect(futures.toSeq).map { _ =>
         // returns when all has completed

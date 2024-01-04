@@ -7,7 +7,7 @@ package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
 @SerialVersionUID(0L)
 final case class LinkOrdinal(
-    linkId: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
+    linkId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity,
     portOrdinal: _root_.scala.Long
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[LinkOrdinal] {
     @transient
@@ -17,7 +17,7 @@ final case class LinkOrdinal(
       
       {
         val __value = linkId
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -41,7 +41,7 @@ final case class LinkOrdinal(
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = linkId
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -54,13 +54,13 @@ final case class LinkOrdinal(
         }
       };
     }
-    def withLinkId(__v: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity): LinkOrdinal = copy(linkId = __v)
+    def withLinkId(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity): LinkOrdinal = copy(linkId = __v)
     def withPortOrdinal(__v: _root_.scala.Long): LinkOrdinal = copy(portOrdinal = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = linkId
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) __t else null
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) __t else null
         }
         case 2 => {
           val __t = portOrdinal
@@ -83,7 +83,7 @@ final case class LinkOrdinal(
 object LinkOrdinal extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal = {
-    var __linkId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = _root_.scala.None
+    var __linkId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = _root_.scala.None
     var __portOrdinal: _root_.scala.Long = 0L
     var _done__ = false
     while (!_done__) {
@@ -91,14 +91,14 @@ object LinkOrdinal extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.e
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __linkId = _root_.scala.Some(__linkId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __linkId = _root_.scala.Some(__linkId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 16 =>
           __portOrdinal = _input__.readInt64()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal(
-        linkId = __linkId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance),
+        linkId = __linkId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance),
         portOrdinal = __portOrdinal
     )
   }
@@ -106,34 +106,34 @@ object LinkOrdinal extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.e
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal(
-        linkId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance),
+        linkId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance),
         portOrdinal = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(10)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(10)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(11)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(11)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal(
-    linkId = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance,
+    linkId = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance,
     portOrdinal = 0L
   )
   implicit class LinkOrdinalLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal](_l) {
-    def linkId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = field(_.linkId)((c_, f_) => c_.copy(linkId = f_))
+    def linkId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = field(_.linkId)((c_, f_) => c_.copy(linkId = f_))
     def portOrdinal: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.portOrdinal)((c_, f_) => c_.copy(portOrdinal = f_))
   }
   final val LINK_ID_FIELD_NUMBER = 1
   final val PORT_ORDINAL_FIELD_NUMBER = 2
   def of(
-    linkId: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
+    linkId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity,
     portOrdinal: _root_.scala.Long
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal(
     linkId,

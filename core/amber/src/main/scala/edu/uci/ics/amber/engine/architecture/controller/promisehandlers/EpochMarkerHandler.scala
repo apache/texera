@@ -6,11 +6,11 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EpochMar
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.WorkerEpochMarkerHandler.WorkerPropagateEpochMarker
 import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 
 object EpochMarkerHandler {
 
-  final case class PropagateEpochMarker(destOperator: LayerIdentity, epochMarker: EpochMarker)
+  final case class PropagateEpochMarker(destOperator: PhysicalOpIdentity, epochMarker: EpochMarker)
       extends ControlCommand[Unit]
 
 }

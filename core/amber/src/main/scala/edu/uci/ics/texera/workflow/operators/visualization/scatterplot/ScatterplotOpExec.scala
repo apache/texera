@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization.scatterplot
 
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.{AmberConfig}
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
@@ -36,11 +36,15 @@ class ScatterplotOpExec(
     private val operatorSchemaInfo: OperatorSchemaInfo
 ) extends FlatMapOpExec {
   this.setFlatMapFunc(this.process)
+
+  private val MAX_RESOLUTION_ROWS = AmberConfig.MAX_RESOLUTION_ROWS
+  private val MAX_RESOLUTION_COLUMNS = AmberConfig.MAX_RESOLUTION_COLUMNS
+
   private val pixelGrid: Option[Array[Array[Boolean]]] =
     if (opDesc.isGeometric) {
       // maintain a pixel grid to cache the shown points.
       // depending on the resolution, it will only show one point per grid.
-      Some(Array.ofDim[Boolean](Constants.MAX_RESOLUTION_ROWS, Constants.MAX_RESOLUTION_COLUMNS))
+      Some(Array.ofDim[Boolean](MAX_RESOLUTION_ROWS, MAX_RESOLUTION_COLUMNS))
     } else {
       None
     }
@@ -49,11 +53,11 @@ class ScatterplotOpExec(
 
     if (opDesc.isGeometric) {
       val row_index = Math
-        .floor(ScatterplotOpExec.lngX(t.getField(opDesc.xColumn)) * Constants.MAX_RESOLUTION_ROWS)
+        .floor(ScatterplotOpExec.lngX(t.getField(opDesc.xColumn)) * MAX_RESOLUTION_ROWS)
         .toInt
       val column_index = Math
         .floor(
-          ScatterplotOpExec.latY(t.getField(opDesc.yColumn)) * Constants.MAX_RESOLUTION_COLUMNS
+          ScatterplotOpExec.latY(t.getField(opDesc.yColumn)) * MAX_RESOLUTION_COLUMNS
         )
         .toInt
       if (pixelGrid.get(row_index)(column_index)) {

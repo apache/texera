@@ -132,7 +132,7 @@ val googleServiceDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Arrow related
-val arrowVersion = "13.0.0"
+val arrowVersion = "14.0.1"
 val arrowDependencies = Seq(
   // https://mvnrepository.com/artifact/org.apache.arrow/flight-grpc
   "org.apache.arrow" % "flight-grpc" % arrowVersion,
@@ -269,3 +269,7 @@ libraryDependencies += "org.ehcache" % "sizeof" % "0.4.3"
 
 // https://mvnrepository.com/artifact/org.mindrot/jbcrypt
 libraryDependencies += "org.mindrot" % "jbcrypt" % "0.4"
+
+// https://mvnrepository.com/artifact/com.github.sisyphsu/dateparser
+libraryDependencies += "com.github.sisyphsu" % "dateparser" % "1.0.11"
+

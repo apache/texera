@@ -5,31 +5,34 @@ from core.models import Tuple, ArrowTableTupleProvider
 from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
 from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
+from proto.edu.uci.ics.amber.engine.common import (
+    ActorVirtualIdentity,
+    PhysicalLinkIdentity,
+)
 
 
 class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
     def __init__(self):
-        self._input_map: Dict[ActorVirtualIdentity, LinkIdentity] = dict()
+        self._input_map: Dict[ActorVirtualIdentity, PhysicalLinkIdentity] = dict()
         self._upstream_map: defaultdict[
-            LinkIdentity, Set[ActorVirtualIdentity]
+            PhysicalLinkIdentity, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
-        self._current_link: Optional[LinkIdentity] = None
-        self._all_upstream_link_ids: Set[LinkIdentity] = set()
+        self._current_link: Optional[PhysicalLinkIdentity] = None
+        self._all_upstream_link_ids: Set[PhysicalLinkIdentity] = set()
         self._end_received_from_workers: defaultdict[
-            LinkIdentity, Set[ActorVirtualIdentity]
+            PhysicalLinkIdentity, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
-        self._completed_link_ids: Set[LinkIdentity] = set()
+        self._completed_link_ids: Set[PhysicalLinkIdentity] = set()
 
     def update_all_upstream_link_ids(
-        self, upstream_link_ids: Set[LinkIdentity]
+        self, upstream_link_ids: Set[PhysicalLinkIdentity]
     ) -> None:
         self._all_upstream_link_ids = upstream_link_ids
 
     def register_input(
-        self, identifier: ActorVirtualIdentity, input_: LinkIdentity
+        self, identifier: ActorVirtualIdentity, input_: PhysicalLinkIdentity
     ) -> None:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_

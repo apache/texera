@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.unittest.workflow.operators.visualization.scatterplot
 
+import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -61,7 +62,8 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "raise IllegalArgumentException if the field type is not a number" in {
     val outputSchema = scatterplotOpDesc.getOutputSchema(Array(wrongTypesSchema))
     assertThrows[IllegalArgumentException] {
-      scatterplotOpDesc.operatorExecutor(
+      scatterplotOpDesc.getPhysicalOp(
+        DEFAULT_EXECUTION_ID,
         OperatorSchemaInfo(Array(wrongTypesSchema), Array(outputSchema))
       )
     }

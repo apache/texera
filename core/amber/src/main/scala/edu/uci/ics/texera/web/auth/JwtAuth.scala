@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.auth
 
 import com.typesafe.config.Config
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import org.jose4j.jws.AlgorithmIdentifiers.HMAC_SHA256
 import org.jose4j.jws.JsonWebSignature
@@ -13,7 +13,7 @@ import java.util.Random
 
 object JwtAuth {
 
-  final val jwtConfig: Config = AmberUtils.amberConfig.getConfig("user-sys.jwt")
+  final val jwtConfig: Config = AmberConfig.jWTConfig
   final val TOKEN_EXPIRE_TIME_IN_DAYS = jwtConfig.getString("exp-in-days").toInt
   final val TOKEN_SECRET: String = jwtConfig.getString("256-bit-secret").toLowerCase() match {
     case "random" => getRandomHexString

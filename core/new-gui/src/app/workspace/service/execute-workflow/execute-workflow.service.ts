@@ -272,31 +272,24 @@ export class ExecuteWorkflowService {
     );
   }
 
-  public skipTuples(): void {
+  public skipTuples(workers: ReadonlyArray<string>): void {
     if (!environment.amberEngineEnabled) {
       return;
     }
-    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot skip tuples, the current execution state is " + this.currentState.state);
     }
-    this.currentState.breakpoint.report.forEach(fault => {
-      this.workflowWebsocketService.send("SkipTupleRequest", {
-        faultedTuple: fault.faultedTuple,
-        actorPath: fault.workerName,
-      });
-    });
+    this.workflowWebsocketService.send("SkipTupleRequest", { workers });
   }
 
-  public retryExecution(): void {
+  public retryExecution(workers: ReadonlyArray<string>): void {
     if (!environment.amberEngineEnabled) {
       return;
     }
-    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("RetryRequest", {
-      workers: this.currentState.breakpoint.report.map(fault => fault.workerName),
-    });
+    this.workflowWebsocketService.send("RetryRequest", { workers });
   }
 
   public modifyOperatorLogic(operatorID: string): void {
@@ -409,18 +402,14 @@ export class ExecuteWorkflowService {
         operatorID: op.operatorID,
         operatorType: op.operatorType,
       };
-      if (op.inputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          inputPorts: op.inputPorts,
-        };
-      }
-      if (op.outputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          outputPorts: op.outputPorts,
-        };
-      }
+      logicalOp = {
+        ...logicalOp,
+        inputPorts: op.inputPorts,
+      };
+      logicalOp = {
+        ...logicalOp,
+        outputPorts: op.outputPorts,
+      };
       return logicalOp;
     });
 

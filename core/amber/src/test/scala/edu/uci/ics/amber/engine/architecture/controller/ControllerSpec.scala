@@ -29,10 +29,10 @@ class ControllerSpec
 //  private val logicalPlan1 =
 //    """{
 //      |"operators":[
-//      |{"tableName":"D:\\large_input.csv","operatorID":"Scan","operatorType":"LocalScanSource","delimiter":","},
-//      |{"attributeName":0,"keyword":"Asia","operatorID":"KeywordSearch","operatorType":"KeywordMatcher"},
-//      |{"operatorID":"Count","operatorType":"Aggregation"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
+//      |{"tableName":"D:\\large_input.csv","operatorId":"Scan","operatorType":"LocalScanSource","delimiter":","},
+//      |{"attributeName":0,"keyword":"Asia","operatorId":"KeywordSearch","operatorType":"KeywordMatcher"},
+//      |{"operatorId":"Count","operatorType":"Aggregation"},
+//      |{"operatorId":"Sink","operatorType":"Sink"}],
 //      |"links":[
 //      |{"origin":"Scan","destination":"KeywordSearch"},
 //      |{"origin":"KeywordSearch","destination":"Count"},
@@ -42,9 +42,9 @@ class ControllerSpec
 //  private val logicalPlan2 =
 //    """{
 //      |"operators":[
-//      |{"tableName":"D:\\large_input.csv","operatorID":"Scan","operatorType":"LocalScanSource","delimiter":","},
-//      |{"operatorID":"Count","operatorType":"Aggregation"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
+//      |{"tableName":"D:\\large_input.csv","operatorId":"Scan","operatorType":"LocalScanSource","delimiter":","},
+//      |{"operatorId":"Count","operatorType":"Aggregation"},
+//      |{"operatorId":"Sink","operatorType":"Sink"}],
 //      |"links":[
 //      |{"origin":"Scan","destination":"Count"},
 //      |{"origin":"Count","destination":"Sink"}]
@@ -53,10 +53,10 @@ class ControllerSpec
 //  private val logicalPlan3 =
 //    """{
 //      |"operators":[
-//      |{"tableName":"D:\\test.txt","operatorID":"Scan","operatorType":"LocalScanSource","delimiter":"|"},
-//      |{"attributeName":15,"keyword":"package","operatorID":"KeywordSearch","operatorType":"KeywordMatcher"},
-//      |{"operatorID":"Count","operatorType":"Aggregation"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
+//      |{"tableName":"D:\\test.txt","operatorId":"Scan","operatorType":"LocalScanSource","delimiter":"|"},
+//      |{"attributeName":15,"keyword":"package","operatorId":"KeywordSearch","operatorType":"KeywordMatcher"},
+//      |{"operatorId":"Count","operatorType":"Aggregation"},
+//      |{"operatorId":"Sink","operatorType":"Sink"}],
 //      |"links":[
 //      |{"origin":"Scan","destination":"KeywordSearch"},
 //      |{"origin":"KeywordSearch","destination":"Count"},
@@ -66,12 +66,12 @@ class ControllerSpec
 //  private val logicalPlan4 =
 //    """{
 //      |"operators":[
-//      |{"tableName":"D:\\test.txt","operatorID":"Scan1","operatorType":"LocalScanSource","delimiter":"|","indicesToKeep":null},
-//      |{"tableName":"D:\\test.txt","operatorID":"Scan2","operatorType":"LocalScanSource","delimiter":"|","indicesToKeep":null},
-//      |{"attributeName":15,"keyword":"package","operatorID":"KeywordSearch","operatorType":"KeywordMatcher"},
-//      |{"operatorID":"Join","operatorType":"HashJoin","innerTableIndex":0,"outerTableIndex":0},
-//      |{"operatorID":"Count","operatorType":"Aggregation"},
-//      |{"operatorID":"Sink","operatorType":"Sink"}],
+//      |{"tableName":"D:\\test.txt","operatorId":"Scan1","operatorType":"LocalScanSource","delimiter":"|","indicesToKeep":null},
+//      |{"tableName":"D:\\test.txt","operatorId":"Scan2","operatorType":"LocalScanSource","delimiter":"|","indicesToKeep":null},
+//      |{"attributeName":15,"keyword":"package","operatorId":"KeywordSearch","operatorType":"KeywordMatcher"},
+//      |{"operatorId":"Join","operatorType":"HashJoin","innerTableIndex":0,"outerTableIndex":0},
+//      |{"operatorId":"Count","operatorType":"Aggregation"},
+//      |{"operatorId":"Sink","operatorType":"Sink"}],
 //      |"links":[
 //      |{"origin":"Scan1","destination":"KeywordSearch"},
 //      |{"origin":"KeywordSearch","destination":"Join"},

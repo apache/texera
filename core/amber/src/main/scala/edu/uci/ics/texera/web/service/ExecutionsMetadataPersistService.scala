@@ -1,12 +1,15 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.texera.Utils.maptoStatusCode
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -17,51 +20,28 @@ import java.sql.Timestamp
   */
 object ExecutionsMetadataPersistService extends LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
-  private final val userSystemEnabled: Boolean =
-    AmberUtils.amberConfig.getBoolean("user-sys.enabled")
+  private final val userSystemEnabled: Boolean = AmberConfig.isUserSystemEnabled
   private val workflowExecutionsDao = new WorkflowExecutionsDao(
     context.configuration
   )
 
   /**
-    * @param state indicates the workflow state
-    * @return code indicates the status of the execution in the DB it is 0 by default for any unused states.
-    *         This code is stored in the DB and read in the frontend.
-    *             If these codes are changed, they also have to be changed in the frontend `ngbd-modal-workflow-executions.component.ts`
-    */
-  private def maptoStatusCode(state: WorkflowAggregatedState): Byte = {
-    state match {
-      case WorkflowAggregatedState.UNINITIALIZED                   => 0
-      case WorkflowAggregatedState.READY                           => 0
-      case WorkflowAggregatedState.RUNNING                         => 1
-      case WorkflowAggregatedState.PAUSING                         => ???
-      case WorkflowAggregatedState.PAUSED                          => 2
-      case WorkflowAggregatedState.RESUMING                        => ???
-      case WorkflowAggregatedState.COMPLETED                       => 3
-      case WorkflowAggregatedState.FAILED                          => 4
-      case WorkflowAggregatedState.UNKNOWN                         => ???
-      case WorkflowAggregatedState.KILLED                          => 5
-      case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
-    }
-  }
-
-  /**
     * This method inserts a new entry of a workflow execution in the database and returns the generated eId
     *
-    * @param wid     the given workflow
+    * @param workflowId     the given workflow
     * @param uid     user id that initiated the execution
     * @return generated execution ID
     */
 
   def insertNewExecution(
-      wid: UInteger,
+      workflowId: WorkflowIdentity,
       uid: Option[UInteger],
       executionName: String,
       environmentVersion: String
-  ): Long = {
-    if (!userSystemEnabled) return -1
+  ): ExecutionIdentity = {
+    if (!userSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
-    val vid = getLatestVersion(wid)
+    val vid = getLatestVersion(UInteger.valueOf(workflowId.id))
     val newExecution = new WorkflowExecutions()
     if (executionName != "") {
       newExecution.setName(executionName)
@@ -71,14 +51,17 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
     newExecution.setEnvironmentVersion(environmentVersion)
     workflowExecutionsDao.insert(newExecution)
-    newExecution.getEid.longValue()
+    ExecutionIdentity(newExecution.getEid.longValue())
   }
 
-  def tryUpdateExistingExecution(eid: Long, state: WorkflowAggregatedState): Unit = {
+  def tryUpdateExistingExecution(
+      executionId: ExecutionIdentity,
+      state: WorkflowAggregatedState
+  ): Unit = {
     if (!userSystemEnabled) return
     try {
       val code = maptoStatusCode(state)
-      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(executionId.id))
       execution.setStatus(code)
       execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
       workflowExecutionsDao.update(execution)
@@ -102,10 +85,13 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     }
   }
 
-  def updateExistingExecutionVolumnPointers(eid: Long, pointers: String): Unit = {
+  def updateExistingExecutionVolumePointers(
+      executionId: ExecutionIdentity,
+      pointers: String
+  ): Unit = {
     if (!userSystemEnabled) return
     try {
-      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(eid))
+      val execution = workflowExecutionsDao.fetchOneByEid(UInteger.valueOf(executionId.id))
       execution.setResult(pointers)
       workflowExecutionsDao.update(execution)
     } catch {
