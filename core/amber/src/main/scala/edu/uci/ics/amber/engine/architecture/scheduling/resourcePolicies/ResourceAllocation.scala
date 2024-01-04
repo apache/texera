@@ -16,7 +16,10 @@ case class ResourceAllocation(region: Region) {
 
   private def physicalOpIds = region.physicalOpIds.filter(_.logicalOpId.id.contains("PythonUDF"))
 
-  def allocation(physicalPlan: PhysicalPlan, executionClusterInfo: ExecutionClusterInfo): (List[Int], Double) = {
+  def allocation(
+      physicalPlan: PhysicalPlan,
+      executionClusterInfo: ExecutionClusterInfo
+  ): (List[Int], Double) = {
     val workers = ListBuffer[Int]()
     physicalOpIds.foreach { opId =>
       val operator = physicalPlan.getOperator(opId)
@@ -24,7 +27,8 @@ case class ResourceAllocation(region: Region) {
       if (operator.parallelizable) {
         operator.suggestedWorkerNum match {
           case Some(num) => workers += num
-          case None => workers += AmberConfig.numWorkerPerOperatorByDefault // Set to default value if not defined
+          case None =>
+            workers += AmberConfig.numWorkerPerOperatorByDefault // Set to default value if not defined
         }
       } else {
         // Set to 1 if not parallelizable
