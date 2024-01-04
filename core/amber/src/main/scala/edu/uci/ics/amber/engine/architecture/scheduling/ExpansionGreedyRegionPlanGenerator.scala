@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.workerPolicies.{ExecutionClusterInfo, ResourceAllocation}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
@@ -16,12 +17,10 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.{
-  `collection AsScalaIterable`,
-  `iterable AsScalaIterable`
-}
+import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `iterable AsScalaIterable`}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import scala.reflect.internal.NoPhase.id
 
 object ExpansionGreedyRegionPlanGenerator {
 
@@ -100,7 +99,22 @@ class ExpansionGreedyRegionPlanGenerator(
             physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
               .getDownstreamPhysicalLinkIds(operatorId)
           })
-          Region(RegionIdentity((index + 1).toString), operatorIds, linkIds)
+          val region = Region(RegionIdentity((index + 1).toString), operatorIds, linkIds)
+
+//          val resourceAllocation = new ResourceAllocation(region)
+//          val executionClusterInfo = new ExecutionClusterInfo()
+//          val (workers, estimatedCost) = resourceAllocation.allocation(executionClusterInfo)
+//          logger.info(workers.toString())
+//
+//          region.physicalOpIds.filter(_.logicalOpId.id.contains("PythonUDF")).zip(workers).foreach {
+//            case (opId, workerNum) =>
+//              val operator = physicalPlan.getOperator(opId)
+//              operator.suggestedWorkerNum match {
+//                case None => Some(operator.withSuggestedWorkerNum(workerNum))
+//                case Some(_) =>
+//              }
+//          }
+          region
       }
   }
 
