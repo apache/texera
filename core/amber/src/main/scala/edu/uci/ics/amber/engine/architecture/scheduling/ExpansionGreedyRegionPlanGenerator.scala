@@ -307,15 +307,14 @@ class ExpansionGreedyRegionPlanGenerator(
             .map { physicalOp =>
               {
                 val workerCount =
-                  if (physicalOp.parallelizable) {
-                    if (physicalOp.suggestedWorkerNum.isDefined) {
-                      physicalOp.suggestedWorkerNum.get
-                    } else {
-                      AmberConfig.numWorkerPerOperatorByDefault
-                    }
+                  if (physicalOp.suggestedWorkerNum.isDefined) {
+                    physicalOp.suggestedWorkerNum.get
+                  } else if (physicalOp.parallelizable) {
+                    AmberConfig.numWorkerPerOperatorByDefault
                   } else {
                     1
                   }
+
                 physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
               }
             }
