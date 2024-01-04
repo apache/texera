@@ -17,7 +17,7 @@ object UserAuthenticator extends Authenticator[JwtContext, SessionUser] with Laz
       val email = context.getJwtClaims.getClaimValue("email").asInstanceOf[String]
       val userId = UInteger.valueOf(context.getJwtClaims.getClaimValue("userId").asInstanceOf[Long])
       val role = UserRole.valueOf(context.getJwtClaims.getClaimValue("role").asInstanceOf[String])
-      var googleId = context.getJwtClaims.getClaimValue("googleId").asInstanceOf[String]
+      val googleId = context.getJwtClaims.getClaimValue("googleId").asInstanceOf[String]
       val user = new User(userId, userName, email, null, googleId, role)
       Optional.of(new SessionUser(user))
     } catch {
