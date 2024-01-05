@@ -32,6 +32,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.project.{
   PublicProjectResource
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource
+import edu.uci.ics.texera.web.resource.dashboard.user.discussion.UserDiscussionResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource.ExecutionResultEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
   WorkflowAccessResource,
@@ -216,6 +217,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     environment.jersey.register(classOf[GmailResource])
     environment.jersey.register(classOf[AdminExecutionResource])
     environment.jersey.register(classOf[UserQuotaResource])
+    environment.jersey.register(classOf[UserDiscussionResource])
   }
 
   /**
