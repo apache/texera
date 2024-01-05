@@ -4,7 +4,6 @@
 -- ------------------------------------------------------
 -- Server version	8.0.32
 
-DROP DATABASE IF EXISTS `flarum`;
 CREATE SCHEMA IF NOT EXISTS `flarum`;
 USE `flarum`;
 
