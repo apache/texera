@@ -1,21 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_OP
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.{AmberLogging, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
 
 import scala.collection.mutable
 
-class UpstreamLinkStatus(opExecConfig: OpExecConfig) {
-
-  private val allUpstreamLinkIds: Set[LinkIdentity] = {
-    if (opExecConfig.isSourceOperator)
-      Set(
-        LinkIdentity(SOURCE_STARTER_OP, 0, opExecConfig.id, 0)
-      ) // special case for source operator
-    else
-      opExecConfig.inputToOrdinalMapping.keySet
-  }
+class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging {
 
   /**
     * The scheduler may not schedule the entire workflow at once. Consider a 2-phase hash join where the first
@@ -26,22 +16,30 @@ class UpstreamLinkStatus(opExecConfig: OpExecConfig) {
     * links that a worker receives data from.
     */
   private val upstreamMap =
-    new mutable.HashMap[LinkIdentity, Set[ActorVirtualIdentity]].withDefaultValue(Set())
+    new mutable.HashMap[PhysicalLinkIdentity, Set[ActorVirtualIdentity]].withDefaultValue(Set())
   private val upstreamMapReverse =
-    new mutable.HashMap[ActorVirtualIdentity, LinkIdentity]
+    new mutable.HashMap[ActorVirtualIdentity, PhysicalLinkIdentity]
   private val endReceivedFromWorkers = new mutable.HashSet[ActorVirtualIdentity]
-  private val completedLinkIds = new mutable.HashSet[LinkIdentity]()
+  private val completedLinkIds = new mutable.HashSet[PhysicalLinkIdentity]()
+  private var allUpstreamLinkIds: Set[PhysicalLinkIdentity] = Set.empty
 
-  def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
+  def setAllUpstreamLinkIds(newSet: Set[PhysicalLinkIdentity]): Unit = {
+    this.allUpstreamLinkIds = newSet
+  }
+
+  def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLinkIdentity): Unit = {
     assert(
       allUpstreamLinkIds.contains(input),
-      "unexpected input link " + input + " for operator " + opExecConfig.id
+      "unexpected input link " + input + " for operator " + VirtualIdentityUtils.getPhysicalOpId(
+        actorId
+      )
     )
     upstreamMap.update(input, upstreamMap(input) + identifier)
     upstreamMapReverse.update(identifier, input)
   }
 
-  def getInputLink(identifier: ActorVirtualIdentity): LinkIdentity = upstreamMapReverse(identifier)
+  def getInputLinkId(identifier: ActorVirtualIdentity): PhysicalLinkIdentity =
+    upstreamMapReverse(identifier)
 
   def markWorkerEOF(identifier: ActorVirtualIdentity): Unit = {
     if (identifier != null) {
@@ -57,7 +55,7 @@ class UpstreamLinkStatus(opExecConfig: OpExecConfig) {
     upstreamMap.filterKeys(k => !completedLinkIds.contains(k)).values.flatten.toSet
   }
 
-  def isLinkEOF(link: LinkIdentity): Boolean = {
+  def isLinkEOF(link: PhysicalLinkIdentity): Boolean = {
     if (link == null) {
       return true // special case for source operator
     }

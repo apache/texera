@@ -10,47 +10,33 @@ option (scalapb.options) = {
   no_default_values_in_constructor: true
 };
 
-// final case class ActorVirtualIdentity
+message WorkflowIdentity {
+  int64 id = 1;
+}
+
+message ExecutionIdentity {
+  int64 id = 1;
+}
+
 message ActorVirtualIdentity {
   string name = 1;
 }
 
-// final case class LayerIdentity (
-//    workflow: String,
-//    operator: String,
-//    layerID: String
-// )
-message LayerIdentity{
-  string workflow = 1;
-  string operator = 2;
-  string layerID = 3;
+message OperatorIdentity {
+  string id = 1;
 }
 
-// final case class LinkIdentity (
-//    from: LayerIdentity,
-//    to: LayerIdentity
-// )
-message LinkIdentity {
-  LayerIdentity from = 1 [(scalapb.field).no_box = true];
+message PhysicalOpIdentity{
+  OperatorIdentity logicalOpId = 1 [(scalapb.field).no_box = true];
+  string layerName = 2;
+}
+
+message PhysicalLinkIdentity {
+  PhysicalOpIdentity from = 1 [(scalapb.field).no_box = true];
   int32 fromPort = 2;
-  LayerIdentity to = 3 [(scalapb.field).no_box = true];
+  PhysicalOpIdentity to = 3 [(scalapb.field).no_box = true];
   int32 toPort = 4;
 }
 
-// final case class LinkIdentity (
-//    workflow: String,
-//    operator: String
-// )
-message OperatorIdentity {
-  string workflow = 1;
-  string operator = 2;
-}
-
-// final case class WorkflowIdentity (
-//    id: String
-// )
-message WorkflowIdentity {
-  string id = 1;
-}
 
 

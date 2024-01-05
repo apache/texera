@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
+import edu.uci.ics.amber.engine.common.actormessage.ActorCommand
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelID,
   ControlPayload,
@@ -23,6 +24,7 @@ object WorkerBatchInternalQueue {
   case class ControlElement(cmd: ControlPayload, from: ChannelID) extends InternalQueueElement
 
   case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelID) extends InternalQueueElement
+  case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }
 
 /** Inspired by the mailbox-ed thread, the internal queue should
@@ -71,6 +73,9 @@ trait WorkerBatchInternalQueue {
     controlQueue.add(ControlElementV2(cmd, from))
   }
 
+  def enqueueActorCommand(command: ActorCommand): Unit = {
+    controlQueue.add(ActorCommandElement(command))
+  }
   def getElement: InternalQueueElement = {
     val elem = lbmq.take()
     elem match {

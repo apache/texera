@@ -63,9 +63,9 @@ import { UserAvatarComponent } from "./dashboard/user/component/user-avatar/user
 import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
-import { NavigationComponent } from "./workspace/component/navigation/navigation.component";
-import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-label/operator-label.component";
-import { OperatorMenuFrameComponent } from "./workspace/component/left-panel/operator-menu-frame/operator-menu-frame.component";
+import { MenuComponent } from "./workspace/component/menu/menu.component";
+import { OperatorLabelComponent } from "./workspace/component/left-panel/operator-menu/operator-label/operator-label.component";
+import { OperatorMenuComponent } from "./workspace/component/left-panel/operator-menu/operator-menu.component";
 import { PropertyEditorComponent } from "./workspace/component/property-editor/property-editor.component";
 import { TypeCastingDisplayComponent } from "./workspace/component/property-editor/typecasting-display/type-casting-display.component";
 import { ResultPanelToggleComponent } from "./workspace/component/result-panel-toggle/result-panel-toggle.component";
@@ -87,10 +87,9 @@ import { MonacoEditorModule } from "ngx-monaco-editor";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
-import { DebuggerFrameComponent } from "./workspace/component/result-panel/debugger-frame/debugger-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
-import { VersionsFrameComponent } from "./workspace/component/left-panel/versions-frame/versions-frame.component";
+import { VersionsListComponent } from "./workspace/component/left-panel/versions-list/versions-list.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";
 import { JwtModule } from "@auth0/angular-jwt";
 import { AuthService } from "./common/service/user/auth.service";
@@ -109,7 +108,7 @@ import { NzPopconfirmModule } from "ng-zorro-antd/popconfirm";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { ContextMenuComponent } from "./workspace/component/workflow-editor/context-menu/context-menu/context-menu.component";
 import { NzImageModule } from "ng-zorro-antd/image";
-import { CoeditorUserIconComponent } from "./workspace/component/navigation/coeditor-user-icon/coeditor-user-icon/coeditor-user-icon.component";
+import { CoeditorUserIconComponent } from "./workspace/component/menu/coeditor-user-icon/coeditor-user-icon.component";
 import { InputAutoCompleteComponent } from "./workspace/component/input-autocomplete/input-autocomplete.component";
 import { CollabWrapperComponent } from "./common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { NzSwitchModule } from "ng-zorro-antd/switch";
@@ -135,6 +134,7 @@ import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.compon
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
+import { NzResizableModule } from "ng-zorro-antd/resizable";
 
 registerLocaleData(en);
 
@@ -144,10 +144,10 @@ registerLocaleData(en);
     PublicProjectComponent,
     AppComponent,
     WorkspaceComponent,
-    NavigationComponent,
-    OperatorMenuFrameComponent,
+    MenuComponent,
+    OperatorMenuComponent,
     PropertyEditorComponent,
-    VersionsFrameComponent,
+    VersionsListComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
@@ -186,7 +186,6 @@ registerLocaleData(en);
     ResultTableFrameComponent,
     OperatorPropertyEditFrameComponent,
     BreakpointPropertyEditFrameComponent,
-    DebuggerFrameComponent,
     UserProjectComponent,
     UserProjectSectionComponent,
     NgbdModalAddProjectWorkflowComponent,
@@ -279,6 +278,7 @@ registerLocaleData(en);
     MarkdownModule.forRoot(),
     DragDropModule,
     NzAlertModule,
+    NzResizableModule,
   ],
   providers: [
     AuthGuardService,

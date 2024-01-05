@@ -1,17 +1,18 @@
 package edu.uci.ics.texera.workflow.common.storage
 
-import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.common.AmberUtils
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.workflow.operators.sink.storage.{
   MemoryStorage,
   MongoDBSinkStorage,
   SinkStorageReader
 }
 
+import java.util.concurrent.ConcurrentHashMap
+
 object OpResultStorage {
-  val defaultStorageMode: String = AmberUtils.amberConfig.getString("storage.mode").toLowerCase
+  val defaultStorageMode: String = AmberConfig.sinkStorageMode.toLowerCase
   val MEMORY = "memory"
   val MONGODB = "mongodb"
 }
@@ -22,8 +23,8 @@ object OpResultStorage {
   */
 class OpResultStorage extends Serializable with LazyLogging {
 
-  val cache: ConcurrentHashMap[String, SinkStorageReader] =
-    new ConcurrentHashMap[String, SinkStorageReader]()
+  val cache: ConcurrentHashMap[OperatorIdentity, SinkStorageReader] =
+    new ConcurrentHashMap[OperatorIdentity, SinkStorageReader]()
 
   /**
     * Retrieve the result of an operator from OpResultStorage
@@ -31,35 +32,34 @@ class OpResultStorage extends Serializable with LazyLogging {
     *            Currently it is the uuid inside the cache source or cache sink operator.
     * @return The storage of this operator.
     */
-  def get(key: String): SinkStorageReader = {
+  def get(key: OperatorIdentity): SinkStorageReader = {
     cache.get(key)
   }
 
   def create(
-      executionID: String = "",
-      key: String,
-      schema: Schema,
+      executionId: String = "",
+      key: OperatorIdentity,
       mode: String
   ): SinkStorageReader = {
     val storage: SinkStorageReader =
       if (mode == "memory") {
-        new MemoryStorage(schema)
+        new MemoryStorage
       } else {
         try {
-          new MongoDBSinkStorage(executionID + key, schema)
+          new MongoDBSinkStorage(executionId + key)
         } catch {
           case t: Throwable =>
             logger.warn("Failed to create mongo storage", t)
             logger.info(s"Fall back to memory storage for $key")
             // fall back to memory
-            new MemoryStorage(schema)
+            new MemoryStorage
         }
       }
     cache.put(key, storage)
     storage
   }
 
-  def contains(key: String): Boolean = {
+  def contains(key: OperatorIdentity): Boolean = {
     cache.containsKey(key)
   }
 
@@ -68,13 +68,11 @@ class OpResultStorage extends Serializable with LazyLogging {
     * @param key The key used for storage and retrieval.
     *            Currently it is the uuid inside the cache source or cache sink operator.
     */
-  def remove(key: String): Unit = {
-    logger.debug(s"remove $key start")
+  def remove(key: OperatorIdentity): Unit = {
     if (cache.contains(key)) {
       cache.get(key).clear()
     }
     cache.remove(key)
-    logger.debug(s"remove $key end")
   }
 
   /**

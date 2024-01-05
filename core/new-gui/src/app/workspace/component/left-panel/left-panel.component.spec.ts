@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from "@angular/core/testing";
 import { LeftPanelComponent } from "./left-panel.component";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
-import { VersionsFrameComponent } from "./versions-frame/versions-frame.component";
+import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -63,6 +63,6 @@ describe("LeftPanelComponent", () => {
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs().length).toBe(0);
 
     // the component should switch to versions display
-    expect(component.frameComponentConfig?.component).toBe(VersionsFrameComponent);
+    expect(component.currentComponent).toBe(VersionsListComponent);
   });
 });

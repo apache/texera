@@ -4,9 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
@@ -14,8 +14,8 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.Option;
 
-import java.io.Serializable;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -49,15 +49,14 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public List<Attribute> columns;
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        OpExecFunc exec = (OpExecFunc & Serializable) (i) ->
-                new PythonUDFSourceOpExecV2(code, operatorSchemaInfo.outputSchemas()[0]);
+    public PhysicalOp getPhysicalOp(ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+        OpExecInitInfo exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
-            return OpExecConfig.oneToOneLayer(operatorIdentifier(), exec).withNumWorkers(workers)
-                    .withIsOneToManyOp(true);
+            return PhysicalOp.sourcePhysicalOp(executionId, operatorIdentifier(), exec).withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)
+                    .withIsOneToManyOp(true).withLocationPreference(Option.empty());
         } else {
-            return OpExecConfig.manyToOneLayer(operatorIdentifier(), exec).withIsOneToManyOp(true);
+            return PhysicalOp.sourcePhysicalOp(executionId, operatorIdentifier(), exec).withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
         }
 
     }

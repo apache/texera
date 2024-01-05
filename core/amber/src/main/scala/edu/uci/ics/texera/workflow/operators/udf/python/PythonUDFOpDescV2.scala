@@ -3,25 +3,23 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.{
-  PortDescriptor,
-  OperatorDescriptor,
-  StateTransferFunc
-}
+import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
+class PythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -69,7 +67,10 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
   )
   var outputColumns: List[Attribute] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def getPhysicalOp(
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
@@ -78,19 +79,21 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
       opInfo.inputPorts.map(_ => None)
     }
     val dependency: Map[Int, Int] = if (inputPorts != null) {
-      inputPorts.zipWithIndex.flatMap {
-        case (port, i) => port.dependencies.map(dependee => i -> dependee)
-      }.toMap
+      inputPorts.zipWithIndex
+        .filter {
+          case (port, _) => port.dependencies != null
+        }
+        .flatMap {
+          case (port, i) => port.dependencies.map(dependee => i -> dependee)
+        }
+        .toMap
     } else {
       Map()
     }
 
     if (workers > 1)
-      OpExecConfig
-        .oneToOneLayer(
-          operatorIdentifier,
-          _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
-        )
+      PhysicalOp
+        .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           numWorkers = workers,
           derivePartition = _ => UnknownPartition(),
@@ -100,12 +103,10 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
           partitionRequirement = partitionRequirement,
           dependency = dependency
         )
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     else
-      OpExecConfig
-        .manyToOneLayer(
-          operatorIdentifier,
-          _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
-        )
+      PhysicalOp
+        .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
         .copy(
           derivePartition = _ => UnknownPartition(),
           isOneToManyOp = true,
@@ -114,6 +115,7 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
           partitionRequirement = partitionRequirement,
           dependency = dependency
         )
+        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -162,9 +164,10 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
   }
 
   override def runtimeReconfiguration(
-      newOpDesc: OperatorDescriptor,
+      executionId: ExecutionIdentity,
+      newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
-  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
-    Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
+  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+    Success(newOpDesc.getPhysicalOp(executionId, operatorSchemaInfo), None)
   }
 }

@@ -4,9 +4,11 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
@@ -16,11 +18,11 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
+  OperatorIdentity,
+  PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -61,18 +63,26 @@ class WorkerSpec
       }
     }
   }
-  private val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
-  private val layerId1 =
-    LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
-  private val layerId2 =
-    LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "2nd-layer")
-  private val mockLink = LinkIdentity(layerId1, 0, layerId2, 0)
-  private val opExecConfig = OpExecConfig
-    .oneToOneLayer(operatorIdentity, _ => mockOpExecutor)
-    .copy(inputToOrdinalMapping = Map(mockLink -> 0), outputToOrdinalMapping = Map(mockLink -> 0))
+  private val operatorIdentity = OperatorIdentity("testOperator")
+  private val physicalOp1 = PhysicalOp(
+    executionId = DEFAULT_EXECUTION_ID,
+    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+    opExecInitInfo = null
+  )
+  private val physicalOp2 = PhysicalOp(
+    executionId = DEFAULT_EXECUTION_ID,
+    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+    opExecInitInfo = null
+  )
+  private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
+  private val physicalOp = PhysicalOp
+    .oneToOnePhysicalOp(DEFAULT_EXECUTION_ID, operatorIdentity, OpExecInitInfo(_ => mockOpExecutor))
+    .copy(
+      inputPortToLinkMapping = Map(0 -> List(mockLink)),
+      outputPortToLinkMapping = Map(0 -> List(mockLink))
+    )
   private val workerIndex = 0
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
-
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
   private val mockOutputManager = mock[OutputManager]
 
@@ -85,7 +95,7 @@ class WorkerSpec
     controls.foreach { ctrl =>
       worker ! NetworkMessage(
         seq,
-        WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), seq, ctrl)
+        WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, isControl = true), seq, ctrl)
       )
       seq += 1
     }
@@ -96,23 +106,30 @@ class WorkerSpec
       new WorkflowWorker(
         identifier1,
         workerIndex,
-        opExecConfig
+        physicalOp,
+        WorkflowWorkerConfig(logStorageType = "none", replayTo = None)
       ) {
-        this.dp =
-          new DataProcessor(identifier1, workerIndex, mockOpExecutor, opExecConfig, mockHandler) {
-            override val outputManager: OutputManager = mockOutputManager
-          }
-        this.dp.InitTimerService(timerService)
-        override val dpThread: DPThread = new DPThread(actorId, dp, inputQueue)
+        this.dp = new DataProcessor(identifier1, mockHandler) {
+          override val outputManager: OutputManager = mockOutputManager
+        }
+        this.dp.initOperator(0, physicalOp, Iterator.empty)
+        this.dp.initTimerService(timerService)
+        override val dpThread: DPThread =
+          new DPThread(
+            actorId,
+            dp,
+            logManager,
+            inputQueue
+          )
       }
     )
   }
 
   "Worker" should "process AddPartitioning message correctly" in {
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
     (mockHandler.apply _).expects(*).once()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
     sendControlToWorker(worker, Array(invocation))
 
     //wait test to finish
@@ -121,12 +138,12 @@ class WorkerSpec
 
   "Worker" should "process data messages correctly" in {
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
+    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink.id).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flushAll _).expects().anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
+    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
     sendControlToWorker(worker, Array(invocation, updateInputLinking))
     worker ! NetworkMessage(
       3,
@@ -145,10 +162,10 @@ class WorkerSpec
       case a => println(a); true
     }
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
     def mkBatch(start: Int, end: Int): Array[ITuple] = {
       (start until end).map { x =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink.id).once()
         ITuple(x, x, x, x)
       }.toArray
     }
@@ -157,8 +174,8 @@ class WorkerSpec
     val batch3 = mkBatch(500, 800)
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flushAll _).expects().anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
+    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
     sendControlToWorker(worker, Array(invocation, updateInputLinking))
     worker ! NetworkMessage(
       3,
@@ -182,11 +199,11 @@ class WorkerSpec
       case a => println(a); true
     }
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flushAll _).expects().anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
+    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
     worker ! NetworkMessage(
       1,
       WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), 1, updateInputLinking)
@@ -197,7 +214,7 @@ class WorkerSpec
     )
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink.id).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
@@ -213,7 +230,7 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink.id).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(

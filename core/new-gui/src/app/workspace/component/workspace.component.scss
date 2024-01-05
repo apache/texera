@@ -10,13 +10,13 @@
 }
 
 .texera-workspace {
-  // transition: grid-template-rows 0.5s;
-  --header-height: 56px;
+  --header-height: 40px;
   --resultbar-height: 25px;
   --result-panel-height: 280px;
+  min-width: 630px;
 
   &.user-system-enabled {
-    --header-height: 96px;
+    --header-height: 76px;
   }
 }
 
@@ -74,25 +74,12 @@
   position: relative;
 }
 
-/**
-  * this style specifies that the navigation component will
-  * use all three columns and the first row.
-  */
-.texera-navigation-grid-container {
-  grid-column: 1/4;
-  grid-row: 1/2;
-}
-
-/**
-  * this style specifies that the operator bar on the left will
-  * occupy the first column count from the left and use second and third rows.
-  * Overflow auto creates a scrollbar when the content exceeds the size
-  * of the grid
-  */
-
-.texera-operator-panel-grid-container {
-  grid-column: 1/2;
-  grid-row: 2/6;
+texera-menu {
+  width: 100%;
+  z-index: 1;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 /**
@@ -118,7 +105,7 @@
 * will occupy the 2nd (middle) columm and use the second row (middle)
 **/
 .texera-workflow-editor-grid-container {
-  grid-column: 2/3;
+  grid-column: 1/3;
   grid-row: 2/4;
 }
 
@@ -128,34 +115,22 @@
   * be right under the workflow-editor
   */
 .texera-result-panel-grid-container {
-  grid-column: 2/3;
+  grid-column: 1/3;
   grid-row: 5/6;
   overflow: auto;
   transition: height 1s;
 }
 
 .texera-result-panel-toggle-grid-container {
-  grid-column: 2/3;
+  grid-column: 1/3;
   grid-row: 4/5;
 }
 
-.texera-git-commit-id {
+#git-commit-id {
   position: absolute;
   left: 5px;
   bottom: 5px;
   font-size: 0.4em;
   color: gray;
-}
-
-#box {
-  width: 500px;
-  height: 100px;
-  background-color: white;
-  margin-top: 10px;
-  left: 30px;
-}
-
-.particular-version-metadata {
-  display: inline-block;
-  margin-right: 1.25em;
+  z-index: 1;
 }

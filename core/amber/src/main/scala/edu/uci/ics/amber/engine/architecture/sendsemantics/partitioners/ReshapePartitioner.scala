@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -46,12 +46,12 @@ class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
   // have been redirected.
 
   val samplingSize =
-    Constants.reshapeWorkloadSampleSize // For every `samplingSize` tuples, record the tuple count to each receiver.
+    AmberConfig.reshapeWorkloadSampleSize // For every `samplingSize` tuples, record the tuple count to each receiver.
   var tupleIndexForSampling = 0 // goes from 0 to `samplingSize` and then resets to 0
   var receiverToWorkloadSamples = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
   @volatile var currentSampleCollectionIndex =
     0 // the index in `receiverToWorkloadSamples` array where sample is being recorded for a receiver
-  var maxSamples = Constants.reshapeMaxWorkloadSamplesInWorker
+  var maxSamples = AmberConfig.reshapeMaxWorkloadSamplesInWorker
 
   initializeInternalState(receivers)
 
@@ -143,7 +143,7 @@ class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
     * Used to return the workload samples to the controller.
     */
   def getWorkloadHistory(): Map[ActorVirtualIdentity, List[Long]] = {
-    if (Constants.reshapeSkewHandlingEnabled) {
+    if (AmberConfig.reshapeSkewHandlingEnabled) {
       val collectedTillNow = new mutable.HashMap[ActorVirtualIdentity, ArrayBuffer[Long]]()
       receiverToWorkloadSamples.keys.foreach(rec => {
         collectedTillNow(rec) = new ArrayBuffer[Long]()

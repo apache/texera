@@ -112,6 +112,28 @@ object Utils extends LazyLogging {
     }
   }
 
+  /**
+    * @param state indicates the workflow state
+    * @return code indicates the status of the execution in the DB it is 0 by default for any unused states.
+    *         This code is stored in the DB and read in the frontend.
+    *         If these codes are changed, they also have to be changed in the frontend `ngbd-modal-workflow-executions.component.ts`
+    */
+  def maptoStatusCode(state: WorkflowAggregatedState): Byte = {
+    state match {
+      case WorkflowAggregatedState.UNINITIALIZED                   => 0
+      case WorkflowAggregatedState.READY                           => 0
+      case WorkflowAggregatedState.RUNNING                         => 1
+      case WorkflowAggregatedState.PAUSING                         => ???
+      case WorkflowAggregatedState.PAUSED                          => 2
+      case WorkflowAggregatedState.RESUMING                        => ???
+      case WorkflowAggregatedState.COMPLETED                       => 3
+      case WorkflowAggregatedState.FAILED                          => 4
+      case WorkflowAggregatedState.UNKNOWN                         => ???
+      case WorkflowAggregatedState.KILLED                          => 5
+      case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
+    }
+  }
+
   def withLock[X](instructions: => X)(implicit lock: Lock): X = {
     lock.lock()
     try {

@@ -23,11 +23,10 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatist
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.BackpressureHandler.Backpressure
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -48,7 +47,7 @@ object ControlCommandConvertUtils {
         SchedulerTimeSlotEventV2(timeSlotExpired)
       case OpenOperator() =>
         OpenOperatorV2()
-      case AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
+      case AddPartitioning(tag: PhysicalLinkIdentity, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
         UpdateInputLinkingV2(identifier, inputLink)
@@ -76,8 +75,6 @@ object ControlCommandConvertUtils {
         WorkerDebugCommandV2(cmd)
       case QuerySelfWorkloadMetrics() =>
         QuerySelfWorkloadMetricsV2()
-      case Backpressure(enableBackpressure) =>
-        BackpressureV2(enableBackpressure)
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"

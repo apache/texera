@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, DeadLetter, Props}
+import com.typesafe.config.ConfigFactory.defaultApplication
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
@@ -35,13 +36,11 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
       .withFallback(akkaConfig)
-    Constants.masterNodeAddr = createMasterAddress(localIpAddress)
+    AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
     createAmberSystem(masterConfig)
   }
 
-  def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(amberConfig)
-
-  def amberConfig: Config = ConfigFactory.load()
+  def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(defaultApplication())
 
   def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 
@@ -64,7 +63,7 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
       .withFallback(akkaConfig)
-    Constants.masterNodeAddr = createMasterAddress(addr)
+    AmberConfig.masterNodeAddr = createMasterAddress(addr)
     createAmberSystem(workerConfig)
   }
 

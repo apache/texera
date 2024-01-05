@@ -25,6 +25,11 @@ class WorkerState(betterproto.Enum):
 
 
 @dataclass(eq=False, repr=False)
+class NoOpV2(betterproto.Message):
+    pass
+
+
+@dataclass(eq=False, repr=False)
 class StartWorkerV2(betterproto.Message):
     pass
 
@@ -52,12 +57,12 @@ class OpenOperatorV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class UpdateInputLinkingV2(betterproto.Message):
     identifier: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
-    input_link: "__common__.LinkIdentity" = betterproto.message_field(2)
+    input_link: "__common__.PhysicalLinkIdentity" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class AddPartitioningV2(betterproto.Message):
-    tag: "__common__.LinkIdentity" = betterproto.message_field(1)
+    tag: "__common__.PhysicalLinkIdentity" = betterproto.message_field(1)
     partitioning: "_sendsemantics__.Partitioning" = betterproto.message_field(2)
 
 
@@ -78,7 +83,7 @@ class QueryCurrentInputTupleV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LinkOrdinal(betterproto.Message):
-    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
+    link_id: "__common__.PhysicalLinkIdentity" = betterproto.message_field(1)
     port_ordinal: int = betterproto.int64_field(2)
 
 
@@ -136,12 +141,7 @@ class QuerySelfWorkloadMetricsV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LinkCompletedV2(betterproto.Message):
-    link_id: "__common__.LinkIdentity" = betterproto.message_field(1)
-
-
-@dataclass(eq=False, repr=False)
-class BackpressureV2(betterproto.Message):
-    enable_backpressure: bool = betterproto.bool_field(1)
+    link_id: "__common__.PhysicalLinkIdentity" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
@@ -186,13 +186,13 @@ class ControlCommandV2(betterproto.Message):
     query_self_workload_metrics: "QuerySelfWorkloadMetricsV2" = (
         betterproto.message_field(41, group="sealed_value")
     )
-    backpressure: "BackpressureV2" = betterproto.message_field(51, group="sealed_value")
     worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
         81, group="sealed_value"
     )
     worker_execution_completed: "WorkerExecutionCompletedV2" = (
         betterproto.message_field(101, group="sealed_value")
     )
+    no_op: "NoOpV2" = betterproto.message_field(9999, group="sealed_value")
 
 
 @dataclass(eq=False, repr=False)

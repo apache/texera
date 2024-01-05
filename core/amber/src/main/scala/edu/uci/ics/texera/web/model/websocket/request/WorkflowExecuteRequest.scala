@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.model.websocket.request
 
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, OperatorLink}
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, LogicalLink}
 
 case class WorkflowExecuteRequest(
     executionName: String,
@@ -10,8 +10,8 @@ case class WorkflowExecuteRequest(
 ) extends TexeraWebSocketRequest
 
 case class LogicalPlanPojo(
-    operators: List[OperatorDescriptor],
-    links: List[OperatorLink],
+    operators: List[LogicalOp],
+    links: List[LogicalLink],
     breakpoints: List[BreakpointInfo],
     opsToViewResult: List[String],
     opsToReuseResult: List[String]

@@ -20,11 +20,15 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
       ...mockScanPredicate.operatorProperties,
       operatorID: mockScanPredicate.operatorID,
       operatorType: mockScanPredicate.operatorType,
+      inputPorts: mockScanPredicate.inputPorts,
+      outputPorts: mockScanPredicate.outputPorts,
     },
     {
       ...mockResultPredicate.operatorProperties,
       operatorID: mockResultPredicate.operatorID,
       operatorType: mockResultPredicate.operatorType,
+      inputPorts: mockResultPredicate.inputPorts,
+      outputPorts: mockResultPredicate.outputPorts,
     },
   ],
   links: [

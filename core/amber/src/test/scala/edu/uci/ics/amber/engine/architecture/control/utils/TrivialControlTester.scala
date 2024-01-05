@@ -13,8 +13,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class TrivialControlTester(
     id: ActorVirtualIdentity
-) extends WorkflowActor(id) {
-  val ap = new AmberProcessor(id, x => { transferService.send(x) })
+) extends WorkflowActor(logStorageType = "none", id) {
+  val ap = new AmberProcessor(id, transferService.send)
   val initializer =
     new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
 
@@ -35,7 +35,11 @@ class TrivialControlTester(
   /** flow-control */
   override def getQueuedCredit(channelID: ChannelID): Long = 0L
 
-  override def initState(): Unit = {}
+  override def preStart(): Unit = {
+    transferService.initialize()
+  }
 
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
+
+  override def initState(): Unit = {}
 }

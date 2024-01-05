@@ -37,9 +37,9 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Backpressure => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerDebugCommand => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.NoOp => __v.value
       case edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty => Empty
     }
     override def toBase(__custom: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2): edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message(__custom match {
@@ -59,9 +59,9 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Backpressure(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerDebugCommand(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.NoOp(__v)
       case Empty => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty
     })
   }
@@ -138,10 +138,6 @@ final case class ControlCommandV2Message(
         val __value = sealedValue.querySelfWorkloadMetrics.get
         __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.backpressure.isDefined) {
-        val __value = sealedValue.backpressure.get
-        __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
-      };
       if (sealedValue.workerDebugCommand.isDefined) {
         val __value = sealedValue.workerDebugCommand.get
         __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
@@ -149,6 +145,10 @@ final case class ControlCommandV2Message(
       if (sealedValue.workerExecutionCompleted.isDefined) {
         val __value = sealedValue.workerExecutionCompleted.get
         __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      };
+      if (sealedValue.noOp.isDefined) {
+        val __value = sealedValue.noOp.get
+        __size += 3 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       __size
     }
@@ -257,12 +257,6 @@ final case class ControlCommandV2Message(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.backpressure.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(51, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
-      };
       sealedValue.workerDebugCommand.foreach { __v =>
         val __m = __v
         _output__.writeTag(81, 2)
@@ -272,6 +266,12 @@ final case class ControlCommandV2Message(
       sealedValue.workerExecutionCompleted.foreach { __v =>
         val __m = __v
         _output__.writeTag(101, 2)
+        _output__.writeUInt32NoTag(__m.serializedSize)
+        __m.writeTo(_output__)
+      };
+      sealedValue.noOp.foreach { __v =>
+        val __m = __v
+        _output__.writeTag(9999, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
@@ -308,12 +308,12 @@ final case class ControlCommandV2Message(
     def withEvaluateExpression(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(__v))
     def getQuerySelfWorkloadMetrics: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2 = sealedValue.querySelfWorkloadMetrics.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2.defaultInstance)
     def withQuerySelfWorkloadMetrics(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(__v))
-    def getBackpressure: edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2 = sealedValue.backpressure.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2.defaultInstance)
-    def withBackpressure(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Backpressure(__v))
     def getWorkerDebugCommand: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2 = sealedValue.workerDebugCommand.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2.defaultInstance)
     def withWorkerDebugCommand(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerDebugCommand(__v))
     def getWorkerExecutionCompleted: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 = sealedValue.workerExecutionCompleted.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2.defaultInstance)
     def withWorkerExecutionCompleted(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__v))
+    def getNoOp: edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2 = sealedValue.noOp.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2.defaultInstance)
+    def withNoOp(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.NoOp(__v))
     def clearSealedValue: ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
     def withSealedValue(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue): ControlCommandV2Message = copy(sealedValue = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
@@ -334,9 +334,9 @@ final case class ControlCommandV2Message(
         case 24 => sealedValue.replayCurrentTuple.orNull
         case 25 => sealedValue.evaluateExpression.orNull
         case 41 => sealedValue.querySelfWorkloadMetrics.orNull
-        case 51 => sealedValue.backpressure.orNull
         case 81 => sealedValue.workerDebugCommand.orNull
         case 101 => sealedValue.workerExecutionCompleted.orNull
+        case 9999 => sealedValue.noOp.orNull
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -358,9 +358,9 @@ final case class ControlCommandV2Message(
         case 24 => sealedValue.replayCurrentTuple.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 25 => sealedValue.evaluateExpression.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 41 => sealedValue.querySelfWorkloadMetrics.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 51 => sealedValue.backpressure.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 81 => sealedValue.workerDebugCommand.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 101 => sealedValue.workerExecutionCompleted.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 9999 => sealedValue.noOp.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -410,12 +410,12 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(__sealedValue.evaluateExpression.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 330 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(__sealedValue.querySelfWorkloadMetrics.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 410 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Backpressure(__sealedValue.backpressure.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 650 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerDebugCommand(__sealedValue.workerDebugCommand.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 810 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(__sealedValue.workerExecutionCompleted.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 79994 =>
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.NoOp(__sealedValue.noOp.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
@@ -443,9 +443,9 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(24).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(25).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(41).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(51).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Backpressure(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(81).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerDebugCommand(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(101).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(9999).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.NoOp(_)))
             .getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -471,9 +471,9 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       case 24 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2
       case 25 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2
       case 41 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2
-      case 51 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2
       case 81 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2
       case 101 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2
+      case 9999 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2
     }
     __out
   }
@@ -501,9 +501,9 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def isReplayCurrentTuple: _root_.scala.Boolean = false
     def isEvaluateExpression: _root_.scala.Boolean = false
     def isQuerySelfWorkloadMetrics: _root_.scala.Boolean = false
-    def isBackpressure: _root_.scala.Boolean = false
     def isWorkerDebugCommand: _root_.scala.Boolean = false
     def isWorkerExecutionCompleted: _root_.scala.Boolean = false
+    def isNoOp: _root_.scala.Boolean = false
     def startWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.StartWorkerV2] = _root_.scala.None
     def pauseWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PauseWorkerV2] = _root_.scala.None
     def resumeWorker: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ResumeWorkerV2] = _root_.scala.None
@@ -520,9 +520,9 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def replayCurrentTuple: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2] = _root_.scala.None
     def evaluateExpression: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2] = _root_.scala.None
     def querySelfWorkloadMetrics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] = _root_.scala.None
-    def backpressure: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2] = _root_.scala.None
     def workerDebugCommand: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2] = _root_.scala.None
     def workerExecutionCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = _root_.scala.None
+    def noOp: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2] = _root_.scala.None
   }
   object SealedValue {
     @SerialVersionUID(0L)
@@ -647,13 +647,6 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 41
     }
     @SerialVersionUID(0L)
-    final case class Backpressure(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2
-      override def isBackpressure: _root_.scala.Boolean = true
-      override def backpressure: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2] = Some(value)
-      override def number: _root_.scala.Int = 51
-    }
-    @SerialVersionUID(0L)
     final case class WorkerDebugCommand(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
       type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2
       override def isWorkerDebugCommand: _root_.scala.Boolean = true
@@ -666,6 +659,13 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def isWorkerExecutionCompleted: _root_.scala.Boolean = true
       override def workerExecutionCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = Some(value)
       override def number: _root_.scala.Int = 101
+    }
+    @SerialVersionUID(0L)
+    final case class NoOp(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2
+      override def isNoOp: _root_.scala.Boolean = true
+      override def noOp: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2] = Some(value)
+      override def number: _root_.scala.Int = 9999
     }
   }
   implicit class ControlCommandV2MessageLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message](_l) {
@@ -685,9 +685,9 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def replayCurrentTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2] = field(_.getReplayCurrentTuple)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(f_)))
     def evaluateExpression: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2] = field(_.getEvaluateExpression)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(f_)))
     def querySelfWorkloadMetrics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2] = field(_.getQuerySelfWorkloadMetrics)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QuerySelfWorkloadMetrics(f_)))
-    def backpressure: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2] = field(_.getBackpressure)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.Backpressure(f_)))
     def workerDebugCommand: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerDebugCommandV2] = field(_.getWorkerDebugCommand)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerDebugCommand(f_)))
     def workerExecutionCompleted: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2] = field(_.getWorkerExecutionCompleted)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.WorkerExecutionCompleted(f_)))
+    def noOp: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2] = field(_.getNoOp)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.NoOp(f_)))
     def sealedValue: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue] = field(_.sealedValue)((c_, f_) => c_.copy(sealedValue = f_))
   }
   final val START_WORKER_FIELD_NUMBER = 1
@@ -706,9 +706,9 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
   final val REPLAY_CURRENT_TUPLE_FIELD_NUMBER = 24
   final val EVALUATE_EXPRESSION_FIELD_NUMBER = 25
   final val QUERY_SELF_WORKLOAD_METRICS_FIELD_NUMBER = 41
-  final val BACKPRESSURE_FIELD_NUMBER = 51
   final val WORKER_DEBUG_COMMAND_FIELD_NUMBER = 81
   final val WORKER_EXECUTION_COMPLETED_FIELD_NUMBER = 101
+  final val NO_OP_FIELD_NUMBER = 9999
   def of(
     sealedValue: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message(
@@ -751,8 +751,8 @@ object StartWorkerV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(1)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(1)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -800,8 +800,8 @@ object PauseWorkerV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(1)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(1)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(2)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(2)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -849,8 +849,8 @@ object ResumeWorkerV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(2)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(2)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(3)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(3)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -866,7 +866,7 @@ object ResumeWorkerV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
 
 @SerialVersionUID(0L)
 final case class AddPartitioningV2(
-    tag: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
+    tag: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity,
     partitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[AddPartitioningV2] {
     @transient
@@ -876,7 +876,7 @@ final case class AddPartitioningV2(
       
       {
         val __value = tag
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -900,7 +900,7 @@ final case class AddPartitioningV2(
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = tag
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -915,13 +915,13 @@ final case class AddPartitioningV2(
         }
       };
     }
-    def withTag(__v: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity): AddPartitioningV2 = copy(tag = __v)
+    def withTag(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity): AddPartitioningV2 = copy(tag = __v)
     def withPartitioning(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning): AddPartitioningV2 = copy(partitioning = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = tag
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) __t else null
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) __t else null
         }
         case 2 => {
           val __t = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toBase(partitioning)
@@ -944,7 +944,7 @@ final case class AddPartitioningV2(
 object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = {
-    var __tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = _root_.scala.None
+    var __tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = _root_.scala.None
     var __partitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
@@ -952,14 +952,14 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __tag = _root_.scala.Some(__tag.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __tag = _root_.scala.Some(__tag.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __partitioning = _root_.scala.Some(__partitioning.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
-        tag = __tag.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance),
+        tag = __tag.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance),
         partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toCustom(__partitioning.getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance))
     )
   }
@@ -967,17 +967,17 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
-        tag = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance),
+        tag = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance),
         partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage]).getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance))
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(6)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(6)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(7)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(7)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
       case 2 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage
     }
     __out
@@ -985,11 +985,11 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
-    tag = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance,
+    tag = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance,
     partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toCustom(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance)
   )
   implicit class AddPartitioningV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2](_l) {
-    def tag: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = field(_.tag)((c_, f_) => c_.copy(tag = f_))
+    def tag: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = field(_.tag)((c_, f_) => c_.copy(tag = f_))
     def partitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning] = field(_.partitioning)((c_, f_) => c_.copy(partitioning = f_))
   }
   final val TAG_FIELD_NUMBER = 1
@@ -997,7 +997,7 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
   @transient
   private[controlcommands] val _typemapper_partitioning: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning]]
   def of(
-    tag: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity,
+    tag: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity,
     partitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
     tag,
@@ -1009,7 +1009,7 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
 @SerialVersionUID(0L)
 final case class UpdateInputLinkingV2(
     identifier: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
-    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[UpdateInputLinkingV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -1025,7 +1025,7 @@ final case class UpdateInputLinkingV2(
       
       {
         val __value = inputLink
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -1050,7 +1050,7 @@ final case class UpdateInputLinkingV2(
       };
       {
         val __v = inputLink
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -1058,7 +1058,7 @@ final case class UpdateInputLinkingV2(
       };
     }
     def withIdentifier(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): UpdateInputLinkingV2 = copy(identifier = __v)
-    def withInputLink(__v: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity): UpdateInputLinkingV2 = copy(inputLink = __v)
+    def withInputLink(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity): UpdateInputLinkingV2 = copy(inputLink = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -1067,7 +1067,7 @@ final case class UpdateInputLinkingV2(
         }
         case 2 => {
           val __t = inputLink
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) __t else null
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) __t else null
         }
       }
     }
@@ -1087,7 +1087,7 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 = {
     var __identifier: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
-    var __inputLink: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = _root_.scala.None
+    var __inputLink: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -1096,13 +1096,13 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
         case 10 =>
           __identifier = _root_.scala.Some(__identifier.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __inputLink = _root_.scala.Some(__inputLink.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __inputLink = _root_.scala.Some(__inputLink.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
         identifier = __identifier.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
-        inputLink = __inputLink.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance)
+        inputLink = __inputLink.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = _root_.scalapb.descriptors.Reads{
@@ -1110,17 +1110,17 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
         identifier = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
-        inputLink = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance)
+        inputLink = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(5)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(5)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(6)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(6)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
       case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
     }
     __out
   }
@@ -1128,17 +1128,17 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
     identifier = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance,
-    inputLink = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance
+    inputLink = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance
   )
   implicit class UpdateInputLinkingV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2](_l) {
     def identifier: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.identifier)((c_, f_) => c_.copy(identifier = f_))
-    def inputLink: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = field(_.inputLink)((c_, f_) => c_.copy(inputLink = f_))
+    def inputLink: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = field(_.inputLink)((c_, f_) => c_.copy(inputLink = f_))
   }
   final val IDENTIFIER_FIELD_NUMBER = 1
   final val INPUT_LINK_FIELD_NUMBER = 2
   def of(
     identifier: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
-    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
     identifier,
     inputLink
@@ -1180,8 +1180,8 @@ object QueryStatisticsV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(8)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(8)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(9)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(9)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -1229,8 +1229,8 @@ object QueryCurrentInputTupleV2 extends scalapb.GeneratedMessageCompanion[edu.uc
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(9)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(9)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(10)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(10)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -1278,8 +1278,8 @@ object OpenOperatorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(4)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(4)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(5)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(5)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -1295,7 +1295,7 @@ object OpenOperatorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
 
 @SerialVersionUID(0L)
 final case class LinkCompletedV2(
-    linkId: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+    linkId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[LinkCompletedV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -1304,7 +1304,7 @@ final case class LinkCompletedV2(
       
       {
         val __value = linkId
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -1321,19 +1321,19 @@ final case class LinkCompletedV2(
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = linkId
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) {
+        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
         }
       };
     }
-    def withLinkId(__v: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity): LinkCompletedV2 = copy(linkId = __v)
+    def withLinkId(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity): LinkCompletedV2 = copy(linkId = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = linkId
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance) __t else null
+          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) __t else null
         }
       }
     }
@@ -1351,49 +1351,49 @@ final case class LinkCompletedV2(
 object LinkCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 = {
-    var __linkId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = _root_.scala.None
+    var __linkId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __linkId = _root_.scala.Some(__linkId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __linkId = _root_.scala.Some(__linkId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-        linkId = __linkId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance)
+        linkId = __linkId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-        linkId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance)
+        linkId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(19)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(19)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(20)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(20)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-    linkId = edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity.defaultInstance
+    linkId = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance
   )
   implicit class LinkCompletedV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2](_l) {
-    def linkId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity] = field(_.linkId)((c_, f_) => c_.copy(linkId = f_))
+    def linkId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = field(_.linkId)((c_, f_) => c_.copy(linkId = f_))
   }
   final val LINK_ID_FIELD_NUMBER = 1
   def of(
-    linkId: edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+    linkId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
     linkId
   )
@@ -1479,8 +1479,8 @@ object SchedulerTimeSlotEventV2 extends scalapb.GeneratedMessageCompanion[edu.uc
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(3)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(3)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(4)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(4)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -1669,8 +1669,8 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(11)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(11)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(12)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(12)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -1958,8 +1958,8 @@ object ModifyOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.i
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(12)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(12)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(13)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(13)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -2064,8 +2064,8 @@ object PythonConsoleMessageV2 extends scalapb.GeneratedMessageCompanion[edu.uci.
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(15)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(15)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(16)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(16)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
@@ -2124,8 +2124,8 @@ object ReplayCurrentTupleV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(13)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(13)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(14)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(14)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -2218,8 +2218,8 @@ object EvaluateExpressionV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(16)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(16)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(17)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(17)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -2272,8 +2272,8 @@ object QuerySelfWorkloadMetricsV2 extends scalapb.GeneratedMessageCompanion[edu.
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(18)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(18)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(19)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(19)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -2285,105 +2285,6 @@ object QuerySelfWorkloadMetricsV2 extends scalapb.GeneratedMessageCompanion[edu.
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.QuerySelfWorkloadMetricsV2(
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.QuerySelfWorkloadMetricsV2])
-}
-
-@SerialVersionUID(0L)
-final case class BackpressureV2(
-    enableBackpressure: _root_.scala.Boolean
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[BackpressureV2] {
-    @transient
-    private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-    private[this] def __computeSerializedValue(): _root_.scala.Int = {
-      var __size = 0
-      
-      {
-        val __value = enableBackpressure
-        if (__value != false) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(1, __value)
-        }
-      };
-      __size
-    }
-    override def serializedSize: _root_.scala.Int = {
-      var read = __serializedSizeCachedValue
-      if (read == 0) {
-        read = __computeSerializedValue()
-        __serializedSizeCachedValue = read
-      }
-      read
-    }
-    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = enableBackpressure
-        if (__v != false) {
-          _output__.writeBool(1, __v)
-        }
-      };
-    }
-    def withEnableBackpressure(__v: _root_.scala.Boolean): BackpressureV2 = copy(enableBackpressure = __v)
-    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-      (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = enableBackpressure
-          if (__t != false) __t else null
-        }
-      }
-    }
-    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-      _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-      (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PBoolean(enableBackpressure)
-      }
-    }
-    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.BackpressureV2])
-}
-
-object BackpressureV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2 = {
-    var __enableBackpressure: _root_.scala.Boolean = false
-    var _done__ = false
-    while (!_done__) {
-      val _tag__ = _input__.readTag()
-      _tag__ match {
-        case 0 => _done__ = true
-        case 8 =>
-          __enableBackpressure = _input__.readBool()
-        case tag => _input__.skipField(tag)
-      }
-    }
-    edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2(
-        enableBackpressure = __enableBackpressure
-    )
-  }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2] = _root_.scalapb.descriptors.Reads{
-    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2(
-        enableBackpressure = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
-      )
-    case _ => throw new RuntimeException("Expected PMessage")
-  }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(20)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(20)
-  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2(
-    enableBackpressure = false
-  )
-  implicit class BackpressureV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2](_l) {
-    def enableBackpressure: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.enableBackpressure)((c_, f_) => c_.copy(enableBackpressure = f_))
-  }
-  final val ENABLE_BACKPRESSURE_FIELD_NUMBER = 1
-  def of(
-    enableBackpressure: _root_.scala.Boolean
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.BackpressureV2(
-    enableBackpressure
-  )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.BackpressureV2])
 }
 
 @SerialVersionUID(0L)
@@ -2465,8 +2366,8 @@ object WorkerDebugCommandV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(17)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(17)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(18)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(18)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -2519,8 +2420,8 @@ object WorkerExecutionCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(7)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(7)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(8)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(8)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
@@ -2532,4 +2433,53 @@ object WorkerExecutionCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.WorkerExecutionCompletedV2(
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.WorkerExecutionCompletedV2])
+}
+
+@SerialVersionUID(0L)
+final case class NoOpV2(
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[NoOpV2] {
+    final override def serializedSize: _root_.scala.Int = 0
+    def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
+    }
+    def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
+    def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
+    def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.NoOpV2])
+}
+
+object NoOpV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2 = {
+    var _done__ = false
+    while (!_done__) {
+      val _tag__ = _input__.readTag()
+      _tag__ match {
+        case 0 => _done__ = true
+        case tag => _input__.skipField(tag)
+      }
+    }
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2(
+    )
+  }
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2] = _root_.scalapb.descriptors.Reads{
+    case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
+      _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2(
+      )
+    case _ => throw new RuntimeException("Expected PMessage")
+  }
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = ControlcommandsProto.javaDescriptor.getMessageTypes().get(0)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = ControlcommandsProto.scalaDescriptor.messages(0)
+  def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2(
+  )
+  implicit class NoOpV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2](_l) {
+  }
+  def of(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.NoOpV2(
+  )
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.NoOpV2])
 }

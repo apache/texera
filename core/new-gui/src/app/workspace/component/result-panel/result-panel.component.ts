@@ -11,9 +11,7 @@ import { VisualizationFrameComponent } from "./visualization-frame/visualization
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
-import { DebuggerFrameComponent } from "./debugger-frame/debugger-frame.component";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
-import { environment } from "../../../../environments/environment";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
@@ -22,8 +20,7 @@ export type ResultFrameComponent =
   | ResultTableFrameComponent
   | ErrorFrameComponent
   | VisualizationFrameComponent
-  | ConsoleFrameComponent
-  | DebuggerFrameComponent;
+  | ConsoleFrameComponent;
 
 export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameComponent>;
 
@@ -171,6 +168,8 @@ export class ResultPanelComponent implements OnInit {
         const errorMessages = this.executeWorkflowService.getErrorMessages();
         if (errorMessages.filter(msg => msg.operatorId === this.currentOperatorId).length > 0) {
           this.displayError(this.currentOperatorId);
+        } else {
+          this.frameComponentConfigs.delete("Static Error");
         }
       }
     } else {
@@ -188,9 +187,6 @@ export class ResultPanelComponent implements OnInit {
       const operator = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
       if (this.workflowConsoleService.hasConsoleMessages(this.currentOperatorId) || isPythonUdf(operator)) {
         this.displayConsole(this.currentOperatorId, isPythonUdf(operator));
-      }
-      if (environment.debuggerEnabled && this.hasErrorOrBreakpoint()) {
-        this.displayDebugger(this.currentOperatorId);
       }
     }
   }
@@ -214,13 +210,6 @@ export class ResultPanelComponent implements OnInit {
   displayError(operatorId: string | undefined) {
     this.frameComponentConfigs.set("Static Error", {
       component: ErrorFrameComponent,
-      componentInputs: { operatorId },
-    });
-  }
-
-  displayDebugger(operatorId: string) {
-    this.frameComponentConfigs.set("Debugger", {
-      component: DebuggerFrameComponent,
       componentInputs: { operatorId },
     });
   }

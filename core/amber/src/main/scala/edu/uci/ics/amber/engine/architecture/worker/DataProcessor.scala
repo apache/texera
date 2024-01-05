@@ -2,13 +2,16 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{WorkerTimerService, OutputManager}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
   DPOutputIterator,
   FinalizeLink,
@@ -34,8 +37,8 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
@@ -53,7 +56,7 @@ object DataProcessor {
 
     override def inMemSize: Long = 0
   }
-  case class FinalizeLink(link: LinkIdentity) extends SpecialDataTuple
+  case class FinalizeLink(link: PhysicalLinkIdentity) extends SpecialDataTuple
   case class FinalizeOperator() extends SpecialDataTuple
 
   class DPOutputIterator extends Iterator[(ITuple, Option[Int])] {
@@ -87,22 +90,35 @@ object DataProcessor {
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
-    @transient var workerIdx: Int,
-    @transient var operator: IOperatorExecutor,
-    @transient var opConf: OpExecConfig,
     outputHandler: WorkflowFIFOMessage => Unit
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
-  def overwriteOperator(
+  @transient var workerIdx: Int = 0
+  @transient var physicalOp: PhysicalOp = _
+  @transient var operator: IOperatorExecutor = _
+
+  def initOperator(
       workerIdx: Int,
-      opConf: OpExecConfig,
-      op: IOperatorExecutor,
+      physicalOp: PhysicalOp,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
-    this.operator = op
-    this.opConf = opConf
+    this.operator = physicalOp.opExecInitInfo match {
+      case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen((workerIdx, physicalOp))
+    }
+    this.physicalOp = physicalOp
+    this.upstreamLinkStatus.setAllUpstreamLinkIds(
+      if (physicalOp.isSourceOperator) {
+        Set(
+          PhysicalLinkIdentity(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
+        ) // special case for source operator
+      } else {
+        physicalOp.getAllInputLinks.map(_.id).toSet
+      }
+    )
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }
 
@@ -111,14 +127,15 @@ class DataProcessor(
   var operatorOpened: Boolean = false
   var inputBatch: Array[ITuple] = _
   var currentInputIdx: Int = -1
+  var currentBatchChannel: ChannelID = _
 
-  def InitTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
+  def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
   }
 
   @transient var adaptiveBatchingMonitor: WorkerTimerService = _
 
-  def getOperatorId: LayerIdentity = VirtualIdentityUtils.getOperator(actorId)
+  def getOperatorId: PhysicalOpIdentity = VirtualIdentityUtils.getPhysicalOpId(actorId)
   def getWorkerIndex: Int = VirtualIdentityUtils.getWorkerIndex(actorId)
 
   // inner dependencies
@@ -137,13 +154,11 @@ class DataProcessor(
   // 6. epoch manager
   val epochManager: EpochManager = new EpochManager()
 
-  private var currentBatchChannel: ChannelID = _
-
   // dp thread stats:
   protected var inputTupleCount = 0L
   protected var outputTupleCount = 0L
 
-  def registerInput(identifier: ActorVirtualIdentity, input: LinkIdentity): Unit = {
+  def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLinkIdentity): Unit = {
     upstreamLinkStatus.registerInput(identifier, input)
   }
 
@@ -152,17 +167,16 @@ class DataProcessor(
   }
 
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
-    val inputLink = upstreamLinkStatus.getInputLink(identifier)
-    if (inputLink.from == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!opConf.inputToOrdinalMapping.contains(inputLink)) 0
-    else opConf.inputToOrdinalMapping(inputLink)
+    val inputLinkId = upstreamLinkStatus.getInputLinkId(identifier)
+    if (inputLinkId.from == SOURCE_STARTER_OP) 0 // special case for source operator
+    else if (!physicalOp.getAllInputLinks.map(_.id).contains(inputLinkId)) 0
+    else physicalOp.getPortIdxForInputLinkId(inputLinkId)
   }
 
-  def getOutputLinkByPort(outputPort: Option[Int]): List[LinkIdentity] = {
-    if (outputPort.isEmpty) {
-      opConf.outputToOrdinalMapping.keySet.toList
-    } else {
-      opConf.outputToOrdinalMapping.filter(p => p._2 == outputPort.get).keys.toList
+  def getOutputLinkByPort(outputPort: Option[Int]): List[PhysicalLink] = {
+    outputPort match {
+      case Some(port) => physicalOp.getLinksOnOutputPort(port)
+      case None       => physicalOp.getAllOutputLinks
     }
   }
 
@@ -233,14 +247,14 @@ class DataProcessor(
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
         logger.info(
-          s"$operator completed at step = ${cursor.getStep} outputted = $outputTupleCount"
+          s"$operator completed, outputted = $outputTupleCount"
         )
         operator.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizeLink(link) =>
-        logger.info(s"process FinalizeLink message at step = ${cursor.getStep}")
+        logger.info(s"process FinalizeLink message")
         if (link != null && link.from != SOURCE_STARTER_OP) {
           asyncRPCClient.send(LinkCompleted(link), CONTROLLER)
         }
@@ -253,7 +267,7 @@ class DataProcessor(
           outputTupleCount += 1
           // println(s"send output $outputTuple at step $totalValidStep")
           val outLinks = getOutputLinkByPort(outputPortOpt)
-          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
+          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link.id))
         }
     }
   }
@@ -306,19 +320,19 @@ class DataProcessor(
         initBatch(channel, tuples)
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
-        val currentLink = upstreamLinkStatus.getInputLink(channel.from)
+        val currentLink = upstreamLinkStatus.getInputLinkId(channel.from)
         upstreamLinkStatus.markWorkerEOF(channel.from)
         if (upstreamLinkStatus.isLinkEOF(currentLink)) {
           initBatch(channel, Array.empty)
           processInputTuple(Right(InputExhausted()))
           logger.info(
-            s"$currentLink completed, append FinalizeLink message at step = ${cursor.getStep}"
+            s"$currentLink completed, append FinalizeLink message"
           )
           outputIterator.appendSpecialTupleToEnd(FinalizeLink(currentLink))
         }
         if (upstreamLinkStatus.isAllEOF) {
           logger.info(
-            s"operator completed, append FinalizeOperator message at step = ${cursor.getStep}"
+            s"operator completed, append FinalizeOperator message"
           )
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
