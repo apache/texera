@@ -111,7 +111,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .withInputPorts(opInfo.inputPorts)
         .withOutputPorts(opInfo.outputPorts)
         .withIsOneToManyOp(true)
-        .withParallelizable(true)
+        .withParallelizable(false)
         .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
