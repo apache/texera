@@ -3,9 +3,19 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  ChannelConfig,
+  RegionConfig,
+  WorkerConfig
+}
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -297,28 +307,55 @@ class ExpansionGreedyRegionPlanGenerator(
   private def populateRegionConfigs(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): DirectedAcyclicGraph[Region, RegionLink] = {
+
+    def getWorkerConfigs(physicalOp: PhysicalOp) = {
+      val workerCount =
+        if (physicalOp.suggestedWorkerNum.isDefined) {
+          physicalOp.suggestedWorkerNum.get
+        } else if (physicalOp.parallelizable) {
+          AmberConfig.numWorkerPerOperatorByDefault
+        } else {
+          1
+        }
+
+      physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
+    }
+
+    val regionToWorkerConfigs = regionDAG
+      .vertexSet()
+      .toList
+      .map(region => {
+        val opToWorkerConfigsMapping = region.getEffectiveOperators
+          .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+          .map(physicalOp => getWorkerConfigs(physicalOp))
+          .toMap
+        region.id -> opToWorkerConfigsMapping
+      })
+      .toMap
+
+    regionToWorkerConfigs.values.foreach { opToWorkerConfigsMapping =>
+      opToWorkerConfigsMapping.toList.foreach {
+        case (physicalOpId, workerConfigs) =>
+          physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
+      }
+
+    }
+
+    val partitionings: Map[PhysicalLinkIdentity, List[(Partitioning, List[ActorVirtualIdentity])]] =
+      physicalPlan.generateLinkPartitionings()
+    val channelConfigs = partitionings.map(e => e._1 -> e._2.map(a => ChannelConfig(a)))
+
     regionDAG
       .vertexSet()
       .toList
       .foreach(region => {
+        val opToWorkerConfigsMapping = regionToWorkerConfigs(region.id)
+        val linkToChannelConfigsMapping = region.getEffectiveLinks.map { physicalLinkId =>
+          physicalLinkId -> channelConfigs(physicalLinkId)
+        }.toMap
         val config = RegionConfig(
-          region.getEffectiveOperators
-            .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-            .map { physicalOp =>
-              {
-                val workerCount =
-                  if (physicalOp.suggestedWorkerNum.isDefined) {
-                    physicalOp.suggestedWorkerNum.get
-                  } else if (physicalOp.parallelizable) {
-                    AmberConfig.numWorkerPerOperatorByDefault
-                  } else {
-                    1
-                  }
-
-                physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
-              }
-            }
-            .toMap
+          opToWorkerConfigsMapping,
+          linkToChannelConfigsMapping
         )
         val newRegion = region.copy(config = Some(config))
         replaceVertex(regionDAG, region, newRegion)
@@ -329,14 +366,6 @@ class ExpansionGreedyRegionPlanGenerator(
   def generate(context: WorkflowContext): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG(context)
-
-    regionDAG.toList.foreach(region =>
-      region.config.get.workerConfigs.foreach {
-        case (physicalOpId, workerConfigs) =>
-          physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
-      }
-    )
-    physicalPlan = physicalPlan.populatePartitioningOnLinks()
 
     (
       RegionPlan(

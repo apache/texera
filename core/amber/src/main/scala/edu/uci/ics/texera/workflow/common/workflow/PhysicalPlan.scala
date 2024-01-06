@@ -1,8 +1,12 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink.infoToPartitionings
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
+  OneToOnePartitioning,
+  Partitioning
+}
 import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -255,8 +259,10 @@ case class PhysicalPlan(
     * that of the downstream, and their number of workers are equal, then the partitioning
     * on this link can be optimized to OneToOne.
     */
-  def populatePartitioningOnLinks(): PhysicalPlan = {
-    val createdLinks = new mutable.ArrayBuffer[PhysicalLink]()
+  def generateLinkPartitionings()
+      : Map[PhysicalLinkIdentity, List[(Partitioning, List[ActorVirtualIdentity])]] = {
+    val createdPartitionings =
+      new mutable.HashMap[PhysicalLinkIdentity, List[(Partitioning, List[ActorVirtualIdentity])]]()
     // a map of an operator to its output partition info
     val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
 
@@ -268,7 +274,11 @@ case class PhysicalPlan(
           physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
         } else {
           val inputPartitionings =
-            enforcePartitionRequirement(physicalOp, outputPartitionInfos.toMap, createdLinks)
+            enforcePartitionRequirement(
+              physicalOp,
+              outputPartitionInfos.toMap,
+              createdPartitionings
+            )
           assert(inputPartitionings.length == physicalOp.inputPorts.size)
           // derive the output partition info of this operator
           physicalOp.derivePartition(inputPartitionings.toList)
@@ -276,44 +286,40 @@ case class PhysicalPlan(
         outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
       })
 
-    // returns the complete physical plan with link strategies
-    this.copy(operators, createdLinks.toSet)
+    createdPartitionings.toMap
+
   }
 
   private def enforcePartitionRequirement(
       physicalOp: PhysicalOp,
       partitionInfos: Map[PhysicalOpIdentity, PartitionInfo],
-      links: mutable.ArrayBuffer[PhysicalLink]
+      createdPartitionings: mutable.HashMap[PhysicalLinkIdentity, List[
+        (Partitioning, List[ActorVirtualIdentity])
+      ]]
   ): Array[PartitionInfo] = {
     // for each input port, enforce partition requirement
+
+    // the output partition info of each link connected from each input PhysicalOp
+    // for each input PhysicalOp connected on this port
+    // check partition requirement to enforce corresponding LinkStrategy
+
     physicalOp.inputPorts.indices
-      .map(port => {
-        // all input PhysicalOpIds connected to this port
-        val inputPhysicalOps = physicalOp.getOpsOnInputPort(port)
-
-        val fromPort = getUpstreamPhysicalLinkIds(physicalOp.id).head.fromPort
-
-        // the output partition info of each link connected from each input PhysicalOp
-        // for each input PhysicalOp connected on this port
-        // check partition requirement to enforce corresponding LinkStrategy
-        val outputPartitions = inputPhysicalOps.map(inputPhysicalOp => {
-          val inputPartitionInfo = partitionInfos(inputPhysicalOp.id)
-          val (physicalLink, outputPart) =
-            getOutputPartitionInfo(
-              inputPhysicalOp.id,
-              fromPort,
-              physicalOp.id,
-              port,
-              inputPartitionInfo
-            )
-          links.append(physicalLink)
-          outputPart
-        })
-
-        assert(outputPartitions.size == inputPhysicalOps.size)
-
-        outputPartitions.reduce((a, b) => a.merge(b))
+      .flatMap(port => physicalOp.getLinksOnInputPort(port))
+      .map(link => {
+        val inputPartitionInfo = partitionInfos(link.fromOp.id)
+        val (partitionings, outputPart) =
+          getOutputPartitionInfo(
+            link.fromOp.id,
+            link.fromPort,
+            link.toOp.id,
+            link.toPort,
+            inputPartitionInfo
+          )
+        createdPartitionings(link.id) = partitionings
+        (link.toPort, outputPart)
       })
+      .groupBy(e => e._1)
+      .map(x => x._2.map(_._2).reduce((a, b) => a.merge(b)))
       .toArray
   }
 
@@ -323,7 +329,7 @@ case class PhysicalPlan(
       toPhysicalOpId: PhysicalOpIdentity,
       inputPort: Int,
       upstreamPartitionInfo: PartitionInfo
-  ): (PhysicalLink, PartitionInfo) = {
+  ): (List[(Partitioning, List[ActorVirtualIdentity])], PartitionInfo) = {
     val toPhysicalOp = getOperator(toPhysicalOpId)
     val fromPhysicalOp = getOperator(fromPhysicalOpId)
 
@@ -340,34 +346,25 @@ case class PhysicalPlan(
         requiredPartitionInfo
       ) && fromPhysicalOp.getWorkerIds.length == toPhysicalOp.getWorkerIds.length
     ) {
-      val physicalLink = new PhysicalLink(
-        fromPhysicalOp,
-        fromPort,
-        toPhysicalOp,
-        inputPort,
-        partitionings = fromPhysicalOp.getWorkerIds.indices
-          .map(i =>
-            (
-              OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getWorkerIds(i))),
-              List(toPhysicalOp.getWorkerIds(i))
-            )
+
+      val partitionings = fromPhysicalOp.getWorkerIds.indices
+        .map(i =>
+          (
+            OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getWorkerIds(i))),
+            List(toPhysicalOp.getWorkerIds(i))
           )
-          .toList
-      )
+        )
+        .toList
+
       val outputPart = upstreamPartitionInfo
-      (physicalLink, outputPart)
+      (partitionings, outputPart)
     } else {
       // we must re-distribute the input partitions
-      val physicalLink =
-        PhysicalLink(
-          fromPhysicalOp,
-          fromPort,
-          toPhysicalOp,
-          inputPort,
-          requiredPartitionInfo
-        )
+
+      val partitionings: List[(Partitioning, List[ActorVirtualIdentity])] =
+        infoToPartitionings(fromPhysicalOp, toPhysicalOp, requiredPartitionInfo)
       val outputPart = requiredPartitionInfo
-      (physicalLink, outputPart)
+      (partitionings, outputPart)
     }
   }
 

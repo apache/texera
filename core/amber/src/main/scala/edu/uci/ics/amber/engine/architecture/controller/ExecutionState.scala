@@ -14,7 +14,15 @@ class ExecutionState(workflow: Workflow) {
 
   private val linkExecutions: Map[PhysicalLinkIdentity, LinkExecution] =
     workflow.physicalPlan.links.map { link =>
-      link.id -> new LinkExecution(link.totalReceiversCount)
+      link.id -> new LinkExecution(
+        workflow.regionPlan.regions
+          .find(region => region.getEffectiveLinks.contains(link.id))
+          .get
+          .config
+          .get
+          .channelConfigs(link.id)
+          .length
+      )
     }.toMap
   private val operatorExecutions: Map[PhysicalOpIdentity, OperatorExecution] =
     workflow.physicalPlan.operators.map { physicalOp =>

@@ -20,28 +20,12 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 }
 
 object PhysicalLink {
-  def apply(
+  def infoToPartitionings(
       fromPhysicalOp: PhysicalOp,
-      fromPort: Int,
       toPhysicalOp: PhysicalOp,
-      inputPort: Int
-  ): PhysicalLink = {
-    new PhysicalLink(
-      fromPhysicalOp,
-      fromPort,
-      toPhysicalOp,
-      inputPort,
-      List()
-    )
-  }
-  def apply(
-      fromPhysicalOp: PhysicalOp,
-      fromPort: Int,
-      toPhysicalOp: PhysicalOp,
-      inputPort: Int,
-      partitionInfo: PartitionInfo
-  ): PhysicalLink = {
-    val partitionings: List[(Partitioning, List[ActorVirtualIdentity])] = partitionInfo match {
+      info: PartitionInfo
+  ): List[(Partitioning, List[ActorVirtualIdentity])] = {
+    info match {
       case HashPartition(hashColumnIndices) =>
         fromPhysicalOp.getWorkerIds
           .map(_ =>
@@ -102,13 +86,18 @@ object PhysicalLink {
         List()
 
     }
-
+  }
+  def apply(
+      fromPhysicalOp: PhysicalOp,
+      fromPort: Int,
+      toPhysicalOp: PhysicalOp,
+      inputPort: Int
+  ): PhysicalLink = {
     new PhysicalLink(
       fromPhysicalOp,
       fromPort,
       toPhysicalOp,
-      inputPort,
-      partitionings
+      inputPort
     )
   }
 }
@@ -118,11 +107,9 @@ class PhysicalLink(
     val fromPort: Int,
     @transient
     val toOp: PhysicalOp,
-    val toPort: Int,
-    val partitionings: List[(Partitioning, List[ActorVirtualIdentity])]
+    val toPort: Int
 ) extends Serializable {
 
   val id: PhysicalLinkIdentity = PhysicalLinkIdentity(fromOp.id, fromPort, toOp.id, toPort)
-  def totalReceiversCount: Long = partitionings.length
 
 }

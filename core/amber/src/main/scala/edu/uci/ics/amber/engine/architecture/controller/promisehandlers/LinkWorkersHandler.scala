@@ -22,7 +22,13 @@ trait LinkWorkersHandler {
 
   registerHandler { (msg: LinkWorkers, sender) =>
     {
-      val partitionings = cp.workflow.physicalPlan.getLink(msg.linkId).partitionings
+      val partitionings = cp.workflow.regionPlan
+        .getRegionOfPhysicalLink(msg.linkId)
+        .get
+        .config
+        .get
+        .channelConfigs(msg.linkId)
+        .map(config => config.partitioning)
       val senderWorkerIds = cp.workflow.physicalPlan.getOperator(msg.linkId.from).getWorkerIds
       val futures = senderWorkerIds
         .zip(partitionings)
