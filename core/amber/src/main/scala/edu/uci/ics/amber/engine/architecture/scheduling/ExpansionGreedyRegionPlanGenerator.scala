@@ -3,19 +3,12 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  ChannelConfig,
-  RegionConfig,
-  WorkerConfig
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{ChannelConfig, RegionConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -26,10 +19,7 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.{
-  `collection AsScalaIterable`,
-  `iterable AsScalaIterable`
-}
+import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `iterable AsScalaIterable`}
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
@@ -308,37 +298,24 @@ class ExpansionGreedyRegionPlanGenerator(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): DirectedAcyclicGraph[Region, RegionLink] = {
 
-    def getWorkerConfigs(physicalOp: PhysicalOp) = {
-      val workerCount =
-        if (physicalOp.suggestedWorkerNum.isDefined) {
-          physicalOp.suggestedWorkerNum.get
-        } else if (physicalOp.parallelizable) {
-          AmberConfig.numWorkerPerOperatorByDefault
-        } else {
-          1
-        }
-
-      physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
-    }
-
     val regionToWorkerConfigs = regionDAG
       .vertexSet()
       .toList
       .map(region => {
         val opToWorkerConfigsMapping = region.getEffectiveOperators
           .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-          .map(physicalOp => getWorkerConfigs(physicalOp))
+          .map(physicalOp => generateWorkerConfigs(physicalOp))
           .toMap
         region.id -> opToWorkerConfigsMapping
       })
       .toMap
 
+    // assign workers to physical plan
     regionToWorkerConfigs.values.foreach { opToWorkerConfigsMapping =>
       opToWorkerConfigsMapping.toList.foreach {
         case (physicalOpId, workerConfigs) =>
           physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
       }
-
     }
 
     val partitionings: Map[PhysicalLinkIdentity, List[(Partitioning, List[ActorVirtualIdentity])]] =
