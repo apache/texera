@@ -14,6 +14,7 @@ import { AdminUserComponent } from "./dashboard/admin/component/user/admin-user.
 import { AdminExecutionComponent } from "./dashboard/admin/component/execution/admin-execution.component";
 import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service";
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
+import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
 import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 /*
  *  This file defines the url path
@@ -68,6 +69,10 @@ if (environment.userSystemEnabled) {
       {
         path: "search",
         component: SearchComponent,
+      },
+      {
+        path: "discussion",
+        component: FlarumComponent,
       },
       {
         path: "admin/user",

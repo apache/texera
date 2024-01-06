@@ -71,7 +71,7 @@ object PhysicalLink {
           )
 
       case SinglePartition() =>
-        assert(toPhysicalOp.parallelizable == false)
+        assert(!toPhysicalOp.parallelizable)
         fromPhysicalOp.getWorkerIds
           .map(_ =>
             (
