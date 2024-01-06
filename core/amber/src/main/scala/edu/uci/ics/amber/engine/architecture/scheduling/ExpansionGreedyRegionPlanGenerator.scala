@@ -5,9 +5,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, Phys
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   ExecutionClusterInfo,
-  ResourceAllocation
+  ResourceAllocator
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -70,6 +69,9 @@ class ExpansionGreedyRegionPlanGenerator(
     )
     with LazyLogging {
 
+  private def executionClusterInfo = new ExecutionClusterInfo()
+  private def resourceAllocation = new ResourceAllocator(physicalPlan, executionClusterInfo)
+
   /**
     * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
     * The links are to be added to the region DAG separately.
@@ -104,19 +106,7 @@ class ExpansionGreedyRegionPlanGenerator(
             physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
               .getDownstreamPhysicalLinkIds(operatorId)
           })
-          val region = Region(RegionIdentity((index + 1).toString), operatorIds, linkIds)
-
-          val resourceAllocation = new ResourceAllocation(region)
-          val executionClusterInfo = new ExecutionClusterInfo()
-          val (workers, _) = resourceAllocation.allocation(physicalPlan, executionClusterInfo)
-
-          region.physicalOpIds.zip(workers).foreach {
-            case (opId, workerNum) =>
-              val operator = physicalPlan.getOperator(opId)
-              operator.withSuggestedWorkerNum(workerNum)
-          }
-
-          region
+          Region(RegionIdentity((index + 1).toString), operatorIds, linkIds)
       }
   }
 
@@ -317,27 +307,7 @@ class ExpansionGreedyRegionPlanGenerator(
       .vertexSet()
       .toList
       .foreach(region => {
-        val config = RegionConfig(
-          region.getEffectiveOperators
-            .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-            .map { physicalOp =>
-              {
-                val workerCount =
-                  if (physicalOp.parallelizable) {
-                    if (physicalOp.suggestedWorkerNum.isDefined) {
-                      physicalOp.suggestedWorkerNum.get
-                    } else {
-                      AmberConfig.numWorkerPerOperatorByDefault
-                    }
-                  } else {
-                    1
-                  }
-                physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
-              }
-            }
-            .toMap
-        )
-        val newRegion = region.copy(config = Some(config))
+        val (newRegion, estimationCost) = resourceAllocation.allocate(region)
         replaceVertex(regionDAG, region, newRegion)
       })
     regionDAG
