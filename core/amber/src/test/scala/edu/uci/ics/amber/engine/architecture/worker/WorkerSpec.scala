@@ -7,8 +7,8 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
@@ -45,8 +45,8 @@ class WorkerSpec
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
-  private val identifier1 = ActorVirtualIdentity("worker-1")
-  private val identifier2 = ActorVirtualIdentity("worker-2")
+  private val identifier1 = ActorVirtualIdentity("Worker:WF1-operator-layer-1")
+  private val identifier2 = ActorVirtualIdentity("Worker:WF1-operator-layer-2")
 
   private val mockOpExecutor = new IOperatorExecutor {
     override def open(): Unit = println("opened!")
@@ -91,7 +91,6 @@ class WorkerSpec
       inputPortToLinkMapping = Map(0 -> List(mockLink)),
       outputPortToLinkMapping = Map(0 -> List(mockLink))
     )
-  private val workerIndex = 0
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
   private val mockOutputManager = mock[OutputManager]
@@ -115,9 +114,8 @@ class WorkerSpec
     TestActorRef(
       new WorkflowWorker(
         identifier1,
-        workerIndex,
         physicalOp,
-        WorkflowWorkerConfig(logStorageType = "none", replayTo = None)
+        WorkerConfig(logStorageType = "none", replayTo = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager
@@ -158,7 +156,7 @@ class WorkerSpec
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
-        ChannelID(identifier2, identifier1, false),
+        ChannelID(identifier2, identifier1, isControl = false),
         0,
         DataFrame(Array(ITuple(1)))
       )

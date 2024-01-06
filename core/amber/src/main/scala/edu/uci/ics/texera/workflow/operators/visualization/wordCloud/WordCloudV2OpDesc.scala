@@ -72,8 +72,6 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
        |""".stripMargin
   }
 
-  override def numWorkers() = 1
-
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
     val finalCode =
       s"""

@@ -71,7 +71,7 @@ class SortPartitionsOpDesc extends LogicalOp {
             p._1,
             domainMin,
             domainMax,
-            p._2.numWorkers
+            p._2.getWorkerIds.length
           )
         )
       )

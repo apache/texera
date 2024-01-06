@@ -6,7 +6,6 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.common.AmberConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
@@ -83,17 +82,14 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if (!allowedAttributeTypesNumbersOnly.contains(yType)) {
             throw new IllegalArgumentException(yColumn + " is not a number \n");
         }
-        int numWorkers = AmberConfig.numWorkerPerOperatorByDefault();
-        if (isGeometric) {
-            numWorkers = 1;
-        }
+
         return PhysicalOp.oneToOnePhysicalOp(
                     workflowId,
                     executionId,
                     this.operatorIdentifier(),
                     OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo))
                 )
-                .withIsOneToManyOp(true).withNumWorkers(numWorkers);
+                .withIsOneToManyOp(true).withParallelizable(!isGeometric);
     }
 
     @Override

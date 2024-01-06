@@ -22,7 +22,7 @@ class ExecutionState(workflow: Workflow) {
         workflow.context.workflowId,
         workflow.context.executionId,
         physicalOp.id,
-        physicalOp.numWorkers
+        physicalOp.getWorkerIds.length
       )
     }.toMap
 

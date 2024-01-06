@@ -47,7 +47,6 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
       outputPorts = List(OutputPort())
     )
 
-  override def numWorkers() = 1
   def createPlotlyFigure(): String = {
     s"""
        |        table = table.groupby(['$countAttribute'])['$countAttribute'].count().reset_index(name='counts')

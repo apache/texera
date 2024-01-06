@@ -60,8 +60,10 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         operatorIdentifier(),
                         exec
                     )
-                    .withNumWorkers(workers).withOperatorSchemaInfo(operatorSchemaInfo)
-                    .withIsOneToManyOp(true).withLocationPreference(Option.empty());
+                    .withParallelizable(true)
+                    .withOperatorSchemaInfo(operatorSchemaInfo)
+                    .withIsOneToManyOp(true)
+                    .withLocationPreference(Option.empty());
         } else {
             return PhysicalOp.sourcePhysicalOp(
                         workflowId,
@@ -69,6 +71,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         operatorIdentifier(),
                         exec
                     )
+                    .withParallelizable(false)
                     .withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
         }
 

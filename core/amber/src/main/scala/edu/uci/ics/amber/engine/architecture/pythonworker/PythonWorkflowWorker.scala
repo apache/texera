@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputGateway
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
@@ -22,18 +23,21 @@ import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
   def props(
-      id: ActorVirtualIdentity
+      workerId: ActorVirtualIdentity,
+      workerConfig: WorkerConfig
   ): Props =
     Props(
       new PythonWorkflowWorker(
-        id
+        workerId,
+        workerConfig
       )
     )
 }
 
 class PythonWorkflowWorker(
-    actorId: ActorVirtualIdentity
-) extends WorkflowActor(logStorageType = "none", actorId) {
+    workerId: ActorVirtualIdentity,
+    workerConfig: WorkerConfig
+) extends WorkflowActor(logStorageType = "none", workerId) {
 
   // For receiving the Python server port number that will be available later
   private lazy val portNumberPromise = Promise[Int]()
@@ -42,7 +46,7 @@ class PythonWorkflowWorker(
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private var pythonProxyServer: PythonProxyServer = _
   private lazy val pythonProxyClient: PythonProxyClient =
-    new PythonProxyClient(portNumberPromise, actorId)
+    new PythonProxyClient(portNumberPromise, workerId)
 
   val pythonSrcDirectory: Path = Utils.amberHomePath
     .resolve("src")
@@ -53,9 +57,9 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
-  private val networkInputGateway = new NetworkInputGateway(actorId)
+  private val networkInputGateway = new NetworkInputGateway(workerId)
   private val networkOutputGateway = new NetworkOutputGateway(
-    actorId,
+    workerId,
     logManager.sendCommitted
   )
 
@@ -120,7 +124,7 @@ class PythonWorkflowWorker(
     // Try to start the server until it succeeds
     var serverStart = false
     while (!serverStart) {
-      pythonProxyServer = new PythonProxyServer(networkOutputGateway, actorId, portNumberPromise)
+      pythonProxyServer = new PythonProxyServer(networkOutputGateway, workerId, portNumberPromise)
       val future = serverThreadExecutor.submit(pythonProxyServer)
       try {
         future.get()
@@ -146,7 +150,7 @@ class PythonWorkflowWorker(
         else pythonENVPath, // add fall back in case of empty
         "-u",
         udfEntryScriptPath,
-        actorId.name,
+        workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
         config.getString("python.log.streamHandler.level")
       )
