@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
@@ -41,7 +42,7 @@ class WorkflowScheduler(
     executionState: ExecutionState,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
-) {
+) extends LazyLogging {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(
       AmberConfig.schedulingPolicyName,
@@ -50,7 +51,7 @@ class WorkflowScheduler(
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built
-  private val builtOperators = new mutable.HashSet[PhysicalOpIdentity]()
+  private val builtPhysicalOpIds = new mutable.HashSet[PhysicalOpIdentity]()
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val activatedLink = new mutable.HashSet[PhysicalLinkIdentity]()
@@ -143,17 +144,18 @@ class WorkflowScheduler(
     val builtOpsInRegion = new mutable.HashSet[PhysicalOpIdentity]()
     var frontier = region.sourcePhysicalOpIds
     while (frontier.nonEmpty) {
-      frontier.foreach { (op: PhysicalOpIdentity) =>
-        if (!builtOperators.contains(op)) {
+      frontier.foreach { (physicalOpId: PhysicalOpIdentity) =>
+        if (!builtPhysicalOpIds.contains(physicalOpId)) {
           buildOperator(
             workflow,
-            op,
-            executionState.getOperatorExecution(op),
+            region.id,
+            physicalOpId,
+            executionState.getOperatorExecution(physicalOpId),
             akkaActorService
           )
-          builtOperators.add(op)
+          builtPhysicalOpIds.add(physicalOpId)
         }
-        builtOpsInRegion.add(op)
+        builtOpsInRegion.add(physicalOpId)
       }
 
       frontier = region.getEffectiveOperators
@@ -161,13 +163,15 @@ class WorkflowScheduler(
           !builtOpsInRegion.contains(physicalOpId) && workflow.physicalPlan
             .getUpstreamPhysicalOpIds(physicalOpId)
             .intersect(region.physicalOpIds)
-            .forall(builtOperators.contains)
+            .forall(builtPhysicalOpIds.contains)
         })
     }
+
   }
 
   private def buildOperator(
       workflow: Workflow,
+      regionId: RegionIdentity,
       physicalOpId: PhysicalOpIdentity,
       opExecution: OperatorExecution,
       controllerActorService: AkkaActorService
@@ -176,7 +180,10 @@ class WorkflowScheduler(
     physicalOp.build(
       controllerActorService,
       opExecution,
-      controllerConfig
+      workflow.regionPlan.regions
+        .find(region => region.id == regionId)
+        .map(region => region.config.get.workerConfigs(physicalOp.id))
+        .get
     )
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {

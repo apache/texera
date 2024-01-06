@@ -82,13 +82,10 @@ public class ScatterplotOpDesc extends VisualizationOperator {
         if (!allowedAttributeTypesNumbersOnly.contains(yType)) {
             throw new IllegalArgumentException(yColumn + " is not a number \n");
         }
-        int numWorkers = AmberConfig.numWorkerPerOperatorByDefault();
-        if (isGeometric) {
-            numWorkers = 1;
-        }
+
         return PhysicalOp.oneToOnePhysicalOp(executionId, this.operatorIdentifier(),
                         OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new ScatterplotOpExec(this, operatorSchemaInfo)))
-                .withIsOneToManyOp(true).withNumWorkers(numWorkers);
+                .withIsOneToManyOp(true).withParallelizable(!isGeometric);
     }
 
     @Override

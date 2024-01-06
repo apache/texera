@@ -79,8 +79,6 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
        |""".stripMargin
   }
 
-  override def numWorkers() = 1
-
   def createPlotlyFigure(): String = {
     val colorSetting = if (color.nonEmpty) s", color='$color'" else ""
 

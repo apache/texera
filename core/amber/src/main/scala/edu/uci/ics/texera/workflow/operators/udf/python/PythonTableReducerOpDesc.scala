@@ -15,8 +15,6 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Output columns")
   var lambdaAttributeUnits: List[LambdaAttributeUnit] = List()
 
-  override def numWorkers(): Int = 1
-
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
     val outputSchemaBuilder = Schema.newBuilder

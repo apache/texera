@@ -31,8 +31,7 @@ class ProjectionOpDesc extends MapOpDesc {
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new ProjectionOpExec(attributes, operatorSchemaInfo))
-    )
-      .copy(derivePartition = this.derivePartition(operatorSchemaInfo))
+    ).withDerivePartition(this.derivePartition(operatorSchemaInfo))
   }
 
   def derivePartition(schema: OperatorSchemaInfo)(partition: List[PartitionInfo]): PartitionInfo = {

@@ -2,8 +2,9 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics
 
 import akka.actor.Deploy
 import akka.remote.RemoteScope
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, OperatorExecution}
+import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
   OpExecInitInfoWithCode,
@@ -16,8 +17,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
   RoundRobinPreference
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ExecutionIdentity,
@@ -25,7 +26,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalLinkIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
@@ -33,6 +34,7 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object PhysicalOp {
@@ -58,7 +60,7 @@ object PhysicalOp {
       executionId,
       physicalOpId,
       opExecInitInfo,
-      numWorkers = 1,
+      parallelizable = false,
       locationPreference = Option(new PreferController()),
       inputPorts = List.empty
     )
@@ -93,7 +95,7 @@ object PhysicalOp {
       executionId,
       physicalOpId,
       opExecInitInfo,
-      numWorkers = 1,
+      parallelizable = false,
       partitionRequirement = List(Option(SinglePartition())),
       derivePartition = _ => SinglePartition()
     )
@@ -147,8 +149,8 @@ case class PhysicalOp(
     id: PhysicalOpIdentity,
     // information regarding initializing an operator executor instance
     opExecInitInfo: OpExecInitInfo,
-    // preference of parallelism (total number of workers)
-    numWorkers: Int = AmberConfig.numWorkerPerOperatorByDefault,
+    // preference of parallelism
+    parallelizable: Boolean = true,
     // input/output schemas
     schemaInfo: Option[OperatorSchemaInfo] = None,
     // preference of worker placement
@@ -168,18 +170,22 @@ case class PhysicalOp(
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
     // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
-    dependency: Map[Int, Int] = Map(),
-    isOneToManyOp: Boolean = false
-) {
+    dependencies: Map[Int, Int] = Map(),
+    isOneToManyOp: Boolean = false,
+    // hint for number of workers
+    suggestedWorkerNum: Option[Int] = None
+) extends LazyLogging {
 
   // all the "dependee" links are also blocking inputs
-  private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependency.values).distinct
+  private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependencies.values).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
-  /*
-   * Helper functions related to compile-time operations
-   */
+  private val workerIds: mutable.HashSet[ActorVirtualIdentity] = mutable.HashSet()
+
+  /**
+    * Helper functions related to compile-time operations
+    */
 
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
@@ -241,6 +247,63 @@ case class PhysicalOp(
   def withOutputPorts(outputs: List[OutputPort]): PhysicalOp = {
     this.copy(outputPorts = outputs)
   }
+
+  /**
+    * creates a copy with the blocking input port indices
+    */
+  def withBlockingInputs(blockingInputs: List[Int]): PhysicalOp = {
+    this.copy(blockingInputs = blockingInputs)
+  }
+
+  /**
+    * creates a copy with suggested worker number. This is only to be used by Python UDF operators.
+    */
+  def withSuggestedWorkerNum(workerNum: Int): PhysicalOp = {
+    this.copy(suggestedWorkerNum = Some(workerNum))
+  }
+
+  /**
+    * creates a copy with the new id
+    */
+  def withId(id: PhysicalOpIdentity): PhysicalOp = this.copy(id = id)
+
+  /**
+    * creates a copy with the partition requirements
+    */
+  def withPartitionRequirement(partitionRequirements: List[Option[PartitionInfo]]): PhysicalOp = {
+    this.copy(partitionRequirement = partitionRequirements)
+  }
+
+  /**
+    * creates a copy with the partition info derive function
+    */
+  def withDerivePartition(derivePartition: List[PartitionInfo] => PartitionInfo): PhysicalOp = {
+    this.copy(derivePartition = derivePartition)
+  }
+
+  /**
+    * creates a copy with the parallelizable specified
+    */
+  def withParallelizable(parallelizable: Boolean): PhysicalOp =
+    this.copy(parallelizable = parallelizable)
+
+  /**
+    * creates a copy with the dependencies specified
+    */
+  def withDependencies(dependencies: Map[Int, Int]): PhysicalOp =
+    this.copy(dependencies = dependencies)
+
+  /**
+    * creates a copy with the specified property that whether this operator is one-to-many
+    */
+  def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
+    this.copy(isOneToManyOp = isOneToManyOp)
+
+  /**
+    * creates a copy with the schema information
+    */
+  def withOperatorSchemaInfo(schemaInfo: OperatorSchemaInfo): PhysicalOp =
+    this.copy(schemaInfo = Some(schemaInfo))
 
   /**
     * creates a copy with an additional input operator specified on an input port
@@ -315,28 +378,6 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with the new id
-    */
-  def withId(id: PhysicalOpIdentity): PhysicalOp = this.copy(id = id)
-
-  /**
-    * creates a copy with the number of workers specified
-    */
-  def withNumWorkers(numWorkers: Int): PhysicalOp = this.copy(numWorkers = numWorkers)
-
-  /**
-    * creates a copy with the specified property that whether this operator is one-to-many
-    */
-  def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
-    this.copy(isOneToManyOp = isOneToManyOp)
-
-  /**
-    * creates a copy with the schema information
-    */
-  def withOperatorSchemaInfo(schemaInfo: OperatorSchemaInfo): PhysicalOp =
-    this.copy(schemaInfo = Some(schemaInfo))
-
-  /**
     * returns all input links on a specific input port
     */
   def getLinksOnInputPort(portIndex: Int): List[PhysicalLink] = {
@@ -399,7 +440,7 @@ case class PhysicalOp(
   def getInputLinksInProcessingOrder: List[PhysicalLink] = {
     val dependencyDag =
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
-    dependency.foreach({
+    dependencies.foreach({
       case (depender: Int, dependee: Int) =>
         val upstreamLink = inputPortToLinkMapping(dependee).head
         val downstreamLink = inputPortToLinkMapping(depender).head
@@ -420,49 +461,45 @@ case class PhysicalOp(
     processingOrder.toList
   }
 
-  def identifiers: Array[ActorVirtualIdentity] = {
-    (0 until numWorkers).map { i => identifier(i) }.toArray
-  }
+  def getWorkerIds: List[ActorVirtualIdentity] = workerIds.toList
 
-  def identifier(i: Int): ActorVirtualIdentity = {
-    VirtualIdentityUtils.createWorkerIdentity(executionId, id.logicalOpId.id, id.layerName, i)
+  def assignWorkers(workerCount: Int): Unit = {
+    (0 until workerCount).foreach(workerIdx => {
+      workerIds.add(VirtualIdentityUtils.createWorkerIdentity(executionId, id, workerIdx))
+    })
   }
 
   def build(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
-      controllerConf: ControllerConfig
+      workerConfigs: List[WorkerConfig]
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,
       controllerActorService.self.path.address
     )
-    (0 until numWorkers)
-      .foreach(i => {
-        val workerId: ActorVirtualIdentity =
-          VirtualIdentityUtils.createWorkerIdentity(opExecution.executionId, id, i)
-        val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
-        val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, i)
 
-        val workflowWorker = if (this.isPythonOperator) {
-          PythonWorkflowWorker.props(workerId)
-        } else {
-          WorkflowWorker.props(
-            workerId,
-            i,
-            physicalOp = this,
-            WorkflowWorkerConfig(
-              logStorageType = AmberConfig.faultToleranceLogRootFolder,
-              replayTo = None
-            )
-          )
-        }
-        // Note: At this point, we don't know if the actor is fully initialized.
-        // Thus, the ActorRef returned from `controllerActorService.actorOf` is ignored.
-        controllerActorService.actorOf(
-          workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
+    workerIds.foreach(workerId => {
+      val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
+      val workerConfig = workerConfigs(workerIndex)
+      val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
+      val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
+
+      val workflowWorker = if (this.isPythonOperator) {
+        PythonWorkflowWorker.props(workerId, workerConfig)
+      } else {
+        WorkflowWorker.props(
+          workerId,
+          physicalOp = this,
+          workerConfig
         )
-        opExecution.initializeWorkerInfo(workerId)
-      })
+      }
+      // Note: At this point, we don't know if the actor is fully initialized.
+      // Thus, the ActorRef returned from `controllerActorService.actorOf` is ignored.
+      controllerActorService.actorOf(
+        workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
+      )
+      opExecution.initializeWorkerInfo(workerId)
+    })
   }
 }

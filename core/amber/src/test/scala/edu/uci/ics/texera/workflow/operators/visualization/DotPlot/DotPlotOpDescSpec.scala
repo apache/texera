@@ -68,7 +68,7 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(generatedPythonCode === expectedPythonCode)
   }
 
-  it should "return 1 worker" in {
-    assert(opDesc.numWorkers() === 1)
+  it should "not be parallelizable" in {
+    assert(!opDesc.parallelizable())
   }
 }

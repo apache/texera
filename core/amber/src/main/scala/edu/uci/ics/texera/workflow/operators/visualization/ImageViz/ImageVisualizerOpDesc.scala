@@ -43,8 +43,6 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
       outputPorts = List(OutputPort())
     )
 
-  override def numWorkers() = 1
-
   def createBinaryData(): String = {
     assert(binaryContent.nonEmpty)
     s"""

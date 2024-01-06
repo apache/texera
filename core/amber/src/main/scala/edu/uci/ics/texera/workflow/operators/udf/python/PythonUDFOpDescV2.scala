@@ -78,7 +78,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
     } else {
       opInfo.inputPorts.map(_ => None)
     }
-    val dependency: Map[Int, Int] = if (inputPorts != null) {
+    val dependencies: Map[Int, Int] = if (inputPorts != null) {
       inputPorts.zipWithIndex
         .filter {
           case (port, _) => port.dependencies != null
@@ -94,27 +94,25 @@ class PythonUDFOpDescV2 extends LogicalOp {
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          numWorkers = workers,
-          derivePartition = _ => UnknownPartition(),
-          isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
-        )
+        .withDerivePartition(_ => UnknownPartition())
+        .withPartitionRequirement(partitionRequirement)
+        .withInputPorts(opInfo.inputPorts)
+        .withOutputPorts(opInfo.outputPorts)
+        .withIsOneToManyOp(true)
+        .withParallelizable(true)
+        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
         .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          derivePartition = _ => UnknownPartition(),
-          isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
-        )
+        .withDerivePartition(_ => UnknownPartition())
+        .withPartitionRequirement(partitionRequirement)
+        .withInputPorts(opInfo.inputPorts)
+        .withOutputPorts(opInfo.outputPorts)
+        .withIsOneToManyOp(true)
+        .withParallelizable(false)
+        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 

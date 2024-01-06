@@ -70,8 +70,6 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
        |""".stripMargin
   }
 
-  override def numWorkers() = 1
-
   def createPlotlyFigure(): String = {
     assert(value.nonEmpty)
     s"""

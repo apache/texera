@@ -7,8 +7,8 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkflowWorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
@@ -42,8 +42,8 @@ class WorkerSpec
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
-  private val identifier1 = ActorVirtualIdentity("worker-1")
-  private val identifier2 = ActorVirtualIdentity("worker-2")
+  private val identifier1 = ActorVirtualIdentity("Worker:WF1-operator-layer-1")
+  private val identifier2 = ActorVirtualIdentity("Worker:WF1-operator-layer-2")
 
   private val mockOpExecutor = new IOperatorExecutor {
     override def open(): Unit = println("opened!")
@@ -81,7 +81,6 @@ class WorkerSpec
       inputPortToLinkMapping = Map(0 -> List(mockLink)),
       outputPortToLinkMapping = Map(0 -> List(mockLink))
     )
-  private val workerIndex = 0
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
   private val mockOutputManager = mock[OutputManager]
@@ -105,9 +104,8 @@ class WorkerSpec
     TestActorRef(
       new WorkflowWorker(
         identifier1,
-        workerIndex,
         physicalOp,
-        WorkflowWorkerConfig(logStorageType = "none", replayTo = None)
+        WorkerConfig(logStorageType = "none", replayTo = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager
@@ -148,7 +146,7 @@ class WorkerSpec
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
-        ChannelID(identifier2, identifier1, false),
+        ChannelID(identifier2, identifier1, isControl = false),
         0,
         DataFrame(Array(ITuple(1)))
       )
@@ -179,16 +177,28 @@ class WorkerSpec
     sendControlToWorker(worker, Array(invocation, updateInputLinking))
     worker ! NetworkMessage(
       3,
-      WorkflowFIFOMessage(ChannelID(identifier2, identifier1, false), 0, DataFrame(batch1))
+      WorkflowFIFOMessage(
+        ChannelID(identifier2, identifier1, isControl = false),
+        0,
+        DataFrame(batch1)
+      )
     )
     worker ! NetworkMessage(
       2,
-      WorkflowFIFOMessage(ChannelID(identifier2, identifier1, false), 1, DataFrame(batch2))
+      WorkflowFIFOMessage(
+        ChannelID(identifier2, identifier1, isControl = false),
+        1,
+        DataFrame(batch2)
+      )
     )
     Thread.sleep(1000)
     worker ! NetworkMessage(
       4,
-      WorkflowFIFOMessage(ChannelID(identifier2, identifier1, false), 2, DataFrame(batch3))
+      WorkflowFIFOMessage(
+        ChannelID(identifier2, identifier1, isControl = false),
+        2,
+        DataFrame(batch3)
+      )
     )
     //wait test to finish
     Thread.sleep(3000)
@@ -206,11 +216,15 @@ class WorkerSpec
     val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
     worker ! NetworkMessage(
       1,
-      WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), 1, updateInputLinking)
+      WorkflowFIFOMessage(
+        ChannelID(CONTROLLER, identifier1, isControl = true),
+        1,
+        updateInputLinking
+      )
     )
     worker ! NetworkMessage(
       0,
-      WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), 0, invocation)
+      WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, isControl = true), 0, invocation)
     )
     Random
       .shuffle((0 until 50).map { i =>
@@ -218,7 +232,7 @@ class WorkerSpec
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
-            ChannelID(identifier2, identifier1, false),
+            ChannelID(identifier2, identifier1, isControl = false),
             i,
             DataFrame(Array(ITuple(i)))
           )
@@ -234,7 +248,7 @@ class WorkerSpec
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
-            ChannelID(identifier2, identifier1, false),
+            ChannelID(identifier2, identifier1, isControl = false),
             i,
             DataFrame(Array(ITuple(i)))
           )

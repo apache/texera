@@ -21,7 +21,7 @@ class ExecutionState(workflow: Workflow) {
       physicalOp.id -> new OperatorExecution(
         executionId = workflow.context.executionId,
         physicalOp.id,
-        physicalOp.numWorkers
+        physicalOp.getWorkerIds.length
       )
     }.toMap
 

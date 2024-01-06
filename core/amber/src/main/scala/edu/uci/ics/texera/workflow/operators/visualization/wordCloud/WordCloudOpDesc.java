@@ -77,7 +77,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         PhysicalOp partialLayer = PhysicalOp.oneToOnePhysicalOp(executionId,
                 this.operatorIdentifier(),
                 OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpPartialExec(textColumn))
-        ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
+        ).withId(partialId).withIsOneToManyOp(true).withParallelizable(false).withOutputPorts(
                 asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
 

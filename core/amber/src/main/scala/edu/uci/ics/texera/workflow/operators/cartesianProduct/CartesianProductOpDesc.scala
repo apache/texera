@@ -24,18 +24,13 @@ class CartesianProductOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo(_ => new CartesianProductOpExec(operatorSchemaInfo))
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        // uses just one worker for now, reads all elements from "left" input port 0 first
-        /*
-          TODO : refactor to parallelize this operator for better performance and scalability
-           - can consider hash partition on larger input, broadcast smaller table to each partition
-         */
-        numWorkers = 1,
-        blockingInputs = List(0),
-        dependency = Map(1 -> 0)
-      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts((operatorInfo.outputPorts))
+      .withBlockingInputs(List(0))
+      // TODO : refactor to parallelize this operator for better performance and scalability:
+      //  can consider hash partition on larger input, broadcast smaller table to each partition
+      .withParallelizable(false)
+      .withDependencies(Map(1 -> 0))
   }
 
   /**

@@ -70,8 +70,6 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
       outputPorts = List(OutputPort())
     )
 
-  override def numWorkers() = 1
-
   def createPlotlyFigure(): String = {
     assert(x.nonEmpty)
     assert(y.nonEmpty)

@@ -100,9 +100,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val emptySchema = Schema.newBuilder().build()
     val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), Array(emptySchema))
     assert(
-      csvScanSourceOpDesc
+      !csvScanSourceOpDesc
         .getPhysicalOp(DEFAULT_EXECUTION_ID, operatorSchemaInfo)
-        .numWorkers == 1
+        .parallelizable
     )
   }
 

@@ -75,8 +75,6 @@ class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |""".stripMargin
   }
 
-  override def numWorkers() = 1
-
   def createPlotlyFigure(): String = {
     assert(hierarchy.nonEmpty)
     val attributes = getHierarchyAttributesInPython

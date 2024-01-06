@@ -18,8 +18,8 @@ import scala.jdk.CollectionConverters.asScalaSet
 
 object FriesReconfigurationAlgorithm {
 
-  def getOneToManyOperators(physicalPlan: PhysicalPlan): Set[PhysicalOpIdentity] = {
-    physicalPlan.operators.filter(op => op.isOneToManyOp).map(op => op.id).toSet
+  private def getOneToManyOperators(physicalPlan: PhysicalPlan): Set[PhysicalOpIdentity] = {
+    physicalPlan.operators.filter(op => op.isOneToManyOp).map(op => op.id)
   }
 
   def scheduleReconfigurations(
@@ -98,7 +98,7 @@ object FriesReconfigurationAlgorithm {
       )
 
       // find the source operators of the component
-      val sources = componentSet.filter(op => mcsPlan.getSourceOperatorIds.contains(op))
+      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
       sources.foreach(source => {
         epochMarkers += ((source, EpochMarker(epochMarkerId, componentPlan, Some(reconfigCommand))))
       })
