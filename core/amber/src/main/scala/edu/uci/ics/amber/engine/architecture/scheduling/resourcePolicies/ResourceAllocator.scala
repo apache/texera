@@ -4,7 +4,13 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionConfig, W
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
-class ResourceAllocator(physicalPlan: PhysicalPlan, executionClusterInfo: ExecutionClusterInfo) {
+trait ResourceAllocator {
+  def allocate(region: Region): (Region, Double)
+}
+class DefaultResourceAllocator(
+    physicalPlan: PhysicalPlan,
+    executionClusterInfo: ExecutionClusterInfo
+) extends ResourceAllocator {
 
   /**
     * Allocates resources for a given region and its operators.

@@ -4,8 +4,8 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  ExecutionClusterInfo,
-  ResourceAllocator
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
 }
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
@@ -70,7 +70,7 @@ class ExpansionGreedyRegionPlanGenerator(
     with LazyLogging {
 
   private def executionClusterInfo = new ExecutionClusterInfo()
-  private def resourceAllocation = new ResourceAllocator(physicalPlan, executionClusterInfo)
+  private def resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
 
   /**
     * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
@@ -242,7 +242,14 @@ class ExpansionGreedyRegionPlanGenerator(
     populateDownstreamLinks(regionDAG)
 
     // generate the region configs
-    populateRegionConfigs(regionDAG)
+    regionDAG
+      .vertexSet()
+      .toList
+      .foreach(region => {
+        val (newRegion, estimationCost) = resourceAllocator.allocate(region)
+        replaceVertex(regionDAG, region, newRegion)
+      })
+    regionDAG
   }
 
   private def populateSourceOperators(
@@ -297,19 +304,6 @@ class ExpansionGreedyRegionPlanGenerator(
           val newRegion = region.copy(downstreamLinkIds = links.toSet)
           replaceVertex(regionDAG, region, newRegion)
       }
-    regionDAG
-  }
-
-  private def populateRegionConfigs(
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): DirectedAcyclicGraph[Region, RegionLink] = {
-    regionDAG
-      .vertexSet()
-      .toList
-      .foreach(region => {
-        val (newRegion, estimationCost) = resourceAllocation.allocate(region)
-        replaceVertex(regionDAG, region, newRegion)
-      })
     regionDAG
   }
 
