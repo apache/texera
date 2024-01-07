@@ -6,7 +6,8 @@ import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, LogicalLink}
 case class WorkflowExecuteRequest(
     executionName: String,
     engineVersion: String,
-    logicalPlan: LogicalPlanPojo
+    logicalPlan: LogicalPlanPojo,
+    replayFromExecution: Option[Long]
 ) extends TexeraWebSocketRequest
 
 case class LogicalPlanPojo(

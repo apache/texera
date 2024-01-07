@@ -37,7 +37,7 @@ object PythonWorkflowWorker {
 class PythonWorkflowWorker(
     workerId: ActorVirtualIdentity,
     workerConfig: WorkerConfig
-) extends WorkflowActor(logStorageType = "none", workerId) {
+) extends WorkflowActor(replayLogConfOpt = None, actorId = workerId) {
 
   // For receiving the Python server port number that will be available later
   private lazy val portNumberPromise = Promise[Int]()

@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -23,7 +23,8 @@ object TestUtils {
       LogicalPlanPojo(operators, links, List(), List(), List()),
       resultStorage,
       None,
-      new ExecutionStateStore()
+      new ExecutionStateStore(),
+      ControllerConfig.default
     )
   }
 

@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkAck,
   NetworkMessage
 }
+import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
@@ -105,6 +106,8 @@ private[client] class ClientActor extends Actor with AmberLogging {
     case x: WorkflowRecoveryMessage =>
       sender ! Ack
       controller ! x
+    case x: WorkflowRecoveryStatus =>
+      handleControl(x)
     case other =>
       logger.warn("client actor cannot handle " + other) //skip
   }

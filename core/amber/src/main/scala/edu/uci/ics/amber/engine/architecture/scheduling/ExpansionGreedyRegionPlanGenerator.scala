@@ -1,9 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -58,7 +59,8 @@ object ExpansionGreedyRegionPlanGenerator {
 class ExpansionGreedyRegionPlanGenerator(
     logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig
 ) extends RegionPlanGenerator(
       logicalPlan,
       physicalPlan,
@@ -315,7 +317,16 @@ class ExpansionGreedyRegionPlanGenerator(
                     1
                   }
 
-                physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
+                physicalOp.id -> (0 until workerCount)
+                  .map(idx => {
+                    val workerId = VirtualIdentityUtils
+                      .createWorkerIdentity(physicalOp.executionId, physicalOp.id, idx)
+                    WorkerConfig(
+                      controllerConfig.workerRestoreConfMapping(workerId),
+                      controllerConfig.workerLoggingConfMapping(workerId)
+                    )
+                  })
+                  .toList
               }
             }
             .toMap
@@ -392,6 +403,7 @@ class ExpansionGreedyRegionPlanGenerator(
       opResultStorage: OpResultStorage
     )
     materializationReader.setContext(context)
+    materializationReader.setOperatorId("cacheSource-" + matWriterLogicalOp.operatorIdentifier.id)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOp = materializationReader.getPhysicalOp(
@@ -408,6 +420,7 @@ class ExpansionGreedyRegionPlanGenerator(
   ): (ProgressiveSinkOpDesc, PhysicalOp) = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
     matWriterLogicalOp.setContext(context)
+    matWriterLogicalOp.setOperatorId("materialized-" + fromOp.id.logicalOpId.id)
     val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
     val fromOpInputSchema: Array[Schema] =
       if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {

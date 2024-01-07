@@ -165,7 +165,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   private var context: WorkflowContext = _
 
   @JsonProperty(PropertyNameConstants.OPERATOR_ID)
-  private val operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
+  private var operatorId: String = getClass.getSimpleName + "-" + UUID.randomUUID.toString
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()
@@ -213,6 +213,10 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def getContext: WorkflowContext = this.context
   def setContext(workflowContext: WorkflowContext): Unit = {
     this.context = workflowContext
+  }
+
+  def setOperatorId(id: String): Unit = {
+    operatorId = id
   }
 
   def runtimeReconfiguration(

@@ -93,10 +93,10 @@ object ReplayLogStorage {
     }
   }
 
-  def getLogStorage(logFolderURI: Option[URI]): ReplayLogStorage = {
-    logFolderURI match {
-      case Some(value) => new URILogStorage(value)
-      case None        => new EmptyLogStorage()
+  def getLogStorage(storageLocation: Option[URI]): ReplayLogStorage = {
+    storageLocation match {
+      case Some(location) => new URILogStorage(location)
+      case None           => new EmptyLogStorage()
     }
   }
 }

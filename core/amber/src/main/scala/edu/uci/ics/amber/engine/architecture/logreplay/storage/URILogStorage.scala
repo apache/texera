@@ -19,8 +19,12 @@ class URILogStorage(logFolderURI: URI) extends ReplayLogStorage with LazyLogging
   private val fsConf = new Configuration()
   // configuration for HDFS
   fsConf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "false")
+  // configuration for disabling SUCCESS files
+  fsConf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
   try {
     fileSystem = FileSystem.get(logFolderURI, fsConf) // Supports various URI schemes
+    fileSystem.setWriteChecksum(false)
+    fileSystem.setVerifyChecksum(false)
   } catch {
     case e: Exception =>
       logger.warn("Caught error during creating file system", e)

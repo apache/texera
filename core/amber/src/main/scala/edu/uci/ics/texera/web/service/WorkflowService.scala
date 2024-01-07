@@ -1,8 +1,13 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.{
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -19,6 +24,7 @@ import play.api.libs.json.Json
 
 import java.util.concurrent.ConcurrentHashMap
 import scala.collection.JavaConverters._
+import java.net.URI
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -85,7 +91,6 @@ class WorkflowService(
             if (oldState.state != COMPLETED && newState.state == COMPLETED) {
               lastCompletedLogicalPlan = Option.apply(executionService.workflow.originalLogicalPlan)
             }
-
             Iterable.empty
           }
       }
@@ -136,6 +141,7 @@ class WorkflowService(
       executionService.getValue.unsubscribeAll()
     }
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
+    var controllerConf = ControllerConfig.default
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
@@ -144,7 +150,39 @@ class WorkflowService(
       convertToJson(req.engineVersion)
     )
 
+    if (AmberConfig.isUserSystemEnabled) {
+      // enable only if we have mysql
+      if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
+        val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+          workflowContext.workflowId + "/" + workflowContext.executionId
+        )
+        ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
+          execution => execution.setLogLocation(writeLocation.toString)
+        }
+        controllerConf = controllerConf.copy(workerLoggingConfMapping = { _ =>
+          Some(WorkerReplayLoggingConfig(writeTo = writeLocation))
+        })
+      }
+      if (req.replayFromExecution.isDefined) {
+        val executionIdentity = ExecutionIdentity(req.replayFromExecution.get)
+        ExecutionsMetadataPersistService
+          .tryGetExistingExecution(executionIdentity)
+          .foreach { execution =>
+            val readLocation = new URI(execution.getLogLocation)
+            controllerConf = controllerConf.copy(workerRestoreConfMapping = { _ =>
+              Some(
+                WorkerStateRestoreConfig(
+                  readFrom = readLocation,
+                  replayTo = Long.MaxValue // TODO: support time-travel feature.
+                )
+              )
+            })
+          }
+      }
+    }
+
     val execution = new WorkflowExecutionService(
+      controllerConf,
       workflowContext,
       resultService,
       req,
