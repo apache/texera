@@ -1,12 +1,10 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink.infoToPartitionings
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.{
-  OneToOnePartitioning,
-  Partitioning
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
+import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -259,10 +257,9 @@ case class PhysicalPlan(
     * that of the downstream, and their number of workers are equal, then the partitioning
     * on this link can be optimized to OneToOne.
     */
-  def generateLinkPartitionings()
-      : Map[PhysicalLinkIdentity, List[(Partitioning, List[ActorVirtualIdentity])]] = {
-    val createdPartitionings =
-      new mutable.HashMap[PhysicalLinkIdentity, List[(Partitioning, List[ActorVirtualIdentity])]]()
+  def generateLinkToChannelConfigsMapping(): Map[PhysicalLinkIdentity, List[ChannelConfig]] = {
+    val linkToChannelConfigsMapping =
+      new mutable.HashMap[PhysicalLinkIdentity, List[ChannelConfig]]()
     // a map of an operator to its output partition info
     val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
 
@@ -273,54 +270,34 @@ case class PhysicalPlan(
           // get output partition info of the source operator
           physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
         } else {
-          val inputPartitionings =
-            enforcePartitionRequirement(
-              physicalOp,
-              outputPartitionInfos.toMap,
-              createdPartitionings
-            )
+          // for each input port, enforce partition requirement
+          val inputPartitionings = physicalOp.inputPorts.indices
+            .flatMap(port => physicalOp.getLinksOnInputPort(port))
+            .map(link => {
+              val inputPartitionInfo = outputPartitionInfos(link.fromOp.id)
+              val (channelConfigs, outputPart) =
+                getOutputPartitionInfo(
+                  link.fromOp.id,
+                  link.fromPort,
+                  link.toOp.id,
+                  link.toPort,
+                  inputPartitionInfo
+                )
+              linkToChannelConfigsMapping(link.id) = channelConfigs
+              (link.toPort, outputPart)
+            })
+            .groupBy(e => e._1)
+            .map(x => x._2.map(_._2).reduce((a, b) => a.merge(b)))
+            .toList
           assert(inputPartitionings.length == physicalOp.inputPorts.size)
           // derive the output partition info of this operator
-          physicalOp.derivePartition(inputPartitionings.toList)
+          physicalOp.derivePartition(inputPartitionings)
         }
         outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
       })
 
-    createdPartitionings.toMap
+    linkToChannelConfigsMapping.toMap
 
-  }
-
-  private def enforcePartitionRequirement(
-      physicalOp: PhysicalOp,
-      partitionInfos: Map[PhysicalOpIdentity, PartitionInfo],
-      createdPartitionings: mutable.HashMap[PhysicalLinkIdentity, List[
-        (Partitioning, List[ActorVirtualIdentity])
-      ]]
-  ): Array[PartitionInfo] = {
-    // for each input port, enforce partition requirement
-
-    // the output partition info of each link connected from each input PhysicalOp
-    // for each input PhysicalOp connected on this port
-    // check partition requirement to enforce corresponding LinkStrategy
-
-    physicalOp.inputPorts.indices
-      .flatMap(port => physicalOp.getLinksOnInputPort(port))
-      .map(link => {
-        val inputPartitionInfo = partitionInfos(link.fromOp.id)
-        val (partitionings, outputPart) =
-          getOutputPartitionInfo(
-            link.fromOp.id,
-            link.fromPort,
-            link.toOp.id,
-            link.toPort,
-            inputPartitionInfo
-          )
-        createdPartitionings(link.id) = partitionings
-        (link.toPort, outputPart)
-      })
-      .groupBy(e => e._1)
-      .map(x => x._2.map(_._2).reduce((a, b) => a.merge(b)))
-      .toArray
   }
 
   private def getOutputPartitionInfo(
@@ -329,7 +306,7 @@ case class PhysicalPlan(
       toPhysicalOpId: PhysicalOpIdentity,
       inputPort: Int,
       upstreamPartitionInfo: PartitionInfo
-  ): (List[(Partitioning, List[ActorVirtualIdentity])], PartitionInfo) = {
+  ): (List[ChannelConfig], PartitionInfo) = {
     val toPhysicalOp = getOperator(toPhysicalOpId)
     val fromPhysicalOp = getOperator(fromPhysicalOpId)
 
@@ -347,9 +324,9 @@ case class PhysicalPlan(
       ) && fromPhysicalOp.getWorkerIds.length == toPhysicalOp.getWorkerIds.length
     ) {
 
-      val partitionings = fromPhysicalOp.getWorkerIds.indices
+      val channelConfigs = fromPhysicalOp.getWorkerIds.indices
         .map(i =>
-          (
+          ChannelConfig(
             OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getWorkerIds(i))),
             List(toPhysicalOp.getWorkerIds(i))
           )
@@ -357,14 +334,18 @@ case class PhysicalPlan(
         .toList
 
       val outputPart = upstreamPartitionInfo
-      (partitionings, outputPart)
+      (channelConfigs, outputPart)
     } else {
       // we must re-distribute the input partitions
 
-      val partitionings: List[(Partitioning, List[ActorVirtualIdentity])] =
-        infoToPartitionings(fromPhysicalOp, toPhysicalOp, requiredPartitionInfo)
+      val channelConfigs: List[ChannelConfig] =
+        generateChannelConfigs(
+          fromPhysicalOp.getWorkerIds,
+          toPhysicalOp.getWorkerIds,
+          requiredPartitionInfo
+        )
       val outputPart = requiredPartitionInfo
-      (partitionings, outputPart)
+      (channelConfigs, outputPart)
     }
   }
 

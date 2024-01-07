@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 
-case object WorkerConfig{
+case object WorkerConfig {
   def generateWorkerConfigs(physicalOp: PhysicalOp): (PhysicalOpIdentity, List[WorkerConfig]) = {
     val workerCount =
       if (physicalOp.suggestedWorkerNum.isDefined) {

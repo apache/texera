@@ -4,11 +4,9 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{ChannelConfig, RegionConfig, WorkerConfig}
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{ChannelConfig, RegionConfig}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -19,7 +17,7 @@ import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `iterable AsScalaIterable`}
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
@@ -318,21 +316,18 @@ class ExpansionGreedyRegionPlanGenerator(
       }
     }
 
-    val partitionings: Map[PhysicalLinkIdentity, List[(Partitioning, List[ActorVirtualIdentity])]] =
-      physicalPlan.generateLinkPartitionings()
-    val channelConfigs = partitionings.map(e => e._1 -> e._2.map(a => ChannelConfig(a)))
+    val linkToChannelConfigsMapping: Map[PhysicalLinkIdentity, List[ChannelConfig]] =
+      physicalPlan.generateLinkToChannelConfigsMapping()
 
     regionDAG
       .vertexSet()
       .toList
       .foreach(region => {
-        val opToWorkerConfigsMapping = regionToWorkerConfigs(region.id)
-        val linkToChannelConfigsMapping = region.getEffectiveLinks.map { physicalLinkId =>
-          physicalLinkId -> channelConfigs(physicalLinkId)
-        }.toMap
         val config = RegionConfig(
-          opToWorkerConfigsMapping,
-          linkToChannelConfigsMapping
+          regionToWorkerConfigs(region.id),
+          region.getEffectiveLinks.map { physicalLinkId =>
+            physicalLinkId -> linkToChannelConfigsMapping(physicalLinkId)
+          }.toMap
         )
         val newRegion = region.copy(config = Some(config))
         replaceVertex(regionDAG, region, newRegion)
