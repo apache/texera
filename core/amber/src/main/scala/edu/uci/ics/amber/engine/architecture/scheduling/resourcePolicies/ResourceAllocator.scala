@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 trait ResourceAllocator {
   def allocate(region: Region): (Region, Double)
 }
-class DefaultResourceAllocator(
+class BasicResourceAllocator(
     physicalPlan: PhysicalPlan,
     executionClusterInfo: ExecutionClusterInfo
 ) extends ResourceAllocator {
