@@ -115,7 +115,7 @@ class WorkerSpec
       new WorkflowWorker(
         identifier1,
         physicalOp,
-        WorkerConfig(logStorageType = "none", replayTo = None)
+        WorkerConfig(restoreConfOpt = None, replayLogConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager
