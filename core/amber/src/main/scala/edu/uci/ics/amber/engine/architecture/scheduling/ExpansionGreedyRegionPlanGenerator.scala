@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  BasicResourceAllocator,
+  DefaultResourceAllocator,
   ExecutionClusterInfo
 }
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
@@ -70,7 +70,7 @@ class ExpansionGreedyRegionPlanGenerator(
     with LazyLogging {
 
   private def executionClusterInfo = new ExecutionClusterInfo()
-  private def resourceAllocator = new BasicResourceAllocator(physicalPlan, executionClusterInfo)
+  private def resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
 
   /**
     * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
