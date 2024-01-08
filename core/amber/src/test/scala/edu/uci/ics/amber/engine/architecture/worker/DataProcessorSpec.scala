@@ -23,7 +23,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
@@ -36,14 +39,19 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val operator = mock[OperatorExecutor]
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("testUpstream"), "main")
   private val upstreamOp =
-    PhysicalOp(executionId = DEFAULT_EXECUTION_ID, id = upstreamOpId, opExecInitInfo = null)
+    PhysicalOp(id = upstreamOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testOperator"), "main")
   private val testOp =
-    PhysicalOp(executionId = DEFAULT_EXECUTION_ID, id = testOpId, opExecInitInfo = null)
+    PhysicalOp(id = upstreamOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
   private val link = PhysicalLink(upstreamOp, 0, testOp, 0)
   private val physicalOp =
     PhysicalOp
-      .oneToOnePhysicalOp(DEFAULT_EXECUTION_ID, operatorIdentity, OpExecInitInfo(_ => operator))
+      .oneToOnePhysicalOp(
+        DEFAULT_WORKFLOW_ID,
+        DEFAULT_EXECUTION_ID,
+        operatorIdentity,
+        OpExecInitInfo(_ => operator)
+      )
       .addInput(link.fromOp, 0, 0)
   private val outputHandler = mock[WorkflowFIFOMessage => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
@@ -83,14 +91,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (operator.close _).expects().once()
     dp.registerInput(senderID, link.id)
     dp.processControlPayload(
-      ChannelID(CONTROLLER, identifier, true),
+      ChannelID(CONTROLLER, identifier, isControl = true),
       ControlInvocation(0, OpenOperator())
     )
-    dp.processDataPayload(ChannelID(senderID, identifier, false), DataFrame(tuples))
+    dp.processDataPayload(ChannelID(senderID, identifier, isControl = false), DataFrame(tuples))
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
-    dp.processDataPayload(ChannelID(senderID, identifier, false), EndOfUpstream())
+    dp.processDataPayload(ChannelID(senderID, identifier, isControl = false), EndOfUpstream())
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
@@ -114,14 +122,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     dp.registerInput(senderID, link.id)
     dp.processControlPayload(
-      ChannelID(CONTROLLER, identifier, true),
+      ChannelID(CONTROLLER, identifier, isControl = true),
       ControlInvocation(0, OpenOperator())
     )
-    dp.processDataPayload(ChannelID(senderID, identifier, false), DataFrame(tuples))
+    dp.processDataPayload(ChannelID(senderID, identifier, isControl = false), DataFrame(tuples))
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
       (dp.outputManager.flushAll _).expects().once()
       dp.processControlPayload(
-        ChannelID(CONTROLLER, identifier, true),
+        ChannelID(CONTROLLER, identifier, isControl = true),
         ControlInvocation(0, FlushNetworkBuffer())
       )
       dp.continueDataProcessing()
@@ -129,7 +137,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (dp.outputManager.emitEndOfUpstream _).expects().once()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (operator.close _).expects().once()
-    dp.processDataPayload(ChannelID(senderID, identifier, false), EndOfUpstream())
+    dp.processDataPayload(ChannelID(senderID, identifier, isControl = false), EndOfUpstream())
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
