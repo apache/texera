@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig
-import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.toChannelConfigs
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -275,19 +275,17 @@ case class PhysicalPlan(
             .flatMap(port => physicalOp.getLinksOnInputPort(port))
             .map(link => {
               val inputPartitionInfo = outputPartitionInfos(link.fromOp.id)
-              val (channelConfigs, outputPart) =
-                getOutputPartitionInfo(
-                  link.fromOp.id,
-                  link.fromPort,
-                  link.toOp.id,
-                  link.toPort,
-                  inputPartitionInfo
-                )
+              val (channelConfigs, outputPartitionInfo) =
+                getOutputPartitionInfo(link, inputPartitionInfo)
               linkToChannelConfigsMapping(link.id) = channelConfigs
-              (link.toPort, outputPart)
+              (link.toPort, outputPartitionInfo)
             })
-            .groupBy(e => e._1)
-            .map(x => x._2.map(_._2).reduce((a, b) => a.merge(b)))
+            .groupBy({
+              case (port, _) => port
+            })
+            .map({
+              case (_, partitionInfos) => partitionInfos.map(_._2).reduce((p1, p2) => p1.merge(p2))
+            })
             .toList
           assert(inputPartitionings.length == physicalOp.inputPorts.size)
           // derive the output partition info of this operator
@@ -301,21 +299,18 @@ case class PhysicalPlan(
   }
 
   private def getOutputPartitionInfo(
-      fromPhysicalOpId: PhysicalOpIdentity,
-      fromPort: Int,
-      toPhysicalOpId: PhysicalOpIdentity,
-      inputPort: Int,
+      link: PhysicalLink,
       upstreamPartitionInfo: PartitionInfo
   ): (List[ChannelConfig], PartitionInfo) = {
-    val toPhysicalOp = getOperator(toPhysicalOpId)
-    val fromPhysicalOp = getOperator(fromPhysicalOpId)
+    val toPhysicalOp = link.toOp
+    val fromPhysicalOp = link.fromOp
 
     // make sure this input is connected to this port
-    assert(toPhysicalOp.getOpsOnInputPort(inputPort).map(_.id).contains(fromPhysicalOpId))
+    assert(toPhysicalOp.getOpsOnInputPort(link.toPort).map(_.id).contains(fromPhysicalOp.id))
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement.lift(inputPort).flatten.getOrElse(UnknownPartition())
+      toPhysicalOp.partitionRequirement.lift(link.toPort).flatten.getOrElse(UnknownPartition())
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
@@ -339,7 +334,7 @@ case class PhysicalPlan(
       // we must re-distribute the input partitions
 
       val channelConfigs: List[ChannelConfig] =
-        generateChannelConfigs(
+        toChannelConfigs(
           fromPhysicalOp.getWorkerIds,
           toPhysicalOp.getWorkerIds,
           requiredPartitionInfo
