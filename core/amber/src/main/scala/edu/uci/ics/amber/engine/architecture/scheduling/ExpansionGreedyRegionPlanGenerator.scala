@@ -320,7 +320,12 @@ class ExpansionGreedyRegionPlanGenerator(
                 physicalOp.id -> (0 until workerCount)
                   .map(idx => {
                     val workerId = VirtualIdentityUtils
-                      .createWorkerIdentity(physicalOp.executionId, physicalOp.id, idx)
+                      .createWorkerIdentity(
+                        physicalOp.workflowId,
+                        physicalOp.executionId,
+                        physicalOp.id,
+                        idx
+                      )
                     WorkerConfig(
                       controllerConfig.workerRestoreConfMapping(workerId),
                       controllerConfig.workerLoggingConfMapping(workerId)
