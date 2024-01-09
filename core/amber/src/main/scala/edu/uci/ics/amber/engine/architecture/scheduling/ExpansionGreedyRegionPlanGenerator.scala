@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
   ExecutionClusterInfo
 }
-import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
