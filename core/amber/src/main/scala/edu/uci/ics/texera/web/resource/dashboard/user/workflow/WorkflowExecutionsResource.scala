@@ -29,35 +29,15 @@ object WorkflowExecutionsResource {
     executionsDao.fetchOneByEid(eId)
   }
 
-  def getExpiredResults(timeToLive: Int): List[ExecutionResultEntry] = {
+  def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
     context
-      .select(
-        WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.RESULT
-      )
-      .from(WORKFLOW_EXECUTIONS)
+      .selectFrom(WORKFLOW_EXECUTIONS)
       .where(
-        WORKFLOW_EXECUTIONS.STATUS
-          .eq(3.toByte)
-          .and(
-            WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME
-              .lt(new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)))
-          )
-          .and(WORKFLOW_EXECUTIONS.RESULT.ne(""))
+        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME
+          .lt(new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)))
+          .and(WORKFLOW_EXECUTIONS.RESULT.ne("").or(WORKFLOW_EXECUTIONS.LOG_LOCATION.ne("")))
       )
-      .fetchInto(classOf[ExecutionResultEntry])
-      .toList
-  }
-
-  def getAllIncompleteResults(): List[ExecutionResultEntry] = {
-    context
-      .select(
-        WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.RESULT
-      )
-      .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.RESULT.ne("").and(WORKFLOW_EXECUTIONS.STATUS.ne(3.toByte)))
-      .fetchInto(classOf[ExecutionResultEntry])
+      .fetchInto(classOf[WorkflowExecutions])
       .toList
   }
 
@@ -89,11 +69,6 @@ object WorkflowExecutionsResource {
       completionTime: Timestamp,
       bookmarked: Boolean,
       name: String
-  )
-
-  case class ExecutionResultEntry(
-      eId: UInteger,
-      result: String
   )
 }
 

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.storage
 
+import edu.uci.ics.texera.Utils.maptoStatusCode
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.workflowruntimestate.{
   ExecutionBreakpointStore,
@@ -9,6 +10,8 @@ import edu.uci.ics.texera.web.workflowruntimestate.{
   WorkflowAggregatedState
 }
 
+import java.sql.Timestamp
+
 object ExecutionStateStore {
 
   // Update the state of the specified execution if user system is enabled.
@@ -17,7 +20,11 @@ object ExecutionStateStore {
       state: WorkflowAggregatedState,
       metadataStore: ExecutionMetadataStore
   ): ExecutionMetadataStore = {
-    ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.executionId, state)
+    ExecutionsMetadataPersistService.tryUpdateExistingExecution(metadataStore.executionId) {
+      execution =>
+        execution.setStatus(maptoStatusCode(state))
+        execution.setLastUpdateTime(new Timestamp(System.currentTimeMillis()))
+    }
     metadataStore.withState(state)
   }
 }

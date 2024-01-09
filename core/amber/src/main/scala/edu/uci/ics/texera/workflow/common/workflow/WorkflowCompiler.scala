@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
@@ -66,7 +66,8 @@ class WorkflowCompiler(
       logicalPlanPojo: LogicalPlanPojo,
       opResultStorage: OpResultStorage,
       lastCompletedExecutionLogicalPlan: Option[LogicalPlan] = Option.empty,
-      executionStateStore: ExecutionStateStore
+      executionStateStore: ExecutionStateStore,
+      controllerConfig: ControllerConfig
   ): Workflow = {
 
     // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
@@ -91,7 +92,8 @@ class WorkflowCompiler(
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       rewrittenLogicalPlan,
       physicalPlan,
-      opResultStorage
+      opResultStorage,
+      controllerConfig
     ).generate(context)
 
     // validate the plan

@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 class TrivialControlTester(
     id: ActorVirtualIdentity
-) extends WorkflowActor(logStorageType = "none", id) {
+) extends WorkflowActor(replayLogConfOpt = None, actorId = id) {
   val ap = new AmberProcessor(id, transferService.send)
   val initializer =
     new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
