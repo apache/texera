@@ -1,11 +1,16 @@
 #!/bin/bash
 
 sudo apt update && sudo apt upgrade
-sudo apt install php php-cli apache2 composer
+sudo apt install apache2 php php-curl php-dom php-mysql
 
 sudo rm -rf /opt/flarum
 sudo mkdir /opt/flarum
 sudo chown $USER:$USER /opt/flarum
+
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+php composer-setup.php
+php -r "unlink('composer-setup.php');"
+
 composer create-project flarum/flarum /opt/flarum
 composer require --working-dir=/opt/flarum michaelbelgium/flarum-discussion-views
 composer require --working-dir=/opt/flarum fof/byobu:"*"
