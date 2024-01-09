@@ -13,7 +13,7 @@ import scala.util.matching.Regex
 object VirtualIdentityUtils {
 
   private val workerNamePattern: Regex = raw"Worker:WF(\d+)-E(\d+)-(.+)-(\w+)-(\d+)".r
-
+  private val operatorUUIDPattern: Regex = raw"(\w+)-(.+)-(\w+)".r
   def createWorkerIdentity(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
@@ -59,10 +59,15 @@ object VirtualIdentityUtils {
   def toShorterString(workerId: ActorVirtualIdentity): String = {
     workerId.name match {
       case workerNamePattern(workflowId, executionId, operatorName, layerName, workerIndex) =>
-        val operatorPattern: Regex = raw"(\w+)-(.+)-(\w+)".r
-        val shorterName = operatorName match {
-          case operatorPattern(op, _, a) => op + "-" + a.takeRight(6)
+        val shorterName = if (operatorName.length > 6) {
+          operatorName match {
+            case operatorUUIDPattern(op, _, postfix) => op + "-" + postfix.takeRight(6)
+            case _                                   => operatorName.takeRight(6)
+          }
+        } else {
+          operatorName
         }
+
         s"WF$workflowId-E$executionId-$shorterName-$layerName-$workerIndex"
       case _ => workerId.toString
     }

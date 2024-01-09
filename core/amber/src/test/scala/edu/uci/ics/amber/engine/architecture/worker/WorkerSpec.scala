@@ -45,8 +45,8 @@ class WorkerSpec
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
-  private val identifier1 = ActorVirtualIdentity("Worker:WF1-operator-layer-1")
-  private val identifier2 = ActorVirtualIdentity("Worker:WF1-operator-layer-2")
+  private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
+  private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
   private val mockOpExecutor = new IOperatorExecutor {
     override def open(): Unit = println("opened!")
