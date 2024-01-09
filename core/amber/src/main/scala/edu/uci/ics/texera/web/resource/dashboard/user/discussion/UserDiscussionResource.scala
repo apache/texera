@@ -19,9 +19,9 @@ class UserDiscussionResource {
   @Produces(Array(MediaType.APPLICATION_JSON))
   def register(@Auth user: SessionUser): Int = {
     val dataSource = new MysqlDataSource
-    dataSource.setUrl(AmberConfig.jdbcConfig.getString("jdbc.url").replace("texera_db", "flarum"))
-    dataSource.setUser(AmberConfig.jdbcConfig.getString("jdbc.username"))
-    dataSource.setPassword(AmberConfig.jdbcConfig.getString("jdbc.password"))
+    dataSource.setUrl(AmberConfig.jdbcConfig.getString("url").replace("texera_db", "flarum"))
+    dataSource.setUser(AmberConfig.jdbcConfig.getString("username"))
+    dataSource.setPassword(AmberConfig.jdbcConfig.getString("password"))
     using(dataSource, SQLDialect.MYSQL)
       .insertInto(table(name("users")))
       .columns(
