@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
@@ -27,11 +28,13 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public List<FilterPredicate> predicates;
 
     @Override
-    public PhysicalOp getPhysicalOp(ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
         return PhysicalOp.oneToOnePhysicalOp(
+                workflowId,
                 executionId,
                 operatorIdentifier(),
-                OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) x -> new SpecializedFilterOpExec(this)));
+                OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) x -> new SpecializedFilterOpExec(this))
+        );
     }
 
     @Override

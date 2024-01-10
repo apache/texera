@@ -4,7 +4,7 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
@@ -24,10 +24,12 @@ class ProjectionOpDesc extends MapOpDesc {
   var attributes: List[AttributeUnit] = List()
 
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     oneToOnePhysicalOp(
+      workflowId,
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new ProjectionOpExec(attributes, operatorSchemaInfo))
