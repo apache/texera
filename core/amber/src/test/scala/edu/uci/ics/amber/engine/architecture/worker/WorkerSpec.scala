@@ -22,7 +22,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -42,8 +45,8 @@ class WorkerSpec
   override def afterAll: Unit = {
     TestKit.shutdownActorSystem(system)
   }
-  private val identifier1 = ActorVirtualIdentity("Worker:WF1-operator-layer-1")
-  private val identifier2 = ActorVirtualIdentity("Worker:WF1-operator-layer-2")
+  private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
+  private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
   private val mockOpExecutor = new IOperatorExecutor {
     override def open(): Unit = println("opened!")
@@ -65,18 +68,25 @@ class WorkerSpec
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val physicalOp1 = PhysicalOp(
-    executionId = DEFAULT_EXECUTION_ID,
     id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+    workflowId = DEFAULT_WORKFLOW_ID,
+    executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
   private val physicalOp2 = PhysicalOp(
+    id = PhysicalOpIdentity(operatorIdentity, "2nd-physical-op"),
+    workflowId = DEFAULT_WORKFLOW_ID,
     executionId = DEFAULT_EXECUTION_ID,
-    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
     opExecInitInfo = null
   )
   private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
   private val physicalOp = PhysicalOp
-    .oneToOnePhysicalOp(DEFAULT_EXECUTION_ID, operatorIdentity, OpExecInitInfo(_ => mockOpExecutor))
+    .oneToOnePhysicalOp(
+      DEFAULT_WORKFLOW_ID,
+      DEFAULT_EXECUTION_ID,
+      operatorIdentity,
+      OpExecInitInfo(_ => mockOpExecutor)
+    )
     .copy(
       inputPortToLinkMapping = Map(0 -> List(mockLink)),
       outputPortToLinkMapping = Map(0 -> List(mockLink))

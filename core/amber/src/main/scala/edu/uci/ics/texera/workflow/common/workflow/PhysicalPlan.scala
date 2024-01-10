@@ -4,7 +4,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
@@ -31,6 +30,7 @@ object PhysicalPlan {
     logicalPlan.operators.foreach(op => {
       val subPlan =
         op.getPhysicalPlan(
+          context.workflowId,
           context.executionId,
           logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
         )
@@ -236,7 +236,7 @@ case class PhysicalPlan(
   }
 
   def getPhysicalOpByWorkerId(workerId: ActorVirtualIdentity): PhysicalOp =
-    getOperator(VirtualIdentityUtils.getPhysicalOpId(workerId))
+    operators.find(physicalOp => physicalOp.getWorkerIds.contains(workerId)).get
 
   def getLinksBetween(
       from: PhysicalOpIdentity,

@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
@@ -48,8 +49,10 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     private Option<Integer> upstreamPort = Option.empty();
 
     @Override
-    public PhysicalOp getPhysicalOp(ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
-        return PhysicalOp.localPhysicalOp(executionId,
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+        return PhysicalOp.localPhysicalOp(
+                workflowId,
+                executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter()))
         ).withPorts(this.operatorInfo());
