@@ -8,6 +8,7 @@ case class RegionLink(fromRegion: Region, toRegion: Region)
 
 case class RegionIdentity(id: String)
 
+
 // A (pipelined) region can have a single source. A source is an operator with
 // only blocking inputs or no inputs at all.
 case class Region(

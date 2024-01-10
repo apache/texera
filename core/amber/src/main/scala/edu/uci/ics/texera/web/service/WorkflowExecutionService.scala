@@ -31,6 +31,7 @@ import java.time.Instant
 import scala.collection.mutable
 
 class WorkflowExecutionService(
+    controllerConfig: ControllerConfig,
     workflowContext: WorkflowContext,
     resultService: ExecutionResultService,
     request: WorkflowExecuteRequest,
@@ -95,7 +96,8 @@ class WorkflowExecutionService(
         request.logicalPlan,
         resultService.opResultStorage,
         lastCompletedLogicalPlan,
-        executionStateStore
+        executionStateStore,
+        controllerConfig
       )
     } catch {
       case e: Throwable =>
@@ -113,10 +115,6 @@ class WorkflowExecutionService(
             )
         }
     }
-  }
-
-  private val controllerConfig = {
-    ControllerConfig.default
   }
 
   // Runtime starts from here:

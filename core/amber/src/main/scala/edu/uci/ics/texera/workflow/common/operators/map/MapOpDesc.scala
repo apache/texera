@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
@@ -10,6 +10,7 @@ import scala.util.{Failure, Success, Try}
 abstract class MapOpDesc extends LogicalOp {
 
   override def runtimeReconfiguration(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
@@ -22,7 +23,7 @@ abstract class MapOpDesc extends LogicalOp {
         )
       )
     } else {
-      Success(newOpDesc.getPhysicalOp(executionId, operatorSchemaInfo), None)
+      Success(newOpDesc.getPhysicalOp(workflowId, executionId, operatorSchemaInfo), None)
     }
   }
 

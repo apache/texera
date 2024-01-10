@@ -21,8 +21,8 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
     val ret = inputChannels
       .find {
         case (cid, channel) =>
-          cid.isControl && channel.isEnabled && channel.hasMessage && enforcers.forall(
-            _.canProceed(cid)
+          cid.isControl && channel.isEnabled && channel.hasMessage && enforcers.forall(enforcer =>
+            enforcer.isCompleted || enforcer.canProceed(cid)
           )
       }
       .map(_._2)
@@ -39,9 +39,8 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
       inputChannels
         .find({
           case (cid, channel) =>
-            !cid.isControl && channel.isEnabled && channel.hasMessage && enforcers.forall(
-              _.canProceed(cid)
-            )
+            !cid.isControl && channel.isEnabled && channel.hasMessage && enforcers
+              .forall(enforcer => enforcer.isCompleted || enforcer.canProceed(cid))
         })
         .map(_._2)
     }

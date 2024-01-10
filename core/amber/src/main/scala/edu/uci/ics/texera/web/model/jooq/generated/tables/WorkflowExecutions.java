@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row10;
+import org.jooq.Row11;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = 685424661;
+    private static final long serialVersionUID = -2101880159;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -99,6 +99,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.environment_version</code>.
      */
     public final TableField<WorkflowExecutionsRecord, String> ENVIRONMENT_VERSION = createField(DSL.name("environment_version"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.log_location</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, String> LOG_LOCATION = createField(DSL.name("log_location"), org.jooq.impl.SQLDataType.CLOB, this, "");
 
     /**
      * Create a <code>texera_db.workflow_executions</code> table reference
@@ -198,11 +203,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row10 type methods
+    // Row11 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row10<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String> fieldsRow() {
-        return (Row10) super.fieldsRow();
+    public Row11<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String, String> fieldsRow() {
+        return (Row11) super.fieldsRow();
     }
 }
