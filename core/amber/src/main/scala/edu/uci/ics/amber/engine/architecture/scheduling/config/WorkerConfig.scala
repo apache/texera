@@ -4,6 +4,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 
+import java.net.URI
+
 case object WorkerConfig {
   def generateWorkerConfigs(physicalOp: PhysicalOp): (PhysicalOpIdentity, List[WorkerConfig]) = {
     val workerCount =
@@ -15,10 +17,16 @@ case object WorkerConfig {
         1
       }
 
-    physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
+    physicalOp.id -> (0 until workerCount).toList
+      .map(_ => WorkerConfig(restoreConfOpt = None, replayLogConfOpt = None))
+
   }
 }
 case class WorkerConfig(
-    logStorageType: String = AmberConfig.faultToleranceLogRootFolder,
-    replayTo: Option[Long] = None
+    restoreConfOpt: Option[WorkerStateRestoreConfig] = None,
+    replayLogConfOpt: Option[WorkerReplayLoggingConfig] = None
 )
+
+final case class WorkerStateRestoreConfig(readFrom: URI, replayTo: Long)
+
+final case class WorkerReplayLoggingConfig(writeTo: URI)

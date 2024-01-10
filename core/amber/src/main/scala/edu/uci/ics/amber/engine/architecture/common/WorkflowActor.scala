@@ -4,28 +4,18 @@ import akka.actor.{Actor, ActorRef, Address, Stash}
 import akka.pattern.ask
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
-  CreditRequest,
-  CreditResponse,
-  GetActorRef,
-  MessageBecomesDeadLetter,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef
-}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor._
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
 import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayLogGenerator,
   ReplayLogManager,
   ReplayOrderEnforcer
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.{
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   WorkerReplayLoggingConfig,
   WorkerStateRestoreConfig
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
-import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
