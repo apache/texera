@@ -5,7 +5,8 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, Phys
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
-  PhysicalOpIdentity
+  PhysicalOpIdentity,
+  WorkflowIdentity
 }
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -15,6 +16,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 object AggregateOpDesc {
 
   def getPhysicalPlan(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       id: OperatorIdentity,
       aggFuncs: List[DistributedAggregation[Object]],
@@ -24,8 +26,9 @@ object AggregateOpDesc {
     val partialPhysicalOp =
       PhysicalOp
         .oneToOnePhysicalOp(
-          executionId,
           PhysicalOpIdentity(id, "localAgg"),
+          workflowId,
+          executionId,
           OpExecInitInfo(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         .withIsOneToManyOp(true)
@@ -35,8 +38,9 @@ object AggregateOpDesc {
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
       PhysicalOp
         .localPhysicalOp(
-          executionId,
           PhysicalOpIdentity(id, "globalAgg"),
+          workflowId,
+          executionId,
           OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         .withParallelizable(false)
@@ -50,8 +54,9 @@ object AggregateOpDesc {
 
       PhysicalOp
         .hashPhysicalOp(
-          executionId,
           PhysicalOpIdentity(id, "globalAgg"),
+          workflowId,
+          executionId,
           OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
           partitionColumns
         )
@@ -72,6 +77,7 @@ object AggregateOpDesc {
 abstract class AggregateOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
@@ -79,15 +85,17 @@ abstract class AggregateOpDesc extends LogicalOp {
   }
 
   override def getPhysicalPlan(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
-    var plan = aggregateOperatorExecutor(executionId, operatorSchemaInfo)
+    var plan = aggregateOperatorExecutor(workflowId, executionId, operatorSchemaInfo)
     plan.operators.foreach(op => plan = plan.setOperator(op.withIsOneToManyOp(true)))
     plan
   }
 
   def aggregateOperatorExecutor(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan

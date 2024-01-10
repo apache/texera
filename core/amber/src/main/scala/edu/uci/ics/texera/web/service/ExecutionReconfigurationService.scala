@@ -65,6 +65,7 @@ class ExecutionReconfigurationService(
     val currentOp = workflow.logicalPlan.getOperator(opId)
     val reconfiguredPhysicalOp =
       currentOp.runtimeReconfiguration(
+        workflow.context.workflowId,
         workflow.context.executionId,
         newOp,
         workflow.logicalPlan.getOpSchemaInfo(opId)

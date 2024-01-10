@@ -1,6 +1,9 @@
 package edu.uci.ics.texera.unittest.workflow.operators.visualization.scatterplot
 
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -63,6 +66,7 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputSchema = scatterplotOpDesc.getOutputSchema(Array(wrongTypesSchema))
     assertThrows[IllegalArgumentException] {
       scatterplotOpDesc.getPhysicalOp(
+        DEFAULT_WORKFLOW_ID,
         DEFAULT_EXECUTION_ID,
         OperatorSchemaInfo(Array(wrongTypesSchema), Array(outputSchema))
       )
@@ -80,7 +84,7 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     scatterplotOpDesc.xColumn = "xColumn"
     scatterplotOpDesc.yColumn = "yColumn"
     val outputSchema = scatterplotOpDesc.getOutputSchema(Array(hardcodedFieldNames))
-    assert(scatterplotOpDesc.isGeometric == false)
+    assert(!scatterplotOpDesc.isGeometric)
     assert(outputSchema.getIndex("xColumn") == 0)
     assert(outputSchema.getIndex("yColumn") == 1)
   }

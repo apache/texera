@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.cartesianProduct
 import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -15,11 +15,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchem
 
 class CartesianProductOpDesc extends LogicalOp {
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
+        workflowId,
         executionId,
         operatorIdentifier,
         OpExecInitInfo(_ => new CartesianProductOpExec(operatorSchemaInfo))

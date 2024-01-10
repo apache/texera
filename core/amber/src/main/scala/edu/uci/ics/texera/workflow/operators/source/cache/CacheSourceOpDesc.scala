@@ -2,7 +2,11 @@ package edu.uci.ics.texera.workflow.operators.source.cache
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
   OperatorInfo,
@@ -25,10 +29,12 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
   override def sourceSchema(): Schema = schema
 
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     PhysicalOp.sourcePhysicalOp(
+      workflowId,
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))

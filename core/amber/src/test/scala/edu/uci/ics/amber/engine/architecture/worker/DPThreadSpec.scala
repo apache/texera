@@ -20,7 +20,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -37,19 +40,26 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   private val operator = mock[OperatorExecutor]
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val physicalOp1 = PhysicalOp(
-    executionId = DEFAULT_EXECUTION_ID,
     id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+    workflowId = DEFAULT_WORKFLOW_ID,
+    executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
   private val physicalOp2 = PhysicalOp(
-    executionId = DEFAULT_EXECUTION_ID,
     id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+    workflowId = DEFAULT_WORKFLOW_ID,
+    executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
   private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
 
   private val physicalOp = PhysicalOp
-    .oneToOnePhysicalOp(DEFAULT_EXECUTION_ID, operatorIdentity, OpExecInitInfo(_ => operator))
+    .oneToOnePhysicalOp(
+      workflowId = DEFAULT_WORKFLOW_ID,
+      executionId = DEFAULT_EXECUTION_ID,
+      logicalOpId = operatorIdentity,
+      OpExecInitInfo(_ => operator)
+    )
     .copy(
       inputPortToLinkMapping = Map(0 -> List(mockLink)),
       outputPortToLinkMapping = Map(0 -> List(mockLink))

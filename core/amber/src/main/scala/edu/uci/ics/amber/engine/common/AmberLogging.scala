@@ -8,7 +8,9 @@ trait AmberLogging {
 
   @transient
   protected lazy val logger: Logger = Logger(
-    LoggerFactory.getLogger(s"${actorId.name}] [${getClass.getSimpleName}")
+    LoggerFactory.getLogger(
+      s"${VirtualIdentityUtils.toShorterString(actorId)}] [${getClass.getSimpleName}"
+    )
   )
 
   def actorId: ActorVirtualIdentity

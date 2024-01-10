@@ -5,7 +5,7 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -68,6 +68,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
   var outputColumns: List[Attribute] = List()
 
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
@@ -93,7 +94,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
 
     if (workers > 1)
       PhysicalOp
-        .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
+        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withPartitionRequirement(partitionRequirement)
         .withInputPorts(opInfo.inputPorts)
@@ -105,7 +106,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
-        .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
+        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withPartitionRequirement(partitionRequirement)
         .withInputPorts(opInfo.inputPorts)
@@ -162,10 +163,11 @@ class PythonUDFOpDescV2 extends LogicalOp {
   }
 
   override def runtimeReconfiguration(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
-    Success(newOpDesc.getPhysicalOp(executionId, operatorSchemaInfo), None)
+    Success(newOpDesc.getPhysicalOp(workflowId, executionId, operatorSchemaInfo), None)
   }
 }

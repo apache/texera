@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -36,6 +36,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
   @throws[IOException]
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
@@ -46,6 +47,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(_) =>
         PhysicalOp.sourcePhysicalOp(
+          workflowId,
           executionId,
           operatorIdentifier,
           OpExecInitInfo(_ => new CSVScanSourceOpExec(this))

@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -16,6 +20,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
     override def getPhysicalOp(
+        workflowId: WorkflowIdentity,
         executionId: ExecutionIdentity,
         operatorSchemaInfo: OperatorSchemaInfo
     ): PhysicalOp = ???
@@ -24,6 +29,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
   }
   private class TempTestSinkOpDesc extends SinkOpDesc {
     override def getPhysicalOp(
+        workflowId: WorkflowIdentity,
         executionId: ExecutionIdentity,
         operatorSchemaInfo: OperatorSchemaInfo
     ): PhysicalOp = ???
@@ -63,6 +69,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     val mlTrainingOp = new LogicalOp() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlTrainingOp")
       override def getPhysicalOp(
+          workflowId: WorkflowIdentity,
           executionId: ExecutionIdentity,
           operatorSchemaInfo: OperatorSchemaInfo
       ): PhysicalOp = ???
@@ -88,6 +95,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     val mlInferOp = new LogicalOp() {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlInferOp")
       override def getPhysicalOp(
+          workflowId: WorkflowIdentity,
           executionId: ExecutionIdentity,
           operatorSchemaInfo: OperatorSchemaInfo
       ): PhysicalOp = ???

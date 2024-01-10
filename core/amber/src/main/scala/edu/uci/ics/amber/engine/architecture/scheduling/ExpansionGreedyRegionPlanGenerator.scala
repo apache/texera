@@ -320,7 +320,12 @@ class ExpansionGreedyRegionPlanGenerator(
                 physicalOp.id -> (0 until workerCount)
                   .map(idx => {
                     val workerId = VirtualIdentityUtils
-                      .createWorkerIdentity(physicalOp.executionId, physicalOp.id, idx)
+                      .createWorkerIdentity(
+                        physicalOp.workflowId,
+                        physicalOp.executionId,
+                        physicalOp.id,
+                        idx
+                      )
                     WorkerConfig(
                       controllerConfig.workerRestoreConfMapping(workerId),
                       controllerConfig.workerLoggingConfMapping(workerId)
@@ -407,6 +412,7 @@ class ExpansionGreedyRegionPlanGenerator(
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOp = materializationReader.getPhysicalOp(
+      context.workflowId,
       context.executionId,
       OperatorSchemaInfo(Array(), matReaderOutputSchema)
     )
@@ -433,6 +439,7 @@ class ExpansionGreedyRegionPlanGenerator(
     val matWriterOutputSchema =
       matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
     val matWriterPhysicalOp = matWriterLogicalOp.getPhysicalOp(
+      context.workflowId,
       context.executionId,
       OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
     )

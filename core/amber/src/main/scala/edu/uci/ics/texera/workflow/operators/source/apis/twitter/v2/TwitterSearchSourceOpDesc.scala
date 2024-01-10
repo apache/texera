@@ -8,7 +8,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -35,11 +35,13 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
   var limit: Int = _
 
   override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
     // TODO: use multiple workers
     PhysicalOp.sourcePhysicalOp(
+      workflowId,
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new TwitterSearchSourceOpExec(this, operatorSchemaInfo))

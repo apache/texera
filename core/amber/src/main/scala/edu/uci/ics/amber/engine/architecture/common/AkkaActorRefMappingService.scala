@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkMessage,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.{AmberLogging, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
@@ -59,7 +59,7 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
 
   def registerActorRef(id: ActorVirtualIdentity, ref: ActorRef): Unit = {
     if (!actorRefMapping.contains(id)) {
-      logger.info(s"register $id -> $ref")
+      logger.info(s"register ${VirtualIdentityUtils.toShorterString(id)} -> $ref")
       actorRefMapping(id) = ref
       if (messageStash.contains(id)) {
         val stash = messageStash(id)
@@ -90,13 +90,13 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
         } catch {
           case e: Throwable =>
             logger.warn(
-              "Failed to fetch actorRef for " + id + " parentRef = " + actorService.parent
+              s"Failed to fetch actorRef for ${VirtualIdentityUtils.toShorterString(id)} parentRef = " + actorService.parent
             )
         }
       }
     } else {
       // on controller, wait for actor ref registration.
-      logger.warn(s"unknown identifier: $id")
+      logger.warn(s"unknown identifier: ${VirtualIdentityUtils.toShorterString(id)}")
       val toNotifySet = toNotifyOnRegistration.getOrElseUpdate(id, mutable.HashSet[ActorRef]())
       replyTo.foreach(toNotifySet.add)
     }
@@ -114,4 +114,5 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
       }
       .map(_._1)
   }
+
 }

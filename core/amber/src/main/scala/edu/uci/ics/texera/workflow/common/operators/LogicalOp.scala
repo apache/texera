@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
@@ -172,6 +176,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
@@ -180,11 +185,12 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
     new PhysicalPlan(
-      operators = Set(getPhysicalOp(executionId, operatorSchemaInfo)),
+      operators = Set(getPhysicalOp(workflowId, executionId, operatorSchemaInfo)),
       links = Set.empty
     )
   }
@@ -220,6 +226,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   }
 
   def runtimeReconfiguration(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
