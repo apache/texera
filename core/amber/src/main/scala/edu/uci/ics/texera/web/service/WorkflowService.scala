@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.scheduling.{
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayLoggingConfig,
   WorkerStateRestoreConfig
 }
