@@ -14,7 +14,6 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   @Input()
   workflowRuntimeStatistics?: WorkflowRuntimeStatistics[];
 
-  private tab_index = 0;
   private groupedStats?: Record<string, WorkflowRuntimeStatistics[]>;
   public metrics: string[] = ["Input Tuple Count", "Output Tuple Count"];
 
@@ -26,14 +25,20 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
     }
 
     this.groupedStats = this.groupStatsByOperatorId();
-    this.createChart();
+    this.createChart(0);
   }
 
+  /**
+   * Create a new line chart corresponding to the change of a tab
+   * @param selection of a certain metric
+   */
   onTabChanged(event: MatTabChangeEvent): void {
-    this.tab_index = event.index;
-    this.createChart();
+    this.createChart(event.index);
   }
 
+  /**
+   * Convert an array into a record by combining stats to the same metric and accumulate tuple counts
+   */
   private groupStatsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
     return (
       this.workflowRuntimeStatistics?.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
@@ -51,7 +56,14 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
     );
   }
 
-  private createDatasets(): any[] {
+  /**
+   * Preprocess the dataset which will be used as an input for a line chart
+   * 1. Shorten the operator ID
+   * 2. Remove ProgressiveSinkOp
+   * 3. Contain only a certain metric given a metric idx
+   * @param selection of a certain metric
+   */
+  private createDataset(metric_idx: number): any[] {
     if (!this.groupedStats) {
       return [];
     }
@@ -65,14 +77,14 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
           return null;
         }
 
-        const yValues = this.tab_index === 0 ? "inputTupleCount" : "outputTupleCount";
+        const yValues = metric_idx === 0 ? "inputTupleCount" : "outputTupleCount";
         if (!this.groupedStats) {
           return null;
         }
         const stats = this.groupedStats[operatorId];
 
         return {
-          x: stats.map((_, index) => index * 0.5),
+          x: stats.map((_, metric_idx) => metric_idx * 0.5),
           y: stats.map(stat => stat[yValues]),
           mode: "lines",
           name: `${operatorName}-${uuidLast6Digits}`,
@@ -81,19 +93,23 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       .filter(Boolean);
   }
 
-  private createChart(): void {
-    const datasets = this.createDatasets();
+  /**
+   * Create a line chart using plotly
+   * @param selection of a certain metric
+   */
+  private createChart(metric_idx: number): void {
+    const dataset = this.createDataset(metric_idx);
 
-    if (!datasets || datasets.length === 0) {
+    if (!dataset || dataset.length === 0) {
       return;
     }
 
     const layout = {
-      title: this.metrics[this.tab_index],
+      title: this.metrics[metric_idx],
       xaxis: { title: "Time (s)" },
-      yaxis: { title: this.metrics[this.tab_index] },
+      yaxis: { title: this.metrics[metric_idx] },
     };
 
-    Plotly.newPlot("chart", datasets, layout);
+    Plotly.newPlot("chart", dataset, layout);
   }
 }
