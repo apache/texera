@@ -28,7 +28,8 @@ trait LinkWorkersHandler {
         .config
         .get
         .channelConfigs(msg.linkId)
-      val senderWorkerIds = cp.workflow.physicalPlan.getOperator(msg.linkId.from).getWorkerIds
+
+      val senderWorkerIds = cp.executionState.getOperatorExecution(msg.linkId.from).getBuiltWorkerIds
       val futures = senderWorkerIds
         .zip(channelConfigs)
         .flatMap({

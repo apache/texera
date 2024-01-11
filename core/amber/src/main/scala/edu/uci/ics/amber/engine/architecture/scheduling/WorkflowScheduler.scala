@@ -3,20 +3,13 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionState,
-  OperatorExecution,
-  Workflow
-}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, OperatorExecution, Workflow}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
@@ -27,11 +20,7 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
@@ -148,9 +137,8 @@ class WorkflowScheduler(
         if (!builtPhysicalOpIds.contains(physicalOpId)) {
           buildOperator(
             workflow,
-            region.id,
             physicalOpId,
-            executionState.getOperatorExecution(physicalOpId),
+            region.config.get.workerConfigs(physicalOpId),
             akkaActorService
           )
           builtPhysicalOpIds.add(physicalOpId)
@@ -171,19 +159,16 @@ class WorkflowScheduler(
 
   private def buildOperator(
       workflow: Workflow,
-      regionId: RegionIdentity,
       physicalOpId: PhysicalOpIdentity,
-      opExecution: OperatorExecution,
+      workerConfigs:List[WorkerConfig],
       controllerActorService: AkkaActorService
   ): Unit = {
     val physicalOp = workflow.physicalPlan.getOperator(physicalOpId)
+    val opExecution = executionState.initOperatorState(physicalOpId, workerConfigs)
     physicalOp.build(
       controllerActorService,
       opExecution,
-      workflow.regionPlan.regions
-        .find(region => region.id == regionId)
-        .map(region => region.config.get.workerConfigs(physicalOp.id))
-        .get
+      workerConfigs
     )
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
@@ -354,6 +339,7 @@ class WorkflowScheduler(
     }
     if (!startedRegions.contains(region.id)) {
       constructingRegions.add(region.id)
+
       constructRegion(workflow, region, actorService)
       prepareAndStartRegion(workflow, region, actorService).rescue {
         case err: Throwable =>
