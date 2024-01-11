@@ -14,44 +14,47 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
 
   @throws[IOException]
   override def produceTexeraTuple(): Iterator[Tuple] = {
-    var filenameIt : Iterator[String] = Iterator.empty
+    var filenameIt: Iterator[String] = Iterator.empty
     val fileEntries: Iterator[InputStream] =
       if (desc.extract) {
-      val inputStream: ArchiveInputStream = new ArchiveStreamFactory().createArchiveInputStream(
-        new BufferedInputStream(new FileInputStream(desc.filePath.get))
-      )
-      val (it1, it2) = Iterator
-        .continually(inputStream.getNextEntry)
-        .takeWhile(_ != null)
-        .filterNot(_.getName.startsWith("__MACOSX"))
-        .duplicate
-      filenameIt = it1.map(entry => entry.getName)
-      it2.map(_ => inputStream)
-    } else {
-      Iterator(new FileInputStream(desc.filePath.get))
-    }
+        val inputStream: ArchiveInputStream = new ArchiveStreamFactory().createArchiveInputStream(
+          new BufferedInputStream(new FileInputStream(desc.filePath.get))
+        )
+        val (it1, it2) = Iterator
+          .continually(inputStream.getNextEntry)
+          .takeWhile(_ != null)
+          .filterNot(_.getName.startsWith("__MACOSX"))
+          .duplicate
+        filenameIt = it1.map(entry => entry.getName)
+        it2.map(_ => inputStream)
+      } else {
+        Iterator(new FileInputStream(desc.filePath.get))
+      }
 
     if (desc.attributeType.isSingle) {
-      fileEntries.zipAll(filenameIt, null, null).map { case (entry, fileName) =>
-        val TupleBuilder = Tuple.newBuilder(desc.sourceSchema()).add(
-          if (desc.outputFileName){
-            desc.sourceSchema().getAttributes.get(1)
-          } else {
-            desc.sourceSchema().getAttributes.get(0)
-          },
-          desc.attributeType match {
-            case FileAttributeType.SINGLE_STRING =>
-              new String(toByteArray(entry), desc.encoding.getCharset)
-            case _ => parseField(toByteArray(entry), desc.attributeType.getType)
+      fileEntries.zipAll(filenameIt, null, null).map {
+        case (entry, fileName) =>
+          val TupleBuilder = Tuple
+            .newBuilder(desc.sourceSchema())
+            .add(
+              if (desc.outputFileName) {
+                desc.sourceSchema().getAttributes.get(1)
+              } else {
+                desc.sourceSchema().getAttributes.get(0)
+              },
+              desc.attributeType match {
+                case FileAttributeType.SINGLE_STRING =>
+                  new String(toByteArray(entry), desc.encoding.getCharset)
+                case _ => parseField(toByteArray(entry), desc.attributeType.getType)
+              }
+            )
+          if (desc.outputFileName) {
+            TupleBuilder.add(
+              desc.sourceSchema().getAttributes.get(0),
+              fileName
+            )
           }
-        )
-        if (desc.outputFileName) {
-          TupleBuilder.add(
-            desc.sourceSchema().getAttributes.get(0),
-            fileName
-          )
-        }
-        TupleBuilder.build()
+          TupleBuilder.build()
       }
     } else {
       fileEntries.flatMap(entry =>
@@ -63,13 +66,17 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
             desc.fileScanOffset.getOrElse(0),
             desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
           )
-          .map(line => {Tuple.newBuilder(desc.sourceSchema()).add(
-              desc.sourceSchema().getAttributes.get(0),
-              desc.attributeType match {
-                case FileAttributeType.SINGLE_STRING => line
-                case _ => parseField(line, desc.attributeType.getType)
-              }
-            ).build()
+          .map(line => {
+            Tuple
+              .newBuilder(desc.sourceSchema())
+              .add(
+                desc.sourceSchema().getAttributes.get(0),
+                desc.attributeType match {
+                  case FileAttributeType.SINGLE_STRING => line
+                  case _                               => parseField(line, desc.attributeType.getType)
+                }
+              )
+              .build()
           })
       )
     }
