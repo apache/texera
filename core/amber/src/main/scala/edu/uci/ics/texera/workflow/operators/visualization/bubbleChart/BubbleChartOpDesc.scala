@@ -76,8 +76,6 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
       outputPorts = List(OutputPort())
     )
 
-  override def numWorkers() = 1
-
   def manipulateTable(): String = {
     assert(xValue.nonEmpty && yValue.nonEmpty && zValue.nonEmpty)
     s"""

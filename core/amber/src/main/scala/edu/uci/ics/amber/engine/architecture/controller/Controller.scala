@@ -4,14 +4,18 @@ import akka.actor.SupervisorStrategy.Stop
 import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
-import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusUpdate
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowRecoveryStatus
+import edu.uci.ics.amber.engine.architecture.controller.Controller.{
+  ReplayStatusUpdate,
+  WorkflowRecoveryStatus
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogGenerator, ReplayOrderEnforcer}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
@@ -24,8 +28,8 @@ object ControllerConfig {
       monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
       skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
-      logStorageType = AmberConfig.faultToleranceLogRootFolder,
-      replayTo = None
+      workerRestoreConfMapping = _ => None,
+      workerLoggingConfMapping = _ => None
     )
 }
 
@@ -33,8 +37,8 @@ final case class ControllerConfig(
     monitoringIntervalMs: Option[Long],
     skewDetectionIntervalMs: Option[Long],
     statusUpdateIntervalMs: Option[Long],
-    logStorageType: String,
-    replayTo: Option[Long]
+    workerRestoreConfMapping: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
+    workerLoggingConfMapping: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
 )
 
 object Controller {
@@ -51,13 +55,14 @@ object Controller {
     )
 
   final case class ReplayStatusUpdate(id: ActorVirtualIdentity, status: Boolean)
+  final case class WorkflowRecoveryStatus(isRecovering: Boolean)
 }
 
 class Controller(
     val workflow: Workflow,
     val controllerConfig: ControllerConfig
 ) extends WorkflowActor(
-      controllerConfig.logStorageType,
+      controllerConfig.workerLoggingConfMapping(CONTROLLER),
       CONTROLLER
     ) {
 
@@ -76,51 +81,30 @@ class Controller(
   private val globalReplayManager = new GlobalReplayManager(
     () => {
       //onStart
-      cp.asyncRPCClient.sendToClient(WorkflowRecoveryStatus(true))
+      context.parent ! WorkflowRecoveryStatus(true)
     },
     () => {
       //onComplete
-      cp.asyncRPCClient.sendToClient(WorkflowRecoveryStatus(false))
+      context.parent ! WorkflowRecoveryStatus(false)
     }
   )
-
-  def setupReplay(): Unit = {
-    if (controllerConfig.replayTo.isDefined) {
-      globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
-
-      val (processSteps, messages) = ReplayLogGenerator.generate(logStorage, getLogName)
-      val replayTo = controllerConfig.replayTo.get
-      val onReplayComplete = () => {
-        globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
-      }
-      val orderEnforcer = new ReplayOrderEnforcer(
-        logManager,
-        processSteps,
-        startStep = logManager.getStep,
-        replayTo,
-        onReplayComplete
-      )
-
-      cp.inputGateway.addEnforcer(orderEnforcer)
-      messages.foreach(message =>
-        cp.inputGateway.getChannel(message.channel).acceptMessage(message)
-      )
-
-      logger.info(
-        s"setting up replay, " +
-          s"current step = ${logManager.getStep} " +
-          s"target step = ${controllerConfig.replayTo.get} " +
-          s"# of log record to replay = ${processSteps.size}"
-      )
-      processMessages()
-    }
-  }
 
   override def initState(): Unit = {
     cp.setupActorService(actorService)
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
-    setupReplay()
+    val controllerRestoreConf = controllerConfig.workerRestoreConfMapping(CONTROLLER)
+    if (controllerRestoreConf.isDefined) {
+      globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
+      setupReplay(
+        cp,
+        controllerRestoreConf.get,
+        () => {
+          globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
+        }
+      )
+      processMessages()
+    }
   }
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
@@ -142,7 +126,8 @@ class Controller(
               case p                       => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
-        case None => waitingForInput = true
+        case None =>
+          waitingForInput = true
       }
     }
   }

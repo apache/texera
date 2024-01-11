@@ -19,12 +19,12 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
   PythonExpressionEvaluateRequest
 }
 import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEvaluateResponse
-import edu.uci.ics.texera.web.storage.JobStateStore
-import edu.uci.ics.texera.web.storage.JobStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{RESUMING, RUNNING}
 import edu.uci.ics.texera.web.workflowruntimestate.{
   EvaluatedValueList,
-  JobConsoleStore,
+  ExecutionConsoleStore,
   OperatorConsole
 }
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
@@ -32,11 +32,11 @@ import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import java.time.Instant
 import scala.collection.mutable
 
-class JobConsoleService(
+class ExecutionConsoleService(
     client: AmberClient,
-    stateStore: JobStateStore,
+    stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
-    breakpointService: JobBreakpointService
+    breakpointService: ExecutionBreakpointService
 ) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 
@@ -69,12 +69,12 @@ class JobConsoleService(
     addSubscription(
       client
         .registerCallback[ConsoleMessageTriggered]((evt: ConsoleMessageTriggered) => {
-          stateStore.consoleStore.updateState { jobInfo =>
+          stateStore.consoleStore.updateState { consoleStore =>
             val opId =
               VirtualIdentityUtils.getPhysicalOpId(
                 ActorVirtualIdentity(evt.consoleMessage.workerId)
               )
-            addConsoleMessage(jobInfo, opId.logicalOpId.id, evt.consoleMessage)
+            addConsoleMessage(consoleStore, opId.logicalOpId.id, evt.consoleMessage)
           }
         })
     )
@@ -82,21 +82,21 @@ class JobConsoleService(
   }
 
   private[this] def addConsoleMessage(
-      jobInfo: JobConsoleStore,
+      consoleStore: ExecutionConsoleStore,
       opId: String,
       consoleMessage: ConsoleMessage
-  ): JobConsoleStore = {
-    val opInfo = jobInfo.operatorConsole.getOrElse(opId, OperatorConsole())
+  ): ExecutionConsoleStore = {
+    val opInfo = consoleStore.operatorConsole.getOrElse(opId, OperatorConsole())
 
     if (opInfo.consoleMessages.size < bufferSize) {
-      jobInfo.addOperatorConsole(
+      consoleStore.addOperatorConsole(
         (
           opId,
           opInfo.addConsoleMessages(consoleMessage)
         )
       )
     } else {
-      jobInfo.addOperatorConsole(
+      consoleStore.addOperatorConsole(
         (
           opId,
           opInfo.withConsoleMessages(opInfo.consoleMessages.drop(1) :+ consoleMessage)
@@ -107,10 +107,15 @@ class JobConsoleService(
 
   //Receive retry request
   addSubscription(wsInput.subscribe((req: RetryRequest, uidOpt) => {
-    stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RESUMING, jobInfo))
+    stateStore.metadataStore.updateState(metadataStore =>
+      updateWorkflowState(RESUMING, metadataStore)
+    )
     client.sendAsyncWithCallback[Unit](
       RetryWorkflow(req.workers.map(x => ActorVirtualIdentity(x))),
-      _ => stateStore.jobMetadataStore.updateState(jobInfo => updateWorkflowState(RUNNING, jobInfo))
+      _ =>
+        stateStore.metadataStore.updateState(metadataStore =>
+          updateWorkflowState(RUNNING, metadataStore)
+        )
     )
   }))
 
@@ -141,7 +146,7 @@ class JobConsoleService(
 
   //Receive debug command
   addSubscription(wsInput.subscribe((req: DebugCommandRequest, uidOpt) => {
-    stateStore.consoleStore.updateState { jobInfo =>
+    stateStore.consoleStore.updateState { consoleStore =>
       val newMessage = new ConsoleMessage(
         req.workerId,
         Timestamp(Instant.now),
@@ -150,7 +155,7 @@ class JobConsoleService(
         req.cmd,
         ""
       )
-      addConsoleMessage(jobInfo, req.operatorId, newMessage)
+      addConsoleMessage(consoleStore, req.operatorId, newMessage)
     }
 
     client.sendAsync(DebugCommand(req.workerId, req.cmd))

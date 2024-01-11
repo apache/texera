@@ -38,16 +38,14 @@ object LogicalPlan {
   }
 
   def apply(
-      pojo: LogicalPlanPojo,
-      ctx: WorkflowContext
+      pojo: LogicalPlanPojo
   ): LogicalPlan = {
-    LogicalPlan(ctx, pojo.operators, pojo.links, pojo.breakpoints)
+    LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints)
   }
 
 }
 
 case class LogicalPlan(
-    context: WorkflowContext,
     operators: List[LogicalOp],
     links: List[LogicalLink],
     breakpoints: List[BreakpointInfo],
@@ -98,12 +96,11 @@ case class LogicalPlan(
 
   def addOperator(op: LogicalOp): LogicalPlan = {
     // TODO: fix schema for the new operator
-    this.copy(context, operators :+ op, links, breakpoints)
+    this.copy(operators :+ op, links, breakpoints)
   }
 
   def removeOperator(opId: OperatorIdentity): LogicalPlan = {
     this.copy(
-      context,
       operators.filter(o => o.operatorIdentifier != opId),
       links.filter(l => l.origin.operatorId != opId && l.destination.operatorId != opId),
       breakpoints.filter(b => OperatorIdentity(b.operatorID) != opId),
@@ -122,11 +119,11 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val newLink = LogicalLink(LogicalPort(from, fromPort), LogicalPort(to, toPort))
     val newLinks = links :+ newLink
-    this.copy(context, operators, newLinks, breakpoints)
+    this.copy(operators, newLinks, breakpoints)
   }
 
   def removeLink(linkToRemove: LogicalLink): LogicalPlan = {
-    this.copy(context, operators, links.filter(l => l != linkToRemove), breakpoints)
+    this.copy(operators, links.filter(l => l != linkToRemove), breakpoints)
   }
 
   def getDownstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
@@ -159,6 +156,7 @@ case class LogicalPlan(
   }
 
   def propagateWorkflowSchema(
+      context: WorkflowContext,
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
   ): LogicalPlan = {
 
@@ -239,7 +237,6 @@ case class LogicalPlan(
     })
 
     this.copy(
-      context,
       operators,
       links,
       breakpoints,

@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.commons.lang3.builder.EqualsBuilder
+import org.jooq.types.UInteger
 
 import java.util.Collections.singletonList
 import scala.collection.JavaConverters.asScalaBuffer
@@ -76,7 +77,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
           email = splitNames.apply(0),
           fileName = splitNames.apply(1),
           getContext.userId.get,
-          getContext.wid
+          UInteger.valueOf(getContext.workflowId.id)
         )
 
     } else {

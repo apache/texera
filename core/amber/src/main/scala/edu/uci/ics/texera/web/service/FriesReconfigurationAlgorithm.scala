@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.ExecutionPlan
+import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlan
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
   WorkerModifyLogic,
   WorkerModifyLogicMultiple
@@ -18,20 +18,21 @@ import scala.jdk.CollectionConverters.asScalaSet
 
 object FriesReconfigurationAlgorithm {
 
-  def getOneToManyOperators(physicalPlan: PhysicalPlan): Set[PhysicalOpIdentity] = {
-    physicalPlan.operators.filter(op => op.isOneToManyOp).map(op => op.id).toSet
+  private def getOneToManyOperators(physicalPlan: PhysicalPlan): Set[PhysicalOpIdentity] = {
+    physicalPlan.operators.filter(op => op.isOneToManyOp).map(op => op.id)
   }
 
   def scheduleReconfigurations(
       physicalPlan: PhysicalPlan,
-      executionPlan: ExecutionPlan,
+      regionPlan: RegionPlan,
       reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
       epochMarkerId: String
-  ): List[(PhysicalOpIdentity, EpochMarker)] = {
+  ): Set[(PhysicalOpIdentity, EpochMarker)] = {
     // independently schedule reconfigurations for each region:
-    executionPlan.getAllRegions
-      .map(region => physicalPlan.getSubPlan(region.getOperators.toSet))
+    regionPlan.regions
+      .map(region => physicalPlan.getSubPlan(region.physicalOpIds))
       .flatMap(regionSubPlan => computeMCS(regionSubPlan, reconfigurations, epochMarkerId))
+      .toSet
   }
 
   private def computeMCS(
@@ -97,7 +98,7 @@ object FriesReconfigurationAlgorithm {
       )
 
       // find the source operators of the component
-      val sources = componentSet.filter(op => mcsPlan.getSourceOperatorIds.contains(op))
+      val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
       sources.foreach(source => {
         epochMarkers += ((source, EpochMarker(epochMarkerId, componentPlan, Some(reconfigCommand))))
       })

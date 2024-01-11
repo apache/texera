@@ -2,15 +2,15 @@ package edu.uci.ics.amber.engine.architecture.common
 
 import akka.actor.ActorRef
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
+  CreditRequest,
   GetActorRef,
   NetworkMessage,
-  RegisterActorRef,
-  CreditRequest
+  RegisterActorRef
 }
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.{AmberLogging, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 
 import scala.collection.mutable
 
@@ -22,6 +22,8 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
 
   private val actorRefMapping: mutable.HashMap[ActorVirtualIdentity, ActorRef] = mutable.HashMap()
   private val queriedActorVirtualIdentities = new mutable.HashSet[ActorVirtualIdentity]()
+  private val toNotifyOnRegistration =
+    new mutable.HashMap[ActorVirtualIdentity, mutable.Set[ActorRef]]()
   private val messageStash =
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[NetworkMessage]]
   actorRefMapping(SELF) = actorService.self
@@ -44,20 +46,20 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
     } else {
       val stash = messageStash.getOrElseUpdate(id, new mutable.Queue[NetworkMessage]())
       stash.enqueue(msg)
-      fetchActorRefMappingFromParent(id)
+      retrieveActorRef(id, Set())
     }
   }
 
   def removeActorRef(id: ActorVirtualIdentity): Unit = {
     if (actorRefMapping.contains(id)) {
       val ref = actorRefMapping.remove(id).get
-      logger.error(s"actor $id is not reachable anymore, it might have crashed. old ref = $ref")
+      logger.warn(s"actor $id is not reachable anymore, it might have crashed. old ref = $ref")
     }
   }
 
   def registerActorRef(id: ActorVirtualIdentity, ref: ActorRef): Unit = {
     if (!actorRefMapping.contains(id)) {
-      logger.info(s"register $id -> $ref")
+      logger.info(s"register ${VirtualIdentityUtils.toShorterString(id)} -> $ref")
       actorRefMapping(id) = ref
       if (messageStash.contains(id)) {
         val stash = messageStash(id)
@@ -66,6 +68,12 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
         }
       }
     }
+    if (toNotifyOnRegistration.contains(id)) {
+      toNotifyOnRegistration(id).foreach { toNotify =>
+        toNotify ! RegisterActorRef(id, ref)
+      }
+      toNotifyOnRegistration.remove(id)
+    }
   }
 
   def retrieveActorRef(id: ActorVirtualIdentity, replyTo: Set[ActorRef]): Unit = {
@@ -73,10 +81,24 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
       replyTo.foreach { actor =>
         actor ! RegisterActorRef(id, actorRefMapping(id))
       }
-    } else if (actorService.parent != null) {
-      actorService.parent ! GetActorRef(id, replyTo + actorService.self)
+    } else if (actorId != CONTROLLER) {
+      // propagation stops at controller
+      if (!queriedActorVirtualIdentities.contains(id)) {
+        try {
+          actorService.parent ! GetActorRef(id, replyTo + actorService.self)
+          queriedActorVirtualIdentities.add(id)
+        } catch {
+          case e: Throwable =>
+            logger.warn(
+              s"Failed to fetch actorRef for ${VirtualIdentityUtils.toShorterString(id)} parentRef = " + actorService.parent
+            )
+        }
+      }
     } else {
-      logger.error(s"unknown identifier: $id")
+      // on controller, wait for actor ref registration.
+      logger.warn(s"unknown identifier: ${VirtualIdentityUtils.toShorterString(id)}")
+      val toNotifySet = toNotifyOnRegistration.getOrElseUpdate(id, mutable.HashSet[ActorRef]())
+      replyTo.foreach(toNotifySet.add)
     }
   }
 
@@ -93,16 +115,4 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
       .map(_._1)
   }
 
-  @inline
-  private[this] def fetchActorRefMappingFromParent(id: ActorVirtualIdentity): Unit = {
-    if (!queriedActorVirtualIdentities.contains(id)) {
-      try {
-        actorService.parent ! GetActorRef(id, Set(actorService.self))
-        queriedActorVirtualIdentities.add(id)
-      } catch {
-        case e: Throwable =>
-          logger.error("Failed to fetch actorRef for " + id + " parentRef = " + actorService.parent)
-      }
-    }
-  }
 }

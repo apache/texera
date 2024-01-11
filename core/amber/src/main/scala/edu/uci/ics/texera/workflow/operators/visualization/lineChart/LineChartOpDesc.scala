@@ -56,8 +56,6 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
       outputPorts = List(OutputPort())
     )
 
-  override def numWorkers() = 1
-
   def createPlotlyFigure(): String = {
     val linesCode = lines.asScala
       .map { lineConf =>

@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -66,31 +67,30 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   var outputColumns: List[Attribute] = List()
 
   override def getPhysicalOp(
-      executionId: Long,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1)
       PhysicalOp
-        .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          numWorkers = workers,
-          blockingInputs = List(0),
-          dependency = Map(1 -> 0),
-          derivePartition = _ => UnknownPartition()
-        )
+        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .withBlockingInputs(List(0))
+        .withDerivePartition(_ => UnknownPartition())
+        .withParallelizable(true)
+        .withDependencies(Map(1 -> 0))
         .withInputPorts(operatorInfo.inputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
-        .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          blockingInputs = List(0),
-          dependency = Map(1 -> 0),
-          derivePartition = _ => UnknownPartition()
-        )
+        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .withBlockingInputs(List(0))
+        .withDerivePartition(_ => UnknownPartition())
+        .withParallelizable(false)
         .withInputPorts(operatorInfo.inputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
@@ -20,10 +21,12 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   var textInput: String = _
 
   override def getPhysicalOp(
-      executionId: Long,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
     PhysicalOp.sourcePhysicalOp(
+      workflowId,
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new TextInputSourceOpExec(this))

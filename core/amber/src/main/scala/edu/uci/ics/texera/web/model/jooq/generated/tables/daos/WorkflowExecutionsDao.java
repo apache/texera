@@ -186,4 +186,18 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByEnvironmentVersion(String... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_VERSION, values);
     }
+
+    /**
+     * Fetch records that have <code>log_location BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLogLocation(String lowerInclusive, String upperInclusive) {
+        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.LOG_LOCATION, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>log_location IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByLogLocation(String... values) {
+        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.LOG_LOCATION, values);
+    }
 }

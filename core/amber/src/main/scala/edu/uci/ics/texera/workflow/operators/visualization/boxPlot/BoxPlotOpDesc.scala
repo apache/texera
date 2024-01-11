@@ -77,8 +77,6 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
        |""".stripMargin
   }
 
-  override def numWorkers() = 1
-
   def createPlotlyFigure(): String = {
     var horizontal = ""
     if (orientation) horizontal = "True"

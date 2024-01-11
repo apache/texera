@@ -1,17 +1,19 @@
 package edu.uci.ics.texera.web.service
 
-import java.util.concurrent.ConcurrentHashMap
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.AmberConfig
-
-import scala.collection.JavaConverters._
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
-import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.resource.WorkflowWebsocketResource
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.WorkflowStateStore
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.COMPLETED
+import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
@@ -20,24 +22,28 @@ import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
+import java.util.concurrent.ConcurrentHashMap
+import scala.collection.JavaConverters._
+import java.net.URI
+
 object WorkflowService {
-  private val wIdToWorkflowState = new ConcurrentHashMap[String, WorkflowService]()
+  private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
   val cleanUpDeadlineInSeconds: Int = AmberConfig.executionStateCleanUpInSecs
 
-  def getAllWorkflowService: Iterable[WorkflowService] = wIdToWorkflowState.values().asScala
+  def getAllWorkflowServices: Iterable[WorkflowService] = workflowServiceMapping.values().asScala
 
-  def mkWorkflowStateId(wId: Int): String = {
-    wId.toString
+  def mkWorkflowStateId(workflowId: WorkflowIdentity): String = {
+    workflowId.toString
   }
   def getOrCreate(
-      wId: Int,
+      workflowId: WorkflowIdentity,
       cleanupTimeout: Int = cleanUpDeadlineInSeconds
   ): WorkflowService = {
-    wIdToWorkflowState.compute(
-      mkWorkflowStateId(wId),
+    workflowServiceMapping.compute(
+      mkWorkflowStateId(workflowId),
       (_, v) => {
         if (v == null) {
-          new WorkflowService(wId, cleanupTimeout)
+          new WorkflowService(workflowId, cleanupTimeout)
         } else {
           v
         }
@@ -47,7 +53,7 @@ object WorkflowService {
 }
 
 class WorkflowService(
-    val wId: Int,
+    val workflowId: WorkflowIdentity,
     cleanUpTimeout: Int
 ) extends SubscriptionManager
     with LazyLogging {
@@ -55,21 +61,21 @@ class WorkflowService(
   var opResultStorage: OpResultStorage = new OpResultStorage()
   private val errorSubject = BehaviorSubject.create[TexeraWebSocketEvent]().toSerialized
   val stateStore = new WorkflowStateStore()
-  var jobService: BehaviorSubject[WorkflowJobService] = BehaviorSubject.create()
+  var executionService: BehaviorSubject[WorkflowExecutionService] = BehaviorSubject.create()
 
-  val resultService: JobResultService =
-    new JobResultService(opResultStorage, stateStore)
+  val resultService: ExecutionResultService =
+    new ExecutionResultService(opResultStorage, stateStore)
   val exportService: ResultExportService =
-    new ResultExportService(opResultStorage, UInteger.valueOf(wId))
+    new ResultExportService(opResultStorage, UInteger.valueOf(workflowId.id))
   val lifeCycleManager: WorkflowLifecycleManager = new WorkflowLifecycleManager(
-    s"wid=$wId",
+    s"workflowId=$workflowId",
     cleanUpTimeout,
     () => {
       opResultStorage.close()
-      WorkflowService.wIdToWorkflowState.remove(mkWorkflowStateId(wId))
-      if (jobService.getValue != null) {
+      WorkflowService.workflowServiceMapping.remove(mkWorkflowStateId(workflowId))
+      if (executionService.getValue != null) {
         // shutdown client
-        jobService.getValue.client.shutdown()
+        executionService.getValue.client.shutdown()
       }
       unsubscribeAll()
     }
@@ -77,16 +83,16 @@ class WorkflowService(
 
   var lastCompletedLogicalPlan: Option[LogicalPlan] = Option.empty
 
-  jobService.subscribe { job: WorkflowJobService =>
+  executionService.subscribe { executionService: WorkflowExecutionService =>
     {
-      job.jobStateStore.jobMetadataStore.registerDiffHandler { (oldState, newState) =>
-        {
-          if (oldState.state != COMPLETED && newState.state == COMPLETED) {
-            lastCompletedLogicalPlan = Option.apply(job.workflow.originalLogicalPlan)
+      executionService.executionStateStore.metadataStore.registerDiffHandler {
+        (oldState, newState) =>
+          {
+            if (oldState.state != COMPLETED && newState.state == COMPLETED) {
+              lastCompletedLogicalPlan = Option.apply(executionService.workflow.originalLogicalPlan)
+            }
+            Iterable.empty
           }
-
-          Iterable.empty
-        }
       }
     }
   }
@@ -103,14 +109,14 @@ class WorkflowService(
     new CompositeDisposable(subscriptions :+ errorSubscription: _*)
   }
 
-  def connectToJob(onNext: TexeraWebSocketEvent => Unit): Disposable = {
+  def connectToExecution(onNext: TexeraWebSocketEvent => Unit): Disposable = {
     var localDisposable = Disposable.empty()
-    jobService.subscribe { job: WorkflowJobService =>
+    executionService.subscribe { executionService: WorkflowExecutionService =>
       localDisposable.dispose()
-      val subscriptions = job.jobStateStore.getAllStores
+      val subscriptions = executionService.executionStateStore.getAllStores
         .map(_.getWebsocketEventObservable)
         .map(evtPub =>
-          evtPub.subscribe { evts: Iterable[TexeraWebSocketEvent] => evts.foreach(onNext) }
+          evtPub.subscribe { events: Iterable[TexeraWebSocketEvent] => events.foreach(onNext) }
         )
         .toSeq
       localDisposable = new CompositeDisposable(subscriptions: _*)
@@ -119,42 +125,74 @@ class WorkflowService(
 
   def disconnect(): Unit = {
     lifeCycleManager.decreaseUserCount(
-      Option(jobService.getValue).map(_.jobStateStore.jobMetadataStore.getState.state)
+      Option(executionService.getValue).map(_.executionStateStore.metadataStore.getState.state)
     )
   }
 
   private[this] def createWorkflowContext(
       uidOpt: Option[UInteger]
   ): WorkflowContext = {
-    val jobID: String = String.valueOf(WorkflowWebsocketResource.nextExecutionID.incrementAndGet)
-    new WorkflowContext(jobID, uidOpt, UInteger.valueOf(wId))
+    new WorkflowContext(uidOpt, workflowId)
   }
 
-  def initJobService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
-    if (jobService.getValue != null) {
+  def initExecutionService(req: WorkflowExecuteRequest, uidOpt: Option[UInteger]): Unit = {
+    if (executionService.getValue != null) {
       //unsubscribe all
-      jobService.getValue.unsubscribeAll()
+      executionService.getValue.unsubscribeAll()
     }
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
+    var controllerConf = ControllerConfig.default
 
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
-      workflowContext.wid,
+      workflowContext.workflowId,
       workflowContext.userId,
       req.executionName,
       convertToJson(req.engineVersion)
     )
 
-    val job = new WorkflowJobService(
+    if (AmberConfig.isUserSystemEnabled) {
+      // enable only if we have mysql
+      if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
+        val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
+          workflowContext.workflowId + "/" + workflowContext.executionId
+        )
+        ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
+          execution => execution.setLogLocation(writeLocation.toString)
+        }
+        controllerConf = controllerConf.copy(workerLoggingConfMapping = { _ =>
+          Some(WorkerReplayLoggingConfig(writeTo = writeLocation))
+        })
+      }
+      if (req.replayFromExecution.isDefined) {
+        val executionIdentity = ExecutionIdentity(req.replayFromExecution.get)
+        ExecutionsMetadataPersistService
+          .tryGetExistingExecution(executionIdentity)
+          .foreach { execution =>
+            val readLocation = new URI(execution.getLogLocation)
+            controllerConf = controllerConf.copy(workerRestoreConfMapping = { _ =>
+              Some(
+                WorkerStateRestoreConfig(
+                  readFrom = readLocation,
+                  replayTo = Long.MaxValue // TODO: support time-travel feature.
+                )
+              )
+            })
+          }
+      }
+    }
+
+    val execution = new WorkflowExecutionService(
+      controllerConf,
       workflowContext,
       resultService,
       req,
       lastCompletedLogicalPlan
     )
 
-    lifeCycleManager.registerCleanUpOnStateChange(job.jobStateStore)
-    jobService.onNext(job)
-    if (job.jobStateStore.jobMetadataStore.getState.fatalErrors.isEmpty) {
-      job.startWorkflow()
+    lifeCycleManager.registerCleanUpOnStateChange(execution.executionStateStore)
+    executionService.onNext(execution)
+    if (execution.executionStateStore.metadataStore.getState.fatalErrors.isEmpty) {
+      execution.startWorkflow()
     }
   }
 
@@ -167,7 +205,7 @@ class WorkflowService(
 
   override def unsubscribeAll(): Unit = {
     super.unsubscribeAll()
-    Option(jobService.getValue).foreach(_.unsubscribeAll())
+    Option(executionService.getValue).foreach(_.unsubscribeAll())
     resultService.unsubscribeAll()
   }
 

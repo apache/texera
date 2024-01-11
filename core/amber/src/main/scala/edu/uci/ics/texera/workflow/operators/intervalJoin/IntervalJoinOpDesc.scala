@@ -6,6 +6,7 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -74,7 +75,8 @@ class IntervalJoinOpDesc extends LogicalOp {
   var timeIntervalType: Option[TimeIntervalType] = _
 
   override def getPhysicalOp(
-      executionId: Long,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     val partitionRequirement = List(
@@ -84,17 +86,16 @@ class IntervalJoinOpDesc extends LogicalOp {
 
     PhysicalOp
       .oneToOnePhysicalOp(
+        workflowId,
         executionId,
         operatorIdentifier,
         OpExecInitInfo(_ => new IntervalJoinOpExec(operatorSchemaInfo, this))
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        partitionRequirement = partitionRequirement,
-        blockingInputs = List(0),
-        dependency = Map(1 -> 0)
-      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withBlockingInputs(List(0))
+      .withPartitionRequirement(partitionRequirement)
+      .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =

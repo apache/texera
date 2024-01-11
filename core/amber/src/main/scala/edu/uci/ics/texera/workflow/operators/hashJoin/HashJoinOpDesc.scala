@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
@@ -52,7 +53,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
   var joinType: JoinType = JoinType.INNER
 
   override def getPhysicalOp(
-      executionId: Long,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     val partitionRequirement = List(
@@ -85,6 +87,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
 
     PhysicalOp
       .oneToOnePhysicalOp(
+        workflowId,
         executionId,
         operatorIdentifier,
         OpExecInitInfo(_ =>
@@ -96,14 +99,12 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        partitionRequirement = partitionRequirement,
-        derivePartition = joinDerivePartition,
-        blockingInputs = List(0),
-        dependency = Map(1 -> 0)
-      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts((operatorInfo.outputPorts))
+      .withBlockingInputs(List(0))
+      .withPartitionRequirement(partitionRequirement)
+      .withDerivePartition(joinDerivePartition)
+      .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =

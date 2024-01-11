@@ -5,6 +5,7 @@ import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -67,7 +68,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
   var outputColumns: List[Attribute] = List()
 
   override def getPhysicalOp(
-      executionId: Long,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
@@ -77,7 +79,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
     } else {
       opInfo.inputPorts.map(_ => None)
     }
-    val dependency: Map[Int, Int] = if (inputPorts != null) {
+    val dependencies: Map[Int, Int] = if (inputPorts != null) {
       inputPorts.zipWithIndex
         .filter {
           case (port, _) => port.dependencies != null
@@ -92,28 +94,26 @@ class PythonUDFOpDescV2 extends LogicalOp {
 
     if (workers > 1)
       PhysicalOp
-        .oneToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          numWorkers = workers,
-          derivePartition = _ => UnknownPartition(),
-          isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
-        )
+        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .withDerivePartition(_ => UnknownPartition())
+        .withPartitionRequirement(partitionRequirement)
+        .withInputPorts(opInfo.inputPorts)
+        .withOutputPorts(opInfo.outputPorts)
+        .withIsOneToManyOp(true)
+        .withParallelizable(true)
+        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
-        .manyToOnePhysicalOp(executionId, operatorIdentifier, OpExecInitInfo(code))
-        .copy(
-          derivePartition = _ => UnknownPartition(),
-          isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
-        )
+        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .withDerivePartition(_ => UnknownPartition())
+        .withPartitionRequirement(partitionRequirement)
+        .withInputPorts(opInfo.inputPorts)
+        .withOutputPorts(opInfo.outputPorts)
+        .withIsOneToManyOp(true)
+        .withParallelizable(false)
+        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
@@ -163,10 +163,11 @@ class PythonUDFOpDescV2 extends LogicalOp {
   }
 
   override def runtimeReconfiguration(
-      executionId: Long,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       newOpDesc: LogicalOp,
       operatorSchemaInfo: OperatorSchemaInfo
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
-    Success(newOpDesc.getPhysicalOp(executionId, operatorSchemaInfo), None)
+    Success(newOpDesc.getPhysicalOp(workflowId, executionId, operatorSchemaInfo), None)
   }
 }
