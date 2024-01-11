@@ -316,7 +316,7 @@ class ExpansionGreedyRegionPlanGenerator(
                   }
 
                 physicalOp.id -> (0 until workerCount)
-                  .map(idx => WorkerConfig())
+                  .map(_ => WorkerConfig())
                   .toList
               }
             }

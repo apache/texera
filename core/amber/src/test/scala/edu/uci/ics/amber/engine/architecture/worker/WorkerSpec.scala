@@ -117,7 +117,7 @@ class WorkerSpec
         identifier1,
         physicalOp,
         WorkerConfig(),
-        WorkerReplayInitialization(None, None)
+        WorkerReplayInitialization(restoreConfOpt = None, replayLogConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager
