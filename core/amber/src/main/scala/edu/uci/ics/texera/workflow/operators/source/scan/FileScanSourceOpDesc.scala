@@ -1,12 +1,21 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
-import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaString, JsonSchemaTitle}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaInject,
+  JsonSchemaString,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.text.TextSourceOpDesc
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
@@ -27,8 +36,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   var extract: Boolean = false
 
   @JsonProperty(defaultValue = "false")
-  @JsonSchemaTitle("Output Filename")
-  @JsonPropertyDescription("Output file names in archive file")
+  @JsonSchemaTitle("Include Filename")
   @JsonSchemaInject(
     strings = Array(
       new JsonSchemaString(path = HideAnnotation.hideTarget, value = "extract"),
