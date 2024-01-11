@@ -4,6 +4,7 @@ import akka.actor.{ActorSystem, Cancellable}
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.URILogStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberUtils}
@@ -45,6 +46,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import io.dropwizard.auth.{AuthDynamicFeature, AuthValueFactoryProvider}
 import io.dropwizard.setup.{Bootstrap, Environment}
 import io.dropwizard.websockets.WebsocketBundle
@@ -121,7 +123,9 @@ object TexeraWebApplication {
   }
 }
 
-class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfiguration] {
+class TexeraWebApplication
+    extends io.dropwizard.Application[TexeraWebConfiguration]
+    with LazyLogging {
 
   override def initialize(bootstrap: Bootstrap[TexeraWebConfiguration]): Unit = {
     // serve static frontend GUI files
@@ -255,14 +259,29 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
   }
 
   def dropCollections(result: String): Unit = {
-    if (result.isEmpty) {
+    if (result == null || result.isEmpty) {
       return
     }
+    // TODO: merge this logic to the server-side in-mem cleanup
     // parse the JSON
-    val node = objectMapper.readTree(result)
-    val collections = node.get("results")
-    // loop every collection and drop it
-    collections.forEach(collection => MongoDatabaseManager.dropCollection(collection.asText()))
+    try {
+      val node = objectMapper.readTree(result)
+      val collectionEntries = node.get("results")
+      // loop every collection and drop it
+      collectionEntries.forEach(collection => {
+        val storageType = collection.get("storageType").asText()
+        val collectionName = collection.get("storageKey").asText()
+        storageType match {
+          case OpResultStorage.MEMORY =>
+          // rely on the server-side result cleanup logic.
+          case OpResultStorage.MONGODB =>
+            MongoDatabaseManager.dropCollection(collectionName)
+        }
+      })
+    } catch {
+      case e: Throwable =>
+        logger.warn("result collection cleanup failed.", e)
+    }
   }
 
   def deleteReplayLog(logLocation: String): Unit = {
