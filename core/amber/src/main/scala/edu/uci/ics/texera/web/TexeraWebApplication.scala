@@ -268,7 +268,7 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
       val (storageType, collectionName) = (collectionInfo(0), collectionInfo(1))
       storageType match {
         case OpResultStorage.MEMORY =>
-        // skip cleanup for now.
+          // rely on the server-side result cleanup logic.
         case OpResultStorage.MONGODB =>
           MongoDatabaseManager.dropCollection(collectionName)
       }
