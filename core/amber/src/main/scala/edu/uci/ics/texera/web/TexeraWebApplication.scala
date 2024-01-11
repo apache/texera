@@ -13,18 +13,35 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.{maptoStatusCode, objectMapper}
 import edu.uci.ics.texera.web.TexeraWebApplication.scheduleRecurringCallThroughActorSystem
 import edu.uci.ics.texera.web.auth.JwtAuth.jwtConsumer
-import edu.uci.ics.texera.web.auth.{GuestAuthFilter, SessionUser, UserAuthenticator, UserRoleAuthorizer}
+import edu.uci.ics.texera.web.auth.{
+  GuestAuthFilter,
+  SessionUser,
+  UserAuthenticator,
+  UserRoleAuthorizer
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.auth.{AuthResource, GoogleAuthResource}
 import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
-import edu.uci.ics.texera.web.resource.dashboard.user.file.{UserFileAccessResource, UserFileResource}
-import edu.uci.ics.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.file.{
+  UserFileAccessResource,
+  UserFileResource
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.project.{
+  ProjectAccessResource,
+  ProjectResource,
+  PublicProjectResource
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource
 import edu.uci.ics.texera.web.resource.dashboard.user.discussion.UserDiscussionResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{WorkflowAccessResource, WorkflowExecutionsResource, WorkflowResource, WorkflowVersionResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.{
+  WorkflowAccessResource,
+  WorkflowExecutionsResource,
+  WorkflowResource,
+  WorkflowVersionResource
+}
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
@@ -249,9 +266,9 @@ class TexeraWebApplication extends io.dropwizard.Application[TexeraWebConfigurat
     collectionEntries.forEach(collection => {
       val collectionInfo = collection.asText().split(":")
       val (storageType, collectionName) = (collectionInfo(0), collectionInfo(1))
-      storageType match{
+      storageType match {
         case OpResultStorage.MEMORY =>
-          // skip cleanup for now.
+        // skip cleanup for now.
         case OpResultStorage.MONGODB =>
           MongoDatabaseManager.dropCollection(collectionName)
       }
