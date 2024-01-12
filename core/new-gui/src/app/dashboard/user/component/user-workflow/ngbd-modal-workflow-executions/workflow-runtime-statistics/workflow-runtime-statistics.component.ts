@@ -59,7 +59,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   /**
    * Preprocess the dataset which will be used as an input for a line chart
    * 1. Shorten the operator ID
-   * 2. Remove ProgressiveSinkOp
+   * 2. Remove sink operator
    * 3. Contain only a certain metric given a metric idx
    * @param selection of a certain metric
    */
@@ -73,7 +73,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
         const operatorName = operatorId.split("-")[0];
         const uuidLast6Digits = operatorId.slice(-6);
 
-        if (operatorName === "ProgressiveSinkOpDesc") {
+        if (operatorName === "sink ") {
           return null;
         }
 
