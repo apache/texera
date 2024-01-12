@@ -65,7 +65,6 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         executionState,
         VirtualIdentityUtils.createWorkerIdentity(
           workflow.context.workflowId,
-          workflow.context.executionId,
           physicalOpId,
           0
         )
@@ -135,7 +134,6 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         executionState,
         VirtualIdentityUtils.createWorkerIdentity(
           workflow.context.workflowId,
-          workflow.context.executionId,
           physicalOpId,
           0
         )
@@ -200,7 +198,6 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       executionState,
       VirtualIdentityUtils.createWorkerIdentity(
         workflow.context.workflowId,
-        workflow.context.executionId,
         probePhysicalOpId,
         0
       )

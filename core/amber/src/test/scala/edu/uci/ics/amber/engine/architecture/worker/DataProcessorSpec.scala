@@ -37,13 +37,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("sender"), "main")
   private val testWorkerId: ActorVirtualIdentity = VirtualIdentityUtils.createWorkerIdentity(
     DEFAULT_WORKFLOW_ID,
-    DEFAULT_EXECUTION_ID,
     testOpId,
     0
   )
   private val senderWorkerId: ActorVirtualIdentity = VirtualIdentityUtils.createWorkerIdentity(
     DEFAULT_WORKFLOW_ID,
-    DEFAULT_EXECUTION_ID,
     upstreamOpId,
     0
   )
