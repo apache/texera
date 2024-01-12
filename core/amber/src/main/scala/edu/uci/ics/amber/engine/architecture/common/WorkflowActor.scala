@@ -19,14 +19,13 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayLogManager,
   ReplayOrderEnforcer
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.{
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  TriggerSend,
   WorkerReplayLoggingConfig,
   WorkerStateRestoreConfig
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 

@@ -14,7 +14,8 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
   DPInputQueueElement,
   FIFOMessageElement,
-  TimerBasedControlElement
+  TimerBasedControlElement,
+  WorkerReplayInitialization
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
@@ -22,19 +23,22 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
+import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
 
 object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
       physicalOp: PhysicalOp,
-      workerConf: WorkerConfig
+      workerConf: WorkerConfig,
+      replayInitialization: WorkerReplayInitialization
   ): Props =
     Props(
       new WorkflowWorker(
         id,
         physicalOp,
-        workerConf
+        workerConf,
+        replayInitialization
       )
     )
 
@@ -47,13 +51,22 @@ object WorkflowWorker {
   final case class FIFOMessageElement(msg: WorkflowFIFOMessage) extends DPInputQueueElement
   final case class TimerBasedControlElement(control: ControlInvocation) extends DPInputQueueElement
   final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
+
+  final case class WorkerReplayInitialization(
+      restoreConfOpt: Option[WorkerStateRestoreConfig] = None,
+      replayLogConfOpt: Option[WorkerReplayLoggingConfig] = None
+  )
+  final case class WorkerStateRestoreConfig(readFrom: URI, replayTo: Long)
+
+  final case class WorkerReplayLoggingConfig(writeTo: URI)
 }
 
 class WorkflowWorker(
     workerId: ActorVirtualIdentity,
     physicalOp: PhysicalOp,
-    workerConf: WorkerConfig
-) extends WorkflowActor(workerConf.replayLogConfOpt, workerId) {
+    workerConf: WorkerConfig,
+    replayInitialization: WorkerReplayInitialization
+) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(
@@ -72,11 +85,11 @@ class WorkflowWorker(
       physicalOp,
       currentOutputIterator = Iterator.empty
     )
-    if (workerConf.restoreConfOpt.isDefined) {
+    if (replayInitialization.restoreConfOpt.isDefined) {
       context.parent ! ReplayStatusUpdate(actorId, status = true)
       setupReplay(
         dp,
-        workerConf.restoreConfOpt.get,
+        replayInitialization.restoreConfOpt.get,
         () => {
           logger.info("replay completed!")
           context.parent ! ReplayStatusUpdate(actorId, status = false)

@@ -19,6 +19,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  WorkerReplayInitialization,
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ExecutionIdentity,
@@ -516,7 +521,9 @@ case class PhysicalOp(
   def build(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
-      workerConfigs: List[WorkerConfig]
+      workerConfigs: List[WorkerConfig],
+      stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
+      replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,
@@ -535,7 +542,11 @@ case class PhysicalOp(
         WorkflowWorker.props(
           workerId,
           physicalOp = this,
-          workerConfig
+          workerConfig,
+          WorkerReplayInitialization(
+            stateRestoreConfigGen(workerId),
+            replayLoggingConfigGen(workerId)
+          )
         )
       }
       // Note: At this point, we don't know if the actor is fully initialized.

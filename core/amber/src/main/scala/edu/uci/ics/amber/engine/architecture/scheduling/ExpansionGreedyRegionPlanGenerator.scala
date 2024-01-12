@@ -1,10 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -59,8 +58,7 @@ object ExpansionGreedyRegionPlanGenerator {
 class ExpansionGreedyRegionPlanGenerator(
     logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
-    controllerConfig: ControllerConfig
+    opResultStorage: OpResultStorage
 ) extends RegionPlanGenerator(
       logicalPlan,
       physicalPlan,
@@ -318,19 +316,7 @@ class ExpansionGreedyRegionPlanGenerator(
                   }
 
                 physicalOp.id -> (0 until workerCount)
-                  .map(idx => {
-                    val workerId = VirtualIdentityUtils
-                      .createWorkerIdentity(
-                        physicalOp.workflowId,
-                        physicalOp.executionId,
-                        physicalOp.id,
-                        idx
-                      )
-                    WorkerConfig(
-                      controllerConfig.workerRestoreConfMapping(workerId),
-                      controllerConfig.workerLoggingConfMapping(workerId)
-                    )
-                  })
+                  .map(_ => WorkerConfig())
                   .toList
               }
             }
