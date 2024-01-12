@@ -80,7 +80,7 @@ class OperatorExecution(
   def setAllWorkerState(state: WorkerState): Unit = {
     (0 until numWorkers).foreach { i =>
       getWorkerInfo(
-        VirtualIdentityUtils.createWorkerIdentity(workflowId, executionId, physicalOpId, i)
+        VirtualIdentityUtils.createWorkerIdentity(workflowId, physicalOpId, i)
       ).state = state
     }
   }
