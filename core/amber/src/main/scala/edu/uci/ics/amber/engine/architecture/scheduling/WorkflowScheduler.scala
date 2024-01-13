@@ -168,7 +168,12 @@ class WorkflowScheduler(
     physicalOp.build(
       controllerActorService,
       opExecution,
-      workerConfigs
+      workflow.regionPlan.regions
+        .find(region => region.id == regionId)
+        .map(region => region.config.get.workerConfigs(physicalOp.id))
+        .get,
+      controllerConfig.workerRestoreConfMapping,
+      controllerConfig.workerLoggingConfMapping
     )
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
