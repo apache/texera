@@ -89,7 +89,6 @@ class AsyncRPCClient(
         case _ =>
           p.setValue(ret.controlReturn.asInstanceOf[p.returnType])
       }
-
       unfulfilledPromises.remove(ret.originalCommandID)
     }
   }
