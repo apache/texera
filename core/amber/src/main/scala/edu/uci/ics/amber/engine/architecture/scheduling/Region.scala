@@ -2,20 +2,11 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
 
-import java.net.URI
-
 case class RegionLink(fromRegion: Region, toRegion: Region)
 
 case class RegionIdentity(id: String)
 
-case class WorkerConfig(
-    restoreConfOpt: Option[WorkerStateRestoreConfig] = None,
-    replayLogConfOpt: Option[WorkerReplayLoggingConfig] = None
-)
-
-final case class WorkerStateRestoreConfig(readFrom: URI, replayTo: Long)
-
-final case class WorkerReplayLoggingConfig(writeTo: URI)
+case class WorkerConfig()
 
 case class RegionConfig(
     workerConfigs: Map[PhysicalOpIdentity, List[WorkerConfig]]

@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
@@ -62,8 +61,7 @@ object ExpansionGreedyRegionPlanGenerator {
 class ExpansionGreedyRegionPlanGenerator(
     logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
-    controllerConfig: ControllerConfig
+    opResultStorage: OpResultStorage
 ) extends RegionPlanGenerator(
       logicalPlan,
       physicalPlan,
@@ -374,10 +372,11 @@ class ExpansionGreedyRegionPlanGenerator(
       opResultStorage: OpResultStorage
     )
     materializationReader.setContext(context)
-    materializationReader.setOperatorId("cacheSource-" + matWriterLogicalOp.operatorIdentifier.id)
+    materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOp = materializationReader.getPhysicalOp(
+      context.workflowId,
       context.executionId,
       OperatorSchemaInfo(Array(), matReaderOutputSchema)
     )
@@ -391,7 +390,7 @@ class ExpansionGreedyRegionPlanGenerator(
   ): (ProgressiveSinkOpDesc, PhysicalOp) = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
     matWriterLogicalOp.setContext(context)
-    matWriterLogicalOp.setOperatorId("materialized-" + fromOp.id.logicalOpId.id)
+    matWriterLogicalOp.setOperatorId("materialized_" + fromOp.id.logicalOpId.id)
     val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
     val fromOpInputSchema: Array[Schema] =
       if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {
@@ -404,6 +403,7 @@ class ExpansionGreedyRegionPlanGenerator(
     val matWriterOutputSchema =
       matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
     val matWriterPhysicalOp = matWriterLogicalOp.getPhysicalOp(
+      context.workflowId,
       context.executionId,
       OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
     )

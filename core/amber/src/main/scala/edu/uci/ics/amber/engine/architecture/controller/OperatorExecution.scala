@@ -10,7 +10,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ExecutionIdentity,
-  PhysicalOpIdentity
+  PhysicalOpIdentity,
+  WorkflowIdentity
 }
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -19,6 +20,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
 
 class OperatorExecution(
+    workflowId: WorkflowIdentity,
     val executionId: ExecutionIdentity,
     physicalOpId: PhysicalOpIdentity,
     numWorkers: Int
@@ -78,7 +80,7 @@ class OperatorExecution(
   def setAllWorkerState(state: WorkerState): Unit = {
     (0 until numWorkers).foreach { i =>
       getWorkerInfo(
-        VirtualIdentityUtils.createWorkerIdentity(executionId, physicalOpId, i)
+        VirtualIdentityUtils.createWorkerIdentity(workflowId, physicalOpId, i)
       ).state = state
     }
   }

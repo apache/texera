@@ -92,8 +92,7 @@ class WorkflowCompiler(
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
       rewrittenLogicalPlan,
       physicalPlan,
-      opResultStorage,
-      controllerConfig
+      opResultStorage
     ).generate(context)
 
     // validate the plan
