@@ -66,11 +66,11 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     "": "60px",
     "Name (ID)": "230px",
     "Workflow Version Sample": "220px",
-    Username: "95px",
-    "Starting Time": "210px",
-    "Last Status Updated Time": "210px",
-    Status: "70px",
-    "Runtime Statistics": "90px",
+    Username: "150px",
+    "Starting Time": "250px",
+    "Last Status Updated Time": "250px",
+    Status: "80px",
+    "Runtime Statistics": "100px",
   };
 
   /** variables related to executions filtering
