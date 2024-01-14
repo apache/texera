@@ -513,7 +513,7 @@ case class PhysicalOp(
   def assignWorkers(workerCount: Int): Unit = {
     (0 until workerCount).foreach(workerIdx => {
       workerIds.add(
-        VirtualIdentityUtils.createWorkerIdentity(workflowId, executionId, id, workerIdx)
+        VirtualIdentityUtils.createWorkerIdentity(workflowId, id, workerIdx)
       )
     })
   }

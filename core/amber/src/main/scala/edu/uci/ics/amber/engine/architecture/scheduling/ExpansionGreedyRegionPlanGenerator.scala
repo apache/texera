@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -65,6 +68,9 @@ class ExpansionGreedyRegionPlanGenerator(
       opResultStorage
     )
     with LazyLogging {
+
+  private def executionClusterInfo = new ExecutionClusterInfo()
+  private def resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
 
   /**
     * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
@@ -236,7 +242,14 @@ class ExpansionGreedyRegionPlanGenerator(
     populateDownstreamLinks(regionDAG)
 
     // generate the region configs
-    populateRegionConfigs(regionDAG)
+    regionDAG
+      .vertexSet()
+      .toList
+      .foreach(region => {
+        val (newRegion, estimationCost) = resourceAllocator.allocate(region)
+        replaceVertex(regionDAG, region, newRegion)
+      })
+    regionDAG
   }
 
   private def populateSourceOperators(
@@ -293,41 +306,6 @@ class ExpansionGreedyRegionPlanGenerator(
       }
     regionDAG
   }
-
-  private def populateRegionConfigs(
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): DirectedAcyclicGraph[Region, RegionLink] = {
-    regionDAG
-      .vertexSet()
-      .toList
-      .foreach(region => {
-        val config = RegionConfig(
-          region.getEffectiveOperators
-            .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-            .map { physicalOp =>
-              {
-                val workerCount =
-                  if (physicalOp.suggestedWorkerNum.isDefined) {
-                    physicalOp.suggestedWorkerNum.get
-                  } else if (physicalOp.parallelizable) {
-                    AmberConfig.numWorkerPerOperatorByDefault
-                  } else {
-                    1
-                  }
-
-                physicalOp.id -> (0 until workerCount)
-                  .map(_ => WorkerConfig())
-                  .toList
-              }
-            }
-            .toMap
-        )
-        val newRegion = region.copy(config = Some(config))
-        replaceVertex(regionDAG, region, newRegion)
-      })
-    regionDAG
-  }
-
   def generate(context: WorkflowContext): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG(context)
@@ -394,7 +372,7 @@ class ExpansionGreedyRegionPlanGenerator(
       opResultStorage: OpResultStorage
     )
     materializationReader.setContext(context)
-    materializationReader.setOperatorId("cacheSource-" + matWriterLogicalOp.operatorIdentifier.id)
+    materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOp = materializationReader.getPhysicalOp(
@@ -412,7 +390,7 @@ class ExpansionGreedyRegionPlanGenerator(
   ): (ProgressiveSinkOpDesc, PhysicalOp) = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
     matWriterLogicalOp.setContext(context)
-    matWriterLogicalOp.setOperatorId("materialized-" + fromOp.id.logicalOpId.id)
+    matWriterLogicalOp.setOperatorId("materialized_" + fromOp.id.logicalOpId.id)
     val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
     val fromOpInputSchema: Array[Schema] =
       if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {
