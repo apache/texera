@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -67,6 +66,7 @@ class AsyncRPCServer(
     } catch {
       case err: Throwable =>
         // if error occurs, return it to the sender.
+        logger.error("Exception occurred", err)
         returnResult(senderID, control.commandID, err)
 
       // if throw this exception right now, the above message might not be able
@@ -88,18 +88,6 @@ class AsyncRPCServer(
       return
     }
     outputGateway.sendTo(sender, ReturnInvocation(id, ret))
-  }
-
-  def logControlInvocation(call: ControlInvocation, sender: ActorVirtualIdentity): Unit = {
-    if (call.commandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
-      return
-    }
-    if (call.command.isInstanceOf[QueryStatistics]) {
-      return
-    }
-    logger.debug(
-      s"receive command: ${call.command} from $sender (controlID: ${call.commandID})"
-    )
   }
 
 }
