@@ -40,20 +40,25 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
    * Convert an array into a record by combining stats to the same metric and accumulate tuple counts
    */
   private groupStatsByOperatorId(): Record<string, WorkflowRuntimeStatistics[]> {
-    return (
-      this.workflowRuntimeStatistics?.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
-        const statsArray = acc[stat.operatorId] || [];
-        const lastStat = statsArray[statsArray.length - 1];
+    if (!this.workflowRuntimeStatistics) {
+      return {};
+    }
 
-        if (lastStat) {
-          stat.inputTupleCount += lastStat.inputTupleCount;
-          stat.outputTupleCount += lastStat.outputTupleCount;
-        }
+    const beginTimestamp = this.workflowRuntimeStatistics[0].timestamp;
+    return this.workflowRuntimeStatistics.reduce((acc: Record<string, WorkflowRuntimeStatistics[]>, stat) => {
+      const statsArray = acc[stat.operatorId] || [];
+      const lastStat = statsArray[statsArray.length - 1];
 
-        acc[stat.operatorId] = [...statsArray, stat];
-        return acc;
-      }, {}) || {}
-    );
+      if (lastStat) {
+        stat.inputTupleCount += lastStat.inputTupleCount;
+        stat.outputTupleCount += lastStat.outputTupleCount;
+      }
+
+      stat.timestamp -= beginTimestamp;
+
+      acc[stat.operatorId] = [...statsArray, stat];
+      return acc;
+    }, {});
   }
 
   /**
@@ -84,7 +89,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
         const stats = this.groupedStats[operatorId];
 
         return {
-          x: stats.map((_, metric_idx) => metric_idx * 0.5),
+          x: stats.map(stat => stat["timestamp"] / 1000),
           y: stats.map(stat => stat[yValues]),
           mode: "lines",
           name: `${operatorName}-${uuidLast6Digits}`,

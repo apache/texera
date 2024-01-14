@@ -80,7 +80,8 @@ object WorkflowExecutionsResource {
   case class WorkflowRuntimeStatistics(
       operatorId: String,
       inputTupleCount: UInteger,
-      outputTupleCount: UInteger
+      outputTupleCount: UInteger,
+      timestamp: Timestamp
   )
 }
 
@@ -151,7 +152,8 @@ class WorkflowExecutionsResource {
       .select(
         WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
         WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
-        WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT
+        WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
+        WORKFLOW_RUNTIME_STATISTICS.TIME,
       )
       .from(WORKFLOW_RUNTIME_STATISTICS)
       .where(
