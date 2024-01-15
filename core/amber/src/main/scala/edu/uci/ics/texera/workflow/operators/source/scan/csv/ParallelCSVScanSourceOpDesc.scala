@@ -54,8 +54,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
             executionId,
             operatorIdentifier,
             OpExecInitInfo(p => {
-              val i = p._1
-              val workerCount = p._2.getWorkerIds.length
+              val (i, physicalOp) = p
+              val workerCount = physicalOp.getWorkerIds.length
               // TODO: add support for limit
               // TODO: add support for offset
               val startOffset: Long = totalBytes / workerCount * i

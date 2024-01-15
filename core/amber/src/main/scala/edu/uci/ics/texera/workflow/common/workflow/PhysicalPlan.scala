@@ -243,56 +243,6 @@ case class PhysicalPlan(
 
   }
 
-//  /**
-//    * This method will return an updated PhysicalPlan, with each PhysicalLink being
-//    * propagated with the partitioning, which varies based on the propagated partitioning
-//    * requirements from the upstream.
-//    *
-//    * For example, if the upstream of the link has the same partitioning requirement as
-//    * that of the downstream, and their number of workers are equal, then the partitioning
-//    * on this link can be optimized to OneToOne.
-//    */
-//  def generateLinkToChannelConfigsMapping(): Map[PhysicalLinkIdentity, List[ChannelConfig]] = {
-//    val linkToChannelConfigsMapping =
-//      new mutable.HashMap[PhysicalLinkIdentity, List[ChannelConfig]]()
-//    // a map of an operator to its output partition info
-//    val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
-//
-//    topologicalIterator()
-//      .foreach(physicalOpId => {
-//        val physicalOp = getOperator(physicalOpId)
-//        val outputPartitionInfo = if (getSourceOperatorIds.contains(physicalOpId)) {
-//          // get output partition info of the source operator
-//          physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
-//        } else {
-//          // for each input port, enforce partition requirement
-//          val inputPartitionings = physicalOp.inputPorts.indices
-//            .flatMap(port => physicalOp.getLinksOnInputPort(port))
-//            .map(link => {
-//              val inputPartitionInfo = outputPartitionInfos(link.fromOp.id)
-//              val (channelConfigs, outputPartitionInfo) =
-//                getOutputPartitionInfo(link, inputPartitionInfo)
-//              linkToChannelConfigsMapping(link.id) = channelConfigs
-//              (link.toPort, outputPartitionInfo)
-//            })
-//            .groupBy({
-//              case (port, _) => port
-//            })
-//            .map({
-//              case (_, partitionInfos) => partitionInfos.map(_._2).reduce((p1, p2) => p1.merge(p2))
-//            })
-//            .toList
-//          assert(inputPartitionings.length == physicalOp.inputPorts.size)
-//          // derive the output partition info of this operator
-//          physicalOp.derivePartition(inputPartitionings)
-//        }
-//        outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
-//      })
-//
-//    linkToChannelConfigsMapping.toMap
-//
-//  }
-
   def getOutputPartitionInfo(
       linkId: PhysicalLinkIdentity,
       upstreamPartitionInfo: PartitionInfo,

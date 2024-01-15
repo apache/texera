@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 case object WorkerConfig {
   def generateWorkerConfigs(physicalOp: PhysicalOp): List[WorkerConfig] = {
@@ -17,7 +18,13 @@ case object WorkerConfig {
       1
     }
 
-    (0 until workerCount).toList.map(_ => WorkerConfig())
+    (0 until workerCount).toList.map(idx =>
+      WorkerConfig(
+        VirtualIdentityUtils.createWorkerIdentity(physicalOp.workflowId, physicalOp.id, idx)
+      )
+    )
   }
 }
-case class WorkerConfig()
+case class WorkerConfig(
+    workerId: ActorVirtualIdentity
+)
