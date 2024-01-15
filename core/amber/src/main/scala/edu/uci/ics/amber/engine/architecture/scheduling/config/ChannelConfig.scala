@@ -20,7 +20,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{
 }
 
 case object ChannelConfig {
-  def toChannelConfigs(
+  def generateChannelConfigs(
       fromWorkerIds: List[ActorVirtualIdentity],
       toWorkerIds: List[ActorVirtualIdentity],
       partitionInfo: PartitionInfo
