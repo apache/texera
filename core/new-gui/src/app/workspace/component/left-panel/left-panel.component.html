@@ -1,21 +1,51 @@
 <div>
-  <mat-expansion-panel
-    [expanded]="true"
-    hideToggle
+  <div
     cdkDrag
     cdkDragBoundary="texera-workspace"
     id="left-panel-container"
     nz-resizable
-    [nzMinWidth]="175"
+    [nzMinWidth]="240"
     [nzMaxWidth]="screenWidth*0.5"
     [style.width.px]="width"
     (nzResize)="onResize($event)">
-    <mat-expansion-panel-header cdkDragHandle>
-      <mat-panel-title>Operators</mat-panel-title>
-    </mat-expansion-panel-header>
     <div id="left-panel-content">
-      <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
+      <div style="display: inline-block; vertical-align: top">
+        <ul nz-menu>
+          <li
+            nz-menu-item
+            nzTooltipPlacement="left"
+            nz-tooltip="Move"
+            nzDisabled
+            cdkDragHandle>
+            <span
+              nz-icon
+              nzType="fullscreen"></span>
+          </li>
+          <li
+            nz-menu-item
+            nzTooltipPlacement="left"
+            nz-tooltip="Operators"
+            (click)="openOperatorMenu()"
+            nzSelected>
+            <span
+              nz-icon
+              nzType="appstore"></span>
+          </li>
+          <li
+            nz-menu-item
+            nzTooltipPlacement="left"
+            nz-tooltip="Versions"
+            (click)="openVersionsFrame()">
+            <span
+              nz-icon
+              nzType="schedule"></span>
+          </li>
+        </ul>
+      </div>
+      <div style="display: inline-block; width: calc(100% - 50px)">
+        <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
+      </div>
     </div>
     <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
-  </mat-expansion-panel>
+  </div>
 </div>
