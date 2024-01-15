@@ -13,7 +13,6 @@ import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type
 })
 export class VersionsListComponent implements OnInit {
   public versionsList: WorkflowVersionCollapsableEntry[] | undefined;
-
   public versionTableHeaders: string[] = ["Version#", "Timestamp"];
 
   constructor(
@@ -38,23 +37,10 @@ export class VersionsListComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // unhighlight all the current highlighted operators/groups/links
+    const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
+    this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
     // gets the versions result and updates the workflow versions table displayed on the form
-    this.displayWorkflowVersions();
-  }
-
-  getVersion(vid: number) {
-    this.workflowVersionService
-      .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
-      .pipe(untilDestroyed(this))
-      .subscribe(workflow => {
-        this.workflowVersionService.displayParticularVersion(workflow);
-      });
-  }
-
-  /**
-   * calls the http get request service to display the versions result in the table
-   */
-  displayWorkflowVersions(): void {
     const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
     if (wid === undefined) {
       return;
@@ -70,6 +56,15 @@ export class VersionsListComponent implements OnInit {
           importance: version.importance,
           expand: false,
         }));
+      });
+  }
+
+  getVersion(vid: number) {
+    this.workflowVersionService
+      .retrieveWorkflowByVersion(<number>this.workflowActionService.getWorkflowMetadata()?.wid, vid)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflow => {
+        this.workflowVersionService.displayParticularVersion(workflow);
       });
   }
 }

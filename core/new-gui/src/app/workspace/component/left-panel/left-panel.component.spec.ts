@@ -51,6 +51,7 @@ describe("LeftPanelComponent", () => {
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(1);
 
     // click on versions display
+    component.openVersionsFrame()
     fixture.detectChanges();
 
     // all the elements shall be un-highlighted
