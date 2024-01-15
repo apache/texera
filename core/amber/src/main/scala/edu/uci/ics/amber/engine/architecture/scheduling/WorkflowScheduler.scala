@@ -3,10 +3,18 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, OperatorExecution, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.{
+  ControllerConfig,
+  ExecutionState,
+  OperatorExecution,
+  Workflow
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
@@ -20,7 +28,11 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
@@ -160,7 +172,7 @@ class WorkflowScheduler(
   private def buildOperator(
       workflow: Workflow,
       physicalOpId: PhysicalOpIdentity,
-      workerConfigs:List[WorkerConfig],
+      workerConfigs: List[WorkerConfig],
       controllerActorService: AkkaActorService
   ): Unit = {
     val physicalOp = workflow.physicalPlan.getOperator(physicalOpId)
@@ -168,10 +180,7 @@ class WorkflowScheduler(
     physicalOp.build(
       controllerActorService,
       opExecution,
-      workflow.regionPlan.regions
-        .find(region => region.id == regionId)
-        .map(region => region.config.get.workerConfigs(physicalOp.id))
-        .get,
+      workerConfigs,
       controllerConfig.workerRestoreConfMapping,
       controllerConfig.workerLoggingConfMapping
     )
@@ -189,10 +198,10 @@ class WorkflowScheduler(
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
               val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkMapping.flatMap {
-                case (portIdx, links) => links.map(link => LinkOrdinal(link.id, portIdx))
+                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
               }.toList
               val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkMapping.flatMap {
-                case (portIdx, links) => links.map(link => LinkOrdinal(link.id, portIdx))
+                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
               }.toList
               asyncRPCClient
                 .send(
@@ -288,10 +297,13 @@ class WorkflowScheduler(
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
-        executionState.physicalOpToWorkersMapping
-          .map({
-            case (opId: PhysicalOpIdentity, workerIds: Seq[ActorVirtualIdentity]) =>
-              opId.logicalOpId.id -> workerIds.map(_.name)
+        region.getEffectiveOperators
+          .map(physicalOpId => {
+            physicalOpId.logicalOpId.id -> executionState
+              .getOperatorExecution(physicalOpId)
+              .getBuiltWorkerIds
+              .map(_.name)
+              .toList
           })
           .toMap
       )

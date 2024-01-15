@@ -7,26 +7,20 @@ import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import java.net.URI
 
 case object WorkerConfig {
-  def generateWorkerConfigs(physicalOp: PhysicalOp): (PhysicalOpIdentity, List[WorkerConfig]) = {
-    val workerCount =
-      if (physicalOp.suggestedWorkerNum.isDefined) {
-        physicalOp.suggestedWorkerNum.get
-      } else if (physicalOp.parallelizable) {
-        AmberConfig.numWorkerPerOperatorByDefault
-      } else {
-        1
+  def generateWorkerConfigs(physicalOp: PhysicalOp): List[WorkerConfig] = {
+    val workerCount = if (physicalOp.parallelizable) {
+      physicalOp.suggestedWorkerNum match {
+        // Keep suggested number of workers
+        case Some(num) => num
+        // If no suggested number, use default value
+        case None => AmberConfig.numWorkerPerOperatorByDefault
       }
+    } else {
+      // Non parallelizable operator has only 1 worker
+      1
+    }
 
-    physicalOp.id -> (0 until workerCount).toList
-      .map(_ => WorkerConfig(restoreConfOpt = None, replayLogConfOpt = None))
-
+    (0 until workerCount).toList.map(_ => WorkerConfig())
   }
 }
-case class WorkerConfig(
-    restoreConfOpt: Option[WorkerStateRestoreConfig] = None,
-    replayLogConfOpt: Option[WorkerReplayLoggingConfig] = None
-)
-
-final case class WorkerStateRestoreConfig(readFrom: URI, replayTo: Long)
-
-final case class WorkerReplayLoggingConfig(writeTo: URI)
+case class WorkerConfig()

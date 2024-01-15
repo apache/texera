@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.{
   WorkflowRecoveryStatus
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayLoggingConfig,
   WorkerStateRestoreConfig
 }

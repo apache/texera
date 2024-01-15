@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.toChannelConfigs
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
@@ -243,74 +244,75 @@ case class PhysicalPlan(
   def getLinksBetween(
       from: PhysicalOpIdentity,
       to: PhysicalOpIdentity
-  ): Set[PhysicalLink] = {
-    links.filter(link => link.fromOp.id == from && link.toOp.id == to)
+  ): Set[PhysicalLinkIdentity] = {
+    links.filter(link => link.fromOp.id == from && link.toOp.id == to).map(_.id)
 
   }
 
-  /**
-    * This method will return an updated PhysicalPlan, with each PhysicalLink being
-    * propagated with the partitioning, which varies based on the propagated partitioning
-    * requirements from the upstream.
-    *
-    * For example, if the upstream of the link has the same partitioning requirement as
-    * that of the downstream, and their number of workers are equal, then the partitioning
-    * on this link can be optimized to OneToOne.
-    */
-  def generateLinkToChannelConfigsMapping(): Map[PhysicalLinkIdentity, List[ChannelConfig]] = {
-    val linkToChannelConfigsMapping =
-      new mutable.HashMap[PhysicalLinkIdentity, List[ChannelConfig]]()
-    // a map of an operator to its output partition info
-    val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
+//  /**
+//    * This method will return an updated PhysicalPlan, with each PhysicalLink being
+//    * propagated with the partitioning, which varies based on the propagated partitioning
+//    * requirements from the upstream.
+//    *
+//    * For example, if the upstream of the link has the same partitioning requirement as
+//    * that of the downstream, and their number of workers are equal, then the partitioning
+//    * on this link can be optimized to OneToOne.
+//    */
+//  def generateLinkToChannelConfigsMapping(): Map[PhysicalLinkIdentity, List[ChannelConfig]] = {
+//    val linkToChannelConfigsMapping =
+//      new mutable.HashMap[PhysicalLinkIdentity, List[ChannelConfig]]()
+//    // a map of an operator to its output partition info
+//    val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
+//
+//    topologicalIterator()
+//      .foreach(physicalOpId => {
+//        val physicalOp = getOperator(physicalOpId)
+//        val outputPartitionInfo = if (getSourceOperatorIds.contains(physicalOpId)) {
+//          // get output partition info of the source operator
+//          physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
+//        } else {
+//          // for each input port, enforce partition requirement
+//          val inputPartitionings = physicalOp.inputPorts.indices
+//            .flatMap(port => physicalOp.getLinksOnInputPort(port))
+//            .map(link => {
+//              val inputPartitionInfo = outputPartitionInfos(link.fromOp.id)
+//              val (channelConfigs, outputPartitionInfo) =
+//                getOutputPartitionInfo(link, inputPartitionInfo)
+//              linkToChannelConfigsMapping(link.id) = channelConfigs
+//              (link.toPort, outputPartitionInfo)
+//            })
+//            .groupBy({
+//              case (port, _) => port
+//            })
+//            .map({
+//              case (_, partitionInfos) => partitionInfos.map(_._2).reduce((p1, p2) => p1.merge(p2))
+//            })
+//            .toList
+//          assert(inputPartitionings.length == physicalOp.inputPorts.size)
+//          // derive the output partition info of this operator
+//          physicalOp.derivePartition(inputPartitionings)
+//        }
+//        outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
+//      })
+//
+//    linkToChannelConfigsMapping.toMap
+//
+//  }
 
-    topologicalIterator()
-      .foreach(physicalOpId => {
-        val physicalOp = getOperator(physicalOpId)
-        val outputPartitionInfo = if (getSourceOperatorIds.contains(physicalOpId)) {
-          // get output partition info of the source operator
-          physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
-        } else {
-          // for each input port, enforce partition requirement
-          val inputPartitionings = physicalOp.inputPorts.indices
-            .flatMap(port => physicalOp.getLinksOnInputPort(port))
-            .map(link => {
-              val inputPartitionInfo = outputPartitionInfos(link.fromOp.id)
-              val (channelConfigs, outputPartitionInfo) =
-                getOutputPartitionInfo(link, inputPartitionInfo)
-              linkToChannelConfigsMapping(link.id) = channelConfigs
-              (link.toPort, outputPartitionInfo)
-            })
-            .groupBy({
-              case (port, _) => port
-            })
-            .map({
-              case (_, partitionInfos) => partitionInfos.map(_._2).reduce((p1, p2) => p1.merge(p2))
-            })
-            .toList
-          assert(inputPartitionings.length == physicalOp.inputPorts.size)
-          // derive the output partition info of this operator
-          physicalOp.derivePartition(inputPartitionings)
-        }
-        outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
-      })
-
-    linkToChannelConfigsMapping.toMap
-
-  }
-
-  private def getOutputPartitionInfo(
-      link: PhysicalLink,
+  def getOutputPartitionInfo(
+      linkId: PhysicalLinkIdentity,
       upstreamPartitionInfo: PartitionInfo
-  ): (List[ChannelConfig], PartitionInfo) = {
-    val toPhysicalOp = link.toOp
-    val fromPhysicalOp = link.fromOp
+  ): PartitionInfo = {
+    // TODO: here we are re-fetching the operators as the toOp and fromOp inside the link is obsolete. To be fixed later.
+    val toPhysicalOp = getOperator(linkId.to)
+    val fromPhysicalOp = getOperator(linkId.from)
 
     // make sure this input is connected to this port
-    assert(toPhysicalOp.getOpsOnInputPort(link.toPort).map(_.id).contains(fromPhysicalOp.id))
+    assert(toPhysicalOp.getOpsOnInputPort(linkId.toPort).contains(fromPhysicalOp.id))
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement.lift(link.toPort).flatten.getOrElse(UnknownPartition())
+      toPhysicalOp.partitionRequirement.lift(linkId.toPort).flatten.getOrElse(UnknownPartition())
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
@@ -319,28 +321,11 @@ case class PhysicalPlan(
       ) && fromPhysicalOp.getWorkerIds.length == toPhysicalOp.getWorkerIds.length
     ) {
 
-      val channelConfigs = fromPhysicalOp.getWorkerIds.indices
-        .map(i =>
-          ChannelConfig(
-            OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getWorkerIds(i))),
-            List(toPhysicalOp.getWorkerIds(i))
-          )
-        )
-        .toList
-
-      val outputPart = upstreamPartitionInfo
-      (channelConfigs, outputPart)
+      upstreamPartitionInfo
     } else {
       // we must re-distribute the input partitions
+      requiredPartitionInfo
 
-      val channelConfigs: List[ChannelConfig] =
-        toChannelConfigs(
-          fromPhysicalOp.getWorkerIds,
-          toPhysicalOp.getWorkerIds,
-          requiredPartitionInfo
-        )
-      val outputPart = requiredPartitionInfo
-      (channelConfigs, outputPart)
     }
   }
 
@@ -358,7 +343,7 @@ case class PhysicalPlan(
                 .filter(link =>
                   link.fromOp.id == upstreamPhysicalOpId && link.toOp.id == physicalOp.id
                 )
-                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
+                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link.id))
                 .map(_.id)
             }
         }
@@ -371,7 +356,7 @@ case class PhysicalPlan(
 
     val upstreamPhysicalLinkIds = getUpstreamPhysicalLinkIds(physicalOpId)
     upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
-      getOperator(physicalOpId).isInputLinkBlocking(getLink(upstreamPhysicalLinkId))
+      getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
     }
   }
 

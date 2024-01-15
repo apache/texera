@@ -48,9 +48,9 @@ object AggregateOpDesc {
         // a hacky solution to have unique port names for reference purpose
         .withOutputPorts(List(OutputPort("out")))
     } else {
-      val partitionColumns: Array[Int] =
-        if (groupByKeys == null) Array()
-        else groupByKeys.indices.toArray // group by columns are always placed in the beginning
+      val partitionColumns: List[Int] =
+        if (groupByKeys == null) List()
+        else groupByKeys.indices.toList // group by columns are always placed in the beginning
 
       PhysicalOp
         .hashPhysicalOp(

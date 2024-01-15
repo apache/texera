@@ -3,7 +3,11 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -23,10 +27,14 @@ class ExecutionState(workflow: Workflow) {
           .length
       )
     }.toMap
-  private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =mutable.HashMap()
+  private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
+    mutable.HashMap()
 
-  def initOperatorState(physicalOpId: PhysicalOpIdentity, workerConfigs:List[WorkerConfig]): OperatorExecution = {
-    operatorExecutions +=  physicalOpId -> new OperatorExecution(
+  def initOperatorState(
+      physicalOpId: PhysicalOpIdentity,
+      workerConfigs: List[WorkerConfig]
+  ): OperatorExecution = {
+    operatorExecutions += physicalOpId -> new OperatorExecution(
       workflow.context.workflowId,
       workflow.context.executionId,
       physicalOpId,
