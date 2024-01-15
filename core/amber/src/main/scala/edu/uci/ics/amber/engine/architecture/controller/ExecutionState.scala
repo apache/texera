@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
-import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   PhysicalLinkIdentity,
