@@ -2,11 +2,6 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.scheduling.Region
-import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig
-import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.toChannelConfigs
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
@@ -18,7 +13,6 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 object PhysicalPlan {
 
@@ -301,11 +295,11 @@ case class PhysicalPlan(
 
   def getOutputPartitionInfo(
       linkId: PhysicalLinkIdentity,
-      upstreamPartitionInfo: PartitionInfo
+      upstreamPartitionInfo: PartitionInfo,
+      opToWorkerNumberMapping: Map[PhysicalOpIdentity, Int]
   ): PartitionInfo = {
-    // TODO: here we are re-fetching the operators as the toOp and fromOp inside the link is obsolete. To be fixed later.
-    val toPhysicalOp = getOperator(linkId.to)
     val fromPhysicalOp = getOperator(linkId.from)
+    val toPhysicalOp = getOperator(linkId.to)
 
     // make sure this input is connected to this port
     assert(toPhysicalOp.getOpsOnInputPort(linkId.toPort).contains(fromPhysicalOp.id))
@@ -316,11 +310,11 @@ case class PhysicalPlan(
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
-      upstreamPartitionInfo.satisfies(
-        requiredPartitionInfo
-      ) && fromPhysicalOp.getWorkerIds.length == toPhysicalOp.getWorkerIds.length
+      upstreamPartitionInfo.satisfies(requiredPartitionInfo) && opToWorkerNumberMapping.getOrElse(
+        fromPhysicalOp.id,
+        0
+      ) == opToWorkerNumberMapping.getOrElse(toPhysicalOp.id, 0)
     ) {
-
       upstreamPartitionInfo
     } else {
       // we must re-distribute the input partitions

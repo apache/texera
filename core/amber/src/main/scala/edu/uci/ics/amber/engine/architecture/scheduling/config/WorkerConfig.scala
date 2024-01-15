@@ -2,9 +2,6 @@ package edu.uci.ics.amber.engine.architecture.scheduling.config
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-
-import java.net.URI
 
 case object WorkerConfig {
   def generateWorkerConfigs(physicalOp: PhysicalOp): List[WorkerConfig] = {

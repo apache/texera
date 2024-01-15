@@ -89,7 +89,13 @@ class DefaultResourceAllocator(
             .map(linkId => {
               val inputPartitionInfo = outputPartitionInfos(linkId.from)
               val outputPartitionInfo =
-                physicalPlan.getOutputPartitionInfo(linkId, inputPartitionInfo)
+                physicalPlan.getOutputPartitionInfo(
+                  linkId,
+                  inputPartitionInfo,
+                  workerConfigs.map {
+                    case (opId, workerConfigs) => opId -> workerConfigs.size
+                  }.toMap
+                )
               (linkId.toPort, outputPartitionInfo)
             })
             .groupBy({
