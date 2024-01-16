@@ -4,5 +4,5 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, Ph
 
 case class RegionConfig(
     workerConfigs: Map[PhysicalOpIdentity, List[WorkerConfig]],
-    channelConfigs: Map[PhysicalLinkIdentity, List[ChannelConfig]]
+    linkConfigs: Map[PhysicalLinkIdentity, LinkConfig]
 )

@@ -23,8 +23,11 @@ class ExecutionState(workflow: Workflow) {
           .get
           .config
           .get
-          .channelConfigs(link.id)
-          .length
+          .linkConfigs(link.id)
+          .channelConfigs
+          .map(_.toWorkerId)
+          .toSet
+          .size
       )
     }.toMap
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
