@@ -188,39 +188,39 @@ object PhysicalOp {
 }
 
 case class PhysicalOp(
-    // the identifier of this PhysicalOp
-    id: PhysicalOpIdentity,
-    // the workflow id number
-    workflowId: WorkflowIdentity,
-    // the execution id number
-    executionId: ExecutionIdentity,
-    // information regarding initializing an operator executor instance
-    opExecInitInfo: OpExecInitInfo,
-    // preference of parallelism
-    parallelizable: Boolean = true,
-    // input/output schemas
-    schemaInfo: Option[OperatorSchemaInfo] = None,
-    // preference of worker placement
-    locationPreference: Option[LocationPreference] = None,
-    // requirement of partition policy (hash/range/single/none) on inputs
-    partitionRequirement: List[Option[PartitionInfo]] = List(),
-    // derive the output partition info given the input partitions
-    // if not specified, by default the output partition is the same as input partition
-    derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
-    // input/output ports of the physical operator
-    // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: List[InputPort] = List(InputPort()),
-    outputPorts: List[OutputPort] = List(OutputPort()),
-    // mapping of all input/output operators connected on a specific input/output port index
-    inputPortToLinkMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
-    outputPortToLinkMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
-    // input ports that are blocking
-    blockingInputs: List[Int] = List(),
-    // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
-    dependencies: Map[Int, Int] = Map(),
-    isOneToManyOp: Boolean = false,
-    // hint for number of workers
-    suggestedWorkerNum: Option[Int] = None
+                       // the identifier of this PhysicalOp
+                       id: PhysicalOpIdentity,
+                       // the workflow id number
+                       workflowId: WorkflowIdentity,
+                       // the execution id number
+                       executionId: ExecutionIdentity,
+                       // information regarding initializing an operator executor instance
+                       opExecInitInfo: OpExecInitInfo,
+                       // preference of parallelism
+                       parallelizable: Boolean = true,
+                       // input/output schemas
+                       schemaInfo: Option[OperatorSchemaInfo] = None,
+                       // preference of worker placement
+                       locationPreference: Option[LocationPreference] = None,
+                       // requirement of partition policy (hash/range/single/none) on inputs
+                       partitionRequirement: List[Option[PartitionInfo]] = List(),
+                       // derive the output partition info given the input partitions
+                       // if not specified, by default the output partition is the same as input partition
+                       derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+                       // input/output ports of the physical operator
+                       // for operators with multiple input/output ports: must set these variables properly
+                       inputPorts: List[InputPort] = List(InputPort()),
+                       outputPorts: List[OutputPort] = List(OutputPort()),
+                       // mapping of all input/output operators connected on a specific input/output port index
+                       inputPortToLinkIdMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
+                       outputPortToLinkMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
+                       // input ports that are blocking
+                       blockingInputs: List[Int] = List(),
+                       // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
+                       dependencies: Map[Int, Int] = Map(),
+                       isOneToManyOp: Boolean = false,
+                       // hint for number of workers
+                       suggestedWorkerNum: Option[Int] = None
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking inputs
@@ -365,10 +365,10 @@ case class PhysicalOp(
     */
   def addInput(link: PhysicalLink): PhysicalOp = {
     assert(link.toOp.id == id)
-    val existingLinks = inputPortToLinkMapping.getOrElse(link.toPort, List())
+    val existingLinks = inputPortToLinkIdMapping.getOrElse(link.toPort, List())
     val newLinks = existingLinks :+ link.id
     this.copy(
-      inputPortToLinkMapping = inputPortToLinkMapping + (link.toPort -> newLinks)
+      inputPortToLinkIdMapping = inputPortToLinkIdMapping + (link.toPort -> newLinks)
     )
   }
 
@@ -396,13 +396,13 @@ case class PhysicalOp(
     * creates a copy with a removed input operator, we use the identity to do equality check.
     */
   def removeInput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portIdx, existingLinks) = inputPortToLinkMapping
+    val (portIdx, existingLinks) = inputPortToLinkIdMapping
       .find({
         case (_, links) => links.contains(linkToRemove.id)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
-      inputPortToLinkMapping = inputPortToLinkMapping + (portIdx -> existingLinks.filter(linkId =>
+      inputPortToLinkIdMapping = inputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
         linkId != linkToRemove.id
       ))
     )
@@ -428,7 +428,7 @@ case class PhysicalOp(
     * returns all input links on a specific input port
     */
   def getLinksOnInputPort(portIndex: Int): List[PhysicalLinkIdentity] = {
-    inputPortToLinkMapping(portIndex)
+    inputPortToLinkIdMapping(portIndex)
   }
 
   /**
@@ -450,12 +450,12 @@ case class PhysicalOp(
     * outputs all its tuples
     */
   def isInputLinkBlocking(linkId: PhysicalLinkIdentity): Boolean = {
-    val blockingLinkIds = realBlockingInputs.flatMap(portIdx => inputPortToLinkMapping(portIdx))
+    val blockingLinkIds = realBlockingInputs.flatMap(portIdx => inputPortToLinkIdMapping(portIdx))
     blockingLinkIds.contains(linkId)
   }
 
   def getAllInputLinkIds: List[PhysicalLinkIdentity] = {
-    inputPortToLinkMapping.values.flatten.toList
+    inputPortToLinkIdMapping.values.flatten.toList
   }
 
   def getAllOutputLinkIds: List[PhysicalLinkIdentity] = {
@@ -463,7 +463,7 @@ case class PhysicalOp(
   }
 
   def getPortIdxForInputLinkId(linkId: PhysicalLinkIdentity): Int = {
-    inputPortToLinkMapping
+    inputPortToLinkIdMapping
       .find {
         case (_, links) => links.contains(linkId)
       }
@@ -489,8 +489,8 @@ case class PhysicalOp(
       new DirectedAcyclicGraph[PhysicalLinkIdentity, DefaultEdge](classOf[DefaultEdge])
     dependencies.foreach({
       case (depender: Int, dependee: Int) =>
-        val upstreamLink = inputPortToLinkMapping(dependee).head
-        val downstreamLink = inputPortToLinkMapping(depender).head
+        val upstreamLink = inputPortToLinkIdMapping(dependee).head
+        val downstreamLink = inputPortToLinkIdMapping(depender).head
         if (!dependencyDag.containsVertex(upstreamLink)) {
           dependencyDag.addVertex(upstreamLink)
         }

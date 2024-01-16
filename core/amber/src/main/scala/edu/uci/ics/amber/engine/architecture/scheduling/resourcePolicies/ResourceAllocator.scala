@@ -105,7 +105,7 @@ class DefaultResourceAllocator(
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
         } else {
-          val inputPartitionings = physicalOp.inputPorts.indices.toList
+          val inputPartitionInfos = physicalOp.inputPorts.indices.toList
             .flatMap((portIdx: Int) =>
               physicalOp
                 .getLinksOnInputPort(portIdx)
@@ -121,13 +121,17 @@ class DefaultResourceAllocator(
                   (linkId.toPort, upstreamOutputPartitionInfo)
                 })
             )
+            // group upstream partition infos by input port of this physicalOp
             .groupBy(_._1)
             .values
             .toList
+            // if there are multiple partition infos on an input port, reduce them to once
             .map(_.map(_._2).reduce((p1, p2) => p1.merge(p2)))
 
-          assert(inputPartitionings.length == physicalOp.inputPorts.size)
-          physicalOp.derivePartition(inputPartitionings)
+          assert(inputPartitionInfos.length == physicalOp.inputPorts.size)
+
+          // derive the output partition info with all the input partition infos
+          physicalOp.derivePartition(inputPartitionInfos)
         }
         outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
       })

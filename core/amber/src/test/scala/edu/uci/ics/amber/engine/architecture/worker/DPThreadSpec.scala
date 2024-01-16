@@ -61,7 +61,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
       OpExecInitInfo(_ => operator)
     )
     .copy(
-      inputPortToLinkMapping = Map(0 -> List(mockLink.id)),
+      inputPortToLinkIdMapping = Map(0 -> List(mockLink.id)),
       outputPortToLinkMapping = Map(0 -> List(mockLink.id))
     )
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray

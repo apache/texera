@@ -192,7 +192,7 @@ class WorkflowScheduler(
           .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
-              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkMapping.flatMap {
+              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkIdMapping.flatMap {
                 case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
               }.toList
               val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkMapping.flatMap {
