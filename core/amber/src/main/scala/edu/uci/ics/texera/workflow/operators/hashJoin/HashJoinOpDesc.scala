@@ -3,22 +3,14 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo}
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, PhysicalPlan, UnknownPartition}
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
@@ -52,24 +44,44 @@ class HashJoinOpDesc[K] extends LogicalOp {
   @JsonPropertyDescription("select the join type to execute")
   var joinType: JoinType = JoinType.INNER
 
-  override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
-  ): PhysicalOp = {
-    val partitionRequirement = List(
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)))),
+  override def getPhysicalPlan(workflowIdentity: WorkflowIdentity, executionId: ExecutionIdentity, operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
+    val buildInPartitionRequirement = List(
+      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))))
+    )
+
+    val buildDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
+      val buildPartition = inputPartitions(0).asInstanceOf[HashPartition]
+      val buildAttrIndex = operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)
+      assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
+      UnknownPartition()
+    }
+
+    val buildPhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(
+          PhysicalOpIdentity(operatorIdentifier, "build"),
+          workflowIdentity,
+          executionId,
+          OpExecInitInfo(- => new HashJoinBuildOpExec[K](buildAttributeName))
+        )
+        .withInputPorts(List(InputPort("left")))
+        .withOutputPorts(List(OutputPort("buildTable")))
+        .withPartitionRequirement(buildInPartitionRequirement)
+        .withDerivePartition(buildDerivePartition)
+
+
+    val probeInPartitionRequirement = List(
+      Option(UnknownPartition()),
       Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))))
     )
 
-    val joinDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      val buildPartition = inputPartitions(0).asInstanceOf[HashPartition]
-      val probePartition = inputPartitions(1).asInstanceOf[HashPartition]
+    val probeDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
 
-      val buildAttrIndex = operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)
+      val buildPartition = HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))).asInstanceOf[HashPartition]
+
+      val probePartition = inputPartitions(1).asInstanceOf[HashPartition]
       val probAttrIndex = operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName)
 
-      assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
       assert(probePartition.hashColumnIndices.contains(probAttrIndex))
 
       // mapping from build/probe schema index to the final output schema index
@@ -85,26 +97,35 @@ class HashJoinOpDesc[K] extends LogicalOp {
       HashPartition(outputHashIndices)
     }
 
-    PhysicalOp
-      .oneToOnePhysicalOp(
-        workflowId,
-        executionId,
-        operatorIdentifier,
-        OpExecInitInfo(_ =>
-          new HashJoinOpExec[K](
-            buildAttributeName,
-            probeAttributeName,
-            joinType,
-            operatorSchemaInfo
+    val probePhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(
+          PhysicalOpIdentity(operatorIdentifier, "probe"),
+          workflowIdentity,
+          executionId,
+          OpExecInitInfo(
+            - => new HashJoinProbeOpExec[K](
+              buildAttributeName,
+              probeAttributeName,
+              joinType,
+              operatorSchemaInfo
+            )
           )
         )
-      )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts((operatorInfo.outputPorts))
-      .withBlockingInputs(List(0))
-      .withPartitionRequirement(partitionRequirement)
-      .withDerivePartition(joinDerivePartition)
-      .withDependencies(Map(1 -> 0))
+        .withInputPorts(
+          List(
+            InputPort("buildTable"),
+            InputPort("right")
+          )
+        )
+        .withDependencies(Map(1 -> 0))
+        .withPartitionRequirement(probeInPartitionRequirement)
+        .withDerivePartition(probeDerivePartition)
+
+    new PhysicalPlan(
+      operators = Set(buildPhysicalOp, probePhysicalOp),
+      links = Set(PhysicalLink(buildPhysicalOp, 0, probePhysicalOp, 0))
+    )
   }
 
   override def operatorInfo: OperatorInfo =

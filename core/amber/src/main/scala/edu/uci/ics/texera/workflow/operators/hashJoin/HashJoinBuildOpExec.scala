@@ -1,0 +1,52 @@
+package edu.uci.ics.texera.workflow.operators.hashJoin
+
+import edu.uci.ics.amber.engine.architecture.worker.PauseManager
+import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
+
+class HashJoinBuildOpExec[K](
+    val buildAttributeName: String
+) extends OperatorExecutor {
+
+  var buildTableHashMap: mutable.HashMap[K, (ArrayBuffer[Tuple], Boolean)] = _
+  var outputSchema: Schema = Schema.newBuilder().add("buildTable", AttributeType.ANY).build()
+
+  override def processTexeraTuple(
+      tuple: Either[Tuple, InputExhausted],
+      input: Int,
+      pauseManager: PauseManager,
+      asyncRPCClient: AsyncRPCClient
+  ): Iterator[Tuple] = {
+    tuple match {
+      case Left(tuple) =>
+        building(tuple)
+        Iterator()
+      case Right(_) =>
+        Iterator(
+          Tuple
+            .newBuilder(outputSchema)
+            .add("buildTable", AttributeType.ANY, buildTableHashMap)
+            .build()
+        )
+    }
+  }
+
+  private def building(tuple: Tuple): Unit = {
+    val key = tuple.getField(buildAttributeName).asInstanceOf[K]
+    val (storedTuples, _) =
+      buildTableHashMap.getOrElseUpdate(key, (new ArrayBuffer[Tuple](), false))
+    storedTuples += tuple
+  }
+
+  override def open(): Unit = {
+    buildTableHashMap = new mutable.HashMap[K, (mutable.ArrayBuffer[Tuple], Boolean)]()
+  }
+
+  override def close(): Unit = {}
+}
