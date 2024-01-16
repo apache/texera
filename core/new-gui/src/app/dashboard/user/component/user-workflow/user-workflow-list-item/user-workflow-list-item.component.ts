@@ -77,7 +77,7 @@ export class UserWorkflowListItemComponent {
    */
   public onClickGetWorkflowExecutions(): void {
     const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
-      size: "xl",
+      windowClass: "custom-ngbd-modal-class",
       modalDialogClass: "modal-dialog-centered",
     });
     modalRef.componentInstance.workflow = this.workflow;
