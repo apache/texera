@@ -68,3 +68,5 @@ import "zone.js"; // Included with Angular CLI.
 /***************************************************************************************************
  * APPLICATION IMPORTS
  */
+
+import "plotly.js-dist-min";

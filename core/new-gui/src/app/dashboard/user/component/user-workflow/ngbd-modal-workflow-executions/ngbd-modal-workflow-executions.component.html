@@ -116,7 +116,7 @@
                 nz-tooltip
                 nzTooltipPlacement="top">
                 {{column}}
-                <span *ngIf="column !== '' && column !== 'Status'">
+                <span *ngIf="column !== '' && column !== 'Status' && column !== 'Runtime Statistics'">
                   <button
                     (click)="onHit(column, i)"
                     *ngIf="this.showORhide[i]"
@@ -202,6 +202,16 @@
                   nz-tooltip
                   nzTheme="outline"
                   nzTooltipPlacement="top"></i>
+              </td>
+              <td nzEllipsis>
+                <i
+                  (click)="showRuntimeStatistics(row.eId)"
+                  class="fa fa-line-chart"
+                  nz-icon
+                  nz-tooltip
+                  nzTooltipPlacement="top"
+                  nzTooltipTitle="Display Runtime Statistics"
+                  nzType="line-chart"></i>
               </td>
               <td nzEllipsis>
                 <i

@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW_EXECUTIONS,
+  WORKFLOW_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
@@ -70,6 +71,18 @@ object WorkflowExecutionsResource {
       bookmarked: Boolean,
       name: String
   )
+
+  case class ExecutionResultEntry(
+      eId: UInteger,
+      result: String
+  )
+
+  case class WorkflowRuntimeStatistics(
+      operatorId: String,
+      inputTupleCount: UInteger,
+      outputTupleCount: UInteger,
+      timestamp: Timestamp
+  )
 }
 
 case class ExecutionGroupBookmarkRequest(
@@ -126,6 +139,31 @@ class WorkflowExecutionsResource {
         .toList
         .reverse
     }
+  }
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/{eid}")
+  def retrieveWorkflowRuntimeStatistics(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("eid") eid: UInteger
+  ): List[WorkflowRuntimeStatistics] = {
+    context
+      .select(
+        WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
+        WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
+        WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
+        WORKFLOW_RUNTIME_STATISTICS.TIME
+      )
+      .from(WORKFLOW_RUNTIME_STATISTICS)
+      .where(
+        WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
+          .eq(wid)
+          .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
+      )
+      .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
+      .fetchInto(classOf[WorkflowRuntimeStatistics])
+      .toList
   }
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */

@@ -1,0 +1,9 @@
+<mat-tab-group (selectedTabChange)="onTabChanged($event)">
+  <mat-tab
+    *ngFor="let metric of metrics"
+    label="{{metric}}">
+  </mat-tab>
+</mat-tab-group>
+<div
+  id="chart"
+  class="chart-property"></div>
