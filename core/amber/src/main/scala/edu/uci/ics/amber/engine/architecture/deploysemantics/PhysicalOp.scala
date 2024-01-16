@@ -19,12 +19,18 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  WorkerReplayInitialization,
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ExecutionIdentity,
   OperatorIdentity,
   PhysicalLinkIdentity,
-  PhysicalOpIdentity
+  PhysicalOpIdentity,
+  WorkflowIdentity
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
@@ -45,20 +51,28 @@ object PhysicalOp {
     *  3) it has no input ports.
     */
   def sourcePhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
-    sourcePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
+    sourcePhysicalOp(
+      PhysicalOpIdentity(logicalOpId, "main"),
+      workflowId,
+      executionId,
+      opExecInitInfo
+    )
 
   def sourcePhysicalOp(
-      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
     PhysicalOp(
-      executionId,
       physicalOpId,
+      workflowId,
+      executionId,
       opExecInitInfo,
       parallelizable = false,
       locationPreference = Option(new PreferController()),
@@ -66,34 +80,49 @@ object PhysicalOp {
     )
 
   def oneToOnePhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
-    oneToOnePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
+    oneToOnePhysicalOp(
+      PhysicalOpIdentity(logicalOpId, "main"),
+      workflowId,
+      executionId,
+      opExecInitInfo
+    )
 
   def oneToOnePhysicalOp(
-      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
-    PhysicalOp(executionId, physicalOpId, opExecInitInfo = opExecInitInfo)
+    PhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo = opExecInitInfo)
 
   def manyToOnePhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
-    manyToOnePhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
+    manyToOnePhysicalOp(
+      PhysicalOpIdentity(logicalOpId, "main"),
+      workflowId,
+      executionId,
+      opExecInitInfo
+    )
 
   def manyToOnePhysicalOp(
-      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
     PhysicalOp(
-      executionId,
       physicalOpId,
+      workflowId,
+      executionId,
       opExecInitInfo,
       parallelizable = false,
       partitionRequirement = List(Option(SinglePartition())),
@@ -102,38 +131,54 @@ object PhysicalOp {
   }
 
   def localPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp =
-    localPhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExecInitInfo)
+    localPhysicalOp(
+      PhysicalOpIdentity(logicalOpId, "main"),
+      workflowId,
+      executionId,
+      opExecInitInfo
+    )
 
   def localPhysicalOp(
-      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo
   ): PhysicalOp = {
-    manyToOnePhysicalOp(executionId, physicalOpId, opExecInitInfo)
-      .copy(locationPreference = Option(new PreferController()))
+    manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
+      .withLocationPreference(Option(new PreferController()))
   }
 
   def hashPhysicalOp(
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExec: OpExecInitInfo,
       hashColumnIndices: Array[Int]
   ): PhysicalOp =
-    hashPhysicalOp(executionId, PhysicalOpIdentity(logicalOpId, "main"), opExec, hashColumnIndices)
+    hashPhysicalOp(
+      PhysicalOpIdentity(logicalOpId, "main"),
+      workflowId,
+      executionId,
+      opExec,
+      hashColumnIndices
+    )
 
   def hashPhysicalOp(
-      executionId: ExecutionIdentity,
       physicalOpId: PhysicalOpIdentity,
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo,
       hashColumnIndices: Array[Int]
   ): PhysicalOp = {
     PhysicalOp(
-      executionId,
       physicalOpId,
+      workflowId,
+      executionId,
       opExecInitInfo,
       partitionRequirement = List(Option(HashPartition(hashColumnIndices))),
       derivePartition = _ => HashPartition(hashColumnIndices)
@@ -143,10 +188,12 @@ object PhysicalOp {
 }
 
 case class PhysicalOp(
-    // the execution id number
-    executionId: ExecutionIdentity,
     // the identifier of this PhysicalOp
     id: PhysicalOpIdentity,
+    // the workflow id number
+    workflowId: WorkflowIdentity,
+    // the execution id number
+    executionId: ExecutionIdentity,
     // information regarding initializing an operator executor instance
     opExecInitInfo: OpExecInitInfo,
     // preference of parallelism
@@ -465,14 +512,18 @@ case class PhysicalOp(
 
   def assignWorkers(workerCount: Int): Unit = {
     (0 until workerCount).foreach(workerIdx => {
-      workerIds.add(VirtualIdentityUtils.createWorkerIdentity(executionId, id, workerIdx))
+      workerIds.add(
+        VirtualIdentityUtils.createWorkerIdentity(workflowId, id, workerIdx)
+      )
     })
   }
 
   def build(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
-      workerConfigs: List[WorkerConfig]
+      workerConfigs: List[WorkerConfig],
+      stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
+      replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,
@@ -491,7 +542,11 @@ case class PhysicalOp(
         WorkflowWorker.props(
           workerId,
           physicalOp = this,
-          workerConfig
+          workerConfig,
+          WorkerReplayInitialization(
+            stateRestoreConfigGen(workerId),
+            replayLoggingConfigGen(workerId)
+          )
         )
       }
       // Note: At this point, we don't know if the actor is fully initialized.
