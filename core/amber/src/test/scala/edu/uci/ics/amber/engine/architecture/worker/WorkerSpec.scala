@@ -81,7 +81,7 @@ class WorkerSpec
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
-  private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
+  private val mockLink = PhysicalLink(physicalOp1.id, 0, physicalOp2.id, 0)
   private val physicalOp = PhysicalOp
     .oneToOnePhysicalOp(
       DEFAULT_WORKFLOW_ID,
@@ -178,10 +178,10 @@ class WorkerSpec
       case a => println(a); true
     }
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     def mkBatch(start: Int, end: Int): Array[ITuple] = {
       (start until end).map { x =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink.id).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink).once()
         ITuple(x, x, x, x)
       }.toArray
     }
@@ -190,8 +190,8 @@ class WorkerSpec
     val batch3 = mkBatch(500, 800)
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flushAll _).expects().anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
     sendControlToWorker(worker, Array(invocation, updateInputLinking))
     worker ! NetworkMessage(
       3,
@@ -227,11 +227,11 @@ class WorkerSpec
       case a => println(a); true
     }
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flushAll _).expects().anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
     worker ! NetworkMessage(
       1,
       WorkflowFIFOMessage(
@@ -246,7 +246,7 @@ class WorkerSpec
     )
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink.id).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
@@ -262,7 +262,7 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink.id).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(

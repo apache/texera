@@ -2,20 +2,10 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
-  DataFrame,
-  DataPayload,
-  EndOfUpstream,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, DataPayload, EndOfUpstream, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalLink,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -57,8 +47,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       )
       (mockHandler.apply _).expects(mkDataMessage(fakeID, identifier, 3, EndOfUpstream()))
     }
-    val fakeLink =
-      PhysicalLink(physicalOpId(), 0, physicalOpId(), 0)
+    val fakeLink = PhysicalLink(physicalOpId(), 0, physicalOpId(), 0)
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
     outputManager.addPartitionerWithPartitioning(fakeLink, OneToOnePartitioning(10, fakeReceiver))

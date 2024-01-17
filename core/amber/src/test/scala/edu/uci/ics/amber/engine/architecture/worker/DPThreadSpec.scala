@@ -1,30 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  FIFOMessageElement,
-  TimerBasedControlElement
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, FIFOMessageElement, TimerBasedControlElement}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -52,7 +42,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
-  private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
+  private val mockLink = PhysicalLink(physicalOp1.id, 0, physicalOp2.id, 0)
 
   private val physicalOp = PhysicalOp
     .oneToOnePhysicalOp(
@@ -100,7 +90,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dp = new DataProcessor(identifier, x => {})
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.registerInput(senderID, mockLink.id)
+    dp.registerInput(senderID, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(identifier, dp, logManager, inputQueue)
@@ -130,8 +120,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSender = ActorVirtualIdentity("another")
-    dp.registerInput(senderID, mockLink.id)
-    dp.registerInput(anotherSender, mockLink.id)
+    dp.registerInput(senderID, mockLink)
+    dp.registerInput(anotherSender, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(identifier, dp, logManager, inputQueue)
@@ -161,8 +151,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSender = ActorVirtualIdentity("another")
-    dp.registerInput(senderID, mockLink.id)
-    dp.registerInput(anotherSender, mockLink.id)
+    dp.registerInput(senderID, mockLink)
+    dp.registerInput(anotherSender, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val logStorage = ReplayLogStorage.getLogStorage(Some(new URI("file:///recovery-logs/tmp")))

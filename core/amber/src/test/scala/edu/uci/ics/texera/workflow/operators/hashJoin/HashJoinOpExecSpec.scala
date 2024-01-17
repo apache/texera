@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
-  PhysicalLink,
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink

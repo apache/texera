@@ -11,21 +11,12 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartition
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
-  DataFrame,
-  WorkflowFIFOMessage,
-  WorkflowFIFOMessagePayload
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage, WorkflowFIFOMessagePayload}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalLink,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -39,11 +30,9 @@ class LoggingSpec
 
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
   private val operatorIdentity = OperatorIdentity("testOperator")
-  private val layerId1 =
-    PhysicalOpIdentity(operatorIdentity, "1st-layer")
-  private val layerId2 =
-    PhysicalOpIdentity(operatorIdentity, "2nd-layer")
-  private val mockLink = PhysicalLink(layerId1, 0, layerId2, 0)
+  private val physicalOpId1 = PhysicalOpIdentity(operatorIdentity, "1st-layer")
+  private val physicalOpId2 = PhysicalOpIdentity(operatorIdentity, "2nd-layer")
+  private val mockLink = PhysicalLink(physicalOpId1, 0, physicalOpId2, 0)
 
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(
