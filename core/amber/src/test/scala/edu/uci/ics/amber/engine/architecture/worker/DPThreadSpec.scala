@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLinkIdentity, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
@@ -52,7 +52,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
-  private val mockLink = PhysicalLinkIdentity(physicalOp1, 0, physicalOp2, 0)
+  private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
 
   private val physicalOp = PhysicalOp
     .oneToOnePhysicalOp(

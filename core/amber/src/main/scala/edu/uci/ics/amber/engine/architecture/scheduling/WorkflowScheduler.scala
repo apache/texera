@@ -3,10 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
@@ -22,11 +19,8 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
@@ -49,7 +43,7 @@ class WorkflowScheduler(
   private val builtPhysicalOpIds = new mutable.HashSet[PhysicalOpIdentity]()
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
-  private val activatedLink = new mutable.HashSet[PhysicalLinkIdentity]()
+  private val activatedLink = new mutable.HashSet[PhysicalLink]()
 
   private val constructingRegions = new mutable.HashSet[RegionIdentity]()
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
@@ -78,7 +72,7 @@ class WorkflowScheduler(
       workflow: Workflow,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
-      linkId: PhysicalLinkIdentity
+      linkId: PhysicalLink
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, linkId)
     doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
@@ -226,7 +220,7 @@ class WorkflowScheduler(
             allOperatorsInRegion.contains(link.from) &&
             allOperatorsInRegion.contains(link.to)
         })
-        .map { link: PhysicalLinkIdentity =>
+        .map { link: PhysicalLink =>
           asyncRPCClient
             .send(LinkWorkers(link), CONTROLLER)
             .onSuccess(_ => activatedLink.add(link))

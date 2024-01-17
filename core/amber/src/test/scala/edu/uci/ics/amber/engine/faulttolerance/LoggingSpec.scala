@@ -22,7 +22,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
-  PhysicalLinkIdentity,
+  PhysicalLink,
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
@@ -43,7 +43,7 @@ class LoggingSpec
     PhysicalOpIdentity(operatorIdentity, "1st-layer")
   private val layerId2 =
     PhysicalOpIdentity(operatorIdentity, "2nd-layer")
-  private val mockLink = PhysicalLinkIdentity(layerId1, 0, layerId2, 0)
+  private val mockLink = PhysicalLink(layerId1, 0, layerId2, 0)
 
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(

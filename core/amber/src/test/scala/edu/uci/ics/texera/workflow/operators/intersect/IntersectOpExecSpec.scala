@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.intersect
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
-  PhysicalLinkIdentity,
+  PhysicalLink,
   PhysicalOpIdentity
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -30,8 +30,8 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
   }
 
-  def physicalLinkId(): PhysicalLinkIdentity =
-    PhysicalLinkIdentity(physicalOpId(), fromPort = 0, physicalOpId(), toPort = 0)
+  def physicalLinkId(): PhysicalLink =
+    PhysicalLink(physicalOpId(), fromPort = 0, physicalOpId(), toPort = 0)
 
   def tuple(): Tuple = {
     counter += 1

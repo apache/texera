@@ -6,10 +6,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWork
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 object LinkWorkersHandler {
-  final case class LinkWorkers(linkId: PhysicalLinkIdentity) extends ControlCommand[Unit]
+  final case class LinkWorkers(linkId: PhysicalLink) extends ControlCommand[Unit]
 }
 
 /** add a data transfer partitioning to the sender workers and update input linking

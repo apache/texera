@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.scheduling.config.RegionConfig
-
-import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 case class RegionLink(fromRegion: Region, toRegion: Region)
 
@@ -13,12 +13,12 @@ case class RegionIdentity(id: String)
 case class Region(
     id: RegionIdentity,
     physicalOpIds: Set[PhysicalOpIdentity],
-    physicalLinkIds: Set[PhysicalLinkIdentity],
+    physicalLinkIds: Set[PhysicalLink],
     config: Option[RegionConfig] = None,
     // operators whose all inputs are from upstream region.
     sourcePhysicalOpIds: Set[PhysicalOpIdentity] = Set.empty,
     // links to downstream regions, where this region generates blocking output.
-    downstreamLinkIds: Set[PhysicalLinkIdentity] = Set.empty
+    downstreamLinkIds: Set[PhysicalLink] = Set.empty
 ) {
 
   /**
@@ -31,7 +31,7 @@ case class Region(
     physicalOpIds ++ downstreamLinkIds.map(linkId => linkId.to)
   }
 
-  def getEffectiveLinks: Set[PhysicalLinkIdentity] = {
+  def getEffectiveLinks: Set[PhysicalLink] = {
     physicalLinkIds ++ downstreamLinkIds
   }
 

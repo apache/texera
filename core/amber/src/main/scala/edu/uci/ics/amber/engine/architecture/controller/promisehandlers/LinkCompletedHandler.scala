@@ -4,10 +4,11 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+
 
 object LinkCompletedHandler {
-  final case class LinkCompleted(linkID: PhysicalLinkIdentity) extends ControlCommand[Unit]
+  final case class LinkCompleted(linkID: PhysicalLink) extends ControlCommand[Unit]
 }
 
 /** Notify the completion of a particular link

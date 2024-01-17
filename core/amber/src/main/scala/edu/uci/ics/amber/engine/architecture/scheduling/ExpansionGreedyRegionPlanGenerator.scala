@@ -3,12 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -125,7 +123,7 @@ class ExpansionGreedyRegionPlanGenerator(
     *  @return Either a partially connected region DAG, or a set of PhysicalLinks for materialization replacement.
     */
   private def tryConnectRegionDAG()
-      : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLinkIdentity]] = {
+      : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLink]] = {
 
     // creates an empty regionDAG
     val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
@@ -148,7 +146,7 @@ class ExpansionGreedyRegionPlanGenerator(
 
   private def handleAllBlockingInput(
       physicalOpId: PhysicalOpIdentity
-  ): Option[Set[PhysicalLinkIdentity]] = {
+  ): Option[Set[PhysicalLink]] = {
     if (physicalPlan.areAllInputBlocking(physicalOpId)) {
       // for operators that have only blocking input links return all links for materialization replacement
       return Some(
@@ -165,7 +163,7 @@ class ExpansionGreedyRegionPlanGenerator(
   private def handleDependentLinks(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Option[Set[PhysicalLinkIdentity]] = {
+  ): Option[Set[PhysicalLink]] = {
     // for operators like HashJoin that have an order among their blocking and pipelined inputs
     physicalPlan
       .getOperator(physicalOpId)
@@ -321,7 +319,7 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   private def replaceLinkWithMaterialization(
-      physicalLinkId: PhysicalLinkIdentity,
+      physicalLinkId: PhysicalLink,
       context: WorkflowContext,
       writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
   ): PhysicalPlan = {
@@ -341,9 +339,9 @@ class ExpansionGreedyRegionPlanGenerator(
     val matReaderPhysicalOp: PhysicalOp = createMatReader(matWriterLogicalOp, context)
 
     // create 2 links for materialization
-    val readerToDestLink = PhysicalLinkIdentity(matReaderPhysicalOp.id, 0, toOp.id, toInputPort)
+    val readerToDestLink = PhysicalLink(matReaderPhysicalOp.id, 0, toOp.id, toInputPort)
     val sourceToWriterLink =
-      PhysicalLinkIdentity(fromOp.id, fromOutputPort, matWriterPhysicalOp.id, 0)
+      PhysicalLink(fromOp.id, fromOutputPort, matWriterPhysicalOp.id, 0)
 
     // add the pair to the map for later adding edges between 2 regions.
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id

@@ -4,12 +4,9 @@ import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  LinkConfig,
-  OperatorConfig,
-  RegionConfig
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{LinkConfig, OperatorConfig, RegionConfig}
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
 
 import scala.collection.mutable
@@ -26,7 +23,7 @@ class DefaultResourceAllocator(
   private val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
 
   private val operatorConfigs = new mutable.HashMap[PhysicalOpIdentity, OperatorConfig]()
-  private val linkConfigs = new mutable.HashMap[PhysicalLinkIdentity, LinkConfig]()
+  private val linkConfigs = new mutable.HashMap[PhysicalLink, LinkConfig]()
 
   /**
     * Allocates resources for a given region and its operators.

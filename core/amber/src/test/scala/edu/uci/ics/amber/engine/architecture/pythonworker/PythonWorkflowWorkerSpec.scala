@@ -23,8 +23,8 @@
 //import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 //import edu.uci.ics.amber.engine.common.virtualidentity.{
 //  ActorVirtualIdentity,
-//  PhysicalLinkIdentity,
-//  PhysicalLinkIdentity,
+//  PhysicalLink,
+//  PhysicalLink,
 //  OperatorIdentity
 //}
 //import edu.uci.ics.amber.engine.e2e.TestOperators
@@ -53,11 +53,11 @@
 //  private val identifier2 = ActorVirtualIdentity("worker-2")
 //  private val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
 //  private val layerId1 =
-//    PhysicalLinkIdentity(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
+//    PhysicalLink(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
 //  private val layerId2 =
-//    PhysicalLinkIdentity(operatorIdentity.workflow, operatorIdentity.operator, "2nd-layer")
+//    PhysicalLink(operatorIdentity.workflow, operatorIdentity.operator, "2nd-layer")
 //  private val pythonOp = TestOperators.pythonOpDesc()
-//  private val linkId = PhysicalLinkIdentity(layerId1, 0, layerId2, 0)
+//  private val linkId = PhysicalLink(layerId1, 0, layerId2, 0)
 //  private val schema = Schema
 //    .newBuilder()
 //    .add(new Attribute("text", AttributeType.STRING))

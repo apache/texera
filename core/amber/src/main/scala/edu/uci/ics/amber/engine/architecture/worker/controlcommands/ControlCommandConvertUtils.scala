@@ -9,10 +9,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Modify
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
-  ControlException,
-  ControlReturnV2
-}
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{ControlException, ControlReturnV2}
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
@@ -26,7 +23,8 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -47,7 +45,7 @@ object ControlCommandConvertUtils {
         SchedulerTimeSlotEventV2(timeSlotExpired)
       case OpenOperator() =>
         OpenOperatorV2()
-      case AddPartitioning(tag: PhysicalLinkIdentity, partitioning: Partitioning) =>
+      case AddPartitioning(tag: PhysicalLink, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
         UpdateInputLinkingV2(identifier, inputLink)

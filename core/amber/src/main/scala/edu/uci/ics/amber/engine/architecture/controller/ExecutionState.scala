@@ -3,11 +3,8 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -15,7 +12,7 @@ import scala.collection.mutable
 
 class ExecutionState(workflow: Workflow) {
 
-  private val linkExecutions: Map[PhysicalLinkIdentity, LinkExecution] =
+  private val linkExecutions: Map[PhysicalLink, LinkExecution] =
     workflow.physicalPlan.links.map { link =>
       link -> new LinkExecution(
         workflow.regionPlan.regions
@@ -70,7 +67,7 @@ class ExecutionState(workflow: Workflow) {
     throw new NoSuchElementException(s"cannot find operator with worker = $worker")
   }
 
-  def getLinkExecution(link: PhysicalLinkIdentity): LinkExecution = linkExecutions(link)
+  def getLinkExecution(link: PhysicalLink): LinkExecution = linkExecutions(link)
 
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions

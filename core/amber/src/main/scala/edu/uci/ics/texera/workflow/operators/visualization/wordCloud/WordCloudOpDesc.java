@@ -9,9 +9,9 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
@@ -103,10 +103,10 @@ public class WordCloudOpDesc extends VisualizationOperator {
         .withId(globalOpId).withIsOneToManyOp(true)
         .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 
-        PhysicalOp[] layers = {partialPhysicalOp, globalPhysicalOp};
-        PhysicalLinkIdentity[] links = { new PhysicalLinkIdentity(partialPhysicalOp.id(), 0, globalPhysicalOp.id(), 0)};
+        PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
+        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), 0, globalPhysicalOp.id(), 0)};
 
-        return PhysicalPlan.apply(layers, links);
+        return PhysicalPlan.apply(physicalOps, links);
     }
 
     @Override

@@ -3,12 +3,8 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -17,7 +13,7 @@ import scala.collection.JavaConverters._
 
 object PhysicalPlan {
 
-  def apply(operatorList: Array[PhysicalOp], links: Array[PhysicalLinkIdentity]): PhysicalPlan = {
+  def apply(operatorList: Array[PhysicalOp], links: Array[PhysicalLink]): PhysicalPlan = {
     new PhysicalPlan(operatorList.toSet, links.toSet)
   }
 
@@ -58,7 +54,7 @@ object PhysicalPlan {
       val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, toPortName)
 
       physicalPlan =
-        physicalPlan.addLink(PhysicalLinkIdentity(fromOp.id, fromPort, toOp.id, toPort))
+        physicalPlan.addLink(PhysicalLink(fromOp.id, fromPort, toOp.id, toPort))
     })
 
     physicalPlan
@@ -68,7 +64,7 @@ object PhysicalPlan {
 
 case class PhysicalPlan(
     operators: Set[PhysicalOp],
-    links: Set[PhysicalLinkIdentity]
+    links: Set[PhysicalLink]
 ) extends LazyLogging {
 
   @transient private lazy val operatorMap: Map[PhysicalOpIdentity, PhysicalOp] =
@@ -151,7 +147,7 @@ case class PhysicalPlan(
     dag.incomingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeSource(e)).toSet
   }
 
-  def getUpstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLinkIdentity] = {
+  def getUpstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.to == physicalOpId)
   }
 
@@ -159,7 +155,7 @@ case class PhysicalPlan(
     dag.outgoingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeTarget(e)).toSet
   }
 
-  def getDownstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLinkIdentity] = {
+  def getDownstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.from == physicalOpId)
   }
 
@@ -174,7 +170,7 @@ case class PhysicalPlan(
     this.copy(operators = Set(physicalOp) ++ operators)
   }
 
-  def addLink(link: PhysicalLinkIdentity): PhysicalPlan = {
+  def addLink(link: PhysicalLink): PhysicalPlan = {
     val newOperators = operatorMap +
       (link.from -> getOperator(link.from).addOutput(link.to, link.fromPort, link.toPort)) +
       (link.to -> getOperator(link.to).addInput(link.from, link.fromPort, link.toPort))
@@ -182,7 +178,7 @@ case class PhysicalPlan(
   }
 
   def removeLink(
-      link: PhysicalLinkIdentity
+      link: PhysicalLink
   ): PhysicalPlan = {
     val fromOpId = link.from
     val toOpId = link.to
@@ -207,7 +203,7 @@ case class PhysicalPlan(
     // add all physical operators to physical DAG
     subPlan.operators.foreach(op => resultPlan = resultPlan.addOperator(op))
     // connect intra-operator links
-    subPlan.links.foreach((physicalLink: PhysicalLinkIdentity) =>
+    subPlan.links.foreach((physicalLink: PhysicalLink) =>
       resultPlan = resultPlan.addLink(physicalLink)
     )
     resultPlan
@@ -219,13 +215,13 @@ case class PhysicalPlan(
   def getLinksBetween(
       from: PhysicalOpIdentity,
       to: PhysicalOpIdentity
-  ): Set[PhysicalLinkIdentity] = {
+  ): Set[PhysicalLink] = {
     links.filter(link => link.from == from && link.to == to)
 
   }
 
   def getOutputPartitionInfo(
-      linkId: PhysicalLinkIdentity,
+      linkId: PhysicalLink,
       upstreamPartitionInfo: PartitionInfo,
       opToWorkerNumberMapping: Map[PhysicalOpIdentity, Int]
   ): PartitionInfo = {

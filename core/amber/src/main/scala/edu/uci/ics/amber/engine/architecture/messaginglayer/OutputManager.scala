@@ -1,16 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
-  getBatchSize,
-  toPartitioner
-}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{getBatchSize, toPartitioner}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import org.jooq.exception.MappingException
 
 import scala.collection.mutable
@@ -69,17 +67,17 @@ class OutputManager(
     dataOutputPort: NetworkOutputGateway
 ) {
 
-  val partitioners = mutable.HashMap[PhysicalLinkIdentity, Partitioner]()
+  val partitioners = mutable.HashMap[PhysicalLink, Partitioner]()
 
   val networkOutputBuffers =
-    mutable.HashMap[(PhysicalLinkIdentity, ActorVirtualIdentity), NetworkOutputBuffer]()
+    mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
     * @param partitioning Partitioning, describes how and whom to send to.
     */
   def addPartitionerWithPartitioning(
-      link: PhysicalLinkIdentity,
+      link: PhysicalLink,
       partitioning: Partitioning
   ): Unit = {
     val partitioner = toPartitioner(partitioning)
@@ -97,7 +95,7 @@ class OutputManager(
     */
   def passTupleToDownstream(
       tuple: ITuple,
-      outputPort: PhysicalLinkIdentity
+      outputPort: PhysicalLink
   ): Unit = {
     val partitioner =
       partitioners.getOrElse(outputPort, throw new MappingException("output port not found"))
