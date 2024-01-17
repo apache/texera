@@ -12,11 +12,14 @@ case object NewInputPort {
   }
 
   def toNewInputPorts(oldInputPorts: List[InputPort]): List[NewInputPort] = {
-    oldInputPorts.indices.toList.map(idx => NewInputPort(PortIdentity(idx)))
+    oldInputPorts.zipWithIndex.map {
+      case (port, idx) => NewInputPort(PortIdentity(idx), name = port.displayName)
+    }
   }
 }
 case class NewInputPort(
-    id: PortIdentity
+    id: PortIdentity,
+    name: String = ""
 )
 
 case object NewOutputPort {
@@ -25,9 +28,12 @@ case object NewOutputPort {
   }
 
   def toNewOutputPorts(oldOutputPorts: List[OutputPort]): List[NewOutputPort] = {
-    oldOutputPorts.indices.toList.map(idx => NewOutputPort(PortIdentity(idx)))
+    oldOutputPorts.zipWithIndex.map {
+      case (port, idx) => NewOutputPort(PortIdentity(idx), name = port.displayName)
+    }
   }
 }
 case class NewOutputPort(
-    id: PortIdentity
+    id: PortIdentity,
+    name: String = ""
 )

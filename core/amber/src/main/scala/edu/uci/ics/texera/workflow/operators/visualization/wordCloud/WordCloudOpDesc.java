@@ -91,7 +91,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
                 .withInputPorts(NewInputPort.toNewInputPorts(this.operatorInfo().inputPorts()))
-                .withOutputPorts(asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, true)))).toList());
+                .withOutputPorts(asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, true),""))).toList());
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
@@ -105,8 +105,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 )
         )
         .withId(globalOpId).withIsOneToManyOp(true)
-                .withInputPorts(asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, true)))).toList())
-                .withOutputPorts(NewOutputPort.toNewOutputPorts(this.operatorInfo().outputPorts()));
+        .withInputPorts(asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, true), ""))).toList())
+        .withOutputPorts(NewOutputPort.toNewOutputPorts(this.operatorInfo().outputPorts()));
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
         PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), 0, globalPhysicalOp.id(), 0)};

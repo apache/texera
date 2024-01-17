@@ -62,7 +62,8 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
                                 worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter())
                 )
-        )     .withInputPorts(NewInputPort.toNewInputPorts(this.operatorInfo().inputPorts()))
+        )
+                .withInputPorts(NewInputPort.toNewInputPorts(this.operatorInfo().inputPorts()))
                 .withOutputPorts(NewOutputPort.toNewOutputPorts(this.operatorInfo().outputPorts()));
     }
 
