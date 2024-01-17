@@ -1,3 +1,13 @@
+#title {
+  padding: 10px 0 5px 0;
+}
+
+#spacer {
+  border-right: 1px solid #f0f0f0;
+  padding: 15px 46px 15px 0;
+  margin-right: 15px;
+}
+
 #left-panel-container {
   width: 50%;
   z-index: 2;
@@ -12,7 +22,7 @@
 
 #left-panel-content {
   min-height: 100%;
-  max-height: calc(100vh - 190px);
+  max-height: calc(100vh - 200px);
   overflow-y: auto;
   display: inline-block;
   width: calc(100% - 50px)
