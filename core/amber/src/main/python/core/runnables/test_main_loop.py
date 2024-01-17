@@ -378,7 +378,7 @@ class TestMainLoop:
                 control_invocation=ControlInvocationV2(
                     command_id=0,
                     command=ControlCommandV2(
-                        link_completed=LinkCompletedV2(link_id=mock_link)
+                        link_completed=LinkCompletedV2(link=mock_link)
                     ),
                 )
             ),

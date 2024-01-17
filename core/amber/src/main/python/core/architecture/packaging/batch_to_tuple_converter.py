@@ -20,16 +20,16 @@ class BatchToTupleConverter:
             PhysicalLink, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
         self._current_link: Optional[PhysicalLink] = None
-        self._all_upstream_link_ids: Set[PhysicalLink] = set()
+        self._all_upstream_links: Set[PhysicalLink] = set()
         self._end_received_from_workers: defaultdict[
             PhysicalLink, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
         self._completed_links: Set[PhysicalLink] = set()
 
-    def update_all_upstream_link_ids(
-        self, upstream_link_ids: Set[PhysicalLink]
+    def update_all_upstream_links(
+        self, upstream_links: Set[PhysicalLink]
     ) -> None:
-        self._all_upstream_link_ids = upstream_link_ids
+        self._all_upstream_links = upstream_links
 
     def register_input(
         self, identifier: ActorVirtualIdentity, input_: PhysicalLink
@@ -63,7 +63,7 @@ class BatchToTupleConverter:
             if self._upstream_map[link] == self._end_received_from_workers[link]:
                 self._completed_links.add(link)
                 yield InputExhausted()
-            if self._completed_links == self._all_upstream_link_ids:
+            if self._completed_links == self._all_upstream_links:
                 yield EndOfAllMarker()
 
         else:

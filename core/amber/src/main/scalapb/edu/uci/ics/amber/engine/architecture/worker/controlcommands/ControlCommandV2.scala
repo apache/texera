@@ -1295,7 +1295,7 @@ object OpenOperatorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
 
 @SerialVersionUID(0L)
 final case class LinkCompletedV2(
-    linkId: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+    link: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[LinkCompletedV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -1303,7 +1303,7 @@ final case class LinkCompletedV2(
       var __size = 0
       
       {
-        val __value = linkId
+        val __value = link
         if (__value != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
@@ -1320,7 +1320,7 @@ final case class LinkCompletedV2(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = linkId
+        val __v = link
         if (__v != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
@@ -1328,11 +1328,11 @@ final case class LinkCompletedV2(
         }
       };
     }
-    def withLinkId(__v: edu.uci.ics.amber.engine.common.workflow.PhysicalLink): LinkCompletedV2 = copy(linkId = __v)
+    def withLink(__v: edu.uci.ics.amber.engine.common.workflow.PhysicalLink): LinkCompletedV2 = copy(link = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = linkId
+          val __t = link
           if (__t != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) __t else null
         }
       }
@@ -1340,7 +1340,7 @@ final case class LinkCompletedV2(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => linkId.toPMessage
+        case 1 => link.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1351,26 +1351,26 @@ final case class LinkCompletedV2(
 object LinkCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 = {
-    var __linkId: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = _root_.scala.None
+    var __link: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __linkId = _root_.scala.Some(__linkId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PhysicalLink](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __link = _root_.scala.Some(__link.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PhysicalLink](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-        linkId = __linkId.getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
+        link = __link.getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-        linkId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PhysicalLink]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
+        link = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PhysicalLink]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1386,16 +1386,16 @@ object LinkCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-    linkId = edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance
+    link = edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance
   )
   implicit class LinkCompletedV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2](_l) {
-    def linkId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = field(_.linkId)((c_, f_) => c_.copy(linkId = f_))
+    def link: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = field(_.link)((c_, f_) => c_.copy(link = f_))
   }
-  final val LINK_ID_FIELD_NUMBER = 1
+  final val LINK_FIELD_NUMBER = 1
   def of(
-    linkId: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+    link: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-    linkId
+    link
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.LinkCompletedV2])
 }

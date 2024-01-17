@@ -83,7 +83,7 @@ class QueryCurrentInputTupleV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LinkOrdinal(betterproto.Message):
-    link_id: "__common__.PhysicalLink" = betterproto.message_field(1)
+    link: "__common__.PhysicalLink" = betterproto.message_field(1)
     port_ordinal: int = betterproto.int64_field(2)
 
 
@@ -141,7 +141,7 @@ class QuerySelfWorkloadMetricsV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LinkCompletedV2(betterproto.Message):
-    link_id: "__common__.PhysicalLink" = betterproto.message_field(1)
+    link: "__common__.PhysicalLink" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)
