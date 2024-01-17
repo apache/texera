@@ -23,8 +23,8 @@
 //import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 //import edu.uci.ics.amber.engine.common.virtualidentity.{
 //  ActorVirtualIdentity,
-//  PhysicalLinkIdentity,
-//  PhysicalLinkIdentity,
+//  PhysicalLink,
+//  PhysicalLink,
 //  OperatorIdentity
 //}
 //import edu.uci.ics.amber.engine.e2e.TestOperators
@@ -53,11 +53,11 @@
 //  private val identifier2 = ActorVirtualIdentity("worker-2")
 //  private val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
 //  private val layerId1 =
-//    PhysicalLinkIdentity(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
+//    PhysicalLink(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
 //  private val layerId2 =
-//    PhysicalLinkIdentity(operatorIdentity.workflow, operatorIdentity.operator, "2nd-layer")
+//    PhysicalLink(operatorIdentity.workflow, operatorIdentity.operator, "2nd-layer")
 //  private val pythonOp = TestOperators.pythonOpDesc()
-//  private val linkId = PhysicalLinkIdentity(layerId1, 0, layerId2, 0)
+//  private val link = PhysicalLink(layerId1, 0, layerId2, 0)
 //  private val schema = Schema
 //    .newBuilder()
 //    .add(new Attribute("text", AttributeType.STRING))
@@ -65,8 +65,8 @@
 //  private val initialization = InitializeOperatorLogic(
 //    pythonOp.code,
 //    isSource = false,
-//    Seq(LinkOrdinal(linkId, 0)),
-//    Seq(LinkOrdinal(linkId, 0)),
+//    Seq(LinkOrdinal(link, 0)),
+//    Seq(LinkOrdinal(link, 0)),
 //    schema
 //  )
 //
@@ -109,8 +109,8 @@
 //    sendControlToWorker(worker, Array(ControlInvocation(0, initialization)))
 //    val mockPolicy = OneToOnePartitioning(1, Array(identifier2))
 //    val openControl = ControlInvocation(1, OpenOperator())
-//    val invocation = ControlInvocation(2, AddPartitioning(linkId, mockPolicy))
-//    val updateInputLinking = ControlInvocation(3, UpdateInputLinking(identifier2, linkId))
+//    val invocation = ControlInvocation(2, AddPartitioning(link, mockPolicy))
+//    val updateInputLinking = ControlInvocation(3, UpdateInputLinking(identifier2, link))
 //    sendControlToWorker(worker, Array(openControl, invocation, updateInputLinking), 1)
 //    worker ! NetworkMessage(
 //      4,
@@ -137,8 +137,8 @@
 //    sendControlToWorker(worker, Array(ControlInvocation(0, initialization)))
 //    val mockPolicy = OneToOnePartitioning(100, Array(identifier2))
 //    val openControl = ControlInvocation(1, OpenOperator())
-//    val invocation = ControlInvocation(2, AddPartitioning(linkId, mockPolicy))
-//    val updateInputLinking = ControlInvocation(3, UpdateInputLinking(identifier2, linkId))
+//    val invocation = ControlInvocation(2, AddPartitioning(link, mockPolicy))
+//    val updateInputLinking = ControlInvocation(3, UpdateInputLinking(identifier2, link))
 //    sendControlToWorker(worker, Array(openControl, invocation, updateInputLinking), 1)
 //    worker ! NetworkMessage(
 //      4,

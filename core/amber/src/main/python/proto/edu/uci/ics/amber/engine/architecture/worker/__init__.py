@@ -57,12 +57,12 @@ class OpenOperatorV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class UpdateInputLinkingV2(betterproto.Message):
     identifier: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
-    input_link: "__common__.PhysicalLinkIdentity" = betterproto.message_field(2)
+    input_link: "__common__.PhysicalLink" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class AddPartitioningV2(betterproto.Message):
-    tag: "__common__.PhysicalLinkIdentity" = betterproto.message_field(1)
+    tag: "__common__.PhysicalLink" = betterproto.message_field(1)
     partitioning: "_sendsemantics__.Partitioning" = betterproto.message_field(2)
 
 
@@ -83,7 +83,7 @@ class QueryCurrentInputTupleV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LinkOrdinal(betterproto.Message):
-    link_id: "__common__.PhysicalLinkIdentity" = betterproto.message_field(1)
+    link: "__common__.PhysicalLink" = betterproto.message_field(1)
     port_ordinal: int = betterproto.int64_field(2)
 
 
@@ -141,7 +141,7 @@ class QuerySelfWorkloadMetricsV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class LinkCompletedV2(betterproto.Message):
-    link_id: "__common__.PhysicalLinkIdentity" = betterproto.message_field(1)
+    link: "__common__.PhysicalLink" = betterproto.message_field(1)
 
 
 @dataclass(eq=False, repr=False)

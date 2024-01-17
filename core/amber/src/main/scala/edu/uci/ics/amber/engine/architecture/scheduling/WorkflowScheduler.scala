@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
@@ -23,11 +22,8 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
@@ -50,7 +46,7 @@ class WorkflowScheduler(
   private val builtPhysicalOpIds = new mutable.HashSet[PhysicalOpIdentity]()
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
-  private val activatedLink = new mutable.HashSet[PhysicalLinkIdentity]()
+  private val activatedLink = new mutable.HashSet[PhysicalLink]()
 
   private val constructingRegions = new mutable.HashSet[RegionIdentity]()
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
@@ -79,9 +75,9 @@ class WorkflowScheduler(
       workflow: Workflow,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
-      linkId: PhysicalLinkIdentity
+      link: PhysicalLink
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, linkId)
+    val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, link)
     doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
@@ -192,11 +188,11 @@ class WorkflowScheduler(
           .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
-              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkIdMapping.flatMap {
-                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
+              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkMapping.flatMap {
+                case (portIdx, links) => links.map(link => LinkOrdinal(link, portIdx))
               }.toList
-              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkIdMapping.flatMap {
-                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
+              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkMapping.flatMap {
+                case (portIdx, links) => links.map(link => LinkOrdinal(link, portIdx))
               }.toList
               asyncRPCClient
                 .send(
@@ -223,14 +219,14 @@ class WorkflowScheduler(
       // activate all links
       workflow.physicalPlan.links
         .filter(link => {
-          !activatedLink.contains(link.id) &&
-            allOperatorsInRegion.contains(link.fromOp.id) &&
-            allOperatorsInRegion.contains(link.toOp.id)
+          !activatedLink.contains(link) &&
+            allOperatorsInRegion.contains(link.from) &&
+            allOperatorsInRegion.contains(link.to)
         })
         .map { link: PhysicalLink =>
           asyncRPCClient
-            .send(LinkWorkers(link.id), CONTROLLER)
-            .onSuccess(_ => activatedLink.add(link.id))
+            .send(LinkWorkers(link), CONTROLLER)
+            .onSuccess(_ => activatedLink.add(link))
         }
         .toSeq
     )
