@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalLink,
   PhysicalOpIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -27,7 +28,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: IntervalJoinOpDesc = _
   var counter: Int = 0
 
-  def physicalLinkId(): PhysicalLink =
+  def physicalLink(): PhysicalLink =
     PhysicalLink(physicalOpId(), fromPort = 0, physicalOpId(), toPort = 0)
 
   def physicalOpId(): PhysicalOpIdentity = {

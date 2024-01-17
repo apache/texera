@@ -13,12 +13,12 @@ case class RegionIdentity(id: String)
 case class Region(
     id: RegionIdentity,
     physicalOpIds: Set[PhysicalOpIdentity],
-    physicalLinkIds: Set[PhysicalLink],
+    physicalLinks: Set[PhysicalLink],
     config: Option[RegionConfig] = None,
     // operators whose all inputs are from upstream region.
     sourcePhysicalOpIds: Set[PhysicalOpIdentity] = Set.empty,
     // links to downstream regions, where this region generates blocking output.
-    downstreamLinkIds: Set[PhysicalLink] = Set.empty
+    downstreamLinks: Set[PhysicalLink] = Set.empty
 ) {
 
   /**
@@ -28,11 +28,11 @@ case class Region(
     *   2) operators not in this region but blocked by this region (connected by the downstream links).
     */
   def getEffectiveOperators: Set[PhysicalOpIdentity] = {
-    physicalOpIds ++ downstreamLinkIds.map(linkId => linkId.to)
+    physicalOpIds ++ downstreamLinks.map(link => link.to)
   }
 
   def getEffectiveLinks: Set[PhysicalLink] = {
-    physicalLinkIds ++ downstreamLinkIds
+    physicalLinks ++ downstreamLinks
   }
 
 }

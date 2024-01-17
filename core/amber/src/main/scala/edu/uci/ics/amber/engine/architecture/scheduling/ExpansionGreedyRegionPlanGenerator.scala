@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
@@ -97,11 +100,11 @@ class ExpansionGreedyRegionPlanGenerator(
         case (sourcePhysicalOpId, index) =>
           val operatorIds =
             nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
-          val linkIds = operatorIds.flatMap(operatorId => {
-            physicalPlan.getUpstreamPhysicalLinkIds(operatorId) ++ physicalPlan
-              .getDownstreamPhysicalLinkIds(operatorId)
+          val links = operatorIds.flatMap(operatorId => {
+            physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
+              .getDownstreamPhysicalLinks(operatorId)
           })
-          Region(RegionIdentity((index + 1).toString), operatorIds, linkIds)
+          Region(RegionIdentity((index + 1).toString), operatorIds, links)
       }
   }
 
@@ -136,7 +139,7 @@ class ExpansionGreedyRegionPlanGenerator(
       .topologicalIterator()
       .foreach(physicalOpId => {
         (handleAllBlockingInput(physicalOpId) ++ handleDependentLinks(physicalOpId, regionDAG))
-          .map(linkIds => return Right(linkIds))
+          .map(links => return Right(links))
       })
 
     // if success, a partially connected region DAG without edges between materialization operators is returned.
@@ -170,16 +173,16 @@ class ExpansionGreedyRegionPlanGenerator(
       .getInputLinksInProcessingOrder
       .sliding(2, 1)
       .foreach {
-        case List(prevLinkId, nextLinkId) =>
+        case List(prevLink, nextLink) =>
           // Create edges between regions
-          val regionLinks = createLinks(prevLinkId.from, nextLinkId.from, regionDAG)
+          val regionLinks = createLinks(prevLink.from, nextLink.from, regionDAG)
           // Attempt to add edges to regionDAG
           try {
             regionLinks.foreach(link => regionDAG.addEdge(link.fromRegion, link.toRegion, link))
           } catch {
             case _: IllegalArgumentException =>
               // adding the edge causes cycle. return the link for materialization replacement
-              return Some(Set(nextLinkId))
+              return Some(Set(nextLink))
           }
       }
     None
@@ -203,9 +206,9 @@ class ExpansionGreedyRegionPlanGenerator(
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
       tryConnectRegionDAG() match {
         case Left(dag) => dag
-        case Right(linkIds) =>
-          linkIds.foreach { linkId =>
-            physicalPlan = replaceLinkWithMaterialization(linkId, context, matReaderWriterPairs)
+        case Right(links) =>
+          links.foreach { link =>
+            physicalPlan = replaceLinkWithMaterialization(link, context, matReaderWriterPairs)
           }
           recConnectRegionDAG()
       }
@@ -282,7 +285,7 @@ class ExpansionGreedyRegionPlanGenerator(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): DirectedAcyclicGraph[Region, RegionLink] = {
 
-    val blockingLinkIds = physicalPlan
+    val blockingLinks = physicalPlan
       .topologicalIterator()
       .flatMap { physicalOpId =>
         val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
@@ -294,13 +297,13 @@ class ExpansionGreedyRegionPlanGenerator(
       }
       .toSet
 
-    blockingLinkIds
-      .flatMap { linkId => getRegions(linkId.from, regionDAG).map(region => region -> linkId) }
+    blockingLinks
+      .flatMap { link => getRegions(link.from, regionDAG).map(region => region -> link) }
       .groupBy(_._1)
       .mapValues(_.map(_._2))
       .foreach {
-        case (region, linkIds) =>
-          val newRegion = region.copy(downstreamLinkIds = linkIds)
+        case (region, links) =>
+          val newRegion = region.copy(downstreamLinks = links)
           replaceVertex(regionDAG, region, newRegion)
       }
     regionDAG
@@ -319,19 +322,19 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   private def replaceLinkWithMaterialization(
-      physicalLinkId: PhysicalLink,
+      physicalLink: PhysicalLink,
       context: WorkflowContext,
       writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
   ): PhysicalPlan = {
     // get the actual Op from the physical plan. the operators on the link and that on the physical plan
     // are different due to partial rewrite
-    val fromOp = physicalPlan.getOperator(physicalLinkId.from)
-    val fromOutputPort = fromOp.getPortIdxForOutputLinkId(physicalLinkId)
+    val fromOp = physicalPlan.getOperator(physicalLink.from)
+    val fromOutputPort = fromOp.getPortIdxForOutputLink(physicalLink)
 
     // get the actual Op from the physical plan. the operators on the link and that on the physical plan
     // are different due to partial rewrite
-    val toOp = physicalPlan.getOperator(physicalLinkId.to)
-    val toInputPort = toOp.getPortIdxForInputLinkId(physicalLinkId)
+    val toOp = physicalPlan.getOperator(physicalLink.to)
+    val toInputPort = toOp.getPortIdxForInputLink(physicalLink)
 
     val (matWriterLogicalOp: ProgressiveSinkOpDesc, matWriterPhysicalOp: PhysicalOp) =
       createMatWriter(fromOp, fromOutputPort, context)
@@ -347,7 +350,7 @@ class ExpansionGreedyRegionPlanGenerator(
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
 
     physicalPlan
-      .removeLink(physicalLinkId)
+      .removeLink(physicalLink)
       .addOperator(matWriterPhysicalOp)
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)

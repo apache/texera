@@ -24,7 +24,7 @@ class BatchToTupleConverter:
         self._end_received_from_workers: defaultdict[
             PhysicalLink, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
-        self._completed_link_ids: Set[PhysicalLink] = set()
+        self._completed_links: Set[PhysicalLink] = set()
 
     def update_all_upstream_link_ids(
         self, upstream_link_ids: Set[PhysicalLink]
@@ -61,9 +61,9 @@ class BatchToTupleConverter:
         elif isinstance(payload, EndOfUpstream):
             self._end_received_from_workers[link].add(from_)
             if self._upstream_map[link] == self._end_received_from_workers[link]:
-                self._completed_link_ids.add(link)
+                self._completed_links.add(link)
                 yield InputExhausted()
-            if self._completed_link_ids == self._all_upstream_link_ids:
+            if self._completed_links == self._all_upstream_link_ids:
                 yield EndOfAllMarker()
 
         else:

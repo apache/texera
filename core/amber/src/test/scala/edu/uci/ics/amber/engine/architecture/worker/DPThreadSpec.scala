@@ -62,8 +62,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
       OpExecInitInfo((_, _, _) => operator)
     )
     .copy(
-      inputPortToLinkIdMapping = Map(0 -> List(mockLink.id)),
-      outputPortToLinkIdMapping = Map(0 -> List(mockLink.id))
+      inputPortToLinkMapping = Map(0 -> List(mockLink)),
+      outputPortToLinkMapping = Map(0 -> List(mockLink))
     )
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
   private val logStorage = ReplayLogStorage.getLogStorage(None)
@@ -74,7 +74,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dp = new DataProcessor(identifier, x => {})
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.registerInput(senderID, mockLink.id)
+    dp.registerInput(senderID, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(identifier, dp, logManager, inputQueue)

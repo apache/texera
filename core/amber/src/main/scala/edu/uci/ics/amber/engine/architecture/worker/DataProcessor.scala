@@ -7,12 +7,24 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{DPOutputIterator, FinalizeLink, FinalizeOperator}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
+  DPOutputIterator,
+  FinalizeLink,
+  FinalizeOperator
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED, READY, RUNNING}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
+  COMPLETED,
+  PAUSED,
+  READY,
+  RUNNING
+}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -92,13 +104,13 @@ class DataProcessor(
     }
     this.operatorConfig = operatorConfig
     this.physicalOp = physicalOp
-    this.upstreamLinkStatus.setAllUpstreamLinkIds(
+    this.upstreamLinkStatus.setAllUpstreamLinks(
       if (physicalOp.isSourceOperator) {
         Set(
           PhysicalLink(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
         ) // special case for source operator
       } else {
-        physicalOp.getAllInputLinkIds.toSet
+        physicalOp.getAllInputLinks.toSet
       }
     )
     this.outputIterator.setTupleOutput(currentOutputIterator)
@@ -149,16 +161,16 @@ class DataProcessor(
   }
 
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
-    val inputLinkId = upstreamLinkStatus.getInputLinkId(identifier)
-    if (inputLinkId.from == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!physicalOp.getAllInputLinkIds.contains(inputLinkId)) 0
-    else physicalOp.getPortIdxForInputLinkId(inputLinkId)
+    val inputLink = upstreamLinkStatus.getInputLink(identifier)
+    if (inputLink.from == SOURCE_STARTER_OP) 0 // special case for source operator
+    else if (!physicalOp.getAllInputLinks.contains(inputLink)) 0
+    else physicalOp.getPortIdxForInputLink(inputLink)
   }
 
-  def getOutputLinkIdsByPort(outputPort: Option[Int]): List[PhysicalLink] = {
+  def getOutputLinksByPort(outputPort: Option[Int]): List[PhysicalLink] = {
     outputPort match {
       case Some(port) => physicalOp.getLinksOnOutputPort(port)
-      case None       => physicalOp.getAllOutputLinkIds
+      case None       => physicalOp.getAllOutputLinks
     }
   }
 
@@ -248,8 +260,8 @@ class DataProcessor(
         } else {
           outputTupleCount += 1
           // println(s"send output $outputTuple at step $totalValidStep")
-          val outLinkIds = getOutputLinkIdsByPort(outputPortOpt)
-          outLinkIds.foreach(linkId => outputManager.passTupleToDownstream(outputTuple, linkId))
+          val outLinks = getOutputLinksByPort(outputPortOpt)
+          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
         }
     }
   }
@@ -302,7 +314,7 @@ class DataProcessor(
         initBatch(channel, tuples)
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
-        val currentLink = upstreamLinkStatus.getInputLinkId(channel.from)
+        val currentLink = upstreamLinkStatus.getInputLink(channel.from)
         upstreamLinkStatus.markWorkerEOF(channel.from)
         if (upstreamLinkStatus.isLinkEOF(currentLink)) {
           initBatch(channel, Array.empty)

@@ -13,7 +13,7 @@ class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging
     * region to be scheduled is the build part of the workflow and the join operator. The hash join workers will
     * only receive the workers from the upstream operator on the build side in `upstreamMap` through
     * `UpdateInputLinkingHandler`. Thus, the hash join worker may wrongly deduce that all inputs are done when
-    * the build part completes. Therefore, we have a `allUpstreamLinkIds` to track the number of actual upstream
+    * the build part completes. Therefore, we have a `allUpstreamLinks` to track the number of actual upstream
     * links that a worker receives data from.
     */
   private val upstreamMap =
@@ -21,16 +21,16 @@ class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging
   private val upstreamMapReverse =
     new mutable.HashMap[ActorVirtualIdentity, PhysicalLink]
   private val endReceivedFromWorkers = new mutable.HashSet[ActorVirtualIdentity]
-  private val completedLinkIds = new mutable.HashSet[PhysicalLink]()
-  private var allUpstreamLinkIds: Set[PhysicalLink] = Set.empty
+  private val completedLinks = new mutable.HashSet[PhysicalLink]()
+  private var allUpstreamLinks: Set[PhysicalLink] = Set.empty
 
-  def setAllUpstreamLinkIds(newSet: Set[PhysicalLink]): Unit = {
-    this.allUpstreamLinkIds = newSet
+  def setAllUpstreamLinks(newSet: Set[PhysicalLink]): Unit = {
+    this.allUpstreamLinks = newSet
   }
 
   def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLink): Unit = {
     assert(
-      allUpstreamLinkIds.contains(input),
+      allUpstreamLinks.contains(input),
       "unexpected input link " + input + " for operator " + VirtualIdentityUtils.getPhysicalOpId(
         actorId
       )
@@ -39,7 +39,7 @@ class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging
     upstreamMapReverse.update(identifier, input)
   }
 
-  def getInputLinkId(identifier: ActorVirtualIdentity): PhysicalLink =
+  def getInputLink(identifier: ActorVirtualIdentity): PhysicalLink =
     upstreamMapReverse(identifier)
 
   def markWorkerEOF(identifier: ActorVirtualIdentity): Unit = {
@@ -47,21 +47,21 @@ class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging
       endReceivedFromWorkers.add(identifier)
       val link = upstreamMapReverse(identifier)
       if (upstreamMap(link).subsetOf(endReceivedFromWorkers)) {
-        completedLinkIds.add(link)
+        completedLinks.add(link)
       }
     }
   }
 
   def allUncompletedSenders: Set[ActorVirtualIdentity] = {
-    upstreamMap.filterKeys(k => !completedLinkIds.contains(k)).values.flatten.toSet
+    upstreamMap.filterKeys(k => !completedLinks.contains(k)).values.flatten.toSet
   }
 
   def isLinkEOF(link: PhysicalLink): Boolean = {
     if (link == null) {
       return true // special case for source operator
     }
-    completedLinkIds.contains(link)
+    completedLinks.contains(link)
   }
 
-  def isAllEOF: Boolean = completedLinkIds.equals(allUpstreamLinkIds)
+  def isAllEOF: Boolean = completedLinks.equals(allUpstreamLinks)
 }

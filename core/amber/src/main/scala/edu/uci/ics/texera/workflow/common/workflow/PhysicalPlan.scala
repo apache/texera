@@ -3,7 +3,11 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
@@ -53,8 +57,7 @@ object PhysicalPlan {
         .displayName
       val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan =
-        physicalPlan.addLink(PhysicalLink(fromOp.id, fromPort, toOp.id, toPort))
+      physicalPlan = physicalPlan.addLink(PhysicalLink(fromOp.id, fromPort, toOp.id, toPort))
     })
 
     physicalPlan
@@ -147,7 +150,7 @@ case class PhysicalPlan(
     dag.incomingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeSource(e)).toSet
   }
 
-  def getUpstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
+  def getUpstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.to == physicalOpId)
   }
 
@@ -155,7 +158,7 @@ case class PhysicalPlan(
     dag.outgoingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeTarget(e)).toSet
   }
 
-  def getDownstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
+  def getDownstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.from == physicalOpId)
   }
 
@@ -221,19 +224,19 @@ case class PhysicalPlan(
   }
 
   def getOutputPartitionInfo(
-      linkId: PhysicalLink,
+      link: PhysicalLink,
       upstreamPartitionInfo: PartitionInfo,
       opToWorkerNumberMapping: Map[PhysicalOpIdentity, Int]
   ): PartitionInfo = {
-    val fromPhysicalOp = getOperator(linkId.from)
-    val toPhysicalOp = getOperator(linkId.to)
+    val fromPhysicalOp = getOperator(link.from)
+    val toPhysicalOp = getOperator(link.to)
 
     // make sure this input is connected to this port
-    assert(toPhysicalOp.getOpsOnInputPort(linkId.toPort).contains(fromPhysicalOp.id))
+    assert(toPhysicalOp.getOpsOnInputPort(link.toPort).contains(fromPhysicalOp.id))
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement.lift(linkId.toPort).flatten.getOrElse(UnknownPartition())
+      toPhysicalOp.partitionRequirement.lift(link.toPort).flatten.getOrElse(UnknownPartition())
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
@@ -271,9 +274,9 @@ case class PhysicalPlan(
 
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {
 
-    val upstreamPhysicalLinkIds = getUpstreamPhysicalLinkIds(physicalOpId)
-    upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
-      getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
+    val upstreamPhysicalLinks = getUpstreamPhysicalLinks(physicalOpId)
+    upstreamPhysicalLinks.nonEmpty && upstreamPhysicalLinks.forall { upstreamPhysicalLink =>
+      getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLink)
     }
   }
 

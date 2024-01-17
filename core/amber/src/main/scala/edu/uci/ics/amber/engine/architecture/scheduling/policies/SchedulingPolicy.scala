@@ -45,7 +45,7 @@ abstract class SchedulingPolicy(
       region: Region
   ): Boolean = {
 
-    region.downstreamLinkIds
+    region.downstreamLinks
       .subsetOf(
         completedLinksOfRegion.getOrElse(region, new mutable.HashSet[PhysicalLink]())
       ) &&

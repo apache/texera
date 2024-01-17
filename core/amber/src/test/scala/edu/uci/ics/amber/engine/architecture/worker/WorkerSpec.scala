@@ -5,7 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
@@ -22,6 +22,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
@@ -89,8 +90,8 @@ class WorkerSpec
       OpExecInitInfo((_, _, _) => mockOpExecutor)
     )
     .copy(
-      inputPortToLinkIdMapping = Map(0 -> List(mockLink.id)),
-      outputPortToLinkIdMapping = Map(0 -> List(mockLink.id))
+      inputPortToLinkMapping = Map(0 -> List(mockLink)),
+      outputPortToLinkMapping = Map(0 -> List(mockLink))
     )
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
@@ -142,9 +143,9 @@ class WorkerSpec
 
   "Worker" should "process AddPartitioning message correctly" in {
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     (mockHandler.apply _).expects(*).once()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
     sendControlToWorker(worker, Array(invocation))
 
     //wait test to finish
@@ -153,12 +154,12 @@ class WorkerSpec
 
   "Worker" should "process data messages correctly" in {
     val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink.id, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink.id).once()
+    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
+    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flushAll _).expects().anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink.id, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink.id))
+    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
     sendControlToWorker(worker, Array(invocation, updateInputLinking))
     worker ! NetworkMessage(
       3,

@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
@@ -72,9 +75,9 @@ class WorkflowScheduler(
       workflow: Workflow,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
-      linkId: PhysicalLink
+      link: PhysicalLink
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, linkId)
+    val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, link)
     doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
@@ -185,11 +188,11 @@ class WorkflowScheduler(
           .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
-              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkIdMapping.flatMap {
-                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
+              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkMapping.flatMap {
+                case (portIdx, links) => links.map(link => LinkOrdinal(link, portIdx))
               }.toList
-              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkIdMapping.flatMap {
-                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
+              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkMapping.flatMap {
+                case (portIdx, links) => links.map(link => LinkOrdinal(link, portIdx))
               }.toList
               asyncRPCClient
                 .send(

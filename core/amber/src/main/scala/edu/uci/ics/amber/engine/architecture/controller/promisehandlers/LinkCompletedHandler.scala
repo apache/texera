@@ -6,9 +6,8 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
-
 object LinkCompletedHandler {
-  final case class LinkCompleted(linkID: PhysicalLink) extends ControlCommand[Unit]
+  final case class LinkCompleted(link: PhysicalLink) extends ControlCommand[Unit]
 }
 
 /** Notify the completion of a particular link
@@ -24,11 +23,11 @@ trait LinkCompletedHandler {
   registerHandler { (msg: LinkCompleted, sender) =>
     {
       // get the target link from workflow
-      val link = cp.executionState.getLinkExecution(msg.linkID)
+      val link = cp.executionState.getLinkExecution(msg.link)
       link.incrementCompletedReceiversCount()
       if (link.isCompleted) {
         cp.workflowScheduler
-          .onLinkCompletion(cp.workflow, cp.actorRefService, cp.actorService, msg.linkID)
+          .onLinkCompletion(cp.workflow, cp.actorRefService, cp.actorService, msg.link)
           .flatMap(_ => Future.Unit)
       } else {
         // if the link is not completed yet, do nothing
