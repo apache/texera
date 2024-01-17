@@ -47,12 +47,12 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo(p => {
-              val i = p._1
-              val workerCount = p._2.getWorkerIds.length
-              val startOffset: Int = offsetValue + count / workerCount * i
+            OpExecInitInfo((idx, physicalOp, operatorConfig) => {
+              val workerCount = operatorConfig.workerConfigs.length
+              val startOffset: Int = offsetValue + count / workerCount * idx
               val endOffset: Int =
-                offsetValue + (if (i != workerCount - 1) count / workerCount * (i + 1) else count)
+                offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
+                               else count)
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
             })
           )

@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
@@ -233,7 +234,7 @@ case class PhysicalPlan(
   }
 
   def getPhysicalOpByWorkerId(workerId: ActorVirtualIdentity): PhysicalOp =
-    operators.find(physicalOp => physicalOp.getWorkerIds.contains(workerId)).get
+    getOperator(VirtualIdentityUtils.getPhysicalOpId(workerId))
 
   def getLinksBetween(
       from: PhysicalOpIdentity,

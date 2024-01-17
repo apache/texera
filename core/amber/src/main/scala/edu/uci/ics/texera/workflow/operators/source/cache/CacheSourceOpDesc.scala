@@ -37,7 +37,7 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))
+      OpExecInitInfo((_, _, _) => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))
     )
   }
 

@@ -39,7 +39,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new LinearRegressionOpExec(xAttr, yAttr, learningRate))
+      OpExecInitInfo((_, _, _) => new LinearRegressionOpExec(xAttr, yAttr, learningRate))
     )
 
   override def operatorInfo: OperatorInfo =

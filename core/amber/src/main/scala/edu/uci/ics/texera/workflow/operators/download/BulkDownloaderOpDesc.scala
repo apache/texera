@@ -49,7 +49,7 @@ class BulkDownloaderOpDesc extends LogicalOp {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ =>
+      OpExecInitInfo((_, _, _) =>
         new BulkDownloaderOpExec(
           getContext,
           urlAttribute,

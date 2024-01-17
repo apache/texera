@@ -58,7 +58,7 @@ class UrlVizOpDesc extends VisualizationOperator {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo(_ => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo))
+        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo))
       )
 
   override def operatorInfo: OperatorInfo =

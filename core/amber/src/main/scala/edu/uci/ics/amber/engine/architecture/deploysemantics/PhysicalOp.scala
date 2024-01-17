@@ -17,22 +17,15 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
   RoundRobinPreference
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization,
   WorkerReplayLoggingConfig,
   WorkerStateRestoreConfig
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
@@ -40,7 +33,6 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object PhysicalOp {
@@ -228,8 +220,6 @@ case class PhysicalOp(
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
-  private val workerIds: mutable.HashSet[ActorVirtualIdentity] = mutable.HashSet()
-
   /**
     * Helper functions related to compile-time operations
     */
@@ -249,7 +239,8 @@ case class PhysicalOp(
   def isHashJoinOperator: Boolean = {
     opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => false
-      case OpExecInitInfoWithFunc(opGen)   => opGen((0, this)).isInstanceOf[HashJoinOpExec[_]]
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen(0, this, OperatorConfig.empty).isInstanceOf[HashJoinOpExec[_]]
     }
   }
 
@@ -257,7 +248,7 @@ case class PhysicalOp(
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen((0, this))
+    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
   }
 
   def getOutputSchema: Schema = {
@@ -510,20 +501,10 @@ case class PhysicalOp(
     processingOrder.toList
   }
 
-  def getWorkerIds: List[ActorVirtualIdentity] = workerIds.toList
-
-  def assignWorkers(workerCount: Int): Unit = {
-    (0 until workerCount).foreach(workerIdx => {
-      workerIds.add(
-        VirtualIdentityUtils.createWorkerIdentity(workflowId, id, workerIdx)
-      )
-    })
-  }
-
   def build(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
-      workerConfigs: List[WorkerConfig],
+      operatorConfig: OperatorConfig,
       stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
       replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
   ): Unit = {
@@ -532,19 +513,19 @@ case class PhysicalOp(
       controllerActorService.self.path.address
     )
 
-    workerIds.foreach(workerId => {
+    operatorConfig.workerConfigs.foreach(workerConfig => {
+      val workerId = workerConfig.workerId
       val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
-      val workerConfig = workerConfigs(workerIndex)
       val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
       val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
 
       val workflowWorker = if (this.isPythonOperator) {
-        PythonWorkflowWorker.props(workerId, workerConfig)
+        PythonWorkflowWorker.props(workerConfig)
       } else {
         WorkflowWorker.props(
-          workerId,
-          physicalOp = this,
           workerConfig,
+          physicalOp = this,
+          operatorConfig,
           WorkerReplayInitialization(
             stateRestoreConfigGen(workerId),
             replayLoggingConfigGen(workerId)

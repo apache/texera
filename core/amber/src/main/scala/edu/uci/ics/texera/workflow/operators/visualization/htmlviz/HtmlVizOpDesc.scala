@@ -46,7 +46,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo))
     )
 
   override def operatorInfo: OperatorInfo =

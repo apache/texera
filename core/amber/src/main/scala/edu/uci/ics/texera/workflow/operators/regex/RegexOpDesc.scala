@@ -40,7 +40,7 @@ class RegexOpDesc extends FilterOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new RegexOpExec(this))
+      OpExecInitInfo((_, _, _) => new RegexOpExec(this))
     )
   }
 

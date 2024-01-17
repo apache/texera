@@ -29,7 +29,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new TextInputSourceOpExec(this))
+      OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
     )
 
   override def sourceSchema(): Schema =

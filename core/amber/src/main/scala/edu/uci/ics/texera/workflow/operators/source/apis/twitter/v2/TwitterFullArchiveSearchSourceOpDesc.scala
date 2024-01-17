@@ -54,7 +54,9 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) =>
+        new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
+      )
     )
 
   override def sourceSchema(): Schema = {

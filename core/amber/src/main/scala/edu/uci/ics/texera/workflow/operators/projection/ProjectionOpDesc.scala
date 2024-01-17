@@ -32,7 +32,7 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new ProjectionOpExec(attributes, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, operatorSchemaInfo))
     ).withDerivePartition(this.derivePartition(operatorSchemaInfo))
   }
 

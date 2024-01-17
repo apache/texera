@@ -7,6 +7,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity;
@@ -25,6 +26,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple2;
+import scala.Tuple3;
 
 import java.util.function.Function;
 
@@ -78,9 +80,15 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 workflowId,
                 executionId,
                 this.operatorIdentifier(),
-                OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpPartialExec(textColumn))
-        ).withId(partialId).withIsOneToManyOp(true).withParallelizable(false).withOutputPorts(
-                asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
+                OpExecInitInfo.apply(
+                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                worker -> new WordCloudOpPartialExec(textColumn)
+                )
+        )
+                .withId(partialId)
+                .withIsOneToManyOp(true)
+                .withParallelizable(false)
+                .withOutputPorts(asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
 
         PhysicalOpIdentity finalId = new PhysicalOpIdentity(operatorIdentifier(), "global");
@@ -88,7 +96,10 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 workflowId,
                 executionId,
                 this.operatorIdentifier(),
-                OpExecInitInfo.apply((Function<Tuple2<Object, PhysicalOp>, IOperatorExecutor> & java.io.Serializable) worker -> new WordCloudOpFinalExec(topN))
+                OpExecInitInfo.apply(
+                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                worker -> new WordCloudOpFinalExec(topN)
+                )
         )
         .withId(finalId).withIsOneToManyOp(true)
         .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());

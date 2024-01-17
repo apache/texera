@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
-import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalLinkIdentity}
@@ -20,7 +20,10 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
   ): Unit = {
     val physicalOps = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
     physicalOps.foreach { physicalOp =>
-      executionState.initOperatorState(physicalOp.id, List(WorkerConfig(workerId = null)))
+      executionState.initOperatorState(
+        physicalOp.id,
+        OperatorConfig(List(WorkerConfig(workerId = null)))
+      )
       executionState.getOperatorExecution(physicalOp.id).setAllWorkerState(COMPLETED)
     }
   }

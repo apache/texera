@@ -6,8 +6,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPart
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   LinkConfig,
-  RegionConfig,
-  WorkerConfig
+  OperatorConfig,
+  RegionConfig
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
@@ -25,7 +25,7 @@ class DefaultResourceAllocator(
   // a map of an operator to its output partition info
   private val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
 
-  private val workerConfigs = new mutable.HashMap[PhysicalOpIdentity, List[WorkerConfig]]()
+  private val operatorConfigs = new mutable.HashMap[PhysicalOpIdentity, OperatorConfig]()
   private val linkConfigs = new mutable.HashMap[PhysicalLinkIdentity, LinkConfig]()
 
   /**
@@ -47,31 +47,24 @@ class DefaultResourceAllocator(
       region: Region
   ): (Region, Double) = {
 
-    val opToWorkerConfigsMapping = region.getEffectiveOperators
+    val opToOperatorConfigMapping = region.getEffectiveOperators
       .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-      .map(physicalOp => physicalOp.id -> generateWorkerConfigs(physicalOp))
+      .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
       .toMap
 
-    workerConfigs ++= opToWorkerConfigsMapping
-
-    // assign workers to physical plan
-    // TODO: move workers information into WorkerConfig completely
-    opToWorkerConfigsMapping.toList.foreach {
-      case (physicalOpId, workerConfigs) =>
-        physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
-    }
+    operatorConfigs ++= opToOperatorConfigMapping
 
     propagatePartitionRequirement(region)
 
     val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLinkId =>
       physicalLinkId -> LinkConfig(
         generateChannelConfigs(
-          workerConfigs.getOrElse(physicalLinkId.from, List()).map(_.workerId),
-          workerConfigs.getOrElse(physicalLinkId.to, List()).map(_.workerId),
+          operatorConfigs(physicalLinkId.from).workerConfigs.map(_.workerId),
+          operatorConfigs(physicalLinkId.to).workerConfigs.map(_.workerId),
           outputPartitionInfos(physicalLinkId.from)
         ),
         toPartitioning(
-          workerConfigs.getOrElse(physicalLinkId.to, List()).map(_.workerId),
+          operatorConfigs(physicalLinkId.to).workerConfigs.map(_.workerId),
           outputPartitionInfos(physicalLinkId.from)
         )
       )
@@ -79,7 +72,7 @@ class DefaultResourceAllocator(
 
     linkConfigs ++= linkToLinkConfigMapping
 
-    val config = RegionConfig(opToWorkerConfigsMapping, linkToLinkConfigMapping)
+    val config = RegionConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
 
     (region.copy(config = Some(config)), 0)
   }
@@ -119,8 +112,8 @@ class DefaultResourceAllocator(
                   val upstreamOutputPartitionInfo = physicalPlan.getOutputPartitionInfo(
                     linkId,
                     upstreamInputPartitionInfo,
-                    workerConfigs.map {
-                      case (opId, workerConfigs) => opId -> workerConfigs.size
+                    operatorConfigs.map {
+                      case (opId, operatorConfig) => opId -> operatorConfig.workerConfigs.length
                     }.toMap
                   )
                   (linkId.toPort, upstreamOutputPartitionInfo)

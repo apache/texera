@@ -24,7 +24,7 @@ class IntersectOpDesc extends LogicalOp {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new IntersectOpExec()),
+      OpExecInitInfo((_, _, _) => new IntersectOpExec()),
       operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
     )
   }

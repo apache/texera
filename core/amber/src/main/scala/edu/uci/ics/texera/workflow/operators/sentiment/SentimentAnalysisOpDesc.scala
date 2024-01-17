@@ -50,7 +50,7 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new SentimentAnalysisOpExec(this, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new SentimentAnalysisOpExec(this, operatorSchemaInfo))
     )
   }
 

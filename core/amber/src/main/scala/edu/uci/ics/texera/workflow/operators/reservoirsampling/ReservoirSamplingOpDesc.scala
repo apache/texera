@@ -55,7 +55,7 @@ class ReservoirSamplingOpDesc extends LogicalOp {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(p => new ReservoirSamplingOpExec(p._1, this))
+      OpExecInitInfo((idx, _, _) => new ReservoirSamplingOpExec(idx, this))
     )
   }
 

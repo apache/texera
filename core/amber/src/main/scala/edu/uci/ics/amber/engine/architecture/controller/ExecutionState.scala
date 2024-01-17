@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
-import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   PhysicalLinkIdentity,
@@ -35,13 +35,13 @@ class ExecutionState(workflow: Workflow) {
 
   def initOperatorState(
       physicalOpId: PhysicalOpIdentity,
-      workerConfigs: List[WorkerConfig]
+      operatorConfig: OperatorConfig
   ): OperatorExecution = {
     operatorExecutions += physicalOpId -> new OperatorExecution(
       workflow.context.workflowId,
       workflow.context.executionId,
       physicalOpId,
-      workerConfigs.length
+      operatorConfig.workerConfigs.length
     )
     operatorExecutions(physicalOpId)
   }
