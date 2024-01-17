@@ -8,28 +8,34 @@
     [nzMaxWidth]="screenWidth*0.5"
     [style.width.px]="width"
     (nzResize)="onResize($event)">
-    <h6 id="title" cdkDragHandle><span id="spacer"></span>Operators</h6>
-    <ul id="left-dock" nz-menu>
-        <li
-          nz-menu-item
-          nzTooltipPlacement="left"
-          nz-tooltip="Operators"
-          (click)="openOperatorMenu()"
-          nzSelected>
-          <span
-            nz-icon
-            nzType="appstore"></span>
-        </li>
-        <li
-          nz-menu-item
-          nzTooltipPlacement="left"
-          nz-tooltip="Versions"
-          (click)="openVersionsFrame()">
-          <span
-            nz-icon
-            nzType="schedule"></span>
-        </li>
-      </ul>
+    <h6
+      id="title"
+      cdkDragHandle>
+      <span id="spacer"></span>Operators
+    </h6>
+    <ul
+      id="left-dock"
+      nz-menu>
+      <li
+        nz-menu-item
+        nzTooltipPlacement="left"
+        nz-tooltip="Operators"
+        (click)="openOperatorMenu()"
+        nzSelected>
+        <span
+          nz-icon
+          nzType="appstore"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzTooltipPlacement="left"
+        nz-tooltip="Versions"
+        (click)="openVersionsFrame()">
+        <span
+          nz-icon
+          nzType="schedule"></span>
+      </li>
+    </ul>
     <div id="left-panel-content">
       <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
     </div>
