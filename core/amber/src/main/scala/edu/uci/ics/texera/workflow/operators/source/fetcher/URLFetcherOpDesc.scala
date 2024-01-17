@@ -54,7 +54,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo(_ =>
+        OpExecInitInfo((_, _, _) =>
           new URLFetcherOpExec(
             url,
             decodingMethod,

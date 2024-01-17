@@ -24,8 +24,8 @@ class DistinctOpDesc extends LogicalOp {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new DistinctOpExec()),
-      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
+      OpExecInitInfo((_, _, _) => new DistinctOpExec()),
+      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
     )
   }
 
