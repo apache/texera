@@ -8,43 +8,40 @@
     [nzMaxWidth]="screenWidth*0.5"
     [style.width.px]="width"
     (nzResize)="onResize($event)">
+
+    <ul id="left-dock" nz-menu>
+        <li
+          nz-menu-item
+          nzTooltipPlacement="left"
+          nz-tooltip="Move"
+          nzDisabled
+          cdkDragHandle>
+          <span
+            nz-icon
+            nzType="fullscreen"></span>
+        </li>
+        <li
+          nz-menu-item
+          nzTooltipPlacement="left"
+          nz-tooltip="Operators"
+          (click)="openOperatorMenu()"
+          nzSelected>
+          <span
+            nz-icon
+            nzType="appstore"></span>
+        </li>
+        <li
+          nz-menu-item
+          nzTooltipPlacement="left"
+          nz-tooltip="Versions"
+          (click)="openVersionsFrame()">
+          <span
+            nz-icon
+            nzType="schedule"></span>
+        </li>
+      </ul>
     <div id="left-panel-content">
-      <div style="display: inline-block; vertical-align: top">
-        <ul nz-menu>
-          <li
-            nz-menu-item
-            nzTooltipPlacement="left"
-            nz-tooltip="Move"
-            nzDisabled
-            cdkDragHandle>
-            <span
-              nz-icon
-              nzType="fullscreen"></span>
-          </li>
-          <li
-            nz-menu-item
-            nzTooltipPlacement="left"
-            nz-tooltip="Operators"
-            (click)="openOperatorMenu()"
-            nzSelected>
-            <span
-              nz-icon
-              nzType="appstore"></span>
-          </li>
-          <li
-            nz-menu-item
-            nzTooltipPlacement="left"
-            nz-tooltip="Versions"
-            (click)="openVersionsFrame()">
-            <span
-              nz-icon
-              nzType="schedule"></span>
-          </li>
-        </ul>
-      </div>
-      <div style="display: inline-block; width: calc(100% - 50px)">
-        <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
-      </div>
+      <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
     </div>
     <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
   </div>

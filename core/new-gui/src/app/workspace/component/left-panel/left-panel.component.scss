@@ -14,4 +14,11 @@
   min-height: 100%;
   max-height: calc(100vh - 190px);
   overflow-y: auto;
+  display: inline-block;
+  width: calc(100% - 50px)
+}
+
+#left-dock {
+  display: inline-block;
+  vertical-align: top;
 }
