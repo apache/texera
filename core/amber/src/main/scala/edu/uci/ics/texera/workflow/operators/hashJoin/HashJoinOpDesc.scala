@@ -90,7 +90,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo(_ =>
+        OpExecInitInfo((_, _, _) =>
           new HashJoinOpExec[K](
             buildAttributeName,
             probeAttributeName,

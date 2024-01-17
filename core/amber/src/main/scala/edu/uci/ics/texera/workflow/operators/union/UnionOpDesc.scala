@@ -24,7 +24,7 @@ class UnionOpDesc extends LogicalOp {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new UnionOpExec())
+      OpExecInitInfo((_, _, _) => new UnionOpExec())
     )
   }
 

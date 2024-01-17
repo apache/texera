@@ -1,8 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies
 
-import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionConfig, WorkerConfig}
-import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.amber.engine.architecture.scheduling.Region
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
+import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  LinkConfig,
+  OperatorConfig,
+  RegionConfig
+}
+import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
+
+import scala.collection.mutable
 
 trait ResourceAllocator {
   def allocate(region: Region): (Region, Double)
@@ -11,6 +21,12 @@ class DefaultResourceAllocator(
     physicalPlan: PhysicalPlan,
     executionClusterInfo: ExecutionClusterInfo
 ) extends ResourceAllocator {
+
+  // a map of an operator to its output partition info
+  private val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
+
+  private val operatorConfigs = new mutable.HashMap[PhysicalOpIdentity, OperatorConfig]()
+  private val linkConfigs = new mutable.HashMap[PhysicalLinkIdentity, LinkConfig]()
 
   /**
     * Allocates resources for a given region and its operators.
@@ -30,27 +46,97 @@ class DefaultResourceAllocator(
   def allocate(
       region: Region
   ): (Region, Double) = {
-    val config = RegionConfig(
-      region.getEffectiveOperators
-        .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-        .map { physicalOp =>
-          {
-            val workerCount = if (physicalOp.parallelizable) {
-              physicalOp.suggestedWorkerNum match {
-                // Keep suggested number of workers
-                case Some(num) => num
-                // If no suggested number, use default value
-                case None => AmberConfig.numWorkerPerOperatorByDefault
-              }
-            } else {
-              // Non parallelizable operator has only 1 worker
-              1
-            }
-            physicalOp.id -> (0 until workerCount).map(_ => WorkerConfig()).toList
-          }
-        }
-        .toMap
-    )
+
+    val opToOperatorConfigMapping = region.getEffectiveOperators
+      .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+      .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
+      .toMap
+
+    operatorConfigs ++= opToOperatorConfigMapping
+
+    propagatePartitionRequirement(region)
+
+    val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLinkId =>
+      physicalLinkId -> LinkConfig(
+        generateChannelConfigs(
+          operatorConfigs(physicalLinkId.from).workerConfigs.map(_.workerId),
+          operatorConfigs(physicalLinkId.to).workerConfigs.map(_.workerId),
+          outputPartitionInfos(physicalLinkId.from)
+        ),
+        toPartitioning(
+          operatorConfigs(physicalLinkId.to).workerConfigs.map(_.workerId),
+          outputPartitionInfos(physicalLinkId.from)
+        )
+      )
+    }.toMap
+
+    linkConfigs ++= linkToLinkConfigMapping
+
+    val config = RegionConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
+
     (region.copy(config = Some(config)), 0)
+  }
+
+  /**
+    * This method propagates partitioning requirements in the PhysicalPlan DAG.
+    *
+    * This method is invoked once for each region, and only propagate partitioning requirements within
+    * the region. For example, suppose we have the following physical Plan:
+    *
+    *     A ->
+    *           HJ
+    *     B ->
+    * The link A->HJ will be propagated in the first region. The link B->HJ will be propagate in the second region.
+    * The output partition info of HJ will be derived after both links are propagated, which is in the second region.
+    *
+    * This method also applies the following optimization:
+    *  - if the upstream of the link has the same partitioning requirement as that of the downstream, and their
+    *  number of workers are equal, then the partitioning on this link can be optimized to OneToOne.
+    */
+  private def propagatePartitionRequirement(region: Region): Unit = {
+    physicalPlan
+      .topologicalIterator()
+      .filter(physicalOpId => region.getEffectiveOperators.contains(physicalOpId))
+      .foreach(physicalOpId => {
+        val physicalOp = physicalPlan.getOperator(physicalOpId)
+        val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
+          Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
+        } else {
+          val inputPartitionInfos = physicalOp.inputPorts.indices.toList
+            .flatMap((portIdx: Int) =>
+              physicalOp
+                .getLinksOnInputPort(portIdx)
+                .filter(linkId => region.getEffectiveLinks.contains(linkId))
+                .map(linkId => {
+                  val upstreamInputPartitionInfo = outputPartitionInfos(linkId.from)
+                  val upstreamOutputPartitionInfo = physicalPlan.getOutputPartitionInfo(
+                    linkId,
+                    upstreamInputPartitionInfo,
+                    operatorConfigs.map {
+                      case (opId, operatorConfig) => opId -> operatorConfig.workerConfigs.length
+                    }.toMap
+                  )
+                  (linkId.toPort, upstreamOutputPartitionInfo)
+                })
+            )
+            // group upstream partition infos by input port of this physicalOp
+            .groupBy(_._1)
+            .values
+            .toList
+            // if there are multiple partition infos on an input port, reduce them to once
+            .map(_.map(_._2).reduce((p1, p2) => p1.merge(p2)))
+
+          if (inputPartitionInfos.length == physicalOp.inputPorts.size) {
+            // derive the output partition info with all the input partition infos
+            Some(physicalOp.derivePartition(inputPartitionInfos))
+          } else {
+            None
+          }
+
+        }
+        if (outputPartitionInfo.isDefined) {
+          outputPartitionInfos.put(physicalOpId, outputPartitionInfo.get)
+        }
+      })
   }
 }
