@@ -90,7 +90,7 @@ class WorkerSpec
     )
     .copy(
       inputPortToLinkIdMapping = Map(0 -> List(mockLink.id)),
-      outputPortToLinkMapping = Map(0 -> List(mockLink.id))
+      outputPortToLinkIdMapping = Map(0 -> List(mockLink.id))
     )
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]

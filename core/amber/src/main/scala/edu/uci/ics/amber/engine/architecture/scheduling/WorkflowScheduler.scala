@@ -195,7 +195,7 @@ class WorkflowScheduler(
               val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkIdMapping.flatMap {
                 case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
               }.toList
-              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkMapping.flatMap {
+              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkIdMapping.flatMap {
                 case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
               }.toList
               asyncRPCClient

@@ -213,7 +213,7 @@ case class PhysicalOp(
     outputPorts: List[OutputPort] = List(OutputPort()),
     // mapping of all input/output operators connected on a specific input/output port index
     inputPortToLinkIdMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
-    outputPortToLinkMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
+    outputPortToLinkIdMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
     // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
@@ -385,10 +385,10 @@ case class PhysicalOp(
     */
   def addOutput(link: PhysicalLink): PhysicalOp = {
     assert(link.fromOp.id == id)
-    val existingLinks = outputPortToLinkMapping.getOrElse(link.fromPort, List())
+    val existingLinks = outputPortToLinkIdMapping.getOrElse(link.fromPort, List())
     val newLinks = existingLinks :+ link.id
     this.copy(
-      outputPortToLinkMapping = outputPortToLinkMapping + (link.fromPort -> newLinks)
+      outputPortToLinkIdMapping = outputPortToLinkIdMapping + (link.fromPort -> newLinks)
     )
   }
 
@@ -413,15 +413,16 @@ case class PhysicalOp(
     * creates a copy with a removed output operator, we use the identity to do equality check.
     */
   def removeOutput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portIdx, existingLinks) = outputPortToLinkMapping
+    val (portIdx, existingLinks) = outputPortToLinkIdMapping
       .find({
         case (_, links) => links.contains(linkToRemove.id)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
-      outputPortToLinkMapping = outputPortToLinkMapping + (portIdx -> existingLinks.filter(linkId =>
-        linkId != linkToRemove.id
-      ))
+      outputPortToLinkIdMapping =
+        outputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
+          linkId != linkToRemove.id
+        ))
     )
   }
 
@@ -443,7 +444,7 @@ case class PhysicalOp(
     * returns all output links on a specific output port
     */
   def getLinksOnOutputPort(portIndex: Int): List[PhysicalLinkIdentity] = {
-    outputPortToLinkMapping(portIndex)
+    outputPortToLinkIdMapping(portIndex)
   }
 
   /**
@@ -460,7 +461,7 @@ case class PhysicalOp(
   }
 
   def getAllOutputLinkIds: List[PhysicalLinkIdentity] = {
-    outputPortToLinkMapping.values.flatten.toList
+    outputPortToLinkIdMapping.values.flatten.toList
   }
 
   def getPortIdxForInputLinkId(linkId: PhysicalLinkIdentity): Int = {
@@ -473,7 +474,7 @@ case class PhysicalOp(
   }
 
   def getPortIdxForOutputLinkId(linkId: PhysicalLinkIdentity): Int = {
-    outputPortToLinkMapping
+    outputPortToLinkIdMapping
       .find {
         case (_, links) => links.contains(linkId)
       }

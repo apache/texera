@@ -62,7 +62,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     )
     .copy(
       inputPortToLinkIdMapping = Map(0 -> List(mockLink.id)),
-      outputPortToLinkMapping = Map(0 -> List(mockLink.id))
+      outputPortToLinkIdMapping = Map(0 -> List(mockLink.id))
     )
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
   private val logStorage = ReplayLogStorage.getLogStorage(None)
