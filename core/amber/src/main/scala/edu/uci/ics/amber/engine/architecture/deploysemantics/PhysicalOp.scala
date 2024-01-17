@@ -239,7 +239,8 @@ case class PhysicalOp(
   def isHashJoinOperator: Boolean = {
     opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => false
-      case OpExecInitInfoWithFunc(opGen)   => opGen(0, this, OperatorConfig(workerConfigs = List())).isInstanceOf[HashJoinOpExec[_]]
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen(0, this, OperatorConfig.empty).isInstanceOf[HashJoinOpExec[_]]
     }
   }
 
@@ -247,7 +248,7 @@ case class PhysicalOp(
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig(workerConfigs = List()))
+    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
   }
 
   def getOutputSchema: Schema = {
