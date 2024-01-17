@@ -3,7 +3,6 @@ import { LeftPanelComponent } from "./left-panel.component";
 import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -13,7 +12,6 @@ describe("LeftPanelComponent", () => {
 
   let workflowActionService: WorkflowActionService;
   let fixture: ComponentFixture<LeftPanelComponent>;
-  let workflowVersionService: WorkflowVersionService;
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
@@ -32,7 +30,6 @@ describe("LeftPanelComponent", () => {
     fixture = TestBed.createComponent(LeftPanelComponent);
     component = fixture.componentInstance;
     workflowActionService = TestBed.inject(WorkflowActionService);
-    workflowVersionService = TestBed.inject(WorkflowVersionService);
     fixture.detectChanges();
   });
 
@@ -54,7 +51,7 @@ describe("LeftPanelComponent", () => {
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(1);
 
     // click on versions display
-    workflowVersionService.displayWorkflowVersions();
+    component.openVersionsFrame();
     fixture.detectChanges();
 
     // all the elements shall be un-highlighted

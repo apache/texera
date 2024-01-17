@@ -1,12 +1,8 @@
-import { Component, OnInit } from "@angular/core";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { Component } from "@angular/core";
+import { UntilDestroy } from "@ngneat/until-destroy";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { ComponentType } from "@angular/cdk/overlay";
-import {
-  OPEN_VERSIONS_FRAME_EVENT,
-  WorkflowVersionService,
-} from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 
 @UntilDestroy()
@@ -15,10 +11,11 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
   templateUrl: "left-panel.component.html",
   styleUrls: ["left-panel.component.scss"],
 })
-export class LeftPanelComponent implements OnInit {
+export class LeftPanelComponent {
   currentComponent: ComponentType<OperatorMenuComponent | VersionsListComponent>;
+  title = "Operators";
   screenWidth = window.innerWidth;
-  width = 200;
+  width = 240;
   id = -1;
   disabled = false;
 
@@ -29,21 +26,17 @@ export class LeftPanelComponent implements OnInit {
     });
   }
 
-  constructor(private workflowVersionService: WorkflowVersionService) {
+  constructor() {
     this.currentComponent = OperatorMenuComponent;
   }
 
-  ngOnInit(): void {
-    this.registerVersionDisplayEventsHandler();
+  openVersionsFrame(): void {
+    this.currentComponent = VersionsListComponent;
+    this.title = "Versions";
   }
 
-  registerVersionDisplayEventsHandler(): void {
-    this.workflowVersionService
-      .workflowVersionsDisplayObservable()
-      .pipe(untilDestroyed(this))
-      .subscribe(
-        event =>
-          (this.currentComponent = event === OPEN_VERSIONS_FRAME_EVENT ? VersionsListComponent : OperatorMenuComponent)
-      );
+  openOperatorMenu(): void {
+    this.currentComponent = OperatorMenuComponent;
+    this.title = "Operators";
   }
 }
