@@ -13,13 +13,14 @@ case object NewInputPort {
 
   def toNewInputPorts(oldInputPorts: List[InputPort]): List[NewInputPort] = {
     oldInputPorts.zipWithIndex.map {
-      case (port, idx) => NewInputPort(PortIdentity(idx), name = port.displayName)
+      case (port, idx) => NewInputPort(PortIdentity(idx), name = port.displayName, allowMultipleLinks = port.allowMultiInputs)
     }
   }
 }
 case class NewInputPort(
     id: PortIdentity,
-    name: String = ""
+    name: String = "",
+    allowMultipleLinks: Boolean = false
 )
 
 case object NewOutputPort {

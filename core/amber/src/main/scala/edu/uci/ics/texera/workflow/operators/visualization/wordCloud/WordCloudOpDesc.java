@@ -105,7 +105,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 )
         )
         .withId(globalOpId).withIsOneToManyOp(true)
-        .withInputPorts(asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, true), ""))).toList())
+        .withInputPorts(asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, true), "", false))).toList())
         .withOutputPorts(NewOutputPort.toNewOutputPorts(this.operatorInfo().outputPorts()));
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
