@@ -7,8 +7,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.gene
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   LinkConfig,
   OperatorConfig,
-  RegionConfig,
-  WorkerConfig
+  RegionConfig
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
