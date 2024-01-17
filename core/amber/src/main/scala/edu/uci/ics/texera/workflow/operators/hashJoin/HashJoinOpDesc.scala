@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttribut
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, PhysicalPlan, UnknownPartition}
+import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, PhysicalPlan, SinglePartition, UnknownPartition}
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
@@ -53,7 +53,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       val buildPartition = inputPartitions(0).asInstanceOf[HashPartition]
       val buildAttrIndex = operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)
       assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
-      UnknownPartition()
+      HashPartition(List(0))
     }
 
     val buildPhysicalOp =
@@ -62,7 +62,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "build"),
           workflowIdentity,
           executionId,
-          OpExecInitInfo(- => new HashJoinBuildOpExec[K](buildAttributeName))
+          OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
         )
         .withInputPorts(List(InputPort("left")))
         .withOutputPorts(List(OutputPort("buildTable")))
@@ -71,7 +71,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
 
 
     val probeInPartitionRequirement = List(
-      Option(UnknownPartition()),
+      Option(HashPartition(List(0))),
       Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))))
     )
 
@@ -104,7 +104,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           workflowIdentity,
           executionId,
           OpExecInitInfo(
-            - => new HashJoinProbeOpExec[K](
+            (_, _, _) => new HashJoinProbeOpExec[K](
               buildAttributeName,
               probeAttributeName,
               joinType,
