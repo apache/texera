@@ -22,18 +22,23 @@ trait LinkWorkersHandler {
 
   registerHandler { (msg: LinkWorkers, sender) =>
     {
-      val partitionings = cp.workflow.physicalPlan.getLink(msg.linkId).partitionings
-      val senderWorkerIds = cp.workflow.physicalPlan.getOperator(msg.linkId.from).getWorkerIds
-      val futures = senderWorkerIds
-        .zip(partitionings)
-        .flatMap({
-          case (senderWorkerId, (partitioning, receiverWorkerIds)) =>
-            Seq(
-              send(AddPartitioning(msg.linkId, partitioning), senderWorkerId)
-            ) ++ receiverWorkerIds.map(
-              send(UpdateInputLinking(senderWorkerId, msg.linkId), _)
+      val linkConfig = cp.workflow.regionPlan
+        .getRegionOfPhysicalLink(msg.linkId)
+        .get
+        .config
+        .get
+        .linkConfigs(msg.linkId)
+
+      val futures = linkConfig.channelConfigs
+        .flatMap(channelConfig =>
+          Seq(
+            send(AddPartitioning(msg.linkId, linkConfig.partitioning), channelConfig.fromWorkerId),
+            send(
+              UpdateInputLinking(channelConfig.fromWorkerId, msg.linkId),
+              channelConfig.toWorkerId
             )
-        })
+          )
+        )
 
       Future.collect(futures).map { _ =>
         // returns when all has completed

@@ -37,7 +37,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new KeywordSearchOpExec(this))
+      OpExecInitInfo((_, _, _) => new KeywordSearchOpExec(this))
     )
   }
 

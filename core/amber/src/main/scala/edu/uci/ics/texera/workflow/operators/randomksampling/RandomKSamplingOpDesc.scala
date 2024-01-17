@@ -41,7 +41,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(p => new RandomKSamplingOpExec(p._1, this))
+      OpExecInitInfo((idx, _, _) => new RandomKSamplingOpExec(idx, this))
     )
   }
 

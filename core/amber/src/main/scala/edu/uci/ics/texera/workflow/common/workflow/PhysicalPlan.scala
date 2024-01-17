@@ -2,8 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
-import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.common.AmberConfig.defaultBatchSize
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
@@ -15,7 +14,6 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.JavaConverters._
-import scala.collection.mutable
 
 object PhysicalPlan {
 
@@ -236,138 +234,43 @@ case class PhysicalPlan(
   }
 
   def getPhysicalOpByWorkerId(workerId: ActorVirtualIdentity): PhysicalOp =
-    operators.find(physicalOp => physicalOp.getWorkerIds.contains(workerId)).get
+    getOperator(VirtualIdentityUtils.getPhysicalOpId(workerId))
 
   def getLinksBetween(
       from: PhysicalOpIdentity,
       to: PhysicalOpIdentity
-  ): Set[PhysicalLink] = {
-    links.filter(link => link.fromOp.id == from && link.toOp.id == to)
+  ): Set[PhysicalLinkIdentity] = {
+    links.filter(link => link.fromOp.id == from && link.toOp.id == to).map(_.id)
 
   }
 
-  /**
-    * This method will return an updated PhysicalPlan, with each PhysicalLink being
-    * propagated with the partitioning, which varies based on the propagated partitioning
-    * requirements from the upstream.
-    *
-    * For example, if the upstream of the link has the same partitioning requirement as
-    * that of the downstream, and their number of workers are equal, then the partitioning
-    * on this link can be optimized to OneToOne.
-    */
-  def populatePartitioningOnLinks(): PhysicalPlan = {
-    val createdLinks = new mutable.ArrayBuffer[PhysicalLink]()
-    // a map of an operator to its output partition info
-    val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
-
-    topologicalIterator()
-      .foreach(physicalOpId => {
-        val physicalOp = getOperator(physicalOpId)
-        val outputPartitionInfo = if (getSourceOperatorIds.contains(physicalOpId)) {
-          // get output partition info of the source operator
-          physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
-        } else {
-          val inputPartitionings =
-            enforcePartitionRequirement(physicalOp, outputPartitionInfos.toMap, createdLinks)
-          assert(inputPartitionings.length == physicalOp.inputPorts.size)
-          // derive the output partition info of this operator
-          physicalOp.derivePartition(inputPartitionings.toList)
-        }
-        outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
-      })
-
-    // returns the complete physical plan with link strategies
-    this.copy(operators, createdLinks.toSet)
-  }
-
-  private def enforcePartitionRequirement(
-      physicalOp: PhysicalOp,
-      partitionInfos: Map[PhysicalOpIdentity, PartitionInfo],
-      links: mutable.ArrayBuffer[PhysicalLink]
-  ): Array[PartitionInfo] = {
-    // for each input port, enforce partition requirement
-    physicalOp.inputPorts.indices
-      .map(port => {
-        // all input PhysicalOpIds connected to this port
-        val inputPhysicalOps = physicalOp.getOpsOnInputPort(port)
-
-        val fromPort = getUpstreamPhysicalLinkIds(physicalOp.id).head.fromPort
-
-        // the output partition info of each link connected from each input PhysicalOp
-        // for each input PhysicalOp connected on this port
-        // check partition requirement to enforce corresponding LinkStrategy
-        val outputPartitions = inputPhysicalOps.map(inputPhysicalOp => {
-          val inputPartitionInfo = partitionInfos(inputPhysicalOp.id)
-          val (physicalLink, outputPart) =
-            getOutputPartitionInfo(
-              inputPhysicalOp.id,
-              fromPort,
-              physicalOp.id,
-              port,
-              inputPartitionInfo
-            )
-          links.append(physicalLink)
-          outputPart
-        })
-
-        assert(outputPartitions.size == inputPhysicalOps.size)
-
-        outputPartitions.reduce((a, b) => a.merge(b))
-      })
-      .toArray
-  }
-
-  private def getOutputPartitionInfo(
-      fromPhysicalOpId: PhysicalOpIdentity,
-      fromPort: Int,
-      toPhysicalOpId: PhysicalOpIdentity,
-      inputPort: Int,
-      upstreamPartitionInfo: PartitionInfo
-  ): (PhysicalLink, PartitionInfo) = {
-    val toPhysicalOp = getOperator(toPhysicalOpId)
-    val fromPhysicalOp = getOperator(fromPhysicalOpId)
+  def getOutputPartitionInfo(
+      linkId: PhysicalLinkIdentity,
+      upstreamPartitionInfo: PartitionInfo,
+      opToWorkerNumberMapping: Map[PhysicalOpIdentity, Int]
+  ): PartitionInfo = {
+    val fromPhysicalOp = getOperator(linkId.from)
+    val toPhysicalOp = getOperator(linkId.to)
 
     // make sure this input is connected to this port
-    assert(toPhysicalOp.getOpsOnInputPort(inputPort).map(_.id).contains(fromPhysicalOpId))
+    assert(toPhysicalOp.getOpsOnInputPort(linkId.toPort).contains(fromPhysicalOp.id))
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement.lift(inputPort).flatten.getOrElse(UnknownPartition())
+      toPhysicalOp.partitionRequirement.lift(linkId.toPort).flatten.getOrElse(UnknownPartition())
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
-      upstreamPartitionInfo.satisfies(
-        requiredPartitionInfo
-      ) && fromPhysicalOp.getWorkerIds.length == toPhysicalOp.getWorkerIds.length
+      upstreamPartitionInfo.satisfies(requiredPartitionInfo) && opToWorkerNumberMapping.getOrElse(
+        fromPhysicalOp.id,
+        0
+      ) == opToWorkerNumberMapping.getOrElse(toPhysicalOp.id, 0)
     ) {
-      val physicalLink = new PhysicalLink(
-        fromPhysicalOp,
-        fromPort,
-        toPhysicalOp,
-        inputPort,
-        partitionings = fromPhysicalOp.getWorkerIds.indices
-          .map(i =>
-            (
-              OneToOnePartitioning(defaultBatchSize, List(toPhysicalOp.getWorkerIds(i))),
-              List(toPhysicalOp.getWorkerIds(i))
-            )
-          )
-          .toList
-      )
-      val outputPart = upstreamPartitionInfo
-      (physicalLink, outputPart)
+      upstreamPartitionInfo
     } else {
       // we must re-distribute the input partitions
-      val physicalLink =
-        PhysicalLink(
-          fromPhysicalOp,
-          fromPort,
-          toPhysicalOp,
-          inputPort,
-          requiredPartitionInfo
-        )
-      val outputPart = requiredPartitionInfo
-      (physicalLink, outputPart)
+      requiredPartitionInfo
+
     }
   }
 
@@ -385,7 +288,7 @@ case class PhysicalPlan(
                 .filter(link =>
                   link.fromOp.id == upstreamPhysicalOpId && link.toOp.id == physicalOp.id
                 )
-                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
+                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link.id))
                 .map(_.id)
             }
         }
@@ -398,7 +301,7 @@ case class PhysicalPlan(
 
     val upstreamPhysicalLinkIds = getUpstreamPhysicalLinkIds(physicalOpId)
     upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
-      getOperator(physicalOpId).isInputLinkBlocking(getLink(upstreamPhysicalLinkId))
+      getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
     }
   }
 

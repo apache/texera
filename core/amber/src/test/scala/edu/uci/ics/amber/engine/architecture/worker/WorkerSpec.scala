@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkerReplayInitialization
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
@@ -86,11 +86,11 @@ class WorkerSpec
       DEFAULT_WORKFLOW_ID,
       DEFAULT_EXECUTION_ID,
       operatorIdentity,
-      OpExecInitInfo(_ => mockOpExecutor)
+      OpExecInitInfo((_, _, _) => mockOpExecutor)
     )
     .copy(
-      inputPortToLinkMapping = Map(0 -> List(mockLink)),
-      outputPortToLinkMapping = Map(0 -> List(mockLink))
+      inputPortToLinkIdMapping = Map(0 -> List(mockLink.id)),
+      outputPortToLinkIdMapping = Map(0 -> List(mockLink.id))
     )
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
@@ -114,15 +114,20 @@ class WorkerSpec
   def mkWorker: ActorRef = {
     TestActorRef(
       new WorkflowWorker(
-        identifier1,
+        WorkerConfig(identifier1),
         physicalOp,
-        WorkerConfig(),
+        OperatorConfig(List(WorkerConfig(identifier1))),
         WorkerReplayInitialization(restoreConfOpt = None, replayLogConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager
         }
-        this.dp.initOperator(0, physicalOp, Iterator.empty)
+        this.dp.initOperator(
+          0,
+          physicalOp,
+          OperatorConfig(List(WorkerConfig(identifier1))),
+          Iterator.empty
+        )
         this.dp.initTimerService(timerService)
         override val dpThread: DPThread =
           new DPThread(
