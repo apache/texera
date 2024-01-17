@@ -342,7 +342,8 @@ class ExpansionGreedyRegionPlanGenerator(
 
     // create 2 links for materialization
     val readerToDestLink = PhysicalLinkIdentity(matReaderPhysicalOp.id, 0, toOp.id, toInputPort)
-    val sourceToWriterLink = PhysicalLinkIdentity(fromOp.id, fromOutputPort, matWriterPhysicalOp.id, 0)
+    val sourceToWriterLink =
+      PhysicalLinkIdentity(fromOp.id, fromOutputPort, matWriterPhysicalOp.id, 0)
 
     // add the pair to the map for later adding edges between 2 regions.
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id

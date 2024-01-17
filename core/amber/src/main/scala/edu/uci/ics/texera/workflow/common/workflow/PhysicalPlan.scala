@@ -57,7 +57,8 @@ object PhysicalPlan {
         .displayName
       val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan = physicalPlan.addLink(PhysicalLinkIdentity(fromOp.id, fromPort, toOp.id, toPort))
+      physicalPlan =
+        physicalPlan.addLink(PhysicalLinkIdentity(fromOp.id, fromPort, toOp.id, toPort))
     })
 
     physicalPlan
@@ -72,7 +73,6 @@ case class PhysicalPlan(
 
   @transient private lazy val operatorMap: Map[PhysicalOpIdentity, PhysicalOp] =
     operators.map(o => (o.id, o)).toMap
-
 
   // the dag will be re-computed again once it reaches the coordinator.
   @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge] = {
@@ -143,9 +143,7 @@ case class PhysicalPlan(
   def getSubPlan(subOperators: Set[PhysicalOpIdentity]): PhysicalPlan = {
     val newOps = operators.filter(op => subOperators.contains(op.id))
     val newLinks =
-      links.filter(link =>
-        subOperators.contains(link.from) && subOperators.contains(link.to)
-      )
+      links.filter(link => subOperators.contains(link.from) && subOperators.contains(link.to))
     PhysicalPlan(newOps, newLinks)
   }
 
@@ -266,9 +264,7 @@ case class PhysicalPlan(
           getUpstreamPhysicalOpIds(physicalOp.id)
             .flatMap { upstreamPhysicalOpId =>
               links
-                .filter(link =>
-                  link.from == upstreamPhysicalOpId && link.to == physicalOp.id
-                )
+                .filter(link => link.from == upstreamPhysicalOpId && link.to == physicalOp.id)
                 .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
             }
         }
