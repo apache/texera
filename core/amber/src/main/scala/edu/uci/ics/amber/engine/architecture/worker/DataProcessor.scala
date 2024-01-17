@@ -1,12 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import com.softwaremill.macwire.wire
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfoWithCode,
   OpExecInitInfoWithFunc
@@ -24,14 +24,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
   RUNNING
 }
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
-  DataFrame,
-  DataPayload,
-  EndOfUpstream,
-  EpochMarker,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
@@ -116,7 +109,7 @@ class DataProcessor(
           PhysicalLinkIdentity(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
         ) // special case for source operator
       } else {
-        physicalOp.getAllInputLinks.map(_.id).toSet
+        physicalOp.getAllInputLinkIds.toSet
       }
     )
     this.outputIterator.setTupleOutput(currentOutputIterator)
@@ -169,14 +162,14 @@ class DataProcessor(
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
     val inputLinkId = upstreamLinkStatus.getInputLinkId(identifier)
     if (inputLinkId.from == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!physicalOp.getAllInputLinks.map(_.id).contains(inputLinkId)) 0
+    else if (!physicalOp.getAllInputLinkIds.contains(inputLinkId)) 0
     else physicalOp.getPortIdxForInputLinkId(inputLinkId)
   }
 
-  def getOutputLinkByPort(outputPort: Option[Int]): List[PhysicalLink] = {
+  def getOutputLinkIdsByPort(outputPort: Option[Int]): List[PhysicalLinkIdentity] = {
     outputPort match {
       case Some(port) => physicalOp.getLinksOnOutputPort(port)
-      case None       => physicalOp.getAllOutputLinks
+      case None       => physicalOp.getAllOutputLinkIds
     }
   }
 
@@ -266,8 +259,8 @@ class DataProcessor(
         } else {
           outputTupleCount += 1
           // println(s"send output $outputTuple at step $totalValidStep")
-          val outLinks = getOutputLinkByPort(outputPortOpt)
-          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link.id))
+          val outLinkIds = getOutputLinkIdsByPort(outputPortOpt)
+          outLinkIds.foreach(linkId => outputManager.passTupleToDownstream(outputTuple, linkId))
         }
     }
   }

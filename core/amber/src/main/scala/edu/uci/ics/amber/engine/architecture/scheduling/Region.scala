@@ -1,16 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
+import edu.uci.ics.amber.engine.architecture.scheduling.config.RegionConfig
+
 import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
 
 case class RegionLink(fromRegion: Region, toRegion: Region)
 
 case class RegionIdentity(id: String)
-
-case class WorkerConfig()
-
-case class RegionConfig(
-    workerConfigs: Map[PhysicalOpIdentity, List[WorkerConfig]]
-)
 
 // A (pipelined) region can have a single source. A source is an operator with
 // only blocking inputs or no inputs at all.
@@ -33,6 +29,10 @@ case class Region(
     */
   def getEffectiveOperators: Set[PhysicalOpIdentity] = {
     physicalOpIds ++ downstreamLinkIds.map(linkId => linkId.to)
+  }
+
+  def getEffectiveLinks: Set[PhysicalLinkIdentity] = {
+    physicalLinkIds ++ downstreamLinkIds
   }
 
 }

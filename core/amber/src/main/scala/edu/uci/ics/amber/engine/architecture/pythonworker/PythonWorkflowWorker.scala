@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputGateway
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._

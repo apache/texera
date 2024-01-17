@@ -25,7 +25,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new SymmetricDifferenceOpExec()),
-      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
+      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
     )
   }
 

@@ -64,16 +64,17 @@ class SortPartitionsOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo(p =>
+        OpExecInitInfo(p => {
+          val (idx, physicalOp) = p
           new SortPartitionOpExec(
             sortAttributeName,
             operatorSchemaInfo,
-            p._1,
+            idx,
             domainMin,
             domainMax,
-            p._2.getWorkerIds.length
+            physicalOp.getWorkerIds.length
           )
-        )
+        })
       )
       .copy(
         partitionRequirement = partitionRequirement

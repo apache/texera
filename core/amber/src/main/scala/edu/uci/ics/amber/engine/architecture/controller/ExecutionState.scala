@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   PhysicalLinkIdentity,
@@ -10,21 +11,40 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
+import scala.collection.mutable
+
 class ExecutionState(workflow: Workflow) {
 
   private val linkExecutions: Map[PhysicalLinkIdentity, LinkExecution] =
     workflow.physicalPlan.links.map { link =>
-      link.id -> new LinkExecution(link.totalReceiversCount)
-    }.toMap
-  private val operatorExecutions: Map[PhysicalOpIdentity, OperatorExecution] =
-    workflow.physicalPlan.operators.map { physicalOp =>
-      physicalOp.id -> new OperatorExecution(
-        workflow.context.workflowId,
-        workflow.context.executionId,
-        physicalOp.id,
-        physicalOp.getWorkerIds.length
+      link.id -> new LinkExecution(
+        workflow.regionPlan.regions
+          .find(region => region.getEffectiveLinks.contains(link.id))
+          .get
+          .config
+          .get
+          .linkConfigs(link.id)
+          .channelConfigs
+          .map(_.toWorkerId)
+          .toSet
+          .size
       )
     }.toMap
+  private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
+    mutable.HashMap()
+
+  def initOperatorState(
+      physicalOpId: PhysicalOpIdentity,
+      workerConfigs: List[WorkerConfig]
+  ): OperatorExecution = {
+    operatorExecutions += physicalOpId -> new OperatorExecution(
+      workflow.context.workflowId,
+      workflow.context.executionId,
+      physicalOpId,
+      workerConfigs.length
+    )
+    operatorExecutions(physicalOpId)
+  }
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values

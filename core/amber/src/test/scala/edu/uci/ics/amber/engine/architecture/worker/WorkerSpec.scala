@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkerReplayInitialization
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
@@ -89,8 +89,8 @@ class WorkerSpec
       OpExecInitInfo(_ => mockOpExecutor)
     )
     .copy(
-      inputPortToLinkMapping = Map(0 -> List(mockLink)),
-      outputPortToLinkMapping = Map(0 -> List(mockLink))
+      inputPortToLinkIdMapping = Map(0 -> List(mockLink.id)),
+      outputPortToLinkIdMapping = Map(0 -> List(mockLink.id))
     )
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
@@ -116,7 +116,7 @@ class WorkerSpec
       new WorkflowWorker(
         identifier1,
         physicalOp,
-        WorkerConfig(),
+        WorkerConfig(identifier1),
         WorkerReplayInitialization(restoreConfOpt = None, replayLogConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {

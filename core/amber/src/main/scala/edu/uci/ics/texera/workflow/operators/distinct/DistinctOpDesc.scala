@@ -25,7 +25,7 @@ class DistinctOpDesc extends LogicalOp {
       executionId,
       operatorIdentifier,
       OpExecInitInfo(_ => new DistinctOpExec()),
-      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toArray
+      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
     )
   }
 
