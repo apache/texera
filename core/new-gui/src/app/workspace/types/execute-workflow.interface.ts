@@ -8,10 +8,19 @@ import { ChartType } from "./visualization.interface";
 import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
 import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
 
+export interface NewInputPort extends Readonly<{
+  id: {id: number}
+}>{}
+export interface NewOutputPort extends Readonly<{
+  id: {id: number}
+}>{}
+
 export interface LogicalLink
   extends Readonly<{
-    origin: { operatorID: string; portOrdinal: number; portName: string };
-    destination: { operatorID: string; portOrdinal: number; portName: string };
+    fromOpId: string,
+    fromPort: NewOutputPort
+    toOpId: string,
+    toPort: NewInputPort
   }> {}
 
 export interface LogicalOperator

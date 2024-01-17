@@ -45,14 +45,14 @@ object SinkInjectionTransformer {
       val sinkOp = logicalPlan.getOperator(sinkOpId).asInstanceOf[ProgressiveSinkOpDesc]
       val upstream = logicalPlan.getUpstreamOps(sinkOpId).headOption
       val edge = logicalPlan.links.find(l =>
-        l.origin.operatorId == upstream.map(_.operatorIdentifier).orNull
-          && l.destination.operatorId == sinkOpId
+        l.fromOpId == upstream.map(_.operatorIdentifier).orNull
+          && l.toOpId == sinkOpId
       )
       assert(upstream.nonEmpty)
       if (upstream.nonEmpty && edge.nonEmpty) {
         // set upstream ID and port
         sinkOp.setUpstreamId(upstream.get.operatorIdentifier)
-        sinkOp.setUpstreamPort(edge.get.origin.portOrdinal)
+        sinkOp.setUpstreamPort(edge.get.fromPort.id.id)
 
         // set output mode for visualization operator
         (upstream.get, sinkOp) match {

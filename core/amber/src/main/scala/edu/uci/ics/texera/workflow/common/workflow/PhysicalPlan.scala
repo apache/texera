@@ -37,25 +37,20 @@ object PhysicalPlan {
 
     // connect inter-operator links
     logicalPlan.links.foreach(link => {
-      val fromLogicalOp = link.origin.operatorId
-      val fromPort = link.origin.portOrdinal
-      val fromPortName = logicalPlan.operators
-        .filter(op => op.operatorIdentifier == link.origin.operatorId)
-        .head
-        .operatorInfo
-        .outputPorts(fromPort)
-        .displayName
-      val fromOp = physicalPlan.getPhysicalOpForOutputPort(fromLogicalOp, fromPortName)
+      val fromLogicalOp = link.fromOpId
+      val fromPort = link.fromPort.id.id
+//      val fromPortName = logicalPlan.operators
+//        .filter(op => op.operatorIdentifier == link.fromOpId)
+//        .head
+//        .operatorInfo
+//        .outputPorts(fromPort)
+//        .displayName
+      val fromOp = physicalPlan.getPhysicalOpForOutputPort(fromLogicalOp, link.fromPort.id)
 
-      val toLogicalOp = logicalPlan.getOperator(link.destination.operatorId).operatorIdentifier
-      val toPort = link.destination.portOrdinal
-      val toPortName = logicalPlan.operators
-        .filter(op => op.operatorIdentifier == link.destination.operatorId)
-        .head
-        .operatorInfo
-        .inputPorts(toPort)
-        .displayName
-      val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, toPortName)
+      val toLogicalOp = logicalPlan.getOperator(link.toOpId).operatorIdentifier
+      val toPort = link.toPort.id.id
+
+      val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, link.toPort.id)
 
       physicalPlan = physicalPlan.addLink(PhysicalLink(fromOp.id, fromPort, toOp.id, toPort))
     })
@@ -91,28 +86,28 @@ case class PhysicalPlan(
 
   private def getPhysicalOpForInputPort(
       logicalOpId: OperatorIdentity,
-      portName: String
+      portId: PortIdentity
   ): PhysicalOp = {
     val candidatePhysicalOps = getPhysicalOpsOfLogicalOp(logicalOpId).filter(op =>
-      op.inputPorts.map(_.displayName).contains(portName)
+      op.inputPorts.map(_.id).contains(portId)
     )
     assert(
       candidatePhysicalOps.size == 1,
-      s"find no or multiple input port with name = $portName for operator $logicalOpId"
+      s"find ${candidatePhysicalOps.size} input port(s) with id = $portId for operator $logicalOpId"
     )
     candidatePhysicalOps.head
   }
 
   private def getPhysicalOpForOutputPort(
       logicalOpId: OperatorIdentity,
-      portName: String
+      portId: PortIdentity
   ): PhysicalOp = {
     val candidatePhysicalOps = getPhysicalOpsOfLogicalOp(logicalOpId).filter(op =>
-      op.outputPorts.map(_.displayName).contains(portName)
+      op.outputPorts.map(_.id).contains(portId)
     )
     assert(
       candidatePhysicalOps.size == 1,
-      s"find no or multiple output port with name = $portName for operator $logicalOpId"
+      s"find ${candidatePhysicalOps.size} output port(s) with id = $portId for operator $logicalOpId"
     )
     candidatePhysicalOps.head
   }

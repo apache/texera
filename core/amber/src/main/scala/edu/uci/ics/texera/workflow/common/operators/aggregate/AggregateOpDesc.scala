@@ -34,7 +34,7 @@ object AggregateOpDesc {
         )
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .copy(inputPorts = List(InputPort("in")))
+        .withInputPorts(List(InputPort("in")))
 
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
       PhysicalOp

@@ -29,8 +29,8 @@ object LogicalPlan {
     operatorList.foreach(op => workflowDag.addVertex(op.operatorIdentifier))
     links.foreach(l =>
       workflowDag.addEdge(
-        l.origin.operatorId,
-        l.destination.operatorId,
+        l.fromOpId,
+        l.toOpId,
         l
       )
     )
@@ -90,7 +90,7 @@ case class LogicalPlan(
   def getUpstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
     jgraphtDag
       .incomingEdgesOf(opId)
-      .map(e => operatorMap(e.origin.operatorId))
+      .map(e => operatorMap(e.fromOpId))
       .toList
   }
 
@@ -102,7 +102,7 @@ case class LogicalPlan(
   def removeOperator(opId: OperatorIdentity): LogicalPlan = {
     this.copy(
       operators.filter(o => o.operatorIdentifier != opId),
-      links.filter(l => l.origin.operatorId != opId && l.destination.operatorId != opId),
+      links.filter(l => l.fromOpId != opId && l.toOpId != opId),
       breakpoints.filter(b => OperatorIdentity(b.operatorID) != opId),
       inputSchemaMap.filter({
         case (operatorId, _) => operatorId != opId
@@ -111,13 +111,13 @@ case class LogicalPlan(
   }
 
   def addLink(
-      from: OperatorIdentity,
+               fromOpId: OperatorIdentity,
       fromPort: Int =
         0, // by default, we have only one output port, thus giving a default port index 0
-      to: OperatorIdentity,
+               toOpId: OperatorIdentity,
       toPort: Int
   ): LogicalPlan = {
-    val newLink = LogicalLink(LogicalPort(from, fromPort), LogicalPort(to, toPort))
+    val newLink = LogicalLink(fromOpId, NewOutputPort(PortIdentity(fromPort)), toOpId, NewInputPort(PortIdentity(toPort)))
     val newLinks = links :+ newLink
     this.copy(operators, newLinks, breakpoints)
   }
@@ -130,12 +130,12 @@ case class LogicalPlan(
     val downstream = new mutable.MutableList[LogicalOp]
     jgraphtDag
       .outgoingEdgesOf(opId)
-      .forEach(e => downstream += operatorMap(e.destination.operatorId))
+      .forEach(e => downstream += operatorMap(e.toOpId))
     downstream.toList
   }
 
   def getDownstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
-    links.filter(l => l.origin.operatorId == opId)
+    links.filter(l => l.fromOpId == opId)
   }
 
   def getOpInputSchemas(opId: OperatorIdentity): List[Option[Schema]] = {
@@ -223,15 +223,15 @@ case class LogicalPlan(
       }
 
       // update input schema of all outgoing links
-      val outLinks = links.filter(link => link.origin.operatorId == op.operatorIdentifier)
+      val outLinks = links.filter(link => link.fromOpId == op.operatorIdentifier)
       outLinks.foreach(link => {
-        val dest = getOperator(link.destination.operatorId)
+        val dest = getOperator(link.toOpId)
         // get the input schema list, should be pre-populated with size equals to num of ports
         val destInputSchemas = inputSchemaMap(dest.operatorIdentifier)
         // put the schema into the ordinal corresponding to the port
         val schemaOnPort =
-          outputSchemas.flatMap(schemas => schemas.toList.lift(link.origin.portOrdinal))
-        destInputSchemas(link.destination.portOrdinal) = schemaOnPort
+          outputSchemas.flatMap(schemas => schemas.toList.lift(link.fromPort.id.id))
+        destInputSchemas(link.toPort.id.id) = schemaOnPort
         inputSchemaMap.update(dest.operatorIdentifier, destInputSchemas)
       })
     })

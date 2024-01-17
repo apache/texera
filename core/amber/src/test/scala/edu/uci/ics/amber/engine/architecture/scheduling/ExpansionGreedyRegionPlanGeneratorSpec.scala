@@ -3,12 +3,9 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, LogicalPort}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, LogicalPort, NewInputPort, NewOutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
-import edu.uci.ics.texera.workflow.operators.udf.python.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonUDFOpDescV2
-}
+import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonUDFOpDescV2}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -22,12 +19,16 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       List(headerlessCsvOpDesc, keywordOpDesc, sink),
       List(
         LogicalLink(
-          LogicalPort(headerlessCsvOpDesc.operatorIdentifier, 0),
-          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
+          headerlessCsvOpDesc.operatorIdentifier,
+          NewOutputPort(PortIdentity(0)),
+          keywordOpDesc.operatorIdentifier,
+          NewInputPort(PortIdentity(0))
         ),
         LogicalLink(
-          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
-          LogicalPort(sink.operatorIdentifier, 0)
+          keywordOpDesc.operatorIdentifier,
+          NewOutputPort(PortIdentity(0)),
+          sink.operatorIdentifier,
+          NewInputPort(PortIdentity(0))
         )
       )
     )
