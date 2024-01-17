@@ -8,6 +8,7 @@ import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-exec
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { Workflow, WorkflowContent } from "../../../../../common/type/workflow";
 import { jsonCast } from "../../../../../common/util/storage";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 describe("NgbModalWorkflowExecutionsComponent", () => {
   let component: NgbdModalWorkflowExecutionsComponent;
@@ -132,7 +133,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [NgbdModalWorkflowExecutionsComponent],
-      providers: [NgbActiveModal, WorkflowExecutionsService],
+      providers: [NgbActiveModal, WorkflowExecutionsService, NzModalService],
       imports: [MatDialogModule, FormsModule, HttpClientModule],
     }).compileComponents();
   }));
