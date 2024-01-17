@@ -17,7 +17,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
   RoundRobinPreference
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization,
@@ -523,7 +523,7 @@ case class PhysicalOp(
   def build(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
-      workerConfigs: List[WorkerConfig],
+      operatorConfig: OperatorConfig,
       stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
       replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
   ): Unit = {
@@ -534,7 +534,7 @@ case class PhysicalOp(
 
     workerIds.foreach(workerId => {
       val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
-      val workerConfig = workerConfigs(workerIndex)
+      val workerConfig = operatorConfig.workerConfigs(workerIndex)
       val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
       val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
 
