@@ -3,8 +3,9 @@ package edu.uci.ics.texera.workflow.operators.sortPartitions
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -12,7 +13,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.RangePartition
 
@@ -25,7 +26,7 @@ import edu.uci.ics.texera.workflow.common.workflow.RangePartition
   }
 }
 """)
-class SortPartitionsOpDesc extends OperatorDescriptor {
+class SortPartitionsOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Attribute")
@@ -43,7 +44,11 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("Maximum value of the domain of the attribute.")
   var domainMax: Long = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
     val partitionRequirement = List(
       Option(
         RangePartition(
@@ -54,19 +59,21 @@ class SortPartitionsOpDesc extends OperatorDescriptor {
       )
     )
 
-    OpExecConfig
-      .oneToOneLayer(
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
         operatorIdentifier,
-        OpExecInitInfo(p =>
+        OpExecInitInfo((idx, _, operatorConfig) => {
           new SortPartitionOpExec(
             sortAttributeName,
             operatorSchemaInfo,
-            p._1,
+            idx,
             domainMin,
             domainMax,
-            p._2.numWorkers
+            operatorConfig.workerConfigs.length
           )
-        )
+        })
       )
       .copy(
         partitionRequirement = partitionRequirement

@@ -6,8 +6,9 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -43,11 +44,19 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
   @JsonSchemaDescription("Maximum number of tweets to retrieve")
   var limit: Int = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp =
     // TODO: use multiple workers
-    OpExecConfig.sourceLayer(
+    PhysicalOp.sourcePhysicalOp(
+      workflowId,
+      executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) =>
+        new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
+      )
     )
 
   override def sourceSchema(): Schema = {

@@ -1,34 +1,30 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
-import edu.uci.ics.texera.web.storage.JobStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.{OperatorLink, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, WorkflowCompiler}
 
 object TestUtils {
 
   def buildWorkflow(
-      operators: List[OperatorDescriptor],
-      links: List[OperatorLink],
-      resultStorage: OpResultStorage = new OpResultStorage(),
-      jobId: String = "workflow_test",
-      workflowTag: String = "workflow_test"
+      operators: List[LogicalOp],
+      links: List[LogicalLink],
+      resultStorage: OpResultStorage = new OpResultStorage()
   ): Workflow = {
-    val context = new WorkflowContext
-    context.jobId = jobId
+    val context = new WorkflowContext()
     val workflowCompiler = new WorkflowCompiler(
-      LogicalPlanPojo(operators, links, List(), List(), List()),
       context
     )
     workflowCompiler.compile(
-      WorkflowIdentity(workflowTag),
+      LogicalPlanPojo(operators, links, List(), List(), List()),
       resultStorage,
       None,
-      new JobStateStore()
+      new ExecutionStateStore(),
+      ControllerConfig.default
     )
   }
 

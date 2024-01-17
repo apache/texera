@@ -1,73 +1,103 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.util.makeLayer
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, OperatorIdentity}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object AggregateOpDesc {
 
-  def opExecPhysicalPlan(
+  def getPhysicalPlan(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
       id: OperatorIdentity,
       aggFuncs: List[DistributedAggregation[Object]],
       groupByKeys: List[String],
       schemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
-    val partialLayer =
-      OpExecConfig
-        .oneToOneLayer(
-          makeLayer(id, "localAgg"),
-          OpExecInitInfo(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+    val partialPhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(
+          PhysicalOpIdentity(id, "localAgg"),
+          workflowId,
+          executionId,
+          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
+        .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .copy(isOneToManyOp = true, inputPorts = List(InputPort("in")))
+        .copy(inputPorts = List(InputPort("in")))
 
-    val finalLayer = if (groupByKeys == null || groupByKeys.isEmpty) {
-      OpExecConfig
-        .localLayer(
-          makeLayer(id, "globalAgg"),
-          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+    val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
+      PhysicalOp
+        .localPhysicalOp(
+          PhysicalOpIdentity(id, "globalAgg"),
+          workflowId,
+          executionId,
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
+        .withParallelizable(false)
+        .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
+        .withOutputPorts(List(OutputPort("out")))
     } else {
-      val partitionColumns: Array[Int] =
-        if (groupByKeys == null) Array()
-        else groupByKeys.indices.toArray // group by columns are always placed in the beginning
+      val partitionColumns: List[Int] =
+        if (groupByKeys == null) List()
+        else groupByKeys.indices.toList // group by columns are always placed in the beginning
 
-      OpExecConfig
-        .hashLayer(
-          makeLayer(id, "globalAgg"),
-          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
+      PhysicalOp
+        .hashPhysicalOp(
+          PhysicalOpIdentity(id, "globalAgg"),
+          workflowId,
+          executionId,
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
           partitionColumns
         )
-        .copy(isOneToManyOp = true, outputPorts = List(OutputPort("out")))
+        .withParallelizable(false)
+        .withIsOneToManyOp(true)
+        // a hacky solution to have unique port names for reference purpose
+        .withOutputPorts(List(OutputPort("out")))
     }
 
     new PhysicalPlan(
-      List(partialLayer, finalLayer),
-      List(LinkIdentity(partialLayer.id, 0, finalLayer.id, 0))
+      operators = Set(partialPhysicalOp, finalPhysicalOp),
+      links = Set(PhysicalLink(partialPhysicalOp, 0, finalPhysicalOp, 0))
     )
   }
 
 }
 
-abstract class AggregateOpDesc extends OperatorDescriptor {
+abstract class AggregateOpDesc extends LogicalOp {
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    throw new UnsupportedOperationException("multi-layer op should use operatorExecutorMultiLayer")
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
+    throw new UnsupportedOperationException("should implement `getPhysicalPlan` instead")
   }
 
-  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
-    var plan = aggregateOperatorExecutor(operatorSchemaInfo)
-    plan.operators.foreach(op => plan = plan.setOperator(op.copy(isOneToManyOp = true)))
+  override def getPhysicalPlan(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalPlan = {
+    var plan = aggregateOperatorExecutor(workflowId, executionId, operatorSchemaInfo)
+    plan.operators.foreach(op => plan = plan.setOperator(op.withIsOneToManyOp(true)))
     plan
   }
 
-  def aggregateOperatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan
+  def aggregateOperatorExecutor(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalPlan
 
 }

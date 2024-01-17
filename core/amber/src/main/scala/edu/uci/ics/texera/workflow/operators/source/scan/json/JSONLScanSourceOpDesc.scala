@@ -2,9 +2,9 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
@@ -25,7 +25,11 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("JSONL")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
     filePath match {
       case Some(path) =>
         // count lines and partition the task to each worker
@@ -38,20 +42,21 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
         val count: Int = lines.map(_ => 1).sum
         reader.close()
 
-        val numWorkers = AmberConfig.numWorkerPerOperatorByDefault
-
-        OpExecConfig
-          .sourceLayer(
+        PhysicalOp
+          .sourcePhysicalOp(
+            workflowId,
+            executionId,
             operatorIdentifier,
-            OpExecInitInfo(p => {
-              val i = p._1
-              val startOffset: Int = offsetValue + count / numWorkers * i
+            OpExecInitInfo((idx, physicalOp, operatorConfig) => {
+              val workerCount = operatorConfig.workerConfigs.length
+              val startOffset: Int = offsetValue + count / workerCount * idx
               val endOffset: Int =
-                offsetValue + (if (i != numWorkers - 1) count / numWorkers * (i + 1) else count)
+                offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
+                               else count)
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
             })
           )
-          .copy(numWorkers = numWorkers)
+          .withParallelizable(true)
 
       case None =>
         throw new RuntimeException("File path is not provided.")

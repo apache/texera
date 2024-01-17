@@ -1,33 +1,47 @@
 package edu.uci.ics.amber.engine.common
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 
 import scala.util.matching.Regex
 
 object VirtualIdentityUtils {
 
-  private val workerNamePattern: Regex = raw"Worker:WF(\w+)-(.+)-(\w+)-(\d+)".r
-
+  private val workerNamePattern: Regex = raw"Worker:WF(\d+)-(.+)-(\w+)-(\d+)".r
+  private val operatorUUIDPattern: Regex = raw"(\w+)-(.+)-(\w+)".r
   def createWorkerIdentity(
-      workflow: String,
+      workflowId: WorkflowIdentity,
       operator: String,
-      layer: String,
+      layerName: String,
       workerId: Int
   ): ActorVirtualIdentity = {
-    ActorVirtualIdentity(s"Worker:WF$workflow-$operator-$layer-$workerId")
+
+    ActorVirtualIdentity(
+      s"Worker:WF${workflowId.id}-$operator-$layerName-$workerId"
+    )
   }
 
   def createWorkerIdentity(
-      layer: LayerIdentity,
+      workflowId: WorkflowIdentity,
+      physicalOpId: PhysicalOpIdentity,
       workerId: Int
   ): ActorVirtualIdentity = {
-    ActorVirtualIdentity(s"Worker:WF${layer.workflow}-${layer.operator}-${layer.layerID}-$workerId")
+    createWorkerIdentity(
+      workflowId,
+      physicalOpId.logicalOpId.id,
+      physicalOpId.layerName,
+      workerId
+    )
   }
 
-  def getOperator(workerId: ActorVirtualIdentity): LayerIdentity = {
+  def getPhysicalOpId(workerId: ActorVirtualIdentity): PhysicalOpIdentity = {
     workerId.name match {
-      case workerNamePattern(workflow, operator, layer, _) =>
-        LayerIdentity(workflow, operator, layer)
+      case workerNamePattern(_, operator, layerName, _) =>
+        PhysicalOpIdentity(OperatorIdentity(operator), layerName)
     }
   }
 
@@ -35,6 +49,23 @@ object VirtualIdentityUtils {
     workerId.name match {
       case workerNamePattern(_, _, _, idx) =>
         idx.toInt
+    }
+  }
+
+  def toShorterString(workerId: ActorVirtualIdentity): String = {
+    workerId.name match {
+      case workerNamePattern(workflowId, operatorName, layerName, workerIndex) =>
+        val shorterName = if (operatorName.length > 6) {
+          operatorName match {
+            case operatorUUIDPattern(op, _, postfix) => op + "-" + postfix.takeRight(6)
+            case _                                   => operatorName.takeRight(6)
+          }
+        } else {
+          operatorName
+        }
+
+        s"WF$workflowId-$shorterName-$layerName-$workerIndex"
+      case _ => workerId.name
     }
   }
 }

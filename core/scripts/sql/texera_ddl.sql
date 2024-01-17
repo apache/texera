@@ -163,16 +163,17 @@ CREATE TABLE IF NOT EXISTS file_of_workflow
 
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
-    `eid`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `vid`             INT UNSIGNED NOT NULL,
-    `uid`             INT UNSIGNED NOT NULL,
-    `status`          TINYINT NOT NULL DEFAULT 1,
-    `result`          TEXT, /* pointer to volume */
-    `starting_time`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `last_update_time`   TIMESTAMP,
-    `bookmarked`      BOOLEAN DEFAULT FALSE,
-    `name`				VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
+    `eid`                    INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `vid`                    INT UNSIGNED NOT NULL,
+    `uid`                    INT UNSIGNED NOT NULL,
+    `status`                 TINYINT NOT NULL DEFAULT 1,
+    `result`                 TEXT, /* pointer to volume */
+    `starting_time`          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `last_update_time`       TIMESTAMP,
+    `bookmarked`             BOOLEAN DEFAULT FALSE,
+    `name`				     VARCHAR(128) NOT NULL DEFAULT 'Untitled Execution',
     `environment_version`    VARCHAR(128) NOT NULL,
+    `log_location`           TEXT, /* uri to log storage */
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
@@ -188,13 +189,13 @@ CREATE TABLE IF NOT EXISTS public_project
 
 CREATE TABLE IF NOT EXISTS workflow_runtime_statistics
 (
-    `workflow_id`      INT UNSIGNED		NOT NULL,
-    `execution_id`     INT UNSIGNED		NOT NULL,
-    `operator_id`      VARCHAR(100)		NOT NULL,
-    `time`             TIMESTAMP(6)		NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-    `input_tuple_cnt`  INT UNSIGNED		NOT NULL DEFAULT 0,
-    `output_tuple_cnt` INT UNSIGNED		NOT NULL DEFAULT 0,
-    `status`           TINYINT			NOT NULL DEFAULT 1,
+    `workflow_id`      INT UNSIGNED             NOT NULL,
+    `execution_id`     INT UNSIGNED             NOT NULL,
+    `operator_id`      VARCHAR(100)             NOT NULL,
+    `time`             TIMESTAMP(6)             NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `input_tuple_cnt`  INT UNSIGNED             NOT NULL DEFAULT 0,
+    `output_tuple_cnt` INT UNSIGNED             NOT NULL DEFAULT 0,
+    `status`           TINYINT                  NOT NULL DEFAULT 1,
     PRIMARY KEY (`workflow_id`, `execution_id`, `operator_id`, `time`),
     FOREIGN KEY (`workflow_id`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
     FOREIGN KEY (`execution_id`) REFERENCES `workflow_executions` (`eid`) ON DELETE CASCADE

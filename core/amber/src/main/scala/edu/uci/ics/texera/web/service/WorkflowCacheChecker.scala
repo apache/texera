@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.web.service
 
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.EditingTimeCompilationRequest
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 
@@ -14,7 +15,8 @@ object WorkflowCacheChecker {
   ): Map[String, String] = {
     val validCacheOps = new WorkflowCacheChecker(oldPlan, newPlan).getValidCacheReuse
     val cacheUpdateResult = request.opsToReuseResult
-      .map(o => (o, if (validCacheOps.contains(o)) "cache valid" else "cache invalid"))
+      .map(idString => OperatorIdentity(idString))
+      .map(opId => (opId.id, if (validCacheOps.contains(opId)) "cache valid" else "cache invalid"))
       .toMap
     cacheUpdateResult
   }
@@ -33,16 +35,15 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
 
   // checks the validity of the cache given the old plan and the new plan
   // returns a set of operator IDs that can be reused
-  // the operatorID is also the storage key
-  def getValidCacheReuse: Set[String] = {
+  // the operatorId is also the storage key
+  def getValidCacheReuse: Set[OperatorIdentity] = {
     if (oldWorkflowOpt.isEmpty) {
       return Set()
     }
 
     val oldWorkflow = oldWorkflowOpt.get
     // for each operator in the old workflow, add it to its own equivalence class
-    oldWorkflow.jgraphtDag
-      .iterator()
+    oldWorkflow.getTopologicalOpIds
       .forEachRemaining(opId => {
         val oldId = "old-" + opId
         equivalenceClass.put(oldId, nextClassId)
@@ -56,13 +57,12 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
     //
     // if both conditions are met, then the two operators are equal,
     // else a new equivalence class is created
-    newWorkflow.jgraphtDag
-      .iterator()
+    newWorkflow.getTopologicalOpIds
       .forEachRemaining(opId => {
         val newOp = newWorkflow.getOperator(opId)
         val newOpUpstreamClasses = newWorkflow
-          .getUpstream(opId)
-          .map(op => equivalenceClass("new-" + op.operatorID))
+          .getUpstreamOps(opId)
+          .map(op => equivalenceClass("new-" + op.operatorIdentifier))
         val oldOp = oldWorkflow.operators.find(op => op.equals(newOp)).orNull
 
         // check if the old workflow contains the same operator content
@@ -70,10 +70,10 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
           getNextClassId // operator not found, create a new class
         } else {
           // check its inputs are all in the same equivalence class
-          val oldId = "old-" + oldOp.operatorID
+          val oldId = "old-" + oldOp.operatorIdentifier
           val oldOpUpstreamClasses = oldWorkflow
-            .getUpstream(oldOp.operatorID)
-            .map(op => equivalenceClass("old-" + op.operatorID))
+            .getUpstreamOps(oldOp.operatorIdentifier)
+            .map(op => equivalenceClass("old-" + op.operatorIdentifier))
           if (oldOpUpstreamClasses.equals(newOpUpstreamClasses)) {
             equivalenceClass(oldId) // same equivalence class
           } else {
@@ -85,9 +85,9 @@ class WorkflowCacheChecker(oldWorkflowOpt: Option[LogicalPlan], newWorkflow: Log
 
     // for each cached operator in the old workflow,
     // check if it can be still used in the new workflow
-    oldWorkflow.terminalOperators
+    oldWorkflow.getTerminalOperatorIds
       .map(sinkOpId => {
-        val opId = oldWorkflow.getUpstream(sinkOpId).head.operatorID
+        val opId = oldWorkflow.getUpstreamOps(sinkOpId).head.operatorIdentifier
         val oldCachedOpId = "old-" + opId
         // find its equivalence class
         val oldClassId = equivalenceClass(oldCachedOpId)

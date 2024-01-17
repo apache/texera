@@ -1,50 +1,52 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
   OperatorInfo,
   OutputPort
 }
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
-class CartesianProductOpDesc extends OperatorDescriptor {
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    OpExecConfig
-      .oneToOneLayer(
+class CartesianProductOpDesc extends LogicalOp {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp = {
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
         operatorIdentifier,
-        OpExecInitInfo(_ => new CartesianProductOpExec(operatorSchemaInfo))
+        OpExecInitInfo((_, _, _) => new CartesianProductOpExec(operatorSchemaInfo))
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        // uses just one worker for now, reads all elements from "left" input port 0 first
-        /*
-          TODO : refactor to parallelize this operator for better performance and scalability
-           - can consider hash partition on larger input, broadcast smaller table to each partition
-         */
-        numWorkers = 1,
-        blockingInputs = List(0),
-        dependency = Map(1 -> 0)
-      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts((operatorInfo.outputPorts))
+      .withBlockingInputs(List(0))
+      // TODO : refactor to parallelize this operator for better performance and scalability:
+      //  can consider hash partition on larger input, broadcast smaller table to each partition
+      .withParallelizable(false)
+      .withDependencies(Map(1 -> 0))
   }
 
-  /*
-    returns a Schema in order of the left input attributes followed by the right attributes
-    duplicate attribute names are handled with an increasing suffix count
-
-    Left schema attributes should always retain the same name in output schema
-
-    For example, Left(dup, dup#@1, dup#@2) cartesian product with Right(r1, r2, dup)
-    has output schema: (dup, dup#@1, dup#@2, r1, r2, dup#@3)
-
-    Since the last attribute of Right is a duplicate, it increases suffix until it is
-    no longer a duplicate, resulting in dup#@3
-   */
+  /**
+    *    returns a Schema in order of the left input attributes followed by the right attributes
+    *    duplicate attribute names are handled with an increasing suffix count
+    *
+    *    Left schema attributes should always retain the same name in output schema
+    *
+    *    For example, Left(dup, dup#@1, dup#@2) cartesian product with Right(r1, r2, dup)
+    *    has output schema: (dup, dup#@1, dup#@2, r1, r2, dup#@3)
+    *
+    *    Since the last attribute of Right is a duplicate, it increases suffix until it is
+    *    no longer a duplicate, resulting in dup#@3
+    */
   def getOutputSchemaInternal(schemas: Array[Schema]): Schema = {
     // ensure there are exactly two input port schemas to consider
     Preconditions.checkArgument(schemas.length == 2)

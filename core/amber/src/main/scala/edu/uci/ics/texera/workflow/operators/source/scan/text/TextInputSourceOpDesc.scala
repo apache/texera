@@ -2,8 +2,9 @@ package edu.uci.ics.texera.workflow.operators.source.scan.text
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.metadata.{
   OperatorGroupConstants,
@@ -19,10 +20,16 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
   @JsonSchemaInject(json = UIWidget.UIWidgetTextArea)
   var textInput: String = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    OpExecConfig.sourceLayer(
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp =
+    PhysicalOp.sourcePhysicalOp(
+      workflowId,
+      executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new TextInputSourceOpExec(this))
+      OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
     )
 
   override def sourceSchema(): Schema =

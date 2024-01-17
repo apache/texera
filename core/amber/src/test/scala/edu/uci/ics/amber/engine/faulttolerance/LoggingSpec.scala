@@ -21,13 +21,15 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity,
-  OperatorIdentity
+  OperatorIdentity,
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
+
+import java.net.URI
 
 class LoggingSpec
     extends TestKit(ActorSystem("LoggingSpec"))
@@ -35,13 +37,13 @@ class LoggingSpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
-  private val identifier2 = ActorVirtualIdentity("worker-2")
-  private val operatorIdentity = OperatorIdentity("testWorkflow", "testOperator")
+  private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
+  private val operatorIdentity = OperatorIdentity("testOperator")
   private val layerId1 =
-    LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "1st-layer")
+    PhysicalOpIdentity(operatorIdentity, "1st-layer")
   private val layerId2 =
-    LayerIdentity(operatorIdentity.workflow, operatorIdentity.operator, "2nd-layer")
-  private val mockLink = LinkIdentity(layerId1, 0, layerId2, 0)
+    PhysicalOpIdentity(operatorIdentity, "2nd-layer")
+  private val mockLink = PhysicalLinkIdentity(layerId1, 0, layerId2, 0)
 
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(
@@ -55,10 +57,9 @@ class LoggingSpec
   )
 
   "determinant logger" should "log processing steps in local storage" in {
-    val tempLogFileName = "tempLogFile"
-    val logStorage = ReplayLogStorage.getLogStorage("local", tempLogFileName)
-    logStorage.deleteLog()
-    val logManager = ReplayLogManager.createLogManager(logStorage, x => {})
+    val logStorage = ReplayLogStorage.getLogStorage(Some(new URI("file:///recovery-logs/tmp")))
+    logStorage.deleteStorage()
+    val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
     payloadToLog.foreach { payload =>
       val channel = ChannelID(CONTROLLER, SELF, isControl = true)
       val msgOpt = Some(WorkflowFIFOMessage(channel, 0, payload))
@@ -68,8 +69,8 @@ class LoggingSpec
     }
     logManager.sendCommitted(null)
     logManager.terminate()
-    val logRecords = logStorage.getReader.mkLogRecordIterator().toArray
-    logStorage.deleteLog()
+    val logRecords = logStorage.getReader("tmpLog").mkLogRecordIterator().toArray
+    logStorage.deleteStorage()
     assert(logRecords.length == 15)
   }
 

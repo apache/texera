@@ -9,11 +9,11 @@
   </div>
 </div>
 
-<div *ngFor="let category of categoryToErrorMapping.keys()">
-  <div class="error-category">{{category}}:</div>
-  <nz-collapse *ngIf="categoryToErrorMapping.get(category)!.length > 0">
+<div *ngFor="let category of categoryToErrorMapping | keyvalue">
+  <div class="error-category">{{category.key}}:</div>
+  <nz-collapse *ngIf="category.value.length > 0">
     <nz-collapse-panel
-      *ngFor="let error of categoryToErrorMapping.get(category)"
+      *ngFor="let error of category.value"
       [nzHeader]="error.message"
       [nzActive]="false"
       [nzDisabled]="false"

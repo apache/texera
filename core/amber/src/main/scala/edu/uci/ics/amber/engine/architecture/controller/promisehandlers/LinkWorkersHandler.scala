@@ -6,10 +6,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWork
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
 
 object LinkWorkersHandler {
-  final case class LinkWorkers(link: LinkIdentity) extends ControlCommand[Unit]
+  final case class LinkWorkers(linkId: PhysicalLinkIdentity) extends ControlCommand[Unit]
 }
 
 /** add a data transfer partitioning to the sender workers and update input linking
@@ -22,16 +22,25 @@ trait LinkWorkersHandler {
 
   registerHandler { (msg: LinkWorkers, sender) =>
     {
-      // get the list of (sender id, partitioning, set of receiver ids) from the link
-      val futures = cp.workflow.partitioningPlan.strategies(msg.link).getPartitioning.flatMap {
-        case (from, link, partitioning, tos) =>
-          // send messages to sender worker and receiver workers
-          Seq(send(AddPartitioning(link, partitioning), from)) ++ tos.map(
-            send(UpdateInputLinking(from, msg.link), _)
-          )
-      }
+      val linkConfig = cp.workflow.regionPlan
+        .getRegionOfPhysicalLink(msg.linkId)
+        .get
+        .config
+        .get
+        .linkConfigs(msg.linkId)
 
-      Future.collect(futures.toSeq).map { _ =>
+      val futures = linkConfig.channelConfigs
+        .flatMap(channelConfig =>
+          Seq(
+            send(AddPartitioning(msg.linkId, linkConfig.partitioning), channelConfig.fromWorkerId),
+            send(
+              UpdateInputLinking(channelConfig.fromWorkerId, msg.linkId),
+              channelConfig.toWorkerId
+            )
+          )
+        )
+
+      Future.collect(futures).map { _ =>
         // returns when all has completed
 
       }

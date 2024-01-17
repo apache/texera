@@ -2,8 +2,9 @@ package edu.uci.ics.texera.workflow.operators.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
@@ -32,10 +33,16 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
 
   @JsonProperty(value = "Matching type", required = true) var matchingType: MatchingType = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    OpExecConfig.oneToOneLayer(
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp =
+    PhysicalOp.oneToOnePhysicalOp(
+      workflowId,
+      executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new DictionaryMatcherOpExec(this, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new DictionaryMatcherOpExec(this, operatorSchemaInfo))
     )
 
   override def operatorInfo: OperatorInfo =

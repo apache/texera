@@ -14,11 +14,18 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
-import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.TriggerSend
+import edu.uci.ics.amber.engine.architecture.logreplay.{
+  ReplayLogGenerator,
+  ReplayLogManager,
+  ReplayOrderEnforcer
+}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  TriggerSend,
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -56,8 +63,10 @@ object WorkflowActor {
   final case class CreditResponse(channelEndpointID: ChannelID, credit: Long)
 }
 
-abstract class WorkflowActor(logStorageType: String, val actorId: ActorVirtualIdentity)
-    extends Actor
+abstract class WorkflowActor(
+    replayLogConfOpt: Option[WorkerReplayLoggingConfig],
+    val actorId: ActorVirtualIdentity
+) extends Actor
     with Stash
     with AmberLogging {
 
@@ -81,10 +90,12 @@ abstract class WorkflowActor(logStorageType: String, val actorId: ActorVirtualId
   val transferService: AkkaMessageTransferService =
     new AkkaMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
 
+  logger.info(s"worker replay log writing conf: $replayLogConfOpt")
+
   val logStorage: ReplayLogStorage =
-    ReplayLogStorage.getLogStorage(logStorageType, getLogName)
+    ReplayLogStorage.getLogStorage(replayLogConfOpt.map(_.writeTo))
   val logManager: ReplayLogManager =
-    ReplayLogManager.createLogManager(logStorage, sendMessageFromLogWriterToActor)
+    ReplayLogManager.createLogManager(logStorage, getLogName, sendMessageFromLogWriterToActor)
 
   def getLogName: String = actorId.name.replace("Worker:", "")
 
@@ -129,7 +140,18 @@ abstract class WorkflowActor(logStorageType: String, val actorId: ActorVirtualId
 
   def receiveDeadLetterMessage: Receive = {
     case MessageBecomesDeadLetter(msg) =>
-      actorRefMappingService.removeActorRef(msg.internalMessage.channel.from)
+      val dest = msg.internalMessage.channel.to
+      if (dest == actorId) {
+        actorService.scheduleOnce(
+          100.millis,
+          () => {
+            logger.warn(s"sending message to self failed, retry sending $msg to self directly.")
+            self ! msg
+          }
+        )
+      } else {
+        actorRefMappingService.removeActorRef(dest)
+      }
   }
 
   def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit
@@ -146,10 +168,39 @@ abstract class WorkflowActor(logStorageType: String, val actorId: ActorVirtualId
   //
   def initState(): Unit
 
+  def setupReplay(
+      amberProcessor: AmberProcessor,
+      replayConf: WorkerStateRestoreConfig,
+      onComplete: () => Unit
+  ): Unit = {
+    val logStorageToRead = ReplayLogStorage.getLogStorage(Some(replayConf.readFrom))
+    val (processSteps, messages) = ReplayLogGenerator.generate(logStorageToRead, getLogName)
+    val replayTo = replayConf.replayTo
+    logger.info(
+      s"setting up replay, " +
+        s"read from ${replayConf.readFrom} " +
+        s"current step = ${logManager.getStep} " +
+        s"target step = $replayTo " +
+        s"# of log record to replay = ${processSteps.size}"
+    )
+    val orderEnforcer = new ReplayOrderEnforcer(
+      logManager,
+      processSteps,
+      startStep = logManager.getStep,
+      replayTo,
+      onComplete
+    )
+    amberProcessor.inputGateway.addEnforcer(orderEnforcer)
+    messages.foreach(message =>
+      amberProcessor.inputGateway.getChannel(message.channel).acceptMessage(message)
+    )
+  }
+
   override def preStart(): Unit = {
     try {
       transferService.initialize()
       initState()
+      context.parent ! RegisterActorRef(actorId, context.self)
     } catch {
       case t: Throwable =>
         logger.warn("actor initialization failed due to exception", t)

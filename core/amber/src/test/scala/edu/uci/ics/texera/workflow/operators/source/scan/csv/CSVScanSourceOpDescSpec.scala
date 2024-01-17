@@ -1,6 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -99,9 +103,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val emptySchema = Schema.newBuilder().build()
     val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), Array(emptySchema))
     assert(
-      csvScanSourceOpDesc
-        .operatorExecutor(operatorSchemaInfo)
-        .numWorkers == 1
+      !csvScanSourceOpDesc
+        .getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, operatorSchemaInfo)
+        .parallelizable
     )
   }
 

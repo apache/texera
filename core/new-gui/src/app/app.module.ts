@@ -119,7 +119,6 @@ import { LocalLoginComponent } from "./home/component/login/local-login/local-lo
 import { MarkdownModule } from "ngx-markdown";
 import { FileSaverService } from "./dashboard/user/service/user-file/file-saver.service";
 import { DragDropModule } from "@angular/cdk/drag-drop";
-import { AuthInterceptor } from "./common/service/user/auth.interceptor";
 import { UserWorkflowListItemComponent } from "./dashboard/user/component/user-workflow/user-workflow-list-item/user-workflow-list-item.component";
 import { UserProjectListItemComponent } from "./dashboard/user/component/user-project/user-project-list-item/user-project-list-item.component";
 import { SortButtonComponent } from "./dashboard/user/component/sort-button/sort-button.component";
@@ -131,10 +130,12 @@ import { SearchResultsComponent } from "./dashboard/user/component/search-result
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
+import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
+import { WorkflowRuntimeStatisticsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
 
 registerLocaleData(en);
 
@@ -209,6 +210,8 @@ registerLocaleData(en);
     SearchComponent,
     SearchResultsComponent,
     PortPropertyEditFrameComponent,
+    WorkflowRuntimeStatisticsComponent,
+    FlarumComponent,
   ],
   imports: [
     BrowserModule,
@@ -291,11 +294,6 @@ registerLocaleData(en);
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
-      multi: true,
-    },
-    {
-      provide: HTTP_INTERCEPTORS,
-      useClass: AuthInterceptor,
       multi: true,
     },
   ],

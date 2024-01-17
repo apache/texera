@@ -79,8 +79,6 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
       outputPorts = List(OutputPort())
     )
 
-  override def numWorkers() = 1
-
   def createPlotlyFigure(): String = {
     val dumbbellValues = startValue + ", " + endValue
 

@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW_EXECUTIONS,
+  WORKFLOW_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
@@ -29,35 +30,15 @@ object WorkflowExecutionsResource {
     executionsDao.fetchOneByEid(eId)
   }
 
-  def getExpiredResults(timeToLive: Int): List[ExecutionResultEntry] = {
+  def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
     context
-      .select(
-        WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.RESULT
-      )
-      .from(WORKFLOW_EXECUTIONS)
+      .selectFrom(WORKFLOW_EXECUTIONS)
       .where(
-        WORKFLOW_EXECUTIONS.STATUS
-          .eq(3.toByte)
-          .and(
-            WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME
-              .lt(new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)))
-          )
-          .and(WORKFLOW_EXECUTIONS.RESULT.ne(""))
+        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME
+          .lt(new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)))
+          .and(WORKFLOW_EXECUTIONS.RESULT.ne("").or(WORKFLOW_EXECUTIONS.LOG_LOCATION.ne("")))
       )
-      .fetchInto(classOf[ExecutionResultEntry])
-      .toList
-  }
-
-  def getAllIncompleteResults(): List[ExecutionResultEntry] = {
-    context
-      .select(
-        WORKFLOW_EXECUTIONS.EID,
-        WORKFLOW_EXECUTIONS.RESULT
-      )
-      .from(WORKFLOW_EXECUTIONS)
-      .where(WORKFLOW_EXECUTIONS.RESULT.ne("").and(WORKFLOW_EXECUTIONS.STATUS.ne(3.toByte)))
-      .fetchInto(classOf[ExecutionResultEntry])
+      .fetchInto(classOf[WorkflowExecutions])
       .toList
   }
 
@@ -94,6 +75,13 @@ object WorkflowExecutionsResource {
   case class ExecutionResultEntry(
       eId: UInteger,
       result: String
+  )
+
+  case class WorkflowRuntimeStatistics(
+      operatorId: String,
+      inputTupleCount: UInteger,
+      outputTupleCount: UInteger,
+      timestamp: Timestamp
   )
 }
 
@@ -151,6 +139,31 @@ class WorkflowExecutionsResource {
         .toList
         .reverse
     }
+  }
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/{eid}")
+  def retrieveWorkflowRuntimeStatistics(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("eid") eid: UInteger
+  ): List[WorkflowRuntimeStatistics] = {
+    context
+      .select(
+        WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
+        WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
+        WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
+        WORKFLOW_RUNTIME_STATISTICS.TIME
+      )
+      .from(WORKFLOW_RUNTIME_STATISTICS)
+      .where(
+        WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
+          .eq(wid)
+          .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
+      )
+      .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
+      .fetchInto(classOf[WorkflowRuntimeStatistics])
+      .toList
   }
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */

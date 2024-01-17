@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService}
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
@@ -8,41 +9,36 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{
-  ControllerConfig,
-  ExecutionState,
-  OperatorExecution,
-  Workflow
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.linksemantics.LinkStrategy
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  LayerIdentity,
-  LinkIdentity
+  PhysicalLinkIdentity,
+  PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 class WorkflowScheduler(
-    regionsToSchedule: mutable.Buffer[PipelinedRegion],
+    regionsToSchedule: mutable.Buffer[Region],
     executionState: ExecutionState,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
-) {
+) extends LazyLogging {
   val schedulingPolicy: SchedulingPolicy =
     SchedulingPolicy.createPolicy(
       AmberConfig.schedulingPolicyName,
@@ -51,13 +47,13 @@ class WorkflowScheduler(
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
   // track of those already built
-  private val builtOperators = new mutable.HashSet[LayerIdentity]()
-  private val openedOperators = new mutable.HashSet[LayerIdentity]()
-  private val initializedPythonOperators = new mutable.HashSet[LayerIdentity]()
-  private val activatedLink = new mutable.HashSet[LinkIdentity]()
+  private val builtPhysicalOpIds = new mutable.HashSet[PhysicalOpIdentity]()
+  private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
+  private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
+  private val activatedLink = new mutable.HashSet[PhysicalLinkIdentity]()
 
-  private val constructingRegions = new mutable.HashSet[PipelinedRegionIdentity]()
-  private val startedRegions = new mutable.HashSet[PipelinedRegionIdentity]()
+  private val constructingRegions = new mutable.HashSet[RegionIdentity]()
+  private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
   def startWorkflow(
       workflow: Workflow,
@@ -65,7 +61,7 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.startWorkflow(workflow)
-    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
   def onWorkerCompletion(
@@ -76,32 +72,32 @@ class WorkflowScheduler(
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule =
       schedulingPolicy.onWorkerCompletion(workflow, executionState, workerId)
-    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
   def onLinkCompletion(
       workflow: Workflow,
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
-      linkId: LinkIdentity
+      linkId: PhysicalLinkIdentity
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, linkId)
-    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegionsToSchedule, akkaActorService)
   }
 
   def onTimeSlotExpired(
       workflow: Workflow,
-      timeExpiredRegions: Set[PipelinedRegion],
+      timeExpiredRegions: Set[Region],
       akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     val nextRegions = schedulingPolicy.onTimeSlotExpired(workflow)
-    var regionsToPause: Set[PipelinedRegion] = Set()
+    var regionsToPause: Set[Region] = Set()
     if (nextRegions.nonEmpty) {
       regionsToPause = timeExpiredRegions
     }
 
-    doSchedulingWork(workflow, nextRegions, akkaActorRefMappingService, akkaActorService)
+    doSchedulingWork(workflow, nextRegions, akkaActorService)
       .flatMap(_ => {
         val pauseFutures = new ArrayBuffer[Future[Unit]]()
         regionsToPause.foreach(stoppingRegion => {
@@ -124,15 +120,12 @@ class WorkflowScheduler(
 
   private def doSchedulingWork(
       workflow: Workflow,
-      regions: Set[PipelinedRegion],
-      akkaActorRefMappingService: AkkaActorRefMappingService,
+      regions: Set[Region],
       actorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     if (regions.nonEmpty) {
       Future.collect(
-        regions.toArray.map(r =>
-          scheduleRegion(workflow, r, akkaActorRefMappingService, actorService)
-        )
+        regions.toArray.map(r => scheduleRegion(workflow, r, actorService))
       )
     } else {
       Future(Seq())
@@ -141,93 +134,82 @@ class WorkflowScheduler(
 
   private def constructRegion(
       workflow: Workflow,
-      region: PipelinedRegion,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
+      region: Region,
       akkaActorService: AkkaActorService
   ): Unit = {
-    val builtOpsInRegion = new mutable.HashSet[LayerIdentity]()
-    var frontier: Iterable[LayerIdentity] = workflow.getSourcesOfRegion(region)
+    val builtOpsInRegion = new mutable.HashSet[PhysicalOpIdentity]()
+    var frontier = region.sourcePhysicalOpIds
     while (frontier.nonEmpty) {
-      frontier.foreach { (op: LayerIdentity) =>
-        val prev: Array[(LayerIdentity, OpExecConfig)] =
-          workflow.physicalPlan
-            .getUpstream(op)
-            .filter(upStreamOp =>
-              builtOperators.contains(upStreamOp) && region.getOperators.contains(upStreamOp)
-            )
-            .map(upStreamOp => (upStreamOp, workflow.getOpExecConfig(upStreamOp)))
-            .toArray // Last layer of upstream operators in the same region.
-        if (!builtOperators.contains(op)) {
+      frontier.foreach { (physicalOpId: PhysicalOpIdentity) =>
+        if (!builtPhysicalOpIds.contains(physicalOpId)) {
           buildOperator(
             workflow,
-            op,
-            executionState.getOperatorExecution(op),
-            akkaActorRefMappingService,
+            physicalOpId,
+            region.config.get.operatorConfigs(physicalOpId),
             akkaActorService
           )
-          builtOperators.add(op)
+          builtPhysicalOpIds.add(physicalOpId)
         }
-        builtOpsInRegion.add(op)
+        builtOpsInRegion.add(physicalOpId)
       }
 
-      frontier = (region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1))
-        .filter(opId => {
-          !builtOpsInRegion.contains(opId) && workflow.physicalPlan
-            .getUpstream(opId)
-            .filter(region.getOperators.contains)
-            .forall(builtOperators.contains)
+      frontier = region.getEffectiveOperators
+        .filter(physicalOpId => {
+          !builtOpsInRegion.contains(physicalOpId) && workflow.physicalPlan
+            .getUpstreamPhysicalOpIds(physicalOpId)
+            .intersect(region.physicalOpIds)
+            .forall(builtPhysicalOpIds.contains)
         })
     }
+
   }
 
   private def buildOperator(
       workflow: Workflow,
-      operatorIdentity: LayerIdentity,
-      opExecution: OperatorExecution,
-      actorRefService: AkkaActorRefMappingService,
+      physicalOpId: PhysicalOpIdentity,
+      operatorConfig: OperatorConfig,
       controllerActorService: AkkaActorService
   ): Unit = {
-    val workerLayer = workflow.getOpExecConfig(operatorIdentity)
-    workerLayer.build(
+    val physicalOp = workflow.physicalPlan.getOperator(physicalOpId)
+    val opExecution = executionState.initOperatorState(physicalOpId, operatorConfig)
+    physicalOp.build(
       controllerActorService,
-      actorRefService,
       opExecution,
-      controllerConfig
+      operatorConfig,
+      controllerConfig.workerRestoreConfMapping,
+      controllerConfig.workerLoggingConfMapping
     )
   }
-  private def initializePythonOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
-    val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
-    val uninitializedPythonOperators = executionState.getPythonOperators(
-      allOperatorsInRegion.filter(opId => !initializedPythonOperators.contains(opId))
+  private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
+    val allOperatorsInRegion = region.getEffectiveOperators
+    val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
+      allOperatorsInRegion.diff(initializedPythonOperators)
     )
     Future
       .collect(
         // initialize python operator code
         executionState
           .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
-          .map(p => {
-            val workerID = p._1
-            val pythonUDFOpExecConfig = p._2
-
-            val inputMappingList = pythonUDFOpExecConfig.inputToOrdinalMapping
-              .map(kv => LinkOrdinal(kv._1, kv._2))
-              .toList
-            val outputMappingList = pythonUDFOpExecConfig.outputToOrdinalMapping
-              .map(kv => LinkOrdinal(kv._1, kv._2))
-              .toList
-            asyncRPCClient
-              .send(
-                InitializeOperatorLogic(
-                  pythonUDFOpExecConfig.getPythonCode,
-                  pythonUDFOpExecConfig.isSourceOperator,
-                  inputMappingList,
-                  outputMappingList,
-                  pythonUDFOpExecConfig.getOutputSchema
-                ),
-                workerID
-              )
-          })
+          .map {
+            case (workerId, pythonUDFPhysicalOp) =>
+              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkIdMapping.flatMap {
+                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
+              }.toList
+              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkIdMapping.flatMap {
+                case (portIdx, linkIds) => linkIds.map(linkId => LinkOrdinal(linkId, portIdx))
+              }.toList
+              asyncRPCClient
+                .send(
+                  InitializeOperatorLogic(
+                    pythonUDFPhysicalOp.getPythonCode,
+                    pythonUDFPhysicalOp.isSourceOperator,
+                    inputMappingList,
+                    outputMappingList,
+                    pythonUDFPhysicalOp.getOutputSchema
+                  ),
+                  workerId
+                )
+          }
           .toSeq
       )
       .onSuccess(_ =>
@@ -235,18 +217,17 @@ class WorkflowScheduler(
       )
   }
 
-  private def activateAllLinks(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
-    val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+  private def activateAllLinks(workflow: Workflow, region: Region): Future[Seq[Unit]] = {
+    val allOperatorsInRegion = region.getEffectiveOperators
     Future.collect(
       // activate all links
-      workflow.partitioningPlan.strategies.values
+      workflow.physicalPlan.links
         .filter(link => {
           !activatedLink.contains(link.id) &&
-            allOperatorsInRegion.contains(link.from.id) &&
-            allOperatorsInRegion.contains(link.to.id)
+            allOperatorsInRegion.contains(link.fromOp.id) &&
+            allOperatorsInRegion.contains(link.toOp.id)
         })
-        .map { link: LinkStrategy =>
+        .map { link: PhysicalLink =>
           asyncRPCClient
             .send(LinkWorkers(link.id), CONTROLLER)
             .onSuccess(_ => activatedLink.add(link.id))
@@ -255,11 +236,10 @@ class WorkflowScheduler(
     )
   }
 
-  private def openAllOperators(region: PipelinedRegion): Future[Seq[Unit]] = {
-    val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+  private def openAllOperators(region: Region): Future[Seq[Unit]] = {
+    val allOperatorsInRegion = region.getEffectiveOperators
     val allNotOpenedOperators =
-      allOperatorsInRegion.filter(opId => !openedOperators.contains(opId))
+      allOperatorsInRegion.diff(openedOperators)
     Future
       .collect(
         executionState
@@ -272,9 +252,8 @@ class WorkflowScheduler(
       .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
   }
 
-  private def startRegion(workflow: Workflow, region: PipelinedRegion): Future[Seq[Unit]] = {
-    val allOperatorsInRegion =
-      region.getOperators ++ region.blockingDownstreamOperatorsInOtherRegions.map(_._1)
+  private def startRegion(workflow: Workflow, region: Region): Future[Seq[Unit]] = {
+    val allOperatorsInRegion = region.getEffectiveOperators
 
     allOperatorsInRegion
       .filter(opId =>
@@ -283,7 +262,7 @@ class WorkflowScheduler(
       .foreach(opId => executionState.getOperatorExecution(opId).setAllWorkerState(READY))
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
 
-    val ops = workflow.getSourcesOfRegion(region)
+    val ops = region.sourcePhysicalOpIds
     if (!schedulingPolicy.getRunningRegions.contains(region)) {
       val futures = ops.flatMap { opId =>
         val opExecution = executionState.getOperatorExecution(opId)
@@ -300,23 +279,26 @@ class WorkflowScheduler(
       Future.collect(futures)
     } else {
       throw new WorkflowRuntimeException(
-        s"Start region called on an already running region: ${region.getOperators.mkString(",")}"
+        s"Start region called on an already running region: ${region.physicalOpIds.mkString(",")}"
       )
     }
   }
 
   private def prepareAndStartRegion(
       workflow: Workflow,
-      region: PipelinedRegion,
+      region: Region,
       actorService: AkkaActorService
   ): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
-        executionState.getOperatorToWorkers
-          .map({
-            case (opId: LayerIdentity, workerIds: Seq[ActorVirtualIdentity]) =>
-              opId.operator -> workerIds.map(_.name)
+        region.getEffectiveOperators
+          .map(physicalOpId => {
+            physicalOpId.logicalOpId.id -> executionState
+              .getOperatorExecution(physicalOpId)
+              .getBuiltWorkerIds
+              .map(_.name)
+              .toList
           })
           .toMap
       )
@@ -327,14 +309,14 @@ class WorkflowScheduler(
       .flatMap(_ => openAllOperators(region))
       .flatMap(_ => startRegion(workflow, region))
       .map(_ => {
-        constructingRegions.remove(region.getId)
+        constructingRegions.remove(region.id)
         schedulingPolicy.addToRunningRegions(Set(region), actorService)
-        startedRegions.add(region.getId)
+        startedRegions.add(region.id)
       })
   }
 
   private def resumeRegion(
-      region: PipelinedRegion,
+      region: Region,
       actorService: AkkaActorService
   ): Future[Unit] = {
     if (!schedulingPolicy.getRunningRegions.contains(region)) {
@@ -353,7 +335,7 @@ class WorkflowScheduler(
         }
     } else {
       throw new WorkflowRuntimeException(
-        s"Resume region called on an already running region: ${region.getOperators.mkString(",")}"
+        s"Resume region called on an already running region: ${region.physicalOpIds.mkString(",")}"
       )
     }
 
@@ -361,16 +343,16 @@ class WorkflowScheduler(
 
   private def scheduleRegion(
       workflow: Workflow,
-      region: PipelinedRegion,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
+      region: Region,
       actorService: AkkaActorService
   ): Future[Unit] = {
-    if (constructingRegions.contains(region.getId)) {
+    if (constructingRegions.contains(region.id)) {
       return Future(())
     }
-    if (!startedRegions.contains(region.getId)) {
-      constructingRegions.add(region.getId)
-      constructRegion(workflow, region, akkaActorRefMappingService, actorService)
+    if (!startedRegions.contains(region.id)) {
+      constructingRegions.add(region.id)
+
+      constructRegion(workflow, region, actorService)
       prepareAndStartRegion(workflow, region, actorService).rescue {
         case err: Throwable =>
           // this call may come from client or worker(by execution completed)

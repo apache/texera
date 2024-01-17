@@ -6,9 +6,16 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaString,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecConfig, OpExecInitInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{
+  Attribute,
+  AttributeType,
+  OperatorSchemaInfo,
+  Schema
+}
 import edu.uci.ics.texera.workflow.operators.source.scan.text.TextSourceOpDesc
 
 @JsonIgnoreProperties(value = Array("limit", "offset", "fileEncoding"))
@@ -28,17 +35,34 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   @JsonSchemaTitle("Extract")
   var extract: Boolean = false
 
+  @JsonProperty(defaultValue = "false")
+  @JsonSchemaTitle("Include Filename")
+  @JsonSchemaInject(
+    strings = Array(
+      new JsonSchemaString(path = HideAnnotation.hideTarget, value = "extract"),
+      new JsonSchemaString(path = HideAnnotation.hideType, value = HideAnnotation.Type.equals),
+      new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
+    )
+  )
+  var outputFileName: Boolean = false
+
   fileTypeName = Option("")
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig =
-    OpExecConfig.sourceLayer(
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      operatorSchemaInfo: OperatorSchemaInfo
+  ): PhysicalOp =
+    PhysicalOp.sourcePhysicalOp(
+      workflowId,
+      executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new FileScanSourceOpExec(this))
+      OpExecInitInfo((_, _, _) => new FileScanSourceOpExec(this))
     )
 
-  override def inferSchema(): Schema =
-    Schema
-      .newBuilder()
-      .add(new Attribute(attributeName, attributeType.getType))
-      .build()
+  override def inferSchema(): Schema = {
+    val builder = Schema.newBuilder()
+    if (outputFileName) builder.add(new Attribute("filename", AttributeType.STRING))
+    builder.add(new Attribute(attributeName, attributeType.getType)).build()
+  }
 }

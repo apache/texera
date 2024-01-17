@@ -29,14 +29,19 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
     RangeBasedShufflePartitioning,
     BroadcastPartitioning,
 )
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
+from proto.edu.uci.ics.amber.engine.common import (
+    ActorVirtualIdentity,
+    PhysicalLinkIdentity,
+)
 
 
 class TupleToBatchConverter:
     def __init__(
         self,
     ):
-        self._partitioners: OrderedDict[LinkIdentity, Partitioning] = OrderedDict()
+        self._partitioners: OrderedDict[
+            PhysicalLinkIdentity, Partitioning
+        ] = OrderedDict()
         self._partitioning_to_partitioner: dict[
             type(Partitioning), type(Partitioner)
         ] = {
@@ -47,7 +52,9 @@ class TupleToBatchConverter:
             BroadcastPartitioning: BroadcastPartitioner,
         }
 
-    def add_partitioning(self, tag: LinkIdentity, partitioning: Partitioning) -> None:
+    def add_partitioning(
+        self, tag: PhysicalLinkIdentity, partitioning: Partitioning
+    ) -> None:
         """
         Add down stream operator and its transfer policy
         :param tag:

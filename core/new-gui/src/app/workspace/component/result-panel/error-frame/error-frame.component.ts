@@ -13,7 +13,7 @@ import { WorkflowActionService } from "../../../service/workflow-graph/model/wor
   templateUrl: "./error-frame.component.html",
   styleUrls: ["./error-frame.component.scss"],
 })
-export class ErrorFrameComponent implements OnInit, OnChanges {
+export class ErrorFrameComponent implements OnInit {
   @Input() operatorId?: string;
   // display error message:
   categoryToErrorMapping: ReadonlyMap<string, ReadonlyArray<WorkflowFatalError>> = new Map();
@@ -22,11 +22,6 @@ export class ErrorFrameComponent implements OnInit, OnChanges {
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowActionService: WorkflowActionService
   ) {}
-
-  ngOnChanges(changes: SimpleChanges): void {
-    this.operatorId = changes.operatorId?.currentValue;
-    this.renderError();
-  }
 
   ngOnInit(): void {
     this.renderError();

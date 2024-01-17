@@ -25,7 +25,7 @@ class EpochManager {
 
     // check if the epoch marker is completed
     val sendersWithinScope = dp.upstreamLinkStatus.allUncompletedSenders.filter(sender =>
-      marker.scope.links.contains(dp.upstreamLinkStatus.getInputLink(sender))
+      marker.scope.links.map(_.id).contains(dp.upstreamLinkStatus.getInputLinkId(sender))
     )
     val epochMarkerCompleted = epochMarkerReceived(markerId) == sendersWithinScope
     if (epochMarkerCompleted) {
@@ -44,7 +44,7 @@ class EpochManager {
       )
     }
     // if this operator is not the final destination of the marker, pass it downstream
-    if (!marker.scope.sinkOperators.contains(dp.getOperatorId)) {
+    if (!marker.scope.getSinkOperatorIds.contains(dp.getOperatorId)) {
       dp.outputManager.emitEpochMarker(marker)
     }
     // unblock input channels

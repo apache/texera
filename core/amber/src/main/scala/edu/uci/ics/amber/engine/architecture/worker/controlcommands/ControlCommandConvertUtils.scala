@@ -26,7 +26,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
@@ -47,7 +47,7 @@ object ControlCommandConvertUtils {
         SchedulerTimeSlotEventV2(timeSlotExpired)
       case OpenOperator() =>
         OpenOperatorV2()
-      case AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
+      case AddPartitioning(tag: PhysicalLinkIdentity, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
         UpdateInputLinkingV2(identifier, inputLink)
