@@ -39,9 +39,7 @@ class TupleToBatchConverter:
     def __init__(
         self,
     ):
-        self._partitioners: OrderedDict[
-            PhysicalLink, Partitioning
-        ] = OrderedDict()
+        self._partitioners: OrderedDict[PhysicalLink, Partitioning] = OrderedDict()
         self._partitioning_to_partitioner: dict[
             type(Partitioning), type(Partitioner)
         ] = {
@@ -52,9 +50,7 @@ class TupleToBatchConverter:
             BroadcastPartitioning: BroadcastPartitioner,
         }
 
-    def add_partitioning(
-        self, tag: PhysicalLink, partitioning: Partitioning
-    ) -> None:
+    def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
         Add down stream operator and its transfer policy
         :param tag:

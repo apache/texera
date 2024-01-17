@@ -26,9 +26,7 @@ class BatchToTupleConverter:
         ] = defaultdict(set)
         self._completed_links: Set[PhysicalLink] = set()
 
-    def update_all_upstream_links(
-        self, upstream_links: Set[PhysicalLink]
-    ) -> None:
+    def update_all_upstream_links(self, upstream_links: Set[PhysicalLink]) -> None:
         self._all_upstream_links = upstream_links
 
     def register_input(
