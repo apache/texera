@@ -55,13 +55,6 @@ class DefaultResourceAllocator(
 
     operatorConfigs ++= opToOperatorConfigMapping
 
-    // assign workers to physical plan
-    // TODO: move workers information into WorkerConfig completely
-    opToOperatorConfigMapping.toList.foreach {
-      case (physicalOpId, operatorConfig) =>
-        physicalPlan.getOperator(physicalOpId).assignWorkers(operatorConfig.workerConfigs.length)
-    }
-
     propagatePartitionRequirement(region)
 
     val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLinkId =>

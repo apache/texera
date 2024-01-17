@@ -5,34 +5,14 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfo,
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
-  AddressInfo,
-  LocationPreference,
-  PreferController,
-  RoundRobinPreference
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayInitialization,
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
-}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{WorkerReplayInitialization, WorkerReplayLoggingConfig, WorkerStateRestoreConfig}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
@@ -228,8 +208,6 @@ case class PhysicalOp(
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
-  private val workerIds: mutable.HashSet[ActorVirtualIdentity] = mutable.HashSet()
-
   /**
     * Helper functions related to compile-time operations
     */
@@ -249,7 +227,7 @@ case class PhysicalOp(
   def isHashJoinOperator: Boolean = {
     opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => false
-      case OpExecInitInfoWithFunc(opGen)   => opGen((0, this)).isInstanceOf[HashJoinOpExec[_]]
+      case OpExecInitInfoWithFunc(opGen)   => opGen(0, this, null).isInstanceOf[HashJoinOpExec[_]]
     }
   }
 
@@ -257,7 +235,7 @@ case class PhysicalOp(
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen((0, this))
+    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, null)
   }
 
   def getOutputSchema: Schema = {
@@ -510,16 +488,6 @@ case class PhysicalOp(
     processingOrder.toList
   }
 
-  def getWorkerIds: List[ActorVirtualIdentity] = workerIds.toList
-
-  def assignWorkers(workerCount: Int): Unit = {
-    (0 until workerCount).foreach(workerIdx => {
-      workerIds.add(
-        VirtualIdentityUtils.createWorkerIdentity(workflowId, id, workerIdx)
-      )
-    })
-  }
-
   def build(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
@@ -532,9 +500,9 @@ case class PhysicalOp(
       controllerActorService.self.path.address
     )
 
-    workerIds.foreach(workerId => {
+    operatorConfig.workerConfigs.foreach(workerConfig => {
+      val workerId = workerConfig.workerId
       val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
-      val workerConfig = operatorConfig.workerConfigs(workerIndex)
       val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
       val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
 
@@ -543,8 +511,9 @@ case class PhysicalOp(
       } else {
         WorkflowWorker.props(
           workerId,
-          physicalOp = this,
           workerConfig,
+          physicalOp = this,
+          operatorConfig,
           WorkerReplayInitialization(
             stateRestoreConfigGen(workerId),
             replayLoggingConfigGen(workerId)

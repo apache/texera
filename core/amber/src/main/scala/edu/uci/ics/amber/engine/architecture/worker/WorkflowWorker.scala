@@ -7,16 +7,10 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusU
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
-import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  ActorCommandElement,
-  DPInputQueueElement,
-  FIFOMessageElement,
-  TimerBasedControlElement,
-  WorkerReplayInitialization
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{ActorCommandElement, DPInputQueueElement, FIFOMessageElement, TimerBasedControlElement, WorkerReplayInitialization}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -29,15 +23,17 @@ import java.util.concurrent.LinkedBlockingQueue
 object WorkflowWorker {
   def props(
       id: ActorVirtualIdentity,
+      workerConfig: WorkerConfig,
       physicalOp: PhysicalOp,
-      workerConf: WorkerConfig,
+      operatorConfig:OperatorConfig,
       replayInitialization: WorkerReplayInitialization
   ): Props =
     Props(
       new WorkflowWorker(
         id,
+        workerConfig,
         physicalOp,
-        workerConf,
+        operatorConfig,
         replayInitialization
       )
     )
@@ -63,8 +59,9 @@ object WorkflowWorker {
 
 class WorkflowWorker(
     workerId: ActorVirtualIdentity,
-    physicalOp: PhysicalOp,
     workerConf: WorkerConfig,
+    physicalOp: PhysicalOp,
+    operatorConfig: OperatorConfig,
     replayInitialization: WorkerReplayInitialization
 ) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
@@ -83,6 +80,7 @@ class WorkflowWorker(
     dp.initOperator(
       VirtualIdentityUtils.getWorkerIndex(workerId),
       physicalOp,
+      operatorConfig,
       currentOutputIterator = Iterator.empty
     )
     if (replayInitialization.restoreConfOpt.isDefined) {

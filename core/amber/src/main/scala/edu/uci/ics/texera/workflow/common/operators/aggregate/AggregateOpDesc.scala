@@ -29,7 +29,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
@@ -41,7 +41,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
@@ -57,7 +57,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
           partitionColumns
         )
         .withParallelizable(false)

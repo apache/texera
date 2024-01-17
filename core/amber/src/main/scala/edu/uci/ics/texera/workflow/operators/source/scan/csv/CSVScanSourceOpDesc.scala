@@ -50,7 +50,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(_ => new CSVScanSourceOpExec(this))
+          OpExecInitInfo((_, _, _) => new CSVScanSourceOpExec(this))
         )
       case None =>
         throw new RuntimeException("File path is not provided.")

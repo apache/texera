@@ -7,32 +7,17 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
-  DPOutputIterator,
-  FinalizeLink,
-  FinalizeOperator
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{DPOutputIterator, FinalizeLink, FinalizeOperator}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  PAUSED,
-  READY,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED, READY, RUNNING}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
@@ -89,19 +74,22 @@ class DataProcessor(
 
   @transient var workerIdx: Int = 0
   @transient var physicalOp: PhysicalOp = _
+  @transient var operatorConfig: OperatorConfig = _
   @transient var operator: IOperatorExecutor = _
 
   def initOperator(
       workerIdx: Int,
       physicalOp: PhysicalOp,
+      operatorConfig:OperatorConfig,
       currentOutputIterator: Iterator[(ITuple, Option[Int])]
   ): Unit = {
     this.workerIdx = workerIdx
     this.operator = physicalOp.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
       case OpExecInitInfoWithFunc(opGen) =>
-        opGen((workerIdx, physicalOp))
+        opGen(workerIdx, physicalOp, operatorConfig)
     }
+    this.operatorConfig = operatorConfig
     this.physicalOp = physicalOp
     this.upstreamLinkStatus.setAllUpstreamLinkIds(
       if (physicalOp.isSourceOperator) {

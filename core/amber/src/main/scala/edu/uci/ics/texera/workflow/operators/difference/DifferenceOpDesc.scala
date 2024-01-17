@@ -24,7 +24,7 @@ class DifferenceOpDesc extends LogicalOp {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new DifferenceOpExec())
+      OpExecInitInfo((_, _, _) => new DifferenceOpExec())
     )
   }
 
