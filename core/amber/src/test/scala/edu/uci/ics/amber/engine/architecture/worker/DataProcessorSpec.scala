@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLinkIdentity, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
@@ -52,7 +52,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     PhysicalOp(id = upstreamOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
   private val testOp =
     PhysicalOp(id = testOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
-  private val link = PhysicalLink(upstreamOp, 0, testOp, 0)
+  private val link = PhysicalLinkIdentity(upstreamOp, 0, testOp, 0)
   private val physicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(

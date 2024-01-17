@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -17,7 +17,7 @@ import scala.collection.JavaConverters._
 
 object PhysicalPlan {
 
-  def apply(operatorList: Array[PhysicalOp], links: Array[PhysicalLink]): PhysicalPlan = {
+  def apply(operatorList: Array[PhysicalOp], links: Array[PhysicalLinkIdentity]): PhysicalPlan = {
     new PhysicalPlan(operatorList.toSet, links.toSet)
   }
 
@@ -57,7 +57,7 @@ object PhysicalPlan {
         .displayName
       val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, toPortName)
 
-      physicalPlan = physicalPlan.addLink(fromOp, fromPort, toOp, toPort)
+      physicalPlan = physicalPlan.addLink(PhysicalLinkIdentity(fromOp.id, fromPort, toOp.id, toPort))
     })
 
     physicalPlan
@@ -67,20 +67,18 @@ object PhysicalPlan {
 
 case class PhysicalPlan(
     operators: Set[PhysicalOp],
-    links: Set[PhysicalLink]
+    links: Set[PhysicalLinkIdentity]
 ) extends LazyLogging {
 
   @transient private lazy val operatorMap: Map[PhysicalOpIdentity, PhysicalOp] =
     operators.map(o => (o.id, o)).toMap
 
-  @transient private lazy val linkMap: Map[PhysicalLinkIdentity, PhysicalLink] =
-    links.map(link => link.id -> link).toMap
 
   // the dag will be re-computed again once it reaches the coordinator.
   @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge] = {
     val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge](classOf[DefaultEdge])
     operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
-    links.foreach(l => jgraphtDag.addEdge(l.fromOp.id, l.toOp.id))
+    links.foreach(l => jgraphtDag.addEdge(l.from, l.to))
     jgraphtDag
   }
 
@@ -139,8 +137,6 @@ case class PhysicalPlan(
 
   def getOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = operatorMap(physicalOpId)
 
-  def getLink(linkId: PhysicalLinkIdentity): PhysicalLink = linkMap(linkId)
-
   /**
     * returns a sub-plan that contains the specified operators and the links connected within these operators
     */
@@ -148,7 +144,7 @@ case class PhysicalPlan(
     val newOps = operators.filter(op => subOperators.contains(op.id))
     val newLinks =
       links.filter(link =>
-        subOperators.contains(link.fromOp.id) && subOperators.contains(link.toOp.id)
+        subOperators.contains(link.from) && subOperators.contains(link.to)
       )
     PhysicalPlan(newOps, newLinks)
   }
@@ -158,7 +154,7 @@ case class PhysicalPlan(
   }
 
   def getUpstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLinkIdentity] = {
-    links.filter(l => l.toOp.id == physicalOpId).map(_.id)
+    links.filter(l => l.to == physicalOpId)
   }
 
   def getDownstreamPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
@@ -166,7 +162,7 @@ case class PhysicalPlan(
   }
 
   def getDownstreamPhysicalLinkIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalLinkIdentity] = {
-    links.filter(l => l.fromOp.id == physicalOpId).map(_.id)
+    links.filter(l => l.from == physicalOpId)
   }
 
   def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
@@ -180,36 +176,22 @@ case class PhysicalPlan(
     this.copy(operators = Set(physicalOp) ++ operators)
   }
 
-  def addLink(physicalLink: PhysicalLink): PhysicalPlan = {
-    addLink(physicalLink.fromOp, physicalLink.fromPort, physicalLink.toOp, physicalLink.toPort)
-  }
-
-  def addLink(
-      fromOp: PhysicalOp,
-      fromPort: Int,
-      toOp: PhysicalOp,
-      toPort: Int
-  ): PhysicalPlan = {
+  def addLink(link: PhysicalLinkIdentity): PhysicalPlan = {
     val newOperators = operatorMap +
-      (fromOp.id -> getOperator(fromOp.id).addOutput(toOp, fromPort, toPort)) +
-      (toOp.id -> getOperator(toOp.id).addInput(fromOp, fromPort, toPort))
-
-    this.copy(newOperators.values.toSet, links ++ Set(PhysicalLink(fromOp, fromPort, toOp, toPort)))
+      (link.from -> getOperator(link.from).addOutput(link.to, link.fromPort, link.toPort)) +
+      (link.to -> getOperator(link.to).addInput(link.from, link.fromPort, link.toPort))
+    this.copy(newOperators.values.toSet, links ++ Set(link))
   }
 
   def removeLink(
-      link: PhysicalLink
+      link: PhysicalLinkIdentity
   ): PhysicalPlan = {
-    val fromOpId = link.fromOp.id
-    val toOpId = link.toOp.id
-    val fromOp = getOperator(fromOpId)
-    val toOp = getOperator(toOpId)
-    val updatedFromOp = fromOp.removeOutput(link)
-    val updatedToOp = toOp.removeInput(link)
+    val fromOpId = link.from
+    val toOpId = link.to
     val newOperators = operatorMap +
-      (fromOpId -> updatedFromOp) +
-      (toOpId -> updatedToOp)
-    this.copy(operators = newOperators.values.toSet, links.filter(l => l.id != link.id))
+      (fromOpId -> getOperator(fromOpId).removeOutput(link)) +
+      (toOpId -> getOperator(toOpId).removeInput(link))
+    this.copy(operators = newOperators.values.toSet, links.filter(l => l != link))
   }
 
   def setOperator(physicalOp: PhysicalOp): PhysicalPlan = {
@@ -227,7 +209,7 @@ case class PhysicalPlan(
     // add all physical operators to physical DAG
     subPlan.operators.foreach(op => resultPlan = resultPlan.addOperator(op))
     // connect intra-operator links
-    subPlan.links.foreach((physicalLink: PhysicalLink) =>
+    subPlan.links.foreach((physicalLink: PhysicalLinkIdentity) =>
       resultPlan = resultPlan.addLink(physicalLink)
     )
     resultPlan
@@ -240,7 +222,7 @@ case class PhysicalPlan(
       from: PhysicalOpIdentity,
       to: PhysicalOpIdentity
   ): Set[PhysicalLinkIdentity] = {
-    links.filter(link => link.fromOp.id == from && link.toOp.id == to).map(_.id)
+    links.filter(link => link.from == from && link.to == to)
 
   }
 
@@ -281,20 +263,18 @@ case class PhysicalPlan(
     val linksToRemove = operators
       .flatMap { physicalOp =>
         {
-
           getUpstreamPhysicalOpIds(physicalOp.id)
             .flatMap { upstreamPhysicalOpId =>
               links
                 .filter(link =>
-                  link.fromOp.id == upstreamPhysicalOpId && link.toOp.id == physicalOp.id
+                  link.from == upstreamPhysicalOpId && link.to == physicalOp.id
                 )
-                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link.id))
-                .map(_.id)
+                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
             }
         }
       }
 
-    this.copy(operators, links.filterNot(e => linksToRemove.contains(e.id)))
+    this.copy(operators, links.diff(linksToRemove))
   }
 
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {

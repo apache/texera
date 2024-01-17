@@ -17,13 +17,13 @@ class ExecutionState(workflow: Workflow) {
 
   private val linkExecutions: Map[PhysicalLinkIdentity, LinkExecution] =
     workflow.physicalPlan.links.map { link =>
-      link.id -> new LinkExecution(
+      link -> new LinkExecution(
         workflow.regionPlan.regions
-          .find(region => region.getEffectiveLinks.contains(link.id))
+          .find(region => region.getEffectiveLinks.contains(link))
           .get
           .config
           .get
-          .linkConfigs(link.id)
+          .linkConfigs(link)
           .channelConfigs
           .map(_.toWorkerId)
           .toSet

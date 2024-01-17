@@ -346,18 +346,18 @@ case class PhysicalOp(
   /**
     * creates a copy with an additional input operator specified on an input port
     */
-  def addInput(fromOp: PhysicalOp, fromPort: Int, toPort: Int): PhysicalOp = {
-    val link = PhysicalLink(fromOp, fromPort, this, toPort)
+  def addInput(fromOpId: PhysicalOpIdentity, fromPort: Int, toPort: Int): PhysicalOp = {
+    val link = PhysicalLinkIdentity(fromOpId, fromPort, this.id, toPort)
     addInput(link)
   }
 
   /**
     * creates a copy with an additional input operator specified on an input port
     */
-  def addInput(link: PhysicalLink): PhysicalOp = {
-    assert(link.toOp.id == id)
+  def addInput(link: PhysicalLinkIdentity): PhysicalOp = {
+    assert(link.to == id)
     val existingLinks = inputPortToLinkIdMapping.getOrElse(link.toPort, List())
-    val newLinks = existingLinks :+ link.id
+    val newLinks = existingLinks :+ link
     this.copy(
       inputPortToLinkIdMapping = inputPortToLinkIdMapping + (link.toPort -> newLinks)
     )
@@ -366,18 +366,18 @@ case class PhysicalOp(
   /**
     * creates a copy with an additional output operator specified on an output port
     */
-  def addOutput(toOp: PhysicalOp, fromPort: Int, toPort: Int): PhysicalOp = {
-    val link = PhysicalLink(this, fromPort, toOp, toPort)
+  def addOutput(toOpId: PhysicalOpIdentity, fromPort: Int, toPort: Int): PhysicalOp = {
+    val link = PhysicalLinkIdentity(this.id, fromPort, toOpId, toPort)
     addOutput(link)
   }
 
   /**
     * creates a copy with an additional output operator specified on an output port
     */
-  def addOutput(link: PhysicalLink): PhysicalOp = {
-    assert(link.fromOp.id == id)
+  def addOutput(link: PhysicalLinkIdentity): PhysicalOp = {
+    assert(link.from == id)
     val existingLinks = outputPortToLinkIdMapping.getOrElse(link.fromPort, List())
-    val newLinks = existingLinks :+ link.id
+    val newLinks = existingLinks :+ link
     this.copy(
       outputPortToLinkIdMapping = outputPortToLinkIdMapping + (link.fromPort -> newLinks)
     )
@@ -386,16 +386,16 @@ case class PhysicalOp(
   /**
     * creates a copy with a removed input operator, we use the identity to do equality check.
     */
-  def removeInput(linkToRemove: PhysicalLink): PhysicalOp = {
+  def removeInput(linkToRemove: PhysicalLinkIdentity): PhysicalOp = {
     val (portIdx, existingLinks) = inputPortToLinkIdMapping
       .find({
-        case (_, links) => links.contains(linkToRemove.id)
+        case (_, links) => links.contains(linkToRemove)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
       inputPortToLinkIdMapping =
         inputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
-          linkId != linkToRemove.id
+          linkId != linkToRemove
         ))
     )
   }
@@ -403,16 +403,16 @@ case class PhysicalOp(
   /**
     * creates a copy with a removed output operator, we use the identity to do equality check.
     */
-  def removeOutput(linkToRemove: PhysicalLink): PhysicalOp = {
+  def removeOutput(linkToRemove: PhysicalLinkIdentity): PhysicalOp = {
     val (portIdx, existingLinks) = outputPortToLinkIdMapping
       .find({
-        case (_, links) => links.contains(linkToRemove.id)
+        case (_, links) => links.contains(linkToRemove)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
       outputPortToLinkIdMapping =
         outputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
-          linkId != linkToRemove.id
+          linkId != linkToRemove
         ))
     )
   }

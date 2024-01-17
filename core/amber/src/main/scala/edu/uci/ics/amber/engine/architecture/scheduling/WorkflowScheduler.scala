@@ -10,7 +10,6 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
@@ -223,14 +222,14 @@ class WorkflowScheduler(
       // activate all links
       workflow.physicalPlan.links
         .filter(link => {
-          !activatedLink.contains(link.id) &&
-            allOperatorsInRegion.contains(link.fromOp.id) &&
-            allOperatorsInRegion.contains(link.toOp.id)
+          !activatedLink.contains(link) &&
+            allOperatorsInRegion.contains(link.from) &&
+            allOperatorsInRegion.contains(link.to)
         })
-        .map { link: PhysicalLink =>
+        .map { link: PhysicalLinkIdentity =>
           asyncRPCClient
-            .send(LinkWorkers(link.id), CONTROLLER)
-            .onSuccess(_ => activatedLink.add(link.id))
+            .send(LinkWorkers(link), CONTROLLER)
+            .onSuccess(_ => activatedLink.add(link))
         }
         .toSeq
     )

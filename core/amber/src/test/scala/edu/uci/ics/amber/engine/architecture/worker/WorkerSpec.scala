@@ -5,7 +5,7 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLinkIdentity, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
@@ -80,7 +80,7 @@ class WorkerSpec
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
-  private val mockLink = PhysicalLink(physicalOp1, 0, physicalOp2, 0)
+  private val mockLink = PhysicalLinkIdentity(physicalOp1, 0, physicalOp2, 0)
   private val physicalOp = PhysicalOp
     .oneToOnePhysicalOp(
       DEFAULT_WORKFLOW_ID,

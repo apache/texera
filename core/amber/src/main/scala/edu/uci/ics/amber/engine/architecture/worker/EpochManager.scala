@@ -25,7 +25,7 @@ class EpochManager {
 
     // check if the epoch marker is completed
     val sendersWithinScope = dp.upstreamLinkStatus.allUncompletedSenders.filter(sender =>
-      marker.scope.links.map(_.id).contains(dp.upstreamLinkStatus.getInputLinkId(sender))
+      marker.scope.links.contains(dp.upstreamLinkStatus.getInputLinkId(sender))
     )
     val epochMarkerCompleted = epochMarkerReceived(markerId) == sendersWithinScope
     if (epochMarkerCompleted) {

@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
   DefaultResourceAllocator,
@@ -341,14 +341,14 @@ class ExpansionGreedyRegionPlanGenerator(
     val matReaderPhysicalOp: PhysicalOp = createMatReader(matWriterLogicalOp, context)
 
     // create 2 links for materialization
-    val readerToDestLink = PhysicalLink(matReaderPhysicalOp, 0, toOp, toInputPort)
-    val sourceToWriterLink = PhysicalLink(fromOp, fromOutputPort, matWriterPhysicalOp, 0)
+    val readerToDestLink = PhysicalLinkIdentity(matReaderPhysicalOp.id, 0, toOp.id, toInputPort)
+    val sourceToWriterLink = PhysicalLinkIdentity(fromOp.id, fromOutputPort, matWriterPhysicalOp.id, 0)
 
     // add the pair to the map for later adding edges between 2 regions.
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
 
     physicalPlan
-      .removeLink(physicalPlan.getLink(physicalLinkId))
+      .removeLink(physicalLinkId)
       .addOperator(matWriterPhysicalOp)
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)

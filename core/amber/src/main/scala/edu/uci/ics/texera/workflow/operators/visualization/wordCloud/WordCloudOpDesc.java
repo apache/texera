@@ -4,12 +4,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalLink;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
@@ -25,7 +25,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
-import scala.Tuple2;
 import scala.Tuple3;
 
 import java.util.function.Function;
@@ -75,8 +74,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
             topN = 100;
         }
 
-        PhysicalOpIdentity partialId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
-        PhysicalOp partialLayer = PhysicalOp.oneToOnePhysicalOp(
+        PhysicalOpIdentity partialOpId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
+        PhysicalOp partialPhysicalOp = PhysicalOp.oneToOnePhysicalOp(
                 workflowId,
                 executionId,
                 this.operatorIdentifier(),
@@ -85,14 +84,14 @@ public class WordCloudOpDesc extends VisualizationOperator {
                                 worker -> new WordCloudOpPartialExec(textColumn)
                 )
         )
-                .withId(partialId)
+                .withId(partialOpId)
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
                 .withOutputPorts(asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
 
 
-        PhysicalOpIdentity finalId = new PhysicalOpIdentity(operatorIdentifier(), "global");
-        PhysicalOp finalLayer = PhysicalOp.manyToOnePhysicalOp(
+        PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
+        PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
                 workflowId,
                 executionId,
                 this.operatorIdentifier(),
@@ -101,11 +100,11 @@ public class WordCloudOpDesc extends VisualizationOperator {
                                 worker -> new WordCloudOpFinalExec(topN)
                 )
         )
-        .withId(finalId).withIsOneToManyOp(true)
+        .withId(globalOpId).withIsOneToManyOp(true)
         .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
 
-        PhysicalOp[] layers = {partialLayer, finalLayer};
-        PhysicalLink[] links = {PhysicalLink.apply(partialLayer, 0, finalLayer, 0)};
+        PhysicalOp[] layers = {partialPhysicalOp, globalPhysicalOp};
+        PhysicalLinkIdentity[] links = { new PhysicalLinkIdentity(partialPhysicalOp.id(), 0, globalPhysicalOp.id(), 0)};
 
         return PhysicalPlan.apply(layers, links);
     }
