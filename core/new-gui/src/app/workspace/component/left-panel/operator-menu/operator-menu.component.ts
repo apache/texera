@@ -23,7 +23,7 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
  */
 @UntilDestroy()
 @Component({
-  selector: "texera-operator-panel",
+  selector: "texera-operator-menu",
   templateUrl: "operator-menu.component.html",
   styleUrls: ["operator-menu.component.scss"],
   providers: [
