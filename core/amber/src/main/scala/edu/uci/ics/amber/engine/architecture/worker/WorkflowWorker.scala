@@ -10,7 +10,13 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{ActorCommandElement, DPInputQueueElement, FIFOMessageElement, TimerBasedControlElement, WorkerReplayInitialization}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  ActorCommandElement,
+  DPInputQueueElement,
+  FIFOMessageElement,
+  TimerBasedControlElement,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -22,15 +28,13 @@ import java.util.concurrent.LinkedBlockingQueue
 
 object WorkflowWorker {
   def props(
-      id: ActorVirtualIdentity,
       workerConfig: WorkerConfig,
       physicalOp: PhysicalOp,
-      operatorConfig:OperatorConfig,
+      operatorConfig: OperatorConfig,
       replayInitialization: WorkerReplayInitialization
   ): Props =
     Props(
       new WorkflowWorker(
-        id,
         workerConfig,
         physicalOp,
         operatorConfig,
@@ -58,27 +62,26 @@ object WorkflowWorker {
 }
 
 class WorkflowWorker(
-    workerId: ActorVirtualIdentity,
-    workerConf: WorkerConfig,
+    workerConfig: WorkerConfig,
     physicalOp: PhysicalOp,
     operatorConfig: OperatorConfig,
     replayInitialization: WorkerReplayInitialization
-) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerId) {
+) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(
-    workerId,
+    workerConfig.workerId,
     logManager.sendCommitted
   )
   val timerService = new WorkerTimerService(actorService)
 
   val dpThread =
-    new DPThread(workerId, dp, logManager, inputQueue)
+    new DPThread(workerConfig.workerId, dp, logManager, inputQueue)
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)
     dp.initOperator(
-      VirtualIdentityUtils.getWorkerIndex(workerId),
+      VirtualIdentityUtils.getWorkerIndex(workerConfig.workerId),
       physicalOp,
       operatorConfig,
       currentOutputIterator = Iterator.empty
@@ -107,7 +110,7 @@ class WorkflowWorker(
     logger.error(s"Encountered fatal error, worker is shutting done.", reason)
     postStop()
     dp.asyncRPCClient.send(
-      FatalError(reason, Some(workerId)),
+      FatalError(reason, Some(workerConfig.workerId)),
       CONTROLLER
     )
   }

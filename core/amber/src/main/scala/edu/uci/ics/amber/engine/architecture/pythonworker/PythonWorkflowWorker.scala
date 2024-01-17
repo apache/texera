@@ -23,21 +23,18 @@ import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
   def props(
-      workerId: ActorVirtualIdentity,
       workerConfig: WorkerConfig
   ): Props =
     Props(
       new PythonWorkflowWorker(
-        workerId,
         workerConfig
       )
     )
 }
 
 class PythonWorkflowWorker(
-    workerId: ActorVirtualIdentity,
     workerConfig: WorkerConfig
-) extends WorkflowActor(replayLogConfOpt = None, actorId = workerId) {
+) extends WorkflowActor(replayLogConfOpt = None, actorId = workerConfig.workerId) {
 
   // For receiving the Python server port number that will be available later
   private lazy val portNumberPromise = Promise[Int]()
@@ -46,7 +43,7 @@ class PythonWorkflowWorker(
   private lazy val clientThreadExecutor: ExecutorService = Executors.newSingleThreadExecutor
   private var pythonProxyServer: PythonProxyServer = _
   private lazy val pythonProxyClient: PythonProxyClient =
-    new PythonProxyClient(portNumberPromise, workerId)
+    new PythonProxyClient(portNumberPromise, workerConfig.workerId)
 
   val pythonSrcDirectory: Path = Utils.amberHomePath
     .resolve("src")
@@ -57,9 +54,9 @@ class PythonWorkflowWorker(
   // Python process
   private var pythonServerProcess: Process = _
 
-  private val networkInputGateway = new NetworkInputGateway(workerId)
+  private val networkInputGateway = new NetworkInputGateway(workerConfig.workerId)
   private val networkOutputGateway = new NetworkOutputGateway(
-    workerId,
+    workerConfig.workerId,
     logManager.sendCommitted
   )
 
@@ -124,7 +121,8 @@ class PythonWorkflowWorker(
     // Try to start the server until it succeeds
     var serverStart = false
     while (!serverStart) {
-      pythonProxyServer = new PythonProxyServer(networkOutputGateway, workerId, portNumberPromise)
+      pythonProxyServer =
+        new PythonProxyServer(networkOutputGateway, workerConfig.workerId, portNumberPromise)
       val future = serverThreadExecutor.submit(pythonProxyServer)
       try {
         future.get()
@@ -150,7 +148,7 @@ class PythonWorkflowWorker(
         else pythonENVPath, // add fall back in case of empty
         "-u",
         udfEntryScriptPath,
-        workerId.name,
+        workerConfig.workerId.name,
         Integer.toString(pythonProxyServer.getPortNumber.get()),
         config.getString("python.log.streamHandler.level")
       )

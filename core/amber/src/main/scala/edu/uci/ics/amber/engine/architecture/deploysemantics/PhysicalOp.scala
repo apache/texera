@@ -5,12 +5,25 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfo,
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
+  AddressInfo,
+  LocationPreference,
+  PreferController,
+  RoundRobinPreference
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{WorkerReplayInitialization, WorkerReplayLoggingConfig, WorkerStateRestoreConfig}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  WorkerReplayInitialization,
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
@@ -507,10 +520,9 @@ case class PhysicalOp(
       val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
 
       val workflowWorker = if (this.isPythonOperator) {
-        PythonWorkflowWorker.props(workerId, workerConfig)
+        PythonWorkflowWorker.props(workerConfig)
       } else {
         WorkflowWorker.props(
-          workerId,
           workerConfig,
           physicalOp = this,
           operatorConfig,

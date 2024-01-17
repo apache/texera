@@ -7,13 +7,16 @@ import edu.uci.ics.amber.engine.common.IOperatorExecutor
 object OpExecInitInfo {
 
   type OpExecFunc = (Int, PhysicalOp, OperatorConfig) => IOperatorExecutor
-  type JavaOpExecFunc = java.util.function.Function[(Int, PhysicalOp, OperatorConfig), IOperatorExecutor]
-    with java.io.Serializable
+  type JavaOpExecFunc =
+    java.util.function.Function[(Int, PhysicalOp, OperatorConfig), IOperatorExecutor]
+      with java.io.Serializable
 
   def apply(code: String): OpExecInitInfo = OpExecInitInfoWithCode((_, _, _) => code)
   def apply(opExecFunc: OpExecFunc): OpExecInitInfo = OpExecInitInfoWithFunc(opExecFunc)
   def apply(opExecFunc: JavaOpExecFunc): OpExecInitInfo =
-    OpExecInitInfoWithFunc((idx, physicalOp, operatorConfig) => opExecFunc.apply(idx, physicalOp, operatorConfig))
+    OpExecInitInfoWithFunc((idx, physicalOp, operatorConfig) =>
+      opExecFunc.apply(idx, physicalOp, operatorConfig)
+    )
 }
 
 /**
@@ -29,7 +32,8 @@ sealed trait OpExecInitInfo
 
 // only for Python right now
 // TODO: add language type into this class
-final case class OpExecInitInfoWithCode(codeGen: (Int, PhysicalOp,OperatorConfig) => String)
+final case class OpExecInitInfoWithCode(codeGen: (Int, PhysicalOp, OperatorConfig) => String)
     extends OpExecInitInfo
-final case class OpExecInitInfoWithFunc(opGen: (Int, PhysicalOp, OperatorConfig) => IOperatorExecutor)
-    extends OpExecInitInfo
+final case class OpExecInitInfoWithFunc(
+    opGen: (Int, PhysicalOp, OperatorConfig) => IOperatorExecutor
+) extends OpExecInitInfo

@@ -20,7 +20,10 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
   ): Unit = {
     val physicalOps = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
     physicalOps.foreach { physicalOp =>
-      executionState.initOperatorState(physicalOp.id, OperatorConfig(List(WorkerConfig(workerId = null))))
+      executionState.initOperatorState(
+        physicalOp.id,
+        OperatorConfig(List(WorkerConfig(workerId = null)))
+      )
       executionState.getOperatorExecution(physicalOp.id).setAllWorkerState(COMPLETED)
     }
   }
