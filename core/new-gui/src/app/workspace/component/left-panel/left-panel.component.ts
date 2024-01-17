@@ -13,7 +13,7 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 })
 export class LeftPanelComponent {
   currentComponent: ComponentType<OperatorMenuComponent | VersionsListComponent>;
-  title = "Operators"
+  title = "Operators";
   screenWidth = window.innerWidth;
   width = 240;
   id = -1;
@@ -32,11 +32,11 @@ export class LeftPanelComponent {
 
   openVersionsFrame(): void {
     this.currentComponent = VersionsListComponent;
-    this.title = "Versions"
+    this.title = "Versions";
   }
 
   openOperatorMenu(): void {
     this.currentComponent = OperatorMenuComponent;
-    this.title = "Operators"
+    this.title = "Operators";
   }
 }
