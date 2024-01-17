@@ -17,6 +17,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
+import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.annotation.tailrec
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -66,8 +67,7 @@ class ExpansionGreedyRegionPlanGenerator(
     )
     with LazyLogging {
 
-  private def executionClusterInfo = new ExecutionClusterInfo()
-  private def resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
+  private val executionClusterInfo = new ExecutionClusterInfo()
 
   /**
     * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
@@ -225,7 +225,7 @@ class ExpansionGreedyRegionPlanGenerator(
           )
       }
     } catch {
-      case _: java.lang.IllegalArgumentException =>
+      case _: IllegalArgumentException =>
         // a cycle is detected. it should not reach here.
         throw new WorkflowRuntimeException(
           "Cyclic dependency between regions detected"
@@ -238,15 +238,20 @@ class ExpansionGreedyRegionPlanGenerator(
     // mark links that go to downstream regions
     populateDownstreamLinks(regionDAG)
 
-    // generate the region configs
+    // allocate resources on regions
+    allocateResource(regionDAG)
+
     regionDAG
-      .vertexSet()
-      .toList
+  }
+
+  private def allocateResource(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+    val resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
+    // generate the region configs
+    new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
         val (newRegion, estimationCost) = resourceAllocator.allocate(region)
         replaceVertex(regionDAG, region, newRegion)
       })
-    regionDAG
   }
 
   private def populateSourceOperators(

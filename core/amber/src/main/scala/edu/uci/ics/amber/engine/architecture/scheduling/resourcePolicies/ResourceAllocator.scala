@@ -61,7 +61,7 @@ class DefaultResourceAllocator(
         physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
     }
 
-    propagatePartitionRequirementInRegion(region)
+    propagatePartitionRequirement(region)
 
     val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLinkId =>
       physicalLinkId -> LinkConfig(
@@ -87,35 +87,33 @@ class DefaultResourceAllocator(
   /**
     * This method propagates partitioning requirements in the PhysicalPlan DAG.
     *
-    * To be relaxed:
-    *   This method is supposed to be invoked once for each region, and only propagate partitioning requirements within
-    *   the region, however, we can only do full physical plan propagation due to link dependency from other regions.
-    *
-    *   For example, suppose we have the following physical Plan:
+    * This method is invoked once for each region, and only propagate partitioning requirements within
+    * the region. For example, suppose we have the following physical Plan:
     *
     *     A ->
     *           HJ
     *     B ->
-    *
-    *   When propagate the first region A -> HJ, it requires the partitioning requirement of all HJ's input links,
-    *   which contains the link B-HJ from the second region.
+    * The link A->HJ will be propagated in the first region. The link B->HJ will be propagate in the second region.
+    * The output partition info of HJ will be derived after both links are propagated, which is in the second region.
     *
     * This method also applies the following optimization:
     *  - if the upstream of the link has the same partitioning requirement as that of the downstream, and their
     *  number of workers are equal, then the partitioning on this link can be optimized to OneToOne.
     */
-  private def propagatePartitionRequirementInRegion(region: Region): Unit = {
+  private def propagatePartitionRequirement(region: Region): Unit = {
     physicalPlan
       .topologicalIterator()
+      .filter(physicalOpId => region.getEffectiveOperators.contains(physicalOpId))
       .foreach(physicalOpId => {
         val physicalOp = physicalPlan.getOperator(physicalOpId)
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
-          physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition())
+          Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
           val inputPartitionInfos = physicalOp.inputPorts.indices.toList
             .flatMap((portIdx: Int) =>
               physicalOp
                 .getLinksOnInputPort(portIdx)
+                .filter(linkId => region.getEffectiveLinks.contains(linkId))
                 .map(linkId => {
                   val upstreamInputPartitionInfo = outputPartitionInfos(linkId.from)
                   val upstreamOutputPartitionInfo = physicalPlan.getOutputPartitionInfo(
@@ -135,13 +133,17 @@ class DefaultResourceAllocator(
             // if there are multiple partition infos on an input port, reduce them to once
             .map(_.map(_._2).reduce((p1, p2) => p1.merge(p2)))
 
-          assert(inputPartitionInfos.length == physicalOp.inputPorts.size)
+          if (inputPartitionInfos.length == physicalOp.inputPorts.size) {
+            // derive the output partition info with all the input partition infos
+            Some(physicalOp.derivePartition(inputPartitionInfos))
+          } else {
+            None
+          }
 
-          // derive the output partition info with all the input partition infos
-          physicalOp.derivePartition(inputPartitionInfos)
         }
-        outputPartitionInfos.put(physicalOpId, outputPartitionInfo)
+        if (outputPartitionInfo.isDefined) {
+          outputPartitionInfos.put(physicalOpId, outputPartitionInfo.get)
+        }
       })
   }
-
 }
