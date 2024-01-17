@@ -29,7 +29,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo(_ => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
@@ -41,23 +41,23 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
         .withOutputPorts(List(OutputPort("out")))
     } else {
-      val partitionColumns: Array[Int] =
-        if (groupByKeys == null) Array()
-        else groupByKeys.indices.toArray // group by columns are always placed in the beginning
+      val partitionColumns: List[Int] =
+        if (groupByKeys == null) List()
+        else groupByKeys.indices.toList // group by columns are always placed in the beginning
 
       PhysicalOp
         .hashPhysicalOp(
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo(_ => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
           partitionColumns
         )
         .withParallelizable(false)

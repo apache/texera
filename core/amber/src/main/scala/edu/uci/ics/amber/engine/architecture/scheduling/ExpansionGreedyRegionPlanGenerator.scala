@@ -3,9 +3,12 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -14,12 +17,10 @@ import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
+import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.{
-  `collection AsScalaIterable`,
-  `iterable AsScalaIterable`
-}
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaIteratorConverter
 
@@ -65,6 +66,8 @@ class ExpansionGreedyRegionPlanGenerator(
       opResultStorage
     )
     with LazyLogging {
+
+  private val executionClusterInfo = new ExecutionClusterInfo()
 
   /**
     * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
@@ -122,7 +125,7 @@ class ExpansionGreedyRegionPlanGenerator(
     *  @return Either a partially connected region DAG, or a set of PhysicalLinks for materialization replacement.
     */
   private def tryConnectRegionDAG()
-      : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLink]] = {
+      : Either[DirectedAcyclicGraph[Region, RegionLink], Set[PhysicalLinkIdentity]] = {
 
     // creates an empty regionDAG
     val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
@@ -135,7 +138,7 @@ class ExpansionGreedyRegionPlanGenerator(
       .topologicalIterator()
       .foreach(physicalOpId => {
         (handleAllBlockingInput(physicalOpId) ++ handleDependentLinks(physicalOpId, regionDAG))
-          .map(links => return Right(links))
+          .map(linkIds => return Right(linkIds))
       })
 
     // if success, a partially connected region DAG without edges between materialization operators is returned.
@@ -145,7 +148,7 @@ class ExpansionGreedyRegionPlanGenerator(
 
   private def handleAllBlockingInput(
       physicalOpId: PhysicalOpIdentity
-  ): Option[Set[PhysicalLink]] = {
+  ): Option[Set[PhysicalLinkIdentity]] = {
     if (physicalPlan.areAllInputBlocking(physicalOpId)) {
       // for operators that have only blocking input links return all links for materialization replacement
       return Some(
@@ -162,23 +165,23 @@ class ExpansionGreedyRegionPlanGenerator(
   private def handleDependentLinks(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Option[Set[PhysicalLink]] = {
+  ): Option[Set[PhysicalLinkIdentity]] = {
     // for operators like HashJoin that have an order among their blocking and pipelined inputs
     physicalPlan
       .getOperator(physicalOpId)
       .getInputLinksInProcessingOrder
       .sliding(2, 1)
       .foreach {
-        case List(prevLink, nextLink) =>
+        case List(prevLinkId, nextLinkId) =>
           // Create edges between regions
-          val regionLinks = createLinks(prevLink.fromOp.id, nextLink.fromOp.id, regionDAG)
+          val regionLinks = createLinks(prevLinkId.from, nextLinkId.from, regionDAG)
           // Attempt to add edges to regionDAG
           try {
             regionLinks.foreach(link => regionDAG.addEdge(link.fromRegion, link.toRegion, link))
           } catch {
             case _: IllegalArgumentException =>
               // adding the edge causes cycle. return the link for materialization replacement
-              return Some(Set(nextLink))
+              return Some(Set(nextLinkId))
           }
       }
     None
@@ -202,9 +205,9 @@ class ExpansionGreedyRegionPlanGenerator(
     def recConnectRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
       tryConnectRegionDAG() match {
         case Left(dag) => dag
-        case Right(links) =>
-          links.foreach { link =>
-            physicalPlan = replaceLinkWithMaterialization(link, context, matReaderWriterPairs)
+        case Right(linkIds) =>
+          linkIds.foreach { linkId =>
+            physicalPlan = replaceLinkWithMaterialization(linkId, context, matReaderWriterPairs)
           }
           recConnectRegionDAG()
       }
@@ -222,7 +225,7 @@ class ExpansionGreedyRegionPlanGenerator(
           )
       }
     } catch {
-      case _: java.lang.IllegalArgumentException =>
+      case _: IllegalArgumentException =>
         // a cycle is detected. it should not reach here.
         throw new WorkflowRuntimeException(
           "Cyclic dependency between regions detected"
@@ -235,8 +238,20 @@ class ExpansionGreedyRegionPlanGenerator(
     // mark links that go to downstream regions
     populateDownstreamLinks(regionDAG)
 
+    // allocate resources on regions
+    allocateResource(regionDAG)
+
+    regionDAG
+  }
+
+  private def allocateResource(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
+    val resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
     // generate the region configs
-    populateRegionConfigs(regionDAG)
+    new TopologicalOrderIterator(regionDAG).asScala
+      .foreach(region => {
+        val (newRegion, estimationCost) = resourceAllocator.allocate(region)
+        replaceVertex(regionDAG, region, newRegion)
+      })
   }
 
   private def populateSourceOperators(
@@ -277,7 +292,6 @@ class ExpansionGreedyRegionPlanGenerator(
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
             .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
-            .map(_.id)
         }
       }
       .toSet
@@ -287,58 +301,15 @@ class ExpansionGreedyRegionPlanGenerator(
       .groupBy(_._1)
       .mapValues(_.map(_._2))
       .foreach {
-        case (region, links) =>
-          val newRegion = region.copy(downstreamLinkIds = links.toSet)
+        case (region, linkIds) =>
+          val newRegion = region.copy(downstreamLinkIds = linkIds)
           replaceVertex(regionDAG, region, newRegion)
       }
     regionDAG
   }
-
-  private def populateRegionConfigs(
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): DirectedAcyclicGraph[Region, RegionLink] = {
-    regionDAG
-      .vertexSet()
-      .toList
-      .foreach(region => {
-        val config = RegionConfig(
-          region.getEffectiveOperators
-            .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
-            .map { physicalOp =>
-              {
-                val workerCount =
-                  if (physicalOp.suggestedWorkerNum.isDefined) {
-                    physicalOp.suggestedWorkerNum.get
-                  } else if (physicalOp.parallelizable) {
-                    AmberConfig.numWorkerPerOperatorByDefault
-                  } else {
-                    1
-                  }
-
-                physicalOp.id -> (0 until workerCount)
-                  .map(_ => WorkerConfig())
-                  .toList
-              }
-            }
-            .toMap
-        )
-        val newRegion = region.copy(config = Some(config))
-        replaceVertex(regionDAG, region, newRegion)
-      })
-    regionDAG
-  }
-
   def generate(context: WorkflowContext): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG(context)
-
-    regionDAG.toList.foreach(region =>
-      region.config.get.workerConfigs.foreach {
-        case (physicalOpId, workerConfigs) =>
-          physicalPlan.getOperator(physicalOpId).assignWorkers(workerConfigs.length)
-      }
-    )
-    physicalPlan = physicalPlan.populatePartitioningOnLinks()
 
     (
       RegionPlan(
@@ -350,19 +321,19 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   private def replaceLinkWithMaterialization(
-      physicalLink: PhysicalLink,
+      physicalLinkId: PhysicalLinkIdentity,
       context: WorkflowContext,
       writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
   ): PhysicalPlan = {
     // get the actual Op from the physical plan. the operators on the link and that on the physical plan
     // are different due to partial rewrite
-    val fromOp = physicalPlan.getOperator(physicalLink.id.from)
-    val fromOutputPort = fromOp.getPortIdxForOutputLinkId(physicalLink.id)
+    val fromOp = physicalPlan.getOperator(physicalLinkId.from)
+    val fromOutputPort = fromOp.getPortIdxForOutputLinkId(physicalLinkId)
 
     // get the actual Op from the physical plan. the operators on the link and that on the physical plan
     // are different due to partial rewrite
-    val toOp = physicalPlan.getOperator(physicalLink.id.to)
-    val toInputPort = toOp.getPortIdxForInputLinkId(physicalLink.id)
+    val toOp = physicalPlan.getOperator(physicalLinkId.to)
+    val toInputPort = toOp.getPortIdxForInputLinkId(physicalLinkId)
 
     val (matWriterLogicalOp: ProgressiveSinkOpDesc, matWriterPhysicalOp: PhysicalOp) =
       createMatWriter(fromOp, fromOutputPort, context)
@@ -377,7 +348,7 @@ class ExpansionGreedyRegionPlanGenerator(
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
 
     physicalPlan
-      .removeLink(physicalLink)
+      .removeLink(physicalPlan.getLink(physicalLinkId))
       .addOperator(matWriterPhysicalOp)
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)
@@ -394,7 +365,7 @@ class ExpansionGreedyRegionPlanGenerator(
       opResultStorage: OpResultStorage
     )
     materializationReader.setContext(context)
-    materializationReader.setOperatorId("cacheSource-" + matWriterLogicalOp.operatorIdentifier.id)
+    materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
     val matReaderOp = materializationReader.getPhysicalOp(
@@ -412,7 +383,7 @@ class ExpansionGreedyRegionPlanGenerator(
   ): (ProgressiveSinkOpDesc, PhysicalOp) = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
     matWriterLogicalOp.setContext(context)
-    matWriterLogicalOp.setOperatorId("materialized-" + fromOp.id.logicalOpId.id)
+    matWriterLogicalOp.setOperatorId("materialized_" + fromOp.id.logicalOpId.id)
     val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
     val fromOpInputSchema: Array[Schema] =
       if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {

@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.{InputExhausted, VirtualIdentityUtils}
@@ -37,13 +38,11 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("sender"), "main")
   private val testWorkerId: ActorVirtualIdentity = VirtualIdentityUtils.createWorkerIdentity(
     DEFAULT_WORKFLOW_ID,
-    DEFAULT_EXECUTION_ID,
     testOpId,
     0
   )
   private val senderWorkerId: ActorVirtualIdentity = VirtualIdentityUtils.createWorkerIdentity(
     DEFAULT_WORKFLOW_ID,
-    DEFAULT_EXECUTION_ID,
     upstreamOpId,
     0
   )
@@ -60,7 +59,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         DEFAULT_WORKFLOW_ID,
         DEFAULT_EXECUTION_ID,
         testOpId.logicalOpId,
-        OpExecInitInfo(_ => operator)
+        OpExecInitInfo((_, _, _) => operator)
       )
       .addInput(link.fromOp, 0, 0)
   private val outputHandler = mock[WorkflowFIFOMessage => Unit]
@@ -73,7 +72,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         override val outputManager: OutputManager = mock[OutputManager]
         override val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
       }
-    dp.initOperator(0, physicalOp, Iterator.empty)
+    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(testWorkerId))), Iterator.empty)
     dp.initTimerService(adaptiveBatchingMonitor)
     dp
   }

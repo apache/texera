@@ -17,22 +17,15 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
   RoundRobinPreference
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization,
   WorkerReplayLoggingConfig,
   WorkerStateRestoreConfig
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
@@ -40,7 +33,6 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object PhysicalOp {
@@ -158,7 +150,7 @@ object PhysicalOp {
       executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExec: OpExecInitInfo,
-      hashColumnIndices: Array[Int]
+      hashColumnIndices: List[Int]
   ): PhysicalOp =
     hashPhysicalOp(
       PhysicalOpIdentity(logicalOpId, "main"),
@@ -173,7 +165,7 @@ object PhysicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo,
-      hashColumnIndices: Array[Int]
+      hashColumnIndices: List[Int]
   ): PhysicalOp = {
     PhysicalOp(
       physicalOpId,
@@ -212,8 +204,8 @@ case class PhysicalOp(
     inputPorts: List[InputPort] = List(InputPort()),
     outputPorts: List[OutputPort] = List(OutputPort()),
     // mapping of all input/output operators connected on a specific input/output port index
-    inputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
-    outputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
+    inputPortToLinkIdMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
+    outputPortToLinkIdMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
     // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
@@ -227,8 +219,6 @@ case class PhysicalOp(
   private lazy val realBlockingInputs: List[Int] = (blockingInputs ++ dependencies.values).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
-
-  private val workerIds: mutable.HashSet[ActorVirtualIdentity] = mutable.HashSet()
 
   /**
     * Helper functions related to compile-time operations
@@ -249,7 +239,8 @@ case class PhysicalOp(
   def isHashJoinOperator: Boolean = {
     opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => false
-      case OpExecInitInfoWithFunc(opGen)   => opGen((0, this)).isInstanceOf[HashJoinOpExec[_]]
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen(0, this, OperatorConfig.empty).isInstanceOf[HashJoinOpExec[_]]
     }
   }
 
@@ -257,7 +248,7 @@ case class PhysicalOp(
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen((0, this))
+    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
   }
 
   def getOutputSchema: Schema = {
@@ -365,10 +356,10 @@ case class PhysicalOp(
     */
   def addInput(link: PhysicalLink): PhysicalOp = {
     assert(link.toOp.id == id)
-    val existingLinks = inputPortToLinkMapping.getOrElse(link.toPort, List())
-    val newLinks = existingLinks :+ link
+    val existingLinks = inputPortToLinkIdMapping.getOrElse(link.toPort, List())
+    val newLinks = existingLinks :+ link.id
     this.copy(
-      inputPortToLinkMapping = inputPortToLinkMapping + (link.toPort -> newLinks)
+      inputPortToLinkIdMapping = inputPortToLinkIdMapping + (link.toPort -> newLinks)
     )
   }
 
@@ -385,10 +376,10 @@ case class PhysicalOp(
     */
   def addOutput(link: PhysicalLink): PhysicalOp = {
     assert(link.fromOp.id == id)
-    val existingLinks = outputPortToLinkMapping.getOrElse(link.fromPort, List())
-    val newLinks = existingLinks :+ link
+    val existingLinks = outputPortToLinkIdMapping.getOrElse(link.fromPort, List())
+    val newLinks = existingLinks :+ link.id
     this.copy(
-      outputPortToLinkMapping = outputPortToLinkMapping + (link.fromPort -> newLinks)
+      outputPortToLinkIdMapping = outputPortToLinkIdMapping + (link.fromPort -> newLinks)
     )
   }
 
@@ -396,15 +387,16 @@ case class PhysicalOp(
     * creates a copy with a removed input operator, we use the identity to do equality check.
     */
   def removeInput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portIdx, existingLinks) = inputPortToLinkMapping
+    val (portIdx, existingLinks) = inputPortToLinkIdMapping
       .find({
-        case (_, links) => links.exists(_.id == linkToRemove.id)
+        case (_, links) => links.contains(linkToRemove.id)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
-      inputPortToLinkMapping = inputPortToLinkMapping + (portIdx -> existingLinks.filter(link =>
-        link.id != linkToRemove.id
-      ))
+      inputPortToLinkIdMapping =
+        inputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
+          linkId != linkToRemove.id
+        ))
     )
   }
 
@@ -412,69 +404,70 @@ case class PhysicalOp(
     * creates a copy with a removed output operator, we use the identity to do equality check.
     */
   def removeOutput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portIdx, existingLinks) = outputPortToLinkMapping
+    val (portIdx, existingLinks) = outputPortToLinkIdMapping
       .find({
-        case (_, links) => links.exists(_.id == linkToRemove.id)
+        case (_, links) => links.contains(linkToRemove.id)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
-      outputPortToLinkMapping = outputPortToLinkMapping + (portIdx -> existingLinks.filter(link =>
-        link.id != linkToRemove.id
-      ))
+      outputPortToLinkIdMapping =
+        outputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
+          linkId != linkToRemove.id
+        ))
     )
   }
 
   /**
     * returns all input links on a specific input port
     */
-  def getLinksOnInputPort(portIndex: Int): List[PhysicalLink] = {
-    inputPortToLinkMapping(portIndex)
+  def getLinksOnInputPort(portIndex: Int): List[PhysicalLinkIdentity] = {
+    inputPortToLinkIdMapping(portIndex)
   }
 
   /**
     * returns all the input operators on a specific input port
     */
-  def getOpsOnInputPort(portIndex: Int): List[PhysicalOp] = {
-    getLinksOnInputPort(portIndex).map(link => link.fromOp)
+  def getOpsOnInputPort(portIndex: Int): List[PhysicalOpIdentity] = {
+    getLinksOnInputPort(portIndex).map(linkId => linkId.from)
   }
 
   /**
     * returns all output links on a specific output port
     */
-  def getLinksOnOutputPort(portIndex: Int): List[PhysicalLink] = {
-    outputPortToLinkMapping(portIndex)
+  def getLinksOnOutputPort(portIndex: Int): List[PhysicalLinkIdentity] = {
+    outputPortToLinkIdMapping(portIndex)
   }
 
   /**
     * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
     * outputs all its tuples
     */
-  def isInputLinkBlocking(link: PhysicalLink): Boolean = {
-    val blockingLinks = realBlockingInputs.flatMap(portIdx => inputPortToLinkMapping(portIdx))
-    blockingLinks.map(_.id).contains(link.id)
+  def isInputLinkBlocking(linkId: PhysicalLinkIdentity): Boolean = {
+    val blockingLinkIds = realBlockingInputs.flatMap(portIdx => inputPortToLinkIdMapping(portIdx))
+    blockingLinkIds.contains(linkId)
   }
 
-  def getAllInputLinks: List[PhysicalLink] = {
-    inputPortToLinkMapping.values.flatten.toList
+  def getAllInputLinkIds: List[PhysicalLinkIdentity] = {
+    inputPortToLinkIdMapping.values.flatten.toList
   }
 
-  def getAllOutputLinks: List[PhysicalLink] = {
-    outputPortToLinkMapping.values.flatten.toList
+  def getAllOutputLinkIds: List[PhysicalLinkIdentity] = {
+    outputPortToLinkIdMapping.values.flatten.toList
   }
 
   def getPortIdxForInputLinkId(linkId: PhysicalLinkIdentity): Int = {
-    inputPortToLinkMapping
+    inputPortToLinkIdMapping
       .find {
-        case (_, links) => links.exists(link => link.id == linkId)
+        case (_, links) => links.contains(linkId)
       }
       .map(_._1)
       .get
   }
 
   def getPortIdxForOutputLinkId(linkId: PhysicalLinkIdentity): Int = {
-    outputPortToLinkMapping
+    outputPortToLinkIdMapping
       .find {
-        case (_, links) => links.exists(link => link.id == linkId)
+        case (_, links) => links.contains(linkId)
       }
       .map(_._1)
       .get
@@ -484,13 +477,13 @@ case class PhysicalOp(
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
-  def getInputLinksInProcessingOrder: List[PhysicalLink] = {
+  def getInputLinksInProcessingOrder: List[PhysicalLinkIdentity] = {
     val dependencyDag =
-      new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
+      new DirectedAcyclicGraph[PhysicalLinkIdentity, DefaultEdge](classOf[DefaultEdge])
     dependencies.foreach({
       case (depender: Int, dependee: Int) =>
-        val upstreamLink = inputPortToLinkMapping(dependee).head
-        val downstreamLink = inputPortToLinkMapping(depender).head
+        val upstreamLink = inputPortToLinkIdMapping(dependee).head
+        val downstreamLink = inputPortToLinkIdMapping(depender).head
         if (!dependencyDag.containsVertex(upstreamLink)) {
           dependencyDag.addVertex(upstreamLink)
         }
@@ -500,28 +493,18 @@ case class PhysicalOp(
         dependencyDag.addEdge(upstreamLink, downstreamLink)
     })
     val topologicalIterator =
-      new TopologicalOrderIterator[PhysicalLink, DefaultEdge](dependencyDag)
-    val processingOrder = new ArrayBuffer[PhysicalLink]()
+      new TopologicalOrderIterator[PhysicalLinkIdentity, DefaultEdge](dependencyDag)
+    val processingOrder = new ArrayBuffer[PhysicalLinkIdentity]()
     while (topologicalIterator.hasNext) {
       processingOrder.append(topologicalIterator.next())
     }
     processingOrder.toList
   }
 
-  def getWorkerIds: List[ActorVirtualIdentity] = workerIds.toList
-
-  def assignWorkers(workerCount: Int): Unit = {
-    (0 until workerCount).foreach(workerIdx => {
-      workerIds.add(
-        VirtualIdentityUtils.createWorkerIdentity(workflowId, executionId, id, workerIdx)
-      )
-    })
-  }
-
   def build(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
-      workerConfigs: List[WorkerConfig],
+      operatorConfig: OperatorConfig,
       stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
       replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
   ): Unit = {
@@ -530,19 +513,19 @@ case class PhysicalOp(
       controllerActorService.self.path.address
     )
 
-    workerIds.foreach(workerId => {
+    operatorConfig.workerConfigs.foreach(workerConfig => {
+      val workerId = workerConfig.workerId
       val workerIndex = VirtualIdentityUtils.getWorkerIndex(workerId)
-      val workerConfig = workerConfigs(workerIndex)
       val locationPreference = this.locationPreference.getOrElse(new RoundRobinPreference())
       val preferredAddress = locationPreference.getPreferredLocation(addressInfo, this, workerIndex)
 
       val workflowWorker = if (this.isPythonOperator) {
-        PythonWorkflowWorker.props(workerId, workerConfig)
+        PythonWorkflowWorker.props(workerConfig)
       } else {
         WorkflowWorker.props(
-          workerId,
-          physicalOp = this,
           workerConfig,
+          physicalOp = this,
+          operatorConfig,
           WorkerReplayInitialization(
             stateRestoreConfigGen(workerId),
             replayLoggingConfigGen(workerId)

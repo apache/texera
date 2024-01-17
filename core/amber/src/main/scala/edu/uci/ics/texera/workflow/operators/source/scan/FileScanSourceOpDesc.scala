@@ -57,7 +57,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ => new FileScanSourceOpExec(this))
+      OpExecInitInfo((_, _, _) => new FileScanSourceOpExec(this))
     )
 
   override def inferSchema(): Schema = {

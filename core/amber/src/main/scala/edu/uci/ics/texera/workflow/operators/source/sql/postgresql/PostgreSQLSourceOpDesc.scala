@@ -40,7 +40,7 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo(_ =>
+      OpExecInitInfo((_, _, _) =>
         new PostgreSQLSourceOpExec(
           querySchema,
           host,

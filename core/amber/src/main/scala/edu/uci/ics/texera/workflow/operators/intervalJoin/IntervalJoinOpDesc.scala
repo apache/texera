@@ -89,7 +89,7 @@ class IntervalJoinOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo(_ => new IntervalJoinOpExec(operatorSchemaInfo, this))
+        OpExecInitInfo((_, _, _) => new IntervalJoinOpExec(operatorSchemaInfo, this))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
