@@ -14,6 +14,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
 import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
 
 import scala.collection.JavaConverters._
@@ -79,7 +81,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
         .withDependencies(Map(1 -> 0))
-        .withInputPorts(operatorInfo.inputPorts)
+        .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
+        .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withSuggestedWorkerNum(workers)
     else
@@ -88,7 +91,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withBlockingInputs(List(0))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts)
+        .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
+        .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withDependencies(Map(1 -> 0))
   }

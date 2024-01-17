@@ -111,13 +111,18 @@ case class LogicalPlan(
   }
 
   def addLink(
-               fromOpId: OperatorIdentity,
+      fromOpId: OperatorIdentity,
       fromPort: Int =
         0, // by default, we have only one output port, thus giving a default port index 0
-               toOpId: OperatorIdentity,
+      toOpId: OperatorIdentity,
       toPort: Int
   ): LogicalPlan = {
-    val newLink = LogicalLink(fromOpId, NewOutputPort(PortIdentity(fromPort)), toOpId, NewInputPort(PortIdentity(toPort)))
+    val newLink = LogicalLink(
+      fromOpId,
+      NewOutputPort(PortIdentity(fromPort)),
+      toOpId,
+      NewInputPort(PortIdentity(toPort))
+    )
     val newLinks = links :+ newLink
     this.copy(operators, newLinks, breakpoints)
   }

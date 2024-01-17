@@ -22,7 +22,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.texera.workflow.common.workflow.NewInputPort;
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
+import edu.uci.ics.texera.workflow.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple3;
@@ -87,7 +90,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withId(partialOpId)
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
-                .withOutputPorts(asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
+                .withInputPorts(NewInputPort.toNewInputPorts(this.operatorInfo().inputPorts()))
+                .withOutputPorts(asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, true)))).toList());
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
@@ -101,7 +105,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 )
         )
         .withId(globalOpId).withIsOneToManyOp(true)
-        .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
+                .withInputPorts(asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, true)))).toList())
+                .withOutputPorts(NewOutputPort.toNewOutputPorts(this.operatorInfo().outputPorts()));
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
         PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), 0, globalPhysicalOp.id(), 0)};

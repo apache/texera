@@ -14,6 +14,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
 
 import scala.util.Random
 
@@ -39,7 +41,8 @@ class SplitOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new SplitOpExec(idx, this))
       )
-      .withPorts(operatorInfo)
+      .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
+      .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
   }
 
   override def operatorInfo: OperatorInfo = {

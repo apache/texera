@@ -88,9 +88,8 @@ case class PhysicalPlan(
       logicalOpId: OperatorIdentity,
       portId: PortIdentity
   ): PhysicalOp = {
-    val candidatePhysicalOps = getPhysicalOpsOfLogicalOp(logicalOpId).filter(op =>
-      op.inputPorts.map(_.id).contains(portId)
-    )
+    val candidatePhysicalOps =
+      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.inputPorts.map(_.id).contains(portId))
     assert(
       candidatePhysicalOps.size == 1,
       s"find ${candidatePhysicalOps.size} input port(s) with id = $portId for operator $logicalOpId"
@@ -102,9 +101,8 @@ case class PhysicalPlan(
       logicalOpId: OperatorIdentity,
       portId: PortIdentity
   ): PhysicalOp = {
-    val candidatePhysicalOps = getPhysicalOpsOfLogicalOp(logicalOpId).filter(op =>
-      op.outputPorts.map(_.id).contains(portId)
-    )
+    val candidatePhysicalOps =
+      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.outputPorts.map(_.id).contains(portId))
     assert(
       candidatePhysicalOps.size == 1,
       s"find ${candidatePhysicalOps.size} output port(s) with id = $portId for operator $logicalOpId"

@@ -14,6 +14,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 
 import scala.collection.JavaConverters._
@@ -97,8 +99,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withPartitionRequirement(partitionRequirement)
-        .withInputPorts(opInfo.inputPorts)
-        .withOutputPorts(opInfo.outputPorts)
+        .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
+        .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
         .withIsOneToManyOp(true)
         .withParallelizable(true)
         .withDependencies(dependencies)
@@ -109,8 +111,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withPartitionRequirement(partitionRequirement)
-        .withInputPorts(opInfo.inputPorts)
-        .withOutputPorts(opInfo.outputPorts)
+        .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
+        .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
         .withIsOneToManyOp(true)
         .withParallelizable(false)
         .withDependencies(dependencies)

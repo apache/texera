@@ -18,6 +18,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 }
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo}
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -99,8 +101,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts((operatorInfo.outputPorts))
+      .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
+      .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
       .withBlockingInputs(List(0))
       .withPartitionRequirement(partitionRequirement)
       .withDerivePartition(joinDerivePartition)

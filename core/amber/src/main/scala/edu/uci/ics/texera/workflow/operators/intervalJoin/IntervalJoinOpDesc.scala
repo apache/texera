@@ -20,6 +20,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
+import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
@@ -91,8 +93,8 @@ class IntervalJoinOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new IntervalJoinOpExec(operatorSchemaInfo, this))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
+      .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
       .withBlockingInputs(List(0))
       .withPartitionRequirement(partitionRequirement)
       .withDependencies(Map(1 -> 0))

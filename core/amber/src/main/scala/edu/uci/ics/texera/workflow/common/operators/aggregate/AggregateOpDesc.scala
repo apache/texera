@@ -12,7 +12,12 @@ import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.texera.workflow.common.workflow.{
+  NewInputPort,
+  NewOutputPort,
+  PhysicalPlan,
+  PortIdentity
+}
 
 object AggregateOpDesc {
 
@@ -34,7 +39,8 @@ object AggregateOpDesc {
         )
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withInputPorts(List(InputPort("in")))
+        .withInputPorts(List(NewInputPort(PortIdentity(0))))
+        .withOutputPorts(List(NewOutputPort(PortIdentity(0, internal = true))))
 
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
       PhysicalOp
@@ -47,7 +53,8 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withOutputPorts(List(OutputPort("out")))
+        .withInputPorts(List(NewInputPort(PortIdentity(0, internal = true))))
+        .withOutputPorts(List(NewOutputPort(PortIdentity(0))))
     } else {
       val partitionColumns: List[Int] =
         if (groupByKeys == null) List()
@@ -64,7 +71,8 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withOutputPorts(List(OutputPort("out")))
+        .withInputPorts(List(NewInputPort(PortIdentity(0, internal = true))))
+        .withOutputPorts(List(NewOutputPort(PortIdentity(0))))
     }
 
     new PhysicalPlan(
