@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, Ope
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 
 class RegexOpDesc extends FilterOpDesc {
 
@@ -45,8 +45,8 @@ class RegexOpDesc extends FilterOpDesc {
       userFriendlyName = "Regular Expression",
       operatorDescription = "Search a regular expression in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
       supportReconfiguration = true
     )
 }

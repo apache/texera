@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort
 
 class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStorage: OpResultStorage)
     extends SourceOperatorDescriptor {
@@ -37,6 +37,6 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
       "Retrieve the cached output to src",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List.empty,
-      outputPorts = List(NewOutputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 }

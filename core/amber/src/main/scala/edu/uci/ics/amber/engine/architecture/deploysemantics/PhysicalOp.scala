@@ -167,39 +167,39 @@ object PhysicalOp {
 }
 
 case class PhysicalOp(
-    // the identifier of this PhysicalOp
-    id: PhysicalOpIdentity,
-    // the workflow id number
-    workflowId: WorkflowIdentity,
-    // the execution id number
-    executionId: ExecutionIdentity,
-    // information regarding initializing an operator executor instance
-    opExecInitInfo: OpExecInitInfo,
-    // preference of parallelism
-    parallelizable: Boolean = true,
-    // input/output schemas
-    schemaInfo: Option[OperatorSchemaInfo] = None,
-    // preference of worker placement
-    locationPreference: Option[LocationPreference] = None,
-    // requirement of partition policy (hash/range/single/none) on inputs
-    partitionRequirement: List[Option[PartitionInfo]] = List(),
-    // derive the output partition info given the input partitions
-    // if not specified, by default the output partition is the same as input partition
-    derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
-    // input/output ports of the physical operator
-    // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: List[NewInputPort] = List(NewInputPort.default),
-    outputPorts: List[NewOutputPort] = List(NewOutputPort.default),
-    // mapping of all input/output operators connected on a specific input/output port index
-    inputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
-    outputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
-    // input ports that are blocking
-    blockingInputs: List[Int] = List(),
-    // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
-    dependencies: Map[Int, Int] = Map(),
-    isOneToManyOp: Boolean = false,
-    // hint for number of workers
-    suggestedWorkerNum: Option[Int] = None
+                       // the identifier of this PhysicalOp
+                       id: PhysicalOpIdentity,
+                       // the workflow id number
+                       workflowId: WorkflowIdentity,
+                       // the execution id number
+                       executionId: ExecutionIdentity,
+                       // information regarding initializing an operator executor instance
+                       opExecInitInfo: OpExecInitInfo,
+                       // preference of parallelism
+                       parallelizable: Boolean = true,
+                       // input/output schemas
+                       schemaInfo: Option[OperatorSchemaInfo] = None,
+                       // preference of worker placement
+                       locationPreference: Option[LocationPreference] = None,
+                       // requirement of partition policy (hash/range/single/none) on inputs
+                       partitionRequirement: List[Option[PartitionInfo]] = List(),
+                       // derive the output partition info given the input partitions
+                       // if not specified, by default the output partition is the same as input partition
+                       derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+                       // input/output ports of the physical operator
+                       // for operators with multiple input/output ports: must set these variables properly
+                       inputPorts: List[InputPort] = List(InputPort.default),
+                       outputPorts: List[OutputPort] = List(OutputPort.default),
+                       // mapping of all input/output operators connected on a specific input/output port index
+                       inputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
+                       outputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
+                       // input ports that are blocking
+                       blockingInputs: List[Int] = List(),
+                       // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
+                       dependencies: Map[Int, Int] = Map(),
+                       isOneToManyOp: Boolean = false,
+                       // hint for number of workers
+                       suggestedWorkerNum: Option[Int] = None
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking inputs
@@ -255,14 +255,14 @@ case class PhysicalOp(
   /**
     * creates a copy with the input ports
     */
-  def withInputPorts(inputs: List[NewInputPort]): PhysicalOp = {
+  def withInputPorts(inputs: List[InputPort]): PhysicalOp = {
     this.copy(inputPorts = inputs)
   }
 
   /**
     * creates a copy with the output ports
     */
-  def withOutputPorts(outputs: List[NewOutputPort]): PhysicalOp = {
+  def withOutputPorts(outputs: List[OutputPort]): PhysicalOp = {
     this.copy(outputPorts = outputs)
   }
 

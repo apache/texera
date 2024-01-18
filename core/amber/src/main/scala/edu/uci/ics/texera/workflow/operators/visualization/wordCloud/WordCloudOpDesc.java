@@ -20,8 +20,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort;
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort;
+import edu.uci.ics.texera.workflow.common.workflow.InputPort;
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.texera.workflow.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
@@ -88,7 +88,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
                 .withInputPorts(this.operatorInfo().inputPorts())
-                .withOutputPorts(asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, true),""))).toList());
+                .withOutputPorts(asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, true),""))).toList());
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
@@ -102,7 +102,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 )
         )
         .withId(globalOpId).withIsOneToManyOp(true)
-        .withInputPorts(asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, true), "", false))).toList())
+        .withInputPorts(asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, true), "", false))).toList())
         .withOutputPorts(this.operatorInfo().outputPorts());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
@@ -116,8 +116,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, false), "", false))).toList(),
-                asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,
                 false,

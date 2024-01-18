@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 
 import scala.util.Random
 
@@ -46,8 +46,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
       userFriendlyName = "Random K Sampling",
       operatorDescription = "random sampling with given percentage",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
       supportReconfiguration = true
     )
 }

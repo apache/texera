@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
@@ -62,7 +62,7 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
       "Read data from a PostgreSQL instance",
       OperatorGroupConstants.SOURCE_GROUP,
       inputPorts = List.empty,
-      outputPorts = List(NewOutputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 
   @throws[SQLException]

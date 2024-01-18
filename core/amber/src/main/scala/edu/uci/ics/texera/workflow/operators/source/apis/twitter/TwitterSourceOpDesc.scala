@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort
 
 abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -30,7 +30,7 @@ abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
       operatorDescription = s"Retrieve data from Twitter ${APIName.get} API",
       OperatorGroupConstants.SOURCE_GROUP,
       inputPorts = List.empty,
-      outputPorts = List(NewOutputPort.default),
+      outputPorts = List(OutputPort.default),
     )
   }
 

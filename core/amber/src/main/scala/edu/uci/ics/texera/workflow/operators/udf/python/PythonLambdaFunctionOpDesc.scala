@@ -5,7 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 
 class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Add/Modify column(s)")
@@ -45,8 +45,8 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
       "Python Lambda Function",
       "Modify or add a new column with more ease",
       OperatorGroupConstants.UDF_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
       supportReconfiguration = true
     )
 

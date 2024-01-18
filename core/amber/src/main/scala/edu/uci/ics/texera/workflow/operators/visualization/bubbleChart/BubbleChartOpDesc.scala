@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, Ope
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 /**
@@ -60,8 +60,8 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
       "Bubble Chart",
       "a 3D Scatter Plot; Bubbles are graphed using x and y labels, and their sizes determined by a z-value.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 
   def manipulateTable(): String = {

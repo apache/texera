@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort;
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort;
 import edu.uci.ics.texera.workflow.common.workflow.PortIdentity;
 import scala.Option;
 
@@ -85,7 +85,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 scala.collection.immutable.List.empty(),
-                asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,
                 true,

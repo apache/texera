@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 @JsonSchemaInject(json = """
@@ -52,8 +52,8 @@ class BoxPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
       "Box Plot",
       "Visualize data in a Box Plot. Boxplots are drawn as a box with a vertical line down the middle which is mean value, and has horizontal lines attached to each side (known as “whiskers”).",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 
   def manipulateTable(): String = {

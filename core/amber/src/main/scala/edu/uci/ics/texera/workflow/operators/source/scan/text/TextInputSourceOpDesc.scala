@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort
 
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)
@@ -41,6 +41,6 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       operatorDescription = "Source data from manually inputted text",
       OperatorGroupConstants.SOURCE_GROUP,
       inputPorts = List.empty,
-      outputPorts = List(NewOutputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 }

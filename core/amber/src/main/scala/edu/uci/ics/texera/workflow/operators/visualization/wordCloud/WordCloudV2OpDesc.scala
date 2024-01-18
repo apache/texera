@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, Ope
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.visualization.{ImageUtility, VisualizationConstants, VisualizationOperator}
 
 class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescriptor {
@@ -29,8 +29,8 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
       "Word Cloud V2",
       "Generate word cloud for result texts",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 
   def manipulateTable(): String = {

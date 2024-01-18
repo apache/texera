@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PortIdentity, UnknownPartition}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PortIdentity, UnknownPartition}
 
 import scala.collection.JavaConverters._
 
@@ -96,8 +96,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
 
-      inputPorts = List(NewInputPort(PortIdentity(0), name="model", allowMultipleLinks = true),NewInputPort(PortIdentity(0), name="tuples", allowMultipleLinks = true)),
-      outputPorts = List(NewOutputPort.default)
+      inputPorts = List(InputPort(PortIdentity(0), name="model", allowMultipleLinks = true),InputPort(PortIdentity(0), name="tuples", allowMultipleLinks = true)),
+      outputPorts = List(OutputPort.default)
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

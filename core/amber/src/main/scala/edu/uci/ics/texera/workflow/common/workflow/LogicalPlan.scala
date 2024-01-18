@@ -119,9 +119,9 @@ case class LogicalPlan(
   ): LogicalPlan = {
     val newLink = LogicalLink(
       fromOpId,
-      NewOutputPort(PortIdentity(fromPort)),
+      OutputPort(PortIdentity(fromPort)),
       toOpId,
-      NewInputPort(PortIdentity(toPort))
+      InputPort(PortIdentity(toPort))
     )
     val newLinks = links :+ newLink
     this.copy(operators, newLinks, breakpoints)

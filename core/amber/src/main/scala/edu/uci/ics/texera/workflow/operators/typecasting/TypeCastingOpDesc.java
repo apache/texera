@@ -16,8 +16,8 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort;
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort;
+import edu.uci.ics.texera.workflow.common.workflow.InputPort;
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort;
 import edu.uci.ics.texera.workflow.common.workflow.PortIdentity;
 import scala.Tuple3;
 
@@ -55,8 +55,8 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Type Casting",
                 "Cast between types",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, false), "", false))).toList(),
-                asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false, false, false, false);
     }
 

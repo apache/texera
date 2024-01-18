@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, Ope
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 //type constraint: measurementColumnName can only be a numeric column
@@ -63,8 +63,8 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
       "DumbbellPlot",
       "Visualize data in a Dumbbell Plots. A dumbbell plots (also known as a lollipop chart) is typically used to compare two distinct values or time points for the same entity.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 
   def createPlotlyFigure(): String = {

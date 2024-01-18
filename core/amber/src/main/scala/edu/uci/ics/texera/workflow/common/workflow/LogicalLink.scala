@@ -4,17 +4,17 @@ import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 
 case class LogicalLink(
-    @JsonProperty("fromOpId") fromOpId: OperatorIdentity,
-    fromPort: NewOutputPort,
-    @JsonProperty("toOpId") toOpId: OperatorIdentity,
-    toPort: NewInputPort
+                        @JsonProperty("fromOpId") fromOpId: OperatorIdentity,
+                        fromPort: OutputPort,
+                        @JsonProperty("toOpId") toOpId: OperatorIdentity,
+                        toPort: InputPort
 ) {
   @JsonCreator
   def this(
-      @JsonProperty("fromOpId") fromOpId: String,
-      fromPort: NewOutputPort,
-      @JsonProperty("toOpId") toOpId: String,
-      toPort: NewInputPort
+            @JsonProperty("fromOpId") fromOpId: String,
+            fromPort: OutputPort,
+            @JsonProperty("toOpId") toOpId: String,
+            toPort: InputPort
   ) = {
     this(OperatorIdentity(fromOpId), fromPort, OperatorIdentity(toOpId), toPort)
   }

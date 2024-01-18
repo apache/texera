@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PhysicalPlan, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PhysicalPlan, PortIdentity}
 
 import java.io.Serializable
 import scala.jdk.CollectionConverters.asJavaIterableConverter
@@ -60,9 +60,9 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       "Calculate different types of aggregation values",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts =
-        List(NewInputPort(PortIdentity(0), name= "in")), // a hacky solution to have unique port names for reference purpose
+        List(InputPort(PortIdentity(0), name= "in")), // a hacky solution to have unique port names for reference purpose
       outputPorts =
-        List(NewOutputPort(PortIdentity(0), name="out")) // a hacky solution to have unique port names for reference purpose
+        List(OutputPort(PortIdentity(0), name="out")) // a hacky solution to have unique port names for reference purpose
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Opera
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PhysicalPlan, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PhysicalPlan, PortIdentity}
 
 object AggregateOpDesc {
 
@@ -28,8 +28,8 @@ object AggregateOpDesc {
         )
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withInputPorts(List(NewInputPort(PortIdentity(0))))
-        .withOutputPorts(List(NewOutputPort(PortIdentity(0, internal = true))))
+        .withInputPorts(List(InputPort(PortIdentity(0))))
+        .withOutputPorts(List(OutputPort(PortIdentity(0, internal = true))))
 
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
       PhysicalOp
@@ -42,8 +42,8 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withInputPorts(List(NewInputPort(PortIdentity(0, internal = true))))
-        .withOutputPorts(List(NewOutputPort(PortIdentity(0))))
+        .withInputPorts(List(InputPort(PortIdentity(0, internal = true))))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))))
     } else {
       val partitionColumns: List[Int] =
         if (groupByKeys == null) List()
@@ -60,8 +60,8 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withInputPorts(List(NewInputPort(PortIdentity(0, internal = true))))
-        .withOutputPorts(List(NewOutputPort(PortIdentity(0))))
+        .withInputPorts(List(InputPort(PortIdentity(0, internal = true))))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))))
     }
 
     new PhysicalPlan(

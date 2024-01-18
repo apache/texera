@@ -8,7 +8,7 @@ import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 
 import java.util
@@ -16,15 +16,15 @@ import scala.collection.JavaConverters
 import scala.collection.JavaConverters.asScalaIterator
 
 case class OperatorInfo(
-    userFriendlyName: String,
-    operatorDescription: String,
-    operatorGroupName: String,
-    inputPorts: List[NewInputPort],
-    outputPorts: List[NewOutputPort],
-    dynamicInputPorts: Boolean = false,
-    dynamicOutputPorts: Boolean = false,
-    supportReconfiguration: Boolean = false,
-    allowPortCustomization: Boolean = false
+                         userFriendlyName: String,
+                         operatorDescription: String,
+                         operatorGroupName: String,
+                         inputPorts: List[InputPort],
+                         outputPorts: List[OutputPort],
+                         dynamicInputPorts: Boolean = false,
+                         dynamicOutputPorts: Boolean = false,
+                         supportReconfiguration: Boolean = false,
+                         allowPortCustomization: Boolean = false
 )
 
 case class OperatorMetadata(

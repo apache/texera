@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 
 class KeywordSearchOpDesc extends FilterOpDesc {
 
@@ -42,8 +42,8 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       userFriendlyName = "Keyword Search",
       operatorDescription = "Search for keyword(s) in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
       supportReconfiguration = true
     )
 }

@@ -6,8 +6,8 @@ import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.workflow.{
   LogicalLink,
   LogicalPort,
-  NewInputPort,
-  NewOutputPort,
+  InputPort,
+  OutputPort,
   PortIdentity
 }
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
@@ -29,15 +29,15 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
-          NewOutputPort(PortIdentity(0)),
+          OutputPort(PortIdentity(0)),
           keywordOpDesc.operatorIdentifier,
-          NewInputPort(PortIdentity(0))
+          InputPort(PortIdentity(0))
         ),
         LogicalLink(
           keywordOpDesc.operatorIdentifier,
-          NewOutputPort(PortIdentity(0)),
+          OutputPort(PortIdentity(0)),
           sink.operatorIdentifier,
-          NewInputPort(PortIdentity(0))
+          InputPort(PortIdentity(0))
         )
       )
     )

@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, RangePartition}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, RangePartition}
 
 @JsonSchemaInject(json = """
 {
@@ -80,8 +80,8 @@ class SortPartitionsOpDesc extends LogicalOp {
       "Sort Partitions",
       "Sort Partitions",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

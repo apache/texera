@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PartitionInfo, PortIdentity, UnknownPartition}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PartitionInfo, PortIdentity, UnknownPartition}
 
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
@@ -116,17 +116,17 @@ class PythonUDFOpDescV2 extends LogicalOp {
     val inputPortInfo = if (inputPorts != null) {
       inputPorts.zipWithIndex.map{
         case (portDesc, idx ) =>
-          NewInputPort(PortIdentity(idx), name=portDesc.displayName, allowMultipleLinks = portDesc.allowMultiInputs)
+          InputPort(PortIdentity(idx), name=portDesc.displayName, allowMultipleLinks = portDesc.allowMultiInputs)
       }
     } else {
-      List(NewInputPort(PortIdentity(0), allowMultipleLinks = true))
+      List(InputPort(PortIdentity(0), allowMultipleLinks = true))
     }
     val outputPortInfo = if (outputPorts != null) {
       outputPorts.zipWithIndex.map{
-        case (portDesc, idx) => NewOutputPort(PortIdentity(idx), name = portDesc.displayName)
+        case (portDesc, idx) => OutputPort(PortIdentity(idx), name = portDesc.displayName)
       }
     } else {
-      List(NewOutputPort.default)
+      List(OutputPort.default)
     }
 
     OperatorInfo(

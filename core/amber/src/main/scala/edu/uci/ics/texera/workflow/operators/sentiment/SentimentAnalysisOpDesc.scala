@@ -10,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, Ope
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 
 @JsonSchemaInject(json = """
 {
@@ -55,8 +55,8 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       "Sentiment Analysis",
       "analysis the sentiment of a text using machine learning",
       OperatorGroupConstants.ANALYTICS_GROUP,
-      inputPorts = List(NewInputPort.default),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort.default),
+      outputPorts = List(OutputPort.default),
       supportReconfiguration = true
     )
 

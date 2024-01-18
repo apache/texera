@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort
 import org.apache.commons.lang3.builder.EqualsBuilder
 import org.jooq.types.UInteger
 
@@ -87,7 +87,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       operatorDescription = s"Scan data from a ${fileTypeName.get} file",
       OperatorGroupConstants.SOURCE_GROUP,
       inputPorts = List.empty,
-      outputPorts = List(NewOutputPort.default),
+      outputPorts = List(OutputPort.default),
     )
   }
 

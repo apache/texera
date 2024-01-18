@@ -15,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort;
+import edu.uci.ics.texera.workflow.common.workflow.InputPort;
 import edu.uci.ics.texera.workflow.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
@@ -71,7 +71,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 "View Results",
                 "View the edu.uci.ics.texera.workflow results",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false))).toList(),
                 List.empty(),
                 false,
                 false,

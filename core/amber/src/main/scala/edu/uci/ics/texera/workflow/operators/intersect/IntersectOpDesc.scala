@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PortIdentity}
 
 class IntersectOpDesc extends LogicalOp {
 
@@ -30,8 +30,8 @@ class IntersectOpDesc extends LogicalOp {
       "Intersect",
       "Take the intersect of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(NewInputPort(PortIdentity(0)), NewInputPort(PortIdentity(1))),
-      outputPorts = List(NewOutputPort.default),
+      inputPorts = List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))),
+      outputPorts = List(OutputPort.default),
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

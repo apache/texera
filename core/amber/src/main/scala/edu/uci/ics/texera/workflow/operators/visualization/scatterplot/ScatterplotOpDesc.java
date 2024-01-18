@@ -17,8 +17,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort;
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort;
+import edu.uci.ics.texera.workflow.common.workflow.InputPort;
+import edu.uci.ics.texera.workflow.common.workflow.OutputPort;
 import edu.uci.ics.texera.workflow.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
@@ -103,8 +103,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 "Scatterplot",
                 "View the result in a scatterplot",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, false), "", false))).toList(),
-                asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false, false, false, false);
     }
 
