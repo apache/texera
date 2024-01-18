@@ -5,11 +5,11 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 
 class UnnestStringOpDesc extends FlatMapOpDesc {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")
@@ -31,8 +31,8 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
       operatorDescription =
         "Unnest the string values in the column separated by a delimiter to multiple values",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort.default),
-      outputPorts = List(OutputPort.default),
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
     )
 
   override def getPhysicalOp(

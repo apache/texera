@@ -2,11 +2,16 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PhysicalPlan, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object AggregateOpDesc {
 
@@ -28,8 +33,8 @@ object AggregateOpDesc {
         )
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withInputPorts(List(InputPort(PortIdentity(0))))
-        .withOutputPorts(List(OutputPort(PortIdentity(0, internal = true))))
+        .withInputPorts(List(InputPort(PortIdentity())))
+        .withOutputPorts(List(OutputPort(PortIdentity(internal = true))))
 
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
       PhysicalOp

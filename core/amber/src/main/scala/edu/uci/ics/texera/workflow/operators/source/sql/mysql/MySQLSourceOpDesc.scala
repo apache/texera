@@ -3,9 +3,9 @@ package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
 
@@ -51,7 +51,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       "Read data from a MySQL instance",
       OperatorGroupConstants.SOURCE_GROUP,
       inputPorts = List.empty,
-      outputPorts = List(OutputPort.default),
+      outputPorts = List(OutputPort())
     )
 
   @throws[SQLException]

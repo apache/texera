@@ -7,10 +7,10 @@ package edu.uci.ics.amber.engine.common.workflow
 
 @SerialVersionUID(0L)
 final case class PhysicalLink(
-    from: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
-    fromPort: _root_.scala.Int,
-    to: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
-    toPort: _root_.scala.Int
+    from: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
+    fromPort: _root_.scala.Int = 0,
+    to: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
+    toPort: _root_.scala.Int = 0
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PhysicalLink] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -163,8 +163,8 @@ object PhysicalLink extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowProto.javaDescriptor.getMessageTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowProto.scalaDescriptor.messages(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowProto.javaDescriptor.getMessageTypes().get(3)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowProto.scalaDescriptor.messages(3)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {

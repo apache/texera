@@ -6,10 +6,13 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PortIdentity, UnknownPartition}
+import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
+import edu.uci.ics.amber.engine.common.workflow.InputPort
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.JavaConverters._
 
@@ -85,7 +88,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
         .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts( operatorInfo.outputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withDependencies(Map(1 -> 0))
   }
@@ -95,9 +98,11 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       "2-in Python UDF",
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
-
-      inputPorts = List(InputPort(PortIdentity(0), name="model", allowMultipleLinks = true),InputPort(PortIdentity(0), name="tuples", allowMultipleLinks = true)),
-      outputPorts = List(OutputPort.default)
+      inputPorts = List(
+        InputPort(PortIdentity(), name = "model", allowMultiLinks = true),
+        InputPort(PortIdentity(), name = "tuples", allowMultiLinks = true)
+      ),
+      outputPorts = List(OutputPort())
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

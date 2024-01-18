@@ -3,11 +3,12 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PhysicalPlan, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import java.io.Serializable
 import scala.jdk.CollectionConverters.asJavaIterableConverter
@@ -60,9 +61,13 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       "Calculate different types of aggregation values",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts =
-        List(InputPort(PortIdentity(0), name= "in")), // a hacky solution to have unique port names for reference purpose
+        List(
+          InputPort(PortIdentity(), name = "in")
+        ), // a hacky solution to have unique port names for reference purpose
       outputPorts =
-        List(OutputPort(PortIdentity(0), name="out")) // a hacky solution to have unique port names for reference purpose
+        List(
+          OutputPort(PortIdentity(), name = "out")
+        ) // a hacky solution to have unique port names for reference purpose
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

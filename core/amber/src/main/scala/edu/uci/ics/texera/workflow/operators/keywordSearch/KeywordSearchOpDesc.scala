@@ -5,11 +5,11 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort}
 
 class KeywordSearchOpDesc extends FilterOpDesc {
 
@@ -42,8 +42,8 @@ class KeywordSearchOpDesc extends FilterOpDesc {
       userFriendlyName = "Keyword Search",
       operatorDescription = "Search for keyword(s) in a string column",
       operatorGroupName = OperatorGroupConstants.SEARCH_GROUP,
-      inputPorts = List(InputPort.default),
-      outputPorts = List(OutputPort.default),
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
 }

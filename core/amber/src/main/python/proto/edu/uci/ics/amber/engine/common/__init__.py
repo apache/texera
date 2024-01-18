@@ -34,6 +34,25 @@ class PhysicalOpIdentity(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PortIdentity(betterproto.Message):
+    id: int = betterproto.int32_field(1)
+    internal: bool = betterproto.bool_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class InputPort(betterproto.Message):
+    id: "PortIdentity" = betterproto.message_field(1)
+    name: str = betterproto.string_field(2)
+    allow_multi_links: bool = betterproto.bool_field(3)
+
+
+@dataclass(eq=False, repr=False)
+class OutputPort(betterproto.Message):
+    id: "PortIdentity" = betterproto.message_field(1)
+    name: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
 class PhysicalLink(betterproto.Message):
     from_: "PhysicalOpIdentity" = betterproto.message_field(1)
     from_port: int = betterproto.int32_field(2)

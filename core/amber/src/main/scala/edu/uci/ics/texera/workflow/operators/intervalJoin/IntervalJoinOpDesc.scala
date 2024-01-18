@@ -7,11 +7,15 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameOnPort1
+}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
@@ -95,8 +99,11 @@ class IntervalJoinOpDesc extends LogicalOp {
       "Interval Join",
       "Join two inputs with left table join key in the range of [right table join key, right table join key + constant value]",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort(PortIdentity(0),name = "left table"), InputPort(PortIdentity(1),name = "right table")),
-      outputPorts = List(OutputPort.default),
+      inputPorts = List(
+        InputPort(PortIdentity(), name = "left table"),
+        InputPort(PortIdentity(1), name = "right table")
+      ),
+      outputPorts = List(OutputPort())
     )
 
   def this(

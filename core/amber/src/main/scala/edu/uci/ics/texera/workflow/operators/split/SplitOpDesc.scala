@@ -6,10 +6,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{InputPort, OutputPort, PortIdentity}
 
 import scala.util.Random
 
@@ -44,8 +44,11 @@ class SplitOpDesc extends LogicalOp {
       userFriendlyName = "Training/Testing Split",
       operatorDescription = "Split training and testing data to two different ports",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort.default),
-      outputPorts = List(OutputPort(PortIdentity(0), name = "training"), OutputPort(PortIdentity(1), name = "testing")),
+      inputPorts = List(InputPort()),
+      outputPorts = List(
+        OutputPort(PortIdentity(), name = "training"),
+        OutputPort(PortIdentity(1), name = "testing")
+      ),
       dynamicInputPorts = true,
       dynamicOutputPorts = true
     )

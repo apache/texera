@@ -7,9 +7,26 @@ import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
   scope: FILE,
-  preserve_unknown_fields: false
-  no_default_values_in_constructor: true
+  preserve_unknown_fields: false,
+  no_default_values_in_constructor: false
 };
+
+message PortIdentity {
+  int32 id = 1;
+  bool internal = 2;
+}
+
+message InputPort {
+  PortIdentity id = 1 [(scalapb.field).no_box = true];
+  string name = 2;
+  bool allowMultiLinks = 3;
+}
+
+message OutputPort {
+  PortIdentity id = 1 [(scalapb.field).no_box = true];
+  string name = 2;
+}
+
 
 message PhysicalLink {
   PhysicalOpIdentity from = 1 [(scalapb.field).no_box = true];
