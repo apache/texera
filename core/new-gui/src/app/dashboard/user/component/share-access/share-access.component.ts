@@ -1,6 +1,6 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { FormBuilder, Validators } from "@angular/forms";
+import { NonNullableFormBuilder, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -18,7 +18,7 @@ export class ShareAccessComponent implements OnInit {
   @Input() allOwners!: string[];
 
   validateForm = this.formBuilder.group({
-    email: [null, [Validators.email, Validators.required]],
+    email: ["", [Validators.email, Validators.required]],
     accessLevel: ["READ"],
   });
 
@@ -30,7 +30,7 @@ export class ShareAccessComponent implements OnInit {
   constructor(
     public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
-    private formBuilder: FormBuilder,
+    private formBuilder: NonNullableFormBuilder,
     private userService: UserService,
     private gmailService: GmailService
   ) {
@@ -64,8 +64,8 @@ export class ShareAccessComponent implements OnInit {
         .grantAccess(
           this.type,
           this.id,
-          this.validateForm.get("email")?.value,
-          this.validateForm.get("accessLevel")?.value
+          this.validateForm.controls.email.value,
+          this.validateForm.controls.accessLevel.value
         )
         .pipe(untilDestroyed(this))
         .subscribe(() => {
@@ -79,7 +79,7 @@ export class ShareAccessComponent implements OnInit {
               location.origin +
               "/workflow/" +
               this.id,
-            this.validateForm.get("email")?.value
+            this.validateForm.controls.email.value
           );
         });
     }

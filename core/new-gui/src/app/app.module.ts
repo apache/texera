@@ -83,7 +83,7 @@ import { ConsoleFrameComponent } from "./workspace/component/result-panel/consol
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
 import { DynamicModule } from "ng-dynamic-component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
-import { MonacoEditorModule } from "ngx-monaco-editor";
+import { MonacoEditorModule } from "ngx-monaco-editor-v2";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
