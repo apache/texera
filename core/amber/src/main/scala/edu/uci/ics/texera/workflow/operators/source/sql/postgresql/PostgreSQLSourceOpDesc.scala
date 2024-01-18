@@ -7,19 +7,13 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
-import java.util.Collections.singletonList
-import scala.jdk.CollectionConverters.asScalaBuffer
-
 class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
 
   @JsonProperty()
@@ -67,8 +61,8 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
       "PostgreSQL Source",
       "Read data from a PostgreSQL instance",
       OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List.empty,
+      outputPorts = List(NewOutputPort.default),
     )
 
   @throws[SQLException]

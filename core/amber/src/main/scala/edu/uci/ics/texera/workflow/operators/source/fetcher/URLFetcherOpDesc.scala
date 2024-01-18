@@ -5,15 +5,10 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
-
-import scala.collection.immutable.List
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
 
 class URLFetcherOpDesc extends SourceOperatorDescriptor {
 
@@ -70,7 +65,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       operatorDescription = "Fetch the content of a single url",
       operatorGroupName = OperatorGroupConstants.SOURCE_GROUP,
       inputPorts = List.empty,
-      outputPorts = List(OutputPort())
+      outputPorts = List(NewOutputPort.default)
     )
 
 }

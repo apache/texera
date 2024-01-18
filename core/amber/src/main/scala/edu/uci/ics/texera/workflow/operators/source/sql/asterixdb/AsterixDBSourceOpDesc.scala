@@ -1,41 +1,19 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
-import com.fasterxml.jackson.annotation.{
-  JsonIgnoreProperties,
-  JsonProperty,
-  JsonPropertyDescription
-}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList,
-  UIWidget
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList, UIWidget}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
 import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
-  fetchDataTypeFields,
-  queryAsterixDB
-}
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{fetchDataTypeFields, queryAsterixDB}
 import kong.unirest.json.JSONObject
-
-import java.util.Collections.singletonList
-import scala.jdk.CollectionConverters.asScalaBuffer
 
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
@@ -149,8 +127,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       "AsterixDB Source",
       "Read data from a AsterixDB instance",
       OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List.empty,
+      outputPorts = List(NewOutputPort.default),
     )
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port

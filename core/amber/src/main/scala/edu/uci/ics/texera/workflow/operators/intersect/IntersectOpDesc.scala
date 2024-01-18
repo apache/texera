@@ -4,14 +4,10 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PortIdentity}
 
 class IntersectOpDesc extends LogicalOp {
 
@@ -34,8 +30,8 @@ class IntersectOpDesc extends LogicalOp {
       "Intersect",
       "Take the intersect of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort(), InputPort()),
-      outputPorts = List(OutputPort())
+      inputPorts = List(NewInputPort(PortIdentity(0)), NewInputPort(PortIdentity(1))),
+      outputPorts = List(NewOutputPort.default),
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

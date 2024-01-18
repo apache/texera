@@ -3,25 +3,13 @@ package edu.uci.ics.texera.workflow.operators.visualization.pieChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
-//type constraint: value can only be numeric
+// type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -59,8 +47,8 @@ class PieChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
       "PieChart",
       "Visualize data in a Pie Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      inputPorts = List(NewInputPort.default),
+      outputPorts = List(NewOutputPort.default),
     )
 
   def manipulateTable(): String = {

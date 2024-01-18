@@ -6,16 +6,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PortIdentity}
 
 import scala.util.Random
 
@@ -41,8 +35,8 @@ class SplitOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new SplitOpExec(idx, this))
       )
-      .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
-      .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -50,8 +44,8 @@ class SplitOpDesc extends LogicalOp {
       userFriendlyName = "Training/Testing Split",
       operatorDescription = "Split training and testing data to two different ports",
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort("training"), OutputPort("testing")),
+      inputPorts = List(NewInputPort.default),
+      outputPorts = List(NewOutputPort(PortIdentity(0), name = "training"), NewOutputPort(PortIdentity(1), name = "testing")),
       dynamicInputPorts = true,
       dynamicOutputPorts = true
     )

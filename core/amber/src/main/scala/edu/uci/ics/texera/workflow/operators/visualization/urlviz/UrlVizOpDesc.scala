@@ -6,25 +6,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
-
-import java.util.Collections.singletonList
-import scala.collection.JavaConverters.asScalaBuffer
+import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 /**
   * URL Visualization operator to render any content in given URL link
@@ -66,8 +51,8 @@ class UrlVizOpDesc extends VisualizationOperator {
       "URL visualizer",
       "Render the content of URL",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      asScalaBuffer(singletonList(InputPort(""))).toList,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List(NewInputPort.default),
+      outputPorts = List(NewOutputPort.default),
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =

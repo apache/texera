@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
 
 case class PortIdentity(
     id: Int,
@@ -11,11 +10,7 @@ case object NewInputPort {
     NewInputPort(PortIdentity(0))
   }
 
-  def toNewInputPorts(oldInputPorts: List[InputPort]): List[NewInputPort] = {
-    oldInputPorts.zipWithIndex.map {
-      case (port, idx) => NewInputPort(PortIdentity(idx), name = port.displayName, allowMultipleLinks = port.allowMultiInputs)
-    }
-  }
+
 }
 case class NewInputPort(
     id: PortIdentity,
@@ -28,11 +23,6 @@ case object NewOutputPort {
     NewOutputPort(PortIdentity(0))
   }
 
-  def toNewOutputPorts(oldOutputPorts: List[OutputPort]): List[NewOutputPort] = {
-    oldOutputPorts.zipWithIndex.map {
-      case (port, idx) => NewOutputPort(PortIdentity(idx), name = port.displayName)
-    }
-  }
 }
 case class NewOutputPort(
     id: PortIdentity,

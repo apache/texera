@@ -6,13 +6,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort
 
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)
@@ -43,7 +40,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       userFriendlyName = "Text Input",
       operatorDescription = "Source data from manually inputted text",
       OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      List(OutputPort())
+      inputPorts = List.empty,
+      outputPorts = List(NewOutputPort.default),
     )
 }

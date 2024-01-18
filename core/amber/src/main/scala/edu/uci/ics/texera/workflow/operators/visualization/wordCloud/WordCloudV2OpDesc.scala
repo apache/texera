@@ -1,30 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.visualization.wordCloud
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaInject,
-  JsonSchemaInt,
-  JsonSchemaTitle
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaInt, JsonSchemaTitle}
+import edu.uci.ics.texera.workflow.common.metadata.{ OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  ImageUtility,
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.operators.visualization.{ImageUtility, VisualizationConstants, VisualizationOperator}
 
 class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(required = true)
@@ -46,8 +29,8 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
       "Word Cloud V2",
       "Generate word cloud for result texts",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      inputPorts = List(NewInputPort.default),
+      outputPorts = List(NewOutputPort.default),
     )
 
   def manipulateTable(): String = {

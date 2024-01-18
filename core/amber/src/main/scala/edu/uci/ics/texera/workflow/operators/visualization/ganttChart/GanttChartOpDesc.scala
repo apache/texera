@@ -3,23 +3,11 @@ package edu.uci.ics.texera.workflow.operators.visualization.ganttChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 @JsonSchemaInject(json = """
 {
@@ -68,8 +56,8 @@ class GanttChartOpDesc extends VisualizationOperator with PythonOperatorDescript
       "Gantt Chart",
       "A Gantt chart is a type of bar chart that illustrates a project schedule. The chart lists the tasks to be performed on the vertical axis, and time intervals on the horizontal axis. The width of the horizontal bars in the graph shows the duration of each activity.",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      inputPorts = List(NewInputPort.default),
+      outputPorts = List(NewOutputPort.default),
     )
 
   def manipulateTable(): String = {

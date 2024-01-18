@@ -6,14 +6,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort}
 
 /**
   * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
@@ -50,8 +46,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       "Dictionary matcher",
       "Matches tuples if they appear in a given dictionary",
       OperatorGroupConstants.SEARCH_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort()),
+      inputPorts = List(NewInputPort.default),
+      outputPorts = List(NewOutputPort.default),
       supportReconfiguration = true
     )
 

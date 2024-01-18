@@ -7,21 +7,11 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.HashPartition
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, NewInputPort, NewOutputPort, PortIdentity}
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
@@ -93,8 +83,8 @@ class IntervalJoinOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new IntervalJoinOpExec(operatorSchemaInfo, this))
       )
-      .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
-      .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withBlockingInputs(List(0))
       .withPartitionRequirement(partitionRequirement)
       .withDependencies(Map(1 -> 0))
@@ -105,8 +95,8 @@ class IntervalJoinOpDesc extends LogicalOp {
       "Interval Join",
       "Join two inputs with left table join key in the range of [right table join key, right table join key + constant value]",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("left table"), InputPort("right table")),
-      outputPorts = List(OutputPort())
+      inputPorts = List(NewInputPort(PortIdentity(0),name = "left table"), NewInputPort(PortIdentity(1),name = "right table")),
+      outputPorts = List(NewOutputPort.default),
     )
 
   def this(

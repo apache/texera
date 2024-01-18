@@ -6,21 +6,11 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
-import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo}
+import edu.uci.ics.texera.workflow.common.workflow._
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
@@ -101,8 +91,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
       )
-      .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
-      .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withBlockingInputs(List(0))
       .withPartitionRequirement(partitionRequirement)
       .withDerivePartition(joinDerivePartition)
@@ -114,8 +104,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
       "Hash Join",
       "join two inputs",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("left"), InputPort("right")),
-      outputPorts = List(OutputPort())
+      inputPorts = List(NewInputPort(PortIdentity(0),name = "left"), NewInputPort(PortIdentity(1),name = "right")),
+      outputPorts = List(NewOutputPort.default),
     )
 
   /*

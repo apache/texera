@@ -8,12 +8,13 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+import edu.uci.ics.texera.workflow.common.workflow.NewInputPort;
+import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort;
+import edu.uci.ics.texera.workflow.common.workflow.PortIdentity;
 import scala.Tuple3;
 
 import java.util.List;
@@ -47,8 +48,12 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Filter",
                 "Performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
-                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false, true, false);
+                asScalaBuffer(singletonList(new NewInputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScalaBuffer(singletonList(new NewOutputPort(new PortIdentity(0, false),""))).toList(),
+                false,
+                false,
+                true,
+                false
+        );
     }
 }

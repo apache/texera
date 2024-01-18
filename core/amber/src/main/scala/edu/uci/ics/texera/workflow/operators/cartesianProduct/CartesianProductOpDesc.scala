@@ -4,11 +4,10 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.NewInputPort.toNewInputPorts
-import edu.uci.ics.texera.workflow.common.workflow.NewOutputPort.toNewOutputPorts
+import edu.uci.ics.texera.workflow.common.workflow.{NewInputPort, NewOutputPort, PortIdentity}
 
 class CartesianProductOpDesc extends LogicalOp {
   override def getPhysicalOp(
@@ -23,8 +22,8 @@ class CartesianProductOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new CartesianProductOpExec(operatorSchemaInfo))
       )
-      .withInputPorts(toNewInputPorts(operatorInfo.inputPorts))
-      .withOutputPorts(toNewOutputPorts(operatorInfo.outputPorts))
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withBlockingInputs(List(0))
       // TODO : refactor to parallelize this operator for better performance and scalability:
       //  can consider hash partition on larger input, broadcast smaller table to each partition
@@ -77,8 +76,8 @@ class CartesianProductOpDesc extends LogicalOp {
       "Cartesian Product",
       "Append fields together to get the cartesian product of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort("left"), InputPort("right")),
-      outputPorts = List(OutputPort())
+      inputPorts = List(NewInputPort(PortIdentity(0), name= "left"),NewInputPort(PortIdentity(1), name= "right")),
+      outputPorts = List(NewOutputPort.default)
     )
 
   // remove duplicates in attribute names
