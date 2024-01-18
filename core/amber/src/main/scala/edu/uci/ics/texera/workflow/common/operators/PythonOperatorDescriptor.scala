@@ -21,7 +21,6 @@ trait PythonOperatorDescriptor extends LogicalOp {
           OpExecInitInfo(generatedCode)
         )
         .withParallelizable(parallelizable())
-        .withDependencies(dependencies())
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
       PhysicalOp
@@ -32,14 +31,11 @@ trait PythonOperatorDescriptor extends LogicalOp {
           OpExecInitInfo(generatedCode)
         )
         .withParallelizable(parallelizable())
-        .withDependencies(dependencies())
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 
   def parallelizable(): Boolean = false
-  def dependencies(): Map[Int, Int] = Map()
-
   def asSource(): Boolean = false
 
   /**

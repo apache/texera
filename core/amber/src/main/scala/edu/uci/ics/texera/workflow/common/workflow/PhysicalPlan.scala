@@ -3,12 +3,8 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -35,23 +31,12 @@ object PhysicalPlan {
       physicalPlan = physicalPlan.addSubPlan(subPlan)
     })
 
-    // connect inter-operator links
+    // connect external links
     logicalPlan.links.foreach(link => {
-      val fromLogicalOp = link.fromOpId
-      val fromPort = link.fromPort.id.id
-//      val fromPortName = logicalPlan.operators
-//        .filter(op => op.operatorIdentifier == link.fromOpId)
-//        .head
-//        .operatorInfo
-//        .outputPorts(fromPort)
-//        .displayName
-      val fromOp = physicalPlan.getPhysicalOpForOutputPort(fromLogicalOp, link.fromPort.id)
-
-      val toLogicalOp = logicalPlan.getOperator(link.toOpId).operatorIdentifier
-      val toPort = link.toPort.id.id
-
-      val toOp = physicalPlan.getPhysicalOpForInputPort(toLogicalOp, link.toPort.id)
-
+      val fromPort = link.fromPort
+      val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, fromPort.id)
+      val toPort = link.toPort
+      val toOp = physicalPlan.getPhysicalOpForInputPort(link.toOpId, link.toPort.id)
       physicalPlan = physicalPlan.addLink(PhysicalLink(fromOp.id, fromPort, toOp.id, toPort))
     })
 
@@ -188,12 +173,6 @@ case class PhysicalPlan(
     this.copy(operators = (operatorMap + (physicalOp.id -> physicalOp)).values.toSet)
   }
 
-  def setOperatorUnblockPort(physicalOpId: PhysicalOpIdentity, portToRemove: Int): PhysicalPlan = {
-    val physicalOp = getOperator(physicalOpId)
-    physicalOp.copy(blockingInputs = physicalOp.blockingInputs.filter(port => port != portToRemove))
-    this.copy(operators = operators ++ Set(physicalOp))
-  }
-
   private def addSubPlan(subPlan: PhysicalPlan): PhysicalPlan = {
     var resultPlan = this.copy(operators, links)
     // add all physical operators to physical DAG
@@ -229,7 +208,7 @@ case class PhysicalPlan(
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement.lift(link.toPort).flatten.getOrElse(UnknownPartition())
+      toPhysicalOp.partitionRequirement.lift(link.toPort.id.id).flatten.getOrElse(UnknownPartition())
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
@@ -257,7 +236,7 @@ case class PhysicalPlan(
             .flatMap { upstreamPhysicalOpId =>
               links
                 .filter(link => link.from == upstreamPhysicalOpId && link.to == physicalOp.id)
-                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
+                .filter(link => getOperator(link.to).getAllInputLinks.exists(l=> l.toPort.dependencies.contains(link.toPort.id)))
             }
         }
       }
@@ -269,7 +248,7 @@ case class PhysicalPlan(
 
     val upstreamPhysicalLinks = getUpstreamPhysicalLinks(physicalOpId)
     upstreamPhysicalLinks.nonEmpty && upstreamPhysicalLinks.forall { upstreamPhysicalLink =>
-      getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLink)
+      getOperator(upstreamPhysicalLink.to).getAllInputLinks.exists(l=> l.toPort.dependencies.contains(upstreamPhysicalLink.toPort.id))
     }
   }
 

@@ -97,10 +97,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingInputs(List(0))
       .withPartitionRequirement(partitionRequirement)
       .withDerivePartition(joinDerivePartition)
-      .withDependencies(Map(1 -> 0))
+
   }
 
   override def operatorInfo: OperatorInfo =
@@ -109,7 +108,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       "join two inputs",
       OperatorGroupConstants.JOIN_GROUP,
       inputPorts =
-        List(InputPort(PortIdentity(), name = "left"), InputPort(PortIdentity(1), name = "right")),
+        List(InputPort(PortIdentity(), name = "left"), InputPort(PortIdentity(1), name = "right", dependencies = List(PortIdentity()))),
       outputPorts = List(OutputPort())
     )
 

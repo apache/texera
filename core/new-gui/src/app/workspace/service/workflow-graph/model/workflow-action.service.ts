@@ -196,6 +196,7 @@ export class WorkflowActionService {
 
     this.texeraGraph.bundleActions(() => {
       // add operator to texera graph
+      console.log("adding op predicate", operator);
       this.texeraGraph.addOperator(operator);
       this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, point);
     });
@@ -233,7 +234,7 @@ export class WorkflowActionService {
       portID = prefix + suffix;
     }
 
-    const port: PortDescription = { portID, displayName: portID, allowMultiInputs, isDynamicPort: true };
+    const port: PortDescription = { portID, displayName: portID, allowMultiInputs, isDynamicPort: true, dependencies: []};
 
     if (!operator.dynamicInputPorts && isInput) {
       throw new Error(`operator ${operatorID} does not have dynamic input ports`);

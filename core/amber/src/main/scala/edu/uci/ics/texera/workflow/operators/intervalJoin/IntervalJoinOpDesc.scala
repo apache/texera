@@ -89,9 +89,7 @@ class IntervalJoinOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingInputs(List(0))
       .withPartitionRequirement(partitionRequirement)
-      .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =
@@ -101,7 +99,7 @@ class IntervalJoinOpDesc extends LogicalOp {
       OperatorGroupConstants.JOIN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), name = "left table"),
-        InputPort(PortIdentity(1), name = "right table")
+        InputPort(PortIdentity(1), name = "right table", dependencies = List(PortIdentity(0)))
       ),
       outputPorts = List(OutputPort())
     )

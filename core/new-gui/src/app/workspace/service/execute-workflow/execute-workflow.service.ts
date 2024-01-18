@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { from, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -70,7 +70,7 @@ export class ExecuteWorkflowService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -268,7 +268,7 @@ export class ExecuteWorkflowService {
     console.log("sending add breakpoint request");
     this.workflowWebsocketService.send(
       "AddBreakpointRequest",
-      ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData)
+      ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData),
     );
   }
 
@@ -397,6 +397,8 @@ export class ExecuteWorkflowService {
     };
 
     const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => {
+
+      console.log(op);
       let logicalOp: LogicalOperator = {
         ...op.operatorProperties,
         operatorID: op.operatorID,
@@ -413,32 +415,52 @@ export class ExecuteWorkflowService {
       return logicalOp;
     });
 
-    const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => ({
-      fromOpId: link.source.operatorID,
-      fromPort: {id: {id: getOutputPortOrdinal(link.source.operatorID, link.source.portID), internal: false}, name: ""},
-      toOpId: link.target.operatorID,
-      toPort: {id: {id: getInputPortOrdinal(link.target.operatorID, link.target.portID), internal: false}, name : "", allowMultiLinks: false}
-    }));
+    const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => {
+      const fromOpId = link.source.operatorID;
+      const fromOp = workflowGraph.getOperator(fromOpId);
+      const outputPorts = fromOp.outputPorts;
+      const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
+      const outputPort = outputPorts[outputPortIdx];
+      const toOpId = link.target.operatorID;
+      const toOp = workflowGraph.getOperator(toOpId);
+      const inputPorts = toOp.inputPorts;
+      const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
+      const inputPort = inputPorts[inputPortIdx];
+      console.log(inputPort);
+      const dependencies = inputPort.dependencies || [];
+      return {
+        fromOpId,
+        fromPort: { id: { id: outputPortIdx, internal: false }, name: "" },
+        toOpId: link.target.operatorID,
+        toPort: {
+          id: { id: inputPortIdx, internal: false },
+          name: "",
+          allowMultiLinks: false,
+          dependencies: dependencies,
+        },
+      };
+
+    });
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries()).map(e =>
-      ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
+      ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1]),
     );
 
     const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(
-      op => !workflowGraph.isOperatorDisabled(op)
+      op => !workflowGraph.isOperatorDisabled(op),
     );
 
     const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
-      op => !workflowGraph.isOperatorDisabled(op)
+      op => !workflowGraph.isOperatorDisabled(op),
     );
-
+    console.log("submitting ", { operators, links, breakpoints, opsToViewResult, opsToReuseResult });
     return { operators, links, breakpoints, opsToViewResult, opsToReuseResult };
   }
 
   public static transformBreakpoint(
     workflowGraph: WorkflowGraphReadonly,
     linkID: string,
-    breakpointData: Breakpoint
+    breakpointData: Breakpoint,
   ): BreakpointInfo {
     const operatorID = workflowGraph.getLinkWithID(linkID).source.operatorID;
     let breakpoint: BreakpointRequest;

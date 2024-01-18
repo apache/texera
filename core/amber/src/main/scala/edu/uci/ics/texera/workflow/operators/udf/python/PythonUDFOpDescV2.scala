@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
@@ -70,57 +70,73 @@ class PythonUDFOpDescV2 extends LogicalOp {
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
+//    val newInputPorts = if (inputPorts != null) {
+//      // we use dynamic ports to define input ports
+//      println(inputPorts)
+//      inputPorts.zipWithIndex.map{
+//        case (port, idx) => InputPort(PortIdentity(idx), name=port.displayName, allowMultiLinks = port.allowMultiInputs, dependencies = port.dependencies.map(idx=> PortIdentity(idx)))
+//      }
+//
+//
+//    }else{
+//      operatorInfo.inputPorts
+//    }
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
       inputPorts.map(p => Option(p.partitionRequirement))
     } else {
       opInfo.inputPorts.map(_ => None)
     }
-    val dependencies: Map[Int, Int] = if (inputPorts != null) {
-      inputPorts.zipWithIndex
-        .filter {
-          case (port, _) => port.dependencies != null
-        }
-        .flatMap {
-          case (port, i) => port.dependencies.map(dependee => i -> dependee)
-        }
-        .toMap
-    } else {
-      Map()
-    }
+//    val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
+//      inputPorts.map(p => Option(p.partitionRequirement))
+//    } else {
+//      opInfo.inputPorts.map(_ => None)
+//    }
+//    val dependencies: Map[InputPort, InputPort] = if (inputPorts != null) {
+//      inputPorts.zipWithIndex
+//        .filter {
+//          case (port, _) => port.dependencies != null
+//        }
+//        .flatMap {
+//          case (port, i) => port.dependencies.map(dependee => i -> dependee)
+//        }
+//        .toMap
+//    } else {
+//      Map()
+//    }
 
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withPartitionRequirement(partitionRequirement)
+
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
+        .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
-        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withPartitionRequirement(partitionRequirement)
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
+        .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(false)
-        .withDependencies(dependencies)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo = {
     val inputPortInfo = if (inputPorts != null) {
       inputPorts.zipWithIndex.map {
-        case (portDesc, idx) =>
+        case (portDesc:PortDescription, idx) =>
           InputPort(
             PortIdentity(idx),
             name = portDesc.displayName,
-            allowMultiLinks = portDesc.allowMultiInputs
+            allowMultiLinks = portDesc.allowMultiInputs,
+            dependencies = portDesc.dependencies.map(idx=> PortIdentity(idx))
           )
       }
     } else {

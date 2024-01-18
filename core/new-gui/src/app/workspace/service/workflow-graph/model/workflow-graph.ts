@@ -836,7 +836,7 @@ export class WorkflowGraph {
     );
     portDescriptionSharedType.set(
       "dependencies",
-      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
+      createYTypeFromObject<Array<{id: number, internal: boolean}>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
     );
   }
 

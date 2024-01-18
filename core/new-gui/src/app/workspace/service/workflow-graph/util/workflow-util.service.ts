@@ -121,11 +121,13 @@ export class WorkflowUtilService {
     for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
       const portID = "input-" + i.toString();
       const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
+      console.log("portInfo", portInfo);
       inputPorts.push({
         portID,
         displayName: portInfo.displayName ?? "",
         allowMultiInputs: portInfo.allowMultiInputs ?? false,
         isDynamicPort: false,
+        dependencies: portInfo.dependencies
       });
     }
 
@@ -136,7 +138,7 @@ export class WorkflowUtilService {
         portID,
         displayName: portInfo.displayName ?? "",
         allowMultiInputs: false,
-        isDynamicPort: false,
+        isDynamicPort: false
       });
     }
 

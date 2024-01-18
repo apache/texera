@@ -30,6 +30,7 @@ import scala.Tuple3;
 
 import java.util.function.Function;
 
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -75,6 +76,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         }
 
         PhysicalOpIdentity partialOpId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
+        OutputPort partialOpOutputPort = new OutputPort(new PortIdentity(0, true),"");
         PhysicalOp partialPhysicalOp = PhysicalOp.oneToOnePhysicalOp(
                 workflowId,
                 executionId,
@@ -88,10 +90,11 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
                 .withInputPorts(this.operatorInfo().inputPorts())
-                .withOutputPorts(asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, true),""))).toList());
+                .withOutputPorts(asScalaBuffer(singletonList(partialOpOutputPort)).toList());
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
+        InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false,asScalaBuffer(emptyList()));
         PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
                 workflowId,
                 executionId,
@@ -102,11 +105,11 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 )
         )
         .withId(globalOpId).withIsOneToManyOp(true)
-        .withInputPorts(asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, true), "", false))).toList())
+        .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList())
         .withOutputPorts(this.operatorInfo().outputPorts());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
-        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), 0, globalPhysicalOp.id(), 0)};
+        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(),partialOpOutputPort , globalPhysicalOp.id(), globalOpInputPort)};
 
         return PhysicalPlan.apply(physicalOps, links);
     }
@@ -116,7 +119,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false,asScalaBuffer(emptyList())))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,

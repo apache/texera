@@ -4,13 +4,9 @@ import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{
-  LinkConfig,
-  OperatorConfig,
-  RegionConfig
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{LinkConfig, OperatorConfig, RegionConfig}
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, PhysicalLink}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
 
 import scala.collection.mutable
@@ -103,10 +99,10 @@ class DefaultResourceAllocator(
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
-          val inputPartitionInfos = physicalOp.inputPorts.indices.toList
-            .flatMap((portIdx: Int) =>
+          val inputPartitionInfos = physicalOp.inputPorts
+            .flatMap((port: InputPort) =>
               physicalOp
-                .getLinksOnInputPort(portIdx)
+                .getLinksOnInputPort(port)
                 .filter(link => region.getEffectiveLinks.contains(link))
                 .map(link => {
                   val upstreamInputPartitionInfo = outputPartitionInfos(link.from)
@@ -121,7 +117,7 @@ class DefaultResourceAllocator(
                 })
             )
             // group upstream partition infos by input port of this physicalOp
-            .groupBy(_._1)
+            .groupBy(_._1.id)
             .values
             .toList
             // if there are multiple partition infos on an input port, reduce them to once

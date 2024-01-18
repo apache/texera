@@ -7,13 +7,22 @@
 import { ChartType } from "./visualization.interface";
 import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
 import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
+export interface PortIdentity
+  extends Readonly<{
+    id: number,
+    internal: boolean
+  }> {}
+export interface OutputPort
+  extends Readonly<{id: PortIdentity, name: string}> {}
+export interface InputPort
+  extends Readonly<{id: PortIdentity, name: string, allowMultiLinks: boolean, dependencies: ReadonlyArray<PortIdentity>}> {}
 
 export interface LogicalLink
   extends Readonly<{
     fromOpId: string,
-    fromPort: {id: {id: number, internal: boolean}, name: string}
+    fromPort: OutputPort
     toOpId: string,
-    toPort: {id: {id: number, internal: boolean}, name: string, allowMultiLinks: boolean}
+    toPort: InputPort
   }> {}
 
 export interface LogicalOperator

@@ -70,27 +70,24 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
-    if (workers > 1)
+    if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
-        .withBlockingInputs(List(0))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withDependencies(Map(1 -> 0))
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withSuggestedWorkerNum(workers)
-    else
+    } else {
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
-        .withBlockingInputs(List(0))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
-        .withDependencies(Map(1 -> 0))
+    }
   }
 
   override def operatorInfo: OperatorInfo =
@@ -100,7 +97,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       OperatorGroupConstants.UDF_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), name = "model", allowMultiLinks = true),
-        InputPort(PortIdentity(), name = "tuples", allowMultiLinks = true)
+        InputPort(PortIdentity(), name = "tuples", allowMultiLinks = true,dependencies = List(PortIdentity(0)))
       ),
       outputPorts = List(OutputPort())
     )

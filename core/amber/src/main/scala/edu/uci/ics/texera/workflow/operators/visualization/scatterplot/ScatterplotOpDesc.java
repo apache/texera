@@ -30,6 +30,7 @@ import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.DOUBLE;
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.INTEGER;
+import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -103,7 +104,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 "Scatterplot",
                 "View the result in a scatterplot",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScalaBuffer(emptyList())))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false, false, false, false);
     }

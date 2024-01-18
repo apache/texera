@@ -3,13 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -200,6 +197,12 @@ class ExpansionGreedyRegionPlanGenerator(
   private def createRegionDAG(
       context: WorkflowContext
   ): DirectedAcyclicGraph[Region, RegionLink] = {
+
+    val dependeeInputPorts: mutable.ListBuffer[(PhysicalOpIdentity, PortIdentity)] =
+      physicalPlan.links
+        .foldLeft(mutable.ListBuffer.empty[(PhysicalOpIdentity, PortIdentity)]) { (acc, link) =>
+          acc ++= link.toPort.dependencies.map(dependeeInputPort => (link.to, dependeeInputPort))
+        }
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     @tailrec
@@ -208,7 +211,7 @@ class ExpansionGreedyRegionPlanGenerator(
         case Left(dag) => dag
         case Right(links) =>
           links.foreach { link =>
-            physicalPlan = replaceLinkWithMaterialization(link, context, matReaderWriterPairs)
+            physicalPlan = replaceLinkWithMaterialization(link, context, matReaderWriterPairs, dependeeInputPorts)
           }
           recConnectRegionDAG()
       }
@@ -292,7 +295,12 @@ class ExpansionGreedyRegionPlanGenerator(
         upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-            .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
+            .filter(link =>
+              physicalPlan
+                .getOperator(link.to)
+                .getAllInputLinks
+                .exists(l => l.toPort.dependencies.contains(link.toPort.id))
+            )
         }
       }
       .toSet
@@ -324,17 +332,18 @@ class ExpansionGreedyRegionPlanGenerator(
   private def replaceLinkWithMaterialization(
       physicalLink: PhysicalLink,
       context: WorkflowContext,
-      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
+      writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity],
+      dependeeInputPorts: mutable.ListBuffer[(PhysicalOpIdentity, PortIdentity)]
   ): PhysicalPlan = {
     // get the actual Op from the physical plan. the operators on the link and that on the physical plan
     // are different due to partial rewrite
     val fromOp = physicalPlan.getOperator(physicalLink.from)
-    val fromOutputPort = fromOp.getPortIdxForOutputLink(physicalLink)
+    val fromOutputPort = physicalLink.fromPort
 
     // get the actual Op from the physical plan. the operators on the link and that on the physical plan
     // are different due to partial rewrite
     val toOp = physicalPlan.getOperator(physicalLink.to)
-    val toInputPort = toOp.getPortIdxForInputLink(physicalLink)
+    val toInputPort = physicalLink.toPort
 
     val (matWriterLogicalOp: ProgressiveSinkOpDesc, matWriterPhysicalOp: PhysicalOp) =
       createMatWriter(fromOp, fromOutputPort, context)
@@ -342,12 +351,21 @@ class ExpansionGreedyRegionPlanGenerator(
     val matReaderPhysicalOp: PhysicalOp = createMatReader(matWriterLogicalOp, context)
 
     // create 2 links for materialization
-    val readerToDestLink = PhysicalLink(matReaderPhysicalOp.id, 0, toOp.id, toInputPort)
+    val readerToDestLink =
+      PhysicalLink(matReaderPhysicalOp.id, fromOp.outputPorts.head, toOp.id, toInputPort)
     val sourceToWriterLink =
-      PhysicalLink(fromOp.id, fromOutputPort, matWriterPhysicalOp.id, 0)
+      PhysicalLink(
+        fromOp.id,
+        fromOutputPort,
+        matWriterPhysicalOp.id,
+        matWriterPhysicalOp.inputPorts.head
+      )
 
     // add the pair to the map for later adding edges between 2 regions.
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
+
+    // remove the port from dependee list
+    dependeeInputPorts -= ((toOp.id, toInputPort.id))
 
     physicalPlan
       .removeLink(physicalLink)
@@ -355,7 +373,6 @@ class ExpansionGreedyRegionPlanGenerator(
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)
       .addLink(sourceToWriterLink)
-      .setOperatorUnblockPort(toOp.id, toInputPort)
   }
 
   private def createMatReader(
@@ -380,7 +397,7 @@ class ExpansionGreedyRegionPlanGenerator(
 
   private def createMatWriter(
       fromOp: PhysicalOp,
-      fromOutputPortIdx: Int,
+      fromPort: OutputPort,
       context: WorkflowContext
   ): (ProgressiveSinkOpDesc, PhysicalOp) = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
@@ -393,7 +410,7 @@ class ExpansionGreedyRegionPlanGenerator(
       } else {
         Array()
       }
-    val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromOutputPortIdx)
+    val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromPort.id.id)
     // we currently expect only one output schema
     val matWriterOutputSchema =
       matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
