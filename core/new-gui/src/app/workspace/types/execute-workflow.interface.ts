@@ -20,9 +20,9 @@ export interface InputPort
 export interface LogicalLink
   extends Readonly<{
     fromOpId: string,
-    fromPort: OutputPort
+    fromPortId: PortIdentity,
     toOpId: string,
-    toPort: InputPort
+    toPortId: PortIdentity
   }> {}
 
 export interface LogicalOperator

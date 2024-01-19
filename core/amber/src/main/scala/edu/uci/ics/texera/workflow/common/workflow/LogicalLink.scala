@@ -2,21 +2,21 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonProperty}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 case class LogicalLink(
     @JsonProperty("fromOpId") fromOpId: OperatorIdentity,
-    fromPort: OutputPort,
+    fromPortId: PortIdentity,
     @JsonProperty("toOpId") toOpId: OperatorIdentity,
-    toPort: InputPort
+    toPortId: PortIdentity
 ) {
   @JsonCreator
   def this(
       @JsonProperty("fromOpId") fromOpId: String,
-      fromPort: OutputPort,
+      fromPortId: PortIdentity,
       @JsonProperty("toOpId") toOpId: String,
-      toPort: InputPort
+      toPortId: PortIdentity
   ) = {
-    this(OperatorIdentity(fromOpId), fromPort, OperatorIdentity(toOpId), toPort)
+    this(OperatorIdentity(fromOpId), fromPortId, OperatorIdentity(toOpId), toPortId)
   }
 }

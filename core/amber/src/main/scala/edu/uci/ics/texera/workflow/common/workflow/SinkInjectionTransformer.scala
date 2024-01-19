@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.InputPort
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
@@ -28,7 +28,7 @@ object SinkInjectionTransformer {
         sink.setOperatorId("sink_" + opId.id)
         logicalPlan = logicalPlan
           .addOperator(sink)
-          .addLink(op.operatorIdentifier, outPort, sink.operatorIdentifier, toPort = InputPort())
+          .addLink(op.operatorIdentifier, outPort.id, sink.operatorIdentifier, toPortId = PortIdentity())
       })
     })
 
@@ -53,7 +53,7 @@ object SinkInjectionTransformer {
       if (upstream.nonEmpty && edge.nonEmpty) {
         // set upstream ID and port
         sinkOp.setUpstreamId(upstream.get.operatorIdentifier)
-        sinkOp.setUpstreamPort(edge.get.fromPort.id.id)
+        sinkOp.setUpstreamPort(edge.get.fromPortId.id)
 
         // set output mode for visualization operator
         (upstream.get, sinkOp) match {

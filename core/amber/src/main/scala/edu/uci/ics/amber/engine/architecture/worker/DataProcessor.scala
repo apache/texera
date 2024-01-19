@@ -7,31 +7,19 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
-  DPOutputIterator,
-  FinalizeLink,
-  FinalizeOperator
-}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{DPOutputIterator, FinalizeLink, FinalizeOperator}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  PAUSED,
-  READY,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, PAUSED, READY, RUNNING}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
@@ -108,7 +96,7 @@ class DataProcessor(
     this.upstreamLinkStatus.setAllUpstreamLinks(
       if (physicalOp.isSourceOperator) {
         Set(
-          PhysicalLink(SOURCE_STARTER_OP, OutputPort(), physicalOp.id, InputPort())
+          PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), physicalOp.id, PortIdentity())
         ) // special case for source operator
       } else {
         physicalOp.getAllInputLinks.toSet
@@ -163,7 +151,7 @@ class DataProcessor(
 
   def getInputPortIdx(workerId: ActorVirtualIdentity): Int = {
     val inputLink = upstreamLinkStatus.getInputLink(workerId)
-    if (inputLink.from == SOURCE_STARTER_OP) 0 // special case for source operator
+    if (inputLink.fromOpId == SOURCE_STARTER_OP) 0 // special case for source operator
     else if (!physicalOp.getAllInputLinks.contains(inputLink)) 0
     else physicalOp.getPortIdxForInputLink(inputLink).id.id
   }
@@ -250,7 +238,7 @@ class DataProcessor(
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizeLink(link) =>
         logger.info(s"process FinalizeLink message")
-        if (link != null && link.from != SOURCE_STARTER_OP) {
+        if (link != null && link.fromOpId != SOURCE_STARTER_OP) {
           asyncRPCClient.send(LinkCompleted(link), CONTROLLER)
         }
       case _ =>
@@ -359,7 +347,7 @@ class DataProcessor(
         outputGateway.getActiveChannels.foreach { activeChannelId =>
           if (
             physicalLinks
-              .exists(p => p.to == VirtualIdentityUtils.getPhysicalOpId(activeChannelId.to))
+              .exists(p => p.toOpId == VirtualIdentityUtils.getPhysicalOpId(activeChannelId.to))
           ) {
             logger.info(
               s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${command}"

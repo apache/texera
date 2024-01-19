@@ -56,15 +56,15 @@ class InputPort(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class OutputPort(betterproto.Message):
     id: "PortIdentity" = betterproto.message_field(1)
-    name: str = betterproto.string_field(2)
+    display_name: str = betterproto.string_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class PhysicalLink(betterproto.Message):
-    from_: "PhysicalOpIdentity" = betterproto.message_field(1)
-    from_port: "OutputPort" = betterproto.message_field(2)
-    to: "PhysicalOpIdentity" = betterproto.message_field(3)
-    to_port: "InputPort" = betterproto.message_field(4)
+    from_op_id: "PhysicalOpIdentity" = betterproto.message_field(1)
+    from_port_id: "PortIdentity" = betterproto.message_field(2)
+    to_op_id: "PhysicalOpIdentity" = betterproto.message_field(3)
+    to_port_id: "PortIdentity" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)

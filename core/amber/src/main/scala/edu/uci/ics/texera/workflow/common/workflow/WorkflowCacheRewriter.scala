@@ -46,9 +46,9 @@ object WorkflowCacheRewriter {
           .removeLink(link)
           .addLink(
             fromOpId = materializationReader.operatorIdentifier,
-            fromPort = link.fromPort,
+            fromPortId = link.fromPortId,
             toOpId = link.toOpId,
-            toPort = link.toPort
+            toPortId = link.toPortId
           )
       })
       resultPlan = resultPlan.removeOperator(opId)

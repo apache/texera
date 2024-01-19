@@ -33,11 +33,11 @@ object PhysicalPlan {
 
     // connect external links
     logicalPlan.links.foreach(link => {
-      val fromPort = link.fromPort
-      val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, fromPort.id)
-      val toPort = link.toPort
-      val toOp = physicalPlan.getPhysicalOpForInputPort(link.toOpId, link.toPort.id)
-      physicalPlan = physicalPlan.addLink(PhysicalLink(fromOp.id, fromPort, toOp.id, toPort))
+
+      val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, link.fromPortId)
+
+      val toOp = physicalPlan.getPhysicalOpForInputPort(link.toOpId, link.toPortId)
+      physicalPlan = physicalPlan.addLink(PhysicalLink(fromOp.id, link.fromPortId, toOp.id, link.toPortId))
     })
 
     physicalPlan
@@ -57,7 +57,7 @@ case class PhysicalPlan(
   @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge] = {
     val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge](classOf[DefaultEdge])
     operatorMap.foreach(op => jgraphtDag.addVertex(op._1))
-    links.foreach(l => jgraphtDag.addEdge(l.from, l.to))
+    links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId))
     jgraphtDag
   }
 
@@ -120,7 +120,7 @@ case class PhysicalPlan(
   def getSubPlan(subOperators: Set[PhysicalOpIdentity]): PhysicalPlan = {
     val newOps = operators.filter(op => subOperators.contains(op.id))
     val newLinks =
-      links.filter(link => subOperators.contains(link.from) && subOperators.contains(link.to))
+      links.filter(link => subOperators.contains(link.fromOpId) && subOperators.contains(link.toOpId))
     PhysicalPlan(newOps, newLinks)
   }
 
@@ -129,7 +129,7 @@ case class PhysicalPlan(
   }
 
   def getUpstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
-    links.filter(l => l.to == physicalOpId)
+    links.filter(l => l.toOpId == physicalOpId)
   }
 
   def getDownstreamPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
@@ -137,7 +137,7 @@ case class PhysicalPlan(
   }
 
   def getDownstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
-    links.filter(l => l.from == physicalOpId)
+    links.filter(l => l.fromOpId == physicalOpId)
   }
 
   def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
@@ -153,16 +153,16 @@ case class PhysicalPlan(
 
   def addLink(link: PhysicalLink): PhysicalPlan = {
     val newOperators = operatorMap +
-      (link.from -> getOperator(link.from).addOutput(link)) +
-      (link.to -> getOperator(link.to).addInput(link))
+      (link.fromOpId -> getOperator(link.fromOpId).addOutput(link)) +
+      (link.toOpId -> getOperator(link.toOpId).addInput(link))
     this.copy(newOperators.values.toSet, links ++ Set(link))
   }
 
   def removeLink(
       link: PhysicalLink
   ): PhysicalPlan = {
-    val fromOpId = link.from
-    val toOpId = link.to
+    val fromOpId = link.fromOpId
+    val toOpId = link.toOpId
     val newOperators = operatorMap +
       (fromOpId -> getOperator(fromOpId).removeOutput(link)) +
       (toOpId -> getOperator(toOpId).removeInput(link))
@@ -191,7 +191,7 @@ case class PhysicalPlan(
       from: PhysicalOpIdentity,
       to: PhysicalOpIdentity
   ): Set[PhysicalLink] = {
-    links.filter(link => link.from == from && link.to == to)
+    links.filter(link => link.fromOpId == from && link.toOpId == to)
 
   }
 
@@ -200,16 +200,16 @@ case class PhysicalPlan(
       upstreamPartitionInfo: PartitionInfo,
       opToWorkerNumberMapping: Map[PhysicalOpIdentity, Int]
   ): PartitionInfo = {
-    val fromPhysicalOp = getOperator(link.from)
-    val toPhysicalOp = getOperator(link.to)
+    val fromPhysicalOp = getOperator(link.fromOpId)
+    val toPhysicalOp = getOperator(link.toOpId)
 
     // make sure this input is connected to this port
-    assert(toPhysicalOp.getOpsOnInputPort(link.toPort).contains(fromPhysicalOp.id))
+    assert(toPhysicalOp.getOpsOnInputPort(link.toPortId).contains(fromPhysicalOp.id))
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
       toPhysicalOp.partitionRequirement
-        .lift(link.toPort.id.id)
+        .lift(link.toPortId.id)
         .flatten
         .getOrElse(UnknownPartition())
 
@@ -238,7 +238,7 @@ case class PhysicalPlan(
           getUpstreamPhysicalOpIds(physicalOp.id)
             .flatMap { upstreamPhysicalOpId =>
               links
-                .filter(link => link.from == upstreamPhysicalOpId && link.to == physicalOp.id)
+                .filter(link => link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id)
                 .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
             }
         }

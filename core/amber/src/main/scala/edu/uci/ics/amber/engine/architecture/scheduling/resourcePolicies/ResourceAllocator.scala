@@ -60,13 +60,13 @@ class DefaultResourceAllocator(
     val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLink =>
       physicalLink -> LinkConfig(
         generateChannelConfigs(
-          operatorConfigs(physicalLink.from).workerConfigs.map(_.workerId),
-          operatorConfigs(physicalLink.to).workerConfigs.map(_.workerId),
-          outputPartitionInfos(physicalLink.from)
+          operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
+          operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          outputPartitionInfos(physicalLink.fromOpId)
         ),
         toPartitioning(
-          operatorConfigs(physicalLink.to).workerConfigs.map(_.workerId),
-          outputPartitionInfos(physicalLink.from)
+          operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          outputPartitionInfos(physicalLink.fromOpId)
         )
       )
     }.toMap
@@ -109,7 +109,7 @@ class DefaultResourceAllocator(
                 .getLinksOnInputPort(port)
                 .filter(link => region.getEffectiveLinks.contains(link))
                 .map(link => {
-                  val upstreamInputPartitionInfo = outputPartitionInfos(link.from)
+                  val upstreamInputPartitionInfo = outputPartitionInfos(link.fromOpId)
                   val upstreamOutputPartitionInfo = physicalPlan.getOutputPartitionInfo(
                     link,
                     upstreamInputPartitionInfo,
@@ -117,11 +117,11 @@ class DefaultResourceAllocator(
                       case (opId, operatorConfig) => opId -> operatorConfig.workerConfigs.length
                     }.toMap
                   )
-                  (link.toPort, upstreamOutputPartitionInfo)
+                  (link.toPortId, upstreamOutputPartitionInfo)
                 })
             })
             // group upstream partition infos by input port of this physicalOp
-            .groupBy(_._1.id)
+            .groupBy(_._1)
             .values
             .toList
             // if there are multiple partition infos on an input port, reduce them to once

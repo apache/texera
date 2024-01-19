@@ -419,14 +419,9 @@ export class ExecuteWorkflowService {
       console.log("before executing", "got this inputPort ", inputPort);
       return {
         fromOpId,
-        fromPort: { id: { id: outputPortIdx, internal: false }, displayName: outputPort.displayName  ?? ""},
+        fromPortId:{ id: outputPortIdx, internal: false },
         toOpId: link.target.operatorID,
-        toPort: {
-          id: { id: inputPortIdx, internal: false },
-          displayName: inputPort.displayName ?? "",
-          allowMultiLinks: inputPort.allowMultiInputs ?? false,
-          dependencies: inputPort.dependencies ?? [],
-        },
+        toPortId: { id: inputPortIdx, internal: false }
       };
 
     });

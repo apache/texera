@@ -244,7 +244,7 @@ object SkewDetectionHandler {
         .find(physicalOp => {
 
           val buildTableLink = physicalOp.getLinksOnInputPort(PortIdentity(0)).head
-          physicalOp.id != buildTableLink.from
+          physicalOp.id != buildTableLink.fromOpId
         })
         .get
     } else {

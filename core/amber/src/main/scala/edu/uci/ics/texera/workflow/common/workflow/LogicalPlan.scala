@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.common.base.Verify
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -112,16 +112,16 @@ case class LogicalPlan(
   }
 
   def addLink(
-      fromOpId: OperatorIdentity,
-      fromPort: OutputPort,
-      toOpId: OperatorIdentity,
-      toPort: InputPort
+               fromOpId: OperatorIdentity,
+               fromPortId: PortIdentity,
+               toOpId: OperatorIdentity,
+               toPortId: PortIdentity
   ): LogicalPlan = {
     val newLink = LogicalLink(
       fromOpId,
-      fromPort,
+      fromPortId,
       toOpId,
-      toPort
+      toPortId
     )
     val newLinks = links :+ newLink
     this.copy(operators, newLinks, breakpoints)
@@ -235,8 +235,8 @@ case class LogicalPlan(
         val destInputSchemas = inputSchemaMap(dest.operatorIdentifier)
         // put the schema into the ordinal corresponding to the port
         val schemaOnPort =
-          outputSchemas.flatMap(schemas => schemas.toList.lift(link.fromPort.id.id))
-        destInputSchemas(link.toPort.id.id) = schemaOnPort
+          outputSchemas.flatMap(schemas => schemas.toList.lift(link.fromPortId.id))
+        destInputSchemas(link.toPortId.id) = schemaOnPort
         inputSchemaMap.update(dest.operatorIdentifier, destInputSchemas)
       })
     })

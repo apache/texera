@@ -220,8 +220,8 @@ class WorkflowScheduler(
       workflow.physicalPlan.links
         .filter(link => {
           !activatedLink.contains(link) &&
-            allOperatorsInRegion.contains(link.from) &&
-            allOperatorsInRegion.contains(link.to)
+            allOperatorsInRegion.contains(link.fromOpId) &&
+            allOperatorsInRegion.contains(link.toOpId)
         })
         .map { link: PhysicalLink =>
           asyncRPCClient

@@ -320,10 +320,10 @@ case class PhysicalOp(
     */
   def addInput(
       fromOpId: PhysicalOpIdentity,
-      fromPort: OutputPort,
-      toPort: InputPort
+      fromPortId: PortIdentity,
+      toPortId: PortIdentity
   ): PhysicalOp = {
-    val link = PhysicalLink(fromOpId, fromPort, this.id, toPort)
+    val link = PhysicalLink(fromOpId, fromPortId, this.id, toPortId)
     addInput(link)
   }
 
@@ -331,20 +331,20 @@ case class PhysicalOp(
     * creates a copy with an additional input operator specified on an input port
     */
   def addInput(link: PhysicalLink): PhysicalOp = {
-    assert(link.to == id)
-    assert(inputPorts.keySet.contains(link.toPort.id))
-    val (port, existingLinks) = inputPorts(link.toPort.id)
+    assert(link.toOpId == id)
+    assert(inputPorts.keySet.contains(link.toPortId))
+    val (port, existingLinks) = inputPorts(link.toPortId)
     val newLinks = existingLinks :+ link
     this.copy(
-      inputPorts = inputPorts + (link.toPort.id -> (port, newLinks))
+      inputPorts = inputPorts + (link.toPortId -> (port, newLinks))
     )
   }
 
   /**
     * creates a copy with an additional output operator specified on an output port
     */
-  def addOutput(toOpId: PhysicalOpIdentity, fromPort: OutputPort, toPort: InputPort): PhysicalOp = {
-    val link = PhysicalLink(this.id, fromPort, toOpId, toPort)
+  def addOutput(toOpId: PhysicalOpIdentity, fromPortId: PortIdentity, toPortId: PortIdentity): PhysicalOp = {
+    val link = PhysicalLink(this.id, fromPortId, toOpId, toPortId)
     addOutput(link)
   }
 
@@ -352,12 +352,12 @@ case class PhysicalOp(
     * creates a copy with an additional output operator specified on an output port
     */
   def addOutput(link: PhysicalLink): PhysicalOp = {
-    assert(link.from == id)
-    assert(outputPorts.contains(link.fromPort.id))
-    val (port , existingLinks) = outputPorts(link.fromPort.id)
+    assert(link.fromOpId == id)
+    assert(outputPorts.contains(link.fromPortId))
+    val (port , existingLinks) = outputPorts(link.fromPortId)
     val newLinks = existingLinks :+ link
     this.copy(
-      outputPorts = outputPorts + (link.fromPort.id -> (port, newLinks))
+      outputPorts = outputPorts + (link.fromPortId -> (port, newLinks))
     )
   }
 
@@ -401,29 +401,23 @@ case class PhysicalOp(
     * returns all input links on a specific input port
     */
   def getLinksOnInputPort(portId: PortIdentity): List[PhysicalLink] = {
-    getAllInputLinks.filter(link => link.toPort.id == portId)
+    getAllInputLinks.filter(link => link.toPortId == portId)
   }
 
   /**
     * returns all the input operators on a specific input port
     */
-  def getOpsOnInputPort(port: InputPort): List[PhysicalOpIdentity] = {
-    getLinksOnInputPort(port).map(link => link.from)
-  }
-
-  /**
-    * returns all output links on a specific output port
-    */
-  def getLinksOnOutputPort(port: OutputPort): List[PhysicalLink] = {
-    getAllInputLinks.filter(link => link.fromPort == port)
+  def getOpsOnInputPort(portId: PortIdentity): List[PhysicalOpIdentity] = {
+    getLinksOnInputPort(portId).map(link => link.fromOpId)
   }
 
   /**
     * returns all output links on a specific output port
     */
   def getLinksOnOutputPort(portId: PortIdentity): List[PhysicalLink] = {
-    getAllInputLinks.filter(link => link.fromPort.id == portId)
+    getAllInputLinks.filter(link => link.fromPortId == portId)
   }
+
 
   def getAllInputLinks: List[PhysicalLink] = {
     inputPorts.values.flatMap(_._2).toList
