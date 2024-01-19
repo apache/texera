@@ -388,7 +388,6 @@ export class ExecuteWorkflowService {
 
     const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => {
 
-      console.log(op);
       let logicalOp: LogicalOperator = {
         ...op.operatorProperties,
         operatorID: op.operatorID,
@@ -406,19 +405,10 @@ export class ExecuteWorkflowService {
     });
 
     const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => {
-      const fromOpId = link.source.operatorID;
-      const fromOp = workflowGraph.getOperator(fromOpId);
-      const outputPorts = fromOp.outputPorts;
       const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
-      const outputPort = outputPorts[outputPortIdx];
-      const toOpId = link.target.operatorID;
-      const toOp = workflowGraph.getOperator(toOpId);
-      const inputPorts = toOp.inputPorts;
       const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
-      const inputPort = inputPorts[inputPortIdx];
-      console.log("before executing", "got this inputPort ", inputPort);
       return {
-        fromOpId,
+        fromOpId:link.source.operatorID,
         fromPortId:{ id: outputPortIdx, internal: false },
         toOpId: link.target.operatorID,
         toPortId: { id: inputPortIdx, internal: false }
@@ -437,7 +427,6 @@ export class ExecuteWorkflowService {
     const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
       op => !workflowGraph.isOperatorDisabled(op),
     );
-    console.log("submitting ", { operators, links, breakpoints, opsToViewResult, opsToReuseResult });
     return { operators, links, breakpoints, opsToViewResult, opsToReuseResult };
   }
 

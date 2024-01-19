@@ -196,7 +196,6 @@ export class WorkflowActionService {
 
     this.texeraGraph.bundleActions(() => {
       // add operator to texera graph
-      console.log("adding op predicate", operator);
       this.texeraGraph.addOperator(operator);
       this.texeraGraph.sharedModel.elementPositionMap?.set(operator.operatorID, point);
     });
@@ -666,9 +665,7 @@ export class WorkflowActionService {
 
       const commentBoxes = workflowContent.commentBoxes;
 
-      console.log("all operators to add", operatorsAndPositions);
       operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
-      console.log("after update", operatorsAndPositions);
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
