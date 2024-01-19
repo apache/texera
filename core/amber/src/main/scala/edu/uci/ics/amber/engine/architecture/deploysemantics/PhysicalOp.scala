@@ -26,6 +26,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, SinglePartition}
@@ -204,8 +205,8 @@ case class PhysicalOp(
     inputPorts: List[InputPort] = List(InputPort()),
     outputPorts: List[OutputPort] = List(OutputPort()),
     // mapping of all input/output operators connected on a specific input/output port index
-    inputPortToLinkIdMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
-    outputPortToLinkIdMapping: Map[Int, List[PhysicalLinkIdentity]] = Map(),
+    inputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
+    outputPortToLinkMapping: Map[Int, List[PhysicalLink]] = Map(),
     // input ports that are blocking
     blockingInputs: List[Int] = List(),
     // execution dependency of ports: (depender -> dependee), where dependee needs to finish first.
@@ -346,8 +347,8 @@ case class PhysicalOp(
   /**
     * creates a copy with an additional input operator specified on an input port
     */
-  def addInput(fromOp: PhysicalOp, fromPort: Int, toPort: Int): PhysicalOp = {
-    val link = PhysicalLink(fromOp, fromPort, this, toPort)
+  def addInput(fromOpId: PhysicalOpIdentity, fromPort: Int, toPort: Int): PhysicalOp = {
+    val link = PhysicalLink(fromOpId, fromPort, this.id, toPort)
     addInput(link)
   }
 
@@ -355,19 +356,19 @@ case class PhysicalOp(
     * creates a copy with an additional input operator specified on an input port
     */
   def addInput(link: PhysicalLink): PhysicalOp = {
-    assert(link.toOp.id == id)
-    val existingLinks = inputPortToLinkIdMapping.getOrElse(link.toPort, List())
-    val newLinks = existingLinks :+ link.id
+    assert(link.to == id)
+    val existingLinks = inputPortToLinkMapping.getOrElse(link.toPort, List())
+    val newLinks = existingLinks :+ link
     this.copy(
-      inputPortToLinkIdMapping = inputPortToLinkIdMapping + (link.toPort -> newLinks)
+      inputPortToLinkMapping = inputPortToLinkMapping + (link.toPort -> newLinks)
     )
   }
 
   /**
     * creates a copy with an additional output operator specified on an output port
     */
-  def addOutput(toOp: PhysicalOp, fromPort: Int, toPort: Int): PhysicalOp = {
-    val link = PhysicalLink(this, fromPort, toOp, toPort)
+  def addOutput(toOpId: PhysicalOpIdentity, fromPort: Int, toPort: Int): PhysicalOp = {
+    val link = PhysicalLink(this.id, fromPort, toOpId, toPort)
     addOutput(link)
   }
 
@@ -375,11 +376,11 @@ case class PhysicalOp(
     * creates a copy with an additional output operator specified on an output port
     */
   def addOutput(link: PhysicalLink): PhysicalOp = {
-    assert(link.fromOp.id == id)
-    val existingLinks = outputPortToLinkIdMapping.getOrElse(link.fromPort, List())
-    val newLinks = existingLinks :+ link.id
+    assert(link.from == id)
+    val existingLinks = outputPortToLinkMapping.getOrElse(link.fromPort, List())
+    val newLinks = existingLinks :+ link
     this.copy(
-      outputPortToLinkIdMapping = outputPortToLinkIdMapping + (link.fromPort -> newLinks)
+      outputPortToLinkMapping = outputPortToLinkMapping + (link.fromPort -> newLinks)
     )
   }
 
@@ -387,16 +388,14 @@ case class PhysicalOp(
     * creates a copy with a removed input operator, we use the identity to do equality check.
     */
   def removeInput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portIdx, existingLinks) = inputPortToLinkIdMapping
+    val (portIdx, existingLinks) = inputPortToLinkMapping
       .find({
-        case (_, links) => links.contains(linkToRemove.id)
+        case (_, links) => links.contains(linkToRemove)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
-      inputPortToLinkIdMapping =
-        inputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
-          linkId != linkToRemove.id
-        ))
+      inputPortToLinkMapping =
+        inputPortToLinkMapping + (portIdx -> existingLinks.filter(link => link != linkToRemove))
     )
   }
 
@@ -404,70 +403,68 @@ case class PhysicalOp(
     * creates a copy with a removed output operator, we use the identity to do equality check.
     */
   def removeOutput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portIdx, existingLinks) = outputPortToLinkIdMapping
+    val (portIdx, existingLinks) = outputPortToLinkMapping
       .find({
-        case (_, links) => links.contains(linkToRemove.id)
+        case (_, links) => links.contains(linkToRemove)
       })
       .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
     this.copy(
-      outputPortToLinkIdMapping =
-        outputPortToLinkIdMapping + (portIdx -> existingLinks.filter(linkId =>
-          linkId != linkToRemove.id
-        ))
+      outputPortToLinkMapping =
+        outputPortToLinkMapping + (portIdx -> existingLinks.filter(link => link != linkToRemove))
     )
   }
 
   /**
     * returns all input links on a specific input port
     */
-  def getLinksOnInputPort(portIndex: Int): List[PhysicalLinkIdentity] = {
-    inputPortToLinkIdMapping(portIndex)
+  def getLinksOnInputPort(portIndex: Int): List[PhysicalLink] = {
+    inputPortToLinkMapping(portIndex)
   }
 
   /**
     * returns all the input operators on a specific input port
     */
   def getOpsOnInputPort(portIndex: Int): List[PhysicalOpIdentity] = {
-    getLinksOnInputPort(portIndex).map(linkId => linkId.from)
+    getLinksOnInputPort(portIndex).map(link => link.from)
   }
 
   /**
     * returns all output links on a specific output port
     */
-  def getLinksOnOutputPort(portIndex: Int): List[PhysicalLinkIdentity] = {
-    outputPortToLinkIdMapping(portIndex)
+  def getLinksOnOutputPort(portIndex: Int): List[PhysicalLink] = {
+    outputPortToLinkMapping(portIndex)
   }
 
   /**
     * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
     * outputs all its tuples
     */
-  def isInputLinkBlocking(linkId: PhysicalLinkIdentity): Boolean = {
-    val blockingLinkIds = realBlockingInputs.flatMap(portIdx => inputPortToLinkIdMapping(portIdx))
-    blockingLinkIds.contains(linkId)
+  def isInputLinkBlocking(link: PhysicalLink): Boolean = {
+    val blockingLinks = realBlockingInputs.flatMap(portIdx => inputPortToLinkMapping(portIdx))
+    blockingLinks.contains(link)
   }
 
-  def getAllInputLinkIds: List[PhysicalLinkIdentity] = {
-    inputPortToLinkIdMapping.values.flatten.toList
+  def getAllInputLinks: List[PhysicalLink] = {
+    inputPortToLinkMapping.values.flatten.toList
   }
 
-  def getAllOutputLinkIds: List[PhysicalLinkIdentity] = {
-    outputPortToLinkIdMapping.values.flatten.toList
+  def getAllOutputLinks: List[PhysicalLink] = {
+    outputPortToLinkMapping.values.flatten.toList
   }
 
-  def getPortIdxForInputLinkId(linkId: PhysicalLinkIdentity): Int = {
-    inputPortToLinkIdMapping
+  def getPortIdxForInputLink(link: PhysicalLink): Int = {
+    inputPortToLinkMapping
       .find {
-        case (_, links) => links.contains(linkId)
+        case (_, links) => links.contains(link)
       }
       .map(_._1)
       .get
   }
 
-  def getPortIdxForOutputLinkId(linkId: PhysicalLinkIdentity): Int = {
-    outputPortToLinkIdMapping
+  def getPortIdxForOutputLink(link: PhysicalLink): Int = {
+    outputPortToLinkMapping
       .find {
-        case (_, links) => links.contains(linkId)
+        case (_, links) => links.contains(link)
       }
       .map(_._1)
       .get
@@ -477,13 +474,13 @@ case class PhysicalOp(
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
-  def getInputLinksInProcessingOrder: List[PhysicalLinkIdentity] = {
+  def getInputLinksInProcessingOrder: List[PhysicalLink] = {
     val dependencyDag =
-      new DirectedAcyclicGraph[PhysicalLinkIdentity, DefaultEdge](classOf[DefaultEdge])
+      new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
     dependencies.foreach({
       case (depender: Int, dependee: Int) =>
-        val upstreamLink = inputPortToLinkIdMapping(dependee).head
-        val downstreamLink = inputPortToLinkIdMapping(depender).head
+        val upstreamLink = inputPortToLinkMapping(dependee).head
+        val downstreamLink = inputPortToLinkMapping(depender).head
         if (!dependencyDag.containsVertex(upstreamLink)) {
           dependencyDag.addVertex(upstreamLink)
         }
@@ -493,8 +490,8 @@ case class PhysicalOp(
         dependencyDag.addEdge(upstreamLink, downstreamLink)
     })
     val topologicalIterator =
-      new TopologicalOrderIterator[PhysicalLinkIdentity, DefaultEdge](dependencyDag)
-    val processingOrder = new ArrayBuffer[PhysicalLinkIdentity]()
+      new TopologicalOrderIterator[PhysicalLink, DefaultEdge](dependencyDag)
+    val processingOrder = new ArrayBuffer[PhysicalLink]()
     while (topologicalIterator.hasNext) {
       processingOrder.append(topologicalIterator.next())
     }

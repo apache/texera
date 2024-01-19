@@ -4,7 +4,8 @@ import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Execu
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalLinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, LogicalPort}
@@ -148,7 +149,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       workflow,
       executionState,
-      PhysicalLinkIdentity(
+      PhysicalLink(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             buildCsv.operatorIdentifier
@@ -169,7 +170,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       workflow,
       executionState,
-      PhysicalLinkIdentity(
+      PhysicalLink(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             buildCsv.operatorIdentifier

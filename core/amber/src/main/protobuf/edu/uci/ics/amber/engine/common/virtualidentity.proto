@@ -31,12 +31,6 @@ message PhysicalOpIdentity{
   string layerName = 2;
 }
 
-message PhysicalLinkIdentity {
-  PhysicalOpIdentity from = 1 [(scalapb.field).no_box = true];
-  int32 fromPort = 2;
-  PhysicalOpIdentity to = 3 [(scalapb.field).no_box = true];
-  int32 toPort = 4;
-}
 
 
 

@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 case class RegionPlan(
     // regions in topological order of the regionDAG
@@ -12,8 +12,8 @@ case class RegionPlan(
     regionLinks.filter(link => link.toRegion == region).map(_.fromRegion)
   }
 
-  def getRegionOfPhysicalLink(linkId: PhysicalLinkIdentity): Option[Region] = {
-    regions.find(region => region.getEffectiveLinks.contains(linkId))
+  def getRegionOfPhysicalLink(link: PhysicalLink): Option[Region] = {
+    regions.find(region => region.getEffectiveLinks.contains(link))
   }
 
 }

@@ -1,13 +1,14 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
@@ -68,7 +69,7 @@ object AggregateOpDesc {
 
     new PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),
-      links = Set(PhysicalLink(partialPhysicalOp, 0, finalPhysicalOp, 0))
+      links = Set(PhysicalLink(partialPhysicalOp.id, 0, finalPhysicalOp.id, 0))
     )
   }
 

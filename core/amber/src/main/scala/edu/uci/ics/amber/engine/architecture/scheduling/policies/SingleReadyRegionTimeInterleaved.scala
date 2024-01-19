@@ -7,7 +7,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalLinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.mutable
 import scala.concurrent.duration.{FiniteDuration, MILLISECONDS}
@@ -45,10 +46,10 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[Region])
   override def onLinkCompletion(
       workflow: Workflow,
       executionState: ExecutionState,
-      linkId: PhysicalLinkIdentity
+      link: PhysicalLink
   ): Set[Region] = {
-    val regions = getRegions(linkId)
-    regions.foreach(region => completedLinksOfRegion.addBinding(region, linkId))
+    val regions = getRegions(link)
+    regions.foreach(region => completedLinksOfRegion.addBinding(region, link))
     regions.foreach(region => checkRegionCompleted(executionState, region))
     if (regions.exists(region => isRegionCompleted(executionState, region))) {
       getNextSchedulingWork(workflow)

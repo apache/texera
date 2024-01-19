@@ -6,10 +6,10 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWork
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 object LinkWorkersHandler {
-  final case class LinkWorkers(linkId: PhysicalLinkIdentity) extends ControlCommand[Unit]
+  final case class LinkWorkers(link: PhysicalLink) extends ControlCommand[Unit]
 }
 
 /** add a data transfer partitioning to the sender workers and update input linking
@@ -23,18 +23,18 @@ trait LinkWorkersHandler {
   registerHandler { (msg: LinkWorkers, sender) =>
     {
       val linkConfig = cp.workflow.regionPlan
-        .getRegionOfPhysicalLink(msg.linkId)
+        .getRegionOfPhysicalLink(msg.link)
         .get
         .config
         .get
-        .linkConfigs(msg.linkId)
+        .linkConfigs(msg.link)
 
       val futures = linkConfig.channelConfigs
         .flatMap(channelConfig =>
           Seq(
-            send(AddPartitioning(msg.linkId, linkConfig.partitioning), channelConfig.fromWorkerId),
+            send(AddPartitioning(msg.link, linkConfig.partitioning), channelConfig.fromWorkerId),
             send(
-              UpdateInputLinking(channelConfig.fromWorkerId, msg.linkId),
+              UpdateInputLinking(channelConfig.fromWorkerId, msg.link),
               channelConfig.toWorkerId
             )
           )

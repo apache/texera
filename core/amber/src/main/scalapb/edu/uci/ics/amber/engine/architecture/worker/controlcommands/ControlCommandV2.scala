@@ -866,7 +866,7 @@ object ResumeWorkerV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
 
 @SerialVersionUID(0L)
 final case class AddPartitioningV2(
-    tag: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity,
+    tag: edu.uci.ics.amber.engine.common.workflow.PhysicalLink,
     partitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[AddPartitioningV2] {
     @transient
@@ -876,7 +876,7 @@ final case class AddPartitioningV2(
       
       {
         val __value = tag
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -900,7 +900,7 @@ final case class AddPartitioningV2(
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
         val __v = tag
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -915,13 +915,13 @@ final case class AddPartitioningV2(
         }
       };
     }
-    def withTag(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity): AddPartitioningV2 = copy(tag = __v)
+    def withTag(__v: edu.uci.ics.amber.engine.common.workflow.PhysicalLink): AddPartitioningV2 = copy(tag = __v)
     def withPartitioning(__v: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning): AddPartitioningV2 = copy(partitioning = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
           val __t = tag
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) __t else null
+          if (__t != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) __t else null
         }
         case 2 => {
           val __t = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toBase(partitioning)
@@ -944,7 +944,7 @@ final case class AddPartitioningV2(
 object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = {
-    var __tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = _root_.scala.None
+    var __tag: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = _root_.scala.None
     var __partitioning: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
@@ -952,14 +952,14 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __tag = _root_.scala.Some(__tag.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __tag = _root_.scala.Some(__tag.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PhysicalLink](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __partitioning = _root_.scala.Some(__partitioning.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
-        tag = __tag.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance),
+        tag = __tag.getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance),
         partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toCustom(__partitioning.getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance))
     )
   }
@@ -967,7 +967,7 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
-        tag = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance),
+        tag = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PhysicalLink]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance),
         partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toCustom(__fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage]).getOrElse(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance))
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -977,7 +977,7 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.workflow.PhysicalLink
       case 2 => __out = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage
     }
     __out
@@ -985,11 +985,11 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
-    tag = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance,
+    tag = edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance,
     partitioning = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2._typemapper_partitioning.toCustom(edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage.defaultInstance)
   )
   implicit class AddPartitioningV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2](_l) {
-    def tag: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = field(_.tag)((c_, f_) => c_.copy(tag = f_))
+    def tag: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = field(_.tag)((c_, f_) => c_.copy(tag = f_))
     def partitioning: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning] = field(_.partitioning)((c_, f_) => c_.copy(partitioning = f_))
   }
   final val TAG_FIELD_NUMBER = 1
@@ -997,7 +997,7 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
   @transient
   private[controlcommands] val _typemapper_partitioning: _root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.PartitioningMessage, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning]]
   def of(
-    tag: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity,
+    tag: edu.uci.ics.amber.engine.common.workflow.PhysicalLink,
     partitioning: edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddPartitioningV2(
     tag,
@@ -1009,7 +1009,7 @@ object AddPartitioningV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.a
 @SerialVersionUID(0L)
 final case class UpdateInputLinkingV2(
     identifier: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
-    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+    inputLink: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[UpdateInputLinkingV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -1025,7 +1025,7 @@ final case class UpdateInputLinkingV2(
       
       {
         val __value = inputLink
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -1050,7 +1050,7 @@ final case class UpdateInputLinkingV2(
       };
       {
         val __v = inputLink
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           _output__.writeTag(2, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
@@ -1058,7 +1058,7 @@ final case class UpdateInputLinkingV2(
       };
     }
     def withIdentifier(__v: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity): UpdateInputLinkingV2 = copy(identifier = __v)
-    def withInputLink(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity): UpdateInputLinkingV2 = copy(inputLink = __v)
+    def withInputLink(__v: edu.uci.ics.amber.engine.common.workflow.PhysicalLink): UpdateInputLinkingV2 = copy(inputLink = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -1067,7 +1067,7 @@ final case class UpdateInputLinkingV2(
         }
         case 2 => {
           val __t = inputLink
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) __t else null
+          if (__t != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) __t else null
         }
       }
     }
@@ -1087,7 +1087,7 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 = {
     var __identifier: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = _root_.scala.None
-    var __inputLink: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = _root_.scala.None
+    var __inputLink: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -1096,13 +1096,13 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
         case 10 =>
           __identifier = _root_.scala.Some(__identifier.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __inputLink = _root_.scala.Some(__inputLink.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __inputLink = _root_.scala.Some(__inputLink.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PhysicalLink](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
         identifier = __identifier.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
-        inputLink = __inputLink.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
+        inputLink = __inputLink.getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2] = _root_.scalapb.descriptors.Reads{
@@ -1110,7 +1110,7 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
         identifier = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance),
-        inputLink = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
+        inputLink = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PhysicalLink]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1120,7 +1120,7 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
       case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-      case 2 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.workflow.PhysicalLink
     }
     __out
   }
@@ -1128,17 +1128,17 @@ object UpdateInputLinkingV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
     identifier = edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity.defaultInstance,
-    inputLink = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance
+    inputLink = edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance
   )
   implicit class UpdateInputLinkingV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2](_l) {
     def identifier: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = field(_.identifier)((c_, f_) => c_.copy(identifier = f_))
-    def inputLink: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = field(_.inputLink)((c_, f_) => c_.copy(inputLink = f_))
+    def inputLink: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = field(_.inputLink)((c_, f_) => c_.copy(inputLink = f_))
   }
   final val IDENTIFIER_FIELD_NUMBER = 1
   final val INPUT_LINK_FIELD_NUMBER = 2
   def of(
     identifier: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
-    inputLink: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+    inputLink: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateInputLinkingV2(
     identifier,
     inputLink
@@ -1295,7 +1295,7 @@ object OpenOperatorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
 
 @SerialVersionUID(0L)
 final case class LinkCompletedV2(
-    linkId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+    link: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[LinkCompletedV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -1303,8 +1303,8 @@ final case class LinkCompletedV2(
       var __size = 0
       
       {
-        val __value = linkId
-        if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
+        val __value = link
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
@@ -1320,27 +1320,27 @@ final case class LinkCompletedV2(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = linkId
-        if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) {
+        val __v = link
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
           __v.writeTo(_output__)
         }
       };
     }
-    def withLinkId(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity): LinkCompletedV2 = copy(linkId = __v)
+    def withLink(__v: edu.uci.ics.amber.engine.common.workflow.PhysicalLink): LinkCompletedV2 = copy(link = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = linkId
-          if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance) __t else null
+          val __t = link
+          if (__t != edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance) __t else null
         }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => linkId.toPMessage
+        case 1 => link.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -1351,26 +1351,26 @@ final case class LinkCompletedV2(
 object LinkCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 = {
-    var __linkId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = _root_.scala.None
+    var __link: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __linkId = _root_.scala.Some(__linkId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __link = _root_.scala.Some(__link.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PhysicalLink](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-        linkId = __linkId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
+        link = __link.getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-        linkId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance)
+        link = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PhysicalLink]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1379,23 +1379,23 @@ object LinkCompletedV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amb
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+      case 1 => __out = edu.uci.ics.amber.engine.common.workflow.PhysicalLink
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-    linkId = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity.defaultInstance
+    link = edu.uci.ics.amber.engine.common.workflow.PhysicalLink.defaultInstance
   )
   implicit class LinkCompletedV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2](_l) {
-    def linkId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity] = field(_.linkId)((c_, f_) => c_.copy(linkId = f_))
+    def link: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = field(_.link)((c_, f_) => c_.copy(link = f_))
   }
-  final val LINK_ID_FIELD_NUMBER = 1
+  final val LINK_FIELD_NUMBER = 1
   def of(
-    linkId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalLinkIdentity
+    link: edu.uci.ics.amber.engine.common.workflow.PhysicalLink
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkCompletedV2(
-    linkId
+    link
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.LinkCompletedV2])
 }

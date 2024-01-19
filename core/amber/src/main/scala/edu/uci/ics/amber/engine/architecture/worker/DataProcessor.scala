@@ -29,11 +29,8 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
@@ -50,7 +47,7 @@ object DataProcessor {
 
     override def inMemSize: Long = 0
   }
-  case class FinalizeLink(link: PhysicalLinkIdentity) extends SpecialDataTuple
+  case class FinalizeLink(link: PhysicalLink) extends SpecialDataTuple
   case class FinalizeOperator() extends SpecialDataTuple
 
   class DPOutputIterator extends Iterator[(ITuple, Option[Int])] {
@@ -107,13 +104,13 @@ class DataProcessor(
     }
     this.operatorConfig = operatorConfig
     this.physicalOp = physicalOp
-    this.upstreamLinkStatus.setAllUpstreamLinkIds(
+    this.upstreamLinkStatus.setAllUpstreamLinks(
       if (physicalOp.isSourceOperator) {
         Set(
-          PhysicalLinkIdentity(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
+          PhysicalLink(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
         ) // special case for source operator
       } else {
-        physicalOp.getAllInputLinkIds.toSet
+        physicalOp.getAllInputLinks.toSet
       }
     )
     this.outputIterator.setTupleOutput(currentOutputIterator)
@@ -155,7 +152,7 @@ class DataProcessor(
   protected var inputTupleCount = 0L
   protected var outputTupleCount = 0L
 
-  def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLinkIdentity): Unit = {
+  def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLink): Unit = {
     upstreamLinkStatus.registerInput(identifier, input)
   }
 
@@ -164,16 +161,16 @@ class DataProcessor(
   }
 
   def getInputPort(identifier: ActorVirtualIdentity): Int = {
-    val inputLinkId = upstreamLinkStatus.getInputLinkId(identifier)
-    if (inputLinkId.from == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!physicalOp.getAllInputLinkIds.contains(inputLinkId)) 0
-    else physicalOp.getPortIdxForInputLinkId(inputLinkId)
+    val inputLink = upstreamLinkStatus.getInputLink(identifier)
+    if (inputLink.from == SOURCE_STARTER_OP) 0 // special case for source operator
+    else if (!physicalOp.getAllInputLinks.contains(inputLink)) 0
+    else physicalOp.getPortIdxForInputLink(inputLink)
   }
 
-  def getOutputLinkIdsByPort(outputPort: Option[Int]): List[PhysicalLinkIdentity] = {
+  def getOutputLinksByPort(outputPort: Option[Int]): List[PhysicalLink] = {
     outputPort match {
       case Some(port) => physicalOp.getLinksOnOutputPort(port)
-      case None       => physicalOp.getAllOutputLinkIds
+      case None       => physicalOp.getAllOutputLinks
     }
   }
 
@@ -263,8 +260,8 @@ class DataProcessor(
         } else {
           outputTupleCount += 1
           // println(s"send output $outputTuple at step $totalValidStep")
-          val outLinkIds = getOutputLinkIdsByPort(outputPortOpt)
-          outLinkIds.foreach(linkId => outputManager.passTupleToDownstream(outputTuple, linkId))
+          val outLinks = getOutputLinksByPort(outputPortOpt)
+          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
         }
     }
   }
@@ -317,7 +314,7 @@ class DataProcessor(
         initBatch(channel, tuples)
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
-        val currentLink = upstreamLinkStatus.getInputLinkId(channel.from)
+        val currentLink = upstreamLinkStatus.getInputLink(channel.from)
         upstreamLinkStatus.markWorkerEOF(channel.from)
         if (upstreamLinkStatus.isLinkEOF(currentLink)) {
           initBatch(channel, Array.empty)

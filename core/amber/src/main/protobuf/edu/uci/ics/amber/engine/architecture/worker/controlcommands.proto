@@ -4,6 +4,7 @@ package edu.uci.ics.amber.engine.architecture.worker;
 
 import "edu/uci/ics/amber/engine/architecture/sendsemantics/partitionings.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
+import "edu/uci/ics/amber/engine/common/workflow.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
@@ -29,11 +30,11 @@ message OpenOperatorV2 {}
 
 message UpdateInputLinkingV2 {
     common.ActorVirtualIdentity identifier = 1 [(scalapb.field).no_box = true];
-    common.PhysicalLinkIdentity input_link = 2 [(scalapb.field).no_box = true];
+    common.PhysicalLink input_link = 2 [(scalapb.field).no_box = true];
 }
 
 message AddPartitioningV2 {
-    common.PhysicalLinkIdentity tag = 1 [(scalapb.field).no_box = true];
+    common.PhysicalLink tag = 1 [(scalapb.field).no_box = true];
     architecture.sendsemantics.Partitioning partitioning = 2 [(scalapb.field).no_box = true];
 }
 
@@ -47,7 +48,7 @@ message QueryCurrentInputTupleV2 {
 }
 
 message LinkOrdinal {
-    common.PhysicalLinkIdentity link_id = 1 [(scalapb.field).no_box = true];
+    common.PhysicalLink link = 1 [(scalapb.field).no_box = true];
     int64 port_ordinal = 2;
 }
 
@@ -99,7 +100,7 @@ message QuerySelfWorkloadMetricsV2{
 }
 
 message LinkCompletedV2 {
-    common.PhysicalLinkIdentity link_id = 1 [(scalapb.field).no_box = true];
+    common.PhysicalLink link = 1 [(scalapb.field).no_box = true];
 }
 
 
