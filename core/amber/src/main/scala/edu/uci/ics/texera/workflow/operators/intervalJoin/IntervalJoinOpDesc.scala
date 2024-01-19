@@ -99,8 +99,8 @@ class IntervalJoinOpDesc extends LogicalOp {
       "Join two inputs with left table join key in the range of [right table join key, right table join key + constant value]",
       OperatorGroupConstants.JOIN_GROUP,
       inputPorts = List(
-        InputPort(PortIdentity(), name = "left table"),
-        InputPort(PortIdentity(1), name = "right table", dependencies = List(PortIdentity(0)))
+        InputPort(PortIdentity(), displayName = "left table"),
+        InputPort(PortIdentity(1), displayName = "right table", dependencies = List(PortIdentity(0)))
       ),
       outputPorts = List(OutputPort())
     )

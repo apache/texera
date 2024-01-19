@@ -38,7 +38,7 @@ export interface PortDescription
     allowMultiInputs?: boolean;
     isDynamicPort?: boolean;
     partitionRequirement?: PartitionInfo;
-    dependencies?: {id: number, internal: boolean}[];
+    dependencies?:  {id: number, internal: boolean}[];
   }> {}
 
 export interface OperatorPredicate

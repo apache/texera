@@ -640,7 +640,7 @@ export class WorkflowActionService {
 
       const workflowContent: WorkflowContent = workflow.content;
 
-      const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+      let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
         const opPosition = workflowContent.operatorPositions[op.operatorID];
         if (!opPosition) {
@@ -665,6 +665,10 @@ export class WorkflowActionService {
       const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
 
       const commentBoxes = workflowContent.commentBoxes;
+
+      console.log("all operators to add", operatorsAndPositions);
+      operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
+      console.log("after update", operatorsAndPositions);
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
@@ -886,4 +890,14 @@ export class WorkflowActionService {
         });
       });
   }
+
+  private updateOperatorVersions(operatorsAndPositions: { op: OperatorPredicate; pos: Point }[]) {
+    const updatedOperators: { op: OperatorPredicate; pos: Point }[] = [];
+    for (const operatorsAndPosition of operatorsAndPositions) {
+      updatedOperators.push({op: this.workflowUtilService.updateOperatorVersion(operatorsAndPosition.op), pos: operatorsAndPosition.pos});
+    }
+    return updatedOperators;
+  }
+
+
 }

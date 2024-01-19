@@ -74,7 +74,7 @@ case class PhysicalPlan(
       portId: PortIdentity
   ): PhysicalOp = {
     val candidatePhysicalOps =
-      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.inputPorts.map(_.id).contains(portId))
+      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.inputPorts.contains(portId))
     assert(
       candidatePhysicalOps.size == 1,
       s"find ${candidatePhysicalOps.size} input port(s) with id = $portId for operator $logicalOpId"
@@ -87,7 +87,7 @@ case class PhysicalPlan(
       portId: PortIdentity
   ): PhysicalOp = {
     val candidatePhysicalOps =
-      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.outputPorts.map(_.id).contains(portId))
+      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.outputPorts.contains(portId))
     assert(
       candidatePhysicalOps.size == 1,
       s"find ${candidatePhysicalOps.size} output port(s) with id = $portId for operator $logicalOpId"
@@ -153,8 +153,8 @@ case class PhysicalPlan(
 
   def addLink(link: PhysicalLink): PhysicalPlan = {
     val newOperators = operatorMap +
-      (link.from -> getOperator(link.from).addOutput(link.to, link.fromPort, link.toPort)) +
-      (link.to -> getOperator(link.to).addInput(link.from, link.fromPort, link.toPort))
+      (link.from -> getOperator(link.from).addOutput(link)) +
+      (link.to -> getOperator(link.to).addInput(link))
     this.copy(newOperators.values.toSet, links ++ Set(link))
   }
 

@@ -30,7 +30,7 @@ class DifferenceOpDesc extends LogicalOp {
       "find the set difference of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts =
-        List(InputPort(PortIdentity(), name = "left"), InputPort(PortIdentity(1), name = "right")),
+        List(InputPort(PortIdentity(), displayName = "left"), InputPort(PortIdentity(1), displayName = "right")),
       outputPorts = List(OutputPort())
     )
 

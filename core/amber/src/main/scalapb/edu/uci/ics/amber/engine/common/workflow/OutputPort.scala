@@ -8,7 +8,7 @@ package edu.uci.ics.amber.engine.common.workflow
 @SerialVersionUID(0L)
 final case class OutputPort(
     id: edu.uci.ics.amber.engine.common.workflow.PortIdentity = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
-    name: _root_.scala.Predef.String = ""
+    displayName: _root_.scala.Predef.String = ""
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OutputPort] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -23,7 +23,7 @@ final case class OutputPort(
       };
       
       {
-        val __value = name
+        val __value = displayName
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
         }
@@ -48,14 +48,14 @@ final case class OutputPort(
         }
       };
       {
-        val __v = name
+        val __v = displayName
         if (!__v.isEmpty) {
           _output__.writeString(2, __v)
         }
       };
     }
     def withId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): OutputPort = copy(id = __v)
-    def withName(__v: _root_.scala.Predef.String): OutputPort = copy(name = __v)
+    def withDisplayName(__v: _root_.scala.Predef.String): OutputPort = copy(displayName = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -63,7 +63,7 @@ final case class OutputPort(
           if (__t != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) __t else null
         }
         case 2 => {
-          val __t = name
+          val __t = displayName
           if (__t != "") __t else null
         }
       }
@@ -72,7 +72,7 @@ final case class OutputPort(
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => id.toPMessage
-        case 2 => _root_.scalapb.descriptors.PString(name)
+        case 2 => _root_.scalapb.descriptors.PString(displayName)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -84,7 +84,7 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflow.OutputPort] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflow.OutputPort = {
     var __id: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = _root_.scala.None
-    var __name: _root_.scala.Predef.String = ""
+    var __displayName: _root_.scala.Predef.String = ""
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -93,13 +93,13 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
         case 10 =>
           __id = _root_.scala.Some(__id.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PortIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __name = _input__.readStringRequireUtf8()
+          __displayName = _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.workflow.OutputPort(
         id = __id.getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
-        name = __name
+        displayName = __displayName
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.workflow.OutputPort] = _root_.scalapb.descriptors.Reads{
@@ -107,7 +107,7 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.workflow.OutputPort(
         id = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PortIdentity]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
-        name = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        displayName = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -124,20 +124,20 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.workflow.OutputPort(
     id = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
-    name = ""
+    displayName = ""
   )
   implicit class OutputPortLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.OutputPort]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflow.OutputPort](_l) {
     def id: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PortIdentity] = field(_.id)((c_, f_) => c_.copy(id = f_))
-    def name: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.name)((c_, f_) => c_.copy(name = f_))
+    def displayName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.displayName)((c_, f_) => c_.copy(displayName = f_))
   }
   final val ID_FIELD_NUMBER = 1
-  final val NAME_FIELD_NUMBER = 2
+  final val DISPLAYNAME_FIELD_NUMBER = 2
   def of(
     id: edu.uci.ics.amber.engine.common.workflow.PortIdentity,
-    name: _root_.scala.Predef.String
+    displayName: _root_.scala.Predef.String
   ): _root_.edu.uci.ics.amber.engine.common.workflow.OutputPort = _root_.edu.uci.ics.amber.engine.common.workflow.OutputPort(
     id,
-    name
+    displayName
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.OutputPort])
 }

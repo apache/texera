@@ -48,7 +48,7 @@ class PortIdentity(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class InputPort(betterproto.Message):
     id: "PortIdentity" = betterproto.message_field(1)
-    name: str = betterproto.string_field(2)
+    display_name: str = betterproto.string_field(2)
     allow_multi_links: bool = betterproto.bool_field(3)
     dependencies: List["PortIdentity"] = betterproto.message_field(4)
 

@@ -133,7 +133,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
         case (portDesc: PortDescription, idx) =>
           InputPort(
             PortIdentity(idx),
-            name = portDesc.displayName,
+            displayName = portDesc.displayName,
             allowMultiLinks = portDesc.allowMultiInputs,
             dependencies = portDesc.dependencies.map(idx => PortIdentity(idx))
           )
@@ -143,7 +143,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
     }
     val outputPortInfo = if (outputPorts != null) {
       outputPorts.zipWithIndex.map {
-        case (portDesc, idx) => OutputPort(PortIdentity(idx), name = portDesc.displayName)
+        case (portDesc, idx) => OutputPort(PortIdentity(idx), displayName = portDesc.displayName)
       }
     } else {
       List(OutputPort())

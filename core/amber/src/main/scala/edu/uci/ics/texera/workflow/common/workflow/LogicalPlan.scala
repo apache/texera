@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.common.base.Verify
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -113,16 +113,15 @@ case class LogicalPlan(
 
   def addLink(
       fromOpId: OperatorIdentity,
-      fromPort: Int =
-        0, // by default, we have only one output port, thus giving a default port index 0
+      fromPort: OutputPort,
       toOpId: OperatorIdentity,
-      toPort: Int
+      toPort: InputPort
   ): LogicalPlan = {
     val newLink = LogicalLink(
       fromOpId,
-      OutputPort(PortIdentity(fromPort)),
+      fromPort,
       toOpId,
-      InputPort(PortIdentity(toPort))
+      toPort
     )
     val newLinks = links :+ newLink
     this.copy(operators, newLinks, breakpoints)

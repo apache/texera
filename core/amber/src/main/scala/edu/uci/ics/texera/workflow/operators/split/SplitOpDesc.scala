@@ -46,8 +46,8 @@ class SplitOpDesc extends LogicalOp {
       operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(
-        OutputPort(PortIdentity(), name = "training"),
-        OutputPort(PortIdentity(1), name = "testing")
+        OutputPort(PortIdentity(), displayName = "training"),
+        OutputPort(PortIdentity(1), displayName = "testing")
       ),
       dynamicInputPorts = true,
       dynamicOutputPorts = true

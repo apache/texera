@@ -109,8 +109,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
       "join two inputs",
       OperatorGroupConstants.JOIN_GROUP,
       inputPorts = List(
-        InputPort(PortIdentity(), name = "left"),
-        InputPort(PortIdentity(1), name = "right", dependencies = List(PortIdentity()))
+        InputPort(PortIdentity(), displayName = "left"),
+        InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity()))
       ),
       outputPorts = List(OutputPort())
     )

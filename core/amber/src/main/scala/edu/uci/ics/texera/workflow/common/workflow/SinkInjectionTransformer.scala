@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.workflow.InputPort
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
@@ -22,12 +23,12 @@ object SinkInjectionTransformer {
     val operatorsToAddSink = (nonSinkTerminalOps ++ viewResultOps).toSet
     operatorsToAddSink.foreach(opId => {
       val op = logicalPlan.getOperator(opId)
-      op.operatorInfo.outputPorts.indices.foreach(outPort => {
+      op.operatorInfo.outputPorts.foreach(outPort => {
         val sink = new ProgressiveSinkOpDesc()
         sink.setOperatorId("sink_" + opId.id)
         logicalPlan = logicalPlan
           .addOperator(sink)
-          .addLink(op.operatorIdentifier, outPort, sink.operatorIdentifier, toPort = 0)
+          .addLink(op.operatorIdentifier, outPort, sink.operatorIdentifier, toPort = InputPort())
       })
     })
 

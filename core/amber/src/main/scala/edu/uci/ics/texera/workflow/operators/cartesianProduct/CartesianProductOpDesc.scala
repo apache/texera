@@ -77,8 +77,8 @@ class CartesianProductOpDesc extends LogicalOp {
       "Append fields together to get the cartesian product of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(
-        InputPort(PortIdentity(), name = "left"),
-        InputPort(PortIdentity(1), name = "right", dependencies = List(PortIdentity()))
+        InputPort(PortIdentity(), displayName = "left"),
+        InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity()))
       ),
       outputPorts = List(OutputPort())
     )

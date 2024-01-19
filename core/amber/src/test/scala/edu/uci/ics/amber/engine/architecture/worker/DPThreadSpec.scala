@@ -6,26 +6,15 @@ import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  DPInputQueueElement,
-  FIFOMessageElement,
-  TimerBasedControlElement
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{DPInputQueueElement, FIFOMessageElement, TimerBasedControlElement}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink}
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -63,8 +52,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
       OpExecInitInfo((_, _, _) => operator)
     )
     .copy(
-      inputPortToLinkMapping = Map(0 -> List(mockLink)),
-      outputPortToLinkMapping = Map(0 -> List(mockLink))
+      inputPorts = Map(InputPort() -> List(mockLink)),
+      outputPorts = Map(OutputPort() -> List(mockLink))
     )
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
   private val logStorage = ReplayLogStorage.getLogStorage(None)

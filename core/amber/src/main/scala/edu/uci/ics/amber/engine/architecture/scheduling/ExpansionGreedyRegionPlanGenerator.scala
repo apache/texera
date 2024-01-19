@@ -355,13 +355,13 @@ class ExpansionGreedyRegionPlanGenerator(
 
     // create 2 links for materialization
     val readerToDestLink =
-      PhysicalLink(matReaderPhysicalOp.id, fromOp.outputPorts.head, toOp.id, toInputPort)
+      PhysicalLink(matReaderPhysicalOp.id, fromOp.outputPorts.values.head._1, toOp.id, toInputPort)
     val sourceToWriterLink =
       PhysicalLink(
         fromOp.id,
         fromOutputPort,
         matWriterPhysicalOp.id,
-        matWriterPhysicalOp.inputPorts.head
+        matWriterPhysicalOp.inputPorts.values.head._1
       )
 
     // add the pair to the map for later adding edges between 2 regions.

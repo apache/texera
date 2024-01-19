@@ -381,19 +381,9 @@ export class ExecuteWorkflowService {
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
     };
-    const getInputPortName = (operatorID: string, inputPortID: string): string => {
-      return (
-        workflowGraph.getOperator(operatorID).inputPorts[getInputPortOrdinal(operatorID, inputPortID)].displayName ?? ""
-      );
-    };
+
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
-    };
-    const getOutputPortName = (operatorID: string, outputPortID: string): string => {
-      return (
-        workflowGraph.getOperator(operatorID).outputPorts[getOutputPortOrdinal(operatorID, outputPortID)].displayName ??
-        ""
-      );
     };
 
     const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => {
@@ -426,17 +416,16 @@ export class ExecuteWorkflowService {
       const inputPorts = toOp.inputPorts;
       const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
       const inputPort = inputPorts[inputPortIdx];
-      console.log(inputPort);
-      const dependencies = inputPort.dependencies || [];
+      console.log("before executing", "got this inputPort ", inputPort);
       return {
         fromOpId,
-        fromPort: { id: { id: outputPortIdx, internal: false }, name: "" },
+        fromPort: { id: { id: outputPortIdx, internal: false }, displayName: outputPort.displayName  ?? ""},
         toOpId: link.target.operatorID,
         toPort: {
           id: { id: inputPortIdx, internal: false },
-          name: "",
-          allowMultiLinks: false,
-          dependencies: dependencies,
+          displayName: inputPort.displayName ?? "",
+          allowMultiLinks: inputPort.allowMultiInputs ?? false,
+          dependencies: inputPort.dependencies ?? [],
         },
       };
 

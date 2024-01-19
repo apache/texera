@@ -8,7 +8,7 @@ package edu.uci.ics.amber.engine.common.workflow
 @SerialVersionUID(0L)
 final case class InputPort(
     id: edu.uci.ics.amber.engine.common.workflow.PortIdentity = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
-    name: _root_.scala.Predef.String = "",
+    displayName: _root_.scala.Predef.String = "",
     allowMultiLinks: _root_.scala.Boolean = false,
     dependencies: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = _root_.scala.Seq.empty
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[InputPort] {
@@ -25,7 +25,7 @@ final case class InputPort(
       };
       
       {
-        val __value = name
+        val __value = displayName
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
         }
@@ -61,7 +61,7 @@ final case class InputPort(
         }
       };
       {
-        val __v = name
+        val __v = displayName
         if (!__v.isEmpty) {
           _output__.writeString(2, __v)
         }
@@ -80,7 +80,7 @@ final case class InputPort(
       };
     }
     def withId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): InputPort = copy(id = __v)
-    def withName(__v: _root_.scala.Predef.String): InputPort = copy(name = __v)
+    def withDisplayName(__v: _root_.scala.Predef.String): InputPort = copy(displayName = __v)
     def withAllowMultiLinks(__v: _root_.scala.Boolean): InputPort = copy(allowMultiLinks = __v)
     def clearDependencies = copy(dependencies = _root_.scala.Seq.empty)
     def addDependencies(__vs: edu.uci.ics.amber.engine.common.workflow.PortIdentity*): InputPort = addAllDependencies(__vs)
@@ -93,7 +93,7 @@ final case class InputPort(
           if (__t != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) __t else null
         }
         case 2 => {
-          val __t = name
+          val __t = displayName
           if (__t != "") __t else null
         }
         case 3 => {
@@ -107,7 +107,7 @@ final case class InputPort(
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => id.toPMessage
-        case 2 => _root_.scalapb.descriptors.PString(name)
+        case 2 => _root_.scalapb.descriptors.PString(displayName)
         case 3 => _root_.scalapb.descriptors.PBoolean(allowMultiLinks)
         case 4 => _root_.scalapb.descriptors.PRepeated(dependencies.iterator.map(_.toPMessage).toVector)
       }
@@ -121,7 +121,7 @@ object InputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflow.InputPort] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflow.InputPort = {
     var __id: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = _root_.scala.None
-    var __name: _root_.scala.Predef.String = ""
+    var __displayName: _root_.scala.Predef.String = ""
     var __allowMultiLinks: _root_.scala.Boolean = false
     val __dependencies: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.workflow.PortIdentity]
     var _done__ = false
@@ -132,7 +132,7 @@ object InputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
         case 10 =>
           __id = _root_.scala.Some(__id.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PortIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
-          __name = _input__.readStringRequireUtf8()
+          __displayName = _input__.readStringRequireUtf8()
         case 24 =>
           __allowMultiLinks = _input__.readBool()
         case 34 =>
@@ -142,7 +142,7 @@ object InputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
     }
     edu.uci.ics.amber.engine.common.workflow.InputPort(
         id = __id.getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
-        name = __name,
+        displayName = __displayName,
         allowMultiLinks = __allowMultiLinks,
         dependencies = __dependencies.result()
     )
@@ -152,7 +152,7 @@ object InputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.workflow.InputPort(
         id = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PortIdentity]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
-        name = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        displayName = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         allowMultiLinks = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Boolean]).getOrElse(false),
         dependencies = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.workflow.PortIdentity]]).getOrElse(_root_.scala.Seq.empty)
       )
@@ -172,28 +172,28 @@ object InputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.eng
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.workflow.InputPort(
     id = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
-    name = "",
+    displayName = "",
     allowMultiLinks = false,
     dependencies = _root_.scala.Seq.empty
   )
   implicit class InputPortLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.InputPort]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflow.InputPort](_l) {
     def id: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PortIdentity] = field(_.id)((c_, f_) => c_.copy(id = f_))
-    def name: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.name)((c_, f_) => c_.copy(name = f_))
+    def displayName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.displayName)((c_, f_) => c_.copy(displayName = f_))
     def allowMultiLinks: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.allowMultiLinks)((c_, f_) => c_.copy(allowMultiLinks = f_))
     def dependencies: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflow.PortIdentity]] = field(_.dependencies)((c_, f_) => c_.copy(dependencies = f_))
   }
   final val ID_FIELD_NUMBER = 1
-  final val NAME_FIELD_NUMBER = 2
+  final val DISPLAYNAME_FIELD_NUMBER = 2
   final val ALLOWMULTILINKS_FIELD_NUMBER = 3
   final val DEPENDENCIES_FIELD_NUMBER = 4
   def of(
     id: edu.uci.ics.amber.engine.common.workflow.PortIdentity,
-    name: _root_.scala.Predef.String,
+    displayName: _root_.scala.Predef.String,
     allowMultiLinks: _root_.scala.Boolean,
     dependencies: _root_.scala.Seq[edu.uci.ics.amber.engine.common.workflow.PortIdentity]
   ): _root_.edu.uci.ics.amber.engine.common.workflow.InputPort = _root_.edu.uci.ics.amber.engine.common.workflow.InputPort(
     id,
-    name,
+    displayName,
     allowMultiLinks,
     dependencies
   )

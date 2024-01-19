@@ -13,9 +13,9 @@ export interface PortIdentity
     internal: boolean
   }> {}
 export interface OutputPort
-  extends Readonly<{id: PortIdentity, name: string}> {}
+  extends Readonly<{id: PortIdentity, displayName: string}> {}
 export interface InputPort
-  extends Readonly<{id: PortIdentity, name: string, allowMultiLinks: boolean, dependencies: ReadonlyArray<PortIdentity>}> {}
+  extends Readonly<{id: PortIdentity, displayName: string, allowMultiLinks: boolean, dependencies: ReadonlyArray<PortIdentity>}> {}
 
 export interface LogicalLink
   extends Readonly<{

@@ -98,10 +98,10 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
       inputPorts = List(
-        InputPort(PortIdentity(), name = "model", allowMultiLinks = true),
+        InputPort(PortIdentity(), displayName = "model", allowMultiLinks = true),
         InputPort(
           PortIdentity(1),
-          name = "tuples",
+          displayName = "tuples",
           allowMultiLinks = true,
           dependencies = List(PortIdentity(0))
         )
