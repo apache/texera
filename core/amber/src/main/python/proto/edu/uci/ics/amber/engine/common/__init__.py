@@ -2,6 +2,7 @@
 # sources: edu/uci/ics/amber/engine/common/actormessage.proto, edu/uci/ics/amber/engine/common/ambermessage.proto, edu/uci/ics/amber/engine/common/virtualidentity.proto, edu/uci/ics/amber/engine/common/workflow.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from typing import List
 
 import betterproto
 from betterproto.grpc.grpclib_server import ServiceBase
@@ -44,6 +45,7 @@ class InputPort(betterproto.Message):
     id: "PortIdentity" = betterproto.message_field(1)
     name: str = betterproto.string_field(2)
     allow_multi_links: bool = betterproto.bool_field(3)
+    dependencies: List["PortIdentity"] = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
@@ -55,9 +57,9 @@ class OutputPort(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class PhysicalLink(betterproto.Message):
     from_: "PhysicalOpIdentity" = betterproto.message_field(1)
-    from_port: int = betterproto.int32_field(2)
+    from_port: "OutputPort" = betterproto.message_field(2)
     to: "PhysicalOpIdentity" = betterproto.message_field(3)
-    to_port: int = betterproto.int32_field(4)
+    to_port: "InputPort" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)
