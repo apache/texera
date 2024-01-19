@@ -71,11 +71,10 @@
     "lodash-es": "4.17.21",
     "mapbox-gl": "~2.15.0",
     "marked": "4.2.12",
-    "monaco-editor": "0.34.0",
-    "ngx-monaco-editor-v2": "14.0.4",
-    "monaco-languageclient": "3.0.1",
+    "monaco-editor": "0.34.1",
+    "monaco-languageclient": "4.0.1",
     "vscode-ws-jsonrpc": "1.0.2",
-    "y-monaco": "0.1.4",
+    "y-monaco": "0.1.5",
     "ng-dynamic-component": "10.1.0",
     "ng-zorro-antd": "14.0.0",
     "ng2-file-upload": "1.4.0",
@@ -96,9 +95,11 @@
     "y-quill": "0.1.5",
     "y-websocket": "1.4.0",
     "yjs": "13.5.41",
-    "zone.js": "0.11.4"
+    "zone.js": "0.11.4",
+    "@babel/helper-explode-assignable-expression": "^7.18.6"
   },
   "devDependencies": {
+    "babel-plugin-dynamic-import-node": "2.3.3",
     "@angular-devkit/build-angular": "~14.1.0",
     "@angular-eslint/eslint-plugin": "13.1.0",
     "@angular-eslint/eslint-plugin-template": "13.1.0",
