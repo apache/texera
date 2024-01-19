@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.subjects.PublishSubject
@@ -46,6 +47,16 @@ class AmberClient(
   }
 
   def sendAsync[T](controlCommand: ControlCommand[T]): Future[T] = {
+    if (!isActive) {
+      Future.exception(new RuntimeException("amber runtime environment is not active"))
+    } else {
+      val promise = Promise[Any]
+      clientActor ! CommandRequest(controlCommand, promise)
+      promise.map(ret => ret.asInstanceOf[T])
+    }
+  }
+
+  def sendAsMarker[T](scope: PhysicalPlan, controlCommand: ControlCommand[T]): Future[T] = {
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
