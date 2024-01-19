@@ -8,7 +8,10 @@ import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{SOURCE_STARTER_ACTOR, SOURCE_STARTER_OP}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{
+  SOURCE_STARTER_ACTOR,
+  SOURCE_STARTER_OP
+}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 
 object StartHandler {
@@ -26,7 +29,7 @@ trait StartHandler {
       // for source operator: add a virtual input channel just for kicking off the execution
       dp.registerInput(
         SOURCE_STARTER_ACTOR,
-        PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), dp.getOperatorId,PortIdentity())
+        PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), dp.getOperatorId, PortIdentity())
       )
       dp.processDataPayload(
         ChannelID(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),

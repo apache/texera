@@ -3,7 +3,11 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
@@ -37,7 +41,8 @@ object PhysicalPlan {
       val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, link.fromPortId)
 
       val toOp = physicalPlan.getPhysicalOpForInputPort(link.toOpId, link.toPortId)
-      physicalPlan = physicalPlan.addLink(PhysicalLink(fromOp.id, link.fromPortId, toOp.id, link.toPortId))
+      physicalPlan =
+        physicalPlan.addLink(PhysicalLink(fromOp.id, link.fromPortId, toOp.id, link.toPortId))
     })
 
     physicalPlan
@@ -120,7 +125,9 @@ case class PhysicalPlan(
   def getSubPlan(subOperators: Set[PhysicalOpIdentity]): PhysicalPlan = {
     val newOps = operators.filter(op => subOperators.contains(op.id))
     val newLinks =
-      links.filter(link => subOperators.contains(link.fromOpId) && subOperators.contains(link.toOpId))
+      links.filter(link =>
+        subOperators.contains(link.fromOpId) && subOperators.contains(link.toOpId)
+      )
     PhysicalPlan(newOps, newLinks)
   }
 
@@ -238,7 +245,9 @@ case class PhysicalPlan(
           getUpstreamPhysicalOpIds(physicalOp.id)
             .flatMap { upstreamPhysicalOpId =>
               links
-                .filter(link => link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id)
+                .filter(link =>
+                  link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
+                )
                 .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
             }
         }

@@ -103,7 +103,8 @@ class DefaultResourceAllocator(
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
-          val inputPartitionInfos = physicalOp.inputPorts.values.map(_._1)
+          val inputPartitionInfos = physicalOp.inputPorts.values
+            .map(_._1)
             .flatMap((port: InputPort) => {
               physicalOp
                 .getLinksOnInputPort(port)

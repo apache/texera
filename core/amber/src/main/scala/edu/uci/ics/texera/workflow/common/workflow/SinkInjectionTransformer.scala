@@ -28,7 +28,12 @@ object SinkInjectionTransformer {
         sink.setOperatorId("sink_" + opId.id)
         logicalPlan = logicalPlan
           .addOperator(sink)
-          .addLink(op.operatorIdentifier, outPort.id, sink.operatorIdentifier, toPortId = PortIdentity())
+          .addLink(
+            op.operatorIdentifier,
+            outPort.id,
+            sink.operatorIdentifier,
+            toPortId = PortIdentity()
+          )
       })
     })
 

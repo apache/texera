@@ -112,10 +112,10 @@ case class LogicalPlan(
   }
 
   def addLink(
-               fromOpId: OperatorIdentity,
-               fromPortId: PortIdentity,
-               toOpId: OperatorIdentity,
-               toPortId: PortIdentity
+      fromOpId: OperatorIdentity,
+      fromPortId: PortIdentity,
+      toOpId: OperatorIdentity,
+      toPortId: PortIdentity
   ): LogicalPlan = {
     val newLink = LogicalLink(
       fromOpId,

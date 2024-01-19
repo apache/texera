@@ -74,7 +74,9 @@ object AggregateOpDesc {
 
     new PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),
-      links = Set(PhysicalLink(partialPhysicalOp.id, outputPort.id, finalPhysicalOp.id, inputPort.id))
+      links = Set(
+        PhysicalLink(partialPhysicalOp.id, outputPort.id, finalPhysicalOp.id, inputPort.id)
+      )
     )
   }
 

@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
@@ -198,7 +201,6 @@ class ExpansionGreedyRegionPlanGenerator(
       context: WorkflowContext
   ): DirectedAcyclicGraph[Region, RegionLink] = {
 
-
     val matReaderWriterPairs =
       new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
     @tailrec
@@ -346,7 +348,12 @@ class ExpansionGreedyRegionPlanGenerator(
 
     // create 2 links for materialization
     val readerToDestLink =
-      PhysicalLink(matReaderPhysicalOp.id, matReaderPhysicalOp.outputPorts.keys.head, toOp.id, toPortId)
+      PhysicalLink(
+        matReaderPhysicalOp.id,
+        matReaderPhysicalOp.outputPorts.keys.head,
+        toOp.id,
+        toPortId
+      )
     val sourceToWriterLink =
       PhysicalLink(
         fromOp.id,

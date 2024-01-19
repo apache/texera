@@ -100,7 +100,11 @@ class IntervalJoinOpDesc extends LogicalOp {
       OperatorGroupConstants.JOIN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), displayName = "left table"),
-        InputPort(PortIdentity(1), displayName = "right table", dependencies = List(PortIdentity(0)))
+        InputPort(
+          PortIdentity(1),
+          displayName = "right table",
+          dependencies = List(PortIdentity(0))
+        )
       ),
       outputPorts = List(OutputPort())
     )
