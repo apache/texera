@@ -35,6 +35,11 @@ class PhysicalOpIdentity(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ChannelMarkerIdentity(betterproto.Message):
+    id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
 class PortIdentity(betterproto.Message):
     id: int = betterproto.int32_field(1)
     internal: bool = betterproto.bool_field(2)
