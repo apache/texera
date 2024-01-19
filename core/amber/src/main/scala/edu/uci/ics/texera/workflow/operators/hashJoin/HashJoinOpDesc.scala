@@ -4,8 +4,9 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalLink, PhysicalOp}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorGroupConstants, OperatorInfo, OutputPort}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -68,6 +69,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withOutputPorts(List(OutputPort("buildTable")))
         .withPartitionRequirement(buildInPartitionRequirement)
         .withDerivePartition(buildDerivePartition)
+        .withParallelizable(true)
 
 
     val probeInPartitionRequirement = List(
@@ -121,10 +123,11 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withDependencies(Map(1 -> 0))
         .withPartitionRequirement(probeInPartitionRequirement)
         .withDerivePartition(probeDerivePartition)
+        .withParallelizable(true)
 
     new PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),
-      links = Set(PhysicalLink(buildPhysicalOp, 0, probePhysicalOp, 0))
+      links = Set(PhysicalLink(buildPhysicalOp.id, 0, probePhysicalOp.id, 0))
     )
   }
 

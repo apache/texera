@@ -34,7 +34,7 @@ class HashJoinProbeOpExec[K](
     tuple match {
       case Left(tuple) =>
         if (input == 0) {
-          buildTableHashMap = tuple.getField("buildTable")
+          buildTableHashMap.update(tuple.getField("key"), tuple.getField("value"))
           Iterator()
         } else {
           // probing phase
@@ -182,7 +182,9 @@ class HashJoinProbeOpExec[K](
     Iterator(builder.build())
   }
 
-  override def open(): Unit = {}
+  override def open(): Unit = {
+    buildTableHashMap = new mutable.HashMap[K, (mutable.ArrayBuffer[Tuple], Boolean)]()
+  }
 
   override def close(): Unit = {
     buildTableHashMap.clear()

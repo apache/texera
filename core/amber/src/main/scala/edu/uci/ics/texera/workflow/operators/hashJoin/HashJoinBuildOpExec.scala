@@ -15,7 +15,7 @@ class HashJoinBuildOpExec[K](
 ) extends OperatorExecutor {
 
   var buildTableHashMap: mutable.HashMap[K, (ArrayBuffer[Tuple], Boolean)] = _
-  var outputSchema: Schema = Schema.newBuilder().add("buildTable", AttributeType.ANY).build()
+  var outputSchema: Schema = Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -28,12 +28,13 @@ class HashJoinBuildOpExec[K](
         building(tuple)
         Iterator()
       case Right(_) =>
-        Iterator(
-          Tuple
-            .newBuilder(outputSchema)
-            .add("buildTable", AttributeType.ANY, buildTableHashMap)
-            .build()
-        )
+        buildTableHashMap.iterator.map {
+          case (k, v) =>
+            Tuple.newBuilder(outputSchema)
+              .add("key", AttributeType.ANY, k)
+              .add("value", AttributeType.ANY, v)
+              .build()
+        }
     }
   }
 
@@ -48,5 +49,7 @@ class HashJoinBuildOpExec[K](
     buildTableHashMap = new mutable.HashMap[K, (mutable.ArrayBuffer[Tuple], Boolean)]()
   }
 
-  override def close(): Unit = {}
+  override def close(): Unit = {
+    buildTableHashMap.clear()
+  }
 }
