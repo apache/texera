@@ -242,8 +242,7 @@ object SkewDetectionHandler {
     if (workflow.physicalPlan.getOperator(physicalOpId).isHashJoinOperator) {
       upstreamPhysicalOps
         .find(physicalOp => {
-
-          val buildTableLink = physicalOp.getLinksOnInputPort(PortIdentity(0)).head
+          val buildTableLink = physicalOp.getInputLinks(Some(PortIdentity())).head
           physicalOp.id != buildTableLink.fromOpId
         })
         .get

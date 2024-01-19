@@ -332,17 +332,6 @@ case class PhysicalOp(
     this.copy(blockingInputs = blockingInputs)
   }
 
-  /**
-    * creates a copy with an additional input operator specified on an input port
-    */
-  def addInput(
-      fromOpId: PhysicalOpIdentity,
-      fromPortId: PortIdentity,
-      toPortId: PortIdentity
-  ): PhysicalOp = {
-    val link = PhysicalLink(fromOpId, fromPortId, this.id, toPortId)
-    addInput(link)
-  }
 
   /**
     * creates a copy with an additional input operator specified on an input port
@@ -360,18 +349,6 @@ case class PhysicalOp(
   /**
     * creates a copy with an additional output operator specified on an output port
     */
-  def addOutput(
-      toOpId: PhysicalOpIdentity,
-      fromPortId: PortIdentity,
-      toPortId: PortIdentity
-  ): PhysicalOp = {
-    val link = PhysicalLink(this.id, fromPortId, toOpId, toPortId)
-    addOutput(link)
-  }
-
-  /**
-    * creates a copy with an additional output operator specified on an output port
-    */
   def addOutput(link: PhysicalLink): PhysicalOp = {
     assert(link.fromOpId == id)
     assert(outputPorts.contains(link.fromPortId))
@@ -383,7 +360,7 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with a removed input operator, we use the identity to do equality check.
+    * creates a copy with a removed input link
     */
   def removeInput(linkToRemove: PhysicalLink): PhysicalOp = {
     val (portId, (port, existingLinks)) = inputPorts
@@ -398,7 +375,7 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with a removed output operator, we use the identity to do equality check.
+    * creates a copy with a removed output link
     */
   def removeOutput(linkToRemove: PhysicalLink): PhysicalOp = {
     val (portId, (port, existingLinks)) = outputPorts
@@ -412,49 +389,27 @@ case class PhysicalOp(
     )
   }
 
-  /**
-    * returns all input links on a specific input port
-    */
-  def getLinksOnInputPort(port: InputPort): List[PhysicalLink] = {
-    getLinksOnInputPort(port.id)
-  }
+
+
 
   /**
-    * returns all input links on a specific input port
+    * returns all output links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
-  def getLinksOnInputPort(portId: PortIdentity): List[PhysicalLink] = {
-    getAllInputLinks.filter(link => link.toPortId == portId)
-  }
-
-  /**
-    * returns all the input operators on a specific input port
-    */
-  def getOpsOnInputPort(portId: PortIdentity): List[PhysicalOpIdentity] = {
-    getLinksOnInputPort(portId).map(link => link.fromOpId)
+  def getOutputLinks(portIdOpt: Option[PortIdentity]= None): List[PhysicalLink] = {
+    outputPorts.values.flatMap(_._2).toList.filter(link => portIdOpt match {
+      case Some(portId) => link.fromPortId == portId
+      case None => true
+    })
   }
 
   /**
-    * returns all output links on a specific output port
+    * returns all input links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
-  def getLinksOnOutputPort(portId: PortIdentity): List[PhysicalLink] = {
-    getAllInputLinks.filter(link => link.fromPortId == portId)
-  }
-
-  def getAllInputLinks: List[PhysicalLink] = {
-    inputPorts.values.flatMap(_._2).toList
-  }
-
-  def getAllOutputLinks: List[PhysicalLink] = {
-    outputPorts.values.flatMap(_._2).toList
-  }
-
-  def getPortIdxForInputLink(link: PhysicalLink): InputPort = {
-    inputPorts
-      .find {
-        case (_, (_, links)) => links.contains(link)
-      }
-      .map(_._2._1)
-      .get
+  def getInputLinks(portIdOpt: Option[PortIdentity] = None): List[PhysicalLink] = {
+    inputPorts.values.flatMap(_._2).toList.filter(link => portIdOpt match {
+      case Some(portId) => link.toPortId == portId
+      case None => true
+    })
   }
 
   /**
@@ -462,7 +417,7 @@ case class PhysicalOp(
     * outputs all its tuples
     */
   def isInputLinkBlocking(link: PhysicalLink): Boolean = {
-    val blockingLinks = realBlockingInputs.flatMap(portId => getLinksOnInputPort(portId))
+    val blockingLinks = realBlockingInputs.flatMap(portId => getInputLinks(Some(portId)))
     blockingLinks.contains(link)
   }
 
@@ -479,8 +434,8 @@ case class PhysicalOp(
       .flatMap(port => port.dependencies.map(dependee => port.id -> dependee))
       .foreach({
         case (depender: PortIdentity, dependee: PortIdentity) =>
-          val upstreamLink = getLinksOnInputPort(dependee).head
-          val downstreamLink = getLinksOnInputPort(depender).head
+          val upstreamLink = getInputLinks(Some(dependee)).head
+          val downstreamLink = getInputLinks(Some(depender)).head
           if (!dependencyDag.containsVertex(upstreamLink)) {
             dependencyDag.addVertex(upstreamLink)
           }

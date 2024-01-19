@@ -111,7 +111,7 @@ class DataProcessor(
           PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), physicalOp.id, PortIdentity())
         ) // special case for source operator
       } else {
-        physicalOp.getAllInputLinks.toSet
+        physicalOp.getInputLinks().toSet
       }
     )
     this.outputIterator.setTupleOutput(currentOutputIterator)
@@ -161,18 +161,11 @@ class DataProcessor(
     inputGateway.getChannel(channel).getQueuedCredit
   }
 
-  def getInputPortIdx(workerId: ActorVirtualIdentity): Int = {
+  private def getInputPortId(workerId: ActorVirtualIdentity): PortIdentity = {
     val inputLink = upstreamLinkStatus.getInputLink(workerId)
-    if (inputLink.fromOpId == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!physicalOp.getAllInputLinks.contains(inputLink)) 0
-    else physicalOp.getPortIdxForInputLink(inputLink).id.id
-  }
-
-  def getOutputLinksByPort(outputPort: Option[PortIdentity]): List[PhysicalLink] = {
-    outputPort match {
-      case Some(port) => physicalOp.getLinksOnOutputPort(port)
-      case None       => physicalOp.getAllOutputLinks
-    }
+    if (inputLink.fromOpId == SOURCE_STARTER_OP) PortIdentity() // special case for source operator
+    else if (!physicalOp.getInputLinks().contains(inputLink)) PortIdentity()
+    else inputLink.toPortId
   }
 
   def onInterrupt(): Unit = {
@@ -199,7 +192,7 @@ class DataProcessor(
       outputIterator.setTupleOutput(
         operator.processTuple(
           tuple,
-          getInputPortIdx(currentBatchChannel.from),
+          getInputPortId(currentBatchChannel.from).id,
           pauseManager,
           asyncRPCClient
         )
@@ -261,7 +254,7 @@ class DataProcessor(
         } else {
           outputTupleCount += 1
           // println(s"send output $outputTuple at step $totalValidStep")
-          val outLinks = getOutputLinksByPort(outputPortOpt)
+          val outLinks = physicalOp.getOutputLinks(outputPortOpt)
           outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
         }
     }

@@ -106,7 +106,7 @@ class DefaultResourceAllocator(
           val inputPartitionInfos = physicalOp.inputPorts.keys
             .flatMap((portId: PortIdentity) => {
               physicalOp
-                .getLinksOnInputPort(portId)
+                .getInputLinks(Some(portId))
                 .filter(link => region.getEffectiveLinks.contains(link))
                 .map(link => {
                   val upstreamInputPartitionInfo = outputPartitionInfos(link.fromOpId)

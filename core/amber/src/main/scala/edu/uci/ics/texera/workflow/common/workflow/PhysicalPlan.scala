@@ -211,7 +211,12 @@ case class PhysicalPlan(
     val toPhysicalOp = getOperator(link.toOpId)
 
     // make sure this input is connected to this port
-    assert(toPhysicalOp.getOpsOnInputPort(link.toPortId).contains(fromPhysicalOp.id))
+    assert(
+      toPhysicalOp
+        .getInputLinks(Some(link.toPortId))
+        .map(link => link.fromOpId)
+        .contains(fromPhysicalOp.id)
+    )
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
