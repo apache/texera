@@ -3,7 +3,11 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
@@ -208,7 +212,10 @@ case class PhysicalPlan(
 
     // partition requirement of this PhysicalOp on this input port
     val requiredPartitionInfo =
-      toPhysicalOp.partitionRequirement.lift(link.toPort.id.id).flatten.getOrElse(UnknownPartition())
+      toPhysicalOp.partitionRequirement
+        .lift(link.toPort.id.id)
+        .flatten
+        .getOrElse(UnknownPartition())
 
     // the upstream partition info satisfies the requirement, and number of worker match
     if (
@@ -236,19 +243,29 @@ case class PhysicalPlan(
             .flatMap { upstreamPhysicalOpId =>
               links
                 .filter(link => link.from == upstreamPhysicalOpId && link.to == physicalOp.id)
-                .filter(link => getOperator(link.to).getAllInputLinks.exists(l=> l.toPort.dependencies.contains(link.toPort.id)))
+                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
             }
         }
       }
 
     this.copy(operators, links.diff(linksToRemove))
   }
+  def setOperatorUnblockPort(
+      physicalOpId: PhysicalOpIdentity,
+      portIdToRemove: PortIdentity
+  ): PhysicalPlan = {
+    val physicalOp = getOperator(physicalOpId)
+    physicalOp.copy(blockingInputs =
+      physicalOp.blockingInputs.filter(port => port != portIdToRemove)
+    )
+    this.copy(operators = operators ++ Set(physicalOp))
+  }
 
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {
 
-    val upstreamPhysicalLinks = getUpstreamPhysicalLinks(physicalOpId)
-    upstreamPhysicalLinks.nonEmpty && upstreamPhysicalLinks.forall { upstreamPhysicalLink =>
-      getOperator(upstreamPhysicalLink.to).getAllInputLinks.exists(l=> l.toPort.dependencies.contains(upstreamPhysicalLink.toPort.id))
+    val upstreamPhysicalLinkIds = getUpstreamPhysicalLinks(physicalOpId)
+    upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
+      getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
     }
   }
 

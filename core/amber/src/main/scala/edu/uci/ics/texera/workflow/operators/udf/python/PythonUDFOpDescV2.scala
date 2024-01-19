@@ -108,7 +108,6 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
         .withPartitionRequirement(partitionRequirement)
@@ -131,12 +130,12 @@ class PythonUDFOpDescV2 extends LogicalOp {
   override def operatorInfo: OperatorInfo = {
     val inputPortInfo = if (inputPorts != null) {
       inputPorts.zipWithIndex.map {
-        case (portDesc:PortDescription, idx) =>
+        case (portDesc: PortDescription, idx) =>
           InputPort(
             PortIdentity(idx),
             name = portDesc.displayName,
             allowMultiLinks = portDesc.allowMultiInputs,
-            dependencies = portDesc.dependencies.map(idx=> PortIdentity(idx))
+            dependencies = portDesc.dependencies.map(idx => PortIdentity(idx))
           )
       }
     } else {

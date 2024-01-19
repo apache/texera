@@ -77,6 +77,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withParallelizable(true)
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
+        .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withSuggestedWorkerNum(workers)
     } else {
@@ -86,6 +87,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withParallelizable(false)
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
+        .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
@@ -97,7 +99,12 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       OperatorGroupConstants.UDF_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), name = "model", allowMultiLinks = true),
-        InputPort(PortIdentity(1), name = "tuples", allowMultiLinks = true,dependencies = List(PortIdentity(0)))
+        InputPort(
+          PortIdentity(1),
+          name = "tuples",
+          allowMultiLinks = true,
+          dependencies = List(PortIdentity(0))
+        )
       ),
       outputPorts = List(OutputPort())
     )

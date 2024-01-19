@@ -24,6 +24,7 @@ class CartesianProductOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       // TODO : refactor to parallelize this operator for better performance and scalability:
       //  can consider hash partition on larger input, broadcast smaller table to each partition
       .withParallelizable(false)
@@ -75,8 +76,10 @@ class CartesianProductOpDesc extends LogicalOp {
       "Cartesian Product",
       "Append fields together to get the cartesian product of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts =
-        List(InputPort(PortIdentity(), name = "left"), InputPort(PortIdentity(1), name = "right", dependencies = List(PortIdentity()))),
+      inputPorts = List(
+        InputPort(PortIdentity(), name = "left"),
+        InputPort(PortIdentity(1), name = "right", dependencies = List(PortIdentity()))
+      ),
       outputPorts = List(OutputPort())
     )
 

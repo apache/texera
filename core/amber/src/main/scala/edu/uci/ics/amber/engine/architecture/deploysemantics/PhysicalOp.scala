@@ -5,12 +5,25 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfo,
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
+  AddressInfo,
+  LocationPreference,
+  PreferController,
+  RoundRobinPreference
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{WorkerReplayInitialization, WorkerReplayLoggingConfig, WorkerStateRestoreConfig}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  WorkerReplayInitialization,
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
@@ -193,12 +206,16 @@ case class PhysicalOp(
     // mapping of all input/output operators connected on a specific input/output port index
     inputPortToLinkMapping: Map[InputPort, List[PhysicalLink]] = Map(),
     outputPortToLinkMapping: Map[OutputPort, List[PhysicalLink]] = Map(),
+    // input ports that are blocking
+    blockingInputs: List[PortIdentity] = List(),
     isOneToManyOp: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None
 ) extends LazyLogging {
 
-
+  // all the "dependee" links are also blocking inputs
+  private lazy val realBlockingInputs: List[PortIdentity] =
+    (blockingInputs ++ inputPorts.flatMap(port => port.dependencies)).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
@@ -293,7 +310,6 @@ case class PhysicalOp(
   def withParallelizable(parallelizable: Boolean): PhysicalOp =
     this.copy(parallelizable = parallelizable)
 
-
   /**
     * creates a copy with the specified property that whether this operator is one-to-many
     */
@@ -307,9 +323,20 @@ case class PhysicalOp(
     this.copy(schemaInfo = Some(schemaInfo))
 
   /**
+    * creates a copy with the blocking input port indices
+    */
+  def withBlockingInputs(blockingInputs: List[PortIdentity]): PhysicalOp = {
+    this.copy(blockingInputs = blockingInputs)
+  }
+
+  /**
     * creates a copy with an additional input operator specified on an input port
     */
-  def addInput(fromOpId: PhysicalOpIdentity, fromPort: OutputPort, toPort: InputPort): PhysicalOp = {
+  def addInput(
+      fromOpId: PhysicalOpIdentity,
+      fromPort: OutputPort,
+      toPort: InputPort
+  ): PhysicalOp = {
     val link = PhysicalLink(fromOpId, fromPort, this.id, toPort)
     addInput(link)
   }
@@ -383,12 +410,11 @@ case class PhysicalOp(
     getLinksOnInputPort(port.id)
   }
 
-
   /**
     * returns all input links on a specific input port
     */
   def getLinksOnInputPort(portId: PortIdentity): List[PhysicalLink] = {
-    getAllInputLinks.filter(link=> link.toPort.id == portId)
+    getAllInputLinks.filter(link => link.toPort.id == portId)
   }
 
   /**
@@ -412,7 +438,6 @@ case class PhysicalOp(
     getAllInputLinks.filter(link => link.fromPort.id == portId)
   }
 
-
   def getAllInputLinks: List[PhysicalLink] = {
     inputPortToLinkMapping.values.flatten.toList
   }
@@ -431,6 +456,15 @@ case class PhysicalOp(
   }
 
   /**
+    * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
+    * outputs all its tuples
+    */
+  def isInputLinkBlocking(link: PhysicalLink): Boolean = {
+    val blockingLinks = realBlockingInputs.flatMap(portId => getLinksOnInputPort(portId))
+    blockingLinks.contains(link)
+  }
+
+  /**
     * Some operators process their inputs in a particular order. Eg: 2 phase hash join first
     * processes the build input, then the probe input.
     */
@@ -438,18 +472,20 @@ case class PhysicalOp(
     val dependencyDag = {
       new DirectedAcyclicGraph[PhysicalLink, DefaultEdge](classOf[DefaultEdge])
     }
-    inputPorts.flatMap(port=> port.dependencies.map(dependee => port.id -> dependee)).foreach({
-      case (depender: PortIdentity, dependee: PortIdentity) =>
-        val upstreamLink = getLinksOnInputPort(dependee).head
-        val downstreamLink = getLinksOnInputPort(depender).head
-        if (!dependencyDag.containsVertex(upstreamLink)) {
-          dependencyDag.addVertex(upstreamLink)
-        }
-        if (!dependencyDag.containsVertex(downstreamLink)) {
-          dependencyDag.addVertex(downstreamLink)
-        }
-        dependencyDag.addEdge(upstreamLink, downstreamLink)
-    })
+    inputPorts
+      .flatMap(port => port.dependencies.map(dependee => port.id -> dependee))
+      .foreach({
+        case (depender: PortIdentity, dependee: PortIdentity) =>
+          val upstreamLink = getLinksOnInputPort(dependee).head
+          val downstreamLink = getLinksOnInputPort(depender).head
+          if (!dependencyDag.containsVertex(upstreamLink)) {
+            dependencyDag.addVertex(upstreamLink)
+          }
+          if (!dependencyDag.containsVertex(downstreamLink)) {
+            dependencyDag.addVertex(downstreamLink)
+          }
+          dependencyDag.addEdge(upstreamLink, downstreamLink)
+      })
     val topologicalIterator =
       new TopologicalOrderIterator[PhysicalLink, DefaultEdge](dependencyDag)
     val processingOrder = new ArrayBuffer[PhysicalLink]()

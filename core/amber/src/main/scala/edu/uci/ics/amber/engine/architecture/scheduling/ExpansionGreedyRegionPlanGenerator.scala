@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
@@ -211,7 +214,12 @@ class ExpansionGreedyRegionPlanGenerator(
         case Left(dag) => dag
         case Right(links) =>
           links.foreach { link =>
-            physicalPlan = replaceLinkWithMaterialization(link, context, matReaderWriterPairs, dependeeInputPorts)
+            physicalPlan = replaceLinkWithMaterialization(
+              link,
+              context,
+              matReaderWriterPairs,
+              dependeeInputPorts
+            )
           }
           recConnectRegionDAG()
       }
@@ -295,12 +303,7 @@ class ExpansionGreedyRegionPlanGenerator(
         upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-            .filter(link =>
-              physicalPlan
-                .getOperator(link.to)
-                .getAllInputLinks
-                .exists(l => l.toPort.dependencies.contains(link.toPort.id))
-            )
+            .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
         }
       }
       .toSet
@@ -373,6 +376,8 @@ class ExpansionGreedyRegionPlanGenerator(
       .addOperator(matReaderPhysicalOp)
       .addLink(readerToDestLink)
       .addLink(sourceToWriterLink)
+      .setOperatorUnblockPort(toOp.id, toInputPort.id)
+
   }
 
   private def createMatReader(

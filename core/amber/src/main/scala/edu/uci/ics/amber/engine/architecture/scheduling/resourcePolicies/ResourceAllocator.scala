@@ -4,7 +4,11 @@ import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{LinkConfig, OperatorConfig, RegionConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  LinkConfig,
+  OperatorConfig,
+  RegionConfig
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, PhysicalLink}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
@@ -100,7 +104,7 @@ class DefaultResourceAllocator(
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
           val inputPartitionInfos = physicalOp.inputPorts
-            .flatMap((port: InputPort) =>{
+            .flatMap((port: InputPort) => {
               println(physicalOp.id, port.id)
               physicalOp
                 .getLinksOnInputPort(port)
@@ -117,8 +121,7 @@ class DefaultResourceAllocator(
                   )
                   (link.toPort, upstreamOutputPartitionInfo)
                 })
-            }
-            )
+            })
             // group upstream partition infos by input port of this physicalOp
             .groupBy(_._1.id)
             .values
@@ -130,7 +133,12 @@ class DefaultResourceAllocator(
             // derive the output partition info with all the input partition infos
             Some(physicalOp.derivePartition(inputPartitionInfos))
           } else {
-            println("skipped", physicalOp.id, inputPartitionInfos.length, physicalOp.inputPorts.size)
+            println(
+              "skipped",
+              physicalOp.id,
+              inputPartitionInfos.length,
+              physicalOp.inputPorts.size
+            )
             None
           }
 

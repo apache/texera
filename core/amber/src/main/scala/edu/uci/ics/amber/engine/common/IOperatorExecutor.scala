@@ -18,7 +18,7 @@ trait IOperatorExecutor {
       input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[ PortIdentity])]
+  ): Iterator[(ITuple, Option[PortIdentity])]
 
   def getParam(query: String): String = { null }
 
