@@ -1,8 +1,11 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ChannelMarkerType}
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.reflect.ClassTag
 
@@ -74,6 +77,19 @@ class AsyncRPCHandlerInitializer(
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     ctrlSource.send(cmd, to)
   }
+
+  def sendChannelMarker(
+      markerId: ChannelMarkerIdentity,
+      markerType: ChannelMarkerType,
+      scope: PhysicalPlan,
+      cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
+      to: ChannelID
+  ): Unit = {
+    ctrlSource.sendChannelMarker(markerId, markerType, scope, cmdMapping, to)
+  }
+
+  def createInvocation[T](cmd: ControlCommand[T]): (ControlInvocation, Future[T]) =
+    ctrlSource.createInvocation(cmd)
 
   def execute[T](cmd: ControlCommand[T], sender: ActorVirtualIdentity): Future[T] = {
     ctrlReceiver.execute((cmd, sender)).asInstanceOf[Future[T]]

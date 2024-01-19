@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelID,
   ControlPayload,
   DataPayload,
+  ChannelMarkerPayload,
   WorkflowFIFOMessage
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -168,11 +169,8 @@ class DPThread(
       // Main loop step 3: process selected message payload
       //
       if (channelID != null) {
-        val msgToLog = if (channelID.isControl) {
-          msgOpt
-        } else {
-          None //skip large dataframes
-        }
+        // for logging, skip large data frames.
+        val msgToLog = msgOpt.filter(_.payload.isInstanceOf[ControlPayload])
         logManager.withFaultTolerant(channelID, msgToLog) {
           msgOpt match {
             case None =>
@@ -183,6 +181,8 @@ class DPThread(
                   dp.processControlPayload(msg.channel, payload)
                 case payload: DataPayload =>
                   dp.processDataPayload(msg.channel, payload)
+                case payload: ChannelMarkerPayload =>
+                  dp.processChannelMarker(msg.channel, payload, logManager)
               }
           }
         }

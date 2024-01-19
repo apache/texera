@@ -12,8 +12,8 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
 
   private val globalPauses = new mutable.HashSet[PauseType]()
   private val specificInputPauses =
-    new mutable.HashMap[PauseType, mutable.Set[ActorVirtualIdentity]]
-      with mutable.MultiMap[PauseType, ActorVirtualIdentity]
+    new mutable.HashMap[PauseType, mutable.Set[ChannelID]]
+      with mutable.MultiMap[PauseType, ChannelID]
 
   def pause(pauseType: PauseType): Unit = {
     globalPauses.add(pauseType)
@@ -21,11 +21,11 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
     inputGateway.getAllDataChannels.foreach(_.enable(false))
   }
 
-  def pauseInputChannel(pauseType: PauseType, inputs: List[ActorVirtualIdentity]): Unit = {
+  def pauseInputChannel(pauseType: PauseType, inputs: List[ChannelID]): Unit = {
     inputs.foreach(input => {
       specificInputPauses.addBinding(pauseType, input)
       // disable specified data queues
-      inputGateway.getChannel(ChannelID(actorId, input, isControl = false)).enable(false)
+      inputGateway.getChannel(input).enable(false)
     })
   }
 
@@ -43,10 +43,10 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
       return
     }
     // need to resume specific input channels
-    val pausedActorVids = specificInputPauses.values.flatten.toSet
+    val pausedChannels = specificInputPauses.values.flatten.toSet
     inputGateway.getAllDataChannels.foreach(_.enable(true))
-    pausedActorVids.foreach { vid =>
-      inputGateway.getChannel(ChannelID(actorId, vid, isControl = false)).enable(false)
+    pausedChannels.foreach { channelID =>
+      inputGateway.getChannel(channelID).enable(false)
     }
   }
 

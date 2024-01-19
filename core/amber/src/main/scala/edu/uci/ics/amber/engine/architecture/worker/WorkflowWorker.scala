@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import java.net.URI
@@ -56,7 +56,7 @@ object WorkflowWorker {
       restoreConfOpt: Option[WorkerStateRestoreConfig] = None,
       replayLogConfOpt: Option[WorkerReplayLoggingConfig] = None
   )
-  final case class WorkerStateRestoreConfig(readFrom: URI, replayTo: Long)
+  final case class WorkerStateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
 
   final case class WorkerReplayLoggingConfig(writeTo: URI)
 }

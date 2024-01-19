@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.service
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.EpochMarkerHandler.PropagateEpochMarker
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.WorkerModifyLogicComplete
 import edu.uci.ics.amber.engine.common.AmberConfig
@@ -107,7 +106,7 @@ class ExecutionReconfigurationService(
         reconfigurationId
       )
       epochMarkers.foreach(epoch => {
-        client.sendAsync(PropagateEpochMarker(epoch._1, epoch._2))
+        client.sendAsync(epoch)
       })
     }
 

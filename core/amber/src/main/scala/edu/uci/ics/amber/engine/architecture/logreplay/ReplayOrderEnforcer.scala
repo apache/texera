@@ -8,7 +8,6 @@ class ReplayOrderEnforcer(
     logManager: ReplayLogManager,
     channelStepOrder: mutable.Queue[ProcessingStep],
     startStep: Long,
-    replayTo: Long,
     private var onComplete: () => Unit
 ) extends OrderEnforcer {
   private var currentChannelID: ChannelID = _
@@ -28,7 +27,7 @@ class ReplayOrderEnforcer(
     forwardNext()
   }
 
-  var isCompleted: Boolean = startStep >= replayTo || channelStepOrder.isEmpty
+  var isCompleted: Boolean = channelStepOrder.isEmpty
 
   triggerOnComplete()
 
@@ -45,10 +44,9 @@ class ReplayOrderEnforcer(
     if (channelStepOrder.nonEmpty && channelStepOrder.head.step == step) {
       forwardNext()
     }
-    // two cases to terminate replay:
-    // 1. no next log record with step > current step, which means further processing is not logged.
-    // 2. current step == replayTo, no need to continue.
-    if (channelStepOrder.isEmpty || step == replayTo) {
+    // To terminate replay:
+    // no next log record with step > current step, which means further processing is not logged.
+    if (channelStepOrder.isEmpty) {
       isCompleted = true
       triggerOnComplete()
     }

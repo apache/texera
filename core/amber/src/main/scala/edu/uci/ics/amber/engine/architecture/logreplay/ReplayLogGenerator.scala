@@ -2,13 +2,15 @@ package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 
 import scala.collection.mutable
 
 object ReplayLogGenerator {
   def generate(
       logStorage: ReplayLogStorage,
-      logFileName: String
+      logFileName: String,
+      replayTo: ChannelMarkerIdentity
   ): (mutable.Queue[ProcessingStep], mutable.Queue[WorkflowFIFOMessage]) = {
     val logs = logStorage.getReader(logFileName).mkLogRecordIterator()
     val steps = mutable.Queue[ProcessingStep]()
@@ -18,6 +20,11 @@ object ReplayLogGenerator {
         steps.enqueue(s)
       case MessageContent(message) =>
         messages.enqueue(message)
+      case ReplayDestination(id) =>
+        if (id == replayTo) {
+          // we only need log record upto this point
+          return (steps, messages)
+        }
       case other =>
         throw new RuntimeException(s"cannot handle $other in the log")
     }

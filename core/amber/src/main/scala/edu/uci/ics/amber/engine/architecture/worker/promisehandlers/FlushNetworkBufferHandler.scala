@@ -7,6 +7,6 @@ trait FlushNetworkBufferHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (flush: FlushNetworkBuffer, sender) =>
-    dp.outputManager.flushAll()
+    dp.outputManager.flush()
   }
 }

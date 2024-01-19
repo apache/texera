@@ -61,7 +61,7 @@ class ReplaySpec
         .getChannel(channelID)
         .acceptMessage(WorkflowFIFOMessage(channelID, seq, ControlInvocation(0, StartWorker())))
     }
-    val orderEnforcer = new ReplayOrderEnforcer(logManager, logRecords, -1, 1000, () => {})
+    val orderEnforcer = new ReplayOrderEnforcer(logManager, logRecords, -1, () => {})
     inputGateway.addEnforcer(orderEnforcer)
     def processMessage(channelID: ChannelID, seq: Long): Unit = {
       val msg = inputGateway.tryPickChannel.get.take

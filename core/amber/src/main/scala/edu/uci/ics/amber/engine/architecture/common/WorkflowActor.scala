@@ -174,8 +174,9 @@ abstract class WorkflowActor(
       onComplete: () => Unit
   ): Unit = {
     val logStorageToRead = ReplayLogStorage.getLogStorage(Some(replayConf.readFrom))
-    val (processSteps, messages) = ReplayLogGenerator.generate(logStorageToRead, getLogName)
-    val replayTo = replayConf.replayTo
+    val replayTo = replayConf.replayDestination
+    val (processSteps, messages) =
+      ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
     logger.info(
       s"setting up replay, " +
         s"read from ${replayConf.readFrom} " +
@@ -187,7 +188,6 @@ abstract class WorkflowActor(
       logManager,
       processSteps,
       startStep = logManager.getStep,
-      replayTo,
       onComplete
     )
     amberProcessor.inputGateway.addEnforcer(orderEnforcer)

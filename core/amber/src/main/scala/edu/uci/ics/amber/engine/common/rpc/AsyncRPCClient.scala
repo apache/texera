@@ -6,11 +6,17 @@ import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlExcept
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelID,
+  ChannelMarkerPayload,
+  ChannelMarkerType,
+  ControlPayload
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.collection.mutable
 
@@ -66,6 +72,25 @@ class AsyncRPCClient(
     p
   }
 
+  def sendChannelMarker(
+      markerId: ChannelMarkerIdentity,
+      markerType: ChannelMarkerType,
+      scope: PhysicalPlan,
+      cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
+      channelID: ChannelID
+  ): Unit = {
+    logger.debug(s"send marker: $markerId to $channelID")
+    outputGateway.sendTo(
+      channelID,
+      ChannelMarkerPayload(markerId, markerType, scope, cmdMapping)
+    )
+  }
+
+  def createInvocation[T](cmd: ControlCommand[T]): (ControlInvocation, Future[T]) = {
+    val (p, id) = createPromise[T]()
+    (ControlInvocation(id, cmd), p)
+  }
+
   def sendToClient(cmd: ControlCommand[_]): Unit = {
     outputGateway.sendTo(CLIENT, ControlInvocation(0, cmd))
   }
@@ -80,7 +105,6 @@ class AsyncRPCClient(
   def fulfillPromise(ret: ReturnInvocation): Unit = {
     if (unfulfilledPromises.contains(ret.originalCommandID)) {
       val p = unfulfilledPromises(ret.originalCommandID)
-
       ret.controlReturn match {
         case error: Throwable =>
           p.setException(error)

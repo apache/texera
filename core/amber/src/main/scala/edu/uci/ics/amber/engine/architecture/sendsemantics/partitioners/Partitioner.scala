@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream, EpochMarker}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -27,11 +27,6 @@ class NetworkOutputBuffer(
     if (buffer.size >= batchSize) {
       flush()
     }
-  }
-
-  def addEpochMarker(epochMarker: EpochMarker): Unit = {
-    flush()
-    dataOutputPort.sendTo(to, epochMarker)
   }
 
   def noMore(): Unit = {
