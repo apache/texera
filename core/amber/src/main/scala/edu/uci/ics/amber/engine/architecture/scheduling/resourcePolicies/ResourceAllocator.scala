@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   RegionConfig
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, PhysicalLink}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
 
 import scala.collection.mutable
@@ -103,11 +103,10 @@ class DefaultResourceAllocator(
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
-          val inputPartitionInfos = physicalOp.inputPorts.values
-            .map(_._1)
-            .flatMap((port: InputPort) => {
+          val inputPartitionInfos = physicalOp.inputPorts.keys
+            .flatMap((portId: PortIdentity) => {
               physicalOp
-                .getLinksOnInputPort(port)
+                .getLinksOnInputPort(portId)
                 .filter(link => region.getEffectiveLinks.contains(link))
                 .map(link => {
                   val upstreamInputPartitionInfo = outputPartitionInfos(link.fromOpId)
@@ -132,12 +131,6 @@ class DefaultResourceAllocator(
             // derive the output partition info with all the input partition infos
             Some(physicalOp.derivePartition(inputPartitionInfos))
           } else {
-            println(
-              "skipped",
-              physicalOp.id,
-              inputPartitionInfos.length,
-              physicalOp.inputPorts.size
-            )
             None
           }
 
