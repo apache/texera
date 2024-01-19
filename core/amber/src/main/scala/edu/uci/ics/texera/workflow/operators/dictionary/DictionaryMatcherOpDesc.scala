@@ -34,12 +34,15 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
-    PhysicalOp.oneToOnePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new DictionaryMatcherOpExec(this, operatorSchemaInfo))
-    )
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new DictionaryMatcherOpExec(this, operatorSchemaInfo))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

@@ -27,12 +27,15 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))
-    )
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

@@ -67,8 +67,7 @@ object PhysicalOp {
       executionId,
       opExecInitInfo,
       parallelizable = false,
-      locationPreference = Option(new PreferController()),
-      inputPorts = Map.empty
+      locationPreference = Option(new PreferController())
     )
 
   def oneToOnePhysicalOp(
@@ -201,12 +200,8 @@ case class PhysicalOp(
     derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink])] = Map(
-      PortIdentity() -> (InputPort(), List())
-    ),
-    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink])] = Map(
-      PortIdentity() -> (OutputPort(), List())
-    ),
+    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink])] = Map.empty,
+    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink])] = Map.empty,
     // input ports that are blocking
     blockingInputs: List[PortIdentity] = List(),
     isOneToManyOp: Boolean = false,
@@ -332,7 +327,6 @@ case class PhysicalOp(
     this.copy(blockingInputs = blockingInputs)
   }
 
-
   /**
     * creates a copy with an additional input operator specified on an input port
     */
@@ -389,27 +383,34 @@ case class PhysicalOp(
     )
   }
 
-
-
-
   /**
     * returns all output links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
-  def getOutputLinks(portIdOpt: Option[PortIdentity]= None): List[PhysicalLink] = {
-    outputPorts.values.flatMap(_._2).toList.filter(link => portIdOpt match {
-      case Some(portId) => link.fromPortId == portId
-      case None => true
-    })
+  def getOutputLinks(portIdOpt: Option[PortIdentity] = None): List[PhysicalLink] = {
+    outputPorts.values
+      .flatMap(_._2)
+      .toList
+      .filter(link =>
+        portIdOpt match {
+          case Some(portId) => link.fromPortId == portId
+          case None         => true
+        }
+      )
   }
 
   /**
     * returns all input links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
   def getInputLinks(portIdOpt: Option[PortIdentity] = None): List[PhysicalLink] = {
-    inputPorts.values.flatMap(_._2).toList.filter(link => portIdOpt match {
-      case Some(portId) => link.toPortId == portId
-      case None => true
-    })
+    inputPorts.values
+      .flatMap(_._2)
+      .toList
+      .filter(link =>
+        portIdOpt match {
+          case Some(portId) => link.toPortId == portId
+          case None         => true
+        }
+      )
   }
 
   /**

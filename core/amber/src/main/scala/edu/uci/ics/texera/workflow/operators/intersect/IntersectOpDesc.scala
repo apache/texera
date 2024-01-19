@@ -16,13 +16,16 @@ class IntersectOpDesc extends LogicalOp {
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
-    PhysicalOp.hashPhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new IntersectOpExec()),
-      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
-    )
+    PhysicalOp
+      .hashPhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new IntersectOpExec()),
+        operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

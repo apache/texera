@@ -40,19 +40,22 @@ class BulkDownloaderOpDesc extends LogicalOp {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp = {
     assert(getContext.userId.isDefined)
-    PhysicalOp.oneToOnePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) =>
-        new BulkDownloaderOpExec(
-          getContext,
-          urlAttribute,
-          resultAttribute,
-          operatorSchemaInfo
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) =>
+          new BulkDownloaderOpExec(
+            getContext,
+            urlAttribute,
+            resultAttribute,
+            operatorSchemaInfo
+          )
         )
       )
-    )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

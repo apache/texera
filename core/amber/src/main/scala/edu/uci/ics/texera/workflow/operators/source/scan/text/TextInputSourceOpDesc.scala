@@ -22,12 +22,15 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
-    )
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def sourceSchema(): Schema =
     Schema

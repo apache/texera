@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 }
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -387,11 +387,14 @@ class ExpansionGreedyRegionPlanGenerator(
     materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
-    val matReaderOp = materializationReader.getPhysicalOp(
-      context.workflowId,
-      context.executionId,
-      OperatorSchemaInfo(Array(), matReaderOutputSchema)
-    )
+    val matReaderOp = materializationReader
+      .getPhysicalOp(
+        context.workflowId,
+        context.executionId,
+        OperatorSchemaInfo(Array(), matReaderOutputSchema)
+      )
+      .withOutputPorts(List(OutputPort()))
+
     matReaderOp
   }
 
@@ -414,11 +417,13 @@ class ExpansionGreedyRegionPlanGenerator(
     // we currently expect only one output schema
     val matWriterOutputSchema =
       matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
-    val matWriterPhysicalOp = matWriterLogicalOp.getPhysicalOp(
-      context.workflowId,
-      context.executionId,
-      OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
-    )
+    val matWriterPhysicalOp = matWriterLogicalOp
+      .getPhysicalOp(
+        context.workflowId,
+        context.executionId,
+        OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
+      )
+      .withInputPorts(List(InputPort()))
     matWriterLogicalOp.setStorage(
       opResultStorage.create(
         key = matWriterLogicalOp.operatorIdentifier,

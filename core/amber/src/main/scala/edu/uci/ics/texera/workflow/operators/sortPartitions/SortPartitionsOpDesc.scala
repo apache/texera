@@ -71,9 +71,10 @@ class SortPartitionsOpDesc extends LogicalOp {
           )
         })
       )
-      .copy(
-        partitionRequirement = partitionRequirement
-      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(partitionRequirement)
+
   }
 
   override def operatorInfo: OperatorInfo =

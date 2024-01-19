@@ -41,7 +41,9 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
                                 x -> new SpecializedFilterOpExec(this)
                 )
-        );
+
+        )      .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts());
     }
 
     @Override

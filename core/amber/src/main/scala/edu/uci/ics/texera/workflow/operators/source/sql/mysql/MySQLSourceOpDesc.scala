@@ -18,32 +18,35 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      this.operatorIdentifier,
-      OpExecInitInfo((_, _, _) =>
-        new MySQLSourceOpExec(
-          this.querySchema,
-          host,
-          port,
-          database,
-          table,
-          username,
-          password,
-          limit,
-          offset,
-          progressive,
-          batchByColumn,
-          min,
-          max,
-          interval,
-          keywordSearch.getOrElse(false),
-          keywordSearchByColumn.orNull,
-          keywords.orNull
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        this.operatorIdentifier,
+        OpExecInitInfo((_, _, _) =>
+          new MySQLSourceOpExec(
+            this.querySchema,
+            host,
+            port,
+            database,
+            table,
+            username,
+            password,
+            limit,
+            offset,
+            progressive,
+            batchByColumn,
+            min,
+            max,
+            interval,
+            keywordSearch.getOrElse(false),
+            keywordSearchByColumn.orNull,
+            keywords.orNull
+          )
         )
       )
-    )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

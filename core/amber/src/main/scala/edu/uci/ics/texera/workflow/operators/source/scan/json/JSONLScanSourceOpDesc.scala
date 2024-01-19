@@ -56,6 +56,8 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
             })
           )
+          .withInputPorts(operatorInfo.inputPorts)
+          .withOutputPorts(operatorInfo.outputPorts)
           .withParallelizable(true)
 
       case None =>

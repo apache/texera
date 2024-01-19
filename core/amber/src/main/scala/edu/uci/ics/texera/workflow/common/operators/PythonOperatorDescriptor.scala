@@ -20,6 +20,8 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withParallelizable(parallelizable())
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
@@ -30,6 +32,8 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withParallelizable(parallelizable())
         .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }

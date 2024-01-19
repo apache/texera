@@ -57,6 +57,8 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
           )
         )
       )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

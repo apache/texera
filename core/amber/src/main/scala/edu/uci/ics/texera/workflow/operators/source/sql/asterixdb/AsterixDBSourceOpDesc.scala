@@ -98,38 +98,41 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      this.operatorIdentifier,
-      OpExecInitInfo((_, _, _) =>
-        new AsterixDBSourceOpExec(
-          sourceSchema(),
-          host,
-          port,
-          database,
-          table,
-          limit,
-          offset,
-          progressive,
-          batchByColumn,
-          min,
-          max,
-          interval,
-          keywordSearch.getOrElse(false),
-          keywordSearchByColumn.orNull,
-          keywords.orNull,
-          geoSearch.getOrElse(false),
-          geoSearchByColumns,
-          geoSearchBoundingBox,
-          regexSearch.getOrElse(false),
-          regexSearchByColumn.orNull,
-          regex.orNull,
-          filterCondition.getOrElse(false),
-          filterPredicates
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        this.operatorIdentifier,
+        OpExecInitInfo((_, _, _) =>
+          new AsterixDBSourceOpExec(
+            sourceSchema(),
+            host,
+            port,
+            database,
+            table,
+            limit,
+            offset,
+            progressive,
+            batchByColumn,
+            min,
+            max,
+            interval,
+            keywordSearch.getOrElse(false),
+            keywordSearchByColumn.orNull,
+            keywords.orNull,
+            geoSearch.getOrElse(false),
+            geoSearchByColumns,
+            geoSearchBoundingBox,
+            regexSearch.getOrElse(false),
+            regexSearchByColumn.orNull,
+            regex.orNull,
+            filterCondition.getOrElse(false),
+            filterPredicates
+          )
         )
       )
-    )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def sourceSchema(): Schema = {
     if (this.host == null || this.port == null || this.database == null || this.table == null)
