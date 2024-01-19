@@ -109,7 +109,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         .withOutputPorts(this.operatorInfo().outputPorts());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
-        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(),partialOpOutputPort , globalPhysicalOp.id(), globalOpInputPort)};
+        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), partialOpOutputPort , globalPhysicalOp.id(), globalOpInputPort)};
 
         return PhysicalPlan.apply(physicalOps, links);
     }

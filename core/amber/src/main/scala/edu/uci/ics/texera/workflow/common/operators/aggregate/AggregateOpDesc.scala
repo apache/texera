@@ -23,6 +23,7 @@ object AggregateOpDesc {
       groupByKeys: List[String],
       schemaInfo: OperatorSchemaInfo
   ): PhysicalPlan = {
+    val outputPort = OutputPort(PortIdentity(internal = true))
     val partialPhysicalOp =
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -34,8 +35,9 @@ object AggregateOpDesc {
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
         .withInputPorts(List(InputPort(PortIdentity())))
-        .withOutputPorts(List(OutputPort(PortIdentity(internal = true))))
+        .withOutputPorts(List(outputPort))
 
+    val inputPort = InputPort(PortIdentity(0, internal = true))
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
       PhysicalOp
         .localPhysicalOp(
@@ -47,7 +49,7 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withInputPorts(List(InputPort(PortIdentity(0, internal = true))))
+        .withInputPorts(List(inputPort))
         .withOutputPorts(List(OutputPort(PortIdentity(0))))
     } else {
       val partitionColumns: List[Int] =
@@ -65,13 +67,13 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // a hacky solution to have unique port names for reference purpose
-        .withInputPorts(List(InputPort(PortIdentity(0, internal = true))))
+        .withInputPorts(List(inputPort))
         .withOutputPorts(List(OutputPort(PortIdentity(0))))
     }
 
     new PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),
-      links = Set(PhysicalLink(partialPhysicalOp.id, OutputPort(), finalPhysicalOp.id, InputPort()))
+      links = Set(PhysicalLink(partialPhysicalOp.id, outputPort, finalPhysicalOp.id, inputPort))
     )
   }
 
