@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor.INIT_STEP
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 
 import scala.collection.mutable
 
@@ -55,5 +56,9 @@ class ReplayLoggerImpl extends ReplayLogger {
     val result = tempLogs.toArray
     tempLogs.clear()
     result
+  }
+
+  def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {
+    tempLogs.append(ReplayDestination(id))
   }
 }

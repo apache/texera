@@ -31,6 +31,9 @@ message PhysicalOpIdentity{
   string layerName = 2;
 }
 
+message ChannelMarkerIdentity{
+  string id = 1;
+}
 
 
 

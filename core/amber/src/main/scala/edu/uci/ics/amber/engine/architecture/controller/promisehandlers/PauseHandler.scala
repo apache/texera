@@ -77,5 +77,4 @@ trait PauseHandler {
         .unit
     }
   }
-
 }
