@@ -26,7 +26,6 @@ import scala.collection.immutable.List;
 import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -70,9 +69,9 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
                 "View Results",
-                "View the edu.uci.ics.texera.workflow results",
+                "View the results",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScalaBuffer(emptyList())))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
                 List.empty(),
                 false,
                 false,

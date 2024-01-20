@@ -17,11 +17,10 @@ import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 
 import scala.Tuple3;
+import scala.collection.immutable.List;
 
-import java.util.List;
 import java.util.function.Function;
 
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -29,7 +28,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
 
     @JsonProperty(value = "predicates", required = true)
     @JsonPropertyDescription("multiple predicates in OR")
-    public List<FilterPredicate> predicates;
+    public java.util.List<FilterPredicate> predicates;
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
@@ -52,7 +51,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Filter",
                 "Performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScalaBuffer(emptyList())))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false),""))).toList(),
                 false,
                 false,

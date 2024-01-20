@@ -21,12 +21,11 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import scala.Tuple3;
+import scala.collection.immutable.List;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Function;
 
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -35,7 +34,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
     @JsonProperty(required = true)
     @JsonSchemaTitle("TypeCasting Units")
     @JsonPropertyDescription("Multiple type castings")
-    public List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
+    public java.util.List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
@@ -57,9 +56,13 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Type Casting",
                 "Cast between types",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScalaBuffer(emptyList())))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
-                false, false, false, false);
+                false,
+                false,
+                false,
+                false
+        );
     }
 
     @Override

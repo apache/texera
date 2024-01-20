@@ -27,10 +27,10 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple3;
+import scala.collection.immutable.List;
 
 import java.util.function.Function;
 
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
 
@@ -94,7 +94,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
-        InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false,asScalaBuffer(emptyList()));
+        InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false, List.empty());
         PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
                 workflowId,
                 executionId,
@@ -119,7 +119,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false,asScalaBuffer(emptyList())))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,
