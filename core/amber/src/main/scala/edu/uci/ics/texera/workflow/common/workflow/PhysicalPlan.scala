@@ -150,8 +150,8 @@ case class PhysicalPlan(
 
   def addLink(link: PhysicalLink): PhysicalPlan = {
     val newOperators = operatorMap +
-      (link.fromOpId -> getOperator(link.fromOpId).addOutput(link)) +
-      (link.toOpId -> getOperator(link.toOpId).addInput(link))
+      (link.fromOpId -> getOperator(link.fromOpId).addOutputLink(link)) +
+      (link.toOpId -> getOperator(link.toOpId).addInputLink(link))
     this.copy(newOperators.values.toSet, links ++ Set(link))
   }
 
@@ -161,8 +161,8 @@ case class PhysicalPlan(
     val fromOpId = link.fromOpId
     val toOpId = link.toOpId
     val newOperators = operatorMap +
-      (fromOpId -> getOperator(fromOpId).removeOutput(link)) +
-      (toOpId -> getOperator(toOpId).removeInput(link))
+      (fromOpId -> getOperator(fromOpId).removeOutputLink(link)) +
+      (toOpId -> getOperator(toOpId).removeInputLink(link))
     this.copy(operators = newOperators.values.toSet, links.filter(l => l != link))
   }
 

@@ -328,11 +328,11 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with an additional input operator specified on an input port
+    * creates a copy with an additional input link specified on an input port
     */
-  def addInput(link: PhysicalLink): PhysicalOp = {
+  def addInputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.toOpId == id)
-    assert(inputPorts.keySet.contains(link.toPortId))
+    assert(inputPorts.contains(link.toPortId))
     val (port, existingLinks) = inputPorts(link.toPortId)
     val newLinks = existingLinks :+ link
     this.copy(
@@ -341,9 +341,9 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with an additional output operator specified on an output port
+    * creates a copy with an additional output link specified on an output port
     */
-  def addOutput(link: PhysicalLink): PhysicalOp = {
+  def addOutputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.fromOpId == id)
     assert(outputPorts.contains(link.fromPortId))
     val (port, existingLinks) = outputPorts(link.fromPortId)
@@ -356,12 +356,9 @@ case class PhysicalOp(
   /**
     * creates a copy with a removed input link
     */
-  def removeInput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portId, (port, existingLinks)) = inputPorts
-      .find({
-        case (_, (_, links)) => links.contains(linkToRemove)
-      })
-      .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
+  def removeInputLink(linkToRemove: PhysicalLink): PhysicalOp = {
+    val portId = linkToRemove.toPortId
+    val (port, existingLinks) = inputPorts(portId)
     this.copy(
       inputPorts =
         inputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove)))
@@ -371,12 +368,9 @@ case class PhysicalOp(
   /**
     * creates a copy with a removed output link
     */
-  def removeOutput(linkToRemove: PhysicalLink): PhysicalOp = {
-    val (portId, (port, existingLinks)) = outputPorts
-      .find({
-        case (_, (_, links)) => links.contains(linkToRemove)
-      })
-      .getOrElse(throw new IllegalArgumentException(s"unexpected link to remove: $linkToRemove"))
+  def removeOutputLink(linkToRemove: PhysicalLink): PhysicalOp = {
+    val portId = linkToRemove.fromPortId
+    val (port, existingLinks) = outputPorts(portId)
     this.copy(
       outputPorts =
         outputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove)))
