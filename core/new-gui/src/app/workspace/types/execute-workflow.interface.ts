@@ -9,20 +9,24 @@ import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.inte
 import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
 export interface PortIdentity
   extends Readonly<{
-    id: number,
-    internal: boolean
+    id: number;
+    internal: boolean;
   }> {}
-export interface OutputPort
-  extends Readonly<{id: PortIdentity, displayName: string}> {}
+export interface OutputPort extends Readonly<{ id: PortIdentity; displayName: string }> {}
 export interface InputPort
-  extends Readonly<{id: PortIdentity, displayName: string, allowMultiLinks: boolean, dependencies: ReadonlyArray<PortIdentity>}> {}
+  extends Readonly<{
+    id: PortIdentity;
+    displayName: string;
+    allowMultiLinks: boolean;
+    dependencies: ReadonlyArray<PortIdentity>;
+  }> {}
 
 export interface LogicalLink
   extends Readonly<{
-    fromOpId: string,
-    fromPortId: PortIdentity,
-    toOpId: string,
-    toPortId: PortIdentity
+    fromOpId: string;
+    fromPortId: PortIdentity;
+    toOpId: string;
+    toPortId: PortIdentity;
   }> {}
 
 export interface LogicalOperator

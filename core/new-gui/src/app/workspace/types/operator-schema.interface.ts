@@ -14,7 +14,7 @@ export interface InputPortInfo
   extends Readonly<{
     displayName?: string;
     allowMultiInputs?: boolean;
-    dependencies?: {id: number, internal: boolean}[]
+    dependencies?: { id: number; internal: boolean }[];
   }> {}
 
 export interface OutputPortInfo

@@ -70,7 +70,7 @@ export class ExecuteWorkflowService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private notificationService: NotificationService,
+    private notificationService: NotificationService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -268,7 +268,7 @@ export class ExecuteWorkflowService {
     console.log("sending add breakpoint request");
     this.workflowWebsocketService.send(
       "AddBreakpointRequest",
-      ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData),
+      ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData)
     );
   }
 
@@ -387,7 +387,6 @@ export class ExecuteWorkflowService {
     };
 
     const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => {
-
       let logicalOp: LogicalOperator = {
         ...op.operatorProperties,
         operatorID: op.operatorID,
@@ -408,24 +407,23 @@ export class ExecuteWorkflowService {
       const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
       const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
       return {
-        fromOpId:link.source.operatorID,
-        fromPortId:{ id: outputPortIdx, internal: false },
+        fromOpId: link.source.operatorID,
+        fromPortId: { id: outputPortIdx, internal: false },
         toOpId: link.target.operatorID,
-        toPortId: { id: inputPortIdx, internal: false }
+        toPortId: { id: inputPortIdx, internal: false },
       };
-
     });
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries()).map(e =>
-      ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1]),
+      ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
     );
 
     const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(
-      op => !workflowGraph.isOperatorDisabled(op),
+      op => !workflowGraph.isOperatorDisabled(op)
     );
 
     const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
-      op => !workflowGraph.isOperatorDisabled(op),
+      op => !workflowGraph.isOperatorDisabled(op)
     );
     return { operators, links, breakpoints, opsToViewResult, opsToReuseResult };
   }
@@ -433,7 +431,7 @@ export class ExecuteWorkflowService {
   public static transformBreakpoint(
     workflowGraph: WorkflowGraphReadonly,
     linkID: string,
-    breakpointData: Breakpoint,
+    breakpointData: Breakpoint
   ): BreakpointInfo {
     const operatorID = workflowGraph.getLinkWithID(linkID).source.operatorID;
     let breakpoint: BreakpointRequest;

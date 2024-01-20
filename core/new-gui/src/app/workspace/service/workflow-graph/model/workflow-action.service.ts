@@ -233,7 +233,13 @@ export class WorkflowActionService {
       portID = prefix + suffix;
     }
 
-    const port: PortDescription = { portID, displayName: portID, allowMultiInputs, isDynamicPort: true, dependencies: []};
+    const port: PortDescription = {
+      portID,
+      displayName: portID,
+      allowMultiInputs,
+      isDynamicPort: true,
+      dependencies: [],
+    };
 
     if (!operator.dynamicInputPorts && isInput) {
       throw new Error(`operator ${operatorID} does not have dynamic input ports`);
@@ -891,10 +897,11 @@ export class WorkflowActionService {
   private updateOperatorVersions(operatorsAndPositions: { op: OperatorPredicate; pos: Point }[]) {
     const updatedOperators: { op: OperatorPredicate; pos: Point }[] = [];
     for (const operatorsAndPosition of operatorsAndPositions) {
-      updatedOperators.push({op: this.workflowUtilService.updateOperatorVersion(operatorsAndPosition.op), pos: operatorsAndPosition.pos});
+      updatedOperators.push({
+        op: this.workflowUtilService.updateOperatorVersion(operatorsAndPosition.op),
+        pos: operatorsAndPosition.pos,
+      });
     }
     return updatedOperators;
   }
-
-
 }
