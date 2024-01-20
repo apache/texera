@@ -4,14 +4,10 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
 class UnionOpDesc extends LogicalOp {
 
@@ -33,7 +29,7 @@ class UnionOpDesc extends LogicalOp {
       "Union",
       "Unions the output rows from multiple input operators",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort(allowMultiInputs = true)),
+      inputPorts = List(InputPort(PortIdentity(0), allowMultiLinks = true)),
       outputPorts = List(OutputPort())
     )
 

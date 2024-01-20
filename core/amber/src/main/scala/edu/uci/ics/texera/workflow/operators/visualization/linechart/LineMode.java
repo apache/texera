@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.linechart;
+package edu.uci.ics.texera.workflow.operators.visualization.lineChart;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 

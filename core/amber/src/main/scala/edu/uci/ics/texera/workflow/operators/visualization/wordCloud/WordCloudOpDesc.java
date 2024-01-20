@@ -13,19 +13,21 @@ import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
+import edu.uci.ics.amber.engine.common.workflow.InputPort;
+import edu.uci.ics.amber.engine.common.workflow.OutputPort;
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple3;
+import scala.collection.immutable.List;
 
 import java.util.function.Function;
 
@@ -36,7 +38,6 @@ import static scala.collection.JavaConverters.asScalaBuffer;
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
  * WordCloud returns tuples with word (String) and its font size (Integer) for frontend.
  *
- * @author Mingji Han, Xiaozhen Liu
  */
 
 public class WordCloudOpDesc extends VisualizationOperator {
@@ -75,6 +76,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         }
 
         PhysicalOpIdentity partialOpId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
+        OutputPort partialOpOutputPort = new OutputPort(new PortIdentity(0, true),"");
         PhysicalOp partialPhysicalOp = PhysicalOp.oneToOnePhysicalOp(
                 workflowId,
                 executionId,
@@ -87,10 +89,12 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withId(partialOpId)
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
-                .withOutputPorts(asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
+                .withInputPorts(this.operatorInfo().inputPorts())
+                .withOutputPorts(asScalaBuffer(singletonList(partialOpOutputPort)).toList());
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
+        InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false, List.empty());
         PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
                 workflowId,
                 executionId,
@@ -101,10 +105,11 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 )
         )
         .withId(globalOpId).withIsOneToManyOp(true)
-        .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
+        .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList())
+        .withOutputPorts(this.operatorInfo().outputPorts());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
-        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), 0, globalPhysicalOp.id(), 0)};
+        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), partialOpOutputPort.id(), globalPhysicalOp.id(), globalOpInputPort.id())};
 
         return PhysicalPlan.apply(physicalOps, links);
     }
@@ -114,9 +119,13 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false, false, false);
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                false,
+                false,
+                false,
+                false
+        );
     }
 
     @Override

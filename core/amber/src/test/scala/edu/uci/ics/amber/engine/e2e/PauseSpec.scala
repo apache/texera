@@ -12,8 +12,9 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, LogicalPort}
+import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -72,8 +73,10 @@ class PauseSpec
       List(csvOpDesc, sink),
       List(
         LogicalLink(
-          LogicalPort(csvOpDesc.operatorIdentifier, 0),
-          LogicalPort(sink.operatorIdentifier, 0)
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          sink.operatorIdentifier,
+          PortIdentity()
         )
       )
     )
@@ -90,12 +93,16 @@ class PauseSpec
       List(csvOpDesc, keywordOpDesc, sink),
       List(
         LogicalLink(
-          LogicalPort(csvOpDesc.operatorIdentifier, 0),
-          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
+          csvOpDesc.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
-          LogicalPort(sink.operatorIdentifier, 0)
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          sink.operatorIdentifier,
+          PortIdentity()
         )
       )
     )

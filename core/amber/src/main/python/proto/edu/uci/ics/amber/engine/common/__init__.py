@@ -2,6 +2,7 @@
 # sources: edu/uci/ics/amber/engine/common/actormessage.proto, edu/uci/ics/amber/engine/common/ambermessage.proto, edu/uci/ics/amber/engine/common/virtualidentity.proto, edu/uci/ics/amber/engine/common/workflow.proto
 # plugin: python-betterproto
 from dataclasses import dataclass
+from typing import List
 
 import betterproto
 from betterproto.grpc.grpclib_server import ServiceBase
@@ -34,11 +35,36 @@ class PhysicalOpIdentity(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ChannelMarkerIdentity(betterproto.Message):
+    id: str = betterproto.string_field(1)
+
+
+@dataclass(eq=False, repr=False)
+class PortIdentity(betterproto.Message):
+    id: int = betterproto.int32_field(1)
+    internal: bool = betterproto.bool_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class InputPort(betterproto.Message):
+    id: "PortIdentity" = betterproto.message_field(1)
+    display_name: str = betterproto.string_field(2)
+    allow_multi_links: bool = betterproto.bool_field(3)
+    dependencies: List["PortIdentity"] = betterproto.message_field(4)
+
+
+@dataclass(eq=False, repr=False)
+class OutputPort(betterproto.Message):
+    id: "PortIdentity" = betterproto.message_field(1)
+    display_name: str = betterproto.string_field(2)
+
+
+@dataclass(eq=False, repr=False)
 class PhysicalLink(betterproto.Message):
-    from_: "PhysicalOpIdentity" = betterproto.message_field(1)
-    from_port: int = betterproto.int32_field(2)
-    to: "PhysicalOpIdentity" = betterproto.message_field(3)
-    to_port: int = betterproto.int32_field(4)
+    from_op_id: "PhysicalOpIdentity" = betterproto.message_field(1)
+    from_port_id: "PortIdentity" = betterproto.message_field(2)
+    to_op_id: "PhysicalOpIdentity" = betterproto.message_field(3)
+    to_port_id: "PortIdentity" = betterproto.message_field(4)
 
 
 @dataclass(eq=False, repr=False)

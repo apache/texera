@@ -10,16 +10,13 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameList,
   UIWidget
 }
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
   AttributeType,
@@ -33,9 +30,6 @@ import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnU
   queryAsterixDB
 }
 import kong.unirest.json.JSONObject
-
-import java.util.Collections.singletonList
-import scala.jdk.CollectionConverters.asScalaBuffer
 
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
@@ -104,38 +98,41 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       executionId: ExecutionIdentity,
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      this.operatorIdentifier,
-      OpExecInitInfo((_, _, _) =>
-        new AsterixDBSourceOpExec(
-          sourceSchema(),
-          host,
-          port,
-          database,
-          table,
-          limit,
-          offset,
-          progressive,
-          batchByColumn,
-          min,
-          max,
-          interval,
-          keywordSearch.getOrElse(false),
-          keywordSearchByColumn.orNull,
-          keywords.orNull,
-          geoSearch.getOrElse(false),
-          geoSearchByColumns,
-          geoSearchBoundingBox,
-          regexSearch.getOrElse(false),
-          regexSearchByColumn.orNull,
-          regex.orNull,
-          filterCondition.getOrElse(false),
-          filterPredicates
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        this.operatorIdentifier,
+        OpExecInitInfo((_, _, _) =>
+          new AsterixDBSourceOpExec(
+            sourceSchema(),
+            host,
+            port,
+            database,
+            table,
+            limit,
+            offset,
+            progressive,
+            batchByColumn,
+            min,
+            max,
+            interval,
+            keywordSearch.getOrElse(false),
+            keywordSearchByColumn.orNull,
+            keywords.orNull,
+            geoSearch.getOrElse(false),
+            geoSearchByColumns,
+            geoSearchBoundingBox,
+            regexSearch.getOrElse(false),
+            regexSearchByColumn.orNull,
+            regex.orNull,
+            filterCondition.getOrElse(false),
+            filterPredicates
+          )
         )
       )
-    )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def sourceSchema(): Schema = {
     if (this.host == null || this.port == null || this.database == null || this.table == null)
@@ -149,8 +146,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
       "AsterixDB Source",
       "Read data from a AsterixDB instance",
       OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List.empty,
+      outputPorts = List(OutputPort())
     )
 
   override def updatePort(): Unit = port = if (port.trim().equals("default")) "19002" else port

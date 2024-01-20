@@ -46,12 +46,15 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
     filePath match {
       case Some(_) =>
-        PhysicalOp.sourcePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecInitInfo((_, _, _) => new CSVScanSourceOpExec(this))
-        )
+        PhysicalOp
+          .sourcePhysicalOp(
+            workflowId,
+            executionId,
+            operatorIdentifier,
+            OpExecInitInfo((_, _, _) => new CSVScanSourceOpExec(this))
+          )
+          .withInputPorts(operatorInfo.inputPorts)
+          .withOutputPorts(operatorInfo.outputPorts)
       case None =>
         throw new RuntimeException("File path is not provided.")
     }

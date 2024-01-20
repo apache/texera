@@ -6,12 +6,8 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
@@ -46,12 +42,15 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
   ): PhysicalOp = {
     if (attribute == null)
       throw new RuntimeException("sentiment analysis: attribute is null")
-    PhysicalOp.oneToOnePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new SentimentAnalysisOpExec(this, operatorSchemaInfo))
-    )
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new SentimentAnalysisOpExec(this, operatorSchemaInfo))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo =
@@ -59,8 +58,8 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       "Sentiment Analysis",
       "analysis the sentiment of a text using machine learning",
       OperatorGroupConstants.ANALYTICS_GROUP,
-      List(InputPort("")),
-      List(OutputPort("")),
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort()),
       supportReconfiguration = true
     )
 

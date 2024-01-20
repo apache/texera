@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.common.base.Verify
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
@@ -29,8 +30,8 @@ object LogicalPlan {
     operatorList.foreach(op => workflowDag.addVertex(op.operatorIdentifier))
     links.foreach(l =>
       workflowDag.addEdge(
-        l.origin.operatorId,
-        l.destination.operatorId,
+        l.fromOpId,
+        l.toOpId,
         l
       )
     )
@@ -90,7 +91,7 @@ case class LogicalPlan(
   def getUpstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
     jgraphtDag
       .incomingEdgesOf(opId)
-      .map(e => operatorMap(e.origin.operatorId))
+      .map(e => operatorMap(e.fromOpId))
       .toList
   }
 
@@ -102,7 +103,7 @@ case class LogicalPlan(
   def removeOperator(opId: OperatorIdentity): LogicalPlan = {
     this.copy(
       operators.filter(o => o.operatorIdentifier != opId),
-      links.filter(l => l.origin.operatorId != opId && l.destination.operatorId != opId),
+      links.filter(l => l.fromOpId != opId && l.toOpId != opId),
       breakpoints.filter(b => OperatorIdentity(b.operatorID) != opId),
       inputSchemaMap.filter({
         case (operatorId, _) => operatorId != opId
@@ -111,13 +112,17 @@ case class LogicalPlan(
   }
 
   def addLink(
-      from: OperatorIdentity,
-      fromPort: Int =
-        0, // by default, we have only one output port, thus giving a default port index 0
-      to: OperatorIdentity,
-      toPort: Int
+      fromOpId: OperatorIdentity,
+      fromPortId: PortIdentity,
+      toOpId: OperatorIdentity,
+      toPortId: PortIdentity
   ): LogicalPlan = {
-    val newLink = LogicalLink(LogicalPort(from, fromPort), LogicalPort(to, toPort))
+    val newLink = LogicalLink(
+      fromOpId,
+      fromPortId,
+      toOpId,
+      toPortId
+    )
     val newLinks = links :+ newLink
     this.copy(operators, newLinks, breakpoints)
   }
@@ -130,12 +135,12 @@ case class LogicalPlan(
     val downstream = new mutable.MutableList[LogicalOp]
     jgraphtDag
       .outgoingEdgesOf(opId)
-      .forEach(e => downstream += operatorMap(e.destination.operatorId))
+      .forEach(e => downstream += operatorMap(e.toOpId))
     downstream.toList
   }
 
   def getDownstreamLinks(opId: OperatorIdentity): List[LogicalLink] = {
-    links.filter(l => l.origin.operatorId == opId)
+    links.filter(l => l.fromOpId == opId)
   }
 
   def getOpInputSchemas(opId: OperatorIdentity): List[Option[Schema]] = {
@@ -223,15 +228,15 @@ case class LogicalPlan(
       }
 
       // update input schema of all outgoing links
-      val outLinks = links.filter(link => link.origin.operatorId == op.operatorIdentifier)
+      val outLinks = links.filter(link => link.fromOpId == op.operatorIdentifier)
       outLinks.foreach(link => {
-        val dest = getOperator(link.destination.operatorId)
+        val dest = getOperator(link.toOpId)
         // get the input schema list, should be pre-populated with size equals to num of ports
         val destInputSchemas = inputSchemaMap(dest.operatorIdentifier)
         // put the schema into the ordinal corresponding to the port
         val schemaOnPort =
-          outputSchemas.flatMap(schemas => schemas.toList.lift(link.origin.portOrdinal))
-        destInputSchemas(link.destination.portOrdinal) = schemaOnPort
+          outputSchemas.flatMap(schemas => schemas.toList.lift(link.fromPortId.id))
+        destInputSchemas(link.toPortId.id) = schemaOnPort
         inputSchemaMap.update(dest.operatorIdentifier, destInputSchemas)
       })
     })

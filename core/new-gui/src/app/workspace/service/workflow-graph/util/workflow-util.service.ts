@@ -126,6 +126,7 @@ export class WorkflowUtilService {
         displayName: portInfo.displayName ?? "",
         allowMultiInputs: portInfo.allowMultiInputs ?? false,
         isDynamicPort: false,
+        dependencies: portInfo.dependencies ?? [],
       });
     }
 
@@ -167,5 +168,31 @@ export class WorkflowUtilService {
       workflow.content = jsonCast<WorkflowContent>(workflow.content);
     }
     return workflow;
+  }
+
+  public updateOperatorVersion(op: OperatorPredicate) {
+    const operatorType = op.operatorType;
+    const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
+    if (operatorSchema === undefined) {
+      throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
+    }
+    // if (operatorSchema.operatorVersion!== op.operatorVersion) {
+    const inputPorts = [];
+    for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
+      const portID = "input-" + i.toString();
+      const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
+      inputPorts.push({
+        portID,
+        displayName: portInfo.displayName ?? "",
+        allowMultiInputs: portInfo.allowMultiInputs ?? false,
+        isDynamicPort: false,
+        dependencies: portInfo.dependencies ?? [],
+      });
+    }
+    return {
+      ...op,
+      operatorVersion: operatorSchema.operatorVersion,
+      inputPorts,
+    };
   }
 }

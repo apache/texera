@@ -188,11 +188,11 @@ class WorkflowScheduler(
           .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
-              val inputMappingList = pythonUDFPhysicalOp.inputPortToLinkMapping.flatMap {
-                case (portIdx, links) => links.map(link => LinkOrdinal(link, portIdx))
+              val inputMappingList = pythonUDFPhysicalOp.inputPorts.values.flatMap {
+                case (inputPort, links) => links.map(link => LinkOrdinal(link, inputPort.id.id))
               }.toList
-              val outputMappingList = pythonUDFPhysicalOp.outputPortToLinkMapping.flatMap {
-                case (portIdx, links) => links.map(link => LinkOrdinal(link, portIdx))
+              val outputMappingList = pythonUDFPhysicalOp.outputPorts.values.flatMap {
+                case (outputPort, links) => links.map(link => LinkOrdinal(link, outputPort.id.id))
               }.toList
               asyncRPCClient
                 .send(
@@ -220,8 +220,8 @@ class WorkflowScheduler(
       workflow.physicalPlan.links
         .filter(link => {
           !activatedLink.contains(link) &&
-            allOperatorsInRegion.contains(link.from) &&
-            allOperatorsInRegion.contains(link.to)
+            allOperatorsInRegion.contains(link.fromOpId) &&
+            allOperatorsInRegion.contains(link.toOpId)
         })
         .map { link: PhysicalLink =>
           asyncRPCClient

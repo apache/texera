@@ -3,20 +3,14 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.commons.lang3.builder.EqualsBuilder
 import org.jooq.types.UInteger
-
-import java.util.Collections.singletonList
-import scala.collection.JavaConverters.asScalaBuffer
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -92,8 +86,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       userFriendlyName = s"${fileTypeName.get} File Scan",
       operatorDescription = s"Scan data from a ${fileTypeName.get} file",
       OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List.empty,
+      outputPorts = List(OutputPort())
     )
   }
 

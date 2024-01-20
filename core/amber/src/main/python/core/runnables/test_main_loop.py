@@ -55,8 +55,8 @@ class TestMainLoop:
     @pytest.fixture
     def mock_link(self):
         return PhysicalLink(
-            from_=PhysicalOpIdentity(OperatorIdentity("from"), "from"),
-            to=PhysicalOpIdentity(OperatorIdentity("to"), "to"),
+            from_op_id=PhysicalOpIdentity(OperatorIdentity("from"), "from"),
+            to_op_id=PhysicalOpIdentity(OperatorIdentity("to"), "to"),
         )
 
     @pytest.fixture

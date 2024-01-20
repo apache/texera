@@ -572,6 +572,7 @@ export class WorkflowGraph {
     }
     const yoperator = this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
     const operator = yoperator.toJSON();
+    console.log("found this op predicate", operator);
     return operator;
   }
 
@@ -836,7 +837,9 @@ export class WorkflowGraph {
     );
     portDescriptionSharedType.set(
       "dependencies",
-      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
+      createYTypeFromObject<Array<{ id: number; internal: boolean }>>(
+        (newProperty as PortProperty).dependencies
+      ) as unknown as Y.Array<number>
     );
   }
 

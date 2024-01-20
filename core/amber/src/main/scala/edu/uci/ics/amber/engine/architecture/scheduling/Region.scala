@@ -28,7 +28,7 @@ case class Region(
     *   2) operators not in this region but blocked by this region (connected by the downstream links).
     */
   def getEffectiveOperators: Set[PhysicalOpIdentity] = {
-    physicalOpIds ++ downstreamLinks.map(link => link.to)
+    physicalOpIds ++ downstreamLinks.map(link => link.toOpId)
   }
 
   def getEffectiveLinks: Set[PhysicalLink] = {

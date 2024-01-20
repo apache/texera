@@ -1,17 +1,32 @@
 /**
  * This file contains some type declaration for the WorkflowGraph interface of the **backend**.
  * The API of the backend is (currently) not the same as the Graph representation in the frontend.
- * These interfaces confronts to the backend API.
+ * These interfaces confront to the backend API.
  */
 
 import { ChartType } from "./visualization.interface";
 import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
 import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
+export interface PortIdentity
+  extends Readonly<{
+    id: number;
+    internal: boolean;
+  }> {}
+export interface OutputPort extends Readonly<{ id: PortIdentity; displayName: string }> {}
+export interface InputPort
+  extends Readonly<{
+    id: PortIdentity;
+    displayName: string;
+    allowMultiLinks: boolean;
+    dependencies: ReadonlyArray<PortIdentity>;
+  }> {}
 
 export interface LogicalLink
   extends Readonly<{
-    origin: { operatorID: string; portOrdinal: number; portName: string };
-    destination: { operatorID: string; portOrdinal: number; portName: string };
+    fromOpId: string;
+    fromPortId: PortIdentity;
+    toOpId: string;
+    toPortId: PortIdentity;
   }> {}
 
 export interface LogicalOperator

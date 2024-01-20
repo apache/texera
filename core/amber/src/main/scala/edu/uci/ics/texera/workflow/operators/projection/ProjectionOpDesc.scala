@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
@@ -33,7 +34,10 @@ class ProjectionOpDesc extends MapOpDesc {
       executionId,
       operatorIdentifier,
       OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, operatorSchemaInfo))
-    ).withDerivePartition(this.derivePartition(operatorSchemaInfo))
+    )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withDerivePartition(this.derivePartition(operatorSchemaInfo))
   }
 
   def derivePartition(schema: OperatorSchemaInfo)(partition: List[PartitionInfo]): PartitionInfo = {
@@ -65,8 +69,7 @@ class ProjectionOpDesc extends MapOpDesc {
       "Keeps the column",
       OperatorGroupConstants.UTILITY_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort()),
-      supportReconfiguration = false
+      outputPorts = List(OutputPort())
     )
   }
 
@@ -79,8 +82,8 @@ class ProjectionOpDesc extends MapOpDesc {
         attributes
           .map(attribute =>
             new Attribute(
-              attribute.getAlias(),
-              schemas(0).getAttribute(attribute.getOriginalAttribute()).getType
+              attribute.getAlias,
+              schemas(0).getAttribute(attribute.getOriginalAttribute).getType
             )
           )
           .asJava
