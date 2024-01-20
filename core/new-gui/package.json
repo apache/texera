@@ -114,7 +114,6 @@
     "@types/d3": "6.7.5",
     "@types/d3-cloud": "1.2.5",
     "@types/dagre": "0.7.47",
-    "@types/express-serve-static-core": "4.17.30",
     "@types/file-saver": "2.0.5",
     "@types/graphlib": "2.1.8",
     "@types/jasmine": "3.10.3",
