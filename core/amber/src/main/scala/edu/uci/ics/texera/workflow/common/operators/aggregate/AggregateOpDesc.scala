@@ -34,7 +34,6 @@ object AggregateOpDesc {
           OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
         )
         .withIsOneToManyOp(true)
-        // a hacky solution to have unique port names for reference purpose
         .withInputPorts(List(InputPort(PortIdentity())))
         .withOutputPorts(List(outputPort))
 
@@ -49,7 +48,6 @@ object AggregateOpDesc {
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
-        // a hacky solution to have unique port names for reference purpose
         .withInputPorts(List(inputPort))
         .withOutputPorts(List(OutputPort(PortIdentity(0))))
     } else {
@@ -67,7 +65,6 @@ object AggregateOpDesc {
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
-        // a hacky solution to have unique port names for reference purpose
         .withInputPorts(List(inputPort))
         .withOutputPorts(List(OutputPort(PortIdentity(0))))
     }
