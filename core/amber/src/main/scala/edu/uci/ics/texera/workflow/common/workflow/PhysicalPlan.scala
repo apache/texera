@@ -37,9 +37,7 @@ object PhysicalPlan {
 
     // connect external links
     logicalPlan.links.foreach(link => {
-
       val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, link.fromPortId)
-
       val toOp = physicalPlan.getPhysicalOpForInputPort(link.toOpId, link.toPortId)
       physicalPlan =
         physicalPlan.addLink(PhysicalLink(fromOp.id, link.fromPortId, toOp.id, link.toPortId))
@@ -78,6 +76,7 @@ case class PhysicalPlan(
       logicalOpId: OperatorIdentity,
       portId: PortIdentity
   ): PhysicalOp = {
+    assert(!portId.internal, "only support external port")
     val candidatePhysicalOps =
       getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.inputPorts.contains(portId))
     assert(
@@ -91,6 +90,7 @@ case class PhysicalPlan(
       logicalOpId: OperatorIdentity,
       portId: PortIdentity
   ): PhysicalOp = {
+    assert(!portId.internal, "only support external port")
     val candidatePhysicalOps =
       getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.outputPorts.contains(portId))
     assert(
@@ -105,16 +105,6 @@ case class PhysicalPlan(
       .filter(physicalOpId => physicalOpId.logicalOpId == logicalOpId)
       .map(physicalOpId => getOperator(physicalOpId))
       .toList
-  }
-
-  def getSinglePhysicalOpOfLogicalOp(logicalOpId: OperatorIdentity): PhysicalOp = {
-    val physicalOps = getPhysicalOpsOfLogicalOp(logicalOpId)
-    if (physicalOps.size != 1) {
-      val msg =
-        s"logical operator $logicalOpId has ${physicalOps.size} physical operators, expecting a single one"
-      throw new RuntimeException(msg)
-    }
-    physicalOps.head
   }
 
   def getOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = operatorMap(physicalOpId)
@@ -260,6 +250,7 @@ case class PhysicalPlan(
 
     this.copy(operators, links.diff(linksToRemove))
   }
+
   def setOperatorUnblockPort(
       physicalOpId: PhysicalOpIdentity,
       portIdToRemove: PortIdentity
@@ -272,7 +263,6 @@ case class PhysicalPlan(
   }
 
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {
-
     val upstreamPhysicalLinkIds = getUpstreamPhysicalLinks(physicalOpId)
     upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
       getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
