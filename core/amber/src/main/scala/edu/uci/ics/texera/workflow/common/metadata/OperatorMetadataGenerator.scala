@@ -81,7 +81,7 @@ object OperatorMetadataGenerator {
   def main(args: Array[String]): Unit = {
     // run this if you want to check the json schema generated for an operator descriptor
     // replace the argument with the class of your operator descriptor
-    println(generateOperatorJsonSchema(classOf[HashJoinOpDesc[String]]).toPrettyString)
+    println(generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]).toPrettyString)
   }
 
   def generateOperatorJsonSchema(opDescClass: Class[_ <: LogicalOp]): JsonNode = {
