@@ -165,7 +165,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
         mlTrainingOp.operatorIdentifier,
         PortIdentity(),
         mlVizSink.operatorIdentifier,
-        PortIdentity(1)
+        PortIdentity(0)
       ),
       LogicalLink(
         mlTrainingOp.operatorIdentifier,
