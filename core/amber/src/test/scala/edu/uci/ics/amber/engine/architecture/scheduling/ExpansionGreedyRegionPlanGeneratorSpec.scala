@@ -1,15 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.workflow.common.workflow.{
-  LogicalLink,
-  LogicalPort,
-  InputPort,
-  OutputPort,
-  PortIdentity
-}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalLink, LogicalPort}
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
@@ -29,15 +24,15 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       List(
         LogicalLink(
           headerlessCsvOpDesc.operatorIdentifier,
-          OutputPort(PortIdentity(0)),
+          PortIdentity(0),
           keywordOpDesc.operatorIdentifier,
-          InputPort(PortIdentity(0))
+          PortIdentity(0)
         ),
         LogicalLink(
           keywordOpDesc.operatorIdentifier,
-          OutputPort(PortIdentity(0)),
+          PortIdentity(0),
           sink.operatorIdentifier,
-          InputPort(PortIdentity(0))
+          PortIdentity(0)
         )
       )
     )
@@ -60,16 +55,22 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       ),
       List(
         LogicalLink(
-          LogicalPort(headerlessCsvOpDesc1.operatorIdentifier, 0),
-          LogicalPort(joinOpDesc.operatorIdentifier, 0)
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(headerlessCsvOpDesc2.operatorIdentifier, 0),
-          LogicalPort(joinOpDesc.operatorIdentifier, 1)
+          headerlessCsvOpDesc2.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
         ),
         LogicalLink(
-          LogicalPort(joinOpDesc.operatorIdentifier, 0),
-          LogicalPort(sink.operatorIdentifier, 0)
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          sink.operatorIdentifier,
+          PortIdentity()
         )
       )
     )
@@ -97,7 +98,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     assert(buildRegion.downstreamLinks.size == 1)
     assert(
       buildRegion.downstreamLinks.exists(link =>
-        link.to.logicalOpId == joinOpDesc.operatorIdentifier
+        link.toOpId.logicalOpId == joinOpDesc.operatorIdentifier
       )
     )
   }
@@ -116,20 +117,28 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       ),
       List(
         LogicalLink(
-          LogicalPort(headerlessCsvOpDesc1.operatorIdentifier, 0),
-          LogicalPort(joinOpDesc.operatorIdentifier, 0)
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(headerlessCsvOpDesc1.operatorIdentifier, 0),
-          LogicalPort(keywordOpDesc.operatorIdentifier, 0)
+          headerlessCsvOpDesc1.operatorIdentifier,
+          PortIdentity(),
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(keywordOpDesc.operatorIdentifier, 0),
-          LogicalPort(joinOpDesc.operatorIdentifier, 1)
+          keywordOpDesc.operatorIdentifier,
+          PortIdentity(),
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(1)
         ),
         LogicalLink(
-          LogicalPort(joinOpDesc.operatorIdentifier, 0),
-          LogicalPort(sink.operatorIdentifier, 0)
+          joinOpDesc.operatorIdentifier,
+          PortIdentity(),
+          sink.operatorIdentifier,
+          PortIdentity()
         )
       )
     )
@@ -153,24 +162,34 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       ),
       List(
         LogicalLink(
-          LogicalPort(buildCsv.operatorIdentifier, 0),
-          LogicalPort(hashJoin1.operatorIdentifier, 0)
+          buildCsv.operatorIdentifier,
+          PortIdentity(),
+          hashJoin1.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(probeCsv.operatorIdentifier, 0),
-          LogicalPort(hashJoin1.operatorIdentifier, 1)
+          probeCsv.operatorIdentifier,
+          PortIdentity(),
+          hashJoin1.operatorIdentifier,
+          PortIdentity(1)
         ),
         LogicalLink(
-          LogicalPort(buildCsv.operatorIdentifier, 0),
-          LogicalPort(hashJoin2.operatorIdentifier, 0)
+          buildCsv.operatorIdentifier,
+          PortIdentity(),
+          hashJoin2.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(hashJoin1.operatorIdentifier, 0),
-          LogicalPort(hashJoin2.operatorIdentifier, 1)
+          hashJoin1.operatorIdentifier,
+          PortIdentity(),
+          hashJoin2.operatorIdentifier,
+          PortIdentity(1)
         ),
         LogicalLink(
-          LogicalPort(hashJoin2.operatorIdentifier, 0),
-          LogicalPort(sink.operatorIdentifier, 0)
+          hashJoin2.operatorIdentifier,
+          PortIdentity(),
+          sink.operatorIdentifier,
+          PortIdentity()
         )
       )
     )
@@ -194,24 +213,34 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       ),
       List(
         LogicalLink(
-          LogicalPort(csv.operatorIdentifier, 0),
-          LogicalPort(split.operatorIdentifier, 0)
+          csv.operatorIdentifier,
+          PortIdentity(),
+          split.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(split.operatorIdentifier, 0),
-          LogicalPort(training.operatorIdentifier, 0)
+          split.operatorIdentifier,
+          PortIdentity(),
+          training.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(training.operatorIdentifier, 0),
-          LogicalPort(inference.operatorIdentifier, 0)
+          training.operatorIdentifier,
+          PortIdentity(),
+          inference.operatorIdentifier,
+          PortIdentity()
         ),
         LogicalLink(
-          LogicalPort(split.operatorIdentifier, 1),
-          LogicalPort(inference.operatorIdentifier, 1)
+          split.operatorIdentifier,
+          PortIdentity(1),
+          inference.operatorIdentifier,
+          PortIdentity(1)
         ),
         LogicalLink(
-          LogicalPort(inference.operatorIdentifier, 0),
-          LogicalPort(sink.operatorIdentifier, 0)
+          inference.operatorIdentifier,
+          PortIdentity(),
+          sink.operatorIdentifier,
+          PortIdentity()
         )
       )
     )
