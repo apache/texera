@@ -40,7 +40,7 @@ class WorkflowCompiler(
       logicalPlan
     )
 
-    logicalPlan = logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    logicalPlan.propagateWorkflowSchema(context, Some(errorList))
 
     // report compilation errors
     if (errorList.nonEmpty) {

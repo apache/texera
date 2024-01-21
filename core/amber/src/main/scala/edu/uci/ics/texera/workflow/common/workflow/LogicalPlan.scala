@@ -153,7 +153,7 @@ case class LogicalPlan(
   def propagateWorkflowSchema(
       context: WorkflowContext,
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): LogicalPlan = {
+  ): Unit = {
 
     operators.foreach(operator => {
       if (operator.getContext == null) {
@@ -204,11 +204,5 @@ case class LogicalPlan(
 
       }
     })
-    this.copy(
-      operators,
-      links,
-      breakpoints
-    )
   }
-
 }
