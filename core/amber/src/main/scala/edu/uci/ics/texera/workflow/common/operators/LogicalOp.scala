@@ -4,11 +4,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
@@ -35,10 +32,7 @@ import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.FileScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
@@ -52,12 +46,7 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.python.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonLambdaFunctionOpDesc,
-  PythonTableReducerOpDesc,
-  PythonUDFOpDescV2
-}
+import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.boxPlot.BoxPlotOpDesc
@@ -68,10 +57,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.Scatterpl
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{
-  WordCloudOpDesc,
-  WordCloudV2OpDesc
-}
+import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{WordCloudOpDesc, WordCloudV2OpDesc}
 import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
@@ -82,6 +68,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import org.apache.zookeeper.KeeperException.UnimplementedException
 
 import java.util.UUID
+import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
@@ -173,6 +160,11 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()
+
+  @JsonIgnore
+  val inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
+  @JsonIgnore
+  val outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
