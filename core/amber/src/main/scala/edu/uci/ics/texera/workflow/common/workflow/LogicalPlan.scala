@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import com.google.common.base.Verify
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
