@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
   HashPartition,
@@ -36,7 +36,7 @@ class ProjectionOpDesc extends MapOpDesc {
       OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, outputSchema))
     )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts,outputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
       .withDerivePartition(derivePartition())
   }
 
@@ -45,7 +45,13 @@ class ProjectionOpDesc extends MapOpDesc {
 
     // a mapping from original column index to new column index
     lazy val columnIndicesMapping = attributes.indices
-      .map(i => (inputPortToSchemaMapping(operatorInfo.inputPorts.head.id).getIndex(attributes(i).getOriginalAttribute), i))
+      .map(i =>
+        (
+          inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
+            .getIndex(attributes(i).getOriginalAttribute),
+          i
+        )
+      )
       .toMap
 
     val outputPartitionInfo = inputPartitionInfo match {

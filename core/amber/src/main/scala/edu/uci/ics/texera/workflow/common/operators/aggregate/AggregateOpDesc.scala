@@ -2,11 +2,16 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object AggregateOpDesc {
@@ -28,12 +33,14 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys, inputSchema))
+          OpExecInitInfo((_, _, _) =>
+            new PartialAggregateOpExec(aggFuncs, groupByKeys, inputSchema)
+          )
         )
         .withIsOneToManyOp(true)
-        .withInputPorts(List(InputPort(PortIdentity())), Map(PortIdentity()-> inputSchema))
+        .withInputPorts(List(InputPort(PortIdentity())), Map(PortIdentity() -> inputSchema))
         // assume partial op's output is the same as global op's
-        .withOutputPorts(List(outputPort), Map(outputPort.id-> outputSchema))
+        .withOutputPorts(List(outputPort), Map(outputPort.id -> outputSchema))
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
@@ -48,7 +55,7 @@ object AggregateOpDesc {
         .withIsOneToManyOp(true)
         // assume partial op's output is the same as global op's
         .withInputPorts(List(inputPort), Map(inputPort.id -> outputSchema))
-        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity()-> outputSchema))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity() -> outputSchema))
     } else {
       val partitionColumns: List[Int] =
         if (groupByKeys == null) List()
@@ -59,14 +66,16 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema)),
+          OpExecInitInfo((_, _, _) =>
+            new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema)
+          ),
           partitionColumns
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // assume partial op's output is the same as global op's
         .withInputPorts(List(inputPort), Map(inputPort.id -> outputSchema))
-        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity()-> outputSchema))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity() -> outputSchema))
     }
 
     new PhysicalPlan(

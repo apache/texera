@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, Physical
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
@@ -387,7 +387,9 @@ class ExpansionGreedyRegionPlanGenerator(
     materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array()).head
-    materializationReader.outputPortToSchemaMapping(materializationReader.operatorInfo.outputPorts.head.id) = matReaderOutputSchema
+    materializationReader.outputPortToSchemaMapping(
+      materializationReader.operatorInfo.outputPorts.head.id
+    ) = matReaderOutputSchema
 
     val matReaderOp = materializationReader
       .getPhysicalOp(
@@ -416,7 +418,9 @@ class ExpansionGreedyRegionPlanGenerator(
       }
     val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromPortId.id)
     // we currently expect only one output schema
-     matWriterLogicalOp.inputPortToSchemaMapping(matWriterLogicalOp.operatorInfo().inputPorts.head.id) = matWriterInputSchema
+    matWriterLogicalOp.inputPortToSchemaMapping(
+      matWriterLogicalOp.operatorInfo().inputPorts.head.id
+    ) = matWriterInputSchema
     val matWriterPhysicalOp = matWriterLogicalOp
       .getPhysicalOp(
         context.workflowId,

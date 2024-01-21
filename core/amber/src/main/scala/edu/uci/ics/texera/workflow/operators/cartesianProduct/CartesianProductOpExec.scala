@@ -7,11 +7,12 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import scala.collection.mutable.ArrayBuffer
 
-class CartesianProductOpExec(inputSchemas: List[Schema], outputSchema: Schema) extends OperatorExecutor {
+class CartesianProductOpExec(inputSchemas: List[Schema], outputSchema: Schema)
+    extends OperatorExecutor {
   val leftSchemaSize: Int = inputSchemas(0).getAttributesScala.length
   val rightSchema: Schema = inputSchemas(1)
   var leftTuples: ArrayBuffer[Tuple] = _

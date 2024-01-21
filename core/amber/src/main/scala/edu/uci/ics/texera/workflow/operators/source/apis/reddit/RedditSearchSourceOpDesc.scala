@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {

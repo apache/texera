@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
@@ -13,7 +12,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
 }
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow._
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
@@ -52,10 +51,12 @@ class HashJoinOpDesc[K] extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val inputSchemas = operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
+    val inputSchemas =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
     val buildSchema = inputSchemas(0)
     val probeSchema = inputSchemas(1)
-    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
 
     val partitionRequirement = List(
       Option(HashPartition(List(buildSchema.getIndex(buildAttributeName)))),
@@ -132,7 +133,10 @@ class HashJoinOpDesc[K] extends LogicalOp {
     2. left  mapping: (0->0, 1->1, 2->2)
     3. right mapping: (0->0, 1->3, 1->4)
    */
-  def getOutputSchemaInternal(buildSchema: Schema, probeSchema: Schema): (Schema, Map[Int, Int], Map[Int, Int]) = {
+  def getOutputSchemaInternal(
+      buildSchema: Schema,
+      probeSchema: Schema
+  ): (Schema, Map[Int, Int], Map[Int, Int]) = {
     val builder = Schema.newBuilder()
     builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {

@@ -10,12 +10,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
 class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
@@ -54,9 +49,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
-          new TwitterFullArchiveSearchSourceOpExec(this)
-        )
+        OpExecInitInfo((_, _, _) => new TwitterFullArchiveSearchSourceOpExec(this))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)

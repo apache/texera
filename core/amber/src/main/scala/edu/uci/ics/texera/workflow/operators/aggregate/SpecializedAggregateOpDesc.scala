@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIden
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import java.io.Serializable
@@ -34,8 +34,10 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     if (aggregations.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
-    val inputSchema = operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
-    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
+    val inputSchema =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     AggregateOpDesc.getPhysicalPlan(
       workflowId,
       executionId,

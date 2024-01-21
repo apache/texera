@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
@@ -192,7 +192,7 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
+      executionId: ExecutionIdentity
   ): PhysicalPlan = {
     new PhysicalPlan(
       operators = Set(getPhysicalOp(workflowId, executionId)),

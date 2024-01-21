@@ -5,12 +5,25 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfo,
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
+  AddressInfo,
+  LocationPreference,
+  PreferController,
+  RoundRobinPreference
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{WorkerReplayInitialization, WorkerReplayLoggingConfig, WorkerStateRestoreConfig}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  WorkerReplayInitialization,
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
+}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
@@ -233,8 +246,6 @@ case class PhysicalOp(
     opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
   }
 
-
-
   /**
     * creates a copy with the location preference information
     */
@@ -245,15 +256,27 @@ case class PhysicalOp(
   /**
     * creates a copy with the input ports
     */
-  def withInputPorts(inputs: List[InputPort], inputPortToSchemaMapping: Map[PortIdentity, Schema]): PhysicalOp = {
-    this.copy(inputPorts = inputs.map(input => input.id -> (input, List(), inputPortToSchemaMapping(input.id))).toMap)
+  def withInputPorts(
+      inputs: List[InputPort],
+      inputPortToSchemaMapping: Map[PortIdentity, Schema]
+  ): PhysicalOp = {
+    this.copy(inputPorts =
+      inputs.map(input => input.id -> (input, List(), inputPortToSchemaMapping(input.id))).toMap
+    )
   }
 
   /**
     * creates a copy with the output ports
     */
-  def withOutputPorts(outputs: List[OutputPort], outputPortToSchemaMapping: Map[PortIdentity, Schema]): PhysicalOp = {
-    this.copy(outputPorts = outputs.map(output => output.id -> (output, List(), outputPortToSchemaMapping(output.id))).toMap)
+  def withOutputPorts(
+      outputs: List[OutputPort],
+      outputPortToSchemaMapping: Map[PortIdentity, Schema]
+  ): PhysicalOp = {
+    this.copy(outputPorts =
+      outputs
+        .map(output => output.id -> (output, List(), outputPortToSchemaMapping(output.id)))
+        .toMap
+    )
   }
 
   /**
