@@ -173,7 +173,8 @@ case class LogicalPlan(
             links
               .filter(link => link.toOpId == op.operatorIdentifier && link.toPortId == inputPort.id)
               .map(link => {
-                val outputSchemaOpt = getOperator(link.fromOpId).outputPortToSchemaMapping.get(link.fromPortId)
+                val outputSchemaOpt =
+                  getOperator(link.fromOpId).outputPortToSchemaMapping.get(link.fromPortId)
                 if (outputSchemaOpt.isDefined) {
                   op.inputPortToSchemaMapping(inputPort.id) = outputSchemaOpt.get
                 }
