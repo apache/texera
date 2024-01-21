@@ -26,13 +26,13 @@ object PartialAggregateOpExec {
 class PartialAggregateOpExec(
     val aggFuncs: List[DistributedAggregation[Object]],
     val groupByKeys: List[String],
-    val operatorSchemaInfo: OperatorSchemaInfo
+    val inputSchema: Schema
 ) extends OperatorExecutor {
 
   var schema: Schema = Schema
     .newBuilder()
     // add group by keys
-    .add(groupByKeys.map(k => operatorSchemaInfo.inputSchemas(0).getAttribute(k)).asJava)
+    .add(groupByKeys.map(k => inputSchema.getAttribute(k)).asJava)
     // add intermediate internal aggregation objects
     .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)).asJava)
     .build()

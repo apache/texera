@@ -21,12 +21,12 @@ import scala.collection.mutable.ListBuffer
   * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
   */
 class IntervalJoinOpExec(
-    val operatorSchemaInfo: OperatorSchemaInfo,
-    val desc: IntervalJoinOpDesc
+    val desc: IntervalJoinOpDesc,
+    val leftTableSchema: Schema,
+    val rightTableSchema: Schema,
+    val outputSchema: Schema
 ) extends OperatorExecutor {
 
-  val leftTableSchema: Schema = operatorSchemaInfo.inputSchemas(0)
-  val rightTableSchema: Schema = operatorSchemaInfo.inputSchemas(1)
   var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
 
@@ -128,7 +128,7 @@ class IntervalJoinOpExec(
 
   private def joinTuples(leftTuple: Tuple, rightTuple: Tuple): Tuple = {
     val builder = Tuple
-      .newBuilder(operatorSchemaInfo.outputSchemas(0))
+      .newBuilder(outputSchema)
       .add(leftTuple)
     for (i <- 0 until rightTuple.getFields.size()) {
       val attributeName = rightTuple.getSchema.getAttributeNames.get(i)

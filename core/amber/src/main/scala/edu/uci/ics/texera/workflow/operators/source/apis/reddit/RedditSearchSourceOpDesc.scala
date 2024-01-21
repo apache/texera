@@ -38,7 +38,7 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonPropertyDescription("The sorting method, hot, new, etc.")
   var sorting: RedditSourceOperatorFunction = _
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     val clientIdReal = this.clientId.replace("\n", "").trim
     val clientSecretReal = this.clientSecret.replace("\n", "").trim
     val queryReal = this.query.replace("\n", "").trim

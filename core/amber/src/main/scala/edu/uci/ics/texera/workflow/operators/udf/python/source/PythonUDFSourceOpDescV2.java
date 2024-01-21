@@ -50,7 +50,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public List<Attribute> columns;
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         OpExecInitInfo exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
@@ -61,7 +61,6 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(true)
-                    .withOperatorSchemaInfo(operatorSchemaInfo)
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
         } else {
@@ -72,7 +71,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(false)
-                    .withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
+                    .withIsOneToManyOp(true)
+                    .withLocationPreference(Option.empty());
         }
 
     }

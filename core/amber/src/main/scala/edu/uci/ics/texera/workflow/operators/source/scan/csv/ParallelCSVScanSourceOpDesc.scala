@@ -37,8 +37,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
     if (customDelimiter.get.isEmpty)

@@ -51,18 +51,19 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     private Option<Integer> upstreamPort = Option.empty();
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+        Schema inputSchema = this.inputPortToSchemaMapping().get(this.operatorInfo().inputPorts().head().id()).get();
         return PhysicalOp.localPhysicalOp(
                 workflowId,
                 executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply(
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter())
+                                worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter(), inputSchema)
                 )
         )
-                .withInputPorts(this.operatorInfo().inputPorts())
-                .withOutputPorts(this.operatorInfo().outputPorts());
+                .withInputPorts(this.operatorInfo().inputPorts(), getInputPortSchemas())
+                .withOutputPorts(this.operatorInfo().outputPorts(), getOutputPortSchemas());
     }
 
     @Override

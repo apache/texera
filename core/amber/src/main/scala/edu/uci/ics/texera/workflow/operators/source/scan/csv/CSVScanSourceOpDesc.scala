@@ -37,8 +37,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
     if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
@@ -53,8 +52,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
             operatorIdentifier,
             OpExecInitInfo((_, _, _) => new CSVScanSourceOpExec(this))
           )
-          .withInputPorts(operatorInfo.inputPorts)
-          .withOutputPorts(operatorInfo.outputPorts)
+          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
       case None =>
         throw new RuntimeException("File path is not provided.")
     }

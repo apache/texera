@@ -54,9 +54,8 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
       supportReconfiguration = true
     )
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     // build the python udf code
-    val inputSchema = operatorSchemaInfo.inputSchemas.apply(0)
     var code: String =
       "from pytexera import *\n" +
         "class ProcessTupleOperator(UDFOperatorV2):\n" +

@@ -46,7 +46,7 @@ class ImageVisualizerOpDesc extends VisualizationOperator with PythonOperatorDes
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     val finalCode = s"""
                        |from pytexera import *
                        |from PIL import Image

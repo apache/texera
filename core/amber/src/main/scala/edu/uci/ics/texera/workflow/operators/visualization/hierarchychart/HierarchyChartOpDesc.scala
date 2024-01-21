@@ -81,7 +81,7 @@ class HierarchyChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     val finalCode =
       s"""
          |from pytexera import *

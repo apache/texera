@@ -128,15 +128,7 @@ case class LogicalPlan(
     links.filter(l => l.fromOpId == opId)
   }
 
-  def getOpSchemaInfo(opId: OperatorIdentity): OperatorSchemaInfo = {
-    val op = getOperator(opId)
-    val inputSchemas: Array[Schema] =
-      if (op.isInstanceOf[SourceOperatorDescriptor]) {
-        Array() // source ops have no input schema
-      } else { op.inputPortToSchemaMapping.values.toArray }
-    val outputSchemas = op.outputPortToSchemaMapping.values.toArray
-    OperatorSchemaInfo(inputSchemas, outputSchemas)
-  }
+
 
   def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
 

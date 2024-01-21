@@ -8,10 +8,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 trait PythonOperatorDescriptor extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val generatedCode = generatePythonCode(operatorSchemaInfo)
+
+    val generatedCode = generatePythonCode()
     if (asSource()) {
       PhysicalOp
         .sourcePhysicalOp(
@@ -20,10 +20,9 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
         .withParallelizable(parallelizable())
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     } else {
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -32,10 +31,9 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
         .withParallelizable(parallelizable())
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 
@@ -44,13 +42,10 @@ trait PythonOperatorDescriptor extends LogicalOp {
 
   /**
     * This method is to be implemented to generate the actual Python source code
-    * based on operators predicates. It also has access to input and output schema
-    * information for reference or validation purposes.
+    * based on operators predicates.
     *
-    * @param operatorSchemaInfo the actual input and output schema information of
-    *                           this operator.
     * @return a String representation of the executable Python source code.
     */
-  def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String
+  def generatePythonCode(): String
 
 }

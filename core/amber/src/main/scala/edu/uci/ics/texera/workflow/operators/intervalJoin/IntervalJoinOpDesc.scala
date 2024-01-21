@@ -72,12 +72,15 @@ class IntervalJoinOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val inputSchemas = operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
+    val leftSchema = inputSchemas(0)
+    val rightSchema = inputSchemas(1)
+    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     val partitionRequirement = List(
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName)))),
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))))
+      Option(HashPartition(List(leftSchema.getIndex(leftAttributeName)))),
+      Option(HashPartition(List(rightSchema.getIndex(rightAttributeName))))
     )
 
     PhysicalOp
@@ -85,10 +88,10 @@ class IntervalJoinOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new IntervalJoinOpExec(operatorSchemaInfo, this))
+        OpExecInitInfo((_, _, _) => new IntervalJoinOpExec(this, leftSchema, rightSchema, outputSchema))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       .withPartitionRequirement(partitionRequirement)
   }

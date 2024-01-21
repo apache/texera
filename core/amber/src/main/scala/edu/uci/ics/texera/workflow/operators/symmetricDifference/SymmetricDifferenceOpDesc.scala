@@ -13,15 +13,14 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp.hashPhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
       OpExecInitInfo((_, _, _) => new SymmetricDifferenceOpExec()),
-      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head.getAttributes.toArray.indices.toList
     )
   }
 

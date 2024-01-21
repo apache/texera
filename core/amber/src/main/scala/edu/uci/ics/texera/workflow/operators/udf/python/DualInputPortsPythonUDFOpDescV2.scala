@@ -66,8 +66,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1) {
@@ -75,20 +74,18 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withSuggestedWorkerNum(workers)
     } else {
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 

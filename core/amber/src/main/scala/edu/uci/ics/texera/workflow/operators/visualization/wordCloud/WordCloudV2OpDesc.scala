@@ -68,7 +68,7 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     val finalCode =
       s"""
          |from pytexera import *

@@ -60,7 +60,7 @@ class DotPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     val finalCode = s"""
                         |from pytexera import *
                         |

@@ -36,10 +36,10 @@ class BulkDownloaderOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     assert(getContext.userId.isDefined)
+    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -50,12 +50,12 @@ class BulkDownloaderOpDesc extends LogicalOp {
             getContext,
             urlAttribute,
             resultAttribute,
-            operatorSchemaInfo
+            outputSchema
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
   }
 
   override def operatorInfo: OperatorInfo =

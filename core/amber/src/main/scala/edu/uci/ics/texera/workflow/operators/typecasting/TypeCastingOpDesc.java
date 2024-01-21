@@ -37,15 +37,16 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public java.util.List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
+        Schema outputSchema = this.outputPortToSchemaMapping().get(this.operatorInfo().outputPorts().head().id()).get();
         return PhysicalOp.oneToOnePhysicalOp(
                 workflowId,
                 executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply(
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])
+                                worker -> new TypeCastingOpExec(outputSchema)
                 )
         );
     }

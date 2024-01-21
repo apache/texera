@@ -15,8 +15,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp =
     PhysicalOp
       .sourcePhysicalOp(
@@ -45,8 +44,8 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

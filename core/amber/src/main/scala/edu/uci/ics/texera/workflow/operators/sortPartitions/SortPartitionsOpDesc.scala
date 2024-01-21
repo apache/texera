@@ -42,13 +42,13 @@ class SortPartitionsOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val inputSchema = operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
     val partitionRequirement = List(
       Option(
         RangePartition(
-          List(operatorSchemaInfo.inputSchemas(0).getIndex(sortAttributeName)),
+          List(inputSchema.getIndex(sortAttributeName)),
           domainMin,
           domainMax
         )
@@ -63,7 +63,6 @@ class SortPartitionsOpDesc extends LogicalOp {
         OpExecInitInfo((idx, _, operatorConfig) => {
           new SortPartitionOpExec(
             sortAttributeName,
-            operatorSchemaInfo,
             idx,
             domainMin,
             domainMax,
@@ -71,8 +70,8 @@ class SortPartitionsOpDesc extends LogicalOp {
           )
         })
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
       .withPartitionRequirement(partitionRequirement)
 
   }

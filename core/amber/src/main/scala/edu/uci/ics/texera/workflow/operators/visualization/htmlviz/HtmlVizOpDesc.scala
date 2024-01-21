@@ -32,15 +32,16 @@ class HtmlVizOpDesc extends VisualizationOperator {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
-  ): PhysicalOp =
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
+    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp.oneToOnePhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName, outputSchema))
     )
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

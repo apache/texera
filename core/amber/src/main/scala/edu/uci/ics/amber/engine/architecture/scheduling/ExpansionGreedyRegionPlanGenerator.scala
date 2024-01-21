@@ -386,14 +386,15 @@ class ExpansionGreedyRegionPlanGenerator(
     materializationReader.setContext(context)
     materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
     materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
-    val matReaderOutputSchema = materializationReader.getOutputSchemas(Array())
+    val matReaderOutputSchema = materializationReader.getOutputSchemas(Array()).head
+    materializationReader.outputPortToSchemaMapping(materializationReader.operatorInfo.outputPorts.head.id) = matReaderOutputSchema
+
     val matReaderOp = materializationReader
       .getPhysicalOp(
         context.workflowId,
-        context.executionId,
-        OperatorSchemaInfo(Array(), matReaderOutputSchema)
+        context.executionId
       )
-      .withOutputPorts(List(OutputPort()))
+      .withOutputPorts(List(OutputPort()), materializationReader.outputPortToSchemaMapping.toMap)
 
     matReaderOp
   }
@@ -415,22 +416,20 @@ class ExpansionGreedyRegionPlanGenerator(
       }
     val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromPortId.id)
     // we currently expect only one output schema
-    val matWriterOutputSchema =
-      matWriterLogicalOp.getOutputSchemas(Array(matWriterInputSchema)).head
+     matWriterLogicalOp.inputPortToSchemaMapping(matWriterLogicalOp.operatorInfo().inputPorts.head.id) = matWriterInputSchema
     val matWriterPhysicalOp = matWriterLogicalOp
       .getPhysicalOp(
         context.workflowId,
-        context.executionId,
-        OperatorSchemaInfo(Array(matWriterInputSchema), Array(matWriterOutputSchema))
+        context.executionId
       )
-      .withInputPorts(List(InputPort()))
+      .withInputPorts(List(InputPort()), matWriterLogicalOp.inputPortToSchemaMapping.toMap)
     matWriterLogicalOp.setStorage(
       opResultStorage.create(
         key = matWriterLogicalOp.operatorIdentifier,
         mode = OpResultStorage.defaultStorageMode
       )
     )
-    opResultStorage.get(matWriterLogicalOp.operatorIdentifier).setSchema(matWriterOutputSchema)
+    opResultStorage.get(matWriterLogicalOp.operatorIdentifier).setSchema(matWriterInputSchema)
     (matWriterLogicalOp, matWriterPhysicalOp)
   }
 }

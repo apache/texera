@@ -95,8 +95,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp =
     PhysicalOp
       .sourcePhysicalOp(
@@ -131,8 +130,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
 
   override def sourceSchema(): Schema = {
     if (this.host == null || this.port == null || this.database == null || this.table == null)

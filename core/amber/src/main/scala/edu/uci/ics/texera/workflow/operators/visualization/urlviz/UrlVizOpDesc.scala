@@ -43,16 +43,17 @@ class UrlVizOpDesc extends VisualizationOperator {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
-  ): PhysicalOp =
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
+    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .manyToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName, operatorSchemaInfo))
+        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName, outputSchema))
       )
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

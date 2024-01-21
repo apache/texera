@@ -27,8 +27,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     filePath match {
       case Some(path) =>
@@ -56,8 +55,8 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
             })
           )
-          .withInputPorts(operatorInfo.inputPorts)
-          .withOutputPorts(operatorInfo.outputPorts)
+          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
           .withParallelizable(true)
 
       case None =>

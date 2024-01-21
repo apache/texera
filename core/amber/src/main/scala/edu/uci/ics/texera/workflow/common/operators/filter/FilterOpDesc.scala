@@ -18,10 +18,10 @@ abstract class FilterOpDesc extends LogicalOp {
   override def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      newOpDesc: LogicalOp,
-      operatorSchemaInfo: OperatorSchemaInfo
+      oldOpDesc: LogicalOp,
+      newOpDesc: LogicalOp
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
-    Success(newOpDesc.getPhysicalOp(workflowId, executionId, operatorSchemaInfo), None)
+    Success(newOpDesc.getPhysicalOp(workflowId, executionId ), None)
   }
 
 }

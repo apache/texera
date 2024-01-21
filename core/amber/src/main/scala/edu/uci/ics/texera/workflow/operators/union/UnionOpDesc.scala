@@ -13,8 +13,7 @@ class UnionOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp.oneToOnePhysicalOp(
       workflowId,

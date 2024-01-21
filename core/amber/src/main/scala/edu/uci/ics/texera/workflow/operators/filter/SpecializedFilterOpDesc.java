@@ -14,15 +14,19 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.Tuple2;
 import scala.Tuple3;
 import scala.collection.immutable.List;
+import scala.collection.immutable.Map;
+
 
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.collection.JavaConverters.*;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
@@ -31,7 +35,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     public java.util.List<FilterPredicate> predicates;
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         return PhysicalOp.oneToOnePhysicalOp(
                 workflowId,
                 executionId,
@@ -41,8 +45,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                                 x -> new SpecializedFilterOpExec(this)
                 )
 
-        )      .withInputPorts(operatorInfo().inputPorts())
-                .withOutputPorts(operatorInfo().outputPorts());
+        )      .withInputPorts(operatorInfo().inputPorts(), getInputPortSchemas())
+                .withOutputPorts(operatorInfo().outputPorts(), getOutputPortSchemas());
     }
 
     @Override

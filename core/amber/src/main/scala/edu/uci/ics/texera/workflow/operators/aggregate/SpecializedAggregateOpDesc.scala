@@ -29,19 +29,21 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
 
   override def aggregateOperatorExecutor(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalPlan = {
     if (aggregations.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
+    val inputSchema = operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
+    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     AggregateOpDesc.getPhysicalPlan(
       workflowId,
       executionId,
       operatorIdentifier,
-      aggregations.map(agg => agg.getAggFunc(operatorSchemaInfo.inputSchemas(0))),
+      aggregations.map(agg => agg.getAggFunc(inputSchema)),
       groupByKeys,
-      operatorSchemaInfo
+      inputSchema,
+      outputSchema
     )
   }
 

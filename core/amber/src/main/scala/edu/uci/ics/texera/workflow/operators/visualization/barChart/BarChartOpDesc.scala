@@ -72,7 +72,7 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     var truthy = ""
     if (orientation) truthy = "True"
     val finalCode = s"""

@@ -26,26 +26,26 @@ class ProjectionOpDesc extends MapOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val outputSchema = outputPortToSchemaMapping(operatorInfo.outputPorts.head.id)
     oneToOnePhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, outputSchema))
     )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withDerivePartition(this.derivePartition(operatorSchemaInfo))
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts,outputPortToSchemaMapping.toMap)
+      .withDerivePartition(derivePartition())
   }
 
-  def derivePartition(schema: OperatorSchemaInfo)(partition: List[PartitionInfo]): PartitionInfo = {
+  def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
     val inputPartitionInfo = partition.head
 
     // a mapping from original column index to new column index
     lazy val columnIndicesMapping = attributes.indices
-      .map(i => (schema.inputSchemas(0).getIndex(attributes(i).getOriginalAttribute), i))
+      .map(i => (inputPortToSchemaMapping(operatorInfo.inputPorts.head.id).getIndex(attributes(i).getOriginalAttribute), i))
       .toMap
 
     val outputPartitionInfo = inputPartitionInfo match {

@@ -25,8 +25,7 @@ class SplitOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
@@ -35,8 +34,8 @@ class SplitOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new SplitOpExec(idx, this))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
   }
 
   override def operatorInfo: OperatorInfo = {

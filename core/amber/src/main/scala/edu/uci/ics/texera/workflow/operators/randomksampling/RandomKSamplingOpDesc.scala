@@ -30,8 +30,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
@@ -40,8 +39,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new RandomKSamplingOpExec(idx, this))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
   }
 
   override def operatorInfo: OperatorInfo =

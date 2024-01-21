@@ -37,20 +37,21 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     if (attribute == null)
       throw new RuntimeException("sentiment analysis: attribute is null")
+
+    val outputSchema = operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new SentimentAnalysisOpExec(this, operatorSchemaInfo))
+        OpExecInitInfo((_, _, _) => new SentimentAnalysisOpExec(this, outputSchema))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
   }
 
   override def operatorInfo =

@@ -86,7 +86,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     val finalCode =
       s"""
          |from pytexera import *

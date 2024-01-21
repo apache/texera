@@ -29,7 +29,7 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     var outputTable = "{"
     for (unit <- lambdaAttributeUnits) {
       outputTable += s"""\"${unit.attributeName}\":${unit.expression},"""

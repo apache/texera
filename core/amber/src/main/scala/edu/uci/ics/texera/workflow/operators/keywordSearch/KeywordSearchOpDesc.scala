@@ -26,8 +26,7 @@ class KeywordSearchOpDesc extends FilterOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp
       .oneToOnePhysicalOp(
@@ -36,8 +35,8 @@ class KeywordSearchOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new KeywordSearchOpExec(this))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
   }
 
   override def operatorInfo: OperatorInfo =

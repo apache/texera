@@ -2,16 +2,11 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ExecutionIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, OperatorIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 object AggregateOpDesc {
@@ -22,20 +17,23 @@ object AggregateOpDesc {
       id: OperatorIdentity,
       aggFuncs: List[DistributedAggregation[Object]],
       groupByKeys: List[String],
-      schemaInfo: OperatorSchemaInfo
+      inputSchema: Schema,
+      outputSchema: Schema
   ): PhysicalPlan = {
     val outputPort = OutputPort(PortIdentity(internal = true))
+
     val partialPhysicalOp =
       PhysicalOp
         .oneToOnePhysicalOp(
           PhysicalOpIdentity(id, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys, inputSchema))
         )
         .withIsOneToManyOp(true)
-        .withInputPorts(List(InputPort(PortIdentity())))
-        .withOutputPorts(List(outputPort))
+        .withInputPorts(List(InputPort(PortIdentity())), Map(PortIdentity()-> inputSchema))
+        // assume partial op's output is the same as global op's
+        .withOutputPorts(List(outputPort), Map(outputPort.id-> outputSchema))
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
@@ -44,12 +42,13 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo))
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema))
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
-        .withInputPorts(List(inputPort))
-        .withOutputPorts(List(OutputPort(PortIdentity(0))))
+        // assume partial op's output is the same as global op's
+        .withInputPorts(List(inputPort), Map(inputPort.id -> outputSchema))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity()-> outputSchema))
     } else {
       val partitionColumns: List[Int] =
         if (groupByKeys == null) List()
@@ -60,13 +59,14 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, schemaInfo)),
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema)),
           partitionColumns
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
-        .withInputPorts(List(inputPort))
-        .withOutputPorts(List(OutputPort(PortIdentity(0))))
+        // assume partial op's output is the same as global op's
+        .withInputPorts(List(inputPort), Map(inputPort.id -> outputSchema))
+        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity()-> outputSchema))
     }
 
     new PhysicalPlan(
@@ -83,26 +83,23 @@ abstract class AggregateOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     throw new UnsupportedOperationException("should implement `getPhysicalPlan` instead")
   }
 
   override def getPhysicalPlan(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalPlan = {
-    var plan = aggregateOperatorExecutor(workflowId, executionId, operatorSchemaInfo)
+    var plan = aggregateOperatorExecutor(workflowId, executionId)
     plan.operators.foreach(op => plan = plan.setOperator(op.withIsOneToManyOp(true)))
     plan
   }
 
   def aggregateOperatorExecutor(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalPlan
 
 }

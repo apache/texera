@@ -28,8 +28,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp =
     PhysicalOp
       .manyToOnePhysicalOp(
@@ -38,8 +37,8 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new LinearRegressionOpExec(xAttr, yAttr, learningRate))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

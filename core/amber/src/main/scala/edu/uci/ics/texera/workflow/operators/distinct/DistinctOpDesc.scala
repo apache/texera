@@ -13,8 +13,7 @@ class DistinctOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp
       .hashPhysicalOp(
@@ -22,10 +21,10 @@ class DistinctOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new DistinctOpExec()),
-        operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
+        operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head.getAttributes.toArray.indices.toList
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
   }
 
   override def operatorInfo: OperatorInfo =

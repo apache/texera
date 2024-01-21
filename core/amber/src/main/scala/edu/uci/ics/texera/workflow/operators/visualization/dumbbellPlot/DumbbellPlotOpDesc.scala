@@ -105,7 +105,7 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
      |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     s"""
      |from pytexera import *
      |

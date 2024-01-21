@@ -37,14 +37,13 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp.oneToOnePhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new UnnestStringOpExec(this, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new UnnestStringOpExec(this))
     )
   }
 

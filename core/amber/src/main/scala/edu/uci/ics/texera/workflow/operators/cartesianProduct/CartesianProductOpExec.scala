@@ -11,12 +11,11 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchem
 
 import scala.collection.mutable.ArrayBuffer
 
-class CartesianProductOpExec(operatorSchemaInfo: OperatorSchemaInfo) extends OperatorExecutor {
-  val leftSchemaSize: Int = operatorSchemaInfo.inputSchemas(0).getAttributesScala.length
-  val rightSchema: Schema = operatorSchemaInfo.inputSchemas(1)
+class CartesianProductOpExec(inputSchemas: List[Schema], outputSchema: Schema) extends OperatorExecutor {
+  val leftSchemaSize: Int = inputSchemas(0).getAttributesScala.length
+  val rightSchema: Schema = inputSchemas(1)
   var leftTuples: ArrayBuffer[Tuple] = _
   var isLeftTupleCollectionFinished: Boolean = false
-  var outputSchema: Schema = operatorSchemaInfo.outputSchemas(0)
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
