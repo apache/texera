@@ -7,10 +7,10 @@ package edu.uci.ics.amber.engine.common.workflow
 
 @SerialVersionUID(0L)
 final case class PhysicalLink(
-    from: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
-    fromPort: _root_.scala.Int,
-    to: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
-    toPort: _root_.scala.Int
+    fromOpId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
+    fromPortId: edu.uci.ics.amber.engine.common.workflow.PortIdentity = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
+    toOpId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
+    toPortId: edu.uci.ics.amber.engine.common.workflow.PortIdentity = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PhysicalLink] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -18,30 +18,30 @@ final case class PhysicalLink(
       var __size = 0
       
       {
-        val __value = from
+        val __value = fromOpId
         if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
-        val __value = fromPort
-        if (__value != 0) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(2, __value)
+        val __value = fromPortId
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
-        val __value = to
+        val __value = toOpId
         if (__value != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
           __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       
       {
-        val __value = toPort
-        if (__value != 0) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(4, __value)
+        val __value = toPortId
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
         }
       };
       __size
@@ -56,7 +56,7 @@ final case class PhysicalLink(
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
       {
-        val __v = from
+        val __v = fromOpId
         if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
           _output__.writeTag(1, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
@@ -64,13 +64,15 @@ final case class PhysicalLink(
         }
       };
       {
-        val __v = fromPort
-        if (__v != 0) {
-          _output__.writeInt32(2, __v)
+        val __v = fromPortId
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+          _output__.writeTag(2, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
         }
       };
       {
-        val __v = to
+        val __v = toOpId
         if (__v != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) {
           _output__.writeTag(3, 2)
           _output__.writeUInt32NoTag(__v.serializedSize)
@@ -78,43 +80,45 @@ final case class PhysicalLink(
         }
       };
       {
-        val __v = toPort
-        if (__v != 0) {
-          _output__.writeInt32(4, __v)
+        val __v = toPortId
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+          _output__.writeTag(4, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
         }
       };
     }
-    def withFrom(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity): PhysicalLink = copy(from = __v)
-    def withFromPort(__v: _root_.scala.Int): PhysicalLink = copy(fromPort = __v)
-    def withTo(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity): PhysicalLink = copy(to = __v)
-    def withToPort(__v: _root_.scala.Int): PhysicalLink = copy(toPort = __v)
+    def withFromOpId(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity): PhysicalLink = copy(fromOpId = __v)
+    def withFromPortId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): PhysicalLink = copy(fromPortId = __v)
+    def withToOpId(__v: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity): PhysicalLink = copy(toOpId = __v)
+    def withToPortId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): PhysicalLink = copy(toPortId = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
-          val __t = from
+          val __t = fromOpId
           if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) __t else null
         }
         case 2 => {
-          val __t = fromPort
-          if (__t != 0) __t else null
+          val __t = fromPortId
+          if (__t != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) __t else null
         }
         case 3 => {
-          val __t = to
+          val __t = toOpId
           if (__t != edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance) __t else null
         }
         case 4 => {
-          val __t = toPort
-          if (__t != 0) __t else null
+          val __t = toPortId
+          if (__t != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) __t else null
         }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => from.toPMessage
-        case 2 => _root_.scalapb.descriptors.PInt(fromPort)
-        case 3 => to.toPMessage
-        case 4 => _root_.scalapb.descriptors.PInt(toPort)
+        case 1 => fromOpId.toPMessage
+        case 2 => fromPortId.toPMessage
+        case 3 => toOpId.toPMessage
+        case 4 => toPortId.toPMessage
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -125,82 +129,84 @@ final case class PhysicalLink(
 object PhysicalLink extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] {
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflow.PhysicalLink = {
-    var __from: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = _root_.scala.None
-    var __fromPort: _root_.scala.Int = 0
-    var __to: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = _root_.scala.None
-    var __toPort: _root_.scala.Int = 0
+    var __fromOpId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = _root_.scala.None
+    var __fromPortId: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = _root_.scala.None
+    var __toOpId: _root_.scala.Option[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = _root_.scala.None
+    var __toPortId: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = _root_.scala.None
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __from = _root_.scala.Some(__from.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 16 =>
-          __fromPort = _input__.readInt32()
+          __fromOpId = _root_.scala.Some(__fromOpId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 18 =>
+          __fromPortId = _root_.scala.Some(__fromPortId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PortIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 26 =>
-          __to = _root_.scala.Some(__to.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
-        case 32 =>
-          __toPort = _input__.readInt32()
+          __toOpId = _root_.scala.Some(__toOpId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+        case 34 =>
+          __toPortId = _root_.scala.Some(__toPortId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PortIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.workflow.PhysicalLink(
-        from = __from.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
-        fromPort = __fromPort,
-        to = __to.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
-        toPort = __toPort
+        fromOpId = __fromOpId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
+        fromPortId = __fromPortId.getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
+        toOpId = __toOpId.getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
+        toPortId = __toPortId.getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance)
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.workflow.PhysicalLink] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.workflow.PhysicalLink(
-        from = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
-        fromPort = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        to = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
-        toPort = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Int]).getOrElse(0)
+        fromOpId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
+        fromPortId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PortIdentity]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
+        toOpId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity]).getOrElse(edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance),
+        toPortId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PortIdentity]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
-  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowProto.javaDescriptor.getMessageTypes().get(0)
-  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowProto.scalaDescriptor.messages(0)
+  def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = WorkflowProto.javaDescriptor.getMessageTypes().get(3)
+  def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = WorkflowProto.scalaDescriptor.messages(3)
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
       case 1 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+      case 2 => __out = edu.uci.ics.amber.engine.common.workflow.PortIdentity
       case 3 => __out = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+      case 4 => __out = edu.uci.ics.amber.engine.common.workflow.PortIdentity
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.workflow.PhysicalLink(
-    from = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
-    fromPort = 0,
-    to = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
-    toPort = 0
+    fromOpId = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
+    fromPortId = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
+    toOpId = edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity.defaultInstance,
+    toPortId = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance
   )
   implicit class PhysicalLinkLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PhysicalLink]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PhysicalLink](_l) {
-    def from: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = field(_.from)((c_, f_) => c_.copy(from = f_))
-    def fromPort: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.fromPort)((c_, f_) => c_.copy(fromPort = f_))
-    def to: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = field(_.to)((c_, f_) => c_.copy(to = f_))
-    def toPort: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.toPort)((c_, f_) => c_.copy(toPort = f_))
+    def fromOpId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = field(_.fromOpId)((c_, f_) => c_.copy(fromOpId = f_))
+    def fromPortId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PortIdentity] = field(_.fromPortId)((c_, f_) => c_.copy(fromPortId = f_))
+    def toOpId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity] = field(_.toOpId)((c_, f_) => c_.copy(toOpId = f_))
+    def toPortId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PortIdentity] = field(_.toPortId)((c_, f_) => c_.copy(toPortId = f_))
   }
-  final val FROM_FIELD_NUMBER = 1
-  final val FROMPORT_FIELD_NUMBER = 2
-  final val TO_FIELD_NUMBER = 3
-  final val TOPORT_FIELD_NUMBER = 4
+  final val FROMOPID_FIELD_NUMBER = 1
+  final val FROMPORTID_FIELD_NUMBER = 2
+  final val TOOPID_FIELD_NUMBER = 3
+  final val TOPORTID_FIELD_NUMBER = 4
   def of(
-    from: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
-    fromPort: _root_.scala.Int,
-    to: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
-    toPort: _root_.scala.Int
+    fromOpId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
+    fromPortId: edu.uci.ics.amber.engine.common.workflow.PortIdentity,
+    toOpId: edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
+    toPortId: edu.uci.ics.amber.engine.common.workflow.PortIdentity
   ): _root_.edu.uci.ics.amber.engine.common.workflow.PhysicalLink = _root_.edu.uci.ics.amber.engine.common.workflow.PhysicalLink(
-    from,
-    fromPort,
-    to,
-    toPort
+    fromOpId,
+    fromPortId,
+    toOpId,
+    toPortId
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.PhysicalLink])
 }

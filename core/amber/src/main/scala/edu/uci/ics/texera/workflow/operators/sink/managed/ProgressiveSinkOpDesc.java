@@ -9,9 +9,10 @@ import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
+import edu.uci.ics.amber.engine.common.workflow.InputPort;
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
@@ -59,17 +60,23 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
                                 worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter())
                 )
-        ).withPorts(this.operatorInfo());
+        )
+                .withInputPorts(this.operatorInfo().inputPorts())
+                .withOutputPorts(this.operatorInfo().outputPorts());
     }
 
     @Override
     public OperatorInfo operatorInfo() {
         return new OperatorInfo(
                 "View Results",
-                "View the edu.uci.ics.texera.workflow results",
+                "View the results",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                List.empty(), false, false, false, false);
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
+                List.empty(),
+                false,
+                false,
+                false,
+                false);
     }
 
     @Override

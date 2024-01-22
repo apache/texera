@@ -25,7 +25,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
@@ -41,7 +41,7 @@ class LoggingSpec
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val physicalOpId1 = PhysicalOpIdentity(operatorIdentity, "1st-layer")
   private val physicalOpId2 = PhysicalOpIdentity(operatorIdentity, "2nd-layer")
-  private val mockLink = PhysicalLink(physicalOpId1, 0, physicalOpId2, 0)
+  private val mockLink = PhysicalLink(physicalOpId1, PortIdentity(), physicalOpId2, PortIdentity())
 
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(

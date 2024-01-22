@@ -6,8 +6,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
@@ -79,8 +80,14 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
           "",
           "",
           "",
-          List(InputPort("training"), InputPort("testing")),
-          List(OutputPort("visualization"), OutputPort("model"))
+          List(
+            InputPort(displayName = "training"),
+            InputPort(PortIdentity(0), displayName = "testing")
+          ),
+          List(
+            OutputPort(displayName = "visualization"),
+            OutputPort(PortIdentity(1), displayName = "model")
+          )
         )
 
       override def getOutputSchema(schemas: Array[Schema]): Schema = ???
@@ -105,8 +112,8 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
           "",
           "",
           "",
-          List(InputPort("model"), InputPort("data")),
-          List(OutputPort("data"))
+          List(InputPort(displayName = "model"), InputPort(PortIdentity(1), displayName = "data")),
+          List(OutputPort(displayName = "data"))
         )
 
       override def getOutputSchema(schemas: Array[Schema]): Schema = ???
@@ -137,28 +144,40 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val links = List(
       LogicalLink(
-        LogicalPort(trainingScan.operatorIdentifier, 0),
-        LogicalPort(mlTrainingOp.operatorIdentifier, 0)
+        trainingScan.operatorIdentifier,
+        PortIdentity(),
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity()
       ),
       LogicalLink(
-        LogicalPort(testingScan.operatorIdentifier, 0),
-        LogicalPort(mlTrainingOp.operatorIdentifier, 1)
+        testingScan.operatorIdentifier,
+        PortIdentity(),
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity(1)
       ),
       LogicalLink(
-        LogicalPort(inferenceScan.operatorIdentifier, 0),
-        LogicalPort(mlInferOp.operatorIdentifier, 1)
+        inferenceScan.operatorIdentifier,
+        PortIdentity(),
+        mlInferOp.operatorIdentifier,
+        PortIdentity(1)
       ),
       LogicalLink(
-        LogicalPort(mlTrainingOp.operatorIdentifier, 0),
-        LogicalPort(mlVizSink.operatorIdentifier, 0)
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity(),
+        mlVizSink.operatorIdentifier,
+        PortIdentity(0)
       ),
       LogicalLink(
-        LogicalPort(mlTrainingOp.operatorIdentifier, 1),
-        LogicalPort(mlInferOp.operatorIdentifier, 0)
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity(1),
+        mlInferOp.operatorIdentifier,
+        PortIdentity()
       ),
       LogicalLink(
-        LogicalPort(mlInferOp.operatorIdentifier, 0),
-        LogicalPort(inferenceSink.operatorIdentifier, 0)
+        mlInferOp.operatorIdentifier,
+        PortIdentity(),
+        inferenceSink.operatorIdentifier,
+        PortIdentity()
       )
     )
 

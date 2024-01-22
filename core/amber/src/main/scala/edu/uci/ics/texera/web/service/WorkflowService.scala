@@ -7,7 +7,11 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerStateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ChannelMarkerIdentity,
+  ExecutionIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -164,16 +168,16 @@ class WorkflowService(
         })
       }
       if (req.replayFromExecution.isDefined) {
-        val executionIdentity = ExecutionIdentity(req.replayFromExecution.get)
+        val (eId, interaction) = req.replayFromExecution.get
         ExecutionsMetadataPersistService
-          .tryGetExistingExecution(executionIdentity)
+          .tryGetExistingExecution(ExecutionIdentity(eId))
           .foreach { execution =>
             val readLocation = new URI(execution.getLogLocation)
             controllerConf = controllerConf.copy(workerRestoreConfMapping = { _ =>
               Some(
                 WorkerStateRestoreConfig(
                   readFrom = readLocation,
-                  replayTo = Long.MaxValue // TODO: support time-travel feature.
+                  replayDestination = ChannelMarkerIdentity(interaction)
                 )
               )
             })

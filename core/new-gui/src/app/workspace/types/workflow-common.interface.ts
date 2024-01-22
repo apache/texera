@@ -29,7 +29,8 @@ export interface PortSchema
     jsonSchema: Readonly<JSONSchema7>;
   }> {}
 
-export interface PortProperty extends Readonly<{ partitionInfo: PartitionInfo; dependencies: number[] }> {}
+export interface PortProperty
+  extends Readonly<{ partitionInfo: PartitionInfo; dependencies: { id: number; internal: boolean }[] }> {}
 
 export interface PortDescription
   extends Readonly<{
@@ -38,7 +39,7 @@ export interface PortDescription
     allowMultiInputs?: boolean;
     isDynamicPort?: boolean;
     partitionRequirement?: PartitionInfo;
-    dependencies?: number[];
+    dependencies?: { id: number; internal: boolean }[];
   }> {}
 
 export interface OperatorPredicate

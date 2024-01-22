@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfoWithCode,
   OpExecInitInfoWithFunc
 }
+import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
@@ -30,7 +31,7 @@ import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
@@ -50,11 +51,11 @@ object DataProcessor {
   case class FinalizeLink(link: PhysicalLink) extends SpecialDataTuple
   case class FinalizeOperator() extends SpecialDataTuple
 
-  class DPOutputIterator extends Iterator[(ITuple, Option[Int])] {
-    val queue = new mutable.Queue[(ITuple, Option[Int])]
-    @transient var outputIter: Iterator[(ITuple, Option[Int])] = Iterator.empty
+  class DPOutputIterator extends Iterator[(ITuple, Option[PortIdentity])] {
+    val queue = new mutable.Queue[(ITuple, Option[PortIdentity])]
+    @transient var outputIter: Iterator[(ITuple, Option[PortIdentity])] = Iterator.empty
 
-    def setTupleOutput(outputIter: Iterator[(ITuple, Option[Int])]): Unit = {
+    def setTupleOutput(outputIter: Iterator[(ITuple, Option[PortIdentity])]): Unit = {
       if (outputIter != null) {
         this.outputIter = outputIter
       } else {
@@ -64,7 +65,7 @@ object DataProcessor {
 
     override def hasNext: Boolean = outputIter.hasNext || queue.nonEmpty
 
-    override def next(): (ITuple, Option[Int]) = {
+    override def next(): (ITuple, Option[PortIdentity]) = {
       if (outputIter.hasNext) {
         outputIter.next()
       } else {
@@ -94,7 +95,7 @@ class DataProcessor(
       workerIdx: Int,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
-      currentOutputIterator: Iterator[(ITuple, Option[Int])]
+      currentOutputIterator: Iterator[(ITuple, Option[PortIdentity])]
   ): Unit = {
     this.workerIdx = workerIdx
     this.operator = physicalOp.opExecInitInfo match {
@@ -107,10 +108,10 @@ class DataProcessor(
     this.upstreamLinkStatus.setAllUpstreamLinks(
       if (physicalOp.isSourceOperator) {
         Set(
-          PhysicalLink(SOURCE_STARTER_OP, 0, physicalOp.id, 0)
+          PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), physicalOp.id, PortIdentity())
         ) // special case for source operator
       } else {
-        physicalOp.getAllInputLinks.toSet
+        physicalOp.getInputLinks().toSet
       }
     )
     this.outputIterator.setTupleOutput(currentOutputIterator)
@@ -146,7 +147,7 @@ class DataProcessor(
   val outputManager: OutputManager =
     new OutputManager(actorId, outputGateway)
   // 6. epoch manager
-  val epochManager: EpochManager = new EpochManager()
+  val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId)
 
   // dp thread stats:
   protected var inputTupleCount = 0L
@@ -160,18 +161,11 @@ class DataProcessor(
     inputGateway.getChannel(channel).getQueuedCredit
   }
 
-  def getInputPort(identifier: ActorVirtualIdentity): Int = {
-    val inputLink = upstreamLinkStatus.getInputLink(identifier)
-    if (inputLink.from == SOURCE_STARTER_OP) 0 // special case for source operator
-    else if (!physicalOp.getAllInputLinks.contains(inputLink)) 0
-    else physicalOp.getPortIdxForInputLink(inputLink)
-  }
-
-  def getOutputLinksByPort(outputPort: Option[Int]): List[PhysicalLink] = {
-    outputPort match {
-      case Some(port) => physicalOp.getLinksOnOutputPort(port)
-      case None       => physicalOp.getAllOutputLinks
-    }
+  private def getInputPortId(workerId: ActorVirtualIdentity): PortIdentity = {
+    val inputLink = upstreamLinkStatus.getInputLink(workerId)
+    if (inputLink.fromOpId == SOURCE_STARTER_OP) PortIdentity() // special case for source operator
+    else if (!physicalOp.getInputLinks().contains(inputLink)) PortIdentity()
+    else inputLink.toPortId
   }
 
   def onInterrupt(): Unit = {
@@ -198,7 +192,7 @@ class DataProcessor(
       outputIterator.setTupleOutput(
         operator.processTuple(
           tuple,
-          getInputPort(currentBatchChannel.from),
+          getInputPortId(currentBatchChannel.from).id,
           pauseManager,
           asyncRPCClient
         )
@@ -218,7 +212,7 @@ class DataProcessor(
     */
   private[this] def outputOneTuple(): Unit = {
     adaptiveBatchingMonitor.startAdaptiveBatching()
-    var out: (ITuple, Option[Int]) = null
+    var out: (ITuple, Option[PortIdentity]) = null
     try {
       out = outputIterator.next()
     } catch safely {
@@ -249,7 +243,7 @@ class DataProcessor(
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizeLink(link) =>
         logger.info(s"process FinalizeLink message")
-        if (link != null && link.from != SOURCE_STARTER_OP) {
+        if (link != null && link.fromOpId != SOURCE_STARTER_OP) {
           asyncRPCClient.send(LinkCompleted(link), CONTROLLER)
         }
       case _ =>
@@ -260,7 +254,7 @@ class DataProcessor(
         } else {
           outputTupleCount += 1
           // println(s"send output $outputTuple at step $totalValidStep")
-          val outLinks = getOutputLinksByPort(outputPortOpt)
+          val outLinks = physicalOp.getOutputLinks(outputPortOpt)
           outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
         }
     }
@@ -330,8 +324,47 @@ class DataProcessor(
           )
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
-      case marker: EpochMarker =>
-        epochManager.processEpochMarker(channel.from, marker, this)
+    }
+  }
+
+  def processChannelMarker(
+      channelId: ChannelID,
+      marker: ChannelMarkerPayload,
+      logManager: ReplayLogManager
+  ): Unit = {
+    val markerId = marker.id
+    val command = marker.commandMapping.get(actorId)
+    logger.info(s"receive marker from $channelId, id = ${marker.id}, cmd = ${command}")
+    if (marker.markerType == RequireAlignment) {
+      pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
+    }
+    if (channelMarkerManager.isMarkerAligned(upstreamLinkStatus, channelId, marker)) {
+      logManager.markAsReplayDestination(markerId)
+      // invoke the control command carried with the epoch marker
+      logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
+      if (command.isDefined) {
+        asyncRPCServer.receive(command.get, channelId.from)
+      }
+      // if this operator is not the final destination of the marker, pass it downstream
+      if (!marker.scope.getSinkOperatorIds.contains(getOperatorId)) {
+        val physicalLinks = marker.scope.links
+        outputManager.flush(Some(physicalLinks))
+        outputGateway.getActiveChannels.foreach { activeChannelId =>
+          if (
+            physicalLinks
+              .exists(p => p.toOpId == VirtualIdentityUtils.getPhysicalOpId(activeChannelId.to))
+          ) {
+            logger.info(
+              s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${command}"
+            )
+            outputGateway.sendTo(activeChannelId, marker)
+          }
+        }
+      }
+      // unblock input channels
+      if (marker.markerType == RequireAlignment) {
+        pauseManager.resume(EpochMarkerPause(markerId))
+      }
     }
   }
 

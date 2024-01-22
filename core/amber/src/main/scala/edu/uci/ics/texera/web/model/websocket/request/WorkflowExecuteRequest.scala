@@ -7,7 +7,7 @@ case class WorkflowExecuteRequest(
     executionName: String,
     engineVersion: String,
     logicalPlan: LogicalPlanPojo,
-    replayFromExecution: Option[Long]
+    replayFromExecution: Option[(Long, String)] // execution Id, interaction Id.
 ) extends TexeraWebSocketRequest
 
 case class LogicalPlanPojo(

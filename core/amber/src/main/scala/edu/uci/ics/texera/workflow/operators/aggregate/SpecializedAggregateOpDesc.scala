@@ -3,13 +3,9 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
@@ -64,10 +60,12 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       "Aggregate",
       "Calculate different types of aggregation values",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts =
-        List(InputPort("in")), // a hacky solution to have unique port names for reference purpose
-      outputPorts =
-        List(OutputPort("out")) // a hacky solution to have unique port names for reference purpose
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "in")
+      ),
+      outputPorts = List(
+        OutputPort(PortIdentity(), displayName = "out")
+      )
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

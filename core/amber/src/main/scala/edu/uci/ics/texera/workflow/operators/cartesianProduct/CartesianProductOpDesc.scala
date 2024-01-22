@@ -4,12 +4,8 @@ import com.google.common.base.Preconditions
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 
@@ -27,12 +23,12 @@ class CartesianProductOpDesc extends LogicalOp {
         OpExecInitInfo((_, _, _) => new CartesianProductOpExec(operatorSchemaInfo))
       )
       .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts((operatorInfo.outputPorts))
-      .withBlockingInputs(List(0))
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       // TODO : refactor to parallelize this operator for better performance and scalability:
       //  can consider hash partition on larger input, broadcast smaller table to each partition
       .withParallelizable(false)
-      .withDependencies(Map(1 -> 0))
+
   }
 
   /**
@@ -80,7 +76,10 @@ class CartesianProductOpDesc extends LogicalOp {
       "Cartesian Product",
       "Append fields together to get the cartesian product of two inputs",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort("left"), InputPort("right")),
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "left"),
+        InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity()))
+      ),
       outputPorts = List(OutputPort())
     )
 

@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   RegionConfig
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
 
 import scala.collection.mutable
@@ -60,13 +60,13 @@ class DefaultResourceAllocator(
     val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLink =>
       physicalLink -> LinkConfig(
         generateChannelConfigs(
-          operatorConfigs(physicalLink.from).workerConfigs.map(_.workerId),
-          operatorConfigs(physicalLink.to).workerConfigs.map(_.workerId),
-          outputPartitionInfos(physicalLink.from)
+          operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
+          operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          outputPartitionInfos(physicalLink.fromOpId)
         ),
         toPartitioning(
-          operatorConfigs(physicalLink.to).workerConfigs.map(_.workerId),
-          outputPartitionInfos(physicalLink.from)
+          operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          outputPartitionInfos(physicalLink.fromOpId)
         )
       )
     }.toMap
@@ -103,13 +103,13 @@ class DefaultResourceAllocator(
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
-          val inputPartitionInfos = physicalOp.inputPorts.indices.toList
-            .flatMap((portIdx: Int) =>
+          val inputPartitionInfos = physicalOp.inputPorts.keys
+            .flatMap((portId: PortIdentity) => {
               physicalOp
-                .getLinksOnInputPort(portIdx)
+                .getInputLinks(Some(portId))
                 .filter(link => region.getEffectiveLinks.contains(link))
                 .map(link => {
-                  val upstreamInputPartitionInfo = outputPartitionInfos(link.from)
+                  val upstreamInputPartitionInfo = outputPartitionInfos(link.fromOpId)
                   val upstreamOutputPartitionInfo = physicalPlan.getOutputPartitionInfo(
                     link,
                     upstreamInputPartitionInfo,
@@ -117,9 +117,9 @@ class DefaultResourceAllocator(
                       case (opId, operatorConfig) => opId -> operatorConfig.workerConfigs.length
                     }.toMap
                   )
-                  (link.toPort, upstreamOutputPartitionInfo)
+                  (link.toPortId, upstreamOutputPartitionInfo)
                 })
-            )
+            })
             // group upstream partition infos by input port of this physicalOp
             .groupBy(_._1)
             .values

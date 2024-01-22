@@ -50,14 +50,17 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
     // TODO: use multiple workers
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) =>
-        new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) =>
+          new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
+        )
       )
-    )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def sourceSchema(): Schema = {
 

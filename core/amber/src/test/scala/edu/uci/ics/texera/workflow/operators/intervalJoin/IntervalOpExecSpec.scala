@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.intervalJoin
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{
   Attribute,
@@ -25,7 +25,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var counter: Int = 0
 
   def physicalLink(): PhysicalLink =
-    PhysicalLink(physicalOpId(), fromPort = 0, physicalOpId(), toPort = 0)
+    PhysicalLink(
+      physicalOpId(),
+      fromPortId = PortIdentity(),
+      physicalOpId(),
+      toPortId = PortIdentity()
+    )
 
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1

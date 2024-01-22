@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.intersect
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -28,7 +28,12 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   def physicalLink(): PhysicalLink =
-    PhysicalLink(physicalOpId(), fromPort = 0, physicalOpId(), toPort = 0)
+    PhysicalLink(
+      physicalOpId(),
+      fromPortId = PortIdentity(),
+      physicalOpId(),
+      toPortId = PortIdentity()
+    )
 
   def tuple(): Tuple = {
     counter += 1

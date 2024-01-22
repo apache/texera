@@ -7,16 +7,12 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
@@ -93,9 +89,8 @@ class IntervalJoinOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingInputs(List(0))
+      .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       .withPartitionRequirement(partitionRequirement)
-      .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =
@@ -103,7 +98,14 @@ class IntervalJoinOpDesc extends LogicalOp {
       "Interval Join",
       "Join two inputs with left table join key in the range of [right table join key, right table join key + constant value]",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("left table"), InputPort("right table")),
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "left table"),
+        InputPort(
+          PortIdentity(1),
+          displayName = "right table",
+          dependencies = List(PortIdentity(0))
+        )
+      ),
       outputPorts = List(OutputPort())
     )
 

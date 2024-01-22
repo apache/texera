@@ -40,12 +40,15 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
       operatorSchemaInfo: OperatorSchemaInfo
   ): PhysicalOp =
     // TODO: use multiple workers
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new TwitterSearchSourceOpExec(this, operatorSchemaInfo))
-    )
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new TwitterSearchSourceOpExec(this, operatorSchemaInfo))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def sourceSchema(): Schema = {
 

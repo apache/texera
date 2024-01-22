@@ -3,16 +3,14 @@ package edu.uci.ics.texera.workflow.operators.source.apis.reddit
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import java.util.Collections.singletonList
-import scala.collection.JavaConverters.asScalaBuffer
 
 class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonProperty(required = true)
@@ -106,17 +104,13 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         |            })
         |            yield tuple_submission""".stripMargin
   }
-  override def operatorInfo =
-    new OperatorInfo(
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
       "Reddit Search",
       "Search for recent posts with python-wrapped Reddit API, PRAW",
       OperatorGroupConstants.SOURCE_GROUP,
-      scala.collection.immutable.List.empty,
-      asScalaBuffer(singletonList(new OutputPort(""))).toList,
-      false,
-      false,
-      false,
-      false
+      inputPorts = List.empty,
+      outputPorts = List(OutputPort())
     )
   override def asSource() = true
   override def sourceSchema(): Schema =
