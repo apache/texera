@@ -18,7 +18,6 @@ import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 
-
 /**
  * CodeEditorDialogComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
  *
@@ -177,8 +176,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
   private initMonaco() {
     const editor = monaco.editor.create(this.divEditor?.nativeElement, {
       language: "python",
+      fontSize: 11,
       theme: "vs-dark",
-      automaticLayout: true
+      automaticLayout: true,
     });
 
     if (this.code) {
@@ -225,7 +225,8 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     const diffEditor = monaco.editor.createDiffEditor(this.divEditor?.nativeElement, {
       readOnly: true,
       theme: "vs-dark",
-      automaticLayout: true
+      fontSize: 11,
+      automaticLayout: true,
     });
     const leftModel = monaco.editor.createModel(this.code.toString(), "python");
     const rightModel = monaco.editor.createModel(this.getCurrentWorkflowVersionCode(), "python");
