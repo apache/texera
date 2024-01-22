@@ -25,8 +25,6 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
  * the button in CodeareaCustomTemplateComponent, this component will use the actual y-text of the code within the
  * operator property to connect to the editor.
  *
- * The original Monaco Editor is used here instead of ngx-monaco-editor to accommodate MonacoBinding.
- *
  * The dialogue can be closed with ESC key or by clicking on areas outside
  * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
  */
