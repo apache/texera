@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } from "@angular/core";
-import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
+import { MAT_DIALOG_DATA } from "@angular/material/dialog";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
@@ -7,7 +7,7 @@ import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
-import { MonacoLanguageClient, CloseAction, ErrorAction, MessageTransports } from "monaco-languageclient";
+import { CloseAction, ErrorAction, MessageTransports, MonacoLanguageClient } from "monaco-languageclient";
 import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
@@ -16,8 +16,7 @@ import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
-
-declare const monaco: any;
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 
 /**
  * CodeEditorDialogComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -25,8 +24,6 @@ declare const monaco: any;
  * It contains a shared-editable Monaco editor which is inside a mat-dialog-content. When the dialogue is invoked by
  * the button in CodeareaCustomTemplateComponent, this component will use the actual y-text of the code within the
  * operator property to connect to the editor.
- *
- * The original Monaco Editor is used here instead of ngx-monaco-editor to accommodate MonacoBinding.
  *
  * The dialogue can be closed with ESC key or by clicking on areas outside
  * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
@@ -38,12 +35,6 @@ declare const monaco: any;
   styleUrls: ["./code-editor-dialog.component.scss"],
 })
 export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
-  editorOptions = {
-    theme: "vs-dark",
-    language: "python",
-    fontSize: "11",
-    automaticLayout: true,
-  };
   @ViewChild("editor", { static: true }) divEditor?: ElementRef;
   private formControl: FormControl;
   private code?: YText;
@@ -53,7 +44,6 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
   constructor(
     private sanitizer: DomSanitizer,
-    private dialogRef: MatDialogRef<CodeEditorDialogComponent>,
     @Inject(MAT_DIALOG_DATA) formControl: FormControl,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
@@ -182,11 +172,17 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * @private
    */
   private initMonaco() {
-    const editor = monaco.editor.create(this.divEditor?.nativeElement, this.editorOptions);
+    const editor = monaco.editor.create(this.divEditor?.nativeElement, {
+      language: "python",
+      fontSize: 11,
+      theme: "vs-dark",
+      automaticLayout: true,
+    });
+
     if (this.code) {
       new MonacoBinding(
         this.code,
-        editor.getModel(),
+        editor.getModel()!,
         new Set([editor]),
         this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
       );
@@ -225,8 +221,10 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
       return;
     }
     const diffEditor = monaco.editor.createDiffEditor(this.divEditor?.nativeElement, {
-      ...this.editorOptions,
       readOnly: true,
+      theme: "vs-dark",
+      fontSize: 11,
+      automaticLayout: true,
     });
     const leftModel = monaco.editor.createModel(this.code.toString(), "python");
     const rightModel = monaco.editor.createModel(this.getCurrentWorkflowVersionCode(), "python");
@@ -249,8 +247,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     const operatorInfo = workflow?.content.operators?.filter(
       operator => operator.operatorID === currentOperatorId
     )?.[0];
-    const currentWorkflowVersionCode = operatorInfo?.operatorProperties.code;
-    return currentWorkflowVersionCode;
+    return operatorInfo?.operatorProperties.code;
   }
 
   /**
