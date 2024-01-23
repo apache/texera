@@ -27,12 +27,13 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object PhysicalOp {
@@ -189,8 +190,6 @@ case class PhysicalOp(
     opExecInitInfo: OpExecInitInfo,
     // preference of parallelism
     parallelizable: Boolean = true,
-    // input/output schemas
-    schemaInfo: Option[OperatorSchemaInfo] = None,
     // preference of worker placement
     locationPreference: Option[LocationPreference] = None,
     // requirement of partition policy (hash/range/single/none) on inputs
@@ -200,8 +199,8 @@ case class PhysicalOp(
     derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink])] = Map.empty,
-    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink])] = Map.empty,
+    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Schema)] = Map.empty,
+    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Schema)] = Map.empty,
     // input ports that are blocking
     blockingInputs: List[PortIdentity] = List(),
     isOneToManyOp: Boolean = false,
@@ -212,7 +211,7 @@ case class PhysicalOp(
   // all the "dependee" links are also blocking inputs
   private lazy val realBlockingInputs: List[PortIdentity] =
     (blockingInputs ++ inputPorts.values.flatMap({
-      case (port, _) => port.dependencies
+      case (port, _, _) => port.dependencies
     })).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
@@ -248,13 +247,6 @@ case class PhysicalOp(
     opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
   }
 
-  def getOutputSchema: Schema = {
-    if (!isPythonOperator) {
-      throw new RuntimeException("operator " + id + " is not a python operator")
-    }
-    schemaInfo.get.outputSchemas.head
-  }
-
   /**
     * creates a copy with the location preference information
     */
@@ -265,15 +257,27 @@ case class PhysicalOp(
   /**
     * creates a copy with the input ports
     */
-  def withInputPorts(inputs: List[InputPort]): PhysicalOp = {
-    this.copy(inputPorts = inputs.map(input => input.id -> (input, List())).toMap)
+  def withInputPorts(
+      inputs: List[InputPort],
+      inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema]
+  ): PhysicalOp = {
+    this.copy(inputPorts =
+      inputs.map(input => input.id -> (input, List(), inputPortToSchemaMapping(input.id))).toMap
+    )
   }
 
   /**
     * creates a copy with the output ports
     */
-  def withOutputPorts(outputs: List[OutputPort]): PhysicalOp = {
-    this.copy(outputPorts = outputs.map(output => output.id -> (output, List())).toMap)
+  def withOutputPorts(
+      outputs: List[OutputPort],
+      outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema]
+  ): PhysicalOp = {
+    this.copy(outputPorts =
+      outputs
+        .map(output => output.id -> (output, List(), outputPortToSchemaMapping(output.id)))
+        .toMap
+    )
   }
 
   /**
@@ -315,12 +319,6 @@ case class PhysicalOp(
     this.copy(isOneToManyOp = isOneToManyOp)
 
   /**
-    * creates a copy with the schema information
-    */
-  def withOperatorSchemaInfo(schemaInfo: OperatorSchemaInfo): PhysicalOp =
-    this.copy(schemaInfo = Some(schemaInfo))
-
-  /**
     * creates a copy with the blocking input port indices
     */
   def withBlockingInputs(blockingInputs: List[PortIdentity]): PhysicalOp = {
@@ -333,10 +331,10 @@ case class PhysicalOp(
   def addInputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.toOpId == id)
     assert(inputPorts.contains(link.toPortId))
-    val (port, existingLinks) = inputPorts(link.toPortId)
+    val (port, existingLinks, schema) = inputPorts(link.toPortId)
     val newLinks = existingLinks :+ link
     this.copy(
-      inputPorts = inputPorts + (link.toPortId -> (port, newLinks))
+      inputPorts = inputPorts + (link.toPortId -> (port, newLinks, schema))
     )
   }
 
@@ -346,10 +344,10 @@ case class PhysicalOp(
   def addOutputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.fromOpId == id)
     assert(outputPorts.contains(link.fromPortId))
-    val (port, existingLinks) = outputPorts(link.fromPortId)
+    val (port, existingLinks, schema) = outputPorts(link.fromPortId)
     val newLinks = existingLinks :+ link
     this.copy(
-      outputPorts = outputPorts + (link.fromPortId -> (port, newLinks))
+      outputPorts = outputPorts + (link.fromPortId -> (port, newLinks, schema))
     )
   }
 
@@ -358,10 +356,10 @@ case class PhysicalOp(
     */
   def removeInputLink(linkToRemove: PhysicalLink): PhysicalOp = {
     val portId = linkToRemove.toPortId
-    val (port, existingLinks) = inputPorts(portId)
+    val (port, existingLinks, schema) = inputPorts(portId)
     this.copy(
       inputPorts =
-        inputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove)))
+        inputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove), schema))
     )
   }
 
@@ -370,10 +368,10 @@ case class PhysicalOp(
     */
   def removeOutputLink(linkToRemove: PhysicalLink): PhysicalOp = {
     val portId = linkToRemove.fromPortId
-    val (port, existingLinks) = outputPorts(portId)
+    val (port, existingLinks, schema) = outputPorts(portId)
     this.copy(
       outputPorts =
-        outputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove)))
+        outputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove), schema))
     )
   }
 
