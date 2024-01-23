@@ -8,7 +8,6 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import java.util
@@ -139,6 +138,17 @@ case class LogicalPlan(
       .toMap
   }
 
+  def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
+
+    operators
+      .map(operator => {
+        operator.operatorIdentifier -> operator.operatorInfo.inputPorts.map(inputPort =>
+          operator.inputPortToSchemaMapping.get(inputPort.id)
+        )
+      })
+      .toMap
+  }
+
   def propagateWorkflowSchema(
       context: WorkflowContext,
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
@@ -179,11 +189,7 @@ case class LogicalPlan(
             op.operatorInfo.outputPorts.foreach(outputPort =>
               op.outputPortToSchemaMapping(outputPort.id) = outputSchemas(outputPort.id.id)
             )
-
-            if (!op.isInstanceOf[SinkOpDesc] && outputSchemas.nonEmpty) {
-              assert(outputSchemas.length == op.operatorInfo.outputPorts.length)
-            }
-
+            assert(outputSchemas.length == op.operatorInfo.outputPorts.length)
           case Failure(err) =>
             logger.error("got error", err)
             errorList match {

@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
+import edu.uci.ics.amber.engine.common.workflow.OutputPort;
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
@@ -73,7 +74,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 "View the results",
                 OperatorGroupConstants.UTILITY_GROUP(),
                 asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                List.empty(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,

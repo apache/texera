@@ -101,9 +101,9 @@ class WorkflowCompiler(
     updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
       assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
     }
-    // the updated physical plan's all sink operators should have 0 output ports
+    // the updated physical plan's all sink operators should have 1 output ports
     updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
+      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.size == 1)
     }
 
     Workflow(
