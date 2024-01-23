@@ -418,15 +418,18 @@ class ExpansionGreedyRegionPlanGenerator(
       }
     val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromPortId.id)
     // we currently expect only one output schema
-    matWriterLogicalOp.inputPortToSchemaMapping(
-      matWriterLogicalOp.operatorInfo().inputPorts.head.id
-    ) = matWriterInputSchema
+    val inputPort = matWriterLogicalOp.operatorInfo().inputPorts.head
+    val outputPort = matWriterLogicalOp.operatorInfo().outputPorts.head
+    matWriterLogicalOp.inputPortToSchemaMapping(inputPort.id) = matWriterInputSchema
+    val matWriterOutputSchema = matWriterLogicalOp.getOutputSchema(Array(matWriterInputSchema))
+    matWriterLogicalOp.outputPortToSchemaMapping(outputPort.id) = matWriterOutputSchema
     val matWriterPhysicalOp = matWriterLogicalOp
       .getPhysicalOp(
         context.workflowId,
         context.executionId
       )
-      .withInputPorts(List(InputPort()), matWriterLogicalOp.inputPortToSchemaMapping.toMap)
+      .withInputPorts(List(inputPort), matWriterLogicalOp.inputPortToSchemaMapping.toMap)
+      .withOutputPorts(List(outputPort), matWriterLogicalOp.outputPortToSchemaMapping.toMap)
     matWriterLogicalOp.setStorage(
       opResultStorage.create(
         key = matWriterLogicalOp.operatorIdentifier,
