@@ -95,7 +95,10 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                                     worker -> new ScatterplotOpExec(this, operatorSchemaInfo)
                     )
                 )
-                .withIsOneToManyOp(true).withParallelizable(!isGeometric);
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts())
+                .withIsOneToManyOp(true)
+                .withParallelizable(!isGeometric);
     }
 
     @Override

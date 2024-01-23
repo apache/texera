@@ -61,6 +61,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(true)
+                    .withInputPorts(operatorInfo().inputPorts())
+                    .withOutputPorts(operatorInfo().outputPorts())
                     .withOperatorSchemaInfo(operatorSchemaInfo)
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
@@ -72,6 +74,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(false)
+                    .withInputPorts(operatorInfo().inputPorts())
+                    .withOutputPorts(operatorInfo().outputPorts())
                     .withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
         }
 
