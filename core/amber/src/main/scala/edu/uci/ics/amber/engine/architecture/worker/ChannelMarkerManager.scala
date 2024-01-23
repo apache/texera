@@ -12,7 +12,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Ch
 
 import scala.collection.mutable
 
-class ChannelMarkerManager(inputGateway: InputGateway, val actorId: ActorVirtualIdentity)
+class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
     extends AmberLogging {
 
   private val markerReceived =
@@ -44,7 +44,6 @@ class ChannelMarkerManager(inputGateway: InputGateway, val actorId: ActorVirtual
     val markerId = marker.id
     markerReceived.update(markerId, markerReceived(markerId) + from)
     // check if the epoch marker is completed
-    // TODO: rework the following logic to support control channels between workers
     val upstreams = marker.scope.filter(_.to == actorId)
     val sendersWithinScope = inputGateway.getAllChannels
       .map(_.channelId)

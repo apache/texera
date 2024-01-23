@@ -147,7 +147,7 @@ class DataProcessor(
   val outputManager: OutputManager =
     new OutputManager(actorId, outputGateway)
   // 6. epoch manager
-  val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(inputGateway, actorId)
+  val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
 
   // dp thread stats:
   protected var inputTupleCount = 0L
@@ -346,11 +346,11 @@ class DataProcessor(
         asyncRPCServer.receive(command.get, channelId.from)
       }
       // if this operator is not the final destination of the marker, pass it downstream
-      val downstreamLinksInScope = marker.scope.filter(_.from == actorId)
-      if (downstreamLinksInScope.nonEmpty) {
-        outputManager.flush(Some(downstreamLinksInScope))
+      val downstreamChannelsInScope = marker.scope.filter(_.from == actorId)
+      if (downstreamChannelsInScope.nonEmpty) {
+        outputManager.flush(Some(downstreamChannelsInScope))
         outputGateway.getActiveChannels.foreach { activeChannelId =>
-          if (downstreamLinksInScope.contains(activeChannelId)) {
+          if (downstreamChannelsInScope.contains(activeChannelId)) {
             logger.info(
               s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${command}"
             )

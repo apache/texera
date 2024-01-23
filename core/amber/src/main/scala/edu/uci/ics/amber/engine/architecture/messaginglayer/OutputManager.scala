@@ -116,16 +116,16 @@ class OutputManager(
     * is specified with a set of 'PhysicalLink's, only the buffers corresponding to those links are flushed.
     * If 'onlyFor' is None, all network output buffers are flushed.
     *
-    * @param onlyFor An optional set of 'PhysicalLink' indicating the specific buffers to flush.
+    * @param onlyFor An optional set of 'ChannelID' indicating the specific buffers to flush.
     *                If None, all buffers are flushed. Default value is None.
     */
   def flush(onlyFor: Option[Set[ChannelID]] = None): Unit = {
     val buffersToFlush = onlyFor match {
-      case Some(links) =>
+      case Some(channelIds) =>
         networkOutputBuffers
           .filter(out => {
             val channel = ChannelID(selfID, out._1._2, isControl = false)
-            links.contains(channel)
+            channelIds.contains(channel)
           })
           .values
       case None => networkOutputBuffers.values
