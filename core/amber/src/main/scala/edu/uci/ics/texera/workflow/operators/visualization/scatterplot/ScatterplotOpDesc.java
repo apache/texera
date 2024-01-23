@@ -15,7 +15,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
 import edu.uci.ics.amber.engine.common.workflow.OutputPort;
@@ -75,9 +74,10 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
-        AttributeType xType = operatorSchemaInfo.inputSchemas()[0].getAttribute(xColumn).getType();
-        AttributeType yType = operatorSchemaInfo.inputSchemas()[0].getAttribute(yColumn).getType();
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+        Schema inputSchema = this.inputPortToSchemaMapping().get(this.operatorInfo().inputPorts().head().id()).get();
+        AttributeType xType = inputSchema.getAttribute(xColumn).getType();
+        AttributeType yType = inputSchema.getAttribute(yColumn).getType();
         Set<AttributeType> allowedAttributeTypesNumbersOnly = EnumSet.of(DOUBLE, INTEGER); //currently, the frontend has limitation it doesn't accept axes of type long
         if (!allowedAttributeTypesNumbersOnly.contains(xType)) {
             throw new IllegalArgumentException(xColumn + " is not a number \n");
@@ -92,10 +92,13 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                     this.operatorIdentifier(),
                     OpExecInitInfo.apply(
                             (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                    worker -> new ScatterplotOpExec(this, operatorSchemaInfo)
+                                    worker -> new ScatterplotOpExec(this)
                     )
                 )
-                .withIsOneToManyOp(true).withParallelizable(!isGeometric);
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
+                .withIsOneToManyOp(true)
+                .withParallelizable(!isGeometric);
     }
 
     @Override

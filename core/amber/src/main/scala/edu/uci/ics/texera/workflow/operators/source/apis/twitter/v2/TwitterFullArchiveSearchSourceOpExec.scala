@@ -1,11 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
@@ -21,16 +17,12 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
 class TwitterFullArchiveSearchSourceOpExec(
-    desc: TwitterFullArchiveSearchSourceOpDesc,
-    operatorSchemaInfo: OperatorSchemaInfo
+    desc: TwitterFullArchiveSearchSourceOpDesc
 ) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
-  val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo
-    .outputSchemas(0)
-    .getAttributes
-    .map((attribute: Attribute) => {
-      attribute.getType
-    })
-    .toArray
+  val outputSchema: Schema = desc.operatorInfo.outputPorts
+    .map(outputPort => desc.outputPortToSchemaMapping(outputPort.id))
+    .head
+
   var curLimit: Int = desc.limit
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _
@@ -70,7 +62,7 @@ class TwitterFullArchiveSearchSourceOpExec(
 
         val user = userCache.get(tweet.getAuthorId)
 
-        tweetDataToTuple(tweet, user, operatorSchemaInfo.outputSchemas(0))
+        tweetDataToTuple(tweet, user, outputSchema)
       }
     }
 

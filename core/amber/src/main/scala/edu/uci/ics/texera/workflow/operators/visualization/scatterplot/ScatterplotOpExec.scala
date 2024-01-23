@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.visualization.scatterplot
 
-import edu.uci.ics.amber.engine.common.{AmberConfig}
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 /**
   * Scatterplot operator to visualize the result as a scatterplot
@@ -32,10 +32,12 @@ object ScatterplotOpExec {
 }
 
 class ScatterplotOpExec(
-    private val opDesc: ScatterplotOpDesc,
-    private val operatorSchemaInfo: OperatorSchemaInfo
+    private val opDesc: ScatterplotOpDesc
 ) extends FlatMapOpExec {
   this.setFlatMapFunc(this.process)
+  val outputSchema: Schema = opDesc.operatorInfo.outputPorts
+    .map(outputPort => opDesc.outputPortToSchemaMapping(outputPort.id))
+    .head
 
   private val MAX_RESOLUTION_ROWS = AmberConfig.MAX_RESOLUTION_ROWS
   private val MAX_RESOLUTION_COLUMNS = AmberConfig.MAX_RESOLUTION_COLUMNS
@@ -69,7 +71,7 @@ class ScatterplotOpExec(
 
     Iterator(
       Tuple
-        .newBuilder(operatorSchemaInfo.outputSchemas(0))
+        .newBuilder(outputSchema)
         .addSequentially(Array(t.getField(opDesc.xColumn), t.getField(opDesc.yColumn)))
         .build
     )

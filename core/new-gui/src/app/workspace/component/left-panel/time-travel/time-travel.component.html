@@ -35,9 +35,8 @@
           <div class="interaction-container">
             <ng-container *ngFor="let interaction of interactionHistories[execution.eId]">
               <button
-                nz-popconfirm
-                nzPopconfirmTitle="Revert to this interaction will kill the current execution, do you want to proceed?"
-                (nzOnConfirm)="onInteractionClick(execution.vId, execution.eId, interaction)"
+                [disabled]="execution.eId === revertedToInteraction?.eid && interaction === revertedToInteraction?.interaction"
+                (click)="onInteractionClick(execution.vId, execution.eId, interaction)"
                 class="interaction-item">
                 {{ interaction }}
               </button>
