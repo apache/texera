@@ -672,6 +672,7 @@ export class WorkflowActionService {
       const commentBoxes = workflowContent.commentBoxes;
 
       operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
+      console.log(operatorsAndPositions);
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
