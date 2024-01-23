@@ -3,7 +3,11 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
@@ -266,14 +270,16 @@ case class PhysicalPlan(
   }
 
   def getConnectedComponents: Set[Set[PhysicalOpIdentity]] = {
-    val components : Set[Set[PhysicalOpIdentity]] = getSourceOperatorIds.map(
-      sourcePhysicalOpId =>  getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
+    val components: Set[Set[PhysicalOpIdentity]] = getSourceOperatorIds.map(sourcePhysicalOpId =>
+      getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
     )
 
-    def unionSetsWithCommonElements(sets: Set[Set[PhysicalOpIdentity]]): Set[Set[PhysicalOpIdentity]] = {
+    def unionSetsWithCommonElements(
+        sets: Set[Set[PhysicalOpIdentity]]
+    ): Set[Set[PhysicalOpIdentity]] = {
       sets.foldLeft(Set.empty[Set[PhysicalOpIdentity]]) { (result, currentSet) =>
         val (intersected, others) = result.partition(_.intersect(currentSet).nonEmpty)
-        Set(currentSet ++ intersected.flatten) ++  others
+        Set(currentSet ++ intersected.flatten) ++ others
       }
     }
     unionSetsWithCommonElements(components)
