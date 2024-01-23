@@ -2,12 +2,7 @@ package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -34,7 +29,6 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   before {
     opExec = new SortPartitionOpExec(
       "field2",
-      OperatorSchemaInfo(Array(tupleSchema), Array(tupleSchema)),
       0,
       0,
       6,

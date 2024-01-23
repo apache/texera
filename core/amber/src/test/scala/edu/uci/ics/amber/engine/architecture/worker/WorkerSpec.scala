@@ -91,8 +91,8 @@ class WorkerSpec
       OpExecInitInfo((_, _, _) => mockOpExecutor)
     )
     .copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink))),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink)))
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
+      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
 
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
