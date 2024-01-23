@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.gene
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   LinkConfig,
   OperatorConfig,
-  RegionConfig
+  ResourceConfig
 }
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
@@ -39,8 +39,8 @@ class DefaultResourceAllocator(
     *
     * @param region The region for which to allocate resources.
     * @return A tuple containing:
-    *         1) A new Region instance with new configuration.
-    *         2) An estimated cost of the workflow with the new configuration,
+    *         1) A new Region instance with new resource configuration.
+    *         2) An estimated cost of the workflow with the new resource configuration,
     *         represented as a Double value (currently set to 0, but will be
     *         updated in the future).
     */
@@ -73,9 +73,9 @@ class DefaultResourceAllocator(
 
     linkConfigs ++= linkToLinkConfigMapping
 
-    val config = RegionConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
+    val resourceConfig = ResourceConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
 
-    (region.copy(config = Some(config)), 0)
+    (region.copy(resourceConfig = Some(resourceConfig)), 0)
   }
 
   /**

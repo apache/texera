@@ -134,6 +134,7 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Unit = {
     val builtOpsInRegion = new mutable.HashSet[PhysicalOpIdentity]()
+    val resourceConfig = region.resourceConfig.get
     var frontier = region.sourcePhysicalOpIds
     while (frontier.nonEmpty) {
       frontier.foreach { (physicalOpId: PhysicalOpIdentity) =>
@@ -141,7 +142,7 @@ class WorkflowScheduler(
           buildOperator(
             workflow,
             physicalOpId,
-            region.config.get.operatorConfigs(physicalOpId),
+            resourceConfig.operatorConfigs(physicalOpId),
             akkaActorService
           )
           builtPhysicalOpIds.add(physicalOpId)
