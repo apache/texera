@@ -58,7 +58,10 @@ class ExecutionStatsService(
             val res = OperatorRuntimeStats(
               newStats.state,
               newStats.inputCount - oldStats.inputCount,
-              newStats.outputCount - oldStats.outputCount
+              newStats.outputCount - oldStats.outputCount,
+              newStats.dataProcessingTime - oldStats.dataProcessingTime,
+              newStats.controlProcessingTime - oldStats.controlProcessingTime,
+              newStats.idleTime - oldStats.idleTime
             )
             (newId, res)
         })
@@ -72,7 +75,10 @@ class ExecutionStatsService(
               val res = OperatorStatistics(
                 Utils.aggregatedStateToString(stats.state),
                 stats.inputCount,
-                stats.outputCount
+                stats.outputCount,
+                stats.dataProcessingTime,
+                stats.controlProcessingTime,
+                stats.idleTime
               )
               (x._1, res)
           })

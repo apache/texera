@@ -152,6 +152,9 @@ class DataProcessor(
   // dp thread stats:
   protected var inputTupleCount = 0L
   protected var outputTupleCount = 0L
+  var startTime = 0L
+  var totalExecutionTime = 0L
+  var dataProcessingTime = 0L
 
   def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLink): Unit = {
     upstreamLinkStatus.registerInput(identifier, input)
@@ -180,7 +183,7 @@ class DataProcessor(
     *
     * @return (input tuple count, output tuple count)
     */
-  def collectStatistics(): (Long, Long) = (inputTupleCount, outputTupleCount)
+  def collectStatistics(): (Long, Long, Long, Long, Long) = (inputTupleCount, outputTupleCount, dataProcessingTime, controlProcessingTime, totalExecutionTime - dataProcessingTime - controlProcessingTime)
 
   /** process currentInputTuple through operator logic.
     * this function is only called by the DP thread
@@ -265,12 +268,14 @@ class DataProcessor(
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
   def continueDataProcessing(): Unit = {
+    val dataProcessingStartTime = System.nanoTime()
     if (hasUnfinishedOutput) {
       outputOneTuple()
     } else {
       currentInputIdx += 1
       processInputTuple(Left(inputBatch(currentInputIdx)))
     }
+    dataProcessingTime += (System.nanoTime() - dataProcessingStartTime)
   }
 
   private[this] def initBatch(channel: ChannelID, batch: Array[ITuple]): Unit = {
@@ -293,6 +298,7 @@ class DataProcessor(
       channel: ChannelID,
       dataPayload: DataPayload
   ): Unit = {
+    val dataProcessingStartTime = System.nanoTime()
     dataPayload match {
       case DataFrame(tuples) =>
         stateManager.conditionalTransitTo(
@@ -325,6 +331,7 @@ class DataProcessor(
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }
+    dataProcessingTime += (System.nanoTime() + dataProcessingStartTime)
   }
 
   def processChannelMarker(

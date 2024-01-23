@@ -59,6 +59,7 @@ class DPThread(
   @volatile
   private var stopped = false
 
+  // TODO: READY - COMPLETE (ABORT)
   def start(): Unit = {
     if (dpThreadExecutor != null) {
       logger.info("DP Thread is already running")
@@ -77,6 +78,7 @@ class DPThread(
           Thread.currentThread().setName(getThreadName)
           logger.info("DP thread started")
           startFuture.complete(Unit)
+          dp.startTime = System.nanoTime()
           try {
             runDPThreadMainLogic()
           } catch safely {
@@ -90,6 +92,7 @@ class DPThread(
                 CONTROLLER
               )
           }
+          dp.totalExecutionTime += (System.nanoTime() - dp.startTime)
           endFuture.complete(Unit)
         }
       })
@@ -187,6 +190,7 @@ class DPThread(
           }
         }
       }
+      dp.totalExecutionTime += (System.nanoTime() - dp.startTime)
       // End of Main loop
     }
   }

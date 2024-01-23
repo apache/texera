@@ -15,7 +15,7 @@ trait QueryStatisticsHandler {
 
   registerHandler { (msg: QueryStatistics, sender) =>
     // collect input and output row count
-    val (in, out) = dp.collectStatistics()
+    val (in, out, dataProcessingTime, controlProcessingTime, idleTime) = dp.collectStatistics()
 
     // sink operator doesn't output to downstream so internal count is 0
     // but for user-friendliness we show its input count as output count
@@ -28,7 +28,7 @@ trait QueryStatisticsHandler {
 
     val state = dp.stateManager.getCurrentState
 
-    WorkerStatistics(state, in, displayOut)
+    WorkerStatistics(state, in, displayOut, dataProcessingTime, controlProcessingTime, idleTime)
   }
 
 }
