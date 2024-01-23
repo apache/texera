@@ -346,6 +346,7 @@
           <span> {{ runButtonText }} </span>
         </button>
         <button
+          *ngIf="userSystemEnabled"
           (click)="handleInteraction()"
           title="add interaction"
           [disabled]="!userSystemEnabled || executionState !== ExecutionState.Paused"

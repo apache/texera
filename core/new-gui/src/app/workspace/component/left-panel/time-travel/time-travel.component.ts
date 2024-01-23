@@ -128,4 +128,6 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
         this.executeWorkflowService.executeWorkflowAmberTexeraWithReplay(replayExecutionInfo);
       });
   }
+
+  protected readonly requestIdleCallback = requestIdleCallback;
 }
