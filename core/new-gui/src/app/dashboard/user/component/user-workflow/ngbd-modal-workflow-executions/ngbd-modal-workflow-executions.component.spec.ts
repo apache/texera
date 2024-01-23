@@ -40,6 +40,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     status: 3,
     result: "",
     bookmarked: false,
+    logLocation: "",
   };
 
   const testWorkflowExecution2: WorkflowExecutionsEntry = {
@@ -53,6 +54,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     status: 3,
     result: "",
     bookmarked: false,
+    logLocation: "",
   };
 
   const testWorkflowExecution3: WorkflowExecutionsEntry = {
@@ -66,6 +68,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     status: 3,
     result: "",
     bookmarked: true,
+    logLocation: "",
   };
 
   const testWorkflowExecution4: WorkflowExecutionsEntry = {
@@ -79,6 +82,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     status: 1,
     result: "",
     bookmarked: false,
+    logLocation: "",
   };
 
   const testWorkflowExecution5: WorkflowExecutionsEntry = {
@@ -92,6 +96,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     status: 2,
     result: "",
     bookmarked: true,
+    logLocation: "",
   };
 
   const testWorkflowExecution6: WorkflowExecutionsEntry = {
@@ -105,6 +110,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     status: 5,
     result: "",
     bookmarked: false,
+    logLocation: "",
   };
 
   const testWorkflowExecution7: WorkflowExecutionsEntry = {
@@ -118,6 +124,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     status: 4,
     result: "",
     bookmarked: false,
+    logLocation: "",
   };
 
   const testExecutionEntries: WorkflowExecutionsEntry[] = [

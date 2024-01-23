@@ -9,4 +9,5 @@ export interface WorkflowExecutionsEntry {
   status: number;
   result: string;
   bookmarked: boolean;
+  logLocation: string;
 }

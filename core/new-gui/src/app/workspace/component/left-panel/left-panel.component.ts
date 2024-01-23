@@ -4,6 +4,8 @@ import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { ComponentType } from "@angular/cdk/overlay";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { TimeTravelComponent } from "./time-travel/time-travel.component";
+import { environment } from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -12,12 +14,15 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent {
-  currentComponent: ComponentType<OperatorMenuComponent | VersionsListComponent>;
+  currentComponent: ComponentType<OperatorMenuComponent | VersionsListComponent | TimeTravelComponent>;
   title = "Operators";
   screenWidth = window.innerWidth;
   width = 240;
   id = -1;
   disabled = false;
+
+  // whether user dashboard is enabled and accessible from the workspace
+  public userSystemEnabled: boolean = environment.userSystemEnabled;
 
   onResize({ width }: NzResizeEvent): void {
     cancelAnimationFrame(this.id);
@@ -33,6 +38,11 @@ export class LeftPanelComponent {
   openVersionsFrame(): void {
     this.currentComponent = VersionsListComponent;
     this.title = "Versions";
+  }
+
+  openTimeTravelFrame(): void {
+    this.currentComponent = TimeTravelComponent;
+    this.title = "Time Travel";
   }
 
   openOperatorMenu(): void {

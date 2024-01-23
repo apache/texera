@@ -345,6 +345,18 @@
             nzType="{{ runIcon }}"></i>
           <span> {{ runButtonText }} </span>
         </button>
+        <button
+          *ngIf="userSystemEnabled"
+          (click)="handleInteraction()"
+          title="add interaction"
+          [disabled]="!userSystemEnabled || executionState !== ExecutionState.Paused"
+          id="interaction-button"
+          nz-button
+          nzType="primary">
+          <i
+            nz-icon
+            nzType="audit"></i>
+        </button>
         <ng-template #execution_name>
           <input
             [(ngModel)]="currentExecutionName"
