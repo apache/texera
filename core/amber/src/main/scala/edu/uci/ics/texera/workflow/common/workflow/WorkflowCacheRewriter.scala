@@ -115,7 +115,9 @@ object WorkflowCacheRewriter {
               storageType
             )
           )
-          sink.getStorage.setSchema(logicalPlan.getOpOutputSchemas(o.operatorIdentifier).head)
+          sink.getStorage.setSchema(
+            logicalPlan.getOperator(storageKey).outputPortToSchemaMapping.values.head
+          )
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()
           storageNode.put("storageType", storageType)
