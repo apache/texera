@@ -21,11 +21,6 @@
                 "glob": "**/*",
                 "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
                 "output": "/assets/"
-              },
-              {
-                "glob": "**/*",
-                "input": "node_modules/monaco-editor",
-                "output": "assets/monaco-editor"
               }
             ],
             "styles": [
@@ -34,6 +29,7 @@
               "node_modules/jointjs/css/themes/material.css",
               "node_modules/jointjs/css/themes/default.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
+              "node_modules/monaco-editor/min/vs/editor/editor.main.css",
               "src/styles.scss"
             ],
             "scripts": [
