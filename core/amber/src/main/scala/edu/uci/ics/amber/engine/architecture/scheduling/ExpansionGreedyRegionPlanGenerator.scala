@@ -3,10 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
@@ -95,18 +92,16 @@ class ExpansionGreedyRegionPlanGenerator(
     */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val nonBlockingDAG = physicalPlan.removeBlockingLinks()
-    nonBlockingDAG.getSourceOperatorIds.zipWithIndex
-      .map {
-        case (sourcePhysicalOpId, index) =>
-          val operatorIds =
-            nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
-          val links = operatorIds.flatMap(operatorId => {
-            physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
-              .getDownstreamPhysicalLinks(operatorId)
-          })
-          Region(RegionIdentity((index + 1).toString), operatorIds, links)
-      }
+    nonBlockingDAG.getConnectedComponents.zipWithIndex.map {
+      case (operatorIds, idx) =>
+        val links = operatorIds.flatMap(operatorId => {
+          physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
+            .getDownstreamPhysicalLinks(operatorId)
+        })
+        Region(RegionIdentity(idx.toString), operatorIds, links)
+    }
   }
+
 
   /**
     * Try connect the regions in the DAG while respecting the dependencies of PhysicalLinks (e.g., HashJoin).
