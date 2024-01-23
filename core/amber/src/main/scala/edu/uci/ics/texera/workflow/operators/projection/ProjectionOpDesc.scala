@@ -35,8 +35,8 @@ class ProjectionOpDesc extends MapOpDesc {
       operatorIdentifier,
       OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, outputSchema))
     )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withDerivePartition(derivePartition())
   }
 

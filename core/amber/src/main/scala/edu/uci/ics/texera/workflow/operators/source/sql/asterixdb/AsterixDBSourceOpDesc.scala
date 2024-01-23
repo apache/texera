@@ -125,8 +125,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
 
   override def sourceSchema(): Schema = {
     if (this.host == null || this.port == null || this.database == null || this.table == null)

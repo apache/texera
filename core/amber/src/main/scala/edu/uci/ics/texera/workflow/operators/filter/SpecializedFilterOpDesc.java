@@ -41,8 +41,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                                         x -> new SpecializedFilterOpExec(this)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), getInputPortSchemas())
-                .withOutputPorts(operatorInfo().outputPorts(), getOutputPortSchemas());
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
     }
 
     @Override

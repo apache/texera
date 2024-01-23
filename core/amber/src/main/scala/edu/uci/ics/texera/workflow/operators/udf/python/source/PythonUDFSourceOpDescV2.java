@@ -60,8 +60,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(true)
-                    .withInputPorts(operatorInfo().inputPorts(), getInputPortSchemas())
-                    .withOutputPorts(operatorInfo().outputPorts(), getOutputPortSchemas())
+                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
         } else {
@@ -72,8 +72,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(false)
-                    .withInputPorts(operatorInfo().inputPorts(), getInputPortSchemas())
-                    .withOutputPorts(operatorInfo().outputPorts(), getOutputPortSchemas())
+                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
         }

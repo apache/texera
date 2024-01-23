@@ -71,8 +71,8 @@ class SortPartitionsOpDesc extends LogicalOp {
           )
         })
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withPartitionRequirement(partitionRequirement)
 
   }

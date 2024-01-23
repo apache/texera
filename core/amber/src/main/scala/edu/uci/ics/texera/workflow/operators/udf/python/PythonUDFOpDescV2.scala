@@ -79,8 +79,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
@@ -89,8 +89,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(false)

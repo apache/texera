@@ -55,8 +55,8 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "PostgreSQL Source",

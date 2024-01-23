@@ -8,11 +8,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+
+import scala.collection.mutable
 
 object AggregateOpDesc {
 
@@ -38,9 +39,9 @@ object AggregateOpDesc {
           )
         )
         .withIsOneToManyOp(true)
-        .withInputPorts(List(InputPort(PortIdentity())), Map(PortIdentity() -> inputSchema))
+        .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> inputSchema))
         // assume partial op's output is the same as global op's
-        .withOutputPorts(List(outputPort), Map(outputPort.id -> outputSchema))
+        .withOutputPorts(List(outputPort), mutable.Map(outputPort.id -> outputSchema))
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
@@ -54,8 +55,11 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // assume partial op's output is the same as global op's
-        .withInputPorts(List(inputPort), Map(inputPort.id -> outputSchema))
-        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity() -> outputSchema))
+        .withInputPorts(List(inputPort), mutable.Map(inputPort.id -> outputSchema))
+        .withOutputPorts(
+          List(OutputPort(PortIdentity(0))),
+          mutable.Map(PortIdentity() -> outputSchema)
+        )
     } else {
       val partitionColumns: List[Int] =
         if (groupByKeys == null) List()
@@ -74,8 +78,11 @@ object AggregateOpDesc {
         .withParallelizable(false)
         .withIsOneToManyOp(true)
         // assume partial op's output is the same as global op's
-        .withInputPorts(List(inputPort), Map(inputPort.id -> outputSchema))
-        .withOutputPorts(List(OutputPort(PortIdentity(0))), Map(PortIdentity() -> outputSchema))
+        .withInputPorts(List(inputPort), mutable.Map(inputPort.id -> outputSchema))
+        .withOutputPorts(
+          List(OutputPort(PortIdentity(0))),
+          mutable.Map(PortIdentity() -> outputSchema)
+        )
     }
 
     new PhysicalPlan(

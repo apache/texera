@@ -27,8 +27,8 @@ class CartesianProductOpDesc extends LogicalOp {
           new CartesianProductOpExec(inputSchemas(0), inputSchemas(1), outputSchema)
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       // TODO : refactor to parallelize this operator for better performance and scalability:
       //  can consider hash partition on larger input, broadcast smaller table to each partition

@@ -241,14 +241,4 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
     )
   }
 
-  @JsonIgnore
-  def getInputPortSchemas: Map[PortIdentity, Schema] = {
-    inputPortToSchemaMapping.toMap
-  }
-
-  @JsonIgnore
-  def getOutputPortSchemas: Map[PortIdentity, Schema] = {
-    outputPortToSchemaMapping.toMap
-  }
-
 }

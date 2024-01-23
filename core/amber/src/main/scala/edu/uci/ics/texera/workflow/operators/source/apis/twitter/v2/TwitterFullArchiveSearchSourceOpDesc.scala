@@ -51,8 +51,8 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new TwitterFullArchiveSearchSourceOpExec(this))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
 
   override def sourceSchema(): Schema = {
 

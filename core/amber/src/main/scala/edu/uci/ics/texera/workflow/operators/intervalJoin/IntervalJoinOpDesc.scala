@@ -94,8 +94,8 @@ class IntervalJoinOpDesc extends LogicalOp {
           new IntervalJoinOpExec(this, leftSchema, rightSchema, outputSchema)
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       .withPartitionRequirement(partitionRequirement)
   }

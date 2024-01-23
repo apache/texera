@@ -396,7 +396,7 @@ class ExpansionGreedyRegionPlanGenerator(
         context.workflowId,
         context.executionId
       )
-      .withOutputPorts(List(OutputPort()), materializationReader.outputPortToSchemaMapping.toMap)
+      .withOutputPorts(List(OutputPort()), materializationReader.outputPortToSchemaMapping)
 
     matReaderOp
   }
@@ -428,8 +428,8 @@ class ExpansionGreedyRegionPlanGenerator(
         context.workflowId,
         context.executionId
       )
-      .withInputPorts(List(inputPort), matWriterLogicalOp.inputPortToSchemaMapping.toMap)
-      .withOutputPorts(List(outputPort), matWriterLogicalOp.outputPortToSchemaMapping.toMap)
+      .withInputPorts(List(inputPort), matWriterLogicalOp.inputPortToSchemaMapping)
+      .withOutputPorts(List(outputPort), matWriterLogicalOp.outputPortToSchemaMapping)
     matWriterLogicalOp.setStorage(
       opResultStorage.create(
         key = matWriterLogicalOp.operatorIdentifier,

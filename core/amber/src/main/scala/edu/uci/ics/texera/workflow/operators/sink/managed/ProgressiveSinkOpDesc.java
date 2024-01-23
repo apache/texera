@@ -62,8 +62,8 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                                 worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter(), inputSchema)
                 )
         )
-                .withInputPorts(this.operatorInfo().inputPorts(), getInputPortSchemas())
-                .withOutputPorts(this.operatorInfo().outputPorts(), getOutputPortSchemas());
+                .withInputPorts(this.operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                .withOutputPorts(this.operatorInfo().outputPorts(), outputPortToSchemaMapping());
     }
 
     @Override

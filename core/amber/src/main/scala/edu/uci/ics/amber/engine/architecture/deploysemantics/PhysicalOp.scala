@@ -33,6 +33,7 @@ import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 object PhysicalOp {
@@ -258,7 +259,7 @@ case class PhysicalOp(
     */
   def withInputPorts(
       inputs: List[InputPort],
-      inputPortToSchemaMapping: Map[PortIdentity, Schema]
+      inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema]
   ): PhysicalOp = {
     this.copy(inputPorts =
       inputs.map(input => input.id -> (input, List(), inputPortToSchemaMapping(input.id))).toMap
@@ -270,7 +271,7 @@ case class PhysicalOp(
     */
   def withOutputPorts(
       outputs: List[OutputPort],
-      outputPortToSchemaMapping: Map[PortIdentity, Schema]
+      outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema]
   ): PhysicalOp = {
     this.copy(outputPorts =
       outputs

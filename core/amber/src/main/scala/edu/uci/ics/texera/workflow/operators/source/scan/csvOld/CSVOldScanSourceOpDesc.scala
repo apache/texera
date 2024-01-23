@@ -47,8 +47,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
             operatorIdentifier,
             OpExecInitInfo((_, _, _) => new CSVOldScanSourceOpExec(this))
           )
-          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       case None =>
         throw new RuntimeException("File path is not provided.")
     }

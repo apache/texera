@@ -48,8 +48,8 @@ public class TypeCastingOpDesc extends MapOpDesc {
                                         worker -> new TypeCastingOpExec(outputSchema)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), getInputPortSchemas())
-                .withOutputPorts(operatorInfo().outputPorts(), getOutputPortSchemas());
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
     }
 
     @Override

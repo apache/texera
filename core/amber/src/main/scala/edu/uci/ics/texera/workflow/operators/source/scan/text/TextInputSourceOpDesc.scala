@@ -28,8 +28,8 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping.toMap)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping.toMap)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
 
   override def sourceSchema(): Schema =
     Schema

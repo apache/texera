@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.unneststring
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -28,6 +29,8 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.attribute = "field1"
     opDesc.delimiter = "-"
     opDesc.resultAttribute = "split"
+    opDesc.inputPortToSchemaMapping(PortIdentity()) = tupleSchema
+    opDesc.outputPortToSchemaMapping(PortIdentity()) = opDesc.getOutputSchema(Array(tupleSchema))
     opExec = new UnnestStringOpExec(opDesc)
   }
 
