@@ -18,7 +18,7 @@ class ExecutionState(workflow: Workflow) {
         workflow.regionPlan.regions
           .find(region => region.getEffectiveLinks.contains(link))
           .get
-          .config
+          .resourceConfig
           .get
           .linkConfigs(link)
           .channelConfigs
