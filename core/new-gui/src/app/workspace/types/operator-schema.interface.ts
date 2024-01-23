@@ -13,7 +13,7 @@ import { CustomJSONSchema7 } from "./custom-json-schema.interface";
 export interface InputPortInfo
   extends Readonly<{
     displayName?: string;
-    allowMultiInputs?: boolean;
+    allowMultiLinks?: boolean;
     dependencies?: { id: number; internal: boolean }[];
   }> {}
 

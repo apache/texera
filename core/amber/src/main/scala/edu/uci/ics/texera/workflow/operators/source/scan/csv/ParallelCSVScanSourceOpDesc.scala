@@ -61,6 +61,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               )
             })
           )
+          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
           .withParallelizable(true)
 
       case None =>

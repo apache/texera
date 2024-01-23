@@ -1222,7 +1222,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       if (portIndex >= 0) {
         const portInfo =
           this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
-        allowMultiInput = portInfo?.allowMultiInputs ?? false;
+        allowMultiInput = portInfo?.allowMultiLinks ?? false;
       }
     }
     return !(connectedLinksToTargetPort.length > 0 && !allowMultiInput);
