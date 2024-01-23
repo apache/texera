@@ -2,7 +2,7 @@
   display: grid;
 }
 
-button[disabled] {
+.interaction-item[disabled] {
   pointer-events: none;
   color: #163aec;
   font-weight: bold;
