@@ -8,7 +8,7 @@
       "projectType": "application",
       "architect": {
         "build": {
-          "builder": "@angular-devkit/build-angular:browser",
+          "builder": "@angular-builders/custom-webpack:browser",
           "options": {
             "outputPath": "dist",
             "index": "src/index.html",
@@ -29,12 +29,14 @@
               "node_modules/jointjs/css/themes/material.css",
               "node_modules/jointjs/css/themes/default.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
-              "node_modules/monaco-editor/min/vs/editor/editor.main.css",
               "src/styles.scss"
             ],
             "scripts": [
               "./node_modules/marked/marked.min.js"
             ],
+            "customWebpackConfig": {
+              "path": "./custom-webpack.config.js"
+            },
             "allowedCommonJsDependencies": ["deep-map", "c3", "js-abbreviation-number", "dagre", "graphlib"],
             "vendorChunk": true,
             "extractLicenses": false,
@@ -69,7 +71,7 @@
           "defaultConfiguration": ""
         },
         "serve": {
-          "builder": "@angular-devkit/build-angular:dev-server",
+          "builder": "@angular-builders/custom-webpack:dev-server",
           "options": {
             "browserTarget": "texera-gui:build",
             "proxyConfig": "proxy.config.json"
