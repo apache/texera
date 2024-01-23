@@ -15,15 +15,11 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Tuple2;
 import scala.Tuple3;
 import scala.collection.immutable.List;
-import scala.collection.immutable.Map;
 
 
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.*;
@@ -37,15 +33,15 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         return PhysicalOp.oneToOnePhysicalOp(
-                workflowId,
-                executionId,
-                operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                x -> new SpecializedFilterOpExec(this)
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                        x -> new SpecializedFilterOpExec(this)
+                        )
                 )
-
-        )      .withInputPorts(operatorInfo().inputPorts(), getInputPortSchemas())
+                .withInputPorts(operatorInfo().inputPorts(), getInputPortSchemas())
                 .withOutputPorts(operatorInfo().outputPorts(), getOutputPortSchemas());
     }
 
@@ -56,7 +52,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
                 asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false),""))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 true,
