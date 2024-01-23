@@ -15,9 +15,8 @@ class ExecutionState(workflow: Workflow) {
   private val linkExecutions: Map[PhysicalLink, LinkExecution] =
     workflow.physicalPlan.links.map { link =>
       link -> new LinkExecution(
-        workflow.regionPlan.regions
-          .find(region => region.getEffectiveLinks.contains(link))
-          .get
+        workflow.regionPlan
+          .getRegionOfPhysicalLink(link)
           .resourceConfig
           .get
           .linkConfigs(link)
