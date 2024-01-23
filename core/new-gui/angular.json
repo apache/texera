@@ -24,10 +24,11 @@
               }
             ],
             "styles": [
-              "node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
               "node_modules/jointjs/css/layout.css",
               "node_modules/jointjs/css/themes/material.css",
               "node_modules/jointjs/css/themes/default.css",
+              "node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
+              "node_modules/ng-zorro-antd/resizable/style/index.min.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "src/styles.scss"
             ],

@@ -8,10 +8,6 @@ import { mockBreakpointSchema } from "./mock-operator-metadata.data";
 import { shareReplay } from "rxjs/operators";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
-
-const addDictionaryAPIAddress = "/api/resources/dictionary/";
-const getDictionaryAPIAddress = "/api/upload/dictionary/";
-
 // interface only containing public methods
 export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
 
@@ -36,11 +32,12 @@ export class OperatorMetadataService {
   private currentOperatorMetadata: OperatorMetadata | undefined;
   private readonly currentBreakpointSchema: BreakpointSchema | undefined;
 
-  private operatorMetadataObservable = this.httpClient
-    .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
-    .pipe(shareReplay(1));
+  private operatorMetadataObservable = new Observable<OperatorMetadata>();
 
   constructor(private httpClient: HttpClient) {
+    this.operatorMetadataObservable = this.httpClient
+      .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
+      .pipe(shareReplay(1));
     this.getOperatorMetadata().subscribe(data => {
       this.currentOperatorMetadata = data;
     });
@@ -100,10 +97,7 @@ export class OperatorMetadataService {
         return operatorTypeInMetadata === operatorType;
       }
     });
-    if (operator.length === 0) {
-      return false;
-    }
-    return true;
+    return operator.length !== 0;
   }
 
   /**
