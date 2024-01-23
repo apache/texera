@@ -277,11 +277,12 @@ case class PhysicalPlan(
     * of PhysicalOpIdentities.
     */
   def getConnectedComponents: Set[Set[PhysicalOpIdentity]] = {
-    val components: Set[Set[PhysicalOpIdentity]] = getSourceOperatorIds.map(sourcePhysicalOpId =>
-      getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
-    )
+    val componentCandidates: Set[Set[PhysicalOpIdentity]] =
+      getSourceOperatorIds.map(sourcePhysicalOpId =>
+        getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
+      )
 
-    def unionSetsWithCommonElements(
+    def unionComponents(
         sets: Set[Set[PhysicalOpIdentity]]
     ): Set[Set[PhysicalOpIdentity]] = {
       sets.foldLeft(Set.empty[Set[PhysicalOpIdentity]]) { (result, currentSet) =>
@@ -289,7 +290,7 @@ case class PhysicalPlan(
         Set(currentSet ++ intersected.flatten) ++ others
       }
     }
-    unionSetsWithCommonElements(components)
+    unionComponents(componentCandidates)
   }
 
 }
