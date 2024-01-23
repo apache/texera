@@ -409,7 +409,7 @@ class ExpansionGreedyRegionPlanGenerator(
     val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
     val fromOpInputSchema: Array[Schema] =
       if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {
-        logicalPlan.getOpInputSchemas(fromLogicalOp.operatorIdentifier).map(s => s.get).toArray
+        fromLogicalOp.inputPortToSchemaMapping.values.toArray
       } else {
         Array()
       }
