@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.dictionary
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -35,6 +36,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictinaryScan
     opDesc.resultAttribute = "matched"
     opDesc.matchingType = MatchingType.SCANBASED
+    opDesc.inputPortToSchemaMapping(PortIdentity()) = tupleSchema
+    opDesc.outputPortToSchemaMapping(PortIdentity()) = opDesc.getOutputSchema(Array(tupleSchema))
     opExec = new DictionaryMatcherOpExec(opDesc)
   }
 

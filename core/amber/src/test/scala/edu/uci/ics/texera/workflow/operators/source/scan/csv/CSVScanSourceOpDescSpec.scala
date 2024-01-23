@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
@@ -17,7 +18,11 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
   before {
     csvScanSourceOpDesc = new CSVScanSourceOpDesc()
+    csvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
+      csvScanSourceOpDesc.getOutputSchema(Array())
     parallelCsvScanSourceOpDesc = new ParallelCSVScanSourceOpDesc()
+    parallelCsvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
+      parallelCsvScanSourceOpDesc.getOutputSchema(Array())
   }
 
   it should "infer schema from single-line-data csv" in {
