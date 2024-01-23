@@ -7,7 +7,7 @@ import { YText } from "yjs/dist/src/types/YText";
 import { MonacoBinding } from "y-monaco";
 import { Subject } from "rxjs";
 import { takeUntil } from "rxjs/operators";
-import { CloseAction, ErrorAction, MessageTransports, MonacoLanguageClient } from "monaco-languageclient";
+import { MonacoLanguageClient } from "monaco-languageclient";
 import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
@@ -16,6 +16,7 @@ import { YType } from "../../types/shared-editing.interface";
 import { FormControl } from "@angular/forms";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
+import { CloseAction, ErrorAction, MessageTransports } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 
 /**
