@@ -189,11 +189,7 @@ case class LogicalPlan(
             op.operatorInfo.outputPorts.foreach(outputPort =>
               op.outputPortToSchemaMapping(outputPort.id) = outputSchemas(outputPort.id.id)
             )
-
-            if (!op.isInstanceOf[SinkOpDesc] && outputSchemas.nonEmpty) {
-              assert(outputSchemas.length == op.operatorInfo.outputPorts.length)
-            }
-
+            assert(outputSchemas.length == op.operatorInfo.outputPorts.length)
           case Failure(err) =>
             logger.error("got error", err)
             errorList match {
