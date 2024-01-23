@@ -135,6 +135,7 @@ import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
+import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
 
 registerLocaleData(en);
 
@@ -148,6 +149,7 @@ registerLocaleData(en);
     OperatorMenuComponent,
     PropertyEditorComponent,
     VersionsListComponent,
+    TimeTravelComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,

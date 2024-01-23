@@ -1,0 +1,30 @@
+.interaction-container {
+  display: grid;
+}
+
+.interaction-item[disabled] {
+  pointer-events: none;
+  color: #163aec;
+  font-weight: bold;
+}
+
+.interaction-item {
+  margin: 5px 0;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.interaction-item:hover {
+  background-color: #e6e6e6;
+  cursor: pointer;
+}
+
+#execution-list {
+  min-width: auto;
+}
