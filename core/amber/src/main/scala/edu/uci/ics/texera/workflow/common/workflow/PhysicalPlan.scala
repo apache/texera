@@ -269,28 +269,4 @@ case class PhysicalPlan(
     }
   }
 
-  /**
-    * A Physical Plan (which is DAG) could have multiple components.
-    * A component is connected subDAG that is not part of any larger connected subDAG.
-    *
-    * This method returns the set of components for this Physical Plan, each represented as a set
-    * of PhysicalOpIdentities.
-    */
-  def getConnectedComponents: Set[Set[PhysicalOpIdentity]] = {
-    val componentCandidates: Set[Set[PhysicalOpIdentity]] =
-      getSourceOperatorIds.map(sourcePhysicalOpId =>
-        getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
-      )
-
-    def unionComponents(
-        sets: Set[Set[PhysicalOpIdentity]]
-    ): Set[Set[PhysicalOpIdentity]] = {
-      sets.foldLeft(Set.empty[Set[PhysicalOpIdentity]]) { (result, currentSet) =>
-        val (intersected, others) = result.partition(_.intersect(currentSet).nonEmpty)
-        Set(currentSet ++ intersected.flatten) ++ others
-      }
-    }
-    unionComponents(componentCandidates)
-  }
-
 }
