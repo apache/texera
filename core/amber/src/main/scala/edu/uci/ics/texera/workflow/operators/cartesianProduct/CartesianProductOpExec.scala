@@ -11,10 +11,9 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import scala.collection.mutable.ArrayBuffer
 
-class CartesianProductOpExec(inputSchemas: List[Schema], outputSchema: Schema)
+class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSchema: Schema)
     extends OperatorExecutor {
-  val leftSchemaSize: Int = inputSchemas(0).getAttributesScala.length
-  val rightSchema: Schema = inputSchemas(1)
+  val leftSchemaSize: Int = leftSchema.getAttributesScala.length
   var leftTuples: ArrayBuffer[Tuple] = _
   var isLeftTupleCollectionFinished: Boolean = false
 

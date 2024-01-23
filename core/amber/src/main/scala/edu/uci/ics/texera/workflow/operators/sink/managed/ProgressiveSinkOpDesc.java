@@ -17,7 +17,6 @@ import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;

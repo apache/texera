@@ -2,12 +2,7 @@ package edu.uci.ics.texera.unittest.workflow.operators.visualization.scatterplot
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.{
   ScatterplotOpDesc,
   ScatterplotOpExec
@@ -42,10 +37,7 @@ class ScatterplotVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     desc.isGeometric = true
     desc.xColumn = "field1"
     desc.yColumn = "field2"
-    val outputSchema: Schema = desc.getOutputSchema(Array(tupleSchema))
-    val operatorSchemaInfo: OperatorSchemaInfo =
-      OperatorSchemaInfo(Array(tupleSchema), Array(outputSchema))
-    scatterplotOpExec = new ScatterplotOpExec(desc, operatorSchemaInfo)
+    scatterplotOpExec = new ScatterplotOpExec(desc)
     scatterplotOpExec.open()
   }
 
@@ -62,10 +54,7 @@ class ScatterplotVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "process the both points with the correct schema when the type is not geometric" in {
     desc.isGeometric = false
-    val outputSchema: Schema = desc.getOutputSchema(Array(tupleSchema))
-    val operatorSchemaInfo: OperatorSchemaInfo =
-      OperatorSchemaInfo(Array(tupleSchema), Array(outputSchema))
-    scatterplotOpExec = new ScatterplotOpExec(desc, operatorSchemaInfo)
+    scatterplotOpExec = new ScatterplotOpExec(desc)
     scatterplotOpExec.open()
     val processedTuple: Tuple =
       scatterplotOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()

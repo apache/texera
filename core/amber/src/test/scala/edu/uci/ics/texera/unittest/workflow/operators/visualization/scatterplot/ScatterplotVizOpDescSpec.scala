@@ -4,12 +4,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -67,8 +62,7 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     assertThrows[IllegalArgumentException] {
       scatterplotOpDesc.getPhysicalOp(
         DEFAULT_WORKFLOW_ID,
-        DEFAULT_EXECUTION_ID,
-        OperatorSchemaInfo(Array(wrongTypesSchema), Array(outputSchema))
+        DEFAULT_EXECUTION_ID
       )
     }
   }

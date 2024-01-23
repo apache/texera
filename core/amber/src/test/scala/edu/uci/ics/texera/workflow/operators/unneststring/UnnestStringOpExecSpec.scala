@@ -4,7 +4,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
@@ -29,10 +28,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.attribute = "field1"
     opDesc.delimiter = "-"
     opDesc.resultAttribute = "split"
-    val outputSchema: Schema = opDesc.getOutputSchema(Array(tupleSchema))
-    val operatorSchemaInfo: OperatorSchemaInfo =
-      OperatorSchemaInfo(Array(tupleSchema), Array(outputSchema))
-    opExec = new UnnestStringOpExec(opDesc, operatorSchemaInfo)
+    opExec = new UnnestStringOpExec(opDesc)
   }
 
   it should "open" in {

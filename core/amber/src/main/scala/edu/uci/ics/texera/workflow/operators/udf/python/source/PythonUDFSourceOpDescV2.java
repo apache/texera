@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Option;
 import edu.uci.ics.amber.engine.common.workflow.OutputPort;
