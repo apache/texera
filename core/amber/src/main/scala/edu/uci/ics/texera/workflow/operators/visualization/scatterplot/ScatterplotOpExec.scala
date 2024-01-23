@@ -35,8 +35,8 @@ class ScatterplotOpExec(
     private val opDesc: ScatterplotOpDesc
 ) extends FlatMapOpExec {
   this.setFlatMapFunc(this.process)
-  val outputSchema: Schema = opDesc.operatorInfo.inputPorts
-    .map(inputPort => opDesc.inputPortToSchemaMapping(inputPort.id))
+  val outputSchema: Schema = opDesc.operatorInfo.outputPorts
+    .map(outputPort => opDesc.outputPortToSchemaMapping(outputPort.id))
     .head
 
   private val MAX_RESOLUTION_ROWS = AmberConfig.MAX_RESOLUTION_ROWS
