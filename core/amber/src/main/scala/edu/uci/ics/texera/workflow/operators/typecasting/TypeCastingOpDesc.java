@@ -40,14 +40,16 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
         return PhysicalOp.oneToOnePhysicalOp(
-                workflowId,
-                executionId,
-                operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                        worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])
+                        )
                 )
-        );
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts());
     }
 
     @Override
@@ -57,7 +59,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Cast between types",
                 OperatorGroupConstants.UTILITY_GROUP(),
                 asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,

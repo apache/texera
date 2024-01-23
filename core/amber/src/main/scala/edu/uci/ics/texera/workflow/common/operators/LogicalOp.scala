@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
@@ -82,6 +83,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import org.apache.zookeeper.KeeperException.UnimplementedException
 
 import java.util.UUID
+import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
@@ -173,6 +175,11 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()
+
+  @JsonIgnore
+  val inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
+  @JsonIgnore
+  val outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
