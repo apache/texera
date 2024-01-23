@@ -90,17 +90,15 @@
     "tslib": "2.3.1",
     "uuid": "8.3.2",
     "vscode-ws-jsonrpc": "3.1.0",
-    "y-monaco": "0.1.5",
+    "y-monaco": "0.1.4",
     "y-protocols": "1.0.5",
     "y-quill": "0.1.5",
     "y-websocket": "1.4.0",
     "yjs": "13.5.41",
-    "zone.js": "0.11.4",
-    "@babel/helper-explode-assignable-expression": "^7.18.6"
+    "zone.js": "0.11.4"
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "14.1.0",
-    "babel-plugin-dynamic-import-node": "2.3.3",
     "@angular-devkit/build-angular": "~14.1.0",
     "@angular-eslint/eslint-plugin": "13.1.0",
     "@angular-eslint/eslint-plugin-template": "13.1.0",
