@@ -128,18 +128,6 @@ case class LogicalPlan(
   }
 
   def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
-
-    operators
-      .map(operator => {
-        operator.operatorIdentifier -> operator.operatorInfo.inputPorts.map(inputPort =>
-          operator.inputPortToSchemaMapping.get(inputPort.id)
-        )
-      })
-      .toMap
-  }
-
-  def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
-
     operators
       .map(operator => {
         operator.operatorIdentifier -> operator.operatorInfo.inputPorts.map(inputPort =>
