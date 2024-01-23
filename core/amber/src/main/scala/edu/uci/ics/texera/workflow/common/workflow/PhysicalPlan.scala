@@ -14,7 +14,6 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.JavaConverters._
-import scala.collection.{immutable, mutable}
 
 object PhysicalPlan {
 
@@ -135,10 +134,6 @@ case class PhysicalPlan(
 
   def getDownstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.fromOpId == physicalOpId)
-  }
-
-  def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
-    dag.getDescendants(physicalOpId).asScala.toSet
   }
 
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
