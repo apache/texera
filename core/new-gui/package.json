@@ -90,7 +90,7 @@
     "tslib": "2.3.1",
     "uuid": "8.3.2",
     "vscode-ws-jsonrpc": "3.1.0",
-    "y-monaco": "0.1.4",
+    "y-monaco": "0.1.5",
     "y-protocols": "1.0.5",
     "y-quill": "0.1.5",
     "y-websocket": "1.4.0",
