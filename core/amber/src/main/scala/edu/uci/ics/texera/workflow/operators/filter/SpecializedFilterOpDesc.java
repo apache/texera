@@ -33,15 +33,15 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
         return PhysicalOp.oneToOnePhysicalOp(
-                workflowId,
-                executionId,
-                operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                x -> new SpecializedFilterOpExec(this)
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                        x -> new SpecializedFilterOpExec(this)
+                        )
                 )
-
-        )      .withInputPorts(operatorInfo().inputPorts())
+                .withInputPorts(operatorInfo().inputPorts())
                 .withOutputPorts(operatorInfo().outputPorts());
     }
 
@@ -52,7 +52,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
                 asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false),""))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 true,

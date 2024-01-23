@@ -37,7 +37,6 @@ import static scala.collection.JavaConverters.asScalaBuffer;
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
  * WordCloud returns tuples with word (String) and its font size (Integer) for frontend.
- *
  */
 
 public class WordCloudOpDesc extends VisualizationOperator {
@@ -76,40 +75,40 @@ public class WordCloudOpDesc extends VisualizationOperator {
         }
 
         PhysicalOpIdentity partialOpId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
-        OutputPort partialOpOutputPort = new OutputPort(new PortIdentity(0, true),"");
+        OutputPort partialOpOutputPort = new OutputPort(new PortIdentity(0, true), "");
         PhysicalOp partialPhysicalOp = PhysicalOp.oneToOnePhysicalOp(
-                workflowId,
-                executionId,
-                this.operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new WordCloudOpPartialExec(textColumn)
+                        workflowId,
+                        executionId,
+                        this.operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                        worker -> new WordCloudOpPartialExec(textColumn)
+                        )
                 )
-        )
                 .withId(partialOpId)
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
-                .withInputPorts(this.operatorInfo().inputPorts())
+                .withInputPorts(operatorInfo().inputPorts())
                 .withOutputPorts(asScalaBuffer(singletonList(partialOpOutputPort)).toList());
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
         InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false, List.empty());
         PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
-                workflowId,
-                executionId,
-                this.operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new WordCloudOpFinalExec(topN)
+                        workflowId,
+                        executionId,
+                        this.operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                        worker -> new WordCloudOpFinalExec(topN)
+                        )
                 )
-        )
-        .withId(globalOpId).withIsOneToManyOp(true)
-        .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList())
-        .withOutputPorts(this.operatorInfo().outputPorts());
+                .withId(globalOpId).withIsOneToManyOp(true)
+                .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList())
+                .withOutputPorts(operatorInfo().outputPorts());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
-        PhysicalLink[] links = { new PhysicalLink(partialPhysicalOp.id(), partialOpOutputPort.id(), globalPhysicalOp.id(), globalOpInputPort.id())};
+        PhysicalLink[] links = {new PhysicalLink(partialPhysicalOp.id(), partialOpOutputPort.id(), globalPhysicalOp.id(), globalOpInputPort.id())};
 
         return PhysicalPlan.apply(physicalOps, links);
     }
@@ -120,7 +119,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
                 asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,
