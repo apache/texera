@@ -6947,20 +6947,6 @@ css-loader@6.7.1:
     postcss-value-parser "^4.2.0"
     semver "^7.3.5"
 
-css-loader@6.9.1:
-  version "6.9.1"
-  resolved "https://registry.yarnpkg.com/css-loader/-/css-loader-6.9.1.tgz#9ec9a434368f2bdfeffbf8f6901a1ce773586c6b"
-  integrity sha512-OzABOh0+26JKFdMzlK6PY1u5Zx8+Ck7CVRlcGNZoY9qwJjdfu2VWFuprTIpPW+Av5TZTVViYWcFQaEEQURLknQ==
-  dependencies:
-    icss-utils "^5.1.0"
-    postcss "^8.4.33"
-    postcss-modules-extract-imports "^3.0.0"
-    postcss-modules-local-by-default "^4.0.4"
-    postcss-modules-scope "^3.1.1"
-    postcss-modules-values "^4.0.0"
-    postcss-value-parser "^4.2.0"
-    semver "^7.5.4"
-
 css-loader@^6.4.0:
   version "6.8.1"
   resolved "https://registry.yarnpkg.com/css-loader/-/css-loader-6.8.1.tgz#0f8f52699f60f5e679eab4ec0fcd68b8e8a50a88"
@@ -13051,26 +13037,10 @@ postcss-modules-local-by-default@^4.0.3:
     postcss-selector-parser "^6.0.2"
     postcss-value-parser "^4.1.0"
 
-postcss-modules-local-by-default@^4.0.4:
-  version "4.0.4"
-  resolved "https://registry.yarnpkg.com/postcss-modules-local-by-default/-/postcss-modules-local-by-default-4.0.4.tgz#7cbed92abd312b94aaea85b68226d3dec39a14e6"
-  integrity sha512-L4QzMnOdVwRm1Qb8m4x8jsZzKAaPAgrUF1r/hjDR2Xj7R+8Zsf97jAlSQzWtKx5YNiNGN8QxmPFIc/sh+RQl+Q==
-  dependencies:
-    icss-utils "^5.0.0"
-    postcss-selector-parser "^6.0.2"
-    postcss-value-parser "^4.1.0"
-
 postcss-modules-scope@^3.0.0:
   version "3.0.0"
   resolved "https://registry.yarnpkg.com/postcss-modules-scope/-/postcss-modules-scope-3.0.0.tgz#9ef3151456d3bbfa120ca44898dfca6f2fa01f06"
   integrity sha512-hncihwFA2yPath8oZ15PZqvWGkWf+XUfQgUGamS4LqoP1anQLOsOJw0vr7J7IwLpoY9fatA2qiGUGmuZL0Iqlg==
-  dependencies:
-    postcss-selector-parser "^6.0.4"
-
-postcss-modules-scope@^3.1.1:
-  version "3.1.1"
-  resolved "https://registry.yarnpkg.com/postcss-modules-scope/-/postcss-modules-scope-3.1.1.tgz#32cfab55e84887c079a19bbb215e721d683ef134"
-  integrity sha512-uZgqzdTleelWjzJY+Fhti6F3C9iF1JR/dODLs/JDefozYcKTBCdD8BIl6nNPbTbcLnGrk56hzwZC2DaGNvYjzA==
   dependencies:
     postcss-selector-parser "^6.0.4"
 
@@ -13357,7 +13327,7 @@ postcss@^8.3.7:
     picocolors "^1.0.0"
     source-map-js "^1.0.2"
 
-postcss@^8.4.33, postcss@^8.4.7:
+postcss@^8.4.7:
   version "8.4.33"
   resolved "https://registry.yarnpkg.com/postcss/-/postcss-8.4.33.tgz#1378e859c9f69bf6f638b990a0212f43e2aaa742"
   integrity sha512-Kkpbhhdjw2qQs2O2DGX+8m5OVqEcbB9HRBvuYM9pgrjEFUg30A9LmXNlTAUj4S9kgtGyrMbTzVjH7E+s5Re2yg==
@@ -14801,11 +14771,6 @@ style-inject@^0.3.0:
   version "0.3.0"
   resolved "https://registry.yarnpkg.com/style-inject/-/style-inject-0.3.0.tgz#d21c477affec91811cc82355832a700d22bf8dd3"
   integrity sha512-IezA2qp+vcdlhJaVm5SOdPPTUu0FCEqfNSli2vRuSIBbu5Nq5UvygTk/VzeCqfLz2Atj3dVII5QBKGZRZ0edzw==
-
-style-loader@3.3.4:
-  version "3.3.4"
-  resolved "https://registry.yarnpkg.com/style-loader/-/style-loader-3.3.4.tgz#f30f786c36db03a45cbd55b6a70d930c479090e7"
-  integrity sha512-0WqXzrsMTyb8yjZJHDqwmnwRJvhALK9LfRtRc6B4UTWe8AijYLZYZ9thuJTZc2VfQWINADW/j+LiJnfy2RoC1w==
 
 style-loader@^3.3.0:
   version "3.3.3"
