@@ -17,7 +17,6 @@ import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
@@ -52,18 +51,19 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
     private Option<Integer> upstreamPort = Option.empty();
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+        Schema inputSchema = this.inputPortToSchemaMapping().get(this.operatorInfo().inputPorts().head().id()).get();
         return PhysicalOp.localPhysicalOp(
                 workflowId,
                 executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply(
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new ProgressiveSinkOpExec(operatorSchemaInfo, outputMode, storage.getStorageWriter())
+                                worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter(), inputSchema)
                 )
         )
-                .withInputPorts(this.operatorInfo().inputPorts())
-                .withOutputPorts(this.operatorInfo().outputPorts());
+                .withInputPorts(this.operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                .withOutputPorts(this.operatorInfo().outputPorts(), outputPortToSchemaMapping());
     }
 
     @Override

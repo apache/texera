@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import java.util
@@ -127,18 +127,7 @@ case class LogicalPlan(
     links.filter(l => l.fromOpId == opId)
   }
 
-  def getOpSchemaInfo(opId: OperatorIdentity): OperatorSchemaInfo = {
-    val op = getOperator(opId)
-    val inputSchemas: Array[Schema] =
-      if (op.isInstanceOf[SourceOperatorDescriptor]) {
-        Array() // source ops have no input schema
-      } else { op.inputPortToSchemaMapping.values.toArray }
-    val outputSchemas = op.outputPortToSchemaMapping.values.toArray
-    OperatorSchemaInfo(inputSchemas, outputSchemas)
-  }
-
   def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
-
     operators
       .map(operator => {
         operator.operatorIdentifier -> operator.operatorInfo.inputPorts.map(inputPort =>

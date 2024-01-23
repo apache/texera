@@ -1,15 +1,11 @@
 package edu.uci.ics.texera.unittest.workflow.operators.visualization.scatterplot
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -41,6 +37,7 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     scatterplotOpDesc = new ScatterplotOpDesc()
     scatterplotOpDesc.xColumn = "field1"
     scatterplotOpDesc.yColumn = "field2"
+    scatterplotOpDesc.inputPortToSchemaMapping(PortIdentity()) = correctSchema
   }
 
   it should "take in both fields correctly without caring about the order" in {
@@ -63,12 +60,11 @@ class ScatterplotVizOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise IllegalArgumentException if the field type is not a number" in {
-    val outputSchema = scatterplotOpDesc.getOutputSchema(Array(wrongTypesSchema))
+    scatterplotOpDesc.inputPortToSchemaMapping(PortIdentity()) = wrongTypesSchema
     assertThrows[IllegalArgumentException] {
       scatterplotOpDesc.getPhysicalOp(
         DEFAULT_WORKFLOW_ID,
-        DEFAULT_EXECUTION_ID,
-        OperatorSchemaInfo(Array(wrongTypesSchema), Array(outputSchema))
+        DEFAULT_EXECUTION_ID
       )
     }
   }

@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregationFunction,
   AggregationOperation,
@@ -49,7 +50,10 @@ object TestOperators {
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
+    csvHeaderlessOp.outputPortToSchemaMapping(PortIdentity()) =
+      csvHeaderlessOp.getOutputSchema(Array())
     csvHeaderlessOp
+
   }
 
   def getJSONLScanOpDesc(fileName: String, flatten: Boolean = false): JSONLScanSourceOpDesc = {

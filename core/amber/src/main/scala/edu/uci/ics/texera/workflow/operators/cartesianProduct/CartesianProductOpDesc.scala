@@ -7,23 +7,28 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 class CartesianProductOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val inputSchemas =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new CartesianProductOpExec(operatorSchemaInfo))
+        OpExecInitInfo((_, _, _) =>
+          new CartesianProductOpExec(inputSchemas(0), inputSchemas(1), outputSchema)
+        )
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       // TODO : refactor to parallelize this operator for better performance and scalability:
       //  can consider hash partition on larger input, broadcast smaller table to each partition

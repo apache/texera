@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.mlmodel.MLModelOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 class LinearRegressionOpDesc extends MLModelOpDesc {
 
@@ -28,8 +27,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp =
     PhysicalOp
       .manyToOnePhysicalOp(
@@ -38,8 +36,8 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new LinearRegressionOpExec(xAttr, yAttr, learningRate))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.RangePartition
 
 @JsonSchemaInject(json = """
@@ -42,13 +42,14 @@ class SortPartitionsOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val inputSchema =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
     val partitionRequirement = List(
       Option(
         RangePartition(
-          List(operatorSchemaInfo.inputSchemas(0).getIndex(sortAttributeName)),
+          List(inputSchema.getIndex(sortAttributeName)),
           domainMin,
           domainMax
         )
@@ -63,7 +64,6 @@ class SortPartitionsOpDesc extends LogicalOp {
         OpExecInitInfo((idx, _, operatorConfig) => {
           new SortPartitionOpExec(
             sortAttributeName,
-            operatorSchemaInfo,
             idx,
             domainMin,
             domainMax,
@@ -71,8 +71,8 @@ class SortPartitionsOpDesc extends LogicalOp {
           )
         })
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withPartitionRequirement(partitionRequirement)
 
   }

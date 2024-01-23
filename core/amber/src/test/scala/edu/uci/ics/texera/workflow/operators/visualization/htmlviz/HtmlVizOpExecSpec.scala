@@ -1,12 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -18,8 +13,6 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val desc: HtmlVizOpDesc = new HtmlVizOpDesc()
 
   val outputSchema: Schema = desc.getOutputSchema(Array(schema))
-  val operatorSchemaInfo: OperatorSchemaInfo =
-    OperatorSchemaInfo(Array(schema), Array(outputSchema))
 
   def tuple(): Tuple =
     Tuple
@@ -28,7 +21,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .build()
 
   it should "process a target field" in {
-    val htmlVizOpExec = new HtmlVizOpExec("field1", operatorSchemaInfo)
+    val htmlVizOpExec = new HtmlVizOpExec("field1", outputSchema)
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       htmlVizOpExec.processTexeraTuple(Left(tuple()), 0, null, null).next()
@@ -39,7 +32,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "process another target field" in {
 
-    val htmlVizOpExec = new HtmlVizOpExec("field2", operatorSchemaInfo)
+    val htmlVizOpExec = new HtmlVizOpExec("field2", outputSchema)
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       htmlVizOpExec.processTexeraTuple(Left(tuple()), 0, null, null).next()

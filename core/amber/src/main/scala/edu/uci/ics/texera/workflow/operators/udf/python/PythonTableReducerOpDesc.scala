@@ -5,7 +5,7 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Output columns")
@@ -29,7 +29,7 @@ class PythonTableReducerOpDesc extends PythonOperatorDescriptor {
       outputPorts = List(OutputPort())
     )
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     var outputTable = "{"
     for (unit <- lambdaAttributeUnits) {
       outputTable += s"""\"${unit.attributeName}\":${unit.expression},"""

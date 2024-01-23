@@ -18,7 +18,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
@@ -29,10 +28,12 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 import scala.Tuple3;
 import scala.collection.immutable.List;
 
+import java.util.HashMap;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.collection.JavaConverters.mapAsScalaMap;
 
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
@@ -64,18 +65,20 @@ public class WordCloudOpDesc extends VisualizationOperator {
             .add(partialAggregateSchema).build();
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         throw new UnsupportedOperationException("opExec implemented in getPhysicalPlan");
     }
 
     @Override
-    public PhysicalPlan getPhysicalPlan(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalPlan getPhysicalPlan(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         if (topN == null) {
             topN = 100;
         }
 
         PhysicalOpIdentity partialOpId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
         OutputPort partialOpOutputPort = new OutputPort(new PortIdentity(0, true), "");
+        HashMap<PortIdentity, Schema> outputPortToSchemaMapping = new HashMap<>();
+        outputPortToSchemaMapping.put(partialOpOutputPort.id(), outputPortToSchemaMapping().values().head());
         PhysicalOp partialPhysicalOp = PhysicalOp.oneToOnePhysicalOp(
                         workflowId,
                         executionId,
@@ -88,24 +91,28 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withId(partialOpId)
                 .withIsOneToManyOp(true)
                 .withParallelizable(false)
-                .withInputPorts(operatorInfo().inputPorts())
-                .withOutputPorts(asScalaBuffer(singletonList(partialOpOutputPort)).toList());
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                // assume partial op's output is the same as global op's
+                .withOutputPorts(asScalaBuffer(singletonList(partialOpOutputPort)).toList(), mapAsScalaMap(outputPortToSchemaMapping));
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
         InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false, List.empty());
+        HashMap<PortIdentity, Schema> inputPortToSchemaMapping = new HashMap<>();
+        inputPortToSchemaMapping.put(globalOpInputPort.id(), outputPortToSchemaMapping().values().head());
         PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
-                        workflowId,
-                        executionId,
-                        this.operatorIdentifier(),
-                        OpExecInitInfo.apply(
-                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                        worker -> new WordCloudOpFinalExec(topN)
-                        )
+                workflowId,
+                executionId,
+                this.operatorIdentifier(),
+                OpExecInitInfo.apply(
+                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                worker -> new WordCloudOpFinalExec(topN)
                 )
-                .withId(globalOpId).withIsOneToManyOp(true)
-                .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList())
-                .withOutputPorts(operatorInfo().outputPorts());
+        )
+            .withId(globalOpId).withIsOneToManyOp(true)
+            // assume partial op's output is the same as global op's
+            .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList(), mapAsScalaMap(inputPortToSchemaMapping))
+            .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
         PhysicalLink[] links = {new PhysicalLink(partialPhysicalOp.id(), partialOpOutputPort.id(), globalPhysicalOp.id(), globalOpInputPort.id())};

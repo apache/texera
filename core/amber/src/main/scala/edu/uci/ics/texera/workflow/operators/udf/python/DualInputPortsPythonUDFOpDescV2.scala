@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
 import edu.uci.ics.amber.engine.common.workflow.InputPort
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
@@ -66,8 +66,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1) {
@@ -75,20 +74,18 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withSuggestedWorkerNum(workers)
     } else {
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
     }
   }
 

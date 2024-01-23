@@ -4,12 +4,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -64,7 +59,9 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       "build_1",
       "probe_1",
       JoinType.INNER,
-      OperatorSchemaInfo(inputSchemas, Array(outputSchema))
+      inputSchemas(0),
+      inputSchemas(1),
+      outputSchema
     )
     opExec.open()
     counter = 0
@@ -96,7 +93,9 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       "same",
       "same",
       JoinType.INNER,
-      OperatorSchemaInfo(inputSchemas, Array(outputSchema))
+      inputSchemas(0),
+      inputSchemas(1),
+      outputSchema
     )
     opExec.open()
     counter = 0
@@ -130,7 +129,9 @@ class HashJoinOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       "same",
       "same",
       JoinType.FULL_OUTER,
-      OperatorSchemaInfo(inputSchemas, Array(outputSchema))
+      inputSchemas(0),
+      inputSchemas(1),
+      outputSchema
     )
     opExec.open()
     counter = 0

@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, StateTransferFunc}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
@@ -65,66 +65,35 @@ class PythonUDFOpDescV2 extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
-//    val newInputPorts = if (inputPorts != null) {
-//      // we use dynamic ports to define input ports
-//      println(inputPorts)
-//      inputPorts.zipWithIndex.map{
-//        case (port, idx) => InputPort(PortIdentity(idx), name=port.displayName, allowMultiLinks = port.allowMultiInputs, dependencies = port.dependencies.map(idx=> PortIdentity(idx)))
-//      }
-//
-//
-//    }else{
-//      operatorInfo.inputPorts
-//    }
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
       inputPorts.map(p => Option(p.partitionRequirement))
     } else {
       opInfo.inputPorts.map(_ => None)
     }
-//    val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
-//      inputPorts.map(p => Option(p.partitionRequirement))
-//    } else {
-//      opInfo.inputPorts.map(_ => None)
-//    }
-//    val dependencies: Map[InputPort, InputPort] = if (inputPorts != null) {
-//      inputPorts.zipWithIndex
-//        .filter {
-//          case (port, _) => port.dependencies != null
-//        }
-//        .flatMap {
-//          case (port, i) => port.dependencies.map(dependee => i -> dependee)
-//        }
-//        .toMap
-//    } else {
-//      Map()
-//    }
 
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
         .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(false)
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -185,9 +154,9 @@ class PythonUDFOpDescV2 extends LogicalOp {
   override def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      newOpDesc: LogicalOp,
-      operatorSchemaInfo: OperatorSchemaInfo
+      oldLogicalOp: LogicalOp,
+      newLogicalOp: LogicalOp
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
-    Success(newOpDesc.getPhysicalOp(workflowId, executionId, operatorSchemaInfo), None)
+    Success(newLogicalOp.getPhysicalOp(workflowId, executionId), None)
   }
 }

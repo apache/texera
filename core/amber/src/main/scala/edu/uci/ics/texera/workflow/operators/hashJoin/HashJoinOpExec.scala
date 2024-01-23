@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -16,14 +16,13 @@ class HashJoinOpExec[K](
     val buildAttributeName: String,
     val probeAttributeName: String,
     val joinType: JoinType,
-    val operatorSchemaInfo: OperatorSchemaInfo
+    val buildSchema: Schema,
+    val probeSchema: Schema,
+    val outputSchema: Schema
 ) extends OperatorExecutor {
 
-  val buildSchema: Schema = operatorSchemaInfo.inputSchemas(0)
-  val probeSchema: Schema = operatorSchemaInfo.inputSchemas(1)
   var isBuildTableFinished: Boolean = false
   var buildTableHashMap: mutable.HashMap[K, (ArrayBuffer[Tuple], Boolean)] = _
-  var outputSchema: Schema = operatorSchemaInfo.outputSchemas(0)
 
   var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _

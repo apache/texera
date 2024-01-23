@@ -10,7 +10,7 @@ import edu.stanford.nlp.util.CoreMap;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Function1;
 import scala.Serializable;
 
@@ -20,11 +20,12 @@ public class SentimentAnalysisOpExec extends MapOpExec {
 
     private final SentimentAnalysisOpDesc opDesc;
     private final StanfordCoreNLPWrapper coreNlp;
-    private final OperatorSchemaInfo operatorSchemaInfo;
 
-    public SentimentAnalysisOpExec(SentimentAnalysisOpDesc opDesc, OperatorSchemaInfo operatorSchemaInfo) {
+    private final Schema outputSchema;
+
+    public SentimentAnalysisOpExec(SentimentAnalysisOpDesc opDesc, Schema outputSchema) {
         this.opDesc = opDesc;
-        this.operatorSchemaInfo = operatorSchemaInfo;
+        this.outputSchema = outputSchema;
         Properties props = new Properties();
         props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
         coreNlp = new StanfordCoreNLPWrapper(props);
@@ -58,7 +59,7 @@ public class SentimentAnalysisOpExec extends MapOpExec {
             sentiment = -1;
         }
 
-        return Tuple.newBuilder(operatorSchemaInfo.outputSchemas()[0]).add(t).add(opDesc.resultAttribute(), AttributeType.INTEGER, sentiment).build();
+        return Tuple.newBuilder(outputSchema).add(t).add(opDesc.resultAttribute(), AttributeType.INTEGER, sentiment).build();
     }
 
 

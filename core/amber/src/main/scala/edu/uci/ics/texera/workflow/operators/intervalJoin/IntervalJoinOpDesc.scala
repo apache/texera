@@ -14,7 +14,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
 }
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 /** This Operator have two assumptions:
@@ -72,12 +72,17 @@ class IntervalJoinOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val inputSchemas =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
+    val leftSchema = inputSchemas(0)
+    val rightSchema = inputSchemas(1)
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     val partitionRequirement = List(
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName)))),
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))))
+      Option(HashPartition(List(leftSchema.getIndex(leftAttributeName)))),
+      Option(HashPartition(List(rightSchema.getIndex(rightAttributeName))))
     )
 
     PhysicalOp
@@ -85,10 +90,12 @@ class IntervalJoinOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new IntervalJoinOpExec(operatorSchemaInfo, this))
+        OpExecInitInfo((_, _, _) =>
+          new IntervalJoinOpExec(this, leftSchema, rightSchema, outputSchema)
+        )
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       .withPartitionRequirement(partitionRequirement)
   }

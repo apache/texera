@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.fetcher
 
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -12,7 +11,7 @@ class URLFetcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val fetcherOpExec = new URLFetcherOpExec(
       "https://www.google.com",
       DecodingMethod.RAW_BYTES,
-      OperatorSchemaInfo(Array.empty, Array(resultSchema))
+      resultSchema
     )
     val iterator = fetcherOpExec.produceTexeraTuple()
     assert(iterator.next().get(0).isInstanceOf[Array[Byte]])
@@ -23,7 +22,7 @@ class URLFetcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val fetcherOpExec = new URLFetcherOpExec(
       "https://www.google.com",
       DecodingMethod.UTF_8,
-      OperatorSchemaInfo(Array.empty, Array(resultSchema))
+      resultSchema
     )
     val iterator = fetcherOpExec.produceTexeraTuple()
     assert(iterator.next().get(0).isInstanceOf[String])

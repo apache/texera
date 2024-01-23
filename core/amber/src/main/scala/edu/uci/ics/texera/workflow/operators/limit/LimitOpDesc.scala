@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFunc}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
 import scala.util.{Success, Try}
@@ -23,8 +23,7 @@ class LimitOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     val limitPerWorker = equallyPartitionGoal(limit, AmberConfig.numWorkerPerOperatorByDefault)
     PhysicalOp
@@ -34,8 +33,8 @@ class LimitOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new LimitOpExec(limitPerWorker(idx)))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -53,10 +52,10 @@ class LimitOpDesc extends LogicalOp {
   override def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      newLogicalOp: LogicalOp,
-      operatorSchemaInfo: OperatorSchemaInfo
+      oldLogicalOp: LogicalOp,
+      newLogicalOp: LogicalOp
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
-    val newPhysicalOp = newLogicalOp.getPhysicalOp(workflowId, executionId, operatorSchemaInfo)
+    val newPhysicalOp = newLogicalOp.getPhysicalOp(workflowId, executionId)
     val stateTransferFunc: StateTransferFunc = (oldOp, newOp) => {
       val oldLimitOp = oldOp.asInstanceOf[LimitOpExec]
       val newLimitOp = newOp.asInstanceOf[LimitOpExec]

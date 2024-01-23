@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
   HashPartition,
@@ -26,26 +26,32 @@ class ProjectionOpDesc extends MapOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val outputSchema = outputPortToSchemaMapping(operatorInfo.outputPorts.head.id)
     oneToOnePhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, operatorSchemaInfo))
+      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, outputSchema))
     )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
-      .withDerivePartition(this.derivePartition(operatorSchemaInfo))
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withDerivePartition(derivePartition())
   }
 
-  def derivePartition(schema: OperatorSchemaInfo)(partition: List[PartitionInfo]): PartitionInfo = {
+  def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
     val inputPartitionInfo = partition.head
 
     // a mapping from original column index to new column index
     lazy val columnIndicesMapping = attributes.indices
-      .map(i => (schema.inputSchemas(0).getIndex(attributes(i).getOriginalAttribute), i))
+      .map(i =>
+        (
+          inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
+            .getIndex(attributes(i).getOriginalAttribute),
+          i
+        )
+      )
       .toMap
 
     val outputPartitionInfo = inputPartitionInfo match {

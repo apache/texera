@@ -1,11 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -17,7 +18,11 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
   before {
     csvScanSourceOpDesc = new CSVScanSourceOpDesc()
+    csvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
+      csvScanSourceOpDesc.getOutputSchema(Array())
     parallelCsvScanSourceOpDesc = new ParallelCSVScanSourceOpDesc()
+    parallelCsvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
+      parallelCsvScanSourceOpDesc.getOutputSchema(Array())
   }
 
   it should "infer schema from single-line-data csv" in {
@@ -100,11 +105,9 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)
 
-    val emptySchema = Schema.newBuilder().build()
-    val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), Array(emptySchema))
     assert(
       !csvScanSourceOpDesc
-        .getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, operatorSchemaInfo)
+        .getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
         .parallelizable
     )
   }

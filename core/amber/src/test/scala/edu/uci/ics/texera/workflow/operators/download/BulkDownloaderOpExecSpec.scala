@@ -6,12 +6,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_WORKFLOW_ID
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.jooq.types.UInteger
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
@@ -45,7 +40,7 @@ class BulkDownloaderOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       new WorkflowContext(Some(UInteger.valueOf(1)), DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID),
       "url",
       "url result",
-      OperatorSchemaInfo(Array(tupleSchema), Array(resultSchema))
+      resultSchema
     )
   }
 

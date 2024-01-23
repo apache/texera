@@ -29,8 +29,7 @@ object PhysicalPlan {
       val subPlan =
         op.getPhysicalPlan(
           context.workflowId,
-          context.executionId,
-          logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
+          context.executionId
         )
       physicalPlan = physicalPlan.addSubPlan(subPlan)
     })

@@ -4,12 +4,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -225,8 +220,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
-      opDesc
+      opDesc,
+      inputSchemas(0),
+      inputSchemas(1),
+      outputSchema
     )
     opExec.open()
     counter = 0
@@ -420,8 +417,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
-      opDesc
+      opDesc,
+      inputSchemas(0),
+      inputSchemas(1),
+      outputSchema
     )
 
     opExec.open()

@@ -1,12 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
@@ -43,8 +38,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("f1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
       .build()
-    val projectionOpExec =
-      new ProjectionOpExec(List(), OperatorSchemaInfo(null, Array(outputSchema)))
+    val projectionOpExec = new ProjectionOpExec(List(), outputSchema)
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field2", "f2"),
       new AttributeUnit("field1", "f1")
@@ -66,8 +60,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("f3", AttributeType.BOOLEAN))
       .add(new Attribute("f1", AttributeType.STRING))
       .build()
-    val projectionOpExec =
-      new ProjectionOpExec(List(), OperatorSchemaInfo(null, Array(outputSchema)))
+    val projectionOpExec = new ProjectionOpExec(List(), outputSchema)
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field3", "f3"),
       new AttributeUnit("field1", "f1")
@@ -121,8 +114,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("field1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
       .build()
-    val projectionOpExec =
-      new ProjectionOpExec(List(), OperatorSchemaInfo(null, Array(outputSchema)))
+    val projectionOpExec = new ProjectionOpExec(List(), outputSchema)
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field2", "f2"),
       new AttributeUnit("field1", "")
