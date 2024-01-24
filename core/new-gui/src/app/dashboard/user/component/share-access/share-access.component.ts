@@ -35,10 +35,6 @@ export class ShareAccessComponent implements OnInit {
       accessLevel: ["READ"],
     });
     this.currentEmail = this.userService.getCurrentUser()?.email;
-    this.validateForm = this.formBuilder.group({
-      email: [null, [Validators.email, Validators.required]],
-      accessLevel: ["READ"],
-    });
   }
 
   ngOnInit(): void {
