@@ -1,9 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
 import com.google.common.collect.Queues
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.ReplayLogWriter
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
 
 import java.util
 import java.util.concurrent.CompletableFuture
@@ -11,7 +11,7 @@ import scala.collection.JavaConverters._
 
 class AsyncReplayLogWriter(
     handler: WorkflowFIFOMessage => Unit,
-    writer: ReplayLogWriter
+    writer: SequentialRecordWriter[ReplayLogRecord]
 ) extends Thread {
   private val drained = new util.ArrayList[Either[ReplayLogRecord, WorkflowFIFOMessage]]()
   private val writerQueue =
@@ -64,7 +64,7 @@ class AsyncReplayLogWriter(
     drainedScala
       .filter(_.isLeft)
       .map(_.left.get)
-      .foreach(x => writer.writeLogRecord(x))
+      .foreach(x => writer.writeRecord(x))
     writer.flush()
     drainedScala.filter(_.isRight).foreach(x => handler(x.right.get))
     drained.clear()

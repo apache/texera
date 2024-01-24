@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
+import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -88,6 +88,7 @@ class OutputManager(
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
+      dataOutputPort.addOutputChannel(ChannelID(selfID, receiver, isControl = false))
     })
   }
 
@@ -108,15 +109,28 @@ class OutputManager(
     )
   }
 
-  def emitEpochMarker(epochMarker: EpochMarker): Unit = {
-    // find the network output ports within the scope of the marker
-    val outputsWithinScope =
-      networkOutputBuffers.filter(out => epochMarker.scope.links.contains(out._1._1))
-    // flush all network buffers of this operator, emit epoch marker to network
-    outputsWithinScope.foreach(kv => {
-      kv._2.flush()
-      kv._2.addEpochMarker(epochMarker)
-    })
+  /**
+    * Flushes the network output buffers based on the specified set of physical links.
+    *
+    * This method flushes the buffers associated with the network output. If the 'onlyFor' parameter
+    * is specified with a set of 'PhysicalLink's, only the buffers corresponding to those links are flushed.
+    * If 'onlyFor' is None, all network output buffers are flushed.
+    *
+    * @param onlyFor An optional set of 'ChannelID' indicating the specific buffers to flush.
+    *                If None, all buffers are flushed. Default value is None.
+    */
+  def flush(onlyFor: Option[Set[ChannelID]] = None): Unit = {
+    val buffersToFlush = onlyFor match {
+      case Some(channelIds) =>
+        networkOutputBuffers
+          .filter(out => {
+            val channel = ChannelID(selfID, out._1._2, isControl = false)
+            channelIds.contains(channel)
+          })
+          .values
+      case None => networkOutputBuffers.values
+    }
+    buffersToFlush.foreach(_.flush())
   }
 
   /**
@@ -128,10 +142,6 @@ class OutputManager(
       kv._2.flush()
       kv._2.noMore()
     })
-  }
-
-  def flushAll(): Unit = {
-    networkOutputBuffers.values.foreach(b => b.flush())
   }
 
 }

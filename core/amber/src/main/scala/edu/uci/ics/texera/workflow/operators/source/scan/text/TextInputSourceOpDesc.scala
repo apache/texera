@@ -5,14 +5,11 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)
@@ -22,15 +19,17 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp =
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
-    )
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
+      )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
 
   override def sourceSchema(): Schema =
     Schema
@@ -43,7 +42,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       userFriendlyName = "Text Input",
       operatorDescription = "Source data from manually inputted text",
       OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      List(OutputPort())
+      inputPorts = List.empty,
+      outputPorts = List(OutputPort())
     )
 }

@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -18,13 +19,17 @@ trait StartWorkflowHandler {
 
   registerHandler { (msg: StartWorkflow, sender) =>
     {
-      cp.workflowScheduler
-        .startWorkflow(cp.workflow, cp.actorRefService, cp.actorService)
-        .map(_ => {
-          cp.controllerTimerService.enableStatusUpdate()
-          cp.controllerTimerService.enableMonitoring()
-          cp.controllerTimerService.enableSkewHandling()
-        })
+      if (cp.executionState.getState.isUninitialized) {
+        cp.workflowScheduler
+          .startWorkflow(cp.workflow, cp.actorRefService, cp.actorService)
+          .map(_ => {
+            cp.controllerTimerService.enableStatusUpdate()
+            cp.controllerTimerService.enableMonitoring()
+            cp.controllerTimerService.enableSkewHandling()
+          })
+      } else {
+        Future.Unit
+      }
     }
   }
 }

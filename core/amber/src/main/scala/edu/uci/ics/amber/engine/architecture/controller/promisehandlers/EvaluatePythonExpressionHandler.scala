@@ -17,9 +17,16 @@ trait EvaluatePythonExpressionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
   registerHandler { (msg: EvaluatePythonExpression, sender) =>
     {
-      val operatorId = new OperatorIdentity(msg.operatorId)
-      val operator = cp.workflow.physicalPlan.getSinglePhysicalOpOfLogicalOp(operatorId)
-      val opExecution = cp.executionState.getOperatorExecution(operator.id)
+      val logicalOpId = new OperatorIdentity(msg.operatorId)
+      val physicalOps = cp.workflow.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
+      if (physicalOps.size != 1) {
+        val msg =
+          s"logical operator $logicalOpId has ${physicalOps.size} physical operators, expecting a single one"
+        throw new RuntimeException(msg)
+      }
+
+      val physicalOp = physicalOps.head
+      val opExecution = cp.executionState.getOperatorExecution(physicalOp.id)
 
       Future
         .collect(

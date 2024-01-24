@@ -10,13 +10,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Option;
-
+import edu.uci.ics.amber.engine.common.workflow.OutputPort;
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
@@ -50,7 +49,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public List<Attribute> columns;
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         OpExecInitInfo exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
@@ -61,7 +60,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(true)
-                    .withOperatorSchemaInfo(operatorSchemaInfo)
+                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
         } else {
@@ -72,7 +72,10 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(false)
-                    .withOperatorSchemaInfo(operatorSchemaInfo).withIsOneToManyOp(true).withLocationPreference(Option.empty());
+                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
+                    .withIsOneToManyOp(true)
+                    .withLocationPreference(Option.empty());
         }
 
     }
@@ -84,7 +87,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 scala.collection.immutable.List.empty(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,
                 true,

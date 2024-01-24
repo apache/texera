@@ -93,6 +93,7 @@ class Controller(
     cp.setupActorService(actorService)
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
+    cp.setupLogManager(logManager)
     val controllerRestoreConf = controllerConfig.workerRestoreConfMapping(CONTROLLER)
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)

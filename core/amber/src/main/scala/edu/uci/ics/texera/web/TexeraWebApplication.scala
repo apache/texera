@@ -6,9 +6,9 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.URILogStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.storage.URIRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.{maptoStatusCode, objectMapper}
@@ -289,7 +289,7 @@ class TexeraWebApplication
       return
     }
     val uri = new URI(logLocation)
-    val storage = new URILogStorage(uri)
+    val storage = new URIRecordStorage(uri)
     storage.deleteStorage()
   }
 

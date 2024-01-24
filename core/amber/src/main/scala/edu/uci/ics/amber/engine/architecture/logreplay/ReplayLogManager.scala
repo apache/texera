@@ -1,25 +1,27 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.ReplayLogWriter
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.{ReplayLogStorage, EmptyLogStorage}
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
+import edu.uci.ics.amber.engine.common.storage.{EmptyRecordStorage, SequentialRecordStorage}
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 
 //In-mem formats:
 sealed trait ReplayLogRecord
 
 case class MessageContent(message: WorkflowFIFOMessage) extends ReplayLogRecord
 case class ProcessingStep(channelID: ChannelID, step: Long) extends ReplayLogRecord
+case class ReplayDestination(id: ChannelMarkerIdentity) extends ReplayLogRecord
 case object TerminateSignal extends ReplayLogRecord
 
 object ReplayLogManager {
   def createLogManager(
-      logStorage: ReplayLogStorage,
+      logStorage: SequentialRecordStorage[ReplayLogRecord],
       logFileName: String,
       handler: WorkflowFIFOMessage => Unit
   ): ReplayLogManager = {
     logStorage match {
-      case _: EmptyLogStorage =>
+      case _: EmptyRecordStorage[ReplayLogRecord] =>
         new EmptyReplayLogManagerImpl(handler)
       case other =>
         val manager = new ReplayLogManagerImpl(handler)
@@ -33,13 +35,15 @@ trait ReplayLogManager {
 
   protected val cursor = new ProcessingStepCursor()
 
-  def setupWriter(logWriter: ReplayLogWriter): Unit
+  def setupWriter(logWriter: SequentialRecordWriter[ReplayLogRecord]): Unit
 
   def sendCommitted(msg: WorkflowFIFOMessage): Unit
 
   def terminate(): Unit
 
   def getStep: Long = cursor.getStep
+
+  def markAsReplayDestination(id: ChannelMarkerIdentity): Unit
 
   def withFaultTolerant(
       channel: ChannelID,
@@ -58,13 +62,17 @@ trait ReplayLogManager {
 }
 
 class EmptyReplayLogManagerImpl(handler: WorkflowFIFOMessage => Unit) extends ReplayLogManager {
-  override def setupWriter(logWriter: ReplayLogStorage.ReplayLogWriter): Unit = {}
+  override def setupWriter(
+      logWriter: SequentialRecordStorage.SequentialRecordWriter[ReplayLogRecord]
+  ): Unit = {}
 
   override def sendCommitted(msg: WorkflowFIFOMessage): Unit = {
     handler(msg)
   }
 
   override def terminate(): Unit = {}
+
+  override def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {}
 }
 
 class ReplayLogManagerImpl(handler: WorkflowFIFOMessage => Unit) extends ReplayLogManager {
@@ -81,7 +89,11 @@ class ReplayLogManagerImpl(handler: WorkflowFIFOMessage => Unit) extends ReplayL
     super.withFaultTolerant(channel, message)(code)
   }
 
-  override def setupWriter(logWriter: ReplayLogWriter): Unit = {
+  override def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {
+    replayLogger.markAsReplayDestination(id)
+  }
+
+  override def setupWriter(logWriter: SequentialRecordWriter[ReplayLogRecord]): Unit = {
     writer = new AsyncReplayLogWriter(handler, logWriter)
     writer.start()
   }

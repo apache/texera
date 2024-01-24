@@ -1,26 +1,25 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 
 import scala.collection.mutable.ArrayBuffer
 
 class SortPartitionOpExec(
     sortAttributeName: String,
-    operatorSchemaInfo: OperatorSchemaInfo,
     localIdx: Int,
     domainMin: Long,
     domainMax: Long,
     numberOfWorkers: Int
 ) extends OperatorExecutor {
 
-  var unorderedTuples: ArrayBuffer[Tuple] = _
+  private var unorderedTuples: ArrayBuffer[Tuple] = _
 
-  def sortTuples(): Iterator[Tuple] = unorderedTuples.sortWith(compareTuples).iterator
+  private def sortTuples(): Iterator[Tuple] = unorderedTuples.sortWith(compareTuples).iterator
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -37,9 +36,9 @@ class SortPartitionOpExec(
     }
   }
 
-  def compareTuples(t1: Tuple, t2: Tuple): Boolean = {
-    val attributeType = t1.getSchema().getAttribute(sortAttributeName).getType()
-    val attributeIndex = t1.getSchema().getIndex(sortAttributeName)
+  private def compareTuples(t1: Tuple, t2: Tuple): Boolean = {
+    val attributeType = t1.getSchema.getAttribute(sortAttributeName).getType
+    val attributeIndex = t1.getSchema.getIndex(sortAttributeName)
     attributeType match {
       case AttributeType.LONG =>
         t1.getLong(attributeIndex) < t2.getLong(attributeIndex)
@@ -52,11 +51,11 @@ class SortPartitionOpExec(
     }
   }
 
-  override def open = {
+  override def open(): Unit = {
     unorderedTuples = new ArrayBuffer[Tuple]()
   }
 
-  override def close = {
+  override def close(): Unit = {
     unorderedTuples.clear()
   }
 

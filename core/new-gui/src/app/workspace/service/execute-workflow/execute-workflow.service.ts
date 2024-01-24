@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { from, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -17,6 +17,7 @@ import {
   WorkflowFatalError,
   OperatorCurrentTuples,
   TexeraWebsocketEvent,
+  ReplayExecutionInfo,
 } from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
@@ -194,11 +195,26 @@ export class ExecuteWorkflowService {
     this.sendExecutionRequest(executionName, logicalPlan);
   }
 
-  public sendExecutionRequest(executionName: string, logicalPlan: LogicalPlan): void {
+  public executeWorkflowAmberTexeraWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
+    // get the current workflow graph
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    this.sendExecutionRequest(
+      `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
+      logicalPlan,
+      replayExecutionInfo
+    );
+  }
+
+  public sendExecutionRequest(
+    executionName: string,
+    logicalPlan: LogicalPlan,
+    replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
+  ): void {
     const workflowExecuteRequest = {
       executionName: executionName,
       engineVersion: version.hash,
       logicalPlan: logicalPlan,
+      replayFromExecution: replayExecutionInfo,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -238,6 +254,19 @@ export class ExecuteWorkflowService {
       throw new Error("cannot kill workflow, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("WorkflowKillRequest", {});
+  }
+
+  public addExecutionInteraction(): void {
+    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
+      return;
+    }
+    if (
+      this.currentState.state === ExecutionState.Uninitialized ||
+      this.currentState.state === ExecutionState.Completed
+    ) {
+      throw new Error("cannot add interaction to workflow, the current execution state is " + this.currentState.state);
+    }
+    this.workflowWebsocketService.send("WorkflowInteractionRequest", {});
   }
 
   public resumeWorkflow(): void {
@@ -381,19 +410,9 @@ export class ExecuteWorkflowService {
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
     };
-    const getInputPortName = (operatorID: string, inputPortID: string): string => {
-      return (
-        workflowGraph.getOperator(operatorID).inputPorts[getInputPortOrdinal(operatorID, inputPortID)].displayName ?? ""
-      );
-    };
+
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
-    };
-    const getOutputPortName = (operatorID: string, outputPortID: string): string => {
-      return (
-        workflowGraph.getOperator(operatorID).outputPorts[getOutputPortOrdinal(operatorID, outputPortID)].displayName ??
-        ""
-      );
     };
 
     const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => {
@@ -413,18 +432,16 @@ export class ExecuteWorkflowService {
       return logicalOp;
     });
 
-    const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => ({
-      origin: {
-        operatorID: link.source.operatorID,
-        portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID),
-        portName: getOutputPortName(link.source.operatorID, link.source.portID),
-      },
-      destination: {
-        operatorID: link.target.operatorID,
-        portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID),
-        portName: getInputPortName(link.target.operatorID, link.target.portID),
-      },
-    }));
+    const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => {
+      const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
+      const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
+      return {
+        fromOpId: link.source.operatorID,
+        fromPortId: { id: outputPortIdx, internal: false },
+        toOpId: link.target.operatorID,
+        toPortId: { id: inputPortIdx, internal: false },
+      };
+    });
 
     const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries()).map(e =>
       ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
@@ -437,7 +454,6 @@ export class ExecuteWorkflowService {
     const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
       op => !workflowGraph.isOperatorDisabled(op)
     );
-
     return { operators, links, breakpoints, opsToViewResult, opsToReuseResult };
   }
 

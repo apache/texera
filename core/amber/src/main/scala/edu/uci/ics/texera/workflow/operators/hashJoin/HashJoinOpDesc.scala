@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
@@ -15,13 +16,10 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
+import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
@@ -111,7 +109,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       assert(probePartition.hashColumnIndices.contains(probAttrIndex))
 
       // mapping from build/probe schema index to the final output schema index
-      val schemaMappings = getOutputSchemaInternal(operatorSchemaInfo.inputSchemas)
+      val schemaMappings = getOutputSchemaInternal(buildSchema, probeSchema)
       val buildMapping = schemaMappings._2
       val probeMapping = schemaMappings._3
 
@@ -138,6 +136,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
             )
           )
         )
+      )
         .withInputPorts(
           List(
             InputPort("buildTable"),
@@ -160,7 +159,10 @@ class HashJoinOpDesc[K] extends LogicalOp {
       "Hash Join",
       "join two inputs",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("left"), InputPort("right")),
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "left"),
+        InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity()))
+      ),
       outputPorts = List(OutputPort())
     )
 
@@ -175,11 +177,11 @@ class HashJoinOpDesc[K] extends LogicalOp {
     2. left  mapping: (0->0, 1->1, 2->2)
     3. right mapping: (0->0, 1->3, 1->4)
    */
-  def getOutputSchemaInternal(schemas: Array[Schema]): (Schema, Map[Int, Int], Map[Int, Int]) = {
-    Preconditions.checkArgument(schemas.length == 2)
+  def getOutputSchemaInternal(
+      buildSchema: Schema,
+      probeSchema: Schema
+  ): (Schema, Map[Int, Int], Map[Int, Int]) = {
     val builder = Schema.newBuilder()
-    val buildSchema = schemas(0)
-    val probeSchema = schemas(1)
     builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {
       probeSchema.getAttributes.foreach(attr => {
@@ -247,6 +249,6 @@ class HashJoinOpDesc[K] extends LogicalOp {
 
   // remove the probe attribute in the output
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    getOutputSchemaInternal(schemas)._1
+    getOutputSchemaInternal(schemas(0), schemas(1))._1
   }
 }

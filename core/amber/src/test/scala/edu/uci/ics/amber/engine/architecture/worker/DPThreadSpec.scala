@@ -2,8 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -15,13 +14,14 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
@@ -32,6 +32,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable
 
 class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
@@ -52,8 +53,10 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     workflowId = DEFAULT_WORKFLOW_ID,
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
-  )
-  private val mockLink = PhysicalLink(physicalOp1.id, 0, physicalOp2.id, 0)
+  ).withInputPorts(List(InputPort()), mutable.Map(PortIdentity() -> null))
+    .withOutputPorts(List(OutputPort()), mutable.Map(PortIdentity() -> null))
+  private val mockLink =
+    PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, PortIdentity())
 
   private val physicalOp = PhysicalOp
     .oneToOnePhysicalOp(
@@ -63,11 +66,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
       OpExecInitInfo((_, _, _) => operator)
     )
     .copy(
-      inputPortToLinkMapping = Map(0 -> List(mockLink)),
-      outputPortToLinkMapping = Map(0 -> List(mockLink))
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
+      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
   private val tuples: Array[ITuple] = (0 until 5000).map(ITuple(_)).toArray
-  private val logStorage = ReplayLogStorage.getLogStorage(None)
+  private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
   private val logManager: ReplayLogManager =
     ReplayLogManager.createLogManager(logStorage, "none", x => {})
 
@@ -166,7 +169,9 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.registerInput(anotherSender, mockLink)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
-    val logStorage = ReplayLogStorage.getLogStorage(Some(new URI("file:///recovery-logs/tmp")))
+    val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
+      Some(new URI("file:///recovery-logs/tmp"))
+    )
     logStorage.deleteStorage()
     val logManager: ReplayLogManager =
       ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
@@ -193,7 +198,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     }
     logManager.sendCommitted(null) // drain in-mem records to flush
     logManager.terminate()
-    val logs = logStorage.getReader("tmpLog").mkLogRecordIterator().toArray
+    val logs = logStorage.getReader("tmpLog").mkRecordIterator().toArray
     logStorage.deleteStorage()
     assert(logs.length > 1)
   }

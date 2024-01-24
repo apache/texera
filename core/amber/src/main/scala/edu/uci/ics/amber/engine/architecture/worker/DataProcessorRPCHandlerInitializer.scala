@@ -26,8 +26,8 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with PauseSkewMitigationHandler
     with SchedulerTimeSlotEventHandler
     with FlushNetworkBufferHandler
-    with WorkerEpochMarkerHandler
-    with ModifyOperatorLogicHandler {
+    with ModifyOperatorLogicHandler
+    with RetrieveStateHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
   var lastReportTime = 0L
 }

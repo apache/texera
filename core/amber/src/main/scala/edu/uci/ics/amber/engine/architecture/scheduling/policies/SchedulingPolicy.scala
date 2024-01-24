@@ -77,7 +77,7 @@ abstract class SchedulingPolicy(
     * A link's region is the region of the source operator of the link.
     */
   protected def getRegions(link: PhysicalLink): Set[Region] = {
-    runningRegions.filter(r => r.physicalOpIds.contains(link.from)).toSet
+    runningRegions.filter(r => r.physicalOpIds.contains(link.fromOpId)).toSet
   }
 
   // gets the ready regions that is not currently running

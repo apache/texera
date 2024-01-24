@@ -1,16 +1,8 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
-
-final case class EpochMarker(
-    id: String,
-    scope: PhysicalPlan,
-    command: Option[ControlCommand[_]]
-) extends DataPayload
 
 final case class EndOfUpstream() extends DataPayload
 
