@@ -236,6 +236,10 @@ export class MenuComponent implements OnInit {
     this.executeWorkflowService.killWorkflow();
   }
 
+  public handleInteraction(): void {
+    this.executeWorkflowService.addExecutionInteraction();
+  }
+
   /**
    * This method checks whether the zoom ratio reaches minimum. If it is minimum, this method
    *  will disable the zoom out button on the menu bar.

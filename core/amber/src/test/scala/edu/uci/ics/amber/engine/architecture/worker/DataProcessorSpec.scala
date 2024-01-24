@@ -24,7 +24,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
@@ -33,6 +33,8 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
+
+import scala.collection.mutable
 
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
@@ -53,7 +55,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     PhysicalOp(id = upstreamOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
   private val testOp =
     PhysicalOp(id = testOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
-  private val link = PhysicalLink(upstreamOp.id, 0, testOp.id, 0)
+  private val link = PhysicalLink(upstreamOp.id, PortIdentity(), testOp.id, PortIdentity())
   private val physicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
@@ -62,7 +64,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         testOpId.logicalOpId,
         OpExecInitInfo((_, _, _) => operator)
       )
-      .addInput(link.from, 0, 0)
+      .withInputPorts(List(InputPort()), mutable.Map(PortIdentity() -> null))
+      .withOutputPorts(List(OutputPort()), mutable.Map(PortIdentity() -> null))
+      .addInputLink(link)
   private val outputHandler = mock[WorkflowFIFOMessage => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
   private val tuples: Array[ITuple] = (0 until 400).map(ITuple(_)).toArray

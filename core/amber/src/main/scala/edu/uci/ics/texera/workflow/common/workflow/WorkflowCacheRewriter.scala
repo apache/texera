@@ -45,9 +45,10 @@ object WorkflowCacheRewriter {
         resultPlan = resultPlan
           .removeLink(link)
           .addLink(
-            from = materializationReader.operatorIdentifier,
-            to = link.destination.operatorId,
-            toPort = link.destination.portOrdinal
+            fromOpId = materializationReader.operatorIdentifier,
+            fromPortId = link.fromPortId,
+            toOpId = link.toOpId,
+            toPortId = link.toPortId
           )
       })
       resultPlan = resultPlan.removeOperator(opId)
@@ -114,7 +115,9 @@ object WorkflowCacheRewriter {
               storageType
             )
           )
-          sink.getStorage.setSchema(logicalPlan.getOpOutputSchemas(o.operatorIdentifier).head)
+          sink.getStorage.setSchema(
+            logicalPlan.getOperator(storageKey).outputPortToSchemaMapping.values.head
+          )
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()
           storageNode.put("storageType", storageType)

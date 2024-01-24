@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
@@ -241,8 +242,8 @@ object SkewDetectionHandler {
     if (workflow.physicalPlan.getOperator(physicalOpId).isHashJoinOperator) {
       upstreamPhysicalOps
         .find(physicalOp => {
-          val buildTableLink = physicalOp.inputPortToLinkMapping(0).head
-          physicalOp.id != buildTableLink.from
+          val buildTableLink = physicalOp.getInputLinks(Some(PortIdentity())).head
+          physicalOp.id != buildTableLink.fromOpId
         })
         .get
     } else {

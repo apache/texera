@@ -2,12 +2,7 @@ package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -55,9 +50,8 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val leftSchema = generate_schema("left", numLeftSchemaAttributes)
     val rightSchema = generate_schema("right", numRightSchemaAttributes)
-    val inputSchemas = Array(leftSchema, rightSchema)
-    val outputSchemas = Array(opDesc.getOutputSchema(inputSchemas))
-    opExec = new CartesianProductOpExec(OperatorSchemaInfo(inputSchemas, outputSchemas))
+    val outputSchema = opDesc.getOutputSchema(Array(leftSchema, rightSchema))
+    opExec = new CartesianProductOpExec(leftSchema, rightSchema, outputSchema)
 
     opExec.open()
     // process 5 left tuples
@@ -142,7 +136,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
 
-    opExec = new CartesianProductOpExec(OperatorSchemaInfo(inputSchemas, Array(outputSchema)))
+    opExec = new CartesianProductOpExec(leftSchema, rightSchema, outputSchema)
     opExec.open()
     // process 4 left tuples
     (1 to numLeftTuples).map(value => {

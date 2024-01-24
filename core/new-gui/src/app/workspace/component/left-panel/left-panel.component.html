@@ -30,10 +30,22 @@
         nz-menu-item
         nzTooltipPlacement="left"
         nz-tooltip="Versions"
-        (click)="openVersionsFrame()">
+        (click)="openVersionsFrame()"
+        *ngIf="userSystemEnabled">
         <span
           nz-icon
           nzType="schedule"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzTooltipPlacement="left"
+        nz-tooltip="Time Travel"
+        (click)="openTimeTravelFrame()"
+        *ngIf="userSystemEnabled">
+        <span
+          nz-icon
+          nzType="clock-circle"
+          nzTheme="outline"></span>
       </li>
     </ul>
     <div id="left-panel-content">

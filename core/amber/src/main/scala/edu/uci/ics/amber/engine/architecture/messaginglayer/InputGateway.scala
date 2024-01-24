@@ -8,6 +8,8 @@ trait InputGateway {
 
   def tryPickChannel: Option[AmberFIFOChannel]
 
+  def getAllChannels: Iterable[AmberFIFOChannel]
+
   def getAllDataChannels: Iterable[AmberFIFOChannel]
 
   def getChannel(channelId: ChannelID): AmberFIFOChannel

@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
@@ -22,12 +23,17 @@ object SinkInjectionTransformer {
     val operatorsToAddSink = (nonSinkTerminalOps ++ viewResultOps).toSet
     operatorsToAddSink.foreach(opId => {
       val op = logicalPlan.getOperator(opId)
-      op.operatorInfo.outputPorts.indices.foreach(outPort => {
+      op.operatorInfo.outputPorts.foreach(outPort => {
         val sink = new ProgressiveSinkOpDesc()
         sink.setOperatorId("sink_" + opId.id)
         logicalPlan = logicalPlan
           .addOperator(sink)
-          .addLink(op.operatorIdentifier, outPort, sink.operatorIdentifier, toPort = 0)
+          .addLink(
+            op.operatorIdentifier,
+            outPort.id,
+            sink.operatorIdentifier,
+            toPortId = PortIdentity()
+          )
       })
     })
 
@@ -45,14 +51,14 @@ object SinkInjectionTransformer {
       val sinkOp = logicalPlan.getOperator(sinkOpId).asInstanceOf[ProgressiveSinkOpDesc]
       val upstream = logicalPlan.getUpstreamOps(sinkOpId).headOption
       val edge = logicalPlan.links.find(l =>
-        l.origin.operatorId == upstream.map(_.operatorIdentifier).orNull
-          && l.destination.operatorId == sinkOpId
+        l.fromOpId == upstream.map(_.operatorIdentifier).orNull
+          && l.toOpId == sinkOpId
       )
       assert(upstream.nonEmpty)
       if (upstream.nonEmpty && edge.nonEmpty) {
         // set upstream ID and port
         sinkOp.setUpstreamId(upstream.get.operatorIdentifier)
-        sinkOp.setUpstreamPort(edge.get.origin.portOrdinal)
+        sinkOp.setUpstreamPort(edge.get.fromPortId.id)
 
         // set output mode for visualization operator
         (upstream.get, sinkOp) match {

@@ -10,18 +10,19 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import edu.uci.ics.amber.engine.common.workflow.InputPort;
+import edu.uci.ics.amber.engine.common.workflow.OutputPort;
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
 import scala.Tuple3;
+import scala.collection.immutable.List;
 
 import java.util.EnumSet;
 import java.util.Set;
@@ -73,9 +74,10 @@ public class ScatterplotOpDesc extends VisualizationOperator {
     }
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
-        AttributeType xType = operatorSchemaInfo.inputSchemas()[0].getAttribute(xColumn).getType();
-        AttributeType yType = operatorSchemaInfo.inputSchemas()[0].getAttribute(yColumn).getType();
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+        Schema inputSchema = this.inputPortToSchemaMapping().get(this.operatorInfo().inputPorts().head().id()).get();
+        AttributeType xType = inputSchema.getAttribute(xColumn).getType();
+        AttributeType yType = inputSchema.getAttribute(yColumn).getType();
         Set<AttributeType> allowedAttributeTypesNumbersOnly = EnumSet.of(DOUBLE, INTEGER); //currently, the frontend has limitation it doesn't accept axes of type long
         if (!allowedAttributeTypesNumbersOnly.contains(xType)) {
             throw new IllegalArgumentException(xColumn + " is not a number \n");
@@ -90,10 +92,13 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                     this.operatorIdentifier(),
                     OpExecInitInfo.apply(
                             (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                    worker -> new ScatterplotOpExec(this, operatorSchemaInfo)
+                                    worker -> new ScatterplotOpExec(this)
                     )
                 )
-                .withIsOneToManyOp(true).withParallelizable(!isGeometric);
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
+                .withIsOneToManyOp(true)
+                .withParallelizable(!isGeometric);
     }
 
     @Override
@@ -102,9 +107,13 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 "Scatterplot",
                 "View the result in a scatterplot",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false, false, false);
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                false,
+                false,
+                false,
+                false
+        );
     }
 
     @Override

@@ -57,24 +57,28 @@ export class WorkflowVersionService {
     return this.displayParticularWorkflowVersion.asObservable();
   }
 
-  public displayParticularVersion(workflow: Workflow) {
+  public displayReadonlyWorkflow(workflow: Workflow) {
     this.modificationEnabledBeforeTempWorkflow = this.workflowActionService.checkWorkflowModificationEnabled();
     // we need to display the version on the paper but keep the original workflow in the background
     this.workflowActionService.setTempWorkflow(this.workflowActionService.getWorkflow());
-    // get the list of IDs of different elements when comparing displaying to the editing version
-    this.differentOpIDsList = this.getWorkflowsDifference(
-      this.workflowActionService.getWorkflowContent(),
-      workflow.content
-    );
     // disable persist to DB because it is read only
     this.workflowPersistService.setWorkflowPersistFlag(false);
     // disable the undoredo service because reloading the workflow is considered an action
     this.undoRedoService.disableWorkFlowModification();
     // reload the read only workflow version on the paper
     this.workflowActionService.reloadWorkflow(workflow);
-    this.setDisplayParticularVersion(true);
     // disable modifications because it is read only
     this.workflowActionService.disableWorkflowModification();
+  }
+
+  public displayParticularVersion(workflow: Workflow) {
+    // get the list of IDs of different elements when comparing displaying to the editing version
+    this.differentOpIDsList = this.getWorkflowsDifference(
+      this.workflowActionService.getWorkflowContent(),
+      workflow.content
+    );
+    this.displayReadonlyWorkflow(workflow);
+    this.setDisplayParticularVersion(true);
     // highlight the different elements by changing the color of boundary of the operator
     // needs a list of ids of elements to be highlighted
     this.highlightOpVersionDiff(this.differentOpIDsList);
@@ -84,7 +88,7 @@ export class WorkflowVersionService {
     differentOpIDsList.modified.map(id => this.highlightOpBoundary(id, "255,118,20,0.5"));
     differentOpIDsList.added.map(id => this.highlightOpBoundary(id, "0,255,0,0.5"));
 
-    if (differentOpIDsList.deleted != []) {
+    if (differentOpIDsList.deleted.length > 0) {
       const tempWorkflow = this.workflowActionService.getTempWorkflow();
       if (tempWorkflow != undefined) {
         for (const link of tempWorkflow.content.links) {
@@ -203,9 +207,7 @@ export class WorkflowVersionService {
     if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
   }
 
-  public closeParticularVersionDisplay() {
-    // set all elements to transparent boundary
-    this.unhighlightOpVersionDiff(this.differentOpIDsList);
+  public closeReadonlyWorkflowDisplay() {
     // should enable modifications first to be able to make action of reloading old version on paper
     this.workflowActionService.enableWorkflowModification();
     // but still disable redo and undo service to not capture swapping the workflows, because enabling modifications
@@ -218,8 +220,14 @@ export class WorkflowVersionService {
     // after reloading the workflow, we can enable the undoredo service
     this.undoRedoService.enableWorkFlowModification();
     this.workflowPersistService.setWorkflowPersistFlag(true);
-    this.setDisplayParticularVersion(false);
     if (!this.modificationEnabledBeforeTempWorkflow) this.workflowActionService.disableWorkflowModification();
+  }
+
+  public closeParticularVersionDisplay() {
+    // set all elements to transparent boundary
+    this.unhighlightOpVersionDiff(this.differentOpIDsList);
+    this.closeReadonlyWorkflowDisplay();
+    this.setDisplayParticularVersion(false);
   }
 
   public unhighlightOpVersionDiff(differentOpIDsList: DifferentOpIDsList) {
