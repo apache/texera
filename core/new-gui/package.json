@@ -99,9 +99,9 @@
   "devDependencies": {
     "@angular-builders/custom-webpack": "14.1.0",
     "@angular-devkit/build-angular": "~14.1.0",
-    "@angular-eslint/eslint-plugin": "13.1.0",
-    "@angular-eslint/eslint-plugin-template": "13.1.0",
-    "@angular-eslint/template-parser": "13.1.0",
+    "@angular-eslint/eslint-plugin": "14.1.0",
+    "@angular-eslint/eslint-plugin-template": "14.1.0",
+    "@angular-eslint/template-parser": "14.1.0",
     "@angular/cli": "~14.1.0",
     "@angular/compiler-cli": "~14.1.0",
     "@nrwl/angular": "14.4.6",
