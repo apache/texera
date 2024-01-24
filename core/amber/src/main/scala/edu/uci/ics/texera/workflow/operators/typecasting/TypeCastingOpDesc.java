@@ -17,7 +17,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import scala.Tuple3;
@@ -37,17 +36,20 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public java.util.List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         Preconditions.checkArgument(!typeCastingUnits.isEmpty());
+        Schema outputSchema = this.outputPortToSchemaMapping().get(this.operatorInfo().outputPorts().head().id()).get();
         return PhysicalOp.oneToOnePhysicalOp(
-                workflowId,
-                executionId,
-                operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                        worker -> new TypeCastingOpExec(outputSchema)
+                        )
                 )
-        );
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
     }
 
     @Override
@@ -57,7 +59,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Cast between types",
                 OperatorGroupConstants.UTILITY_GROUP(),
                 asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,

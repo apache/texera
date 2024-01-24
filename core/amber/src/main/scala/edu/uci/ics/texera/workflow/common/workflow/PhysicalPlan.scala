@@ -29,8 +29,7 @@ object PhysicalPlan {
       val subPlan =
         op.getPhysicalPlan(
           context.workflowId,
-          context.executionId,
-          logicalPlan.getOpSchemaInfo(op.operatorIdentifier)
+          context.executionId
         )
       physicalPlan = physicalPlan.addSubPlan(subPlan)
     })
@@ -140,7 +139,6 @@ case class PhysicalPlan(
   def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
     dag.getDescendants(physicalOpId).asScala.toSet
   }
-
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }

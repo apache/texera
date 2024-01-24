@@ -2,6 +2,12 @@
   display: grid;
 }
 
+.interaction-item[disabled] {
+  pointer-events: none;
+  color: #163aec;
+  font-weight: bold;
+}
+
 .interaction-item {
   margin: 5px 0;
   padding: 10px;

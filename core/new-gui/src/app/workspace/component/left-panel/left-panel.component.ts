@@ -42,7 +42,7 @@ export class LeftPanelComponent {
 
   openTimeTravelFrame(): void {
     this.currentComponent = TimeTravelComponent;
-    this.title = "TimeTravel";
+    this.title = "Time Travel";
   }
 
   openOperatorMenu(): void {

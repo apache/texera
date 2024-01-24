@@ -12,8 +12,8 @@ case class RegionPlan(
     regionLinks.filter(link => link.toRegion == region).map(_.fromRegion)
   }
 
-  def getRegionOfPhysicalLink(link: PhysicalLink): Option[Region] = {
-    regions.find(region => region.getEffectiveLinks.contains(link))
+  def getRegionOfPhysicalLink(link: PhysicalLink): Region = {
+    regions.find(region => region.getEffectiveLinks.contains(link)).get
   }
 
 }

@@ -24,12 +24,11 @@ trait LinkWorkersHandler {
 
   registerHandler { (msg: LinkWorkers, sender) =>
     {
-      val linkConfig = cp.workflow.regionPlan
+      val resourceConfig = cp.workflow.regionPlan
         .getRegionOfPhysicalLink(msg.link)
+        .resourceConfig
         .get
-        .config
-        .get
-        .linkConfigs(msg.link)
+      val linkConfig = resourceConfig.linkConfigs(msg.link)
 
       val futures = linkConfig.channelConfigs
         .flatMap(channelConfig => {

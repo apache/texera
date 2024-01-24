@@ -9,9 +9,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
@@ -82,6 +83,7 @@ import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStrin
 import org.apache.zookeeper.KeeperException.UnimplementedException
 
 import java.util.UUID
+import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
@@ -173,12 +175,16 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()
+
+  @JsonIgnore
+  val inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
+  @JsonIgnore
+  val outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     throw new UnimplementedException()
   }
@@ -186,11 +192,10 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalPlan = {
     new PhysicalPlan(
-      operators = Set(getPhysicalOp(workflowId, executionId, operatorSchemaInfo)),
+      operators = Set(getPhysicalOp(workflowId, executionId)),
       links = Set.empty
     )
   }
@@ -228,8 +233,8 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      newOpDesc: LogicalOp,
-      operatorSchemaInfo: OperatorSchemaInfo
+      oldOpDesc: LogicalOp,
+      newOpDesc: LogicalOp
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     throw new UnsupportedOperationException(
       "operator " + getClass.getSimpleName + " does not support reconfiguration"
