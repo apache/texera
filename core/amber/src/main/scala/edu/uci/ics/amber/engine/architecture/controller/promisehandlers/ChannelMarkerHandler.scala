@@ -52,14 +52,16 @@ trait ChannelMarkerHandler {
       val channelScope = cp.executionState.builtChannels.filter(channelId => {
         msg.scope.operators
           .map(_.id)
-          .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.from)) &&
-          msg.scope.operators.map(_.id).contains(VirtualIdentityUtils.getPhysicalOpId(channelId.to))
+          .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
+          msg.scope.operators
+            .map(_.id)
+            .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
       })
       val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
         cp.executionState.getOperatorExecution(source).getBuiltWorkerIds.flatMap { worker =>
           Array(
-            ChannelID(CONTROLLER, worker, isControl = true),
-            ChannelID(worker, CONTROLLER, isControl = true)
+            ChannelIdentity(CONTROLLER, worker, isControl = true),
+            ChannelIdentity(worker, CONTROLLER, isControl = true)
           )
         }
       }

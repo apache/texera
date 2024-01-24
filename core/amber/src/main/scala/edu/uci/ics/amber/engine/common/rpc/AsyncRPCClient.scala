@@ -77,7 +77,7 @@ class AsyncRPCClient(
   def sendChannelMarker(
       markerId: ChannelMarkerIdentity,
       markerType: ChannelMarkerType,
-      scope: Set[ChannelID],
+      scope: Set[ChannelIdentity],
       cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
       channelId: ChannelIdentity
   ): Unit = {

@@ -350,7 +350,7 @@ class DataProcessor(
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
       // if this operator is not the final destination of the marker, pass it downstream
-      val downstreamChannelsInScope = marker.scope.filter(_.from == actorId)
+      val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId)
       if (downstreamChannelsInScope.nonEmpty) {
         outputManager.flush(Some(downstreamChannelsInScope))
         outputGateway.getActiveChannels.foreach { activeChannelId =>

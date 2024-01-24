@@ -118,12 +118,12 @@ class OutputManager(
     * @param onlyFor An optional set of 'ChannelID' indicating the specific buffers to flush.
     *                If None, all buffers are flushed. Default value is None.
     */
-  def flush(onlyFor: Option[Set[ChannelID]] = None): Unit = {
+  def flush(onlyFor: Option[Set[ChannelIdentity]] = None): Unit = {
     val buffersToFlush = onlyFor match {
       case Some(channelIds) =>
         networkOutputBuffers
           .filter(out => {
-            val channel = ChannelID(selfID, out._1._2, isControl = false)
+            val channel = ChannelIdentity(selfID, out._1._2, isControl = false)
             channelIds.contains(channel)
           })
           .values
