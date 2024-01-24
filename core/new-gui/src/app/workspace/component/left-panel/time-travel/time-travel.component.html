@@ -18,11 +18,6 @@
       <!-- Main row for each execution -->
       <tr (click)="toggleRow(execution.eId)">
         <td>
-          <span class="expand-collapse-icon">
-            <i
-              class="fa"
-              [ngClass]="{'fa-chevron-down': expandedRows.has(execution.eId), 'fa-chevron-right': !expandedRows.has(execution.eId)}"></i>
-          </span>
           {{ execution.eId }}
         </td>
         <td>{{ execution.startingTime | date:'short' }}</td>
