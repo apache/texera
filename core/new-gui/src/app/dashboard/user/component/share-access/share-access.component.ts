@@ -17,7 +17,7 @@ export class ShareAccessComponent implements OnInit {
   @Input() id!: number;
   @Input() allOwners!: string[];
 
-  public validateForm!: FormGroup;
+  public validateForm: FormGroup;
   public accessList: ReadonlyArray<ShareAccess> = [];
   public owner: string = "";
   public filteredOwners: Array<string> = [];
