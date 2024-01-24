@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   DataFrame,
   WorkflowFIFOMessage,
   WorkflowFIFOMessagePayload
@@ -21,6 +20,7 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
@@ -61,7 +61,7 @@ class LoggingSpec
     logStorage.deleteStorage()
     val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
     payloadToLog.foreach { payload =>
-      val channel = ChannelID(CONTROLLER, SELF, isControl = true)
+      val channel = ChannelIdentity(CONTROLLER, SELF, isControl = true)
       val msgOpt = Some(WorkflowFIFOMessage(channel, 0, payload))
       logManager.withFaultTolerant(channel, msgOpt) {
         // do nothing

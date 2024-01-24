@@ -3,8 +3,11 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
@@ -30,7 +33,7 @@ class ExecutionState(workflow: Workflow) {
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
 
-  val builtChannels: mutable.Set[ChannelID] = mutable.HashSet[ChannelID]()
+  val builtChannels: mutable.Set[ChannelIdentity] = mutable.HashSet[ChannelIdentity]()
 
   def initOperatorState(
       physicalOpId: PhysicalOpIdentity,

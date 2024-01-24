@@ -2,8 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 
@@ -12,8 +11,8 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
 
   private val globalPauses = new mutable.HashSet[PauseType]()
   private val specificInputPauses =
-    new mutable.HashMap[PauseType, mutable.Set[ChannelID]]
-      with mutable.MultiMap[PauseType, ChannelID]
+    new mutable.HashMap[PauseType, mutable.Set[ChannelIdentity]]
+      with mutable.MultiMap[PauseType, ChannelIdentity]
 
   def pause(pauseType: PauseType): Unit = {
     globalPauses.add(pauseType)
@@ -21,7 +20,7 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
     inputGateway.getAllDataChannels.foreach(_.enable(false))
   }
 
-  def pauseInputChannel(pauseType: PauseType, inputs: List[ChannelID]): Unit = {
+  def pauseInputChannel(pauseType: PauseType, inputs: List[ChannelIdentity]): Unit = {
     inputs.foreach(input => {
       specificInputPauses.addBinding(pauseType, input)
       // disable specified data queues
@@ -45,8 +44,8 @@ class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway
     // need to resume specific input channels
     val pausedChannels = specificInputPauses.values.flatten.toSet
     inputGateway.getAllDataChannels.foreach(_.enable(true))
-    pausedChannels.foreach { channelID =>
-      inputGateway.getChannel(channelID).enable(false)
+    pausedChannels.foreach { ChannelIdentity =>
+      inputGateway.getChannel(ChannelIdentity).enable(false)
     }
   }
 

@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.texera.Utils
 
 import java.nio.file.Path
@@ -60,19 +61,23 @@ class PythonWorkflowWorker(
   )
 
   override def handleInputMessage(messageId: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
-    val channel = networkInputGateway.getChannel(workflowMsg.channel)
+    val channel = networkInputGateway.getChannel(workflowMsg.channelId)
     channel.acceptMessage(workflowMsg)
     while (channel.isEnabled && channel.hasMessage) {
       val msg = channel.take
       msg.payload match {
         case payload: ControlPayload =>
-          pythonProxyClient.enqueueCommand(payload, workflowMsg.channel)
+          pythonProxyClient.enqueueCommand(payload, workflowMsg.channelId)
         case payload: DataPayload =>
-          pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channel))
+          pythonProxyClient.enqueueData(DataElement(payload, workflowMsg.channelId))
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
-    sender ! NetworkAck(messageId, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
+    sender ! NetworkAck(
+      messageId,
+      getInMemSize(workflowMsg),
+      getQueuedCredit(workflowMsg.channelId)
+    )
   }
 
   override def receiveCreditMessages: Receive = {
@@ -84,8 +89,8 @@ class PythonWorkflowWorker(
   }
 
   /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
-    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit
+  override def getQueuedCredit(channelId: ChannelIdentity): Long = {
+    pythonProxyClient.getQueuedCredit(channelId) + pythonProxyClient.getQueuedCredit
   }
 
   override def handleBackpressure(enableBackpressure: Boolean): Unit = {

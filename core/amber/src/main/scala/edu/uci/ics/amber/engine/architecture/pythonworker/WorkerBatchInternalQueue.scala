@@ -3,12 +3,12 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue._
 import edu.uci.ics.amber.engine.common.actormessage.ActorCommand
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ControlPayload,
   ControlPayloadV2,
   DataFrame,
   DataPayload
 }
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import lbmq.LinkedBlockingMultiQueue
 
 import scala.collection.mutable
@@ -19,11 +19,13 @@ object WorkerBatchInternalQueue {
   // 4 kinds of elements can be accepted by internal queue
   sealed trait InternalQueueElement
 
-  case class DataElement(dataPayload: DataPayload, from: ChannelID) extends InternalQueueElement
+  case class DataElement(dataPayload: DataPayload, from: ChannelIdentity)
+      extends InternalQueueElement
 
-  case class ControlElement(cmd: ControlPayload, from: ChannelID) extends InternalQueueElement
+  case class ControlElement(cmd: ControlPayload, from: ChannelIdentity) extends InternalQueueElement
 
-  case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelID) extends InternalQueueElement
+  case class ControlElementV2(cmd: ControlPayloadV2, from: ChannelIdentity)
+      extends InternalQueueElement
   case class ActorCommandElement(cmd: ActorCommand) extends InternalQueueElement
 }
 
@@ -43,9 +45,9 @@ trait WorkerBatchInternalQueue {
 
   // the values in below maps are in batches
   private val inQueueSizeMapping =
-    new mutable.HashMap[ChannelID, Long]() // read and written by main thread
+    new mutable.HashMap[ChannelIdentity, Long]() // read and written by main thread
   @volatile private var outQueueSizeMapping =
-    new mutable.HashMap[ChannelID, Long]() // written by DP thread, read by main thread
+    new mutable.HashMap[ChannelIdentity, Long]() // written by DP thread, read by main thread
 
   def enqueueData(elem: InternalQueueElement): Unit = {
     dataQueue.add(elem)
@@ -66,10 +68,10 @@ trait WorkerBatchInternalQueue {
     dataQueue.add(elem)
   }
 
-  def enqueueCommand(cmd: ControlPayload, from: ChannelID): Unit = {
+  def enqueueCommand(cmd: ControlPayload, from: ChannelIdentity): Unit = {
     controlQueue.add(ControlElement(cmd, from))
   }
-  def enqueueCommand(cmd: ControlPayloadV2, from: ChannelID): Unit = {
+  def enqueueCommand(cmd: ControlPayloadV2, from: ChannelIdentity): Unit = {
     controlQueue.add(ControlElementV2(cmd, from))
   }
 
@@ -103,7 +105,7 @@ trait WorkerBatchInternalQueue {
 
   def isControlQueueEmpty: Boolean = controlQueue.isEmpty
 
-  def getQueuedCredit(sender: ChannelID): Long = {
+  def getQueuedCredit(sender: ChannelIdentity): Long = {
     val inBytes = inQueueSizeMapping.getOrElseUpdate(sender, 0L)
     val outBytes = outQueueSizeMapping.getOrElseUpdate(sender, 0L)
     inBytes - outBytes

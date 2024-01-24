@@ -17,10 +17,10 @@ import edu.uci.ics.amber.engine.architecture.control.utils.PingPongHandler.Ping
 import edu.uci.ics.amber.engine.architecture.control.utils.RecursionHandler.Recursion
 import edu.uci.ics.amber.engine.architecture.control.utils.TrivialControlTester
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.wordspec.AnyWordSpecLike
 import org.scalatest.{BeforeAndAfterAll, BeforeAndAfterEach}
@@ -92,7 +92,7 @@ class TrivialControlSpec
         NetworkMessage(
           seqNum,
           WorkflowFIFOMessage(
-            ChannelID(CONTROLLER, ActorVirtualIdentity("0"), isControl = true),
+            ChannelIdentity(CONTROLLER, ActorVirtualIdentity("0"), isControl = true),
             seqNum,
             ControlInvocation(seqNum, evt)
           )

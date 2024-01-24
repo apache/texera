@@ -12,7 +12,7 @@
 //import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 //import edu.uci.ics.amber.engine.common.Constants
 //import edu.uci.ics.amber.engine.common.ambermessage.{
-//  ChannelID,
+//  ChannelIdentity,
 //  ControlPayload,
 //  DataFrame,
 //  DataPayload,
@@ -79,7 +79,7 @@
 //    controls.foreach { ctrl =>
 //      worker ! NetworkMessage(
 //        seq,
-//        WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, true), seq, ctrl)
+//        WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, true), seq, ctrl)
 //      )
 //      val received = receiveWhile(3.seconds) {
 //        case NetworkAck(id, credits) =>
@@ -115,7 +115,7 @@
 //    worker ! NetworkMessage(
 //      4,
 //      WorkflowFIFOMessage(
-//        ChannelID(identifier2, identifier1, false),
+//        ChannelIdentity(identifier2, identifier1, false),
 //        0,
 //        DataFrame(
 //          Array(
@@ -143,7 +143,7 @@
 //    worker ! NetworkMessage(
 //      4,
 //      WorkflowFIFOMessage(
-//        ChannelID(identifier2, identifier1, false),
+//        ChannelIdentity(identifier2, identifier1, false),
 //        0,
 //        DataFrame(
 //          (0 until 100)
@@ -163,7 +163,7 @@
 //    worker ! NetworkMessage(
 //      5,
 //      WorkflowFIFOMessage(
-//        ChannelID(identifier2, identifier1, false),
+//        ChannelIdentity(identifier2, identifier1, false),
 //        1,
 //        EndOfUpstream()
 //      )

@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 /* The abstracted FIFO/exactly-once logic */
-class AmberFIFOChannel(val channelId: ChannelID) extends AmberLogging {
+class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
 
-  override def actorId: ActorVirtualIdentity = channelId.to
+  override def actorId: ActorVirtualIdentity = channelId.toWorkerId
 
   private val ofoMap = new mutable.HashMap[Long, WorkflowFIFOMessage]
   private var current = 0L

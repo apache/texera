@@ -1,16 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
 import edu.uci.ics.amber.engine.common.storage.{EmptyRecordStorage, SequentialRecordStorage}
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 //In-mem formats:
 sealed trait ReplayLogRecord
 
 case class MessageContent(message: WorkflowFIFOMessage) extends ReplayLogRecord
-case class ProcessingStep(channelID: ChannelID, step: Long) extends ReplayLogRecord
+case class ProcessingStep(channelId: ChannelIdentity, step: Long) extends ReplayLogRecord
 case class ReplayDestination(id: ChannelMarkerIdentity) extends ReplayLogRecord
 case object TerminateSignal extends ReplayLogRecord
 
@@ -46,10 +47,10 @@ trait ReplayLogManager {
   def markAsReplayDestination(id: ChannelMarkerIdentity): Unit
 
   def withFaultTolerant(
-      channel: ChannelID,
+      channelId: ChannelIdentity,
       message: Option[WorkflowFIFOMessage]
   )(code: => Unit): Unit = {
-    cursor.setCurrentChannel(channel)
+    cursor.setCurrentChannel(channelId)
     try {
       code
     } catch {
@@ -82,11 +83,11 @@ class ReplayLogManagerImpl(handler: WorkflowFIFOMessage => Unit) extends ReplayL
   private var writer: AsyncReplayLogWriter = _
 
   override def withFaultTolerant(
-      channel: ChannelID,
+      channelId: ChannelIdentity,
       message: Option[WorkflowFIFOMessage]
   )(code: => Unit): Unit = {
-    replayLogger.logCurrentStepWithMessage(cursor.getStep, channel, message)
-    super.withFaultTolerant(channel, message)(code)
+    replayLogger.logCurrentStepWithMessage(cursor.getStep, channelId, message)
+    super.withFaultTolerant(channelId, message)(code)
   }
 
   override def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {

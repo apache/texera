@@ -5,10 +5,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, 
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   ExecutionIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
@@ -47,7 +47,7 @@ class OperatorExecution(
         id,
         UNINITIALIZED,
         WorkerStatistics(UNINITIALIZED, 0, 0),
-        mutable.HashSet(ChannelID(CONTROLLER, id, isControl = true))
+        mutable.HashSet(ChannelIdentity(CONTROLLER, id, isControl = true))
       )
     )
   }
