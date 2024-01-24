@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.texera.Utils
 
 import java.nio.file.Path
@@ -84,8 +85,8 @@ class PythonWorkflowWorker(
   }
 
   /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
-    pythonProxyClient.getQueuedCredit(channelID) + pythonProxyClient.getQueuedCredit
+  override def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long = {
+    pythonProxyClient.getQueuedCredit(ChannelIdentity) + pythonProxyClient.getQueuedCredit
   }
 
   override def handleBackpressure(enableBackpressure: Boolean): Unit = {

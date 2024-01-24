@@ -14,7 +14,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerC
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ControlPayload,
   DataPayload,
   WorkflowFIFOMessage,
@@ -28,7 +27,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 
@@ -47,7 +46,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
   val promiseMap = new mutable.LongMap[Promise[Any]]()
   var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
 
-  private def getQueuedCredit(channel: ChannelID): Long = {
+  private def getQueuedCredit(channel: ChannelIdentity): Long = {
     0L // client does not have queued credits
   }
 
@@ -62,7 +61,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
       assert(controller == null)
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
       sender ! Ack
-    case CreditRequest(channel: ChannelID) =>
+    case CreditRequest(channel: ChannelIdentity) =>
       sender ! CreditResponse(channel, getQueuedCredit(channel))
     case ClosureRequest(closure) =>
       try {

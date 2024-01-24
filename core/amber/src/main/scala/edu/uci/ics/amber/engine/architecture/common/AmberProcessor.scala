@@ -6,10 +6,10 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkOutputGateway
 }
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCServer}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 class AmberProcessor(
     val actorId: ActorVirtualIdentity,
@@ -36,12 +36,12 @@ class AmberProcessor(
     new AsyncRPCServer(outputGateway, actorId)
 
   def processControlPayload(
-      channel: ChannelID,
+      channel: ChannelIdentity,
       payload: ControlPayload
   ): Unit = {
     payload match {
       case invocation: ControlInvocation =>
-        asyncRPCServer.receive(invocation, channel.from)
+        asyncRPCServer.receive(invocation, channel.fromWorkerId)
       case ret: ReturnInvocation =>
         asyncRPCClient.logControlReply(ret, channel)
         asyncRPCClient.fulfillPromise(ret)

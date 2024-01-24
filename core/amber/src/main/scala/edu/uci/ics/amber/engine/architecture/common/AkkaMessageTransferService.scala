@@ -4,8 +4,8 @@ import akka.actor.Cancellable
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{CongestionControl, FlowControl}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -22,9 +22,9 @@ class AkkaMessageTransferService(
   var creditPollingHandle: Cancellable = Cancellable.alreadyCancelled
 
   // add congestion control and flow control here
-  val channelToCC = new mutable.HashMap[ChannelID, CongestionControl]()
-  val channelToFC = new mutable.HashMap[ChannelID, FlowControl]()
-  val messageIDToIdentity = new mutable.LongMap[ChannelID]
+  val channelToCC = new mutable.HashMap[ChannelIdentity, CongestionControl]()
+  val channelToFC = new mutable.HashMap[ChannelIdentity, FlowControl]()
+  val messageIDToIdentity = new mutable.LongMap[ChannelIdentity]
 
   private var backpressured = false
 
@@ -100,20 +100,20 @@ class AkkaMessageTransferService(
     if (!messageIDToIdentity.contains(msgId)) {
       return
     }
-    val channelId = messageIDToIdentity.remove(msgId).get
-    val congestionControl = channelToCC.getOrElseUpdate(channelId, new CongestionControl())
+    val ChannelIdentity = messageIDToIdentity.remove(msgId).get
+    val congestionControl = channelToCC.getOrElseUpdate(ChannelIdentity, new CongestionControl())
     congestionControl.ack(msgId)
     congestionControl.getBufferedMessagesToSend.foreach { msg =>
       congestionControl.markMessageInTransit(msg)
       refService.forwardToActor(msg)
     }
-    if (channelToFC.contains(channelId)) {
-      channelToFC(channelId).decreaseInflightCredit(ackedCredit)
-      updateChannelCreditFromReceiver(channelId, queuedCredit)
+    if (channelToFC.contains(ChannelIdentity)) {
+      channelToFC(ChannelIdentity).decreaseInflightCredit(ackedCredit)
+      updateChannelCreditFromReceiver(ChannelIdentity, queuedCredit)
     }
   }
 
-  def updateChannelCreditFromReceiver(channel: ChannelID, queuedCredit: Long): Unit = {
+  def updateChannelCreditFromReceiver(channel: ChannelIdentity, queuedCredit: Long): Unit = {
     val flowControl = channelToFC.getOrElseUpdate(channel, new FlowControl())
     flowControl.updateQueuedCredit(queuedCredit)
     flowControl.getMessagesToSend.foreach(out =>
@@ -141,7 +141,7 @@ class AkkaMessageTransferService(
         if (msgsNeedResend.nonEmpty) {
           logger.debug(s"output for $channel: ${cc.getStatusReport}")
         }
-        if (refService.hasActorRef(channel.from)) {
+        if (refService.hasActorRef(channel.fromWorkerId)) {
           msgsNeedResend.foreach { msg =>
             refService.forwardToActor(msg)
           }

@@ -18,9 +18,13 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import java.net.URI
@@ -125,8 +129,8 @@ class WorkflowWorker(
   }
 
   /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
-    dp.getQueuedCredit(channelID)
+  override def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long = {
+    dp.getQueuedCredit(ChannelIdentity)
   }
 
   override def postStop(): Unit = {

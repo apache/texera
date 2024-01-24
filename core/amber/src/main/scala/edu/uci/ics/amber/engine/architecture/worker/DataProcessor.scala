@@ -30,7 +30,11 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
@@ -122,7 +126,7 @@ class DataProcessor(
   var operatorOpened: Boolean = false
   var inputBatch: Array[ITuple] = _
   var currentInputIdx: Int = -1
-  var currentBatchChannel: ChannelID = _
+  var currentBatchChannel: ChannelIdentity = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -157,7 +161,7 @@ class DataProcessor(
     upstreamLinkStatus.registerInput(identifier, input)
   }
 
-  def getQueuedCredit(channel: ChannelID): Long = {
+  def getQueuedCredit(channel: ChannelIdentity): Long = {
     inputGateway.getChannel(channel).getQueuedCredit
   }
 
@@ -192,7 +196,7 @@ class DataProcessor(
       outputIterator.setTupleOutput(
         operator.processTuple(
           tuple,
-          getInputPortId(currentBatchChannel.from).id,
+          getInputPortId(currentBatchChannel.fromWorkerId).id,
           pauseManager,
           asyncRPCClient
         )
@@ -273,7 +277,7 @@ class DataProcessor(
     }
   }
 
-  private[this] def initBatch(channel: ChannelID, batch: Array[ITuple]): Unit = {
+  private[this] def initBatch(channel: ChannelIdentity, batch: Array[ITuple]): Unit = {
     currentBatchChannel = channel
     inputBatch = batch
     currentInputIdx = 0
@@ -290,7 +294,7 @@ class DataProcessor(
   }
 
   def processDataPayload(
-      channel: ChannelID,
+      channel: ChannelIdentity,
       dataPayload: DataPayload
   ): Unit = {
     dataPayload match {
@@ -308,8 +312,8 @@ class DataProcessor(
         initBatch(channel, tuples)
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
-        val currentLink = upstreamLinkStatus.getInputLink(channel.from)
-        upstreamLinkStatus.markWorkerEOF(channel.from)
+        val currentLink = upstreamLinkStatus.getInputLink(channel.fromWorkerId)
+        upstreamLinkStatus.markWorkerEOF(channel.fromWorkerId)
         if (upstreamLinkStatus.isLinkEOF(currentLink)) {
           initBatch(channel, Array.empty)
           processInputTuple(Right(InputExhausted()))
@@ -328,7 +332,7 @@ class DataProcessor(
   }
 
   def processChannelMarker(
-      channelId: ChannelID,
+      channelId: ChannelIdentity,
       marker: ChannelMarkerPayload,
       logManager: ReplayLogManager
   ): Unit = {
@@ -343,7 +347,7 @@ class DataProcessor(
       // invoke the control command carried with the epoch marker
       logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
       if (command.isDefined) {
-        asyncRPCServer.receive(command.get, channelId.from)
+        asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
       // if this operator is not the final destination of the marker, pass it downstream
       if (!marker.scope.getSinkOperatorIds.contains(getOperatorId)) {
@@ -352,7 +356,9 @@ class DataProcessor(
         outputGateway.getActiveChannels.foreach { activeChannelId =>
           if (
             physicalLinks
-              .exists(p => p.toOpId == VirtualIdentityUtils.getPhysicalOpId(activeChannelId.to))
+              .exists(p =>
+                p.toOpId == VirtualIdentityUtils.getPhysicalOpId(activeChannelId.toWorkerId)
+              )
           ) {
             logger.info(
               s"send marker to $activeChannelId, id = ${marker.id}, cmd = ${command}"

@@ -8,8 +8,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   RegisterActorRef
 }
 import edu.uci.ics.amber.engine.common.{AmberLogging, VirtualIdentityUtils}
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 
 import scala.collection.mutable
@@ -28,8 +27,8 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[NetworkMessage]]
   actorRefMapping(SELF) = actorService.self
 
-  def askForCredit(channel: ChannelID): Unit = {
-    val id = channel.to
+  def askForCredit(channel: ChannelIdentity): Unit = {
+    val id = channel.toWorkerId
     if (actorRefMapping.contains(id)) {
       actorRefMapping(id) ! CreditRequest(channel)
     }
@@ -40,7 +39,7 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
   }
 
   def forwardToActor(msg: NetworkMessage): Unit = {
-    val id = msg.internalMessage.channel.to
+    val id = msg.internalMessage.channel.toWorkerId
     if (actorRefMapping.contains(id)) {
       actorRefMapping(id) ! msg
     } else {

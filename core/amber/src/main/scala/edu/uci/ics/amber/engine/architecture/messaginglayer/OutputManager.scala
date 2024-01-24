@@ -7,10 +7,9 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import org.jooq.exception.MappingException
 
@@ -88,7 +87,7 @@ class OutputManager(
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
-      dataOutputPort.addOutputChannel(ChannelID(selfID, receiver, isControl = false))
+      dataOutputPort.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
     })
   }
 

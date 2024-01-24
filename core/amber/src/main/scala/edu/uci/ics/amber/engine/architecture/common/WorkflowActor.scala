@@ -25,9 +25,8 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerStateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -58,9 +57,9 @@ object WorkflowActor {
   final case class NetworkMessage(messageId: Long, internalMessage: WorkflowFIFOMessage)
 
   // sent from network communicator to next worker to poll for credit information
-  final case class CreditRequest(channelEndpointID: ChannelID)
+  final case class CreditRequest(channelEndpointID: ChannelIdentity)
 
-  final case class CreditResponse(channelEndpointID: ChannelID, credit: Long)
+  final case class CreditResponse(channelEndpointID: ChannelIdentity, credit: Long)
 }
 
 abstract class WorkflowActor(
@@ -119,7 +118,7 @@ abstract class WorkflowActor(
   // actor behavior for FIFO messages
   def receiveMessageAndAck: Receive = {
     case NetworkMessage(id, workflowMsg @ WorkflowFIFOMessage(channel, _, _)) =>
-      actorRefMappingService.registerActorRef(channel.from, sender)
+      actorRefMappingService.registerActorRef(channel.fromWorkerId, sender)
       try {
         handleInputMessage(id, workflowMsg)
       } catch {
@@ -140,7 +139,7 @@ abstract class WorkflowActor(
 
   def receiveDeadLetterMessage: Receive = {
     case MessageBecomesDeadLetter(msg) =>
-      val dest = msg.internalMessage.channel.to
+      val dest = msg.internalMessage.channel.toWorkerId
       if (dest == actorId) {
         actorService.scheduleOnce(
           100.millis,
@@ -159,7 +158,7 @@ abstract class WorkflowActor(
   //
   //flow control:
   //
-  def getQueuedCredit(channelID: ChannelID): Long
+  def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long
 
   def handleBackpressure(isBackpressured: Boolean): Unit
 

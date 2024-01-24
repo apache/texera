@@ -8,13 +8,12 @@ import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
+  ChannelMarkerPayload,
   ControlPayload,
   DataPayload,
-  ChannelMarkerPayload,
   WorkflowFIFOMessage
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.error.ErrorUtils.safely
 
@@ -123,7 +122,7 @@ class DPThread(
             // establish order according to receiving order.
             // Note: this will not guarantee fifo & exactly-once
             // Please make sure the control here is IDEMPOTENT and ORDER-INDEPENDENT.
-            val controlChannelId = ChannelID(SELF, SELF, isControl = true)
+            val controlChannelId = ChannelIdentity(SELF, SELF, isControl = true)
             val channel = dp.inputGateway.getChannel(controlChannelId)
             channel.acceptMessage(
               WorkflowFIFOMessage(controlChannelId, channel.getCurrentSeq, control)
@@ -136,17 +135,17 @@ class DPThread(
       //
       // Main loop step 2: do input selection
       //
-      var channelID: ChannelID = null
+      var channelId: ChannelIdentity = null
       var msgOpt: Option[WorkflowFIFOMessage] = None
       if (dp.hasUnfinishedInput || dp.hasUnfinishedOutput || dp.pauseManager.isPaused) {
         dp.inputGateway.tryPickControlChannel match {
           case Some(channel) =>
-            channelID = channel.channelId
+            channelId = channel.ChannelIdentity
             msgOpt = Some(channel.take)
           case None =>
             // continue processing
             if (!dp.pauseManager.isPaused && !backpressureStatus) {
-              channelID = dp.currentBatchChannel
+              channelId = dp.currentBatchChannel
             } else {
               waitingForInput = true
             }
@@ -159,7 +158,7 @@ class DPThread(
           dp.inputGateway.tryPickChannel
         } match {
           case Some(channel) =>
-            channelID = channel.channelId
+            channelId = channel.ChannelIdentity
             msgOpt = Some(channel.take)
           case None => waitingForInput = true
         }
@@ -168,10 +167,10 @@ class DPThread(
       //
       // Main loop step 3: process selected message payload
       //
-      if (channelID != null) {
+      if (channelId != null) {
         // for logging, skip large data frames.
         val msgToLog = msgOpt.filter(_.payload.isInstanceOf[ControlPayload])
-        logManager.withFaultTolerant(channelID, msgToLog) {
+        logManager.withFaultTolerant(channelId, msgToLog) {
           msgOpt match {
             case None =>
               dp.continueDataProcessing()

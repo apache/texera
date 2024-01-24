@@ -4,12 +4,11 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.{AmberProcessor, WorkflowActor}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ControlPayload,
   DataPayload,
   WorkflowFIFOMessage
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 class TrivialControlTester(
     id: ActorVirtualIdentity
@@ -33,7 +32,7 @@ class TrivialControlTester(
   }
 
   /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = 0L
+  override def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long = 0L
 
   override def preStart(): Unit = {
     transferService.initialize()

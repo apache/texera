@@ -14,9 +14,9 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerStateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 
@@ -141,7 +141,7 @@ class Controller(
       } else {
         CLIENT
       }
-      val controlChannelId = ChannelID(source, SELF, isControl = true)
+      val controlChannelId = ChannelIdentity(source, SELF, isControl = true)
       val channel = cp.inputGateway.getChannel(controlChannelId)
       channel.acceptMessage(
         WorkflowFIFOMessage(controlChannelId, channel.getCurrentSeq, c)
@@ -159,7 +159,7 @@ class Controller(
   }
 
   /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
+  override def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long = {
     0 // no queued credit for controller
   }
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}

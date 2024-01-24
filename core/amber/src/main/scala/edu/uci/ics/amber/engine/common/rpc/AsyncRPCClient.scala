@@ -7,14 +7,17 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ChannelMarkerPayload,
   ChannelMarkerType,
   ControlPayload
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
@@ -77,11 +80,11 @@ class AsyncRPCClient(
       markerType: ChannelMarkerType,
       scope: PhysicalPlan,
       cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
-      channelID: ChannelID
+      channelId: ChannelIdentity
   ): Unit = {
-    logger.debug(s"send marker: $markerId to $channelID")
+    logger.debug(s"send marker: $markerId to $channelId")
     outputGateway.sendTo(
-      channelID,
+      channelId,
       ChannelMarkerPayload(markerId, markerType, scope, cmdMapping)
     )
   }
@@ -118,7 +121,7 @@ class AsyncRPCClient(
     }
   }
 
-  def logControlReply(ret: ReturnInvocation, channel: ChannelID): Unit = {
+  def logControlReply(ret: ReturnInvocation, channel: ChannelIdentity): Unit = {
     if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
