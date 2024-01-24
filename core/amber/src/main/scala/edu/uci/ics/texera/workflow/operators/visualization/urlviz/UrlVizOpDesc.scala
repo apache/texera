@@ -49,6 +49,8 @@ class UrlVizOpDesc extends VisualizationOperator {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName, outputSchema))
       )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
   }
 
   override def operatorInfo: OperatorInfo =
