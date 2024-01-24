@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelMarkerPayload,
@@ -14,7 +15,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 
 import scala.collection.mutable
 
-class ChannelMarkerManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
+class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
+    extends AmberLogging {
 
   private val markerReceived =
     new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelIdentity]]().withDefaultValue(Set())
@@ -45,10 +47,13 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
     val markerId = marker.id
     markerReceived.update(markerId, markerReceived(markerId) + from)
     // check if the epoch marker is completed
-    // TODO: rework the following logic to support control channels between workers
-    val sendersWithinScope = upstreamLinkStatus.allUncompletedSenders
-      .filter(sender => marker.scope.links.contains(upstreamLinkStatus.getInputLink(sender)))
-      .map(senderId => ChannelIdentity(senderId, actorId, isControl = false))
+    val upstreams = marker.scope.filter(_.toWorkerId == actorId)
+    val sendersWithinScope = inputGateway.getAllChannels
+      .map(_.channelId)
+      .filter { id =>
+        upstreams.contains(id)
+      }
+      .toSet
     val markerReceivedFromAllChannels = sendersWithinScope.subsetOf(markerReceived(markerId))
     val markerCompleted = marker.markerType match {
       case RequireAlignment => markerReceivedFromAllChannels

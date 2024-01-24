@@ -34,12 +34,14 @@
         <label>{{ fileUploadItem.name }}</label>
       </span>
       <button
+        nz-button
+        nzType="primary"
+        nzDanger
         (click)="deleteFile(fileUploadItem)"
-        [disabled]="fileUploadItem.isUploadingFlag"
-        class="queue-delete-button">
-        <i
-          aria-hidden="true"
-          class="fa fa-trash"></i>
+        [disabled]="fileUploadItem.isUploadingFlag">
+        <span
+          nz-icon
+          nzType="delete"></span>
       </button>
     </li>
   </div>

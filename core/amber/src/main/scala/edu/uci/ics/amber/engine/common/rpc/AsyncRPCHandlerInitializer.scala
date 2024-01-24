@@ -9,7 +9,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelIdentity,
   ChannelMarkerIdentity
 }
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.reflect.ClassTag
 
@@ -85,7 +84,7 @@ class AsyncRPCHandlerInitializer(
   def sendChannelMarker(
       markerId: ChannelMarkerIdentity,
       markerType: ChannelMarkerType,
-      scope: PhysicalPlan,
+      scope: Set[ChannelID],
       cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
       to: ChannelIdentity
   ): Unit = {

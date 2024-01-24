@@ -4,8 +4,7 @@ import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayLogManager, ReplayLogRecord}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
@@ -17,6 +16,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowFIFOMessagePayload
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -55,7 +55,9 @@ class LoggingSpec
   )
 
   "determinant logger" should "log processing steps in local storage" in {
-    val logStorage = ReplayLogStorage.getLogStorage(Some(new URI("file:///recovery-logs/tmp")))
+    val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
+      Some(new URI("file:///recovery-logs/tmp"))
+    )
     logStorage.deleteStorage()
     val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
     payloadToLog.foreach { payload =>
@@ -67,7 +69,7 @@ class LoggingSpec
     }
     logManager.sendCommitted(null)
     logManager.terminate()
-    val logRecords = logStorage.getReader("tmpLog").mkLogRecordIterator().toArray
+    val logRecords = logStorage.getReader("tmpLog").mkRecordIterator().toArray
     logStorage.deleteStorage()
     assert(logRecords.length == 15)
   }
