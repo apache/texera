@@ -16,7 +16,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, Re
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.collection.mutable
 
@@ -75,7 +74,7 @@ class AsyncRPCClient(
   def sendChannelMarker(
       markerId: ChannelMarkerIdentity,
       markerType: ChannelMarkerType,
-      scope: PhysicalPlan,
+      scope: Set[ChannelID],
       cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
       channelID: ChannelID
   ): Unit = {

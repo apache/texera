@@ -5,7 +5,9 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
+import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 object LinkWorkersHandler {
@@ -29,7 +31,13 @@ trait LinkWorkersHandler {
       val linkConfig = resourceConfig.linkConfigs(msg.link)
 
       val futures = linkConfig.channelConfigs
-        .flatMap(channelConfig =>
+        .flatMap(channelConfig => {
+          cp.executionState.builtChannels
+            .add(ChannelID(CONTROLLER, channelConfig.fromWorkerId, isControl = true))
+          cp.executionState.builtChannels
+            .add(ChannelID(CONTROLLER, channelConfig.toWorkerId, isControl = true))
+          cp.executionState.builtChannels
+            .add(ChannelID(channelConfig.fromWorkerId, channelConfig.toWorkerId, isControl = false))
           Seq(
             send(AddPartitioning(msg.link, linkConfig.partitioning), channelConfig.fromWorkerId),
             send(
@@ -37,7 +45,7 @@ trait LinkWorkersHandler {
               channelConfig.toWorkerId
             )
           )
-        )
+        })
 
       Future.collect(futures).map { _ =>
         // returns when all has completed
