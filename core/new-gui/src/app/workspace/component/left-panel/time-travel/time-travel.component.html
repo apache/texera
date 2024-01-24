@@ -17,9 +17,7 @@
     <ng-container *ngFor="let execution of executionList">
       <!-- Main row for each execution -->
       <tr (click)="toggleRow(execution.eId)">
-        <td>
-          {{ execution.eId }}
-        </td>
+        <td>{{ execution.eId }}</td>
         <td>{{ execution.startingTime | date:'short' }}</td>
         <!-- Display timestamp -->
       </tr>

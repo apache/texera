@@ -33,9 +33,16 @@
       <span>
         <label>{{ fileUploadItem.name }}</label>
       </span>
-      <button nz-button nzType="primary" nzDanger
-              (click)="deleteFile(fileUploadItem)"
-              [disabled]="fileUploadItem.isUploadingFlag"><span nz-icon nzType="delete"></span></button>
+      <button
+        nz-button
+        nzType="primary"
+        nzDanger
+        (click)="deleteFile(fileUploadItem)"
+        [disabled]="fileUploadItem.isUploadingFlag">
+        <span
+          nz-icon
+          nzType="delete"></span>
+      </button>
     </li>
   </div>
 </div>

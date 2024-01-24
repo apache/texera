@@ -204,24 +204,34 @@
                   nzTooltipPlacement="top"></i>
               </td>
               <td nzEllipsis>
-                <button nz-button
-                        nzType="default"
-                        nzSize="large"
-                        (click)="showRuntimeStatistics(row.eId)"
-                        nz-tooltip
-                        nzTooltipTitle="Display Runtime Statistics"
-                        nzTooltipPlacement="top"><span nz-icon nzType="line-chart"></span></button>
+                <button
+                  nz-button
+                  nzType="default"
+                  nzSize="large"
+                  (click)="showRuntimeStatistics(row.eId)"
+                  nz-tooltip
+                  nzTooltipTitle="Display Runtime Statistics"
+                  nzTooltipPlacement="top">
+                  <span
+                    nz-icon
+                    nzType="line-chart"></span>
+                </button>
               </td>
               <td nzEllipsis>
-                <button nz-button
-                        nzType="default"
-                        nzSize="large"
-                        (nzOnConfirm)="onDelete(row)"
-                        nz-tooltip
-                        nzTooltipPlacement="top"
-                        nzTooltipTitle='Delete the Execution "{{row.name}}"'
-                        nz-popconfirm
-                        nzPopconfirmTitle="Confirm to delete this execution."><span nz-icon nzType="delete"></span></button>
+                <button
+                  nz-button
+                  nzType="default"
+                  nzSize="large"
+                  (nzOnConfirm)="onDelete(row)"
+                  nz-tooltip
+                  nzTooltipPlacement="top"
+                  nzTooltipTitle='Delete the Execution "{{row.name}}"'
+                  nz-popconfirm
+                  nzPopconfirmTitle="Confirm to delete this execution.">
+                  <span
+                    nz-icon
+                    nzType="delete"></span>
+                </button>
               </td>
             </tr>
           </tbody>
