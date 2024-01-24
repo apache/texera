@@ -18,7 +18,7 @@ case object WorkflowMessage {
 sealed trait WorkflowMessage extends Serializable
 
 case class WorkflowFIFOMessage(
-    channel: ChannelIdentity,
+    channelId: ChannelIdentity,
     sequenceNumber: Long,
     payload: WorkflowFIFOMessagePayload
 ) extends WorkflowMessage

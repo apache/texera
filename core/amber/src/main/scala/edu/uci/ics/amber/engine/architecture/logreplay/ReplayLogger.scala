@@ -7,7 +7,7 @@ abstract class ReplayLogger {
 
   def logCurrentStepWithMessage(
       step: Long,
-      channel: ChannelIdentity,
+      channelId: ChannelIdentity,
       msg: Option[WorkflowFIFOMessage]
   ): Unit
 

@@ -109,9 +109,9 @@ class Controller(
   }
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
-    val channel = cp.inputGateway.getChannel(workflowMsg.channel)
+    val channel = cp.inputGateway.getChannel(workflowMsg.channelId)
     channel.acceptMessage(workflowMsg)
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
+    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
     processMessages()
   }
 
@@ -121,9 +121,9 @@ class Controller(
       cp.inputGateway.tryPickChannel match {
         case Some(channel) =>
           val msg = channel.take
-          logManager.withFaultTolerant(msg.channel, Some(msg)) {
+          logManager.withFaultTolerant(msg.channelId, Some(msg)) {
             msg.payload match {
-              case payload: ControlPayload => cp.processControlPayload(msg.channel, payload)
+              case payload: ControlPayload => cp.processControlPayload(msg.channelId, payload)
               case p                       => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
@@ -159,7 +159,7 @@ class Controller(
   }
 
   /** flow-control */
-  override def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long = {
+  override def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0 // no queued credit for controller
   }
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}

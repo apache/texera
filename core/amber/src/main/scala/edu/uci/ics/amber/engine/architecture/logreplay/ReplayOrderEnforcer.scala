@@ -34,11 +34,11 @@ class ReplayOrderEnforcer(
   private def forwardNext(): Unit = {
     if (channelStepOrder.nonEmpty) {
       val nextStep = channelStepOrder.dequeue()
-      currentChannelId = nextStep.ChannelIdentity
+      currentChannelId = nextStep.channelId
     }
   }
 
-  def canProceed(ChannelIdentity: ChannelIdentity): Boolean = {
+  def canProceed(channelId: ChannelIdentity): Boolean = {
     val step = logManager.getStep
     // release the next log record if the step matches
     if (channelStepOrder.nonEmpty && channelStepOrder.head.step == step) {
@@ -51,6 +51,6 @@ class ReplayOrderEnforcer(
       triggerOnComplete()
     }
     // only proceed if the current channel ID matches the channel ID of the log record
-    currentChannelId == ChannelIdentity
+    currentChannelId == channelId
   }
 }

@@ -58,7 +58,7 @@ class AkkaMessageTransferService(
 
   def send(msg: WorkflowFIFOMessage): Unit = {
     val networkMessage = NetworkMessage(networkMessageID, msg)
-    messageIDToIdentity(networkMessageID) = msg.channel
+    messageIDToIdentity(networkMessageID) = msg.channelId
     networkMessageID += 1
     forwardToFlowControl(
       networkMessage,
@@ -70,11 +70,12 @@ class AkkaMessageTransferService(
       msg: NetworkMessage,
       chainedStep: NetworkMessage => Unit
   ): Unit = {
-    if (msg.internalMessage.channel.isControl) {
+    if (msg.internalMessage.channelId.isControl) {
       // skip flow control for all control channels
       chainedStep(msg)
     } else {
-      val flowControl = channelToFC.getOrElseUpdate(msg.internalMessage.channel, new FlowControl())
+      val flowControl =
+        channelToFC.getOrElseUpdate(msg.internalMessage.channelId, new FlowControl())
       flowControl.getMessagesToSend(msg).foreach { msg =>
         chainedStep(msg)
       }
@@ -87,7 +88,7 @@ class AkkaMessageTransferService(
       chainedStep: NetworkMessage => Unit
   ): Unit = {
     val congestionControl =
-      channelToCC.getOrElseUpdate(msg.internalMessage.channel, new CongestionControl())
+      channelToCC.getOrElseUpdate(msg.internalMessage.channelId, new CongestionControl())
     if (congestionControl.canSend) {
       congestionControl.markMessageInTransit(msg)
       chainedStep(msg)
@@ -100,21 +101,21 @@ class AkkaMessageTransferService(
     if (!messageIDToIdentity.contains(msgId)) {
       return
     }
-    val ChannelIdentity = messageIDToIdentity.remove(msgId).get
-    val congestionControl = channelToCC.getOrElseUpdate(ChannelIdentity, new CongestionControl())
+    val channelId = messageIDToIdentity.remove(msgId).get
+    val congestionControl = channelToCC.getOrElseUpdate(channelId, new CongestionControl())
     congestionControl.ack(msgId)
     congestionControl.getBufferedMessagesToSend.foreach { msg =>
       congestionControl.markMessageInTransit(msg)
       refService.forwardToActor(msg)
     }
-    if (channelToFC.contains(ChannelIdentity)) {
-      channelToFC(ChannelIdentity).decreaseInflightCredit(ackedCredit)
-      updateChannelCreditFromReceiver(ChannelIdentity, queuedCredit)
+    if (channelToFC.contains(channelId)) {
+      channelToFC(channelId).decreaseInflightCredit(ackedCredit)
+      updateChannelCreditFromReceiver(channelId, queuedCredit)
     }
   }
 
-  def updateChannelCreditFromReceiver(channel: ChannelIdentity, queuedCredit: Long): Unit = {
-    val flowControl = channelToFC.getOrElseUpdate(channel, new FlowControl())
+  def updateChannelCreditFromReceiver(channelId: ChannelIdentity, queuedCredit: Long): Unit = {
+    val flowControl = channelToFC.getOrElseUpdate(channelId, new FlowControl())
     flowControl.updateQueuedCredit(queuedCredit)
     flowControl.getMessagesToSend.foreach(out =>
       forwardToCongestionControl(out, refService.forwardToActor)

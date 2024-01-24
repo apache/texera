@@ -13,8 +13,8 @@ class ProcessingStepCursor {
   private var currentStepCounter: Long = INIT_STEP
   private var currentChannel: ChannelIdentity = _
 
-  def setCurrentChannel(ChannelIdentity: ChannelIdentity): Unit = {
-    currentChannel = ChannelIdentity
+  def setCurrentChannel(channelId: ChannelIdentity): Unit = {
+    currentChannel = channelId
   }
 
   def getStep: Long = currentStepCounter

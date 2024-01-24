@@ -26,9 +26,9 @@ class NetworkOutputGateway(
     with Serializable {
   private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
-  def addOutputChannel(channel: ChannelIdentity): Unit = {
-    if (!idToSequenceNums.contains(channel)) {
-      idToSequenceNums(channel) = new AtomicLong()
+  def addOutputChannel(channelId: ChannelIdentity): Unit = {
+    if (!idToSequenceNums.contains(channelId)) {
+      idToSequenceNums(channelId) = new AtomicLong()
     }
   }
 
@@ -70,8 +70,8 @@ class NetworkOutputGateway(
 
   def getActiveChannels: Iterable[ChannelIdentity] = idToSequenceNums.keys
 
-  def getSequenceNumber(channel: ChannelIdentity): Long = {
-    idToSequenceNums.getOrElseUpdate(channel, new AtomicLong()).getAndIncrement()
+  def getSequenceNumber(channelId: ChannelIdentity): Long = {
+    idToSequenceNums.getOrElseUpdate(channelId, new AtomicLong()).getAndIncrement()
   }
 
 }

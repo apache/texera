@@ -125,12 +125,12 @@ class WorkflowWorker(
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     inputQueue.put(FIFOMessageElement(workflowMsg))
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
+    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
   /** flow-control */
-  override def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long = {
-    dp.getQueuedCredit(ChannelIdentity)
+  override def getQueuedCredit(channelId: ChannelIdentity): Long = {
+    dp.getQueuedCredit(channelId)
   }
 
   override def postStop(): Unit = {

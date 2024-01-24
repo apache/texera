@@ -52,9 +52,9 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
 
   // this function is called by both main thread(for getting credit)
   // and DP thread(for enqueuing messages) so a lock is required here
-  def getChannel(ChannelIdentity: ChannelIdentity): AmberFIFOChannel = {
+  def getChannel(channelId: ChannelIdentity): AmberFIFOChannel = {
     synchronized {
-      inputChannels.getOrElseUpdate(ChannelIdentity, new AmberFIFOChannel(ChannelIdentity))
+      inputChannels.getOrElseUpdate(channelId, new AmberFIFOChannel(channelId))
     }
   }
 

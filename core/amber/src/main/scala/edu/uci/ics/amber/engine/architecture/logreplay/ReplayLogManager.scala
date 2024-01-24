@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, Channel
 sealed trait ReplayLogRecord
 
 case class MessageContent(message: WorkflowFIFOMessage) extends ReplayLogRecord
-case class ProcessingStep(ChannelIdentity: ChannelIdentity, step: Long) extends ReplayLogRecord
+case class ProcessingStep(channelId: ChannelIdentity, step: Long) extends ReplayLogRecord
 case class ReplayDestination(id: ChannelMarkerIdentity) extends ReplayLogRecord
 case object TerminateSignal extends ReplayLogRecord
 
@@ -46,10 +46,10 @@ trait ReplayLogManager {
   def markAsReplayDestination(id: ChannelMarkerIdentity): Unit
 
   def withFaultTolerant(
-      channel: ChannelIdentity,
+      channelId: ChannelIdentity,
       message: Option[WorkflowFIFOMessage]
   )(code: => Unit): Unit = {
-    cursor.setCurrentChannel(channel)
+    cursor.setCurrentChannel(channelId)
     try {
       code
     } catch {
@@ -80,11 +80,11 @@ class ReplayLogManagerImpl(handler: WorkflowFIFOMessage => Unit) extends ReplayL
   private var writer: AsyncReplayLogWriter = _
 
   override def withFaultTolerant(
-      channel: ChannelIdentity,
+      channelId: ChannelIdentity,
       message: Option[WorkflowFIFOMessage]
   )(code: => Unit): Unit = {
-    replayLogger.logCurrentStepWithMessage(cursor.getStep, channel, message)
-    super.withFaultTolerant(channel, message)(code)
+    replayLogger.logCurrentStepWithMessage(cursor.getStep, channelId, message)
+    super.withFaultTolerant(channelId, message)(code)
   }
 
   override def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {

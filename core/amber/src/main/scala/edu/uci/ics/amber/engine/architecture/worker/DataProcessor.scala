@@ -161,8 +161,8 @@ class DataProcessor(
     upstreamLinkStatus.registerInput(identifier, input)
   }
 
-  def getQueuedCredit(channel: ChannelIdentity): Long = {
-    inputGateway.getChannel(channel).getQueuedCredit
+  def getQueuedCredit(channelId: ChannelIdentity): Long = {
+    inputGateway.getChannel(channelId).getQueuedCredit
   }
 
   private def getInputPortId(workerId: ActorVirtualIdentity): PortIdentity = {
@@ -277,8 +277,8 @@ class DataProcessor(
     }
   }
 
-  private[this] def initBatch(channel: ChannelIdentity, batch: Array[ITuple]): Unit = {
-    currentBatchChannel = channel
+  private[this] def initBatch(channelId: ChannelIdentity, batch: Array[ITuple]): Unit = {
+    currentBatchChannel = channelId
     inputBatch = batch
     currentInputIdx = 0
   }
@@ -294,7 +294,7 @@ class DataProcessor(
   }
 
   def processDataPayload(
-      channel: ChannelIdentity,
+      channelId: ChannelIdentity,
       dataPayload: DataPayload
   ): Unit = {
     dataPayload match {
@@ -309,13 +309,13 @@ class DataProcessor(
             )
           }
         )
-        initBatch(channel, tuples)
+        initBatch(channelId, tuples)
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
-        val currentLink = upstreamLinkStatus.getInputLink(channel.fromWorkerId)
-        upstreamLinkStatus.markWorkerEOF(channel.fromWorkerId)
+        val currentLink = upstreamLinkStatus.getInputLink(channelId.fromWorkerId)
+        upstreamLinkStatus.markWorkerEOF(channelId.fromWorkerId)
         if (upstreamLinkStatus.isLinkEOF(currentLink)) {
-          initBatch(channel, Array.empty)
+          initBatch(channelId, Array.empty)
           processInputTuple(Right(InputExhausted()))
           logger.info(
             s"$currentLink completed, append FinalizeLink message"

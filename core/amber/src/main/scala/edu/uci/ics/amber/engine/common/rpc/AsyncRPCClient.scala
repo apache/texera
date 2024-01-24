@@ -121,7 +121,7 @@ class AsyncRPCClient(
     }
   }
 
-  def logControlReply(ret: ReturnInvocation, channel: ChannelIdentity): Unit = {
+  def logControlReply(ret: ReturnInvocation, channelId: ChannelIdentity): Unit = {
     if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
@@ -130,16 +130,16 @@ class AsyncRPCClient(
         return
       }
       logger.debug(
-        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channel (controlID: ${ret.originalCommandID})"
+        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channelId (controlID: ${ret.originalCommandID})"
       )
       ret.controlReturn match {
         case throwable: Throwable =>
-          logger.error(s"received error from $channel", throwable)
+          logger.error(s"received error from $channelId", throwable)
         case _ =>
       }
     } else {
       logger.info(
-        s"receive reply: null from $channel (controlID: ${ret.originalCommandID})"
+        s"receive reply: null from $channelId (controlID: ${ret.originalCommandID})"
       )
     }
   }

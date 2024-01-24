@@ -18,21 +18,21 @@ class TrivialControlTester(
     new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
-    val channel = ap.inputGateway.getChannel(workflowMsg.channel)
+    val channel = ap.inputGateway.getChannel(workflowMsg.channelId)
     channel.acceptMessage(workflowMsg)
     while (channel.isEnabled && channel.hasMessage) {
       val msg = channel.take
       msg.payload match {
-        case payload: ControlPayload => ap.processControlPayload(msg.channel, payload)
+        case payload: ControlPayload => ap.processControlPayload(msg.channelId, payload)
         case _: DataPayload          => ???
         case _                       => ???
       }
     }
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
+    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
   /** flow-control */
-  override def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long = 0L
+  override def getQueuedCredit(channelId: ChannelIdentity): Long = 0L
 
   override def preStart(): Unit = {
     transferService.initialize()

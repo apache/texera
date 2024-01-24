@@ -139,7 +139,7 @@ abstract class WorkflowActor(
 
   def receiveDeadLetterMessage: Receive = {
     case MessageBecomesDeadLetter(msg) =>
-      val dest = msg.internalMessage.channel.toWorkerId
+      val dest = msg.internalMessage.channelId.toWorkerId
       if (dest == actorId) {
         actorService.scheduleOnce(
           100.millis,
@@ -158,7 +158,7 @@ abstract class WorkflowActor(
   //
   //flow control:
   //
-  def getQueuedCredit(ChannelIdentity: ChannelIdentity): Long
+  def getQueuedCredit(channelId: ChannelIdentity): Long
 
   def handleBackpressure(isBackpressured: Boolean): Unit
 
@@ -191,7 +191,7 @@ abstract class WorkflowActor(
     )
     amberProcessor.inputGateway.addEnforcer(orderEnforcer)
     messages.foreach(message =>
-      amberProcessor.inputGateway.getChannel(message.channel).acceptMessage(message)
+      amberProcessor.inputGateway.getChannel(message.channelId).acceptMessage(message)
     )
   }
 

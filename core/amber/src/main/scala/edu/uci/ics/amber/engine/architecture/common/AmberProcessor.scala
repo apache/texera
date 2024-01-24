@@ -36,14 +36,14 @@ class AmberProcessor(
     new AsyncRPCServer(outputGateway, actorId)
 
   def processControlPayload(
-      channel: ChannelIdentity,
+      channelId: ChannelIdentity,
       payload: ControlPayload
   ): Unit = {
     payload match {
       case invocation: ControlInvocation =>
-        asyncRPCServer.receive(invocation, channel.fromWorkerId)
+        asyncRPCServer.receive(invocation, channelId.fromWorkerId)
       case ret: ReturnInvocation =>
-        asyncRPCClient.logControlReply(ret, channel)
+        asyncRPCClient.logControlReply(ret, channelId)
         asyncRPCClient.fulfillPromise(ret)
     }
   }

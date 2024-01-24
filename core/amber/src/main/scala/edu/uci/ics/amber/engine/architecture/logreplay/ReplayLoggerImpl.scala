@@ -26,15 +26,15 @@ class ReplayLoggerImpl extends ReplayLogger {
     */
   override def logCurrentStepWithMessage(
       step: Long,
-      channel: ChannelIdentity,
+      channelId: ChannelIdentity,
       message: Option[WorkflowFIFOMessage]
   ): Unit = {
-    if (currentChannelId == channel && message.isEmpty) {
+    if (currentChannelId == channelId && message.isEmpty) {
       return
     }
-    currentChannelId = channel
+    currentChannelId = channelId
     lastStep = step
-    tempLogs.append(ProcessingStep(channel, step))
+    tempLogs.append(ProcessingStep(channelId, step))
     if (message.isDefined) {
       tempLogs.append(MessageContent(message.get))
     }

@@ -56,19 +56,19 @@ class ReplaySpec
       ProcessingStep(channelId2, 4)
     )
     val inputGateway = new NetworkInputGateway(actorId)
-    def inputMessage(ChannelIdentity: ChannelIdentity, seq: Long): Unit = {
+    def inputMessage(channelId: ChannelIdentity, seq: Long): Unit = {
       inputGateway
-        .getChannel(ChannelIdentity)
+        .getChannel(channelId)
         .acceptMessage(
-          WorkflowFIFOMessage(ChannelIdentity, seq, ControlInvocation(0, StartWorker()))
+          WorkflowFIFOMessage(channelId, seq, ControlInvocation(0, StartWorker()))
         )
     }
     val orderEnforcer = new ReplayOrderEnforcer(logManager, logRecords, -1, () => {})
     inputGateway.addEnforcer(orderEnforcer)
-    def processMessage(ChannelIdentity: ChannelIdentity, seq: Long): Unit = {
+    def processMessage(channelId: ChannelIdentity, seq: Long): Unit = {
       val msg = inputGateway.tryPickChannel.get.take
-      logManager.withFaultTolerant(msg.channel, Some(msg)) {
-        assert(msg.channel == ChannelIdentity && msg.sequenceNumber == seq)
+      logManager.withFaultTolerant(msg.channelId, Some(msg)) {
+        assert(msg.channelId == channelId && msg.sequenceNumber == seq)
       }
     }
     assert(inputGateway.tryPickChannel.isEmpty)
@@ -80,7 +80,7 @@ class ReplaySpec
     inputMessage(channelId1, 1)
     inputMessage(channelId1, 2)
     assert(
-      inputGateway.tryPickChannel.nonEmpty && inputGateway.tryPickChannel.get.ChannelIdentity == channelId1
+      inputGateway.tryPickChannel.nonEmpty && inputGateway.tryPickChannel.get.channelId == channelId1
     )
     processMessage(channelId1, 0)
     assert(inputGateway.tryPickChannel.nonEmpty)

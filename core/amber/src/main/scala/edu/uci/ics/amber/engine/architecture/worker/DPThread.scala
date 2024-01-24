@@ -116,7 +116,7 @@ class DPThread(
         waitingForInput = false
         elem match {
           case WorkflowWorker.FIFOMessageElement(msg) =>
-            val channel = dp.inputGateway.getChannel(msg.channel)
+            val channel = dp.inputGateway.getChannel(msg.channelId)
             channel.acceptMessage(msg)
           case WorkflowWorker.TimerBasedControlElement(control) =>
             // establish order according to receiving order.
@@ -140,7 +140,7 @@ class DPThread(
       if (dp.hasUnfinishedInput || dp.hasUnfinishedOutput || dp.pauseManager.isPaused) {
         dp.inputGateway.tryPickControlChannel match {
           case Some(channel) =>
-            channelId = channel.ChannelIdentity
+            channelId = channel.channelId
             msgOpt = Some(channel.take)
           case None =>
             // continue processing
@@ -158,7 +158,7 @@ class DPThread(
           dp.inputGateway.tryPickChannel
         } match {
           case Some(channel) =>
-            channelId = channel.ChannelIdentity
+            channelId = channel.channelId
             msgOpt = Some(channel.take)
           case None => waitingForInput = true
         }
@@ -177,11 +177,11 @@ class DPThread(
             case Some(msg) =>
               msg.payload match {
                 case payload: ControlPayload =>
-                  dp.processControlPayload(msg.channel, payload)
+                  dp.processControlPayload(msg.channelId, payload)
                 case payload: DataPayload =>
-                  dp.processDataPayload(msg.channel, payload)
+                  dp.processDataPayload(msg.channelId, payload)
                 case payload: ChannelMarkerPayload =>
-                  dp.processChannelMarker(msg.channel, payload, logManager)
+                  dp.processChannelMarker(msg.channelId, payload, logManager)
               }
           }
         }

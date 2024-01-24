@@ -9,9 +9,9 @@ import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
 
 /* The abstracted FIFO/exactly-once logic */
-class AmberFIFOChannel(val ChannelIdentity: ChannelIdentity) extends AmberLogging {
+class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
 
-  override def actorId: ActorVirtualIdentity = ChannelIdentity.toWorkerId
+  override def actorId: ActorVirtualIdentity = channelId.toWorkerId
 
   private val ofoMap = new mutable.HashMap[Long, WorkflowFIFOMessage]
   private var current = 0L

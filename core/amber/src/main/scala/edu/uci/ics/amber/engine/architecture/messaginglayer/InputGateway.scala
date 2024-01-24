@@ -10,7 +10,7 @@ trait InputGateway {
 
   def getAllDataChannels: Iterable[AmberFIFOChannel]
 
-  def getChannel(ChannelIdentity: ChannelIdentity): AmberFIFOChannel
+  def getChannel(channelId: ChannelIdentity): AmberFIFOChannel
 
   def getAllControlChannels: Iterable[AmberFIFOChannel]
 

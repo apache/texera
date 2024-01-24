@@ -27,10 +27,10 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
     new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[NetworkMessage]]
   actorRefMapping(SELF) = actorService.self
 
-  def askForCredit(channel: ChannelIdentity): Unit = {
-    val id = channel.toWorkerId
+  def askForCredit(channelId: ChannelIdentity): Unit = {
+    val id = channelId.toWorkerId
     if (actorRefMapping.contains(id)) {
-      actorRefMapping(id) ! CreditRequest(channel)
+      actorRefMapping(id) ! CreditRequest(channelId)
     }
   }
 
@@ -39,7 +39,7 @@ class AkkaActorRefMappingService(actorService: AkkaActorService) extends AmberLo
   }
 
   def forwardToActor(msg: NetworkMessage): Unit = {
-    val id = msg.internalMessage.channel.toWorkerId
+    val id = msg.internalMessage.channelId.toWorkerId
     if (actorRefMapping.contains(id)) {
       actorRefMapping(id) ! msg
     } else {
