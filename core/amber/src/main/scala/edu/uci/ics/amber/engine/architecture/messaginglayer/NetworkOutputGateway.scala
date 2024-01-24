@@ -42,9 +42,9 @@ class NetworkOutputGateway(
       // selfID and VirtualIdentity.SELF should be one key
       receiverId = actorId
     }
-    val outChannelEndpointID = ChannelIdentity(actorId, receiverId, useControlChannel)
-    val seqNum = getSequenceNumber(outChannelEndpointID)
-    handler(WorkflowFIFOMessage(outChannelEndpointID, seqNum, payload))
+    val outChannelId = ChannelIdentity(actorId, receiverId, useControlChannel)
+    val seqNum = getSequenceNumber(outChannelId)
+    handler(WorkflowFIFOMessage(outChannelId, seqNum, payload))
   }
 
   def sendTo(to: ActorVirtualIdentity, payload: ControlPayload): Unit = {

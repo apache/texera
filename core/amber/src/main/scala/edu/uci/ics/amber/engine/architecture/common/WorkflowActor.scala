@@ -57,9 +57,9 @@ object WorkflowActor {
   final case class NetworkMessage(messageId: Long, internalMessage: WorkflowFIFOMessage)
 
   // sent from network communicator to next worker to poll for credit information
-  final case class CreditRequest(channelEndpointID: ChannelIdentity)
+  final case class CreditRequest(channelId: ChannelIdentity)
 
-  final case class CreditResponse(channelEndpointID: ChannelIdentity, credit: Long)
+  final case class CreditResponse(channelId: ChannelIdentity, credit: Long)
 }
 
 abstract class WorkflowActor(
