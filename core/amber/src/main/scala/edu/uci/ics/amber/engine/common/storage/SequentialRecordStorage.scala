@@ -99,24 +99,24 @@ object SequentialRecordStorage {
 }
 
 /**
- * Sequential record storage is designed to do read/write for sequential generic data. It represents
- * a one-level folder (no nesting) which contains a list of files. Files are identified by a unique
- * file name string.
- *
- * Key Features:
- *   - Allows for the sequential writing and reading of records of a generic type `T`.
- *     It utilizes Kryo serialization for efficient binary storage of records.
- *   - The class assumes a sequential access pattern to the data. It is not optimized for random
- *     access or querying specific records without reading sequentially.
- * Usage:
- *   - To use `SequentialRecordStorage`, one must extend this abstract class and implement the
- *     methods for creating record readers and writers. Implementations can customize how and
- *     where the data is stored and retrieved.
- *   - The `SequentialRecordWriter` and `SequentialRecordReader` inner classes provide the
- *     functionality for writing to and reading from the storage.
- *
- * @tparam T The type of records that this storage system will handle.
- */
+  * Sequential record storage is designed to do read/write for sequential generic data. It represents
+  * a one-level folder (no nesting) which contains a list of files. Files are identified by a unique
+  * file name string.
+  *
+  * Key Features:
+  *   - Allows for the sequential writing and reading of records of a generic type `T`.
+  *     It utilizes Kryo serialization for efficient binary storage of records.
+  *   - The class assumes a sequential access pattern to the data. It is not optimized for random
+  *     access or querying specific records without reading sequentially.
+  * Usage:
+  *   - To use `SequentialRecordStorage`, one must extend this abstract class and implement the
+  *     methods for creating record readers and writers. Implementations can customize how and
+  *     where the data is stored and retrieved.
+  *   - The `SequentialRecordWriter` and `SequentialRecordReader` inner classes provide the
+  *     functionality for writing to and reading from the storage.
+  *
+  * @tparam T The type of records that this storage system will handle.
+  */
 abstract class SequentialRecordStorage[T >: Null <: AnyRef] {
 
   def getWriter(fileName: String): SequentialRecordWriter[T]
