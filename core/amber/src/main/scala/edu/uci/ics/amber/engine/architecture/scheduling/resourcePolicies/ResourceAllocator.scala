@@ -127,6 +127,15 @@ class DefaultResourceAllocator(
             // if there are multiple partition infos on an input port, reduce them to once
             .map(_.map(_._2).reduce((p1, p2) => p1.merge(p2)))
 
+          inputPartitionInfos.zip(physicalOp.inputPorts).foreach( {
+              case (inputPartitionInfo, inputPort) =>
+                val upstreamLinks = physicalOp.getInputLinks(Option(inputPort._1))
+                upstreamLinks.foreach(link=>
+                  // match the link's upstream output partition info with downstream input partition info
+                  outputPartitionInfos.put(link.fromOpId, inputPartitionInfo)
+                )
+          } )
+
           if (inputPartitionInfos.length == physicalOp.inputPorts.size) {
             // derive the output partition info with all the input partition infos
             Some(physicalOp.derivePartition(inputPartitionInfos))
