@@ -1,9 +1,5 @@
-// needed by bootstrap and font-awesome
+// needed by bootstrap
 @import "variables";
-
-// import font awesome library
-$fa-font-path: "~font-awesome/fonts";
-@import "~font-awesome/scss/font-awesome";
 
 @import "~c3/c3.min.css";
 @import "~bootstrap/scss/bootstrap";

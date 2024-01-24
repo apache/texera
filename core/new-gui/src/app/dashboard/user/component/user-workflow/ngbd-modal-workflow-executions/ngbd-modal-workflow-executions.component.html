@@ -204,26 +204,34 @@
                   nzTooltipPlacement="top"></i>
               </td>
               <td nzEllipsis>
-                <i
+                <button
+                  nz-button
+                  nzType="default"
+                  nzSize="large"
                   (click)="showRuntimeStatistics(row.eId)"
-                  class="fa fa-line-chart"
-                  nz-icon
                   nz-tooltip
-                  nzTooltipPlacement="top"
                   nzTooltipTitle="Display Runtime Statistics"
-                  nzType="line-chart"></i>
+                  nzTooltipPlacement="top">
+                  <span
+                    nz-icon
+                    nzType="line-chart"></span>
+                </button>
               </td>
               <td nzEllipsis>
-                <i
+                <button
+                  nz-button
+                  nzType="default"
+                  nzSize="large"
                   (nzOnConfirm)="onDelete(row)"
-                  class="trash-icon"
-                  nz-icon
-                  nz-popconfirm
                   nz-tooltip
-                  nzPopconfirmTitle="Confirm to delete this execution."
                   nzTooltipPlacement="top"
                   nzTooltipTitle='Delete the Execution "{{row.name}}"'
-                  nzType="delete"></i>
+                  nz-popconfirm
+                  nzPopconfirmTitle="Confirm to delete this execution.">
+                  <span
+                    nz-icon
+                    nzType="delete"></span>
+                </button>
               </td>
             </tr>
           </tbody>
