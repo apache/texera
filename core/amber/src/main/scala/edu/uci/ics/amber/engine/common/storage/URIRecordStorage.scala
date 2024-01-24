@@ -1,10 +1,7 @@
-package edu.uci.ics.amber.engine.architecture.logreplay.storage
+package edu.uci.ics.amber.engine.common.storage
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.{
-  ReplayLogReader,
-  ReplayLogWriter
-}
+import SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 
@@ -14,7 +11,9 @@ import java.net.URI
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
 
-class URILogStorage(logFolderURI: URI) extends ReplayLogStorage with LazyLogging {
+class URIRecordStorage[T >: Null <: AnyRef](logFolderURI: URI)
+    extends SequentialRecordStorage[T]
+    with LazyLogging {
   private var fileSystem: FileSystem = _
   private val fsConf = new Configuration()
   // configuration for HDFS
@@ -37,16 +36,16 @@ class URILogStorage(logFolderURI: URI) extends ReplayLogStorage with LazyLogging
     fileSystem.mkdirs(folderPath)
   }
 
-  override def getWriter(logFileName: String): ReplayLogWriter = {
-    new ReplayLogWriter(fileSystem.create(folderPath.suffix("/" + logFileName)))
+  override def getWriter(fileName: String): SequentialRecordWriter[T] = {
+    new SequentialRecordWriter(fileSystem.create(folderPath.suffix("/" + fileName)))
   }
 
-  override def getReader(logFileName: String): ReplayLogReader = {
-    val path = folderPath.suffix("/" + logFileName)
+  override def getReader(fileName: String): SequentialRecordReader[T] = {
+    val path = folderPath.suffix("/" + fileName)
     if (fileSystem.exists(path)) {
-      new ReplayLogReader(() => fileSystem.open(path))
+      new SequentialRecordReader(() => fileSystem.open(path))
     } else {
-      new EmptyLogStorage().getReader(logFileName)
+      new EmptyRecordStorage[T]().getReader(fileName)
     }
   }
 

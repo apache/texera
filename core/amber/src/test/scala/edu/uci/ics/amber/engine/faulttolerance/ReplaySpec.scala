@@ -2,8 +2,7 @@ package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.ReplayLogReader
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordReader
 import edu.uci.ics.amber.engine.architecture.logreplay.{
   ProcessingStep,
   ReplayLogManagerImpl,
@@ -14,6 +13,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputGateway
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.BeforeAndAfterAll
@@ -27,12 +27,17 @@ class ReplaySpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
-  class IterableReadOnlyLogStore(iter: Iterable[ReplayLogRecord]) extends ReplayLogStorage {
-    override def getWriter(logFileName: String): ReplayLogStorage.ReplayLogWriter = ???
+  class IterableReadOnlyLogStore(iter: Iterable[ReplayLogRecord])
+      extends SequentialRecordStorage[ReplayLogRecord] {
+    override def getWriter(
+        fileName: String
+    ): SequentialRecordStorage.SequentialRecordWriter[ReplayLogRecord] = ???
 
-    override def getReader(logFileName: String): ReplayLogStorage.ReplayLogReader =
-      new ReplayLogReader(null) {
-        override def mkLogRecordIterator(): Iterator[ReplayLogRecord] = iter.toIterator
+    override def getReader(
+        fileName: String
+    ): SequentialRecordStorage.SequentialRecordReader[ReplayLogRecord] =
+      new SequentialRecordReader[ReplayLogRecord](null) {
+        override def mkRecordIterator(): Iterator[ReplayLogRecord] = iter.toIterator
       }
 
     override def deleteStorage(): Unit = ???

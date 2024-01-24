@@ -1,4 +1,4 @@
-package edu.uci.ics.amber.engine.architecture.logreplay.storage
+package edu.uci.ics.amber.engine.common.storage
 
 import com.esotericsoftware.kryo.io.{Input, Output}
 import com.twitter.chill.{KryoBase, KryoPool, KryoSerializer, ScalaKryoInstantiator}
@@ -7,10 +7,7 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
   ProcessingStep,
   ReplayLogRecord
 }
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.{
-  ReplayLogReader,
-  ReplayLogWriter
-}
+import SequentialRecordStorage.{SequentialRecordReader, SequentialRecordWriter}
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
@@ -19,7 +16,7 @@ import java.io.{DataInputStream, DataOutputStream}
 import java.net.URI
 import scala.collection.mutable.ArrayBuffer
 
-object ReplayLogStorage {
+object SequentialRecordStorage {
   private val kryoPool = {
     val r = KryoSerializer.registerAll
     val ki = new ScalaKryoInstantiator {
@@ -39,22 +36,22 @@ object ReplayLogStorage {
   }
 
   // For debugging purpose only
-  def fetchAllLogRecords(
-      storage: ReplayLogStorage,
+  def fetchAllRecords[T >: Null <: AnyRef](
+      storage: SequentialRecordStorage[T],
       logFileName: String
-  ): Iterable[ReplayLogRecord] = {
+  ): Iterable[T] = {
     val reader = storage.getReader(logFileName)
-    val recordIter = reader.mkLogRecordIterator()
-    val buffer = new ArrayBuffer[ReplayLogRecord]()
+    val recordIter = reader.mkRecordIterator()
+    val buffer = new ArrayBuffer[T]()
     while (recordIter.hasNext) {
       buffer.append(recordIter.next())
     }
     buffer
   }
 
-  class ReplayLogWriter(outputStream: DataOutputStream) {
+  class SequentialRecordWriter[T >: Null <: AnyRef](outputStream: DataOutputStream) {
     lazy val output = new Output(outputStream)
-    def writeLogRecord(obj: ReplayLogRecord): Unit = {
+    def writeRecord(obj: T): Unit = {
       val bytes = kryoPool.toBytesWithClass(obj)
       output.writeInt(bytes.length)
       output.write(bytes)
@@ -67,23 +64,23 @@ object ReplayLogStorage {
     }
   }
 
-  class ReplayLogReader(inputStreamGen: () => DataInputStream) {
-    def mkLogRecordIterator(): Iterator[ReplayLogRecord] = {
+  class SequentialRecordReader[T >: Null <: AnyRef](inputStreamGen: () => DataInputStream) {
+    def mkRecordIterator(): Iterator[T] = {
       lazy val input = new Input(inputStreamGen())
-      new Iterator[ReplayLogRecord] {
-        var record: ReplayLogRecord = internalNext()
-        private def internalNext(): ReplayLogRecord = {
+      new Iterator[T] {
+        var record: T = internalNext()
+        private def internalNext(): T = {
           try {
             val len = input.readInt()
             val bytes = input.readBytes(len)
-            kryoPool.fromBytes(bytes).asInstanceOf[ReplayLogRecord]
+            kryoPool.fromBytes(bytes).asInstanceOf[T]
           } catch {
             case e: Throwable =>
               input.close()
               null
           }
         }
-        override def next(): ReplayLogRecord = {
+        override def next(): T = {
           val currentRecord = record
           record = internalNext()
           currentRecord
@@ -93,19 +90,38 @@ object ReplayLogStorage {
     }
   }
 
-  def getLogStorage(storageLocation: Option[URI]): ReplayLogStorage = {
+  def getStorage[T >: Null <: AnyRef](storageLocation: Option[URI]): SequentialRecordStorage[T] = {
     storageLocation match {
-      case Some(location) => new URILogStorage(location)
-      case None           => new EmptyLogStorage()
+      case Some(location) => new URIRecordStorage(location)
+      case None           => new EmptyRecordStorage()
     }
   }
 }
 
-abstract class ReplayLogStorage {
+/**
+  * Sequential record storage is designed to do read/write for sequential generic data. It represents
+  * a one-level folder (no nesting) which contains a list of files. Files are identified by a unique
+  * file name string.
+  *
+  * Key Features:
+  *   - Allows for the sequential writing and reading of records of a generic type `T`.
+  *     It utilizes Kryo serialization for efficient binary storage of records.
+  *   - The class assumes a sequential access pattern to the data. It is not optimized for random
+  *     access or querying specific records without reading sequentially.
+  * Usage:
+  *   - To use `SequentialRecordStorage`, one must extend this abstract class and implement the
+  *     methods for creating record readers and writers. Implementations can customize how and
+  *     where the data is stored and retrieved.
+  *   - The `SequentialRecordWriter` and `SequentialRecordReader` inner classes provide the
+  *     functionality for writing to and reading from the storage.
+  *
+  * @tparam T The type of records that this storage system will handle.
+  */
+abstract class SequentialRecordStorage[T >: Null <: AnyRef] {
 
-  def getWriter(logFileName: String): ReplayLogWriter
+  def getWriter(fileName: String): SequentialRecordWriter[T]
 
-  def getReader(logFileName: String): ReplayLogReader
+  def getReader(fileName: String): SequentialRecordReader[T]
 
   def deleteStorage(): Unit
 }

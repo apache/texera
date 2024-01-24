@@ -13,10 +13,10 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkMessage,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
 import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayLogGenerator,
   ReplayLogManager,
+  ReplayLogRecord,
   ReplayOrderEnforcer
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -27,6 +27,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
 import scala.concurrent.Await
@@ -92,8 +93,8 @@ abstract class WorkflowActor(
 
   logger.info(s"worker replay log writing conf: $replayLogConfOpt")
 
-  val logStorage: ReplayLogStorage =
-    ReplayLogStorage.getLogStorage(replayLogConfOpt.map(_.writeTo))
+  val logStorage: SequentialRecordStorage[ReplayLogRecord] =
+    SequentialRecordStorage.getStorage(replayLogConfOpt.map(_.writeTo))
   val logManager: ReplayLogManager =
     ReplayLogManager.createLogManager(logStorage, getLogName, sendMessageFromLogWriterToActor)
 
@@ -173,7 +174,8 @@ abstract class WorkflowActor(
       replayConf: WorkerStateRestoreConfig,
       onComplete: () => Unit
   ): Unit = {
-    val logStorageToRead = ReplayLogStorage.getLogStorage(Some(replayConf.readFrom))
+    val logStorageToRead =
+      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(replayConf.readFrom))
     val replayTo = replayConf.replayDestination
     val (processSteps, messages) =
       ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
