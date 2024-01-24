@@ -50,7 +50,7 @@ object FriesReconfigurationAlgorithm {
     val oneToManyOperators = getOneToManyOperators(physicalPlan)
     oneToManyOperators.foreach(oneToManyOp => {
       val intersection =
-        physicalPlan.getDescendantPhysicalOpIds(oneToManyOp).toSet.intersect(reconfigOps)
+        physicalPlan.getDescendantPhysicalOpIds(oneToManyOp).intersect(reconfigOps)
       if (intersection.nonEmpty) {
         M += oneToManyOp
       }

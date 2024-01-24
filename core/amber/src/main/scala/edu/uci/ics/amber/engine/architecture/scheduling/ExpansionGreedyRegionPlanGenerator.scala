@@ -17,7 +17,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-import org.jgrapht.graph.DirectedAcyclicGraph
+import org.jgrapht.alg.connectivity.BiconnectivityInspector
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.annotation.tailrec
@@ -95,17 +96,17 @@ class ExpansionGreedyRegionPlanGenerator(
     */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val nonBlockingDAG = physicalPlan.removeBlockingLinks()
-    nonBlockingDAG.getSourceOperatorIds.zipWithIndex
-      .map {
-        case (sourcePhysicalOpId, index) =>
-          val operatorIds =
-            nonBlockingDAG.getDescendantPhysicalOpIds(sourcePhysicalOpId) ++ Set(sourcePhysicalOpId)
-          val links = operatorIds.flatMap(operatorId => {
-            physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
-              .getDownstreamPhysicalLinks(operatorId)
-          })
-          Region(RegionIdentity((index + 1).toString), operatorIds, links)
-      }
+    new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
+      nonBlockingDAG.dag
+    ).getConnectedComponents.toSet.zipWithIndex.map {
+      case (connectedSubDAG, idx) =>
+        val operatorIds = connectedSubDAG.vertexSet().toSet
+        val links = operatorIds.flatMap(operatorId => {
+          physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
+            .getDownstreamPhysicalLinks(operatorId)
+        })
+        Region(RegionIdentity(idx.toString), operatorIds, links)
+    }
   }
 
   /**
