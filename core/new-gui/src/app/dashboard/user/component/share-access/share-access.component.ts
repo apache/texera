@@ -30,6 +30,10 @@ export class ShareAccessComponent implements OnInit {
     private userService: UserService,
     private gmailService: GmailService
   ) {
+    this.validateForm = this.formBuilder.group({
+      email: [null, [Validators.email, Validators.required]],
+      accessLevel: ["READ"],
+    });
     this.currentEmail = this.userService.getCurrentUser()?.email;
     this.validateForm = this.formBuilder.group({
       email: [null, [Validators.email, Validators.required]],
