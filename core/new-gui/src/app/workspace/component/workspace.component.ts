@@ -44,12 +44,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   userSystemEnabled = environment.userSystemEnabled;
 
   screenWidth = window.innerWidth;
-  width = 400;
-  id = -1;
+  rightPanelWidth = 400;
 
   onResize(event: NzResizeEvent): void {
     if (event.width) {
-      this.width = event.width;
+      this.rightPanelWidth = event.width;
     }
   }
 

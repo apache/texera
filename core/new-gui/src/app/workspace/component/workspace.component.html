@@ -16,13 +16,15 @@
     </div>
   </div> -->
   <div
+    cdkDrag
     id="property-editor-container"
     nz-resizable
     [nzMinWidth]="400"
-    [nzMaxWidth]="screenWidth"
-    [style.width.px]="width"
+    [nzMaxWidth]="800"
+    [style.width.px]="rightPanelWidth"
     (nzResize)="onResize($event)"
   >
+    <div class="top-gray-bar" cdkDragHandle></div>
     <texera-property-editor></texera-property-editor>
     <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
   </div>
