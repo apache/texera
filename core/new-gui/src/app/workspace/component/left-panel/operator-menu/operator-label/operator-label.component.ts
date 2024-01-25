@@ -3,13 +3,8 @@ import { WorkflowActionService } from "../../../../service/workflow-graph/model/
 import { AfterContentInit, Component, Input } from "@angular/core";
 import { OperatorSchema } from "../../../../types/operator-schema.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { CdkDragDrop } from "@angular/cdk/drag-drop";
+import { Point } from "../../../../types/workflow-common.interface";
 
-/**
- * OperatorLabelComponent is one operator box in the operator panel.
- *
- * @author Zuozhi Wang
- */
 @UntilDestroy()
 @Component({
   selector: "texera-operator-label",
@@ -35,10 +30,10 @@ export class OperatorLabelComponent implements AfterContentInit {
   }
 
   dragStarted() {
-    this.dragDropService.dragStarted(this.operatorLabelID!, this.operator!.operatorType);
+    this.dragDropService.dragStarted(this.operator!.operatorType);
   }
 
-  dragDropped(e: CdkDragDrop<any>) {
-    this.dragDropService.dragDropped(this.operator!.operatorType, e.dropPoint);
+  dragDropped(dropPoint: Point) {
+    this.dragDropService.dragDropped(dropPoint);
   }
 }

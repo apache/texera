@@ -2,11 +2,11 @@
   <div
     cdkDrag
     (cdkDragStarted)="dragStarted()"
-    (cdkDragDropped)="dragDropped($event)"
+    (cdkDragDropped)="dragDropped($event.dropPoint)"
     [ngClass]="{'disable-drag-drop': !draggable}"
     class="operator-label"
     title="{{ operator?.additionalMetadata?.operatorDescription }}">
     <span class="text"> {{ operator?.additionalMetadata?.userFriendlyName }} </span>
-    <div *cdkDragPreview id="flyingJointPaper"></div>
+    <div *cdkDragPreview id="flyingOP"></div>
   </div>
 </div>

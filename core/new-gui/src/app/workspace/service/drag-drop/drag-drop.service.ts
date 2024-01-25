@@ -4,68 +4,41 @@ import { fromEvent, Observable, Subject } from "rxjs";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { Injectable } from "@angular/core";
-import TinyQueue from "tinyqueue";
-
-import * as joint from "jointjs";
-
-// if jQuery needs to be used: 1) use jQuery instead of `$`, and
-// 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
-import * as jQuery from "jquery";
 import { filter, first, map } from "rxjs/operators";
+import TinyQueue from "tinyqueue";
+import * as joint from "jointjs";
 
 @Injectable({
   providedIn: "root",
 })
 export class DragDropService {
-  // distance threshold for suggesting operators before user dropped an operator
   public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
-  private static readonly DRAG_DROP_TEMP_ELEMENT_ID = "drag-drop-temp-element-id";
-  private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = "drag-drop-temp-operator-type";
-
+  private op!: OperatorPredicate;
+  private operatorDroppedSubject = new Subject<void>();
   private readonly operatorSuggestionHighlightStream = new Subject<string>();
   private readonly operatorSuggestionUnhighlightStream = new Subject<string>();
-
-  // current suggested operators to link with
   private suggestionInputs: OperatorPredicate[] = [];
   private suggestionOutputs: OperatorPredicate[] = [];
 
-  /** the current element ID of the operator being dragged */
-  private currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
-  /** the current operatorType of the operator being dragged */
-  private currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
   constructor(
     private jointUIService: JointUIService,
     private workflowUtilService: WorkflowUtilService,
-    private workflowActionService: WorkflowActionService
+    private workflowActionService: WorkflowActionService,
   ) {}
 
+  public dragStarted(operatorType: string): void {
+    this.op = this.workflowUtilService.getNewOperatorPredicate(operatorType);
 
-  public dragStarted(dragElementID: string, operatorType: string): void {
-    // set the current operator type from an nonexist placeholder operator type
-    //  to the operator type being dragged
-    this.currentDragElementID = dragElementID;
-    this.currentOperatorType = operatorType;
-
-    // create an operator and get the UI element from the operator type
-    const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
-    const operatorUIElement = this.jointUIService.getJointOperatorElement(operator, { x: 0, y: 0 });
-
-    // create the jointjs model and paper of the ghost element
-    const tempGhostModel = new joint.dia.Graph();
     new joint.dia.Paper({
-      el: jQuery("#flyingJointPaper"),
+      el: document.getElementById("flyingOP")!,
       width: JointUIService.DEFAULT_OPERATOR_WIDTH,
       height: JointUIService.DEFAULT_OPERATOR_HEIGHT,
-      model: tempGhostModel,
+      model: new joint.dia.Graph().addCell(this.jointUIService.getJointOperatorElement(this.op, { x: 0, y: 0 }))
     });
-    // add the operator JointJS element to the paper
-    tempGhostModel.addCell(operatorUIElement);
-    // begin the operator link recommendation process
     this.handleOperatorRecommendationOnDrag();
   }
 
-  public dragDropped(operatorType: string, dropPoint: Point): void {
-    const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
+  public dragDropped(dropPoint: Point): void {
     let coordinates: Point | undefined = this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()
@@ -81,16 +54,17 @@ export class DragDropService {
       y: coordinates.y / scale.sy,
     };
 
-    const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [{ op: operator, pos: newOperatorOffset }];
+    const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [{ op: this.op, pos: newOperatorOffset }];
     // create new links from suggestions
-    const newLinks: OperatorLink[] = this.getNewOperatorLinks(operator, this.suggestionInputs, this.suggestionOutputs);
+    const newLinks: OperatorLink[] = this.getNewOperatorLinks(this.op, this.suggestionInputs, this.suggestionOutputs);
 
     this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, newLinks);
     this.resetSuggestions();
+    this.operatorDroppedSubject.next();
+  }
 
-    // reset the current operator type to an non-exist type
-    this.currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
-    this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
+  get operatorDropStream() {
+    return this.operatorDroppedSubject.asObservable();
   }
 
   /**
@@ -111,13 +85,12 @@ export class DragDropService {
     return this.operatorSuggestionUnhighlightStream.asObservable();
   }
 
-
   /**
    * This is the handler for recommending operator to link to when
    *  the user is dragging the ghost operator before dropping.
+   *
    */
   private handleOperatorRecommendationOnDrag(): void {
-    const currentOperator = this.workflowUtilService.getNewOperatorPredicate(this.currentOperatorType);
     let isOperatorDropped = false;
 
     fromEvent<MouseEvent>(window, "mouseup")
@@ -158,7 +131,7 @@ export class DragDropService {
 
         // search for nearby operators as suggested input/output operators
         let newInputs, newOutputs: OperatorPredicate[];
-        [newInputs, newOutputs] = this.findClosestOperators(scaledMouseCoordinates, currentOperator);
+        [newInputs, newOutputs] = this.findClosestOperators(scaledMouseCoordinates, this.op);
         // update highlighting class vars to reflect new input/output operators
         this.updateHighlighting(this.suggestionInputs.concat(this.suggestionOutputs), newInputs.concat(newOutputs));
         // assign new suggestions
