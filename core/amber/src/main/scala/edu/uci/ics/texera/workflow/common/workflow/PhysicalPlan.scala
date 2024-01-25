@@ -139,7 +139,6 @@ case class PhysicalPlan(
   def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
     dag.getDescendants(physicalOpId).asScala.toSet
   }
-
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }

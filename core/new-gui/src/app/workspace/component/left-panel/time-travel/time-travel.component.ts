@@ -9,13 +9,11 @@ import {
   WorkflowExecutionsService,
 } from "../../../../dashboard/user/service/workflow-executions/workflow-executions.service";
 import { HttpClient } from "@angular/common/http";
-import { Observable, take, timer } from "rxjs";
-import { filter, map } from "rxjs/operators";
+import { Observable, timer } from "rxjs";
+import { map } from "rxjs/operators";
 import { ReplayExecutionInfo } from "../../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
-import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
 
-const FULL_REPLAY_FLAG = "Full Replay";
 @UntilDestroy()
 @Component({
   selector: "texera-time-travel",

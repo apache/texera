@@ -3,11 +3,14 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ChannelMarkerType}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   ChannelMarkerIdentity,
   PhysicalOpIdentity
 }
@@ -45,20 +48,40 @@ trait ChannelMarkerHandler {
         case (workerId, (_, future)) => future.map(ret => (workerId, ret))
       }
 
-      // step 3: start prop, send marker through control channel with the compound command from sources.
+      // step 3: convert scope DAG to channels.
+      val channelScope = cp.executionState.builtChannels.filter(channelId => {
+        msg.scope.operators
+          .map(_.id)
+          .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
+          msg.scope.operators
+            .map(_.id)
+            .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
+      })
+      val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
+        cp.executionState.getOperatorExecution(source).getBuiltWorkerIds.flatMap { worker =>
+          Array(
+            ChannelIdentity(CONTROLLER, worker, isControl = true),
+            ChannelIdentity(worker, CONTROLLER, isControl = true)
+          )
+        }
+      }
+
+      val finalScope = channelScope ++ controlChannels
+
+      // step 4: start prop, send marker through control channel with the compound command from sources.
       msg.sourceOpToStartProp.foreach { source =>
         cp.executionState.getOperatorExecution(source).getBuiltWorkerIds.foreach { worker =>
           sendChannelMarker(
             msg.id,
             msg.markerType,
-            msg.scope,
+            finalScope.toSet,
             cmdMapping,
-            ChannelID(actorId, worker, isControl = true)
+            ChannelIdentity(actorId, worker, isControl = true)
           )
         }
       }
 
-      // step 4: wait for the marker propagation.
+      // step 5: wait for the marker propagation.
       Future.collect(futures.toList).map { ret =>
         cp.logManager.markAsReplayDestination(msg.id)
         ret

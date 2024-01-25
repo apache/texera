@@ -64,20 +64,6 @@
   background: red;
 }
 
-.queue-delete-button {
-  background-color: red;
-  border-radius: 4px;
-  width: 50px;
-  cursor: pointer;
-  -webkit-transition-duration: 0.2s;
-  transition-duration: 0.2s;
-}
-
-.queue-delete-button:hover {
-  color: white;
-  // background-color: orangered;
-}
-
 .invalid-file-warning {
   color: orange;
 }

@@ -2,18 +2,18 @@ import { Observable, Subject } from "rxjs";
 import {
   Breakpoint,
   Comment,
-  PortDescription,
   CommentBox,
-  OperatorLink,
   LogicalPort,
+  OperatorLink,
   OperatorPredicate,
   PartitionInfo,
+  PortDescription,
   PortProperty,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
-import { User, CoeditorState } from "../../../../common/type/user";
-import { createYTypeFromObject, YType, updateYTypeFromObject } from "../../../types/shared-editing.interface";
+import { CoeditorState, User } from "../../../../common/type/user";
+import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
@@ -571,9 +571,7 @@ export class WorkflowGraph {
       throw new Error(`operator ${operatorID} does not exist`);
     }
     const yoperator = this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
-    const operator = yoperator.toJSON();
-    console.log("found this op predicate", operator);
-    return operator;
+    return yoperator.toJSON();
   }
 
   /**
