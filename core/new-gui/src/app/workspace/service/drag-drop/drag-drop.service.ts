@@ -11,52 +11,15 @@ import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
-// this is the property way to import jquery-ui to Angular, make sure to import it after import jQuery
-// https://stackoverflow.com/questions/43323515/error-when-using-jqueryui-with-typescript-and-definitelytyped-definition-file
-// this approach is better than including it in `scripts` in `angular.json` because it avoids loading jQuery overrides jQuery UI
 import "jquery-ui-dist/jquery-ui";
 import { filter, first, map } from "rxjs/operators";
 
-/**
- * The OperatorDragDropService class implements the behavior of dragging an operator label from the side bar
- *  and drop it as an operator box on to the main workflow editor.
- *
- * This behavior is implemented using jQueryUI draggable and droppable.
- *  1. jQueryUI draggable allows providing a custom DOM element that is displayed when dragging around.
- *  2. the custom DOM element (called "flyPaper") is a JointJS paper that only contains one operator box and has the exact same size of it.
- *  3. when dragging ends, the temporary DOM element ("flyPaper") is destroyed by jQueryUI
- *  4. when dragging ends (operator is dropped), it will notify the observer of the event,
- *    the Operator UI Service is responsible for creating an operator at the place dropped.
- *
- * The method mentioned above is the best working way to implement this functionality as of 02/2018.
- * Here are some other methods that have been tried but didn't work.
- *
- *  1. Using HTML5 native drag and drop API.
- *    This doesn't work because the problem of the "ghost image" (the image that follows the mouse when dragging).
- *    The native HTML5 drag/drop API requires that the "ghost" image must be visually the same as the original element.
- *    However, in our case, the dragging operator is not the same as the original element.
- *    There is **NO** workaround for this problem: see this post for details: https://kryogenix.org/code/browser/custom-drag-image.html
- *      (part of the post isn't exactly true on Chrome anymore because the Chrome itself changed)
- *    The HTML5 drag and Drop API itself is also considered a disaster: https://www.quirksmode.org/blog/archives/2009/09/the_html5_drag.html
- *
- *  2. Using some angular drag and drop libraries for Angular, for example:
- *    ng2-dnd: https://github.com/akserg/ng2-dnd
- *    ng2-dragula: https://github.com/valor-software/ng2-dragula
- *    ng-drag-drop: https://github.com/ObaidUrRehman/ng-drag-drop
- *
- *    These drag and drop libraries have the same ghost image problem mentioned above. Moreover, some of them are designed
- *      for moving a DOM element to another place by dragging and dropping, which is not we want.
- *
- * @author Zuozhi Wang
- *
- */
 @Injectable({
   providedIn: "root",
 })
 export class DragDropService {
   // distance threshold for suggesting operators before user dropped an operator
   public static readonly SUGGESTION_DISTANCE_THRESHOLD = 300;
-
   private static readonly DRAG_DROP_TEMP_ELEMENT_ID = "drag-drop-temp-element-id";
   private static readonly DRAG_DROP_TEMP_OPERATOR_TYPE = "drag-drop-temp-operator-type";
 
@@ -67,14 +30,10 @@ export class DragDropService {
   private suggestionInputs: OperatorPredicate[] = [];
   private suggestionOutputs: OperatorPredicate[] = [];
 
-  /** mapping of DOM Element ID to operatorType */
-  private elementOperatorTypeMap = new Map<string, string>();
   /** the current element ID of the operator being dragged */
   private currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
   /** the current operatorType of the operator being dragged */
   private currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
-  /** Subject for operator dragging is started */
-  private operatorDragStartedSubject = new Subject<{ operatorType: string }>();
 
   /** Subject for operator is dropped on the main workflow editor (equivalent to dragging is stopped) */
   private operatorDroppedSubject = new Subject<{
@@ -88,6 +47,31 @@ export class DragDropService {
     private workflowUtilService: WorkflowUtilService,
     private workflowActionService: WorkflowActionService
   ) {}
+
+
+  public dragStarted(dragElementID: string, operatorType: string): void {
+    // set the current operator type from an nonexist placeholder operator type
+    //  to the operator type being dragged
+    this.currentDragElementID = dragElementID;
+    this.currentOperatorType = operatorType;
+
+    // create an operator and get the UI element from the operator type
+    const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
+    const operatorUIElement = this.jointUIService.getJointOperatorElement(operator, { x: 0, y: 0 });
+
+    // create the jointjs model and paper of the ghost element
+    const tempGhostModel = new joint.dia.Graph();
+    new joint.dia.Paper({
+      el: jQuery("#flyingJointPaper"),
+      width: JointUIService.DEFAULT_OPERATOR_WIDTH,
+      height: JointUIService.DEFAULT_OPERATOR_HEIGHT,
+      model: tempGhostModel,
+    });
+    // add the operator JointJS element to the paper
+    tempGhostModel.addCell(operatorUIElement);
+    // begin the operator link recommendation process
+    this.handleOperatorRecommendationOnDrag();
+  }
 
   public dragDropped(operatorType: string, dropPoint: Point): void {
     const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
@@ -119,20 +103,6 @@ export class DragDropService {
   }
 
   /**
-   * Gets an observable for operator is dropped on the main workflow editor event
-   * Contains an object with:
-   *  - operatorType - the type of the operator dropped
-   *  - offset - the x and y point where the operator is dropped (relative to document root)
-   */
-  public getOperatorDropStream(): Observable<{
-    operatorType: string;
-    offset: Point;
-    dragElementID: string;
-  }> {
-    return this.operatorDroppedSubject.asObservable();
-  }
-
-  /**
    * Gets an observable for new suggestion event to highlight an operator to link with.
    *
    * Contains the operator ID to highlight for suggestion
@@ -150,96 +120,10 @@ export class DragDropService {
     return this.operatorSuggestionUnhighlightStream.asObservable();
   }
 
-  /**
-   * This function is intended by be used by the operator labels to make the element draggable.
-   * It also binds handler functions the following property or events:
-   *  - helper: a function the DOM element to display when dragging to make it look like an operator
-   *  - start: triggers when dragging starts
-   *
-   * more detail at jQuery UI draggable documentation: http://api.jqueryui.com/draggable/
-   *
-   * @param dragElementID the DOM Element ID
-   * @param operatorType the operator type that the element corresponds to
-   */
-  public dragStarted(dragElementID: string, operatorType: string): void {
-    this.elementOperatorTypeMap.set(dragElementID, operatorType);
-    this.createFlyingOperatorElement(dragElementID, operatorType);
-
-    // set the currentOperatorType
-    this.currentOperatorType = operatorType;
-    // notify the subject of the event
-    this.operatorDragStartedSubject.next({ operatorType });
-    // begin the operator link recommendation process
-    this.handleOperatorRecommendationOnDrag();
-  }
-
-  /**
-   * This function should be only used by the Workflow Editor Component
-   *  to register itself as a droppable area.
-   */
-  public registerWorkflowEditorDrop(dropElementID: string): void {
-    jQuery("#" + dropElementID).droppable({
-      drop: (event: any, ui) => this.handleOperatorDrop(event, ui),
-    });
-  }
-
-  /**
-   * Creates a DOM Element that visually looks identical to the operator when dropped on main workflow editor
-   *
-   * This function temporarily creates a DOM element which contains a JointJS paper that has the exact size of the operator,
-   *    then create the operator Element based on the operatorType and make it fully occupy the JointJS paper.
-   *
-   * The temporary JointJS paper element has ID "flyingJointPaper". This DOM elememtn will be destroyed by jQueryUI when the dragging ends.
-   *
-   * @param operatorType - the type of the operator
-   */
-  private createFlyingOperatorElement(dragElementID: string, operatorType: string) {
-    // set the current operator type from an nonexist placeholder operator type
-    //  to the operator type being dragged
-    this.currentDragElementID = dragElementID;
-    this.currentOperatorType = operatorType;
-
-    // create an operator and get the UI element from the operator type
-    const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
-    const operatorUIElement = this.jointUIService.getJointOperatorElement(operator, { x: 0, y: 0 });
-
-    // create the jointjs model and paper of the ghost element
-    const tempGhostModel = new joint.dia.Graph();
-    new joint.dia.Paper({
-      el: jQuery("#flyingJointPaper"),
-      width: JointUIService.DEFAULT_OPERATOR_WIDTH,
-      height: JointUIService.DEFAULT_OPERATOR_HEIGHT,
-      model: tempGhostModel,
-    });
-    // add the operator JointJS element to the paper
-    tempGhostModel.addCell(operatorUIElement);
-  }
-
-  /**
-   * Handler function for jQueryUI's drag stopped event.
-   * It converts the event to the drag stopped Subject.
-   * Notice that we view operator Drag Stopped is equivalent to the operator being Dropped
-   *
-   * @param event
-   * @param ui
-   */
-  private handleOperatorDrop(event: JQuery.Event, ui: JQueryUI.DraggableEventUIParams): void {
-    // notify the subject of the event
-    // use ui.offset instead of ui.position because offset is relative to document root, where position is relative to parent element
-    this.operatorDroppedSubject.next({
-      operatorType: this.currentOperatorType,
-      offset: {
-        x: ui.offset.left,
-        y: ui.offset.top,
-      },
-      dragElementID: this.currentDragElementID,
-    });
-  }
 
   /**
    * This is the handler for recommending operator to link to when
    *  the user is dragging the ghost operator before dropping.
-   *
    */
   private handleOperatorRecommendationOnDrag(): void {
     const currentOperator = this.workflowUtilService.getNewOperatorPredicate(this.currentOperatorType);
@@ -419,7 +303,7 @@ export class DragDropService {
    * **Warning** links created w/o spacial awareness. May connect two distant ports when it makes more sense to connect closer ones'
    * @param sourceOperator gives output
    * @param targetOperator accepts input
-   * @param OperatorLinks optionally specify extant links (used to find which ports are occupied), defaults to all links.
+   * @param operatorLinks optionally specify extant links (used to find which ports are occupied), defaults to all links.
    */
   private getNewOperatorLink(
     sourceOperator: OperatorPredicate,

@@ -2,7 +2,6 @@ import { Component, OnInit } from "@angular/core";
 import Fuse from "fuse.js";
 import { OperatorMetadataService } from "../../../service/operator-metadata/operator-metadata.service";
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../../types/operator-schema.interface";
-import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -54,17 +53,8 @@ export class OperatorMenuComponent implements OnInit {
   constructor(
     private operatorMetadataService: OperatorMetadataService,
     private workflowActionService: WorkflowActionService,
-    private workflowUtilService: WorkflowUtilService,
-    private dragDropService: DragDropService
+    private workflowUtilService: WorkflowUtilService
   ) {
-    // clear the search box if an operator is dropped from operator search box
-    this.dragDropService
-      .getOperatorDropStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.searchInputValue = "";
-        this.autocompleteOptions = [];
-      });
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
@@ -81,6 +71,11 @@ export class OperatorMenuComponent implements OnInit {
       .getOperatorMetadata()
       .pipe(untilDestroyed(this))
       .subscribe(value => this.processOperatorMetadata(value));
+  }
+
+  clearSearchInput(): void {
+    this.searchInputValue = "";
+    this.autocompleteOptions = [];
   }
 
   /**
