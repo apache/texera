@@ -6,9 +6,6 @@ import { UndoRedoService } from "../undo-redo/undo-redo.service";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { OperatorMetadataService } from "../operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../operator-metadata/stub-operator-metadata.service";
-import { mockOperatorMetaData } from "../operator-metadata/mock-operator-metadata.data";
-import * as jQuery from "jquery";
-import "../../../../../node_modules/jquery-ui-dist/jquery-ui";
 import { marbles } from "rxjs-marbles";
 import {
   mockMultiInputOutputPredicate,
@@ -17,7 +14,6 @@ import {
   mockScanResultLink,
 } from "../workflow-graph/model/mock-workflow-data";
 import { OperatorLink, OperatorPredicate } from "../../types/workflow-common.interface";
-import { map } from "rxjs/operators";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
 
 describe("DragDropService", () => {
@@ -43,11 +39,7 @@ describe("DragDropService", () => {
     // custom equality disregards link ID (since I use DragDropService.getNew)
     jasmine.addCustomEqualityTester((link1: OperatorLink, link2: OperatorLink) => {
       if (typeof link1 === "object" && typeof link2 === "object") {
-        if (link1.source === link2.source && link1.target === link2.target) {
-          return true;
-        } else {
-          return false;
-        }
+        return link1.source === link2.source && link1.target === link2.target;
       }
     });
   });
@@ -55,55 +47,6 @@ describe("DragDropService", () => {
   it("should be created", inject([DragDropService], (injectedService: DragDropService) => {
     expect(injectedService).toBeTruthy();
   }));
-
-  it("should successfully register the element as draggable", () => {
-    const dragElementID = "testing-draggable-1";
-    jQuery("body").append(`<div id="${dragElementID}"></div>`);
-
-    const operatorType = mockOperatorMetaData.operators[0].operatorType;
-    dragDropService.registerOperatorLabelDrag(dragElementID, operatorType);
-
-    expect(jQuery("#" + dragElementID).is(".ui-draggable")).toBeTruthy();
-  });
-
-  it("should successfully register the element as droppable", () => {
-    const dropElement = "testing-droppable-1";
-    jQuery("body").append(`<div id="${dropElement}"></div>`);
-
-    dragDropService.registerWorkflowEditorDrop(dropElement);
-
-    expect(jQuery("#" + dropElement).is(".ui-droppable")).toBeTruthy();
-  });
-
-  it(
-    "should add an operator when the element is dropped",
-    marbles(m => {
-      const operatorType = mockOperatorMetaData.operators[0].operatorType;
-
-      const marbleString = "-a-|";
-      const marbleValues = {
-        a: {
-          operatorType: operatorType,
-          offset: { x: 100, y: 100 },
-          dragElementID: "mockID",
-        },
-      };
-
-      spyOn(dragDropService, "getOperatorDropStream").and.returnValue(m.hot(marbleString, marbleValues));
-
-      const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
-
-      dragDropService.handleOperatorDropEvent();
-
-      const addOperatorStream = workflowActionService
-        .getTexeraGraph()
-        .getOperatorAddStream()
-        .pipe(map(() => "a"));
-
-      const expectedStream = m.hot("-a-");
-      m.expect(addOperatorStream).toBeObservable(expectedStream);
-    })
-  );
 
   it("should successfully create a new operator link given 2 operator predicates", () => {
     const createdLink: OperatorLink = (dragDropService as any).getNewOperatorLink(
@@ -142,7 +85,7 @@ describe("DragDropService", () => {
   });
 
   it("should publish operatorPredicates to highlight streams when calling \"updateHighlighting(prevHighlights,newHighlights)\"", async () => {
-    const workflowUtilService: WorkflowActionService = TestBed.get(WorkflowActionService);
+    TestBed.get(WorkflowActionService);
     const highlights: string[] = [];
     const unhighlights: string[] = [];
     const expectedHighlights = [mockScanPredicate.operatorID, mockScanPredicate.operatorID];
@@ -174,7 +117,7 @@ describe("DragDropService", () => {
 
     workflowActionService.addOperator(mockScanPredicate, { x: 0, y: 0 });
 
-    const [inputOps, outputOps] = (dragDropService as any).findClosestOperators(
+    const [inputOps] = (dragDropService as any).findClosestOperators(
       {
         x: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10,
         y: DragDropService.SUGGESTION_DISTANCE_THRESHOLD + 10,
@@ -187,23 +130,12 @@ describe("DragDropService", () => {
 
   it(
     "should update highlighting, add operator, and add links when an operator is dropped",
-    marbles(async m => {
+    marbles(async () => {
       const workflowActionService: WorkflowActionService = TestBed.get(WorkflowActionService);
       const workflowUtilService: WorkflowUtilService = TestBed.get(WorkflowUtilService);
-      const graph = workflowActionService.getJointGraphWrapper();
-
+      workflowActionService.getJointGraphWrapper();
       const operatorType = "MultiInputOutput";
       const operator = mockMultiInputOutputPredicate;
-
-      const marbleString = "-e-|";
-      const marbleValues = {
-        e: {
-          operatorType: operatorType,
-          offset: { x: 1005, y: 1001 },
-          dragElementID: "mockID",
-        },
-      };
-
       const input1 = workflowUtilService.getNewOperatorPredicate("ScanSource");
       const input2 = workflowUtilService.getNewOperatorPredicate("ScanSource");
       const input3 = workflowUtilService.getNewOperatorPredicate("ScanSource");
@@ -261,11 +193,8 @@ describe("DragDropService", () => {
           links.push(link);
         });
 
-      // replace dragDropService.getOperatorDropStream: observable with fake Marble observable that publishes only marbleValues['e']
-      spyOn(dragDropService, "getOperatorDropStream").and.returnValue(m.hot(marbleString, marbleValues));
-
-      // since dragDropService.getOperatorDropStream is replaced by Marble observable, will drop marbleValues['e']
-      dragDropService.handleOperatorDropEvent();
+      dragDropService.dragStarted(operatorType);
+      dragDropService.dragDropped({ x: 1005, y: 1001 });
 
       // use 500 ms promise to wait for async events to finish executing
       await timeout;

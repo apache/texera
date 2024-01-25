@@ -2,13 +2,9 @@ import { WorkflowUtilService } from "../../../../service/workflow-graph/util/wor
 import { JointUIService } from "../../../../service/joint-ui/joint-ui.service";
 import { DragDropService } from "../../../../service/drag-drop/drag-drop.service";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-
 import { OperatorLabelComponent } from "./operator-label.component";
 import { OperatorMetadataService } from "../../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../../service/operator-metadata/stub-operator-metadata.service";
-
-import * as jQuery from "jquery";
-
 import { CustomNgMaterialModule } from "../../../../../common/custom-ng-material.module";
 import { mockScanSourceSchema } from "../../../../service/operator-metadata/mock-operator-metadata.data";
 import { By } from "@angular/platform-browser";
@@ -56,10 +52,5 @@ describe("OperatorLabelComponent", () => {
   it("should display operator user friendly name on the UI", () => {
     const element = <HTMLElement>fixture.debugElement.query(By.css(".text")).nativeElement;
     expect(element.textContent?.trim()).toEqual(mockOperatorData.additionalMetadata.userFriendlyName);
-  });
-
-  it("should register itself as a draggable element", () => {
-    const jqueryElement = jQuery(`#${component.operatorLabelID}`);
-    expect(jqueryElement.data("uiDraggable")).toBeTruthy();
   });
 });

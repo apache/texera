@@ -2,8 +2,6 @@
   "extends": "../tsconfig.json",
   "compilerOptions": {
     "outDir": "../out-tsc/app",
-    // include jqueryui type definition here because Angular does not include it if it's not imported
-    "types": ["jqueryui"],
     "allowSyntheticDefaultImports": true
   },
   // ask Angular to check template error during the compilation process

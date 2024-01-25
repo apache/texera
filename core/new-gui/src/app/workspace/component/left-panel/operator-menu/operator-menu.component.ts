@@ -58,13 +58,10 @@ export class OperatorMenuComponent implements OnInit {
     private dragDropService: DragDropService
   ) {
     // clear the search box if an operator is dropped from operator search box
-    this.dragDropService
-      .getOperatorDropStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.searchInputValue = "";
-        this.autocompleteOptions = [];
-      });
+    this.dragDropService.operatorDropStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.searchInputValue = "";
+      this.autocompleteOptions = [];
+    });
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))
