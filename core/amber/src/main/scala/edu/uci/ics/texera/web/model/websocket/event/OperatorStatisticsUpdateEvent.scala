@@ -4,6 +4,7 @@ case class OperatorStatistics(
     operatorState: String,
     aggregatedInputRowCount: Long,
     aggregatedOutputRowCount: Long,
+    numWorkers: Long,
     aggregatedDataProcessingTime: Long,
     aggregatedControlProcessingTime: Long,
     aggregatedIdleTime: Long

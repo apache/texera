@@ -115,5 +115,5 @@ class OperatorExecution(
   }
 
   def getOperatorStatistics: OperatorRuntimeStats =
-    OperatorRuntimeStats(getState, getInputRowCount, getOutputRowCount, getDataProcessingTime, getControlProcessingTime, getIdleTime)
+    OperatorRuntimeStats(getState, getInputRowCount, getOutputRowCount, workers.size(), getDataProcessingTime, getControlProcessingTime, getIdleTime)
 }
