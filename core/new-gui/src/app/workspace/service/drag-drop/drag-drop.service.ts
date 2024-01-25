@@ -28,13 +28,13 @@ export class DragDropService {
 
   public dragStarted(operatorType: string): void {
     this.op = this.workflowUtilService.getNewOperatorPredicate(operatorType);
-    const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale()!;
+    const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale().sx ?? 1;
     new joint.dia.Paper({
       el: document.getElementById("flyingOP")!,
-      width: JointUIService.DEFAULT_OPERATOR_WIDTH * scale.sx,
-      height: JointUIService.DEFAULT_OPERATOR_HEIGHT * scale.sy,
+      width: JointUIService.DEFAULT_OPERATOR_WIDTH * scale,
+      height: JointUIService.DEFAULT_OPERATOR_HEIGHT * scale,
       model: new joint.dia.Graph().addCell(this.jointUIService.getJointOperatorElement(this.op, { x: 0, y: 0 })),
-    }).scale(scale.sx);
+    }).scale(scale);
     this.handleOperatorRecommendationOnDrag();
   }
 
