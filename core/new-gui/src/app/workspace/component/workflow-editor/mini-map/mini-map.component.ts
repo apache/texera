@@ -1,22 +1,12 @@
 import { AfterViewInit, Component } from "@angular/core";
 import { fromEvent } from "rxjs";
-
-// if jQuery needs to be used: 1) use jQuery instead of `$`, and
-// 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
-import * as jQuery from "jquery";
-import * as joint from "jointjs";
-
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { Point } from "../../../types/workflow-common.interface";
-import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
-import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from "../workflow-editor.component";
 import { auditTime } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
+import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from "../workflow-editor.component";
 
-/**
- * The mini map component is bound to a JointJS Paper. The mini map's paper uses the same graph/model
- *  as the main workflow (WorkflowEditorComponent's model)
- */
 @UntilDestroy()
 @Component({
   selector: "texera-mini-map",
@@ -24,37 +14,29 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["mini-map.component.scss"],
 })
 export class MiniMapComponent implements AfterViewInit {
-  mini_map: JQuery<HTMLElement> = jQuery();
-  workflowEditor: JQuery<HTMLElement> = jQuery();
-  navigator: HTMLElement | undefined | null;
-
+  mini_map!: HTMLElement;
+  navigator!: HTMLElement;
+  workflowEditor!: HTMLElement;
   scale = 0;
-  width = 0;
-  height = 0;
-
-  private miniMapPaper: joint.dia.Paper | undefined;
 
   constructor(private workflowActionService: WorkflowActionService) {}
 
   ngAfterViewInit() {
-    this.mini_map = jQuery("texera-mini-map");
-    this.workflowEditor = jQuery("#" + WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID);
-    this.navigator = document.getElementById("mini-map-navigator");
-
-    this.width = this.mini_map.width()!;
-    this.height = this.mini_map.height()!;
-    this.scale = this.width / (MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin);
-    this.miniMapPaper = this.workflowActionService.getJointGraphWrapper().attachMiniMapJointPaper({
-      el: jQuery("#mini-map"),
+    this.mini_map = document.getElementById("mini-map")!;
+    this.workflowEditor = document.getElementById(WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID)!;
+    this.navigator = document.getElementById("mini-map-navigator")!;
+    this.scale = this.mini_map.offsetWidth / (MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin);
+    const miniMapPaper = this.workflowActionService.getJointGraphWrapper().attachMiniMapJointPaper({
+      el: this.mini_map,
       gridSize: 45,
       background: { color: "#F6F6F6" },
       interactive: false,
-      width: this.width,
-      height: this.height,
+      width: this.mini_map.offsetWidth,
+      height: this.mini_map.offsetHeight,
     });
 
-    this.miniMapPaper.translate(-MAIN_CANVAS_LIMIT.xMin * this.scale, -MAIN_CANVAS_LIMIT.yMin * this.scale);
-    this.miniMapPaper.scale(this.scale);
+    miniMapPaper.translate(-MAIN_CANVAS_LIMIT.xMin * this.scale, -MAIN_CANVAS_LIMIT.yMin * this.scale);
+    miniMapPaper.scale(this.scale);
 
     this.workflowActionService
       .getJointGraphWrapper()
@@ -64,15 +46,7 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
       });
-    this.handleMouseEvents();
 
-    fromEvent(window, "resize")
-      .pipe(auditTime(30))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.updateNavigator());
-  }
-
-  public handleMouseEvents() {
     let mouseDownPosition: Point | undefined;
     fromEvent<MouseEvent>(this.navigator!, "mousedown")
       .pipe(untilDestroyed(this))
@@ -94,25 +68,23 @@ export class MiniMapComponent implements AfterViewInit {
           mouseDownPosition = newCoordinate;
         }
       });
-  }
 
-  public mainPaperToMiniMapPoint(point: Point): Point {
-    return { x: (point.x - MAIN_CANVAS_LIMIT.xMin) * this.scale, y: (point.y - MAIN_CANVAS_LIMIT.yMin) * this.scale };
+    fromEvent(window, "resize")
+      .pipe(auditTime(30))
+      .pipe(untilDestroyed(this))
+      .subscribe(() => this.updateNavigator());
   }
 
   private updateNavigator(): void {
-    // set navigator position in the component
     const mainPaperWrapper = this.workflowActionService.getJointGraphWrapper();
-    const mainPaperPoint = mainPaperWrapper.pageToJointLocalCoordinate({
-      x: this.workflowEditor.offset()!.left,
-      y: this.workflowEditor.offset()!.top,
-    } as Point);
-    const miniMapPoint = this.mainPaperToMiniMapPoint(mainPaperPoint);
-    this.navigator!.style.left = this.mini_map.offset()!.left + miniMapPoint.x + "px";
-    this.navigator!.style.top = this.mini_map.offset()!.top + miniMapPoint.y + "px";
-
     const mainPaperScale = mainPaperWrapper.getMainJointPaper()?.scale()!;
-    this.navigator!.style.width = (this.workflowEditor.width()! / mainPaperScale.sx) * this.scale + "px";
-    this.navigator!.style.height = (this.workflowEditor.height()! / mainPaperScale.sy) * this.scale + "px";
+    const mainPaperPoint = mainPaperWrapper.pageToJointLocalCoordinate({
+      x: this.workflowEditor.offsetLeft,
+      y: this.workflowEditor.offsetTop,
+    });
+    this.navigator.style.left = this.mini_map.offsetLeft + (mainPaperPoint.x - MAIN_CANVAS_LIMIT.xMin) * this.scale + "px";
+    this.navigator.style.top = this.mini_map.offsetTop + (mainPaperPoint.y - MAIN_CANVAS_LIMIT.yMin) * this.scale + "px";
+    this.navigator.style.width = (this.workflowEditor.offsetWidth / mainPaperScale.sx) * this.scale + "px";
+    this.navigator.style.height = (this.workflowEditor.offsetHeight / mainPaperScale.sy) * this.scale + "px";
   }
 }
