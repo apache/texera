@@ -134,15 +134,6 @@ export class DragDropService {
   }
 
   /**
-   * Gets an observable for operator dragging started event
-   * Contains an object with:
-   *  - operatorType - the type of the dragged operator
-   */
-  public getOperatorStartDragStream(): Observable<{ operatorType: string }> {
-    return this.operatorDragStartedSubject.asObservable();
-  }
-
-  /**
    * Gets an observable for operator is dropped on the main workflow editor event
    * Contains an object with:
    *  - operatorType - the type of the operator dropped
@@ -242,13 +233,12 @@ export class DragDropService {
 
     // create the jointjs model and paper of the ghost element
     const tempGhostModel = new joint.dia.Graph();
-    const tempGhostPaper = new joint.dia.Paper({
+    new joint.dia.Paper({
       el: jQuery("#flyingJointPaper"),
       width: JointUIService.DEFAULT_OPERATOR_WIDTH,
       height: JointUIService.DEFAULT_OPERATOR_HEIGHT,
       model: tempGhostModel,
     });
-
     // add the operator JointJS element to the paper
     tempGhostModel.addCell(operatorUIElement);
 
@@ -267,9 +257,6 @@ export class DragDropService {
     const eventElement = event.target;
     if (!(eventElement instanceof Element)) {
       throw new Error("Incorrect type: in most cases, this element is type Element");
-    }
-    if (eventElement === undefined) {
-      throw new Error("drag and drop: cannot find element when drag is started");
     }
     // get the operatorType based on the DOM element ID
     const operatorType = this.elementOperatorTypeMap.get(eventElement.id);
@@ -457,8 +444,8 @@ export class DragDropService {
   /**
    * Updates highlighted operators based on the diff between prev
    *
-   * @param prevHighLights are highlighted (some may be unhighlighted)
-   * @param newHighLights will be highlighted after execution
+   * @param prevHighlights are highlighted (some may be unhighlighted)
+   * @param newHighlights will be highlighted after execution
    */
   private updateHighlighting(prevHighlights: OperatorPredicate[], newHighlights: OperatorPredicate[]) {
     // unhighlight ops in prevHighlights but not in newHighlights

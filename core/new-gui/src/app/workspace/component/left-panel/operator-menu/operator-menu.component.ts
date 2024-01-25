@@ -24,7 +24,7 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 @Component({
   selector: "texera-operator-menu",
   templateUrl: "operator-menu.component.html",
-  styleUrls: ["operator-menu.component.scss"]
+  styleUrls: ["operator-menu.component.scss"],
 })
 export class OperatorMenuComponent implements OnInit {
   // a list of all operator's schema

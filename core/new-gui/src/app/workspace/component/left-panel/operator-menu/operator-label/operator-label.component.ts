@@ -24,7 +24,7 @@ export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
   constructor(
     private dragDropService: DragDropService,
     private workflowActionService: WorkflowActionService,
-    private changeDetectorRef: ChangeDetectorRef,
+    private changeDetectorRef: ChangeDetectorRef
   ) {}
 
   ngAfterContentInit(): void {
@@ -35,7 +35,7 @@ export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
         this.draggable = canModify;
         this.changeDetectorRef.detectChanges();
       });
-      this.operatorLabelID = "operator-label-" + this.operator!.operatorType + this.fromSearchBox;
+    this.operatorLabelID = "operator-label-" + this.operator!.operatorType + this.fromSearchBox;
   }
 
   ngAfterViewInit() {
