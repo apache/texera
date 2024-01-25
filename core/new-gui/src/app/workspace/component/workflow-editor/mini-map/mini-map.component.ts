@@ -82,8 +82,10 @@ export class MiniMapComponent implements AfterViewInit {
       x: this.workflowEditor.offsetLeft,
       y: this.workflowEditor.offsetTop,
     });
-    this.navigator.style.left = this.mini_map.offsetLeft + (mainPaperPoint.x - MAIN_CANVAS_LIMIT.xMin) * this.scale + "px";
-    this.navigator.style.top = this.mini_map.offsetTop + (mainPaperPoint.y - MAIN_CANVAS_LIMIT.yMin) * this.scale + "px";
+    this.navigator.style.left =
+      this.mini_map.offsetLeft + (mainPaperPoint.x - MAIN_CANVAS_LIMIT.xMin) * this.scale + "px";
+    this.navigator.style.top =
+      this.mini_map.offsetTop + (mainPaperPoint.y - MAIN_CANVAS_LIMIT.yMin) * this.scale + "px";
     this.navigator.style.width = (this.workflowEditor.offsetWidth / mainPaperScale.sx) * this.scale + "px";
     this.navigator.style.height = (this.workflowEditor.offsetHeight / mainPaperScale.sy) * this.scale + "px";
   }
