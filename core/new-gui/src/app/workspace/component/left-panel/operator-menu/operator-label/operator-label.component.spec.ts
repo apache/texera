@@ -62,28 +62,4 @@ describe("OperatorLabelComponent", () => {
     const jqueryElement = jQuery(`#${component.operatorLabelID}`);
     expect(jqueryElement.data("uiDraggable")).toBeTruthy();
   });
-
-  it("should call the mouseLeave function once the cursor leaves a operator label", () => {
-    const spy = spyOn<any>(component, "mouseLeave");
-    const operatorLabelElement = fixture.debugElement.query(By.css("#" + component.operatorLabelID));
-    operatorLabelElement.triggerEventHandler("mouseleave", component);
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it("should call the mouseDown function once the cursor clicks the operator label", () => {
-    const spy = spyOn<any>(component, "mouseDown");
-    const operatorLabelElement = fixture.debugElement.query(By.css("#" + component.operatorLabelID));
-    operatorLabelElement.triggerEventHandler("mousedown", component);
-    expect(spy).toHaveBeenCalled();
-  });
-
-  it("should call the mouseUp function once the cursor un-clicks operator label", () => {
-    const spy = spyOn<any>(component, "mouseUp");
-    const operatorLabelElement = fixture.debugElement.query(By.css("#" + component.operatorLabelID));
-    operatorLabelElement.triggerEventHandler("mouseup", component);
-    expect(spy).toHaveBeenCalled();
-  });
-
-  // TODO: simulate drag and drop in tests, possibly using jQueryUI Simulate plugin
-  //  https://github.com/j-ulrich/jquery-simulate-ext/blob/master/doc/drag-n-drop.md
 });

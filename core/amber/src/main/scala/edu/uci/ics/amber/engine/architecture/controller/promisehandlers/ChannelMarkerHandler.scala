@@ -4,12 +4,13 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ChannelMarkerType}
+import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   ChannelMarkerIdentity,
   PhysicalOpIdentity
 }
@@ -51,14 +52,16 @@ trait ChannelMarkerHandler {
       val channelScope = cp.executionState.builtChannels.filter(channelId => {
         msg.scope.operators
           .map(_.id)
-          .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.from)) &&
-          msg.scope.operators.map(_.id).contains(VirtualIdentityUtils.getPhysicalOpId(channelId.to))
+          .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
+          msg.scope.operators
+            .map(_.id)
+            .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
       })
       val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
         cp.executionState.getOperatorExecution(source).getBuiltWorkerIds.flatMap { worker =>
           Array(
-            ChannelID(CONTROLLER, worker, isControl = true),
-            ChannelID(worker, CONTROLLER, isControl = true)
+            ChannelIdentity(CONTROLLER, worker, isControl = true),
+            ChannelIdentity(worker, CONTROLLER, isControl = true)
           )
         }
       }
@@ -73,7 +76,7 @@ trait ChannelMarkerHandler {
             msg.markerType,
             finalScope.toSet,
             cmdMapping,
-            ChannelID(actorId, worker, isControl = true)
+            ChannelIdentity(actorId, worker, isControl = true)
           )
         }
       }

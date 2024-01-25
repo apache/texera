@@ -7,14 +7,17 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ChannelMarkerPayload,
   ChannelMarkerType,
   ControlPayload
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 
 import scala.collection.mutable
@@ -74,13 +77,13 @@ class AsyncRPCClient(
   def sendChannelMarker(
       markerId: ChannelMarkerIdentity,
       markerType: ChannelMarkerType,
-      scope: Set[ChannelID],
+      scope: Set[ChannelIdentity],
       cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
-      channelID: ChannelID
+      channelId: ChannelIdentity
   ): Unit = {
-    logger.debug(s"send marker: $markerId to $channelID")
+    logger.debug(s"send marker: $markerId to $channelId")
     outputGateway.sendTo(
-      channelID,
+      channelId,
       ChannelMarkerPayload(markerId, markerType, scope, cmdMapping)
     )
   }
@@ -117,7 +120,7 @@ class AsyncRPCClient(
     }
   }
 
-  def logControlReply(ret: ReturnInvocation, channel: ChannelID): Unit = {
+  def logControlReply(ret: ReturnInvocation, channelId: ChannelIdentity): Unit = {
     if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
@@ -126,16 +129,16 @@ class AsyncRPCClient(
         return
       }
       logger.debug(
-        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channel (controlID: ${ret.originalCommandID})"
+        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channelId (controlID: ${ret.originalCommandID})"
       )
       ret.controlReturn match {
         case throwable: Throwable =>
-          logger.error(s"received error from $channel", throwable)
+          logger.error(s"received error from $channelId", throwable)
         case _ =>
       }
     } else {
       logger.info(
-        s"receive reply: null from $channel (controlID: ${ret.originalCommandID})"
+        s"receive reply: null from $channelId (controlID: ${ret.originalCommandID})"
       )
     }
   }
