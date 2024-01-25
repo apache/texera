@@ -23,6 +23,8 @@ import { SchemaPropagationService } from "../service/dynamic-schema/schema-propa
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
+
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
 @UntilDestroy()
@@ -40,6 +42,16 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
+
+  screenWidth = window.innerWidth;
+  width = 400;
+  id = -1;
+
+  onResize(event: NzResizeEvent): void {
+    if (event.width) {
+      this.width = event.width;
+    }
+  }
 
   constructor(
     private userService: UserService,

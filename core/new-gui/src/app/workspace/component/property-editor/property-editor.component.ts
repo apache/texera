@@ -24,8 +24,8 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 @UntilDestroy()
 @Component({
   selector: "texera-property-editor",
-  templateUrl: "./property-editor.component.html",
-  styleUrls: ["./property-editor.component.scss"],
+  templateUrl: "property-editor.component.html",
+  styleUrls: ["property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;

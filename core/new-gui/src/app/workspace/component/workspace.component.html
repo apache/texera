@@ -9,11 +9,22 @@
 		'texera-workspace-grid-container': this.showResultPanel,
 		'user-system-enabled': this.userSystemEnabled
 	}">
-  <div class="texera-property-editor-grid-container grid-container">
+  <!-- <div class="texera-property-editor-grid-container grid-container">
     <div class="texera-right-side-bar-split-editor-minimap">
       <texera-property-editor style="overflow: auto"> </texera-property-editor>
       <texera-mini-map> </texera-mini-map>
     </div>
+  </div> -->
+  <div
+    id="property-editor-container"
+    nz-resizable
+    [nzMinWidth]="400"
+    [nzMaxWidth]="screenWidth"
+    [style.width.px]="width"
+    (nzResize)="onResize($event)"
+  >
+    <texera-property-editor></texera-property-editor>
+    <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
   </div>
   <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"> </texera-workflow-editor>
   <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"> </texera-result-panel-toggle>

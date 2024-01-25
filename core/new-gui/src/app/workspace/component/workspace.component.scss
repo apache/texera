@@ -82,6 +82,17 @@ texera-menu {
   left: 0;
 }
 
+
+#property-editor-container {
+  background: white;
+  height: calc(100% - 76px);
+  width: 100%;
+  z-index: 1;
+  position: absolute;
+  top: 76px;
+  right: 0;
+}
+
 /**
   * this style specifies that the property editor for the operators
   * on the right will occupy the 3rd (last) column and use second and third
