@@ -1,7 +1,17 @@
-<div
-  [attr.id]="operatorLabelID"
-  [ngClass]="{'disable-drag-drop': !draggable}"
-  class="operator-label"
-  title="{{ operator?.additionalMetadata?.operatorDescription }}">
-  <span class="text"> {{ operator?.additionalMetadata?.userFriendlyName }} </span>
+<div cdkDropList class="box">
+  <div
+    cdkDrag
+    cdkDragBoundary="texera-workspace"
+    (cdkDragStarted)="dragStarted()"
+    (cdkDragDropped)="dragDropped($event)"
+    (mousedown)="mouseDown()"
+  (mouseleave)="mouseLeave()"
+  (mouseup)="mouseUp()"[attr.id]="operatorLabelID"
+    [ngClass]="{'shake-animation': animate === 'reject',
+               'disable-drag-drop': !draggable}"
+    class="operator-label"
+    title="{{ operator?.additionalMetadata?.operatorDescription }}">
+    <span class="text"> {{ operator?.additionalMetadata?.userFriendlyName }} </span>
+    <div *cdkDragPreview id="flyingJointPaper"></div>
+  </div>
 </div>

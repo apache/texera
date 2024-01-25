@@ -87,50 +87,37 @@ export class DragDropService {
     private jointUIService: JointUIService,
     private workflowUtilService: WorkflowUtilService,
     private workflowActionService: WorkflowActionService
-  ) {
-    this.handleOperatorDropEvent();
-  }
+  ) {}
 
-  /**
-   * Handles the event of operator being dropped.
-   * Adds the operator to the workflow graph at the same position of it being dropped.
-   * **Proposal**: currently doesn't support multiple links to/from same suggested input/output
-   */
-  public handleOperatorDropEvent(): void {
-    this.getOperatorDropStream().subscribe(value => {
-      // construct the operator from the drop stream value
-      const operator = this.workflowUtilService.getNewOperatorPredicate(value.operatorType);
+  public dragDropped(operatorType: string, dropPoint: Point): void {
+    const flyingOP = jQuery("#flyingJointPaper");
+    console.log("flyingOP:", flyingOP);
+    const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
+    let coordinates: Point | undefined = this.workflowActionService
+      .getJointGraphWrapper()
+      .getMainJointPaper()
+      ?.pageToLocalPoint(flyingOP.offset()!.left, flyingOP.offset()!.top);
+    if (!coordinates) {
+      coordinates = { x: flyingOP.offset()!.left, y: flyingOP.offset()!.top };
+    }
 
-      let coordinates: Point | undefined = this.workflowActionService
-        .getJointGraphWrapper()
-        .getMainJointPaper()
-        ?.pageToLocalPoint(value.offset.x, value.offset.y);
-      if (!coordinates) {
-        coordinates = value.offset;
-      }
+    const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? { sx: 1, sy: 1 };
 
-      const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? { sx: 1, sy: 1 };
+    const newOperatorOffset = {
+      x: coordinates.x / scale.sx,
+      y: coordinates.y / scale.sy,
+    };
 
-      const newOperatorOffset = {
-        x: coordinates.x / scale.sx,
-        y: coordinates.y / scale.sy,
-      };
+    const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [{ op: operator, pos: newOperatorOffset }];
+    // create new links from suggestions
+    const newLinks: OperatorLink[] = this.getNewOperatorLinks(operator, this.suggestionInputs, this.suggestionOutputs);
 
-      const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [{ op: operator, pos: newOperatorOffset }];
-      // create new links from suggestions
-      const newLinks: OperatorLink[] = this.getNewOperatorLinks(
-        operator,
-        this.suggestionInputs,
-        this.suggestionOutputs
-      );
+    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, newLinks);
+    this.resetSuggestions();
 
-      this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, newLinks);
-      this.resetSuggestions();
-
-      // reset the current operator type to an non-exist type
-      this.currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
-      this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
-    });
+    // reset the current operator type to an non-exist type
+    this.currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
+    this.currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
   }
 
   /**
@@ -176,26 +163,16 @@ export class DragDropService {
    * @param dragElementID the DOM Element ID
    * @param operatorType the operator type that the element corresponds to
    */
-  public registerOperatorLabelDrag(dragElementID: string, operatorType: string): void {
+  public dragStarted(dragElementID: string, operatorType: string): void {
     this.elementOperatorTypeMap.set(dragElementID, operatorType);
+    this.createFlyingOperatorElement(dragElementID, operatorType);
 
-    // register callback functions for jquery UI
-    jQuery("#" + dragElementID).draggable({
-      helper: () => this.createFlyingOperatorElement(dragElementID, operatorType),
-      // declare event as type any because the jQueryUI type declaration is wrong
-      // it should be of type JQuery.Event, which is incompatible with the the declared type Event
-      start: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => this.handleOperatorStartDrag(event, ui),
-      // The draggable element will be created with the mouse starting point at the center
-      cursorAt: {
-        left: JointUIService.DEFAULT_OPERATOR_WIDTH / 2,
-        top: JointUIService.DEFAULT_OPERATOR_HEIGHT / 2,
-      },
-      stop: (event: JQueryEventObject, ui: JQueryUI.DraggableEventUIParams) => {
-        this.resetSuggestions();
-      },
-      // prevents dragging from starting on elements of class disable-drag-drop
-      cancel: ".disable-drag-drop",
-    });
+    // set the currentOperatorType
+    this.currentOperatorType = operatorType;
+    // notify the subject of the event
+    this.operatorDragStartedSubject.next({ operatorType });
+    // begin the operator link recommendation process
+    this.handleOperatorRecommendationOnDrag();
   }
 
   /**
@@ -218,14 +195,11 @@ export class DragDropService {
    *
    * @param operatorType - the type of the operator
    */
-  private createFlyingOperatorElement(dragElementID: string, operatorType: string): JQuery<HTMLElement> {
+  private createFlyingOperatorElement(dragElementID: string, operatorType: string) {
     // set the current operator type from an nonexist placeholder operator type
     //  to the operator type being dragged
     this.currentDragElementID = dragElementID;
     this.currentOperatorType = operatorType;
-
-    // create a temporary ghost element
-    jQuery("body").append("<div id=\"flyingJointPaper\" style=\"position:fixed;z-index:1001;pointer-event:none;\"></div>");
 
     // create an operator and get the UI element from the operator type
     const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
@@ -241,41 +215,12 @@ export class DragDropService {
     });
     // add the operator JointJS element to the paper
     tempGhostModel.addCell(operatorUIElement);
-
-    // return the jQuery object of the DOM Element
-    return jQuery("#flyingJointPaper");
-  }
-
-  /**
-   * Handler function for jQueryUI's drag started event.
-   * It converts the event to the drag started Subject.
-   *
-   * @param event JQuery.Event type, although JQueryUI typing says the type is Event, the object's actual type is JQuery.Event
-   * @param ui jQueryUI Draggable Event UI
-   */
-  private handleOperatorStartDrag(event: Event, ui: JQueryUI.DraggableEventUIParams): void {
-    const eventElement = event.target;
-    if (!(eventElement instanceof Element)) {
-      throw new Error("Incorrect type: in most cases, this element is type Element");
-    }
-    // get the operatorType based on the DOM element ID
-    const operatorType = this.elementOperatorTypeMap.get(eventElement.id);
-    if (operatorType === undefined) {
-      throw new Error(`drag and drop: cannot find operator type ${operatorType} from DOM element ${eventElement}`);
-    }
-    // set the currentOperatorType
-    this.currentOperatorType = operatorType;
-    // notify the subject of the event
-    this.operatorDragStartedSubject.next({ operatorType });
-
-    // begin the operator link recommendation process
-    this.handleOperatorRecommendationOnDrag();
   }
 
   /**
    * Handler function for jQueryUI's drag stopped event.
    * It converts the event to the drag stopped Subject.
-   * Notice that we view Drag Stopped is equivalent to the operator being Dropped
+   * Notice that we view operator Drag Stopped is equivalent to the operator being Dropped
    *
    * @param event
    * @param ui
