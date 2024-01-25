@@ -4,7 +4,11 @@ import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.ChannelConfig.generateChannelConfigs
 import edu.uci.ics.amber.engine.architecture.scheduling.config.LinkConfig.toPartitioning
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.generateWorkerConfigs
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{LinkConfig, OperatorConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{
+  LinkConfig,
+  OperatorConfig,
+  ResourceConfig
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
