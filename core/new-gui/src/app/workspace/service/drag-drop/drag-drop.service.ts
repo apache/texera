@@ -90,15 +90,13 @@ export class DragDropService {
   ) {}
 
   public dragDropped(operatorType: string, dropPoint: Point): void {
-    const flyingOP = jQuery("#flyingJointPaper");
-    console.log("flyingOP:", flyingOP);
     const operator = this.workflowUtilService.getNewOperatorPredicate(operatorType);
     let coordinates: Point | undefined = this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()
-      ?.pageToLocalPoint(flyingOP.offset()!.left, flyingOP.offset()!.top);
+      ?.pageToLocalPoint(dropPoint.x, dropPoint.y);
     if (!coordinates) {
-      coordinates = { x: flyingOP.offset()!.left, y: flyingOP.offset()!.top };
+      coordinates = dropPoint;
     }
 
     const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? { sx: 1, sy: 1 };
