@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
 
-    private static final long serialVersionUID = -446937835;
+    private static final long serialVersionUID = 633946948;
 
     private UInteger  workflowId;
     private UInteger  executionId;
@@ -26,6 +26,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
     private UInteger  inputTupleCnt;
     private UInteger  outputTupleCnt;
     private Byte      status;
+    private UInteger  dataProcessingTime;
+    private UInteger  controlProcessingTime;
+    private UInteger  idleTime;
+    private UInteger  numWorkers;
 
     public WorkflowRuntimeStatistics() {}
 
@@ -37,6 +41,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         this.inputTupleCnt = value.getInputTupleCnt();
         this.outputTupleCnt = value.getOutputTupleCnt();
         this.status = value.getStatus();
+        this.dataProcessingTime = value.getDataProcessingTime();
+        this.controlProcessingTime = value.getControlProcessingTime();
+        this.idleTime = value.getIdleTime();
+        this.numWorkers = value.getNumWorkers();
     }
 
     public WorkflowRuntimeStatistics(
@@ -46,7 +54,11 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         Timestamp time,
         UInteger  inputTupleCnt,
         UInteger  outputTupleCnt,
-        Byte      status
+        Byte      status,
+        UInteger  dataProcessingTime,
+        UInteger  controlProcessingTime,
+        UInteger  idleTime,
+        UInteger  numWorkers
     ) {
         this.workflowId = workflowId;
         this.executionId = executionId;
@@ -55,6 +67,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         this.inputTupleCnt = inputTupleCnt;
         this.outputTupleCnt = outputTupleCnt;
         this.status = status;
+        this.dataProcessingTime = dataProcessingTime;
+        this.controlProcessingTime = controlProcessingTime;
+        this.idleTime = idleTime;
+        this.numWorkers = numWorkers;
     }
 
     @Override
@@ -128,6 +144,46 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
     }
 
     @Override
+    public UInteger getDataProcessingTime() {
+        return this.dataProcessingTime;
+    }
+
+    @Override
+    public void setDataProcessingTime(UInteger dataProcessingTime) {
+        this.dataProcessingTime = dataProcessingTime;
+    }
+
+    @Override
+    public UInteger getControlProcessingTime() {
+        return this.controlProcessingTime;
+    }
+
+    @Override
+    public void setControlProcessingTime(UInteger controlProcessingTime) {
+        this.controlProcessingTime = controlProcessingTime;
+    }
+
+    @Override
+    public UInteger getIdleTime() {
+        return this.idleTime;
+    }
+
+    @Override
+    public void setIdleTime(UInteger idleTime) {
+        this.idleTime = idleTime;
+    }
+
+    @Override
+    public UInteger getNumWorkers() {
+        return this.numWorkers;
+    }
+
+    @Override
+    public void setNumWorkers(UInteger numWorkers) {
+        this.numWorkers = numWorkers;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowRuntimeStatistics (");
 
@@ -138,6 +194,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         sb.append(", ").append(inputTupleCnt);
         sb.append(", ").append(outputTupleCnt);
         sb.append(", ").append(status);
+        sb.append(", ").append(dataProcessingTime);
+        sb.append(", ").append(controlProcessingTime);
+        sb.append(", ").append(idleTime);
+        sb.append(", ").append(numWorkers);
 
         sb.append(")");
         return sb.toString();
@@ -156,6 +216,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         setInputTupleCnt(from.getInputTupleCnt());
         setOutputTupleCnt(from.getOutputTupleCnt());
         setStatus(from.getStatus());
+        setDataProcessingTime(from.getDataProcessingTime());
+        setControlProcessingTime(from.getControlProcessingTime());
+        setIdleTime(from.getIdleTime());
+        setNumWorkers(from.getNumWorkers());
     }
 
     @Override

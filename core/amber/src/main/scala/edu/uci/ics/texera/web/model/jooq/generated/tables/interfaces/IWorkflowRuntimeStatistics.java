@@ -86,6 +86,46 @@ public interface IWorkflowRuntimeStatistics extends Serializable {
      */
     public Byte getStatus();
 
+    /**
+     * Setter for <code>texera_db.workflow_runtime_statistics.data_processing_time</code>.
+     */
+    public void setDataProcessingTime(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_runtime_statistics.data_processing_time</code>.
+     */
+    public UInteger getDataProcessingTime();
+
+    /**
+     * Setter for <code>texera_db.workflow_runtime_statistics.control_processing_time</code>.
+     */
+    public void setControlProcessingTime(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_runtime_statistics.control_processing_time</code>.
+     */
+    public UInteger getControlProcessingTime();
+
+    /**
+     * Setter for <code>texera_db.workflow_runtime_statistics.idle_time</code>.
+     */
+    public void setIdleTime(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_runtime_statistics.idle_time</code>.
+     */
+    public UInteger getIdleTime();
+
+    /**
+     * Setter for <code>texera_db.workflow_runtime_statistics.num_workers</code>.
+     */
+    public void setNumWorkers(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.workflow_runtime_statistics.num_workers</code>.
+     */
+    public UInteger getNumWorkers();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

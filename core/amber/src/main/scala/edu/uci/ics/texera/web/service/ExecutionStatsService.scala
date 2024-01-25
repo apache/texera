@@ -164,6 +164,10 @@ class ExecutionStatsService(
         execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
         execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
         execution.setStatus(maptoStatusCode(stat.state))
+        execution.setDataProcessingTime(UInteger.valueOf(stat.dataProcessingTime))
+        execution.setControlProcessingTime(UInteger.valueOf(stat.controlProcessingTime))
+        execution.setIdleTime(UInteger.valueOf(stat.idleTime))
+        execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
         list.add(execution)
       }
       workflowRuntimeStatisticsDao.insert(list)

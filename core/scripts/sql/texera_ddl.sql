@@ -196,6 +196,10 @@ CREATE TABLE IF NOT EXISTS workflow_runtime_statistics
     `input_tuple_cnt`  INT UNSIGNED             NOT NULL DEFAULT 0,
     `output_tuple_cnt` INT UNSIGNED             NOT NULL DEFAULT 0,
     `status`           TINYINT                  NOT NULL DEFAULT 1,
+    `data_processing_time` INT UNSIGNED         NOT NULL DEFAULT 0,
+    `control_processing_time` INT UNSIGNED      NOT NULL DEFAULT 0,
+    `idle_time`        INT UNSIGNED             NOT NULL DEFAULT 0,
+    `num_workers`      INT UNSIGNED             NOT NULL DEFAULT 0
     PRIMARY KEY (`workflow_id`, `execution_id`, `operator_id`, `time`),
     FOREIGN KEY (`workflow_id`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
     FOREIGN KEY (`execution_id`) REFERENCES `workflow_executions` (`eid`) ON DELETE CASCADE

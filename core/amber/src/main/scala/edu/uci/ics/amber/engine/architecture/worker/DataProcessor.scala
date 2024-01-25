@@ -328,7 +328,7 @@ class DataProcessor(
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }
-    dataProcessingTime += (System.nanoTime() + dataProcessingStartTime)
+    dataProcessingTime += (System.nanoTime() - dataProcessingStartTime)
   }
 
   def processChannelMarker(
