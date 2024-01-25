@@ -1,13 +1,16 @@
-.navbar {
+#nav {
   height: 70px;
+  background-color: #f8f9fa;
+  padding: 8px 16px;
 }
 
 button {
   border: none;
 }
 
-.logo {
-  width: 70px;
+texera-user-icon {
+  float: right;
+  padding: 8px;
 }
 
 .layout {
