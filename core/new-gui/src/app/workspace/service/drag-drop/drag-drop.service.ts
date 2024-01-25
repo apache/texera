@@ -11,7 +11,6 @@ import * as joint from "jointjs";
 // if jQuery needs to be used: 1) use jQuery instead of `$`, and
 // 2) always add this import statement even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
-import "jquery-ui-dist/jquery-ui";
 import { filter, first, map } from "rxjs/operators";
 
 @Injectable({
@@ -34,14 +33,6 @@ export class DragDropService {
   private currentDragElementID = DragDropService.DRAG_DROP_TEMP_ELEMENT_ID;
   /** the current operatorType of the operator being dragged */
   private currentOperatorType = DragDropService.DRAG_DROP_TEMP_OPERATOR_TYPE;
-
-  /** Subject for operator is dropped on the main workflow editor (equivalent to dragging is stopped) */
-  private operatorDroppedSubject = new Subject<{
-    operatorType: string;
-    offset: Point;
-    dragElementID: string;
-  }>();
-
   constructor(
     private jointUIService: JointUIService,
     private workflowUtilService: WorkflowUtilService,
