@@ -13,8 +13,6 @@ import { Point } from "../../../../types/workflow-common.interface";
 })
 export class OperatorLabelComponent implements AfterContentInit {
   @Input() operator?: OperatorSchema;
-  @Input() fromSearchBox?: boolean;
-  public operatorLabelID?: string;
   public draggable = true;
 
   constructor(private dragDropService: DragDropService, private workflowActionService: WorkflowActionService) {}
@@ -26,7 +24,6 @@ export class OperatorLabelComponent implements AfterContentInit {
       .subscribe(canModify => {
         this.draggable = canModify;
       });
-    this.operatorLabelID = "operator-label-" + this.operator!.operatorType + this.fromSearchBox;
   }
 
   dragStarted() {

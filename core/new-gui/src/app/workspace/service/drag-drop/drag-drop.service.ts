@@ -23,42 +23,28 @@ export class DragDropService {
   constructor(
     private jointUIService: JointUIService,
     private workflowUtilService: WorkflowUtilService,
-    private workflowActionService: WorkflowActionService,
+    private workflowActionService: WorkflowActionService
   ) {}
 
   public dragStarted(operatorType: string): void {
     this.op = this.workflowUtilService.getNewOperatorPredicate(operatorType);
-
+    const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale()!;
     new joint.dia.Paper({
       el: document.getElementById("flyingOP")!,
-      width: JointUIService.DEFAULT_OPERATOR_WIDTH,
-      height: JointUIService.DEFAULT_OPERATOR_HEIGHT,
-      model: new joint.dia.Graph().addCell(this.jointUIService.getJointOperatorElement(this.op, { x: 0, y: 0 }))
-    });
+      width: JointUIService.DEFAULT_OPERATOR_WIDTH * scale.sx,
+      height: JointUIService.DEFAULT_OPERATOR_HEIGHT * scale.sy,
+      model: new joint.dia.Graph().addCell(this.jointUIService.getJointOperatorElement(this.op, { x: 0, y: 0 })),
+    }).scale(scale.sx);
     this.handleOperatorRecommendationOnDrag();
   }
 
   public dragDropped(dropPoint: Point): void {
-    let coordinates: Point | undefined = this.workflowActionService
+    const coordinates = this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()
-      ?.pageToLocalPoint(dropPoint.x, dropPoint.y);
-    if (!coordinates) {
-      coordinates = dropPoint;
-    }
-
-    const scale = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()?.scale() ?? { sx: 1, sy: 1 };
-
-    const newOperatorOffset = {
-      x: coordinates.x / scale.sx,
-      y: coordinates.y / scale.sy,
-    };
-
-    const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [{ op: this.op, pos: newOperatorOffset }];
-    // create new links from suggestions
-    const newLinks: OperatorLink[] = this.getNewOperatorLinks(this.op, this.suggestionInputs, this.suggestionOutputs);
-
-    this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, newLinks);
+      ?.pageToLocalPoint(dropPoint.x, dropPoint.y)!;
+    const newLinks = this.getNewOperatorLinks(this.op, this.suggestionInputs, this.suggestionOutputs);
+    this.workflowActionService.addOperatorsAndLinks([{ op: this.op, pos: coordinates }], newLinks);
     this.resetSuggestions();
     this.operatorDroppedSubject.next();
   }

@@ -192,7 +192,6 @@ describe("WorkflowEditorComponent", () => {
       fixture.detectChanges();
     });
 
-
     it("should try to highlight the operator when user mouse clicks on an operator", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       // install a spy on the highlight operator function and pass the call through
