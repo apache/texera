@@ -13,10 +13,10 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkMessage,
   RegisterActorRef
 }
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
 import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayLogGenerator,
   ReplayLogManager,
+  ReplayLogRecord,
   ReplayOrderEnforcer
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -25,9 +25,9 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerStateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -58,9 +58,9 @@ object WorkflowActor {
   final case class NetworkMessage(messageId: Long, internalMessage: WorkflowFIFOMessage)
 
   // sent from network communicator to next worker to poll for credit information
-  final case class CreditRequest(channelEndpointID: ChannelID)
+  final case class CreditRequest(channelId: ChannelIdentity)
 
-  final case class CreditResponse(channelEndpointID: ChannelID, credit: Long)
+  final case class CreditResponse(channelId: ChannelIdentity, credit: Long)
 }
 
 abstract class WorkflowActor(
@@ -92,8 +92,8 @@ abstract class WorkflowActor(
 
   logger.info(s"worker replay log writing conf: $replayLogConfOpt")
 
-  val logStorage: ReplayLogStorage =
-    ReplayLogStorage.getLogStorage(replayLogConfOpt.map(_.writeTo))
+  val logStorage: SequentialRecordStorage[ReplayLogRecord] =
+    SequentialRecordStorage.getStorage(replayLogConfOpt.map(_.writeTo))
   val logManager: ReplayLogManager =
     ReplayLogManager.createLogManager(logStorage, getLogName, sendMessageFromLogWriterToActor)
 
@@ -119,7 +119,7 @@ abstract class WorkflowActor(
   // actor behavior for FIFO messages
   def receiveMessageAndAck: Receive = {
     case NetworkMessage(id, workflowMsg @ WorkflowFIFOMessage(channel, _, _)) =>
-      actorRefMappingService.registerActorRef(channel.from, sender)
+      actorRefMappingService.registerActorRef(channel.fromWorkerId, sender)
       try {
         handleInputMessage(id, workflowMsg)
       } catch {
@@ -140,7 +140,7 @@ abstract class WorkflowActor(
 
   def receiveDeadLetterMessage: Receive = {
     case MessageBecomesDeadLetter(msg) =>
-      val dest = msg.internalMessage.channel.to
+      val dest = msg.internalMessage.channelId.toWorkerId
       if (dest == actorId) {
         actorService.scheduleOnce(
           100.millis,
@@ -159,7 +159,7 @@ abstract class WorkflowActor(
   //
   //flow control:
   //
-  def getQueuedCredit(channelID: ChannelID): Long
+  def getQueuedCredit(channelId: ChannelIdentity): Long
 
   def handleBackpressure(isBackpressured: Boolean): Unit
 
@@ -173,7 +173,8 @@ abstract class WorkflowActor(
       replayConf: WorkerStateRestoreConfig,
       onComplete: () => Unit
   ): Unit = {
-    val logStorageToRead = ReplayLogStorage.getLogStorage(Some(replayConf.readFrom))
+    val logStorageToRead =
+      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(replayConf.readFrom))
     val replayTo = replayConf.replayDestination
     val (processSteps, messages) =
       ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
@@ -192,7 +193,7 @@ abstract class WorkflowActor(
     )
     amberProcessor.inputGateway.addEnforcer(orderEnforcer)
     messages.foreach(message =>
-      amberProcessor.inputGateway.getChannel(message.channel).acceptMessage(message)
+      amberProcessor.inputGateway.getChannel(message.channelId).acceptMessage(message)
     )
   }
 

@@ -14,7 +14,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerC
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ControlPayload,
   DataPayload,
   WorkflowFIFOMessage,
@@ -28,7 +27,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 
@@ -47,7 +46,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
   val promiseMap = new mutable.LongMap[Promise[Any]]()
   var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
 
-  private def getQueuedCredit(channel: ChannelID): Long = {
+  private def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0L // client does not have queued credits
   }
 
@@ -62,8 +61,8 @@ private[client] class ClientActor extends Actor with AmberLogging {
       assert(controller == null)
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
       sender ! Ack
-    case CreditRequest(channel: ChannelID) =>
-      sender ! CreditResponse(channel, getQueuedCredit(channel))
+    case CreditRequest(channelId: ChannelIdentity) =>
+      sender ! CreditResponse(channelId, getQueuedCredit(channelId))
     case ClosureRequest(closure) =>
       try {
         sender ! closure()
@@ -82,7 +81,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
           mId,
           fifoMsg @ WorkflowFIFOMessage(_, _, payload)
         ) =>
-      sender ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channel))
+      sender ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channelId))
       payload match {
         case payload: ControlPayload =>
           payload match {
