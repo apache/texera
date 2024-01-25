@@ -6,31 +6,16 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.workflow._
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  PartitionInfo,
-  PhysicalPlan,
-  SinglePartition,
-  UnknownPartition
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, PhysicalPlan, SinglePartition, UnknownPartition}
 
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable
 
 @JsonSchemaInject(json = """
 {
@@ -64,19 +49,27 @@ class HashJoinOpDesc[K] extends LogicalOp {
 
   override def getPhysicalPlan(
       workflowIdentity: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalPlan = {
+    val inputSchemas =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
+    val buildSchema = inputSchemas.head
+    val probeSchema = inputSchemas(1)
+
     val buildInPartitionRequirement = List(
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))))
+      Option(HashPartition(List(buildSchema.getIndex(buildAttributeName))))
     )
 
     val buildDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      val buildPartition = inputPartitions(0).asInstanceOf[HashPartition]
-      val buildAttrIndex = operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)
+      val buildPartition = buildSchema.asInstanceOf[HashPartition]
+      val buildAttrIndex = buildSchema.getIndex(buildAttributeName)
       assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
       HashPartition(List(0))
     }
+
+    val buildOutputPort = OutputPort(PortIdentity(internal = true))
 
     val buildPhysicalOp =
       PhysicalOp
@@ -86,25 +79,25 @@ class HashJoinOpDesc[K] extends LogicalOp {
           executionId,
           OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
         )
-        .withInputPorts(List(InputPort("left")))
-        .withOutputPorts(List(OutputPort("buildTable")))
+        .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> buildSchema))
+        .withOutputPorts(List(buildOutputPort), mutable.Map(buildOutputPort.id -> outputSchema))
         .withPartitionRequirement(buildInPartitionRequirement)
         .withDerivePartition(buildDerivePartition)
         .withParallelizable(true)
 
     val probeInPartitionRequirement = List(
       Option(HashPartition(List(0))),
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))))
+      Option(HashPartition(List(inputSchemas(1).getIndex(probeAttributeName))))
     )
 
     val probeDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
 
       val buildPartition = HashPartition(
-        List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName))
+        List(buildSchema.getIndex(buildAttributeName))
       ).asInstanceOf[HashPartition]
 
       val probePartition = inputPartitions(1).asInstanceOf[HashPartition]
-      val probAttrIndex = operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName)
+      val probAttrIndex = inputSchemas(1).getIndex(probeAttributeName)
 
       assert(probePartition.hashColumnIndices.contains(probAttrIndex))
 
@@ -121,6 +114,11 @@ class HashJoinOpDesc[K] extends LogicalOp {
       HashPartition(outputHashIndices)
     }
 
+    // TODO: add buildTable schema
+
+    val probeBuildInputPort = InputPort(PortIdentity(internal = true))
+    val probeDataInputPort = InputPort(PortIdentity(1, internal = true), dependencies = List(probeBuildInputPort.id))
+
     val probePhysicalOp =
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -132,25 +130,24 @@ class HashJoinOpDesc[K] extends LogicalOp {
               buildAttributeName,
               probeAttributeName,
               joinType,
-              operatorSchemaInfo
+              buildSchema, probeSchema, outputSchema
             )
           )
         )
-      )
         .withInputPorts(
           List(
-            InputPort("buildTable"),
-            InputPort("right")
-          )
+            probeBuildInputPort,
+            probeDataInputPort
+          ),
+          mutable.Map(PortIdentity() -> buildSchema, PortIdentity(1)->probeSchema)
         )
-        .withDependencies(Map(1 -> 0))
         .withPartitionRequirement(probeInPartitionRequirement)
         .withDerivePartition(probeDerivePartition)
         .withParallelizable(true)
 
     new PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),
-      links = Set(PhysicalLink(buildPhysicalOp.id, 0, probePhysicalOp.id, 0))
+      links = Set(PhysicalLink(buildPhysicalOp.id, buildOutputPort.id, probePhysicalOp.id, probeBuildInputPort.id))
     )
   }
 
