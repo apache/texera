@@ -18,9 +18,13 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import java.net.URI
@@ -121,12 +125,12 @@ class WorkflowWorker(
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     inputQueue.put(FIFOMessageElement(workflowMsg))
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
+    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
   /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
-    dp.getQueuedCredit(channelID)
+  override def getQueuedCredit(channelId: ChannelIdentity): Long = {
+    dp.getQueuedCredit(channelId)
   }
 
   override def postStop(): Unit = {

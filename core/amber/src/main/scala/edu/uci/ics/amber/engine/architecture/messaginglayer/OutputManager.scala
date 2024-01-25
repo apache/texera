@@ -7,10 +7,9 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import org.jooq.exception.MappingException
 
@@ -88,7 +87,7 @@ class OutputManager(
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
-      dataOutputPort.addOutputChannel(ChannelID(selfID, receiver, isControl = false))
+      dataOutputPort.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
     })
   }
 
@@ -119,12 +118,12 @@ class OutputManager(
     * @param onlyFor An optional set of 'ChannelID' indicating the specific buffers to flush.
     *                If None, all buffers are flushed. Default value is None.
     */
-  def flush(onlyFor: Option[Set[ChannelID]] = None): Unit = {
+  def flush(onlyFor: Option[Set[ChannelIdentity]] = None): Unit = {
     val buffersToFlush = onlyFor match {
       case Some(channelIds) =>
         networkOutputBuffers
           .filter(out => {
-            val channel = ChannelID(selfID, out._1._2, isControl = false)
+            val channel = ChannelIdentity(selfID, out._1._2, isControl = false)
             channelIds.contains(channel)
           })
           .values

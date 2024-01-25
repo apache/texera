@@ -11,10 +11,10 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputGateway
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -46,10 +46,10 @@ class ReplaySpec
   private val actorId = ActorVirtualIdentity("test")
   private val actorId2 = ActorVirtualIdentity("upstream1")
   private val actorId3 = ActorVirtualIdentity("upstream2")
-  private val channelId1 = ChannelID(CONTROLLER, actorId, isControl = true)
-  private val channelId2 = ChannelID(actorId2, actorId, isControl = false)
-  private val channelId3 = ChannelID(actorId3, actorId, isControl = false)
-  private val channelId4 = ChannelID(actorId2, actorId, isControl = true)
+  private val channelId1 = ChannelIdentity(CONTROLLER, actorId, isControl = true)
+  private val channelId2 = ChannelIdentity(actorId2, actorId, isControl = false)
+  private val channelId3 = ChannelIdentity(actorId3, actorId, isControl = false)
+  private val channelId4 = ChannelIdentity(actorId2, actorId, isControl = true)
   private val logManager = new ReplayLogManagerImpl(x => {})
 
   "replay input gate" should "replay the message payload in log order" in {
@@ -61,17 +61,19 @@ class ReplaySpec
       ProcessingStep(channelId2, 4)
     )
     val inputGateway = new NetworkInputGateway(actorId)
-    def inputMessage(channelID: ChannelID, seq: Long): Unit = {
+    def inputMessage(channelId: ChannelIdentity, seq: Long): Unit = {
       inputGateway
-        .getChannel(channelID)
-        .acceptMessage(WorkflowFIFOMessage(channelID, seq, ControlInvocation(0, StartWorker())))
+        .getChannel(channelId)
+        .acceptMessage(
+          WorkflowFIFOMessage(channelId, seq, ControlInvocation(0, StartWorker()))
+        )
     }
     val orderEnforcer = new ReplayOrderEnforcer(logManager, logRecords, -1, () => {})
     inputGateway.addEnforcer(orderEnforcer)
-    def processMessage(channelID: ChannelID, seq: Long): Unit = {
+    def processMessage(channelId: ChannelIdentity, seq: Long): Unit = {
       val msg = inputGateway.tryPickChannel.get.take
-      logManager.withFaultTolerant(msg.channel, Some(msg)) {
-        assert(msg.channel == channelID && msg.sequenceNumber == seq)
+      logManager.withFaultTolerant(msg.channelId, Some(msg)) {
+        assert(msg.channelId == channelId && msg.sequenceNumber == seq)
       }
     }
     assert(inputGateway.tryPickChannel.isEmpty)

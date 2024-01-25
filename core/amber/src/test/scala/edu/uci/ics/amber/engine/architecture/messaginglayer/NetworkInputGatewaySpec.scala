@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -10,7 +10,7 @@ class NetworkInputGatewaySpec extends AnyFlatSpec with MockFactory {
 
   private val fakeReceiverID = ActorVirtualIdentity("testReceiver")
   private val fakeSenderID = ActorVirtualIdentity("testSender")
-  private val channelId = ChannelID(fakeSenderID, fakeReceiverID, false)
+  private val channelId = ChannelIdentity(fakeSenderID, fakeReceiverID, false)
   private val payloads = (0 until 4).map { i =>
     DataFrame(Array(ITuple(i)))
   }.toArray

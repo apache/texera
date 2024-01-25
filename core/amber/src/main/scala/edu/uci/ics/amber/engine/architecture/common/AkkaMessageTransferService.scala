@@ -4,8 +4,8 @@ import akka.actor.Cancellable
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.messaginglayer.{CongestionControl, FlowControl}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 import scala.concurrent.duration.DurationInt
@@ -22,9 +22,9 @@ class AkkaMessageTransferService(
   var creditPollingHandle: Cancellable = Cancellable.alreadyCancelled
 
   // add congestion control and flow control here
-  val channelToCC = new mutable.HashMap[ChannelID, CongestionControl]()
-  val channelToFC = new mutable.HashMap[ChannelID, FlowControl]()
-  val messageIDToIdentity = new mutable.LongMap[ChannelID]
+  val channelToCC = new mutable.HashMap[ChannelIdentity, CongestionControl]()
+  val channelToFC = new mutable.HashMap[ChannelIdentity, FlowControl]()
+  val messageIDToIdentity = new mutable.LongMap[ChannelIdentity]
 
   private var backpressured = false
 
@@ -58,7 +58,7 @@ class AkkaMessageTransferService(
 
   def send(msg: WorkflowFIFOMessage): Unit = {
     val networkMessage = NetworkMessage(networkMessageID, msg)
-    messageIDToIdentity(networkMessageID) = msg.channel
+    messageIDToIdentity(networkMessageID) = msg.channelId
     networkMessageID += 1
     forwardToFlowControl(
       networkMessage,
@@ -70,11 +70,12 @@ class AkkaMessageTransferService(
       msg: NetworkMessage,
       chainedStep: NetworkMessage => Unit
   ): Unit = {
-    if (msg.internalMessage.channel.isControl) {
+    if (msg.internalMessage.channelId.isControl) {
       // skip flow control for all control channels
       chainedStep(msg)
     } else {
-      val flowControl = channelToFC.getOrElseUpdate(msg.internalMessage.channel, new FlowControl())
+      val flowControl =
+        channelToFC.getOrElseUpdate(msg.internalMessage.channelId, new FlowControl())
       flowControl.getMessagesToSend(msg).foreach { msg =>
         chainedStep(msg)
       }
@@ -87,7 +88,7 @@ class AkkaMessageTransferService(
       chainedStep: NetworkMessage => Unit
   ): Unit = {
     val congestionControl =
-      channelToCC.getOrElseUpdate(msg.internalMessage.channel, new CongestionControl())
+      channelToCC.getOrElseUpdate(msg.internalMessage.channelId, new CongestionControl())
     if (congestionControl.canSend) {
       congestionControl.markMessageInTransit(msg)
       chainedStep(msg)
@@ -113,8 +114,8 @@ class AkkaMessageTransferService(
     }
   }
 
-  def updateChannelCreditFromReceiver(channel: ChannelID, queuedCredit: Long): Unit = {
-    val flowControl = channelToFC.getOrElseUpdate(channel, new FlowControl())
+  def updateChannelCreditFromReceiver(channelId: ChannelIdentity, queuedCredit: Long): Unit = {
+    val flowControl = channelToFC.getOrElseUpdate(channelId, new FlowControl())
     flowControl.updateQueuedCredit(queuedCredit)
     flowControl.getMessagesToSend.foreach(out =>
       forwardToCongestionControl(out, refService.forwardToActor)
@@ -141,7 +142,7 @@ class AkkaMessageTransferService(
         if (msgsNeedResend.nonEmpty) {
           logger.debug(s"output for $channel: ${cc.getStatusReport}")
         }
-        if (refService.hasActorRef(channel.from)) {
+        if (refService.hasActorRef(channel.fromWorkerId)) {
           msgsNeedResend.foreach { msg =>
             refService.forwardToActor(msg)
           }

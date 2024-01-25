@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ControlPayload,
   DataPayload,
   WorkflowFIFOMessage,
@@ -10,7 +9,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 }
 
 import java.util.concurrent.atomic.AtomicLong
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 
 import scala.collection.mutable
@@ -25,11 +24,11 @@ class NetworkOutputGateway(
     val handler: WorkflowFIFOMessage => Unit
 ) extends AmberLogging
     with Serializable {
-  private val idToSequenceNums = new mutable.HashMap[ChannelID, AtomicLong]()
+  private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
-  def addOutputChannel(channel: ChannelID): Unit = {
-    if (!idToSequenceNums.contains(channel)) {
-      idToSequenceNums(channel) = new AtomicLong()
+  def addOutputChannel(channelId: ChannelIdentity): Unit = {
+    if (!idToSequenceNums.contains(channelId)) {
+      idToSequenceNums(channelId) = new AtomicLong()
     }
   }
 
@@ -43,9 +42,9 @@ class NetworkOutputGateway(
       // selfID and VirtualIdentity.SELF should be one key
       receiverId = actorId
     }
-    val outChannelEndpointID = ChannelID(actorId, receiverId, useControlChannel)
-    val seqNum = getSequenceNumber(outChannelEndpointID)
-    handler(WorkflowFIFOMessage(outChannelEndpointID, seqNum, payload))
+    val outChannelId = ChannelIdentity(actorId, receiverId, useControlChannel)
+    val seqNum = getSequenceNumber(outChannelId)
+    handler(WorkflowFIFOMessage(outChannelId, seqNum, payload))
   }
 
   def sendTo(to: ActorVirtualIdentity, payload: ControlPayload): Unit = {
@@ -56,23 +55,23 @@ class NetworkOutputGateway(
     sendToInternal(to, useControlChannel = false, payload)
   }
 
-  def sendTo(channelId: ChannelID, payload: WorkflowFIFOMessagePayload): Unit = {
-    val destChannelId = if (channelId.to == SELF) {
+  def sendTo(channelIdentity: ChannelIdentity, payload: WorkflowFIFOMessagePayload): Unit = {
+    val destChannelId = if (channelIdentity.toWorkerId == SELF) {
       // selfID and VirtualIdentity.SELF should be one key
-      ChannelID(channelId.from, actorId, channelId.isControl)
+      ChannelIdentity(channelIdentity.fromWorkerId, actorId, channelIdentity.isControl)
     } else {
-      channelId
+      channelIdentity
     }
     val seqNum = getSequenceNumber(destChannelId)
     handler(WorkflowFIFOMessage(destChannelId, seqNum, payload))
   }
 
-  def getFIFOState: Map[ChannelID, Long] = idToSequenceNums.map(x => (x._1, x._2.get())).toMap
+  def getFIFOState: Map[ChannelIdentity, Long] = idToSequenceNums.map(x => (x._1, x._2.get())).toMap
 
-  def getActiveChannels: Iterable[ChannelID] = idToSequenceNums.keys
+  def getActiveChannels: Iterable[ChannelIdentity] = idToSequenceNums.keys
 
-  def getSequenceNumber(channel: ChannelID): Long = {
-    idToSequenceNums.getOrElseUpdate(channel, new AtomicLong()).getAndIncrement()
+  def getSequenceNumber(channelId: ChannelIdentity): Long = {
+    idToSequenceNums.getOrElseUpdate(channelId, new AtomicLong()).getAndIncrement()
   }
 
 }
