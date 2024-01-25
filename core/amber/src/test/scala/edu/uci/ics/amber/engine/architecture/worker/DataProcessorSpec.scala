@@ -8,12 +8,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, 
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.{InputExhausted, VirtualIdentityUtils}
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
-  DataFrame,
-  EndOfUpstream,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -21,6 +16,7 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
@@ -105,18 +101,18 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (operator.close _).expects().once()
     dp.registerInput(senderWorkerId, link)
     dp.processControlPayload(
-      ChannelID(CONTROLLER, testWorkerId, isControl = true),
+      ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(0, OpenOperator())
     )
     dp.processDataPayload(
-      ChannelID(senderWorkerId, testWorkerId, isControl = false),
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       DataFrame(tuples)
     )
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
     dp.processDataPayload(
-      ChannelID(senderWorkerId, testWorkerId, isControl = false),
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       EndOfUpstream()
     )
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
@@ -142,17 +138,17 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     dp.registerInput(senderWorkerId, link)
     dp.processControlPayload(
-      ChannelID(CONTROLLER, testWorkerId, isControl = true),
+      ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(0, OpenOperator())
     )
     dp.processDataPayload(
-      ChannelID(senderWorkerId, testWorkerId, isControl = false),
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       DataFrame(tuples)
     )
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
       (dp.outputManager.flush _).expects(None).once()
       dp.processControlPayload(
-        ChannelID(CONTROLLER, testWorkerId, isControl = true),
+        ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
         ControlInvocation(0, FlushNetworkBuffer())
       )
       dp.continueDataProcessing()
@@ -161,7 +157,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (operator.close _).expects().once()
     dp.processDataPayload(
-      ChannelID(senderWorkerId, testWorkerId, isControl = false),
+      ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       EndOfUpstream()
     )
     while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {

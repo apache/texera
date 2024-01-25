@@ -1,8 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor.INIT_STEP
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 import scala.collection.mutable
 
@@ -10,7 +10,7 @@ class ReplayLoggerImpl extends ReplayLogger {
 
   private val tempLogs = mutable.ArrayBuffer[ReplayLogRecord]()
 
-  private var currentChannel: ChannelID = _
+  private var currentChannelId: ChannelIdentity = _
 
   private var lastStep = INIT_STEP
 
@@ -26,15 +26,15 @@ class ReplayLoggerImpl extends ReplayLogger {
     */
   override def logCurrentStepWithMessage(
       step: Long,
-      channel: ChannelID,
+      channelId: ChannelIdentity,
       message: Option[WorkflowFIFOMessage]
   ): Unit = {
-    if (currentChannel == channel && message.isEmpty) {
+    if (currentChannelId == channelId && message.isEmpty) {
       return
     }
-    currentChannel = channel
+    currentChannelId = channelId
     lastStep = step
-    tempLogs.append(ProcessingStep(channel, step))
+    tempLogs.append(ProcessingStep(channelId, step))
     if (message.isDefined) {
       tempLogs.append(MessageContent(message.get))
     }
@@ -51,7 +51,7 @@ class ReplayLoggerImpl extends ReplayLogger {
   def drainCurrentLogRecords(step: Long): Array[ReplayLogRecord] = {
     if (lastStep != step) {
       lastStep = step
-      tempLogs.append(ProcessingStep(currentChannel, step))
+      tempLogs.append(ProcessingStep(currentChannelId, step))
     }
     val result = tempLogs.toArray
     tempLogs.clear()
