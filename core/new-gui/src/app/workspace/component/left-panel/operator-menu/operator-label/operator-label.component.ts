@@ -1,6 +1,6 @@
 import { DragDropService } from "../../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
-import { AfterContentInit, AfterViewInit, ChangeDetectorRef, Component, Input } from "@angular/core";
+import { AfterContentInit, AfterViewInit, Component, Input } from "@angular/core";
 import { OperatorSchema } from "../../../../types/operator-schema.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
@@ -21,11 +21,7 @@ export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
   public operatorLabelID?: string;
   public draggable = true;
 
-  constructor(
-    private dragDropService: DragDropService,
-    private workflowActionService: WorkflowActionService,
-    private changeDetectorRef: ChangeDetectorRef
-  ) {}
+  constructor(private dragDropService: DragDropService, private workflowActionService: WorkflowActionService) {}
 
   ngAfterContentInit(): void {
     this.workflowActionService
@@ -33,7 +29,6 @@ export class OperatorLabelComponent implements AfterViewInit, AfterContentInit {
       .pipe(untilDestroyed(this))
       .subscribe(canModify => {
         this.draggable = canModify;
-        this.changeDetectorRef.detectChanges();
       });
     this.operatorLabelID = "operator-label-" + this.operator!.operatorType + this.fromSearchBox;
   }
