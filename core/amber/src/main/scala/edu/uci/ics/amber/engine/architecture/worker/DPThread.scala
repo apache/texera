@@ -92,7 +92,7 @@ class DPThread(
                 CONTROLLER
               )
           }
-          dp.totalExecutionTime += (System.nanoTime() - dp.startTime)
+          dp.totalExecutionTime = (System.nanoTime() - dp.startTime)
           endFuture.complete(Unit)
         }
       })
@@ -190,7 +190,7 @@ class DPThread(
           }
         }
       }
-      dp.totalExecutionTime += (System.nanoTime() - dp.startTime)
+      dp.totalExecutionTime = System.nanoTime() - dp.startTime
       // End of Main loop
     }
   }
