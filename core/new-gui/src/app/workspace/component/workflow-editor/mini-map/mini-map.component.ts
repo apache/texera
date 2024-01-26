@@ -48,7 +48,7 @@ export class MiniMapComponent implements AfterViewInit {
       });
 
     let mouseDownPosition: Point | undefined;
-    fromEvent<MouseEvent>(this.navigator!, "mousedown")
+    fromEvent<MouseEvent>(this.navigator, "mousedown")
       .pipe(untilDestroyed(this))
       .subscribe(event => (mouseDownPosition = { x: event.screenX, y: event.screenY }));
 
