@@ -172,7 +172,17 @@ class DataProcessor(
     *
     * @return (input tuple count, output tuple count)
     */
-  def collectStatistics(): (Long, Long, Long, Long, Long) = (inputTupleCount, outputTupleCount, dataProcessingTime, controlProcessingTime, totalExecutionTime - dataProcessingTime - controlProcessingTime)
+  def collectStatistics(): WorkerStatistics = {
+    // sink operator doesn't output to downstream so internal count is 0
+    // but for user-friendliness we show its input count as output count
+    val displayOut = operator match {
+      case sink: ISinkOperatorExecutor =>
+        inputTupleCount
+      case _ =>
+        outputTupleCount
+    }
+    WorkerStatistics(stateManager.getCurrentState, inputTupleCount, displayOut, dataProcessingTime, controlProcessingTime, totalExecutionTime - dataProcessingTime - controlProcessingTime)
+  }
 
   /** process currentInputTuple through operator logic.
     * this function is only called by the DP thread

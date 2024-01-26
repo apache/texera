@@ -14,21 +14,7 @@ trait QueryStatisticsHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: QueryStatistics, sender) =>
-    // collect input and output row count
-    val (in, out, dpTime, cpTime, idleTime) = dp.collectStatistics()
-
-    // sink operator doesn't output to downstream so internal count is 0
-    // but for user-friendliness we show its input count as output count
-    val displayOut = dp.operator match {
-      case sink: ISinkOperatorExecutor =>
-        in
-      case _ =>
-        out
-    }
-
-    val state = dp.stateManager.getCurrentState
-
-    WorkerStatistics(state, in, displayOut, dpTime, cpTime, idleTime)
+    dp.collectStatistics()
   }
 
 }
