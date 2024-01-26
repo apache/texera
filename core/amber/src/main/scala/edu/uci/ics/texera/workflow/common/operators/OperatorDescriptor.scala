@@ -1,7 +1,8 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription, JsonSubTypes, JsonTypeInfo}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
@@ -16,6 +17,7 @@ import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.download.BulkDownloaderOpDesc
+import edu.uci.ics.texera.workflow.operators.dummy.DummyOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
@@ -31,10 +33,7 @@ import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
-  TwitterFullArchiveSearchSourceOpDesc,
-  TwitterSearchSourceOpDesc
-}
+import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{TwitterFullArchiveSearchSourceOpDesc, TwitterSearchSourceOpDesc}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetcherOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.csvOld.CSVOldScanSourceOpDesc
@@ -50,11 +49,7 @@ import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
-import edu.uci.ics.texera.workflow.operators.udf.python.{
-  DualInputPortsPythonUDFOpDescV2,
-  PythonLambdaFunctionOpDesc,
-  PythonUDFOpDescV2
-}
+import edu.uci.ics.texera.workflow.operators.udf.python.{DualInputPortsPythonUDFOpDescV2, PythonLambdaFunctionOpDesc, PythonTableReducerOpDesc, PythonUDFOpDescV2}
 import edu.uci.ics.texera.workflow.operators.union.UnionOpDesc
 import edu.uci.ics.texera.workflow.operators.unneststring.UnnestStringOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.barChart.BarChartOpDesc
@@ -63,9 +58,16 @@ import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOp
 import edu.uci.ics.texera.workflow.operators.visualization.pieChart.PieChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.ScatterplotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{WordCloudOpDesc, WordCloudV2OpDesc}
+import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.HierarchyChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import edu.uci.ics.texera.workflow.common.operators.DummyProperties
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
+
 
 import java.util.UUID
 import scala.util.Try
@@ -137,7 +139,16 @@ trait StateTransferFunc
     new Type(value = classOf[BulkDownloaderOpDesc], name = "BulkDownloader"),
     new Type(value = classOf[URLFetcherOpDesc], name = "URLFetcher"),
     new Type(value = classOf[CartesianProductOpDesc], name = "CartesianProduct"),
-    new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart")
+    new Type(value = classOf[FilledAreaPlotOpDesc], name = "FilledAreaPlot"),
+    new Type(value = classOf[DotPlotOpDesc], name = "DotPlot"),
+    new Type(value = classOf[BubbleChartOpDesc], name = "BubbleChart"),
+    new Type(value = classOf[TimeSeriesOpDesc], name = "TimeSeries"),
+    new Type(value = classOf[GanttChartOpDesc], name = "GanttChart"),
+    new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
+    new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
+    new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
+    new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
+    new Type(value = classOf[DummyOpDesc], name = "Dummy")
   )
 )
 abstract class OperatorDescriptor extends Serializable {
@@ -200,5 +211,10 @@ abstract class OperatorDescriptor extends Serializable {
       "operator " + getClass.getSimpleName + " does not support reconfiguration"
     )
   }
+
+  @JsonProperty
+  @JsonSchemaTitle("")
+  @JsonPropertyDescription("Add dummy property if needed")
+  var dumProp: List[DummyProperties] = List()
 
 }
