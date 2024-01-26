@@ -6,9 +6,9 @@ import { merge } from "rxjs";
 import { ResultExportResponse } from "../../types/workflow-websocket.interface";
 import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
-import { ExecutionState } from "../../types/execute-workflow.interface";
+import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
-import { isSink } from "../workflow-graph/model/workflow-graph";
+import { WorkflowResultService } from "../workflow-result/workflow-result.service";
 
 @Injectable({
   providedIn: "root",
@@ -21,7 +21,8 @@ export class WorkflowResultExportService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
     private notificationService: NotificationService,
-    private executeWorkflowService: ExecuteWorkflowService
+    private executeWorkflowService: ExecuteWorkflowService,
+    private workflowResultService: WorkflowResultService
   ) {
     this.registerResultExportResponseHandler();
     this.registerResultToExportUpdateHandler();
@@ -48,11 +49,11 @@ export class WorkflowResultExportService {
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
     ).subscribe(() => {
       this.hasResultToExport =
-        this.executeWorkflowService.getExecutionState().state === ExecutionState.Completed &&
+        isNotInExecution(this.executeWorkflowService.getExecutionState().state) &&
         this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs()
-          .filter(operatorId => isSink(this.workflowActionService.getTexeraGraph().getOperator(operatorId))).length > 0;
+          .filter(operatorId => this.workflowResultService.hasAnyResult(operatorId)).length > 0;
     });
   }
 
@@ -74,10 +75,10 @@ export class WorkflowResultExportService {
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()
       .forEach(operatorId => {
-        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
-        if (!isSink(operator)) {
+        if (!this.workflowResultService.hasAnyResult(operatorId)) {
           return;
         }
+        const operator = this.workflowActionService.getTexeraGraph().getOperator(operatorId);
         const operatorName = operator.customDisplayName ?? operator.operatorType;
         this.workflowWebsocketService.send("ResultExportRequest", {
           exportType,

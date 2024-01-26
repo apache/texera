@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners.ReshapePartitioner
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseSkewMitigationHandler.PauseSkewMitigation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -16,7 +16,7 @@ object PauseSkewMitigationHandler {
 }
 
 trait PauseSkewMitigationHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   /**
     * Used by Reshape to temporarily pause the mitigation if the helper worker gets
@@ -48,7 +48,7 @@ trait PauseSkewMitigationHandler {
 
   registerHandler { (cmd: PauseSkewMitigation, sender) =>
     pauseSkewMitigation(
-      outputManager,
+      dp.outputManager,
       cmd.skewedReceiverId,
       cmd.helperReceiverId
     )

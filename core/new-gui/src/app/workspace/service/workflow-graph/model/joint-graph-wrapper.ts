@@ -1,6 +1,6 @@
 import { fromEvent, merge, Observable, ReplaySubject, Subject } from "rxjs";
 import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { OperatorPort, Point } from "../../../types/workflow-common.interface";
+import { LogicalPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
@@ -45,7 +45,7 @@ export type JointHighlights = Readonly<{
   groups: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
-  ports: readonly OperatorPort[];
+  ports: readonly LogicalPort[];
 }>;
 
 export type JointGraphContextType = Readonly<{
@@ -95,6 +95,8 @@ export class JointGraphWrapper {
   // flag that indicates whether multiselect mode is on
   private multiSelect: boolean = false;
 
+  private reloadingWorkflow: boolean = false;
+
   private currentHighlights: JointHighlights = {
     operators: [],
     groups: [],
@@ -124,9 +126,9 @@ export class JointGraphWrapper {
 
   private jointCommentBoxUnhighlightStream = new Subject<readonly string[]>();
 
-  private jointPortHighlightStream = new Subject<readonly OperatorPort[]>();
+  private jointPortHighlightStream = new Subject<readonly LogicalPort[]>();
 
-  private jointPortUnhighlightStream = new Subject<readonly OperatorPort[]>();
+  private jointPortUnhighlightStream = new Subject<readonly LogicalPort[]>();
 
   private currentHighlightedCommentBoxes: string[] = [];
 
@@ -145,7 +147,7 @@ export class JointGraphWrapper {
   private currentHighlightedLinks: string[] = [];
   // the linkIDs of those links with a breakpoint
 
-  private currentHighlightedPorts: OperatorPort[] = [];
+  private currentHighlightedPorts: LogicalPort[] = [];
   // the IDs of ports currently being edited
   private linksWithBreakpoints: string[] = [];
 
@@ -244,6 +246,14 @@ export class JointGraphWrapper {
     return this.multiSelect;
   }
 
+  public setReloadingWorkflow(reloadingWorkflow: boolean): void {
+    this.reloadingWorkflow = reloadingWorkflow;
+  }
+
+  public getReloadingWorkflow(): boolean {
+    return this.reloadingWorkflow;
+  }
+
   /**
    * Gets the operator ID of the current highlighted operators.
    * Returns an empty list if there is no highlighted operator.
@@ -273,7 +283,7 @@ export class JointGraphWrapper {
     return this.currentHighlightedLinks;
   }
 
-  public getCurrentHighlightedPortIDs(): readonly OperatorPort[] {
+  public getCurrentHighlightedPortIDs(): readonly LogicalPort[] {
     return this.currentHighlightedPorts;
   }
 
@@ -494,27 +504,27 @@ export class JointGraphWrapper {
     }
   }
 
-  public highlightPorts(...operatorPortIDs: OperatorPort[]): void {
-    const highlightedOperatorPortIDs: OperatorPort[] = [];
+  public highlightPorts(...operatorPortIDs: LogicalPort[]): void {
+    const highlightedLogicalPortIDs: LogicalPort[] = [];
     operatorPortIDs
       .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) === undefined)
       .forEach(operatorPortID => {
         if (!this.multiSelect) this.unhighlightPorts(...this.currentHighlightedPorts);
         this.currentHighlightedPorts.push(operatorPortID);
-        highlightedOperatorPortIDs.push(operatorPortID);
+        highlightedLogicalPortIDs.push(operatorPortID);
       });
-    this.jointPortHighlightStream.next(highlightedOperatorPortIDs);
+    this.jointPortHighlightStream.next(highlightedLogicalPortIDs);
   }
 
-  public unhighlightPorts(...operatorPortIDs: OperatorPort[]): void {
-    const unhighlightedOperatorPortIDs: OperatorPort[] = [];
+  public unhighlightPorts(...operatorPortIDs: LogicalPort[]): void {
+    const unhighlightedLogicalPortIDs: LogicalPort[] = [];
     operatorPortIDs
       .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) !== undefined)
       .forEach(operatorPortID => {
         this.currentHighlightedPorts.splice(_.indexOf(this.currentHighlightedPorts, operatorPortID), 1);
-        unhighlightedOperatorPortIDs.push(operatorPortID);
+        unhighlightedLogicalPortIDs.push(operatorPortID);
       });
-    this.jointPortUnhighlightStream.next(unhighlightedOperatorPortIDs);
+    this.jointPortUnhighlightStream.next(unhighlightedLogicalPortIDs);
   }
 
   /**
@@ -590,11 +600,11 @@ export class JointGraphWrapper {
     return this.jointCommentBoxUnhighlightStream.asObservable();
   }
 
-  public getJointPortHighlightStream(): Observable<readonly OperatorPort[]> {
+  public getJointPortHighlightStream(): Observable<readonly LogicalPort[]> {
     return this.jointPortHighlightStream.asObservable();
   }
 
-  public getJointPortUnhighlightStream(): Observable<readonly OperatorPort[]> {
+  public getJointPortUnhighlightStream(): Observable<readonly LogicalPort[]> {
     return this.jointPortUnhighlightStream.asObservable();
   }
 

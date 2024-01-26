@@ -1,27 +1,30 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
+import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 
-class PauseManager(dataProcessor: DataProcessor) {
+class PauseManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
+    extends AmberLogging {
 
   private val globalPauses = new mutable.HashSet[PauseType]()
   private val specificInputPauses =
-    new mutable.HashMap[PauseType, mutable.Set[ActorVirtualIdentity]]
-      with mutable.MultiMap[PauseType, ActorVirtualIdentity]
+    new mutable.HashMap[PauseType, mutable.Set[ChannelIdentity]]
+      with mutable.MultiMap[PauseType, ChannelIdentity]
 
   def pause(pauseType: PauseType): Unit = {
     globalPauses.add(pauseType)
     // disable all data queues
-    dataProcessor.internalQueue.dataQueues.values.foreach(q => q.enable(false))
+    inputGateway.getAllDataChannels.foreach(_.enable(false))
   }
 
-  def pauseInputChannel(pauseType: PauseType, inputs: List[ActorVirtualIdentity]): Unit = {
+  def pauseInputChannel(pauseType: PauseType, inputs: List[ChannelIdentity]): Unit = {
     inputs.foreach(input => {
       specificInputPauses.addBinding(pauseType, input)
       // disable specified data queues
-      dataProcessor.internalQueue.dataQueues(input.name).enable(false)
+      inputGateway.getChannel(input).enable(false)
     })
   }
 
@@ -35,19 +38,18 @@ class PauseManager(dataProcessor: DataProcessor) {
     }
     // global pause is empty, specific input pause is also empty, resume all
     if (specificInputPauses.isEmpty) {
-      dataProcessor.internalQueue.dataQueues.values.foreach(q => q.enable(true))
+      inputGateway.getAllDataChannels.foreach(_.enable(true))
       return
     }
     // need to resume specific input channels
-    val pausedChannels = specificInputPauses.values.flatten.map(id => id.name).toSet
-    dataProcessor.internalQueue.dataQueues.foreach(kv => {
-      if (!pausedChannels.contains(kv._1)) {
-        kv._2.enable(true)
-      }
-    })
+    val pausedChannels = specificInputPauses.values.flatten.toSet
+    inputGateway.getAllDataChannels.foreach(_.enable(true))
+    pausedChannels.foreach { ChannelIdentity =>
+      inputGateway.getChannel(ChannelIdentity).enable(false)
+    }
   }
 
-  def isPaused(): Boolean = {
+  def isPaused: Boolean = {
     globalPauses.nonEmpty
   }
 

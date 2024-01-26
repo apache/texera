@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.localbreakpoint.LocalBreakpoint
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.PAUSED
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -13,12 +13,13 @@ object QueryAndRemoveBreakpointsHandler {
 }
 
 trait QueryAndRemoveBreakpointsHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: QueryAndRemoveBreakpoints, sender) =>
-    stateManager.assertState(PAUSED)
-    val ret = breakpointManager.getBreakpoints(msg.ids)
-    breakpointManager.removeBreakpoints(msg.ids)
+    dp.stateManager.assertState(PAUSED)
+
+    val ret = dp.breakpointManager.getBreakpoints(msg.ids)
+    dp.breakpointManager.removeBreakpoints(msg.ids)
     ret
   }
 

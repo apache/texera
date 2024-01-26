@@ -1,0 +1,111 @@
+<nz-card
+  class="section-title"
+  style="background-color: lightcoral">
+  <h2
+    class="page-title"
+    style="color: white">
+    Gmail
+  </h2>
+</nz-card>
+
+<div
+  nz-row
+  style="margin: 5px">
+  <div
+    nz-col
+    nzSpan="12">
+    <nz-card
+      style="margin: 5px; height: 100%"
+      nzTitle="Authorization">
+      <div *ngIf="email; else loggedOut">
+        <nz-alert
+          nzType="success"
+          nzMessage="Authorized with Email: {{email}}"></nz-alert>
+      </div>
+      <ng-template #loggedOut>
+        <nz-alert
+          nzType="error"
+          nzMessage="Not Authorized!"></nz-alert>
+      </ng-template>
+      <button
+        (click)="revokeAuth()"
+        nz-button
+        nzType="primary"
+        style="width: 100%; margin-top: 10px"
+        nzDanger
+        [disabled]="!email">
+        Revoke
+      </button>
+      <button
+        (click)="auth()"
+        nz-button
+        nzType="primary"
+        style="width: 100%; margin-top: 10px">
+        Authorize
+      </button>
+    </nz-card>
+  </div>
+  <div
+    nz-col
+    nzSpan="12">
+    <nz-card
+      style="margin: 5px; height: 100%"
+      nzTitle="Send Email">
+      <form
+        nz-form
+        [formGroup]="validateForm"
+        (ngSubmit)="sendTestEmail()">
+        <nz-form-item>
+          <nz-form-label
+            [nzSpan]="6"
+            nzRequired
+            >E-mail</nz-form-label
+          >
+          <nz-form-control nzHasFeedback>
+            <input
+              nz-input
+              formControlName="email"
+              placeholder="Recipient"
+              type="email" />
+          </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+          <nz-form-label
+            [nzSpan]="6"
+            nzRequired
+            >Subject</nz-form-label
+          >
+          <nz-form-control nzHasFeedback>
+            <input
+              nz-input
+              formControlName="subject" />
+          </nz-form-control>
+        </nz-form-item>
+
+        <nz-form-item>
+          <nz-form-label
+            [nzSpan]="6"
+            nzRequired
+            >Content</nz-form-label
+          >
+          <nz-form-control nzHasFeedback>
+            <textarea
+              formControlName="content"
+              nz-input
+              rows="3"></textarea>
+          </nz-form-control>
+        </nz-form-item>
+        <nz-form-item>
+          <button
+            nz-button
+            nzType="primary"
+            [disabled]="!validateForm.valid"
+            style="width: 100%">
+            Submit
+          </button>
+        </nz-form-item>
+      </form>
+    </nz-card>
+  </div>
+</div>

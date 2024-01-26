@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -43,7 +43,7 @@ trait MonitoringHandler {
         existingSamplesForWorker.appendAll(samplesWithoutLowest)
 
         // clean up to save memory
-        val maxSamplesPerWorker = Constants.reshapeMaxWorkloadSamplesInController
+        val maxSamplesPerWorker = AmberConfig.reshapeMaxWorkloadSamplesInController
         if (existingSamplesForWorker.size >= maxSamplesPerWorker) {
           existingSamplesForWorker = existingSamplesForWorker.slice(
             existingSamplesForWorker.size - maxSamplesPerWorker,
@@ -63,15 +63,22 @@ trait MonitoringHandler {
     } else {
       previousCallFinished = false
       // send to specified workers (or all workers by default)
-      val workers = workflow.getAllWorkers.filterNot(p => msg.filterByWorkers.contains(p)).toList
+      val workers =
+        cp.executionState.getAllBuiltWorkers.filterNot(p => msg.filterByWorkers.contains(p)).toList
 
       // send Monitoring message
       val requests = workers.map(worker =>
         send(QuerySelfWorkloadMetrics(), worker).map({
           case (metrics, samples) => {
-            workflow.getOperator(worker).getWorkerWorkloadInfo(worker).dataInputWorkload =
+            cp.executionState
+              .getOperatorExecution(worker)
+              .getWorkerWorkloadInfo(worker)
+              .dataInputWorkload =
               metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
-            workflow.getOperator(worker).getWorkerWorkloadInfo(worker).controlInputWorkload =
+            cp.executionState
+              .getOperatorExecution(worker)
+              .getWorkerWorkloadInfo(worker)
+              .controlInputWorkload =
               metrics.unprocessedControlInputQueueSize + metrics.stashedControlInputQueueSize
             updateWorkloadSamples(worker, samples)
           }

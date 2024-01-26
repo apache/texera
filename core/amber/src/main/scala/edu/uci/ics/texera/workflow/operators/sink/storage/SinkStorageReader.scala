@@ -4,8 +4,10 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 trait SinkStorageReader {
-
+  var schema: Schema = _
   def getSchema: Schema
+
+  def setSchema(schema: Schema): Unit
 
   def getAll: Iterable[Tuple]
 
@@ -15,7 +17,7 @@ trait SinkStorageReader {
 
   def getCount: Long
 
-  def getStorageWriter(): SinkStorageWriter
+  def getStorageWriter: SinkStorageWriter
 
   def clear(): Unit
 }

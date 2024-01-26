@@ -1,8 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LocalOperatorExceptionHandler.LocalOperatorException
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PythonConsoleMessageHandler.PythonConsoleMessage
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
@@ -27,8 +26,10 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.asScalaBufferConverter
 
@@ -47,7 +48,7 @@ object ControlCommandConvertUtils {
         SchedulerTimeSlotEventV2(timeSlotExpired)
       case OpenOperator() =>
         OpenOperatorV2()
-      case AddPartitioning(tag: LinkIdentity, partitioning: Partitioning) =>
+      case AddPartitioning(tag: PhysicalLink, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case UpdateInputLinking(identifier, inputLink) =>
         UpdateInputLinkingV2(identifier, inputLink)
@@ -61,7 +62,9 @@ object ControlCommandConvertUtils {
           isSource,
           inputMapping,
           outputMapping,
-          schema.getAttributes.asScala.map(attr => attr.getName -> attr.getType.toString).toMap
+          schema.getAttributes.asScala.foldLeft(ListMap[String, String]())((list, attr) =>
+            list + (attr.getName -> attr.getType.toString)
+          )
         )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
@@ -87,10 +90,8 @@ object ControlCommandConvertUtils {
     controlCommand match {
       case WorkerExecutionCompletedV2() =>
         WorkerExecutionCompleted()
-      case LocalOperatorExceptionV2(message) =>
-        LocalOperatorException(null, new RuntimeException(message))
-      case PythonConsoleMessageV2(timestamp, msgType, source, message) =>
-        PythonConsoleMessage(timestamp, msgType, source, message)
+      case PythonConsoleMessageV2(message) =>
+        ConsoleMessageTriggered(message)
       case LinkCompletedV2(link) => LinkCompleted(link)
       case _ =>
         throw new UnsupportedOperationException(

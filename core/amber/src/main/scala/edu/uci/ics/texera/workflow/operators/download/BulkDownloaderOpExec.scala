@@ -7,21 +7,21 @@ import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
 import java.net.URL
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.collection.JavaConversions._
+import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 
 class BulkDownloaderOpExec(
     val workflowContext: WorkflowContext,
     val urlAttribute: String,
     val resultAttribute: String,
-    val operatorSchemaInfo: OperatorSchemaInfo
+    val outputSchema: Schema
 ) extends OperatorExecutor {
   private val downloading = new mutable.Queue[Future[Tuple]]()
 
@@ -61,10 +61,9 @@ class BulkDownloaderOpExec(
   override def close(): Unit = {}
 
   def downloadTuple(tuple: Tuple): Tuple = {
-    val builder = Tuple.newBuilder(operatorSchemaInfo.outputSchemas(0))
-    operatorSchemaInfo
-      .outputSchemas(0)
-      .getAttributes
+
+    val builder = Tuple.newBuilder(outputSchema)
+    outputSchema.getAttributes
       .foreach(attr => {
         if (attr.getName == resultAttribute) {
           builder.add(
@@ -94,14 +93,14 @@ class BulkDownloaderOpExec(
             case Some(contentStream) =>
               if (contentStream.available() > 0) {
                 val filename =
-                  s"w${workflowContext.wId}-e${workflowContext.executionID}-${urlObj.getHost
+                  s"w${workflowContext.workflowId.id}-e${workflowContext.executionId.id}-${urlObj.getHost
                     .replace(".", "")}.download"
                 UserFileResource
                   .saveFile(
                     workflowContext.userId.get,
                     filename,
                     contentStream,
-                    s"downloaded by execution ${workflowContext.executionID} of workflow ${workflowContext.wId}. Original URL = $url"
+                    s"downloaded by execution ${workflowContext.executionId.id} of workflow ${workflowContext.workflowId.id}. Original URL = $url"
                   )
                 filename
               } else {

@@ -2,7 +2,9 @@ syntax = "proto3";
 
 package edu.uci.ics.texera.web;
 
+import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
 
@@ -12,6 +14,11 @@ option (scalapb.options) = {
   no_default_values_in_constructor: false
 };
 
+enum FatalErrorType{
+  COMPILATION_ERROR = 0;
+  EXECUTION_FAILURE = 1;
+}
+
 enum WorkflowAggregatedState {
   UNINITIALIZED = 0;
   READY = 1;
@@ -20,8 +27,9 @@ enum WorkflowAggregatedState {
   PAUSED = 4;
   RESUMING = 5;
   COMPLETED = 6;
-  ABORTED = 7;
+  FAILED = 7;
   UNKNOWN = 8;
+  KILLED = 9;
 }
 
 
@@ -32,16 +40,15 @@ message BreakpointFault{
     repeated string tuple = 3;
   }
 
-  string actor_path = 1;
+  string worker_name = 1;
   BreakpointTuple faulted_tuple = 2;
-  repeated string messages = 3;
 }
 
 message OperatorBreakpoints{
   repeated BreakpointFault unresolved_breakpoints = 1;
 }
 
-message JobBreakpointStore{
+message ExecutionBreakpointStore{
   map<string, OperatorBreakpoints> operator_info = 1;
 }
 
@@ -49,21 +56,13 @@ message EvaluatedValueList{
   repeated amber.engine.architecture.worker.EvaluatedValue values = 1;
 }
 
-message ConsoleMessage {
-  string workerId = 1;
-  google.protobuf.Timestamp timestamp = 2  [(scalapb.field).no_box = true];
-  string msg_type = 3;
-  string source = 4;
-  string message = 5;
-}
-
-message PythonOperatorInfo{
-  repeated ConsoleMessage console_messages = 1;
+message OperatorConsole{
+  repeated amber.engine.architecture.worker.ConsoleMessage console_messages = 1;
   map<string, EvaluatedValueList> evaluate_expr_results = 2;
 }
 
-message JobPythonStore{
-  map<string, PythonOperatorInfo> operator_info = 1;
+message ExecutionConsoleStore{
+  map<string, OperatorConsole> operator_console = 1;
 }
 
 message OperatorWorkerMapping{
@@ -77,16 +76,26 @@ message OperatorRuntimeStats{
   int64 output_count = 3;
 }
 
-message JobStatsStore {
+message ExecutionStatsStore {
   int64 startTimeStamp = 1;
   int64 endTimeStamp = 2;
   map<string, OperatorRuntimeStats> operator_info = 3;
   repeated OperatorWorkerMapping operator_worker_mapping = 4;
 }
 
-message JobMetadataStore{
+
+message WorkflowFatalError {
+  FatalErrorType type = 1;
+  google.protobuf.Timestamp timestamp = 2 [(scalapb.field).no_box = true];
+  string message = 3;
+  string details = 4;
+  string operatorId = 5;
+  string workerId = 6;
+}
+
+message ExecutionMetadataStore{
   WorkflowAggregatedState state = 1;
-  string error = 2;
-  int64 eid = 3;
+  repeated WorkflowFatalError fatal_errors = 2;
+  edu.uci.ics.amber.engine.common.ExecutionIdentity executionId = 3 [(scalapb.field).no_box = true];
   bool is_recovering = 4;
 }

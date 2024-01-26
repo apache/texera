@@ -9,6 +9,7 @@ from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
 from core.models.schema.schema import Schema
+from .table import all_output_to_tuple
 
 
 class Operator(ABC):
@@ -110,16 +111,9 @@ class SourceOperator(TupleOperatorV2):
 
     @overrides.final
     def on_finish(self, port: int) -> Iterator[Optional[TupleLike]]:
-        for output in self.produce():
-            if output is not None:
-                if isinstance(output, pandas.DataFrame):
-                    # TODO: integrate into Table as a helper function.
-                    # convert from Table to Tuple, only supports pandas.DataFrames for
-                    # now.
-                    for _, output_tuple in output.iterrows():
-                        yield output_tuple
-                else:
-                    yield output
+        # TODO: change on_finish to output Iterator[Union[TupleLike, TableLike, None]]
+        for i in self.produce():
+            yield from all_output_to_tuple(i)
 
     @overrides.final
     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
@@ -215,19 +209,8 @@ class TableOperator(TupleOperatorV2):
         yield
 
     def on_finish(self, port: int) -> Iterator[Optional[TableLike]]:
-        table = Table(
-            pandas.DataFrame([i.as_series() for i in self.__table_data[port]])
-        )
-        for output_table in self.process_table(table, port):
-            if output_table is not None:
-                if isinstance(output_table, pandas.DataFrame):
-                    # TODO: integrate into Table as a helper function.
-                    # convert from Table to Tuple, only supports pandas.DataFrames for
-                    # now.
-                    for _, output_tuple in output_table.iterrows():
-                        yield output_tuple
-                else:
-                    yield output_table
+        table = Table(self.__table_data[port])
+        yield from self.process_table(table, port)
 
     @abstractmethod
     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:

@@ -56,23 +56,43 @@
   </li>
   <li
     nz-menu-item
-    *ngIf="operatorMenu.operatorCacheEnabled && (operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()">
+    *ngIf="(operatorMenu.isToViewResult && operatorMenu.isToViewResultClickable)"
+    (click)="operatorMenu.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye"
+      nzTheme="outline"></span
+    >view result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(! operatorMenu.isToViewResult && operatorMenu.isToViewResultClickable)"
+    (click)="operatorMenu.viewResultHighlightedOperators()">
+    <span
+      nz-icon
+      nzType="eye-invisible"
+      nzTheme="twotone"></span
+    >remove view result
+  </li>
+  <li
+    nz-menu-item
+    *ngIf="(operatorMenu.isMarkForReuse && operatorMenu.isReuseResultClickable)"
+    (click)="operatorMenu.reuseResultHighlightedOperator()">
     <span
       nz-icon
       nzType="database"
       nzTheme="outline"></span
-    >cache output
+    >reuse result
   </li>
   <li
     nz-menu-item
-    *ngIf="operatorMenu.operatorCacheEnabled && (! operatorMenu.isCacheOperator && operatorMenu.isCacheOperatorClickable)"
-    (click)="operatorMenu.cacheHighlightedOperators()">
+    *ngIf="(! operatorMenu.isMarkForReuse && operatorMenu.isReuseResultClickable)"
+    (click)="operatorMenu.reuseResultHighlightedOperator()">
     <span
       nz-icon
-      nzType="database"
+      nzType="eye-invisible"
       nzTheme="twotone"></span
-    >remove cache
+    >remove reusing result
   </li>
   <li
     nz-menu-item

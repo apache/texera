@@ -9,7 +9,10 @@ import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  WorkflowIDs
+}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
@@ -23,6 +26,7 @@ import java.text.{ParseException, SimpleDateFormat}
 import java.util
 import java.util.Collections
 import javax.ws.rs.BadRequestException
+import scala.collection.convert.ImplicitConversions.`collection asJava`
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -136,7 +140,6 @@ class WorkflowResourceSpec
   override protected def beforeEach(): Unit = {
     // Clean up environment before each test case
     // Delete all workflows, or reset the state of the `workflowResource` object
-
   }
 
   override protected def afterEach(): Unit = {
@@ -144,12 +147,18 @@ class WorkflowResourceSpec
     // delete all workflows in the database
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser1)
+      workflowResource.deleteWorkflow(
+        WorkflowIDs(List(workflow.workflow.getWid), None),
+        sessionUser1
+      )
     )
 
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser2)
+      workflowResource.deleteWorkflow(
+        WorkflowIDs(List(workflow.workflow.getWid), None),
+        sessionUser2
+      )
     )
 
     // delete all projects in the database

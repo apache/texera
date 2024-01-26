@@ -1,13 +1,16 @@
-.navbar {
+#nav {
   height: 70px;
+  background-color: #f8f9fa;
+  padding: 8px 16px;
 }
 
 button {
   border: none;
 }
 
-.logo {
-  width: 70px;
+texera-user-icon {
+  float: right;
+  padding: 8px;
 }
 
 .layout {
@@ -20,10 +23,16 @@ button {
 }
 
 .ant-menu-item {
-  height: 80px;
+  height: 60px;
 }
 
 .submenu,
 .ant-menu-item span {
-  font-size: 20px;
+  font-size: 18px;
+}
+
+.ant-menu {
+  overflow-x: hidden;
+  overflow-y: auto;
+  height: calc(100vh - 70px - 48px);
 }

@@ -1,72 +1,68 @@
 package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.{LinkIdentity, util}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
-import edu.uci.ics.texera.workflow.operators.visualization.htmlviz.HtmlVizOpExec
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
 }
 
-import java.util.Collections.singletonList
-import scala.collection.JavaConverters.asScalaBuffer
-
 /**
   * URL Visualization operator to render any content in given URL link
   * This is the description of the operator
   */
+@JsonSchemaInject(json = """
+ {
+   "attributeTypeRules": {
+     "urlContentAttrName": {
+       "enum": ["string"]
+     }
+   }
+ }
+ """)
 class UrlVizOpDesc extends VisualizationOperator {
+
   @JsonProperty(required = true)
-  @JsonSchemaTitle("URL")
+  @JsonSchemaTitle("URL content")
   @AutofillAttributeName
-  var urlContentAttrName: String = _
+  private val urlContentAttrName: String = ""
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) =
-    throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer")
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
+    PhysicalOp
+      .manyToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName, outputSchema))
+      )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+  }
+
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "URL visualizer",
       "Render the content of URL",
       OperatorGroupConstants.VISUALIZATION_GROUP,
-      asScalaBuffer(singletonList(InputPort(""))).toList,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
     )
 
-  override def operatorExecutorMultiLayer(operatorSchemaInfo: OperatorSchemaInfo): PhysicalPlan = {
-    val partialId = util.makeLayer(operatorIdentifier, "url")
-    val partialLayer = OpExecConfig
-      .oneToOneLayer(
-        operatorIdentifier,
-        _ => new UrlVizOpPartialExec(urlContentAttrName, operatorSchemaInfo)
-      )
-      .withId(partialId)
-      .withNumWorkers(1)
-    val finalId = util.makeLayer(operatorIdentifier, "html")
-    val finalLayer = OpExecConfig
-      .oneToOneLayer(operatorIdentifier, _ => new HtmlVizOpExec("html-content", operatorSchemaInfo))
-      .withId(finalId)
-    val layers = Array(partialLayer, finalLayer)
-    val links = Array(new LinkIdentity(partialLayer.id, finalLayer.id))
-    PhysicalPlan.apply(layers, links)
-  }
   override def getOutputSchema(schemas: Array[Schema]): Schema =
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+
 }

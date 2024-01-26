@@ -4,19 +4,17 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 /** This Operator have two assumptions:
@@ -37,7 +35,7 @@ import edu.uci.ics.texera.workflow.common.workflow.HashPartition
   }
 }
 """)
-class IntervalJoinOpDesc extends OperatorDescriptor {
+class IntervalJoinOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input attr")
@@ -72,24 +70,34 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
   @JsonPropertyDescription("Year, Month, Day, Hour, Minute or Second")
   var timeIntervalType: Option[TimeIntervalType] = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
+    val inputSchemas =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
+    val leftSchema = inputSchemas(0)
+    val rightSchema = inputSchemas(1)
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     val partitionRequirement = List(
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName)))),
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))))
+      Option(HashPartition(List(leftSchema.getIndex(leftAttributeName)))),
+      Option(HashPartition(List(rightSchema.getIndex(rightAttributeName))))
     )
 
-    OpExecConfig
-      .oneToOneLayer(
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
         operatorIdentifier,
-        p => new IntervalJoinOpExec(operatorSchemaInfo, this)
+        OpExecInitInfo((_, _, _) =>
+          new IntervalJoinOpExec(this, leftSchema, rightSchema, outputSchema)
+        )
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        partitionRequirement = partitionRequirement,
-        blockingInputs = List(0),
-        dependency = Map(1 -> 0)
-      )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+      .withPartitionRequirement(partitionRequirement)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -97,7 +105,14 @@ class IntervalJoinOpDesc extends OperatorDescriptor {
       "Interval Join",
       "Join two inputs with left table join key in the range of [right table join key, right table join key + constant value]",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("left table"), InputPort("right table")),
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "left table"),
+        InputPort(
+          PortIdentity(1),
+          displayName = "right table",
+          dependencies = List(PortIdentity(0))
+        )
+      ),
       outputPorts = List(OutputPort())
     )
 

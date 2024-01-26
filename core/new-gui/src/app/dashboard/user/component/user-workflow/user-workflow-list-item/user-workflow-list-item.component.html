@@ -113,7 +113,7 @@
     *ngIf="userProjectsMap.size > 0"
     class="project-label-container">
     <div
-      *ngFor="let projectID of entry.workflow.projectIDs"
+      *ngFor="let projectID of entry.workflow.projectIDs | unique"
       class="project-label">
       <a
         *ngIf="userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"

@@ -1,27 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.{ActorContext, Cancellable}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
-  FlushNetworkBuffer,
   getBatchSize,
   toPartitioner
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.Constants.{
-  adaptiveBufferingTimeoutMs,
-  enableAdaptiveNetworkBuffering
-}
-import edu.uci.ics.amber.engine.common.ambermessage.{DataPayload, EpochMarker}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import org.jooq.exception.MappingException
 
 import scala.collection.mutable
-import scala.concurrent.duration.{DurationInt, FiniteDuration, MILLISECONDS}
 
 object OutputManager {
 
@@ -43,7 +35,7 @@ object OutputManager {
     }
 
     // if reshape is enabled, wrap the original partitioner in a reshape partitioner
-    if (Constants.reshapeSkewHandlingEnabled) {
+    if (AmberConfig.reshapeSkewHandlingEnabled) {
       partitioner match {
         case p @ (_: RoundRobinPartitioner | _: HashBasedShufflePartitioner |
             _: RangeBasedShufflePartitioner) =>
@@ -61,6 +53,7 @@ object OutputManager {
       case p: RoundRobinPartitioning        => p.batchSize
       case p: HashBasedShufflePartitioning  => p.batchSize
       case p: RangeBasedShufflePartitioning => p.batchSize
+      case p: BroadcastPartitioning         => p.batchSize
       case _                                => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
   }
@@ -73,26 +66,28 @@ object OutputManager {
   */
 class OutputManager(
     selfID: ActorVirtualIdentity,
-    dataOutputPort: NetworkOutputPort[DataPayload]
+    dataOutputPort: NetworkOutputGateway
 ) {
 
-  val partitioners = mutable.HashMap[LinkIdentity, Partitioner]()
+  val partitioners = mutable.HashMap[PhysicalLink, Partitioner]()
 
   val networkOutputBuffers =
-    mutable.HashMap[(LinkIdentity, ActorVirtualIdentity), NetworkOutputBuffer]()
-
-  val adaptiveBatchingMonitor = new AdaptiveBatchingMonitor()
+    mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
   /**
     * Add down stream operator and its corresponding Partitioner.
     * @param partitioning Partitioning, describes how and whom to send to.
     */
-  def addPartitionerWithPartitioning(link: LinkIdentity, partitioning: Partitioning): Unit = {
+  def addPartitionerWithPartitioning(
+      link: PhysicalLink,
+      partitioning: Partitioning
+  ): Unit = {
     val partitioner = toPartitioner(partitioning)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
+      dataOutputPort.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
     })
   }
 
@@ -103,25 +98,38 @@ class OutputManager(
     */
   def passTupleToDownstream(
       tuple: ITuple,
-      outputPort: LinkIdentity
+      outputPort: PhysicalLink
   ): Unit = {
     val partitioner =
-      partitioners.getOrElse(outputPort, throw new RuntimeException("output port not found"))
+      partitioners.getOrElse(outputPort, throw new MappingException("output port not found"))
     val it = partitioner.getBucketIndex(tuple)
     it.foreach(bucketIndex =>
       networkOutputBuffers((outputPort, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
     )
   }
 
-  def emitEpochMarker(epochMarker: EpochMarker): Unit = {
-    // find the network output ports within the scope of the marker
-    val outputsWithinScope =
-      networkOutputBuffers.filter(out => epochMarker.scope.links.contains(out._1._1))
-    // flush all network buffers of this operator, emit epoch marker to network
-    outputsWithinScope.foreach(kv => {
-      kv._2.flush()
-      kv._2.addEpochMarker(epochMarker)
-    })
+  /**
+    * Flushes the network output buffers based on the specified set of physical links.
+    *
+    * This method flushes the buffers associated with the network output. If the 'onlyFor' parameter
+    * is specified with a set of 'PhysicalLink's, only the buffers corresponding to those links are flushed.
+    * If 'onlyFor' is None, all network output buffers are flushed.
+    *
+    * @param onlyFor An optional set of 'ChannelID' indicating the specific buffers to flush.
+    *                If None, all buffers are flushed. Default value is None.
+    */
+  def flush(onlyFor: Option[Set[ChannelIdentity]] = None): Unit = {
+    val buffersToFlush = onlyFor match {
+      case Some(channelIds) =>
+        networkOutputBuffers
+          .filter(out => {
+            val channel = ChannelIdentity(selfID, out._1._2, isControl = false)
+            channelIds.contains(channel)
+          })
+          .values
+      case None => networkOutputBuffers.values
+    }
+    buffersToFlush.foreach(_.flush())
   }
 
   /**
@@ -135,38 +143,4 @@ class OutputManager(
     })
   }
 
-  def flushAll(): Unit = {
-    networkOutputBuffers.values.foreach(b => b.flush())
-  }
-
-}
-
-class AdaptiveBatchingMonitor {
-  var adaptiveBatchingHandle: Option[Cancellable] = None
-
-  def enableAdaptiveBatching(context: ActorContext): Unit = {
-    if (!enableAdaptiveNetworkBuffering) {
-      return
-    }
-    if (this.adaptiveBatchingHandle.nonEmpty || context == null) {
-      return
-    }
-    this.adaptiveBatchingHandle = Some(
-      context.system.scheduler.scheduleAtFixedRate(
-        0.milliseconds,
-        FiniteDuration.apply(adaptiveBufferingTimeoutMs, MILLISECONDS),
-        context.self,
-        ControlInvocation(
-          AsyncRPCClient.IgnoreReplyAndDoNotLog,
-          FlushNetworkBuffer()
-        )
-      )(context.dispatcher)
-    )
-  }
-
-  def pauseAdaptiveBatching(): Unit = {
-    if (adaptiveBatchingHandle.nonEmpty) {
-      adaptiveBatchingHandle.get.cancel()
-    }
-  }
 }

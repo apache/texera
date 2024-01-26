@@ -1,17 +1,32 @@
 /**
  * This file contains some type declaration for the WorkflowGraph interface of the **backend**.
  * The API of the backend is (currently) not the same as the Graph representation in the frontend.
- * These interfaces confronts to the backend API.
+ * These interfaces confront to the backend API.
  */
 
 import { ChartType } from "./visualization.interface";
 import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
-import { OperatorCurrentTuples } from "./workflow-websocket.interface";
+import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
+export interface PortIdentity
+  extends Readonly<{
+    id: number;
+    internal: boolean;
+  }> {}
+export interface OutputPort extends Readonly<{ id: PortIdentity; displayName: string }> {}
+export interface InputPort
+  extends Readonly<{
+    id: PortIdentity;
+    displayName: string;
+    allowMultiLinks: boolean;
+    dependencies: ReadonlyArray<PortIdentity>;
+  }> {}
 
 export interface LogicalLink
   extends Readonly<{
-    origin: { operatorID: string; portOrdinal: number; portName: string };
-    destination: { operatorID: string; portOrdinal: number; portName: string };
+    fromOpId: string;
+    fromPortId: PortIdentity;
+    toOpId: string;
+    toPortId: PortIdentity;
   }> {}
 
 export interface LogicalOperator
@@ -37,7 +52,8 @@ export interface LogicalPlan
     operators: LogicalOperator[];
     links: LogicalLink[];
     breakpoints: BreakpointInfo[];
-    cachedOperatorIds: string[];
+    opsToViewResult?: string[];
+    opsToReuseResult?: string[];
   }> {}
 
 /**
@@ -114,6 +130,15 @@ export function isWebDataUpdate(update: WebResultUpdate): update is WebDataUpdat
   return (update !== undefined && update.mode.type === "SetSnapshotMode") || update.mode.type === "SetDeltaMode";
 }
 
+export function isNotInExecution(state: ExecutionState) {
+  return [
+    ExecutionState.Uninitialized,
+    ExecutionState.Failed,
+    ExecutionState.Killed,
+    ExecutionState.Completed,
+  ].includes(state);
+}
+
 export enum ExecutionState {
   Uninitialized = "Uninitialized",
   Initializing = "Initializing",
@@ -124,7 +149,8 @@ export enum ExecutionState {
   Recovering = "Recovering",
   BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
-  Aborted = "Aborted",
+  Failed = "Failed",
+  Killed = "Killed",
 }
 
 export type ExecutionStateInfo = Readonly<
@@ -146,10 +172,10 @@ export type ExecutionStateInfo = Readonly<
       breakpoint: BreakpointTriggerInfo;
     }
   | {
-      state: ExecutionState.Completed;
+      state: ExecutionState.Completed | ExecutionState.Killed;
     }
   | {
-      state: ExecutionState.Aborted;
-      errorMessages: Readonly<Record<string, string>>;
+      state: ExecutionState.Failed;
+      errorMessages: ReadonlyArray<WorkflowFatalError>;
     }
 >;

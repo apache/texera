@@ -1,4 +1,0 @@
-networkx 1.1.1
-NetWork
-net etw twogram index work find 
-betweenness centrality

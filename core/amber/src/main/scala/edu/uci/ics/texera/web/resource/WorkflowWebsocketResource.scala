@@ -1,39 +1,37 @@
 package edu.uci.ics.texera.web.resource
 
-import java.util.concurrent.atomic.AtomicInteger
+import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
+import edu.uci.ics.amber.clustering.ClusterListener
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{
-  TexeraWebSocketEvent,
+  CacheStatusUpdateEvent,
   WorkflowErrorEvent,
   WorkflowStateEvent
 }
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
-import edu.uci.ics.texera.web.service.WorkflowService
-import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler.ConstraintViolationException
+import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{PAUSED, RUNNING}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.web.{ServletAwareConfigurator, SessionState}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 
+import java.time.Instant
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
 import scala.jdk.CollectionConverters.mapAsScalaMapConverter
-
-object WorkflowWebsocketResource {
-  val nextExecutionID = new AtomicInteger(0)
-}
 
 @ServerEndpoint(
   value = "/wsapi/workflow-websocket",
   configurator = classOf[ServletAwareConfigurator]
 )
 class WorkflowWebsocketResource extends LazyLogging {
-
-  final val objectMapper = Utils.objectMapper
-
-  private def send(session: Session, msg: TexeraWebSocketEvent): Unit = {
-    session.getAsyncRemote.sendText(objectMapper.writeValueAsString(msg))
-  }
 
   @OnOpen
   def myOnOpen(session: Session, config: EndpointConfig): Unit = {
@@ -54,47 +52,103 @@ class WorkflowWebsocketResource extends LazyLogging {
       .map(_.asInstanceOf[User].getUid)
     val sessionState = SessionState.getState(session.getId)
     val workflowStateOpt = sessionState.getCurrentWorkflowState
+    val executionStateOpt = workflowStateOpt.flatMap(x => Option(x.executionService.getValue))
     try {
       request match {
-        case wIdRequest: RegisterWIdRequest =>
+        case registerWorkflowIdRequest: RegisterWorkflowIdRequest =>
           // hack to refresh frontend run button state
-          send(session, WorkflowStateEvent("Uninitialized"))
-          val workflowState = WorkflowService.getOrCreate(wIdRequest.wId)
+          sessionState.send(WorkflowStateEvent("Uninitialized"))
+          val workflowState =
+            WorkflowService.getOrCreate(WorkflowIdentity(registerWorkflowIdRequest.workflowId))
           sessionState.subscribe(workflowState)
-          send(session, RegisterWIdResponse("wid registered"))
+          sessionState.send(ClusterStatusUpdateEvent(ClusterListener.numWorkerNodesInCluster))
+          sessionState.send(RegisterWorkflowIdResponse("workflowId registered"))
         case heartbeat: HeartBeatRequest =>
-          send(session, HeartBeatResponse())
+          sessionState.send(HeartBeatResponse())
         case paginationRequest: ResultPaginationRequest =>
           workflowStateOpt.foreach(state =>
-            send(session, state.resultService.handleResultPagination(paginationRequest))
+            sessionState.send(state.resultService.handleResultPagination(paginationRequest))
           )
         case resultExportRequest: ResultExportRequest =>
           workflowStateOpt.foreach(state =>
-            send(session, state.exportService.exportResult(uidOpt.get, resultExportRequest))
+            sessionState.send(state.exportService.exportResult(uidOpt.get, resultExportRequest))
           )
         case modifyLogicRequest: ModifyLogicRequest =>
           if (workflowStateOpt.isDefined) {
-            val jobService = workflowStateOpt.get.jobService.getValue
+            val executionService = workflowStateOpt.get.executionService.getValue
             val modifyLogicResponse =
-              jobService.jobReconfigurationService.modifyOperatorLogic(modifyLogicRequest)
-            send(session, modifyLogicResponse)
+              executionService.executionReconfigurationService.modifyOperatorLogic(
+                modifyLogicRequest
+              )
+            sessionState.send(modifyLogicResponse)
+          }
+        case editingTimeCompilationRequest: EditingTimeCompilationRequest =>
+          val stateStore = if (executionStateOpt.isDefined) {
+            val currentState =
+              executionStateOpt.get.executionStateStore.metadataStore.getState.state
+            if (currentState == RUNNING || currentState == PAUSED) {
+              // disable check if the workflow execution is active.
+              return
+            }
+            executionStateOpt.get.executionStateStore
+          } else {
+            new ExecutionStateStore()
+          }
+          val workflowContext = new WorkflowContext(
+            uidOpt,
+            sessionState.getCurrentWorkflowState.get.workflowId
+          )
+
+          val workflowCompiler =
+            new WorkflowCompiler(workflowContext)
+          val newPlan = workflowCompiler.compileLogicalPlan(
+            editingTimeCompilationRequest.toLogicalPlanPojo,
+            stateStore
+          )
+
+          val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
+            workflowStateOpt.get.lastCompletedLogicalPlan,
+            newPlan,
+            editingTimeCompilationRequest
+          )
+          sessionState.send(CacheStatusUpdateEvent(validateResult))
+          if (executionStateOpt.isEmpty) {
+            sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
+          }
+        case workflowExecuteRequest: WorkflowExecuteRequest =>
+          workflowStateOpt match {
+            case Some(workflow) => workflow.initExecutionService(workflowExecuteRequest, uidOpt)
+            case None           => throw new IllegalStateException("workflow is not initialized")
           }
         case other =>
-          workflowStateOpt match {
-            case Some(workflow) => workflow.wsInput.onNext(other, uidOpt)
-            case None           => throw new IllegalStateException("workflow is not initialized")
+          workflowStateOpt.map(_.executionService.getValue) match {
+            case Some(value) => value.wsInput.onNext(other, uidOpt)
+            case None        => throw new IllegalStateException("workflow execution is not initialized")
           }
       }
     } catch {
-      case x: ConstraintViolationException =>
-        send(session, WorkflowErrorEvent(operatorErrors = x.violations))
       case err: Exception =>
-        send(
-          session,
-          WorkflowErrorEvent(generalErrors =
-            Map("exception" -> (err.getMessage + "\n" + err.getStackTrace.mkString("\n")))
-          )
+        logger.error("error occurred in websocket", err)
+        val errEvt = WorkflowFatalError(
+          COMPILATION_ERROR,
+          Timestamp(Instant.now),
+          err.toString,
+          err.getStackTrace.mkString("\n"),
+          "unknown operator"
         )
+        if (executionStateOpt.isDefined) {
+          executionStateOpt.get.executionStateStore.metadataStore.updateState { metadataStore =>
+            metadataStore
+              .withFatalErrors(metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR))
+              .addFatalErrors(errEvt)
+          }
+        } else {
+          sessionState.send(
+            WorkflowErrorEvent(
+              Seq(errEvt)
+            )
+          )
+        }
         throw err
     }
 

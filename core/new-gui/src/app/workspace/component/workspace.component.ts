@@ -2,11 +2,9 @@ import { Location } from "@angular/common";
 import { AfterViewInit, OnInit, Component, OnDestroy } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
-import { Version } from "../../../environments/version";
 import { UserService } from "../../common/service/user/user.service";
 import { WorkflowPersistService } from "../../common/service/workflow-persist/workflow-persist.service";
 import { Workflow } from "../../common/type/workflow";
-import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { OperatorMetadataService } from "../service/operator-metadata/operator-metadata.service";
 import { ResultPanelToggleService } from "../service/result-panel-toggle/result-panel-toggle.service";
 import { UndoRedoService } from "../service/undo-redo/undo-redo.service";
@@ -14,14 +12,16 @@ import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.s
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { OperatorCacheStatusService } from "../service/workflow-status/operator-cache-status.service";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { Version } from "../../../environments/version";
 import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
+import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
+import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
+import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -47,13 +47,13 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     // list additional services in constructor so they are initialized even if no one use them directly
     private schemaPropagationService: SchemaPropagationService,
     private autoAttributeCorrectionService: AutoAttributeCorrectionService,
+    private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
+    private workflowConsoleService: WorkflowConsoleService,
     private undoRedoService: UndoRedoService,
-    private operatorCacheStatus: OperatorCacheStatusService,
     private workflowCacheService: WorkflowCacheService,
     private workflowPersistService: WorkflowPersistService,
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
-    private workflowConsoleService: WorkflowConsoleService,
     private location: Location,
     private route: ActivatedRoute,
     private operatorMetadataService: OperatorMetadataService,
@@ -72,9 +72,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - upon persisting of a workflow, must also ensure it is also added to the project
      *
      * 2. Routed to this component from SavedWorkflowSection component
-     *    - there is no related project
+     *    - there is no related project, parseInt will return NaN.
+     *    - NaN || undefined will result in undefined.
      */
-    this.pid = parseInt(this.route.snapshot.queryParams.pid) ?? undefined;
+    this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
   }
 
   ngAfterViewInit(): void {
@@ -207,7 +208,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   registerLoadOperatorMetadata() {
     this.operatorMetadataService
       .getOperatorMetadata()
-      .pipe(filter(metadata => metadata.operators.length !== 0))
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         let wid = this.route.snapshot.params.id;
@@ -229,8 +229,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
         } else {
           // remember URL fragment
           const fragment = this.route.snapshot.fragment;
+          // fetch the cached workflow first
+          const cachedWorkflow = this.workflowCacheService.getCachedWorkflow();
+          // responsible for saving the existing workflow in cache
+          this.registerAutoCacheWorkFlow();
           // load the cached workflow
-          this.workflowActionService.reloadWorkflow(this.workflowCacheService.getCachedWorkflow());
+          this.workflowActionService.reloadWorkflow(cachedWorkflow);
           // set the URL fragment to previous value
           // because reloadWorkflow will highlight/unhighlight all elements
           // which will change the URL fragment
@@ -252,8 +256,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
           // clear stack
           this.undoRedoService.clearUndoStack();
           this.undoRedoService.clearRedoStack();
-          // responsible for saving the existing workflow in cache
-          this.registerAutoCacheWorkFlow();
         }
       });
   }

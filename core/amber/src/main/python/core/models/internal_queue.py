@@ -2,7 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeVar
+from threading import RLock
+from typing import TypeVar, Set
 
 from core.models.marker import Marker
 from core.models.payload import DataPayload
@@ -39,11 +40,17 @@ class InternalQueue(IQueue):
         CONTROL = "control"
         DATA = "data"
 
+    class DisableType(Enum):
+        DISABLE_BY_PAUSE = 1
+        DISABLE_BY_BACKPRESSURE = 2
+
     def __init__(self):
         self._queue = LinkedBlockingMultiQueue()
         self._queue.add_sub_queue(InternalQueue.QueueID.SYSTEM.value, 0)
         self._queue.add_sub_queue(InternalQueue.QueueID.CONTROL.value, 1)
         self._queue.add_sub_queue(InternalQueue.QueueID.DATA.value, 2)
+        self._queue_state: Set[InternalQueue.DisableType] = set()
+        self._lock = RLock()
 
     def is_empty(self, key=None) -> bool:
         return self._queue.is_empty(key)
@@ -83,8 +90,22 @@ class InternalQueue(IQueue):
     def size_data(self) -> int:
         return self._queue.size(InternalQueue.QueueID.DATA.value)
 
-    def enable_data(self) -> None:
-        self._enable(InternalQueue.QueueID.DATA)
+    def enable_data(self, disable_type: DisableType) -> bool:
+        with self._lock:
+            if disable_type in self._queue_state:
+                self._queue_state.remove(disable_type)
+            if self._queue_state:
+                return False
+            self._enable(InternalQueue.QueueID.DATA)
+            return True
 
-    def disable_data(self) -> None:
-        self._disable(InternalQueue.QueueID.DATA)
+    def disable_data(self, disable_type: DisableType) -> None:
+        with self._lock:
+            self._queue_state.add(disable_type)
+            self._disable(InternalQueue.QueueID.DATA)
+
+    def in_mem_size(self) -> int:
+        return self._queue.in_mem_size(InternalQueue.QueueID.DATA.value)
+
+    def is_data_enabled(self) -> bool:
+        return self._queue.is_enabled(InternalQueue.QueueID.DATA.value)

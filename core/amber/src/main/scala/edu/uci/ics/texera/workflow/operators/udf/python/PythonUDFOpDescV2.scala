@@ -3,25 +3,19 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.{
-  PortDescriptor,
-  OperatorDescriptor,
-  StateTransferFunc
-}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, StateTransferFunc}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
+class PythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
@@ -69,7 +63,10 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
   )
   var outputColumns: List[Attribute] = List()
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     val opInfo = this.operatorInfo
     val partitionRequirement: List[Option[PartitionInfo]] = if (inputPorts != null) {
@@ -77,55 +74,48 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
     } else {
       opInfo.inputPorts.map(_ => None)
     }
-    val dependency: Map[Int, Int] = if (inputPorts != null) {
-      inputPorts.zipWithIndex.flatMap {
-        case (port, i) => port.dependencies.map(dependee => i -> dependee)
-      }.toMap
-    } else {
-      Map()
-    }
 
     if (workers > 1)
-      OpExecConfig
-        .oneToOneLayer(
-          operatorIdentifier,
-          _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
-        )
-        .copy(
-          numWorkers = workers,
-          derivePartition = _ => UnknownPartition(),
-          isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
-        )
+      PhysicalOp
+        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .withDerivePartition(_ => UnknownPartition())
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withPartitionRequirement(partitionRequirement)
+        .withIsOneToManyOp(true)
+        .withParallelizable(true)
+        .withSuggestedWorkerNum(workers)
     else
-      OpExecConfig
-        .manyToOneLayer(
-          operatorIdentifier,
-          _ => new PythonUDFOpExecV2(code, operatorSchemaInfo.outputSchemas.head)
-        )
-        .copy(
-          derivePartition = _ => UnknownPartition(),
-          isOneToManyOp = true,
-          inputPorts = opInfo.inputPorts,
-          outputPorts = opInfo.outputPorts,
-          partitionRequirement = partitionRequirement,
-          dependency = dependency
-        )
+      PhysicalOp
+        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .withDerivePartition(_ => UnknownPartition())
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withPartitionRequirement(partitionRequirement)
+        .withIsOneToManyOp(true)
+        .withParallelizable(false)
   }
 
   override def operatorInfo: OperatorInfo = {
     val inputPortInfo = if (inputPorts != null) {
-      inputPorts.map(p => InputPort(p.displayName, p.allowMultiInputs))
+      inputPorts.zipWithIndex.map {
+        case (portDesc: PortDescription, idx) =>
+          InputPort(
+            PortIdentity(idx),
+            displayName = portDesc.displayName,
+            allowMultiLinks = portDesc.allowMultiInputs,
+            dependencies = portDesc.dependencies.map(idx => PortIdentity(idx))
+          )
+      }
     } else {
-      List(InputPort("", allowMultiInputs = true))
+      List(InputPort(PortIdentity(), allowMultiLinks = true))
     }
     val outputPortInfo = if (outputPorts != null) {
-      outputPorts.map(p => OutputPort(p.displayName))
+      outputPorts.zipWithIndex.map {
+        case (portDesc, idx) => OutputPort(PortIdentity(idx), displayName = portDesc.displayName)
+      }
     } else {
-      List(OutputPort(""))
+      List(OutputPort())
     }
 
     OperatorInfo(
@@ -162,9 +152,11 @@ class PythonUDFOpDescV2 extends OperatorDescriptor with PortDescriptor {
   }
 
   override def runtimeReconfiguration(
-      newOpDesc: OperatorDescriptor,
-      operatorSchemaInfo: OperatorSchemaInfo
-  ): Try[(OpExecConfig, Option[StateTransferFunc])] = {
-    Success(newOpDesc.operatorExecutor(operatorSchemaInfo), None)
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity,
+      oldLogicalOp: LogicalOp,
+      newLogicalOp: LogicalOp
+  ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
+    Success(newLogicalOp.getPhysicalOp(workflowId, executionId), None)
   }
 }

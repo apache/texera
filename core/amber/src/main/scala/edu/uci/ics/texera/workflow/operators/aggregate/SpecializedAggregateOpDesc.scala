@@ -2,15 +2,12 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import java.io.Serializable
@@ -31,16 +28,24 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
   var groupByKeys: List[String] = _
 
   override def aggregateOperatorExecutor(
-      operatorSchemaInfo: OperatorSchemaInfo
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
   ): PhysicalPlan = {
     if (aggregations.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
-    AggregateOpDesc.opExecPhysicalPlan(
+    val inputSchema =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
+    AggregateOpDesc.getPhysicalPlan(
+      workflowId,
+      executionId,
       operatorIdentifier,
-      aggregations.map(agg => agg.getAggFunc(operatorSchemaInfo.inputSchemas(0))),
+      aggregations.map(agg => agg.getAggFunc(inputSchema)),
       groupByKeys,
-      operatorSchemaInfo
+      inputSchema,
+      outputSchema
     )
   }
 
@@ -59,8 +64,12 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       "Aggregate",
       "Calculate different types of aggregation values",
       OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "in")
+      ),
+      outputPorts = List(
+        OutputPort(PortIdentity(), displayName = "out")
+      )
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

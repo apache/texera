@@ -1,11 +1,11 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, EventEmitter, OnDestroy } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
 import * as joint from "jointjs";
 // if jQuery needs to be used:
 // 1) use `import * as jQuery` as follows, instead of using `$`,
 // 2) import any jquery plugins after importing jQuery
 // 3) always add the imports even if TypeScript doesn't show an error https://github.com/Microsoft/TypeScript/issues/22016
 import * as jQuery from "jquery";
-import { fromEvent, merge, Observable, Subject } from "rxjs";
+import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { assertType } from "src/app/common/util/assert";
@@ -22,7 +22,7 @@ import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { OperatorLink, OperatorPort, Point } from "../../types/workflow-common.interface";
+import { OperatorLink, LogicalPort, Point } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, buffer, debounceTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -32,7 +32,7 @@ import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dro
 import MouseMoveEvent = JQuery.MouseMoveEvent;
 import MouseLeaveEvent = JQuery.MouseLeaveEvent;
 import MouseEnterEvent = JQuery.MouseEnterEvent;
-import { ActivatedRoute, NavigationEnd, Router, ExtraOptions } from "@angular/router";
+import { ActivatedRoute, Router } from "@angular/router";
 
 import * as _ from "lodash";
 // jointjs interactive options for enabling and disabling interactivity
@@ -129,6 +129,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewDeleteOperator();
     this.handleCellHighlight();
     this.handleDisableOperator();
+    this.handleViewOperatorResult();
+    this.handleReuseCacheOperator();
     this.registerOperatorDisplayNameChangeHandler();
     this.handleViewDeleteLink();
     this.handleViewAddPort();
@@ -147,7 +149,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
 
     this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
-    this.dragDropService.registerWorkflowEditorDrop(this.WORKFLOW_EDITOR_JOINTJS_ID);
 
     // this.rightClickContextMenu();
 
@@ -566,6 +567,32 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       });
   }
 
+  private handleViewOperatorResult(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getViewResultOperatorsChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        event.newViewResultOps.concat(event.newUnviewResultOps).forEach(opID => {
+          const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+          this.jointUIService.changeOperatorViewResultStatus(this.getJointPaper(), op, op.viewResult);
+        });
+      });
+  }
+
+  private handleReuseCacheOperator(): void {
+    this.workflowActionService
+      .getTexeraGraph()
+      .getReuseCacheOperatorsChangedStream()
+      .pipe(untilDestroyed(this))
+      .subscribe(event => {
+        event.newReuseCacheOps.concat(event.newUnreuseCacheOps).forEach(opID => {
+          const op = this.workflowActionService.getTexeraGraph().getOperator(opID);
+          this.jointUIService.changeOperatorReuseCacheStatus(this.getJointPaper(), op);
+        });
+      });
+  }
+
   private registerOperatorDisplayNameChangeHandler(): void {
     this.workflowActionService
       .getTexeraGraph()
@@ -954,7 +981,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         // set the multi-select mode
         this.workflowActionService.getJointGraphWrapper().setMultiSelectMode(<boolean>event[1].shiftKey);
 
-        const clickedPortID: OperatorPort = {
+        const clickedPortID: LogicalPort = {
           operatorID: event[0].model.id as string,
           portID: event[2].getAttribute("port") as string,
         };
@@ -1194,7 +1221,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       if (portIndex >= 0) {
         const portInfo =
           this.dynamicSchemaService.getDynamicSchema(targetCellID).additionalMetadata.inputPorts[portIndex];
-        allowMultiInput = portInfo?.allowMultiInputs ?? false;
+        allowMultiInput = portInfo?.allowMultiLinks ?? false;
       }
     }
     return !(connectedLinksToTargetPort.length > 0 && !allowMultiInput);

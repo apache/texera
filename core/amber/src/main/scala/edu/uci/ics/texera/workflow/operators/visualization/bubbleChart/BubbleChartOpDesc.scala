@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.bubbleChart
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+<<<<<<< HEAD
 import edu.uci.ics.texera.workflow.common.metadata.{
   InputPort,
   OperatorGroupConstants,
@@ -17,6 +18,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{
   OperatorSchemaInfo,
   Schema
 }
+=======
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+>>>>>>> f532ae6af0002e7036e18e7d915853ee59ef65e4
 import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
@@ -76,8 +84,11 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
       outputPorts = List(OutputPort())
     )
 
+<<<<<<< HEAD
   override def numWorkers() = 1
 
+=======
+>>>>>>> f532ae6af0002e7036e18e7d915853ee59ef65e4
   def manipulateTable(): String = {
     assert(xValue.nonEmpty && yValue.nonEmpty && zValue.nonEmpty)
     s"""
@@ -97,7 +108,11 @@ class BubbleChartOpDesc extends VisualizationOperator with PythonOperatorDescrip
        |""".stripMargin
   }
 
+<<<<<<< HEAD
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+=======
+  override def generatePythonCode(): String = {
+>>>>>>> f532ae6af0002e7036e18e7d915853ee59ef65e4
     val finalCode = s"""
         |from pytexera import *
         |

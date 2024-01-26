@@ -10,6 +10,8 @@ import { NotificationService } from "../../../../../common/service/notification/
 import Fuse from "fuse.js";
 import { ChartType } from "src/app/workspace/types/visualization.interface";
 import { ceil } from "lodash";
+import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -40,32 +42,35 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public executionsTableHeaders: string[] = [
     "",
     "Username",
-    "Name",
+    "Name (ID)",
     "Starting Time",
     "Last Status Updated Time",
     "Status",
+    "Runtime Statistics",
     "",
   ];
   /*Tooltip for each header in execution table*/
   public executionTooltip: Record<string, string> = {
-    Name: "Execution Name",
+    "Name (ID)": "Execution Name",
     Username: "The User Who Ran This Execution",
     "Starting Time": "Starting Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
+    "Runtime Statistics": "Runtime Statistics of Workflow Execution",
     "Group Bookmarking": "Mark or Unmark the Selected Entries",
     "Group Deletion": "Delete the Selected Entries",
   };
 
   /*custom column width*/
   public customColumnWidth: Record<string, string> = {
-    "": "70px",
-    Name: "230px",
+    "": "60px",
+    "Name (ID)": "230px",
     "Workflow Version Sample": "220px",
     Username: "150px",
     "Starting Time": "250px",
     "Last Status Updated Time": "250px",
     Status: "80px",
+    "Runtime Statistics": "100px",
   };
 
   /** variables related to executions filtering
@@ -87,7 +92,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public currentPageIndex: number = 1;
   public pageSize: number = 10;
   public pageSizeOptions: number[] = [5, 10, 20, 30, 40];
-  public numOfExecutions: number = 0;
   public paginatedExecutionEntries: WorkflowExecutionsEntry[] = [];
 
   public searchCriteriaPathMapping: Map<string, string[]> = new Map([
@@ -100,7 +104,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     ["running", 1],
     ["paused", 2],
     ["completed", 3],
-    ["aborted", 4],
+    ["failed", 4],
+    ["killed", 5],
   ]);
   public showORhide: boolean[] = [false, false, false, false];
   public avatarColors: { [key: string]: string } = {};
@@ -108,12 +113,14 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   public setOfEid = new Set<number>();
   public setOfExecution = new Set<WorkflowExecutionsEntry>();
   public averageProcessingTimeDivider: number = 10;
+  modalRef?: NzModalRef;
 
   constructor(
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NgbModal,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private runtimeStatisticsModal: NzModalService
   ) {}
 
   ngOnInit(): void {
@@ -136,7 +143,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           1: "running",
           2: "paused",
           3: "completed",
-          4: "aborted",
+          4: "failed",
+          5: "killed",
         };
         let statusData: { [key: string]: [string, number] } = {};
 
@@ -262,10 +270,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
-        this.numOfExecutions = workflowExecutions.length;
-        this.paginatedExecutionEntries = this.changePaginatedExecutions();
-        this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-        this.fuse.setCollection(this.paginatedExecutionEntries);
+        this.updatePaginatedExecutions();
       });
   }
 
@@ -286,7 +291,9 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       case 3:
         return [ExecutionState.Completed.toString(), "check-circle", "green"];
       case 4:
-        return [ExecutionState.Aborted.toString(), "exclamation-circle", "gray"];
+        return [ExecutionState.Failed.toString(), "exclamation-circle", "gray"];
+      case 5:
+        return [ExecutionState.Killed.toString(), "minus-circle", "red"];
     }
     return ["", "question-circle", "gray"];
   }
@@ -337,8 +344,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       .subscribe({
         complete: () => {
           this.allExecutionEntries?.splice(this.allExecutionEntries.indexOf(row), 1);
-          this.paginatedExecutionEntries?.splice(this.paginatedExecutionEntries.indexOf(row), 1);
-          this.fuse.setCollection(this.paginatedExecutionEntries);
+          this.handlePaginationAfterDeletingExecutions();
         },
       });
   }
@@ -353,11 +359,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
             this.allExecutionEntries = this.allExecutionEntries?.filter(
               execution => !Array.from(this.setOfExecution).includes(execution)
             );
-            this.paginatedExecutionEntries = this.paginatedExecutionEntries?.filter(
-              execution => !Array.from(this.setOfExecution).includes(execution)
-            );
-            this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-            this.fuse.setCollection(this.paginatedExecutionEntries);
+            this.handlePaginationAfterDeletingExecutions();
             this.setOfEid.clear();
             this.setOfExecution.clear();
           },
@@ -406,7 +408,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
    based in ascending alphabetical order */
 
   ascSort(type: string): void {
-    if (type === "Name") {
+    if (type === "Name (ID)") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe1.name.toLowerCase().localeCompare(exe2.name.toLowerCase()));
@@ -433,7 +435,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
    based in descending alphabetical order */
 
   dscSort(type: string): void {
-    if (type === "Name") {
+    if (type === "Name (ID)") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe2.name.toLowerCase().localeCompare(exe1.name.toLowerCase()));
@@ -668,17 +670,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /* Assign new page index and change current list */
   onPageIndexChange(pageIndex: number): void {
     this.currentPageIndex = pageIndex;
-    this.paginatedExecutionEntries = this.changePaginatedExecutions();
-    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-    this.fuse.setCollection(this.paginatedExecutionEntries);
+    this.updatePaginatedExecutions();
   }
 
   /* Assign new page size and change current list */
   onPageSizeChange(pageSize: number): void {
     this.pageSize = pageSize;
-    this.paginatedExecutionEntries = this.changePaginatedExecutions();
-    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
-    this.fuse.setCollection(this.paginatedExecutionEntries);
+    this.updatePaginatedExecutions();
   }
 
   /**
@@ -718,5 +716,42 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
       eIdToNumber++;
     });
     return processTimeData;
+  }
+
+  showRuntimeStatistics(eId: number): void {
+    if (this.workflow.wid === undefined) {
+      return;
+    }
+
+    this.workflowExecutionsService
+      .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflowRuntimeStatistics => {
+        this.modalRef = this.runtimeStatisticsModal.create({
+          nzTitle: "Runtime Statistics",
+          nzStyle: { top: "5px", width: "98vw", height: "92vh" },
+          nzFooter: null, // null indicates that the footer of the window would be hidden
+          nzBodyStyle: { width: "98vw", height: "92vh" },
+          nzContent: WorkflowRuntimeStatisticsComponent,
+          nzComponentParams: {
+            workflowRuntimeStatistics: workflowRuntimeStatistics,
+          },
+        });
+      });
+  }
+
+  private updatePaginatedExecutions(): void {
+    this.paginatedExecutionEntries = this.changePaginatedExecutions();
+    this.workflowExecutionsDisplayedList = this.paginatedExecutionEntries;
+    this.fuse.setCollection(this.paginatedExecutionEntries);
+  }
+
+  private handlePaginationAfterDeletingExecutions(): void {
+    this.updatePaginatedExecutions();
+    /* If a current page index has 0 number of execution entries after deletion (e.g., deleting all the executions in the last page),
+     * the following code will decrement the current page index by 1. */
+    if (this.currentPageIndex > 1 && this.paginatedExecutionEntries.length === 0) {
+      this.onPageIndexChange(this.currentPageIndex - 1);
+    }
   }
 }

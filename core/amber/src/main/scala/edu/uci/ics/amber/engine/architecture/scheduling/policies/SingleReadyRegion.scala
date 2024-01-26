@@ -1,11 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.PipelinedRegion
+import edu.uci.ics.amber.engine.architecture.scheduling.Region
 
-class SingleReadyRegion(workflow: Workflow) extends SchedulingPolicy(workflow) {
+import scala.collection.mutable
 
-  override def getNextSchedulingWork(): Set[PipelinedRegion] = {
+class SingleReadyRegion(scheduleOrder: mutable.Buffer[Region])
+    extends SchedulingPolicy(scheduleOrder) {
+
+  override def getNextSchedulingWork(workflow: Workflow): Set[Region] = {
     if (
       (scheduledRegions.isEmpty ||
       scheduledRegions.forall(completedRegions.contains)) && regionsScheduleOrder.nonEmpty

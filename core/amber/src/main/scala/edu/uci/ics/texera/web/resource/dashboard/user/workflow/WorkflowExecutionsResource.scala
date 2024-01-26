@@ -1,24 +1,32 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
+import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
+import edu.uci.ics.amber.engine.common.storage.URIRecordStorage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   USER,
   WORKFLOW_EXECUTIONS,
+  WORKFLOW_RUNTIME_STATISTICS,
   WORKFLOW_VERSION
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
+import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL._
 import org.jooq.types.UInteger
 
+import java.net.URI
 import java.sql.Timestamp
+import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.collection.mutable
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -26,6 +34,22 @@ object WorkflowExecutionsResource {
 
   def getExecutionById(eId: UInteger): WorkflowExecutions = {
     executionsDao.fetchOneByEid(eId)
+  }
+
+  def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
+    val deadline = new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive))
+    context
+      .selectFrom(WORKFLOW_EXECUTIONS)
+      .where(
+        WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME.isNull
+          .and(WORKFLOW_EXECUTIONS.STARTING_TIME.lt(deadline))
+          .or(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME.lt(deadline))
+      )
+      .and(
+        WORKFLOW_EXECUTIONS.RESULT.ne("").or(WORKFLOW_EXECUTIONS.LOG_LOCATION.ne(""))
+      )
+      .fetchInto(classOf[WorkflowExecutions])
+      .toList
   }
 
   /**
@@ -50,14 +74,26 @@ object WorkflowExecutionsResource {
       eId: UInteger,
       vId: UInteger,
       userName: String,
-      startingTime: Timestamp,
-      completionTime: Timestamp,
       status: Byte,
       result: String,
+      startingTime: Timestamp,
+      completionTime: Timestamp,
       bookmarked: Boolean,
-      name: String
+      name: String,
+      logLocation: String
   )
 
+  case class ExecutionResultEntry(
+      eId: UInteger,
+      result: String
+  )
+
+  case class WorkflowRuntimeStatistics(
+      operatorId: String,
+      inputTupleCount: UInteger,
+      outputTupleCount: UInteger,
+      timestamp: Timestamp
+  )
 }
 
 case class ExecutionGroupBookmarkRequest(
@@ -71,6 +107,41 @@ case class ExecutionRenameRequest(wid: UInteger, eId: UInteger, executionName: S
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/executions")
 class WorkflowExecutionsResource {
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/interactions/{eid}")
+  @RolesAllowed(Array("REGULAR", "ADMIN"))
+  def retrieveInteractionHistory(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("eid") eid: UInteger,
+      @Auth sessionUser: SessionUser
+  ): List[String] = {
+    val user = sessionUser.getUser
+    if (!WorkflowAccessResource.hasReadAccess(wid, user.getUid)) {
+      List()
+    } else {
+      ExecutionsMetadataPersistService.tryGetExistingExecution(
+        ExecutionIdentity(eid.longValue())
+      ) match {
+        case Some(value) =>
+          val logLocation = value.getLogLocation
+          if (logLocation != null && logLocation.nonEmpty) {
+            val storage = new URIRecordStorage[ReplayLogRecord](new URI(logLocation))
+            val result = new mutable.ArrayBuffer[ChannelMarkerIdentity]()
+            storage.getReader("CONTROLLER").mkRecordIterator().foreach {
+              case destination: ReplayDestination =>
+                result.append(destination.id)
+              case _ =>
+            }
+            result.map(_.id).toList
+          } else {
+            List()
+          }
+        case None => List()
+      }
+    }
+  }
 
   /**
     * This method returns the executions of a workflow given by its ID
@@ -99,12 +170,13 @@ class WorkflowExecutionsResource {
               .from(USER)
               .where(WORKFLOW_EXECUTIONS.UID.eq(USER.UID))
           ),
-          WORKFLOW_EXECUTIONS.STARTING_TIME,
-          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
           WORKFLOW_EXECUTIONS.STATUS,
           WORKFLOW_EXECUTIONS.RESULT,
+          WORKFLOW_EXECUTIONS.STARTING_TIME,
+          WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME,
           WORKFLOW_EXECUTIONS.BOOKMARKED,
-          WORKFLOW_EXECUTIONS.NAME
+          WORKFLOW_EXECUTIONS.NAME,
+          WORKFLOW_EXECUTIONS.LOG_LOCATION
         )
         .from(WORKFLOW_EXECUTIONS)
         .join(WORKFLOW_VERSION)
@@ -114,6 +186,31 @@ class WorkflowExecutionsResource {
         .toList
         .reverse
     }
+  }
+
+  @GET
+  @Produces(Array(MediaType.APPLICATION_JSON))
+  @Path("/{wid}/{eid}")
+  def retrieveWorkflowRuntimeStatistics(
+      @PathParam("wid") wid: UInteger,
+      @PathParam("eid") eid: UInteger
+  ): List[WorkflowRuntimeStatistics] = {
+    context
+      .select(
+        WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
+        WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
+        WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
+        WORKFLOW_RUNTIME_STATISTICS.TIME
+      )
+      .from(WORKFLOW_RUNTIME_STATISTICS)
+      .where(
+        WORKFLOW_RUNTIME_STATISTICS.WORKFLOW_ID
+          .eq(wid)
+          .and(WORKFLOW_RUNTIME_STATISTICS.EXECUTION_ID.eq(eid))
+      )
+      .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
+      .fetchInto(classOf[WorkflowRuntimeStatistics])
+      .toList
   }
 
   /** Sets a group of executions' bookmarks to the payload passed in the body. */

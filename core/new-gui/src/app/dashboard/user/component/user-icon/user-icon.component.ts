@@ -26,6 +26,7 @@ export class UserIconComponent {
    */
   public onClickLogout(): void {
     this.userService.logout();
+    document.cookie = "flarum_remember=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     window.location.href = "home";
   }
 }

@@ -3,18 +3,14 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-
-import java.util.Collections.singletonList
-import scala.collection.JavaConverters.asScalaBuffer
+import org.apache.commons.lang3.builder.EqualsBuilder
+import org.jooq.types.UInteger
 
 abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
@@ -65,7 +61,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       throw new RuntimeException("no input file name")
     }
 
-    if (context.userId.isDefined) {
+    if (getContext.userId.isDefined) {
       // if context has a valid user ID, the fileName will be in the following format:
       //    ownerName/fileName
       // resolve fileName to be the actual file path.
@@ -74,8 +70,8 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
         .getFilePath(
           email = splitNames.apply(0),
           fileName = splitNames.apply(1),
-          context.userId.get,
-          context.wId
+          getContext.userId.get,
+          UInteger.valueOf(getContext.workflowId.id)
         )
 
     } else {
@@ -90,10 +86,13 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       userFriendlyName = s"${fileTypeName.get} File Scan",
       operatorDescription = s"Scan data from a ${fileTypeName.get} file",
       OperatorGroupConstants.SOURCE_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List.empty,
+      outputPorts = List(OutputPort())
     )
   }
 
   def inferSchema(): Schema
+
+  override def equals(that: Any): Boolean =
+    EqualsBuilder.reflectionEquals(this, that, "context", "filePath")
 }

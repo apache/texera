@@ -1,0 +1,41 @@
+<nz-table
+  id="versions-list"
+  nzSize="small"
+  [nzSimple]="true"
+  [nzFrontPagination]="false"
+  nzTableLayout="auto"
+  *ngIf="versionsList"
+  [nzData]="versionsList">
+  <thead>
+    <tr>
+      <th
+        nzAlign="center"
+        *ngFor="let column of versionTableHeaders">
+        {{column}}
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <ng-container *ngFor="let row of versionsList; let i=index; let l=count;">
+      <tr *ngIf="(!row.importance && row.expand) || row.importance">
+        <td
+          nzAlign="right"
+          [nzShowExpand]="row.importance"
+          [(nzExpand)]="row.expand"
+          (nzExpandChange)="collapse(i, $event)"
+          class="version-link">
+          {{(l - i)}}
+        </td>
+        <td>
+          <button
+            nz-button
+            nzType="link"
+            (click)="getVersion(row.vId)"
+            class="version-link">
+            {{row.creationTime | date:'MM/dd/YY HH:mm:ss'}}
+          </button>
+        </td>
+      </tr>
+    </ng-container>
+  </tbody>
+</nz-table>

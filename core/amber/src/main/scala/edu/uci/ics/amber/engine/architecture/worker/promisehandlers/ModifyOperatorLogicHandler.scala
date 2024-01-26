@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.worker.WorkerAsyncRPCHandlerInitializer
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
   WorkerModifyLogic,
   WorkerModifyLogicComplete,
@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
 object ModifyOperatorLogicHandler {
   case class WorkerModifyLogic(
-      opExecConfig: OpExecConfig,
+      physicalOp: PhysicalOp,
       stateTransferFunc: Option[StateTransferFunc]
   ) extends ControlCommand[Unit]
 
@@ -28,7 +28,7 @@ object ModifyOperatorLogicHandler {
   * possible sender: controller(by ControllerInitiateMonitoring)
   */
 trait ModifyOperatorLogicHandler {
-  this: WorkerAsyncRPCHandlerInitializer =>
+  this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: WorkerModifyLogic, _) =>
     performModifyLogic(msg)
@@ -37,7 +37,7 @@ trait ModifyOperatorLogicHandler {
 
   registerHandler { (msg: WorkerModifyLogicMultiple, _) =>
     val modifyLogic =
-      msg.modifyLogicList.find(o => o.opExecConfig.id == dataProcessor.opExecConfig.id)
+      msg.modifyLogicList.find(o => o.physicalOp.id == dp.getOperatorId)
     if (modifyLogic.nonEmpty) {
       performModifyLogic(modifyLogic.get)
       sendToClient(WorkerModifyLogicComplete(this.actorId))
@@ -45,15 +45,13 @@ trait ModifyOperatorLogicHandler {
   }
 
   private def performModifyLogic(modifyLogic: WorkerModifyLogic): Unit = {
-    val newOpExecConfig = modifyLogic.opExecConfig
-    val newOperator =
-      newOpExecConfig.initIOperatorExecutor((dataProcessor.workerIndex, newOpExecConfig))
+    val oldOpExecState = dp.operator
+    dp.initOperator(dp.workerIdx, modifyLogic.physicalOp, dp.operatorConfig, dp.outputIterator)
+
     if (modifyLogic.stateTransferFunc.nonEmpty) {
-      modifyLogic.stateTransferFunc.get.apply(dataProcessor.operator, newOperator)
+      modifyLogic.stateTransferFunc.get.apply(oldOpExecState, dp.operator)
     }
-    dataProcessor.operator = newOperator
-    this.operator = newOperator
-    operator.open()
+    dp.operator.open()
   }
 
 }
