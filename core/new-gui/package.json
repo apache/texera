@@ -69,9 +69,9 @@
     "lodash-es": "4.17.21",
     "mapbox-gl": "~2.15.0",
     "marked": "4.2.12",
-    "monaco-editor": "0.36.1",
-    "monaco-languageclient": "5.0.0",
-    "vscode": "npm:@codingame/monaco-vscode-api@~1.76.6",
+    "monaco-editor": "npm:@codingame/monaco-editor-treemended@>=1.85.0 <1.86.0",
+    "monaco-languageclient": "~7.3.0",
+    "vscode": "npm:@codingame/monaco-vscode-api@~1.85.0",
     "ng-dynamic-component": "10.1.0",
     "ng-zorro-antd": "14.0.0",
     "ng2-file-upload": "1.4.0",
@@ -154,6 +154,9 @@
     "ts-node": "4.1.0",
     "typescript": "~4.7.0",
     "webpack-bundle-analyzer": "4.5.0"
+  },
+  "resolutions": {
+    "monaco-editor": "npm:@codingame/monaco-editor-treemended@>=1.85.0 <1.86.0"
   },
   "browserslist": [
     "defaults",
