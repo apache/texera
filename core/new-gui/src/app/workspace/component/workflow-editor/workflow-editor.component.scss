@@ -1,11 +1,14 @@
 @import "../workspace.component.scss";
-#workflow-editor-wrapper {
+.texera-workspace-workflow-editor-body {
   overflow: hidden;
-  height: 100%;
 }
 
-#workflow-editor {
+.texera-workspace-workflow-jointjs {
   background-color: #f6f6f6;
+}
+
+::ng-deep .texera-workspace-workflow-editor-body .custom-highlighted-link.connection {
+  stroke: #e59700 !important ;
 }
 
 /**
@@ -18,41 +21,36 @@
   * !important forces the browser to make the style defined here
   * higher prioritized.
   **/
-
-::ng-deep #workflow-editor-wrapper .custom-highlighted-link.connection {
-  stroke: #e59700 !important ;
-}
-
-::ng-deep #workflow-editor-wrapper .marker-arrowhead {
+::ng-deep .texera-workspace-workflow-editor-body .marker-arrowhead {
   fill: #919191 !important;
 }
 
-::ng-deep #workflow-editor-wrapper .connection-wrap {
+::ng-deep .texera-workspace-workflow-editor-body .connection-wrap {
   stroke: #919191 !important;
   stroke-width: 0 !important;
 }
 
-::ng-deep #workflow-editor-wrapper .link-tools .tool-remove {
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove {
   width: 24px !important;
 }
 
-::ng-deep #workflow-editor-wrapper .link-tools .tool-remove path {
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove path {
   fill: #d8656a !important;
   transform: translate(-12px, -12px) !important;
 }
 
-::ng-deep #workflow-editor-wrapper .link-tools .tool-remove circle {
+::ng-deep .texera-workspace-workflow-editor-body .link-tools .tool-remove circle {
   fill-opacity: 0 !important;
 }
 
-::ng-deep #workflow-editor-wrapper .link-tools {
+::ng-deep .texera-workspace-workflow-editor-body .link-tools {
   display: contents !important;
 }
 
-::ng-deep #workflow-editor-wrapper .available-magnet {
+::ng-deep .texera-workspace-workflow-editor-body .available-magnet {
   fill: #6f9d52 !important;
 }
 
-::ng-deep #workflow-editor-wrapper .available-cell rect.body {
+::ng-deep .texera-workspace-workflow-editor-body .available-cell rect.body {
   stroke: #70c883 !important;
 }
