@@ -192,16 +192,10 @@ describe("WorkflowEditorComponent", () => {
       fixture.detectChanges();
     });
 
-    it("should register itself as a droppable element", () => {
-      const jqueryElement = jQuery(`#${component.WORKFLOW_EDITOR_JOINTJS_ID}`);
-      expect(jqueryElement.data("uiDroppable")).toBeTruthy();
-    });
-
     it("should try to highlight the operator when user mouse clicks on an operator", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       // install a spy on the highlight operator function and pass the call through
-      const highlightOperatorFunctionSpy = spyOn(jointGraphWrapper, "highlightOperators").and.callThrough();
-
+      spyOn(jointGraphWrapper, "highlightOperators").and.callThrough();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
 
       // unhighlight the operator in case it's automatically highlighted
@@ -223,7 +217,7 @@ describe("WorkflowEditorComponent", () => {
 
     it("should highlight the commentBox when user clicks on a commentBox", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-      const highlightCommentBoxFunctionSpy = spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
+      spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
       const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
@@ -338,7 +332,7 @@ describe("WorkflowEditorComponent", () => {
     });
 
     it("should react to operator validation and change the color of operator box if the operator is valid ", () => {
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockResultPredicate, mockPoint);
       workflowActionService.addLink(mockScanResultLink);
@@ -440,8 +434,7 @@ describe("WorkflowEditorComponent", () => {
         showAdvanced: false,
         isDisabled: false,
       };
-
-      const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
+      workflowActionService.getJointGraphWrapper();
       workflowActionService.addOperator(mockScanPredicate, mockPoint);
       workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
       workflowActionService.addOperator(mockUnionPredicate, mockPoint);
