@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription,
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-
 import scala.collection.JavaConverters._
 import scala.util.{Success, Try}
 

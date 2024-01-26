@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.workflow.PartitionInfo
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescriptor, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpExec
 
 
@@ -62,6 +63,11 @@ class DummyOpDesc extends LogicalOp with PortDescriptor {
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
+
+  //val workflowInstance = WorkflowWithPrivilege(
+
+
+  //)
 
   //override def runtimeReconfiguration(
   //    newOpDesc: LogicalOp,
