@@ -22,8 +22,6 @@ class HDFSRecordStorage[T >: Null <: AnyRef](hdfsLogFolderURI: URI)
     fileSystem = FileSystem.get(hdfsLogFolderURI, fsConf)
     fileSystem.setWriteChecksum(false)
     fileSystem.setVerifyChecksum(false)
-  } catch {
-    case e: Throwable => throw e
   }
 
   private val folderPath =
