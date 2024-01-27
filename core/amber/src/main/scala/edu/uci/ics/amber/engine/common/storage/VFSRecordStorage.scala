@@ -18,8 +18,6 @@ class VFSRecordStorage[T >: Null <: AnyRef](vfsLogFolderURI: URI)
   private var folder: FileObject = _
   try {
     folder = fs.resolveFile(vfsLogFolderURI)
-  } catch {
-    case e: Throwable => throw e
   }
 
   if (!folder.exists()) {
