@@ -86,7 +86,7 @@ export class JointGraphWrapper {
   public jointGraphContext = JointGraphWrapper.jointGraphContextFactory();
   public navigatorMoveDelta: Subject<{ deltaX: number; deltaY: number }> = new Subject();
 
-  private mainJointPaper: joint.dia.Paper | undefined;
+  private mainJointPaper!: joint.dia.Paper;
   private mainJointPaperAttachedStream: Subject<joint.dia.Paper> = new ReplaySubject(1);
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
@@ -191,7 +191,7 @@ export class JointGraphWrapper {
     return paper;
   }
 
-  public getMainJointPaper(): joint.dia.Paper | undefined {
+  public getMainJointPaper(): joint.dia.Paper {
     return this.mainJointPaper;
   }
 

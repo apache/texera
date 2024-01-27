@@ -7,6 +7,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
 import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from "../workflow-editor.component";
 import * as joint from "jointjs";
+
 @UntilDestroy()
 @Component({
   selector: "texera-mini-map",
@@ -40,7 +41,9 @@ export class MiniMapComponent implements AfterViewInit {
     let mouseDownPosition: Point | undefined;
     fromEvent<MouseEvent>(document.getElementById("mini-map-navigator")!, "mousedown")
       .pipe(untilDestroyed(this))
-      .subscribe(event => (mouseDownPosition = { x: event.screenX, y: event.screenY }));
+      .subscribe(event => {
+        mouseDownPosition = { x: event.screenX, y: event.screenY };
+      });
     fromEvent(document, "mouseup")
       .pipe(untilDestroyed(this))
       .subscribe(() => (mouseDownPosition = undefined));
@@ -63,7 +66,7 @@ export class MiniMapComponent implements AfterViewInit {
   }
 
   private updateNavigator(): void {
-    const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper()!;
+    const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
     const mainPaperPoint = mainPaper.pageToLocalPoint({ x: 0, y: 0 });
     const editor = document.getElementById(WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID)!;
     const navigator = document.getElementById("mini-map-navigator")!;
