@@ -92,8 +92,13 @@ object SequentialRecordStorage {
 
   def getStorage[T >: Null <: AnyRef](storageLocation: Option[URI]): SequentialRecordStorage[T] = {
     storageLocation match {
-      case Some(location) => new URIRecordStorage(location)
-      case None           => new EmptyRecordStorage()
+      case Some(location) =>
+        if (location.getScheme.toLowerCase == "hdfs") {
+          new HDFSRecordStorage(location) // hdfs lib supports r/w operations
+        } else {
+          new VFSRecordStorage(location)
+        }
+      case None => new EmptyRecordStorage()
     }
   }
 }

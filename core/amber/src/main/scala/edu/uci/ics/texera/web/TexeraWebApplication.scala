@@ -8,7 +8,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.storage.URIRecordStorage
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.{maptoStatusCode, objectMapper}
@@ -289,8 +289,13 @@ class TexeraWebApplication
       return
     }
     val uri = new URI(logLocation)
-    val storage = new URIRecordStorage(uri)
-    storage.deleteStorage()
+    try {
+      val storage = SequentialRecordStorage.getStorage(Some(uri))
+      storage.deleteStorage()
+    } catch {
+      case throwable: Throwable =>
+        logger.warn(s"failed to delete log at $logLocation", throwable)
+    }
   }
 
   /**
