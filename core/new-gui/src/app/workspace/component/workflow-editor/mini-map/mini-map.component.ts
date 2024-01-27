@@ -55,10 +55,6 @@ export class MiniMapComponent implements AfterViewInit {
       .subscribe(() => this.updateNavigator());
   }
 
-  mouseDown(event: any) {
-    console.log(event);
-  }
-
   private updateNavigator(): void {
     const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
     const mainPaperPoint = mainPaper.pageToLocalPoint({ x: 0, y: 0 });
