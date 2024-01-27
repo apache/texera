@@ -18,11 +18,9 @@ class HDFSRecordStorage[T >: Null <: AnyRef](hdfsLogFolderURI: URI)
   private val fsConf = new Configuration()
   // configuration for HDFS
   fsConf.set("dfs.client.block.write.replace-datanode-on-failure.enable", "false")
-  try {
-    fileSystem = FileSystem.get(hdfsLogFolderURI, fsConf)
-    fileSystem.setWriteChecksum(false)
-    fileSystem.setVerifyChecksum(false)
-  }
+  fileSystem = FileSystem.get(hdfsLogFolderURI, fsConf)
+  fileSystem.setWriteChecksum(false)
+  fileSystem.setVerifyChecksum(false)
 
   private val folderPath =
     Path.mergePaths(fileSystem.getWorkingDirectory, new Path(hdfsLogFolderURI.getPath))
