@@ -1,6 +1,5 @@
-import { AfterViewInit, Component, ElementRef, Inject, OnDestroy, ViewChild } from "@angular/core";
-import { MAT_DIALOG_DATA } from "@angular/material/dialog";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from "@angular/core";
+import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
@@ -13,7 +12,6 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
 import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
-import { FormControl } from "@angular/forms";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction, MessageTransports } from "vscode-languageclient/lib/common/client.js";
@@ -37,7 +35,6 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 })
 export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) divEditor?: ElementRef;
-  private formControl: FormControl;
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
@@ -45,12 +42,11 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
 
   constructor(
     private sanitizer: DomSanitizer,
-    @Inject(MAT_DIALOG_DATA) formControl: FormControl,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
-    this.formControl = formControl;
+    console.log("here!")
   }
 
   ngOnDestroy(): void {
@@ -256,10 +252,10 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    * @private
    */
   private handleDisabledStatusChange(): void {
-    this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
-      this.editor.updateOptions({
-        readOnly: this.formControl.disabled,
-      });
-    });
+    //this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
+      //this.editor.updateOptions({
+       // readOnly: this.formControl.disabled,
+     // });
+    //});
   }
 }

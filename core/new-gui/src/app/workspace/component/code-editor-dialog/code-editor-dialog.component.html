@@ -1,6 +1,20 @@
-<ng-container *ngFor="let user of coeditorPresenceService.coeditors">
-  <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
-</ng-container>
+<div>
+  <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+    <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
+  </ng-container>
+
+  <div id="code-editor-container"
+       cdkDrag
+       cdkDragBoundary="texera-workspace">
+    <h1
+      cdkDragHandle>
+      Python Script
+    </h1>
+    <div
+      #editor
+      class="code-editor"></div>
+  </div>
+</div>
 
 <button
   [mat-dialog-close]="true"
@@ -12,14 +26,3 @@
     >close</mat-icon
   >
 </button>
-<h1
-  mat-dialog-title
-  cdkDrag
-  cdkDragRootElement=".cdk-overlay-pane"
-  cdkDragBoundary=".cdk-overlay-container"
-  cdkDragHandle>
-  Python Script
-</h1>
-<div
-  #editor
-  class="code-editor"></div>

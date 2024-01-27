@@ -23,6 +23,7 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
 export class CodeareaCustomTemplateComponent extends FieldType<any> implements AfterViewInit {
   dialogRef: MatDialogRef<CodeEditorDialogComponent> | undefined;
   readonly: boolean = false;
+  editorComponent = CodeEditorDialogComponent;
 
   constructor(public dialog: MatDialog, private coeditorPresenceService: CoeditorPresenceService) {
     super();

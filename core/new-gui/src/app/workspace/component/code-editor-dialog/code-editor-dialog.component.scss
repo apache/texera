@@ -1,18 +1,22 @@
+#code-editor-container {
+  position: absolute;
+  z-index: 3;
+  background: #333333;
+  left:10px;
+  top: 10px;
+  resize: both;
+  overflow: hidden;
+  width: 60vw;
+  height: 60vh;
+  min-width: 320px;
+  min-height: 240px;
+}
+
+
 [mat-dialog-title] {
   background: #333333;
   color: #fff;
   text-align: center;
-}
-
-::ng-deep.mat-dialog-container {
-  background: #333333;
-  padding: 0;
-  resize: both;
-  overflow: hidden;
-  width: 95vw;
-  height: 95vh;
-  min-width: 320px;
-  min-height: 240px;
 }
 
 .code-editor {
