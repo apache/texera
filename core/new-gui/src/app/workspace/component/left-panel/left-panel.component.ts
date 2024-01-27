@@ -1,11 +1,11 @@
-import { Component } from "@angular/core";
+import { Component, Type } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
+import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
+import { environment } from "../../../../environments/environment";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
-import { ComponentType } from "@angular/cdk/overlay";
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
-import { environment } from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -14,39 +14,45 @@ import { environment } from "../../../../environments/environment";
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent {
-  currentComponent: ComponentType<OperatorMenuComponent | VersionsListComponent | TimeTravelComponent>;
+  currentComponent: Type<any>;
   title = "Operators";
   screenWidth = window.innerWidth;
   width = 240;
+  lastWidth = 0;
   id = -1;
-  disabled = false;
-
-  // whether user dashboard is enabled and accessible from the workspace
-  public userSystemEnabled: boolean = environment.userSystemEnabled;
-
-  onResize({ width }: NzResizeEvent): void {
-    cancelAnimationFrame(this.id);
-    this.id = requestAnimationFrame(() => {
-      this.width = width!;
-    });
-  }
+  buttons = [
+    { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
+    { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
+    {
+      component: TimeTravelComponent,
+      title: "Time Travel",
+      icon: "clock-circle",
+      enabled: environment.userSystemEnabled,
+    },
+  ];
 
   constructor() {
     this.currentComponent = OperatorMenuComponent;
   }
 
-  openVersionsFrame(): void {
-    this.currentComponent = VersionsListComponent;
-    this.title = "Versions";
+  openFrame(title: string, component: Type<any>) {
+    if (!this.width) this.width = this.lastWidth;
+    this.title = title;
+    this.currentComponent = component;
+  }
+  drop(event: CdkDragDrop<string[]>) {
+    moveItemInArray(this.buttons, event.previousIndex, event.currentIndex);
   }
 
-  openTimeTravelFrame(): void {
-    this.currentComponent = TimeTravelComponent;
-    this.title = "Time Travel";
+  close() {
+    this.currentComponent = null as any;
+    this.lastWidth = this.width;
+    this.width = 0;
   }
-
-  openOperatorMenu(): void {
-    this.currentComponent = OperatorMenuComponent;
-    this.title = "Operators";
+  onResize({ width }: NzResizeEvent) {
+    cancelAnimationFrame(this.id);
+    this.id = requestAnimationFrame(() => {
+      this.width = width!;
+    });
   }
 }
