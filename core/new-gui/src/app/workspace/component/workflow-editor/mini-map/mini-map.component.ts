@@ -1,8 +1,7 @@
 import { AfterViewInit, Component } from "@angular/core";
-import { fromEvent } from "rxjs";
+import { fromEvent, skipUntil } from "rxjs";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { Point } from "../../../types/workflow-common.interface";
-import { auditTime } from "rxjs/operators";
+import { auditTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
 import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from "../workflow-editor.component";
@@ -30,6 +29,8 @@ export class MiniMapComponent implements AfterViewInit {
     })
       .scale(this.scale)
       .translate(-MAIN_CANVAS_LIMIT.xMin * this.scale, -MAIN_CANVAS_LIMIT.yMin * this.scale);
+    const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+    console.log(mainPaper);
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaperAttachedStream()
@@ -38,31 +39,24 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
       });
-    let mouseDownPosition: Point | undefined;
-    fromEvent<MouseEvent>(document.getElementById("mini-map-navigator")!, "mousedown")
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        mouseDownPosition = { x: event.screenX, y: event.screenY };
-      });
-    fromEvent(document, "mouseup")
-      .pipe(untilDestroyed(this))
-      .subscribe(() => (mouseDownPosition = undefined));
     fromEvent<MouseEvent>(document, "mousemove")
+      .pipe(skipUntil(fromEvent(document.getElementById("mini-map-navigator")!, "mousedown")))
+      .pipe(takeUntil(fromEvent(document, "mouseup")))
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        if (mouseDownPosition) {
-          const newCoordinate = { x: event.screenX, y: event.screenY };
-          this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.next({
-            deltaX: -(newCoordinate.x - mouseDownPosition.x) / this.scale,
-            deltaY: -(newCoordinate.y - mouseDownPosition.y) / this.scale,
-          });
-          mouseDownPosition = newCoordinate;
-        }
+        this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.next({
+          deltaX: -event.movementX / this.scale,
+          deltaY: -event.movementY / this.scale,
+        });
       });
     fromEvent(window, "resize")
       .pipe(auditTime(30))
       .pipe(untilDestroyed(this))
       .subscribe(() => this.updateNavigator());
+  }
+
+  mouseDown(event: any) {
+    console.log(event);
   }
 
   private updateNavigator(): void {
