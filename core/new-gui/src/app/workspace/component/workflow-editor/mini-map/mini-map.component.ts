@@ -1,8 +1,8 @@
 import { AfterViewInit, Component } from "@angular/core";
 import { fromEvent, skipUntil } from "rxjs";
-import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { auditTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
 import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from "../workflow-editor.component";
 import * as joint from "jointjs";
