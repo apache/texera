@@ -96,6 +96,7 @@ export class JointGraphWrapper {
   private multiSelect: boolean = false;
 
   private reloadingWorkflow: boolean = false;
+
   // the currently highlighted operators' IDs
   private currentHighlightedOperators: string[] = [];
   // the currently highlighted groups' IDs
