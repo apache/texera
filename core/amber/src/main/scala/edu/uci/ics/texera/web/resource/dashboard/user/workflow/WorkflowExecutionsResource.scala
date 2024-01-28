@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.amber.engine.architecture.logreplay.{ReplayDestination, ReplayLogRecord}
-import edu.uci.ics.amber.engine.common.storage.URIRecordStorage
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
@@ -127,7 +127,8 @@ class WorkflowExecutionsResource {
         case Some(value) =>
           val logLocation = value.getLogLocation
           if (logLocation != null && logLocation.nonEmpty) {
-            val storage = new URIRecordStorage[ReplayLogRecord](new URI(logLocation))
+            val storage =
+              SequentialRecordStorage.getStorage[ReplayLogRecord](Some(new URI(logLocation)))
             val result = new mutable.ArrayBuffer[ChannelMarkerIdentity]()
             storage.getReader("CONTROLLER").mkRecordIterator().foreach {
               case destination: ReplayDestination =>
