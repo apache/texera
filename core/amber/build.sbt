@@ -98,7 +98,7 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
 
 /////////////////////////////////////////////////////////////////////////////
 // Lucene related
-val luceneVersion = "9.9.1"
+val luceneVersion = "8.7.0"
 val luceneDependencies = Seq(
   "org.apache.lucene" % "lucene-core" % luceneVersion,
   "org.apache.lucene" % "lucene-queryparser" % luceneVersion,
