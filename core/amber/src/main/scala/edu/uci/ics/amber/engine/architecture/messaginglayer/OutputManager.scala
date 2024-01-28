@@ -7,10 +7,9 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import org.jooq.exception.MappingException
 
@@ -88,7 +87,7 @@ class OutputManager(
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
-      dataOutputPort.addOutputChannel(ChannelID(selfID, receiver, isControl = false))
+      dataOutputPort.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
     })
   }
 
@@ -116,13 +115,19 @@ class OutputManager(
     * is specified with a set of 'PhysicalLink's, only the buffers corresponding to those links are flushed.
     * If 'onlyFor' is None, all network output buffers are flushed.
     *
-    * @param onlyFor An optional set of 'PhysicalLink' indicating the specific buffers to flush.
+    * @param onlyFor An optional set of 'ChannelID' indicating the specific buffers to flush.
     *                If None, all buffers are flushed. Default value is None.
     */
-  def flush(onlyFor: Option[Set[PhysicalLink]] = None): Unit = {
+  def flush(onlyFor: Option[Set[ChannelIdentity]] = None): Unit = {
     val buffersToFlush = onlyFor match {
-      case Some(links) => networkOutputBuffers.filter(out => links.contains(out._1._1)).values
-      case None        => networkOutputBuffers.values
+      case Some(channelIds) =>
+        networkOutputBuffers
+          .filter(out => {
+            val channel = ChannelIdentity(selfID, out._1._2, isControl = false)
+            channelIds.contains(channel)
+          })
+          .values
+      case None => networkOutputBuffers.values
     }
     buffersToFlush.foreach(_.flush())
   }

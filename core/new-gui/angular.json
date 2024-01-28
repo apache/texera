@@ -21,29 +21,19 @@
                 "glob": "**/*",
                 "input": "./node_modules/@ant-design/icons-angular/src/inline-svg/",
                 "output": "/assets/"
-              },
-              {
-                "glob": "**/*",
-                "input": "node_modules/ngx-monaco-editor/assets/monaco",
-                "output": "./assets/monaco/"
-              },
-              {
-                "glob": "**/*",
-                "input": "node_modules/monaco-editor",
-                "output": "assets/monaco-editor"
               }
             ],
             "styles": [
-              "node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
               "node_modules/jointjs/css/layout.css",
               "node_modules/jointjs/css/themes/material.css",
               "node_modules/jointjs/css/themes/default.css",
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
-              "src/styles.scss",
-              "node_modules/monaco-editor/min/vs/editor/editor.main.css"
+              "node_modules/ng-zorro-antd/ng-zorro-antd.min.css",
+              "node_modules/ng-zorro-antd/resizable/style/index.min.css",
+              "node_modules/monaco-editor/min/vs/editor/editor.main.css",
+              "src/styles.scss"
             ],
             "scripts": [
-              "./node_modules/ngx-monaco-editor/assets/monaco/vs/loader.js",
               "./node_modules/marked/marked.min.js"
             ],
             "allowedCommonJsDependencies": ["deep-map", "c3", "js-abbreviation-number", "dagre", "graphlib"],
@@ -145,8 +135,7 @@
           "options": {
             "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./conf/web-config.yml",
             "detached": true
-          },
-          "description": "requires a build in the dist folder"
+          }
         },
         "kill-fullstack": {
           "builder": "multi-target:cmd-target",
@@ -188,8 +177,7 @@
             "sequential": true
           }
         }
-      },
-      "tags": []
+      }
     }
   }
 }

@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import org.apache.arrow.util.Preconditions
 import org.scalatest.BeforeAndAfter
@@ -22,8 +22,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
     override def getPhysicalOp(
         workflowId: WorkflowIdentity,
-        executionId: ExecutionIdentity,
-        operatorSchemaInfo: OperatorSchemaInfo
+        executionId: ExecutionIdentity
     ): PhysicalOp = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
@@ -31,8 +30,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
   private class TempTestSinkOpDesc extends SinkOpDesc {
     override def getPhysicalOp(
         workflowId: WorkflowIdentity,
-        executionId: ExecutionIdentity,
-        operatorSchemaInfo: OperatorSchemaInfo
+        executionId: ExecutionIdentity
     ): PhysicalOp = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
@@ -71,8 +69,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlTrainingOp")
       override def getPhysicalOp(
           workflowId: WorkflowIdentity,
-          executionId: ExecutionIdentity,
-          operatorSchemaInfo: OperatorSchemaInfo
+          executionId: ExecutionIdentity
       ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
@@ -103,8 +100,7 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
       override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlInferOp")
       override def getPhysicalOp(
           workflowId: WorkflowIdentity,
-          executionId: ExecutionIdentity,
-          operatorSchemaInfo: OperatorSchemaInfo
+          executionId: ExecutionIdentity
       ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
@@ -183,7 +179,8 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val ctx = new WorkflowContext()
     val logicalPlan = LogicalPlan(operators, links, List())
-    val schemaResult = logicalPlan.propagateWorkflowSchema(ctx, None).inputSchemaMap
+    logicalPlan.propagateWorkflowSchema(ctx, None)
+    val schemaResult = logicalPlan.getInputSchemaMap
 
     assert(schemaResult(mlTrainingOp.operatorIdentifier).head.get.equals(dataSchema))
     assert(schemaResult(mlTrainingOp.operatorIdentifier)(1).get.equals(dataSchema))

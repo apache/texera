@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
@@ -32,7 +33,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       seq: Long,
       payload: DataPayload
   ): WorkflowFIFOMessage = {
-    WorkflowFIFOMessage(ChannelID(from, to, false), seq, payload)
+    WorkflowFIFOMessage(ChannelIdentity(from, to, isControl = false), seq, payload)
   }
 
   "OutputManager" should "aggregate tuples and output" in {

@@ -3,7 +3,11 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
@@ -15,10 +19,9 @@ class ExecutionState(workflow: Workflow) {
   private val linkExecutions: Map[PhysicalLink, LinkExecution] =
     workflow.physicalPlan.links.map { link =>
       link -> new LinkExecution(
-        workflow.regionPlan.regions
-          .find(region => region.getEffectiveLinks.contains(link))
-          .get
-          .config
+        workflow.regionPlan
+          .getRegionOfPhysicalLink(link)
+          .resourceConfig
           .get
           .linkConfigs(link)
           .channelConfigs
@@ -29,6 +32,8 @@ class ExecutionState(workflow: Workflow) {
     }.toMap
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
+
+  val builtChannels: mutable.Set[ChannelIdentity] = mutable.HashSet[ChannelIdentity]()
 
   def initOperatorState(
       physicalOpId: PhysicalOpIdentity,

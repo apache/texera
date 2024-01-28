@@ -2,8 +2,7 @@ package edu.uci.ics.amber.engine.faulttolerance
 
 import akka.actor.ActorSystem
 import akka.testkit.{ImplicitSender, TestKit}
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.ReplayLogStorage.ReplayLogReader
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordReader
 import edu.uci.ics.amber.engine.architecture.logreplay.{
   ProcessingStep,
   ReplayLogManagerImpl,
@@ -12,9 +11,10 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
 }
 import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkInputGateway
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -27,12 +27,17 @@ class ReplaySpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll {
 
-  class IterableReadOnlyLogStore(iter: Iterable[ReplayLogRecord]) extends ReplayLogStorage {
-    override def getWriter(logFileName: String): ReplayLogStorage.ReplayLogWriter = ???
+  class IterableReadOnlyLogStore(iter: Iterable[ReplayLogRecord])
+      extends SequentialRecordStorage[ReplayLogRecord] {
+    override def getWriter(
+        fileName: String
+    ): SequentialRecordStorage.SequentialRecordWriter[ReplayLogRecord] = ???
 
-    override def getReader(logFileName: String): ReplayLogStorage.ReplayLogReader =
-      new ReplayLogReader(null) {
-        override def mkLogRecordIterator(): Iterator[ReplayLogRecord] = iter.toIterator
+    override def getReader(
+        fileName: String
+    ): SequentialRecordStorage.SequentialRecordReader[ReplayLogRecord] =
+      new SequentialRecordReader[ReplayLogRecord](null) {
+        override def mkRecordIterator(): Iterator[ReplayLogRecord] = iter.toIterator
       }
 
     override def deleteStorage(): Unit = ???
@@ -41,10 +46,10 @@ class ReplaySpec
   private val actorId = ActorVirtualIdentity("test")
   private val actorId2 = ActorVirtualIdentity("upstream1")
   private val actorId3 = ActorVirtualIdentity("upstream2")
-  private val channelId1 = ChannelID(CONTROLLER, actorId, isControl = true)
-  private val channelId2 = ChannelID(actorId2, actorId, isControl = false)
-  private val channelId3 = ChannelID(actorId3, actorId, isControl = false)
-  private val channelId4 = ChannelID(actorId2, actorId, isControl = true)
+  private val channelId1 = ChannelIdentity(CONTROLLER, actorId, isControl = true)
+  private val channelId2 = ChannelIdentity(actorId2, actorId, isControl = false)
+  private val channelId3 = ChannelIdentity(actorId3, actorId, isControl = false)
+  private val channelId4 = ChannelIdentity(actorId2, actorId, isControl = true)
   private val logManager = new ReplayLogManagerImpl(x => {})
 
   "replay input gate" should "replay the message payload in log order" in {
@@ -56,17 +61,19 @@ class ReplaySpec
       ProcessingStep(channelId2, 4)
     )
     val inputGateway = new NetworkInputGateway(actorId)
-    def inputMessage(channelID: ChannelID, seq: Long): Unit = {
+    def inputMessage(channelId: ChannelIdentity, seq: Long): Unit = {
       inputGateway
-        .getChannel(channelID)
-        .acceptMessage(WorkflowFIFOMessage(channelID, seq, ControlInvocation(0, StartWorker())))
+        .getChannel(channelId)
+        .acceptMessage(
+          WorkflowFIFOMessage(channelId, seq, ControlInvocation(0, StartWorker()))
+        )
     }
     val orderEnforcer = new ReplayOrderEnforcer(logManager, logRecords, -1, () => {})
     inputGateway.addEnforcer(orderEnforcer)
-    def processMessage(channelID: ChannelID, seq: Long): Unit = {
+    def processMessage(channelId: ChannelIdentity, seq: Long): Unit = {
       val msg = inputGateway.tryPickChannel.get.take
-      logManager.withFaultTolerant(msg.channel, Some(msg)) {
-        assert(msg.channel == channelID && msg.sequenceNumber == seq)
+      logManager.withFaultTolerant(msg.channelId, Some(msg)) {
+        assert(msg.channelId == channelId && msg.sequenceNumber == seq)
       }
     }
     assert(inputGateway.tryPickChannel.isEmpty)

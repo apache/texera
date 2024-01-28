@@ -83,7 +83,6 @@ import { ConsoleFrameComponent } from "./workspace/component/result-panel/consol
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
 import { DynamicModule } from "ng-dynamic-component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
-import { MonacoEditorModule } from "ngx-monaco-editor";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { NotificationComponent } from "./common/component/notification/notification/notification.component";
@@ -136,6 +135,7 @@ import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.
 import { ErrorFrameComponent } from "./workspace/component/result-panel/error-frame/error-frame.component";
 import { NzResizableModule } from "ng-zorro-antd/resizable";
 import { WorkflowRuntimeStatisticsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-runtime-statistics/workflow-runtime-statistics.component";
+import { TimeTravelComponent } from "./workspace/component/left-panel/time-travel/time-travel.component";
 
 registerLocaleData(en);
 
@@ -149,6 +149,7 @@ registerLocaleData(en);
     OperatorMenuComponent,
     PropertyEditorComponent,
     VersionsListComponent,
+    TimeTravelComponent,
     WorkflowEditorComponent,
     ResultPanelComponent,
     OperatorLabelComponent,
@@ -268,7 +269,6 @@ registerLocaleData(en);
     NzPopconfirmModule,
     NzAvatarModule,
     DynamicModule,
-    MonacoEditorModule.forRoot(),
     NzTabsModule,
     NzTreeViewModule,
     NzPaginationModule,
