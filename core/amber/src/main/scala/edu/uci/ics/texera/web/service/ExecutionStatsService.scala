@@ -53,15 +53,20 @@ class ExecutionStatsService(
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       if (AmberConfig.isUserSystemEnabled) {
-        storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
-          case ((newId, newStats), (oldId, oldStats)) =>
-            val res = OperatorRuntimeStats(
-              newStats.state,
-              newStats.inputCount - oldStats.inputCount,
-              newStats.outputCount - oldStats.outputCount
-            )
-            (newId, res)
-        }.toMap)
+        storeRuntimeStatistics(
+          newState.operatorInfo
+            .zip(oldState.operatorInfo)
+            .collect {
+              case ((newId, newStats), (oldId, oldStats)) =>
+                val res = OperatorRuntimeStats(
+                  newStats.state,
+                  newStats.inputCount - oldStats.inputCount,
+                  newStats.outputCount - oldStats.outputCount
+                )
+                (newId, res)
+            }
+            .toMap
+        )
       }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {

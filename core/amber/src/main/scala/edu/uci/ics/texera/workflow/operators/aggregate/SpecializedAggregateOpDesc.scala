@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.jdk.CollectionConverters.IterableHasAsJava
 
-
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
 class SpecializedAggregateOpDesc extends AggregateOpDesc {

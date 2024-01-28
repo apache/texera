@@ -89,7 +89,8 @@ object WorkflowVersionResource {
       .select(WORKFLOW_VERSION.VID)
       .from(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(wid))
-      .fetchInto(classOf[UInteger]).asScala
+      .fetchInto(classOf[UInteger])
+      .asScala
       .toList
     // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
     // version as an empty delta, so should do the check and create one once
@@ -145,7 +146,8 @@ object WorkflowVersionResource {
       .from(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .and(WORKFLOW_VERSION.VID.between(lowerBound).and(UpperBound))
-      .fetchInto(classOf[String]).asScala
+      .fetchInto(classOf[String])
+      .asScala
       .toList
     contents.forall(content => !isSnapshotImportant(content))
   }
@@ -201,7 +203,12 @@ object WorkflowVersionResource {
     // version is important even if it is positional
     var versionImportance: Boolean = true
     for (version <- versions.tail) {
-      if (isWithinTimeLimit(Timestamp.valueOf(lastVersionTime), Timestamp.valueOf(version.getCreationTime))) {
+      if (
+        isWithinTimeLimit(
+          Timestamp.valueOf(lastVersionTime),
+          Timestamp.valueOf(version.getCreationTime)
+        )
+      ) {
         versionImportance = false
       } // try reducing unnecessary check of positional versions
       // because parsing the Json string is expensive
@@ -317,7 +324,8 @@ class WorkflowVersionResource {
           .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
           .from(WORKFLOW_VERSION)
           .where(WORKFLOW_VERSION.WID.eq(wid))
-          .fetchInto(classOf[WorkflowVersion]).asScala
+          .fetchInto(classOf[WorkflowVersion])
+          .asScala
           .toList
       )
     }
@@ -350,7 +358,8 @@ class WorkflowVersionResource {
         .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
         .from(WORKFLOW_VERSION)
         .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-        .fetchInto(classOf[WorkflowVersion]).asScala
+        .fetchInto(classOf[WorkflowVersion])
+        .asScala
         .toList
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)

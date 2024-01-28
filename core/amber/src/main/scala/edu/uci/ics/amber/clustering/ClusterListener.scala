@@ -111,7 +111,7 @@ class ClusterListener extends Actor with AmberLogging {
             }
           }
         }
-        Await.all(futures.toSeq:_*)
+        Await.all(futures.toSeq: _*)
       case other => //skip
     }
 

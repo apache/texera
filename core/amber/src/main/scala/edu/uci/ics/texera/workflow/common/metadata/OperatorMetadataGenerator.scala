@@ -68,7 +68,7 @@ object OperatorMetadataGenerator {
         objectMapper.constructType(classOf[LogicalOp]).getRawClass
       )
     )
-      new util.ArrayList[NamedType](types).asScala
+    new util.ArrayList[NamedType](types).asScala
       .filter(t => t.getType != null && t.getName != null)
       .map(t => (t.getType.asInstanceOf[Class[_ <: LogicalOp]], t.getName))
       .toMap
@@ -96,7 +96,11 @@ object OperatorMetadataGenerator {
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("outputPorts")
     // remove operatorType from required list
     val operatorTypeIndex =
-      jsonSchema.get("required").asInstanceOf[ArrayNode].elements().asScala
+      jsonSchema
+        .get("required")
+        .asInstanceOf[ArrayNode]
+        .elements()
+        .asScala
         .indexWhere(p => p.asText().equals("operatorType"))
     jsonSchema.get("required").asInstanceOf[ArrayNode].remove(operatorTypeIndex)
     // remove "title" for the operator - frontend uses userFriendlyName to show operator title

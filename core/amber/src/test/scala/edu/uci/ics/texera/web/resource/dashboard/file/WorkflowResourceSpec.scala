@@ -498,7 +498,9 @@ class WorkflowResourceSpec
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime).toLocalDateTime
     val endTimestamp =
-      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1).toLocalDateTime
+      new Timestamp(
+        dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1
+      ).toLocalDateTime
     assert(
       dateFilter.toString == WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp).toString
     )
@@ -510,7 +512,9 @@ class WorkflowResourceSpec
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime).toLocalDateTime
     val endTimestamp =
-      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1).toLocalDateTime
+      new Timestamp(
+        dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1
+      ).toLocalDateTime
     assert(
       dateFilter.toString == WORKFLOW.LAST_MODIFIED_TIME
         .between(startTimestamp, endTimestamp)

@@ -15,7 +15,9 @@ object AmberUtils {
     map.toSeq
       .flatMap { case (k, vs) => vs.map((_, k)) }
       .groupBy(_._1)
-      .view.mapValues(_.map(_._2).toSet).toMap
+      .view
+      .mapValues(_.map(_._2).toSet)
+      .toMap
 
   def startActorMaster(clusterMode: Boolean): ActorSystem = {
     var localIpAddress = "localhost"

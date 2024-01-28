@@ -5,7 +5,12 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  WorkflowDao,
+  WorkflowOfProjectDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
@@ -335,7 +340,8 @@ class WorkflowResource extends LazyLogging {
     workflowEntries
       .map(workflowRecord => {
         workflowRecord.into(WORKFLOW).getWid.intValue().toString
-      }).asScala
+      })
+      .asScala
       .toList
   }
 
@@ -389,7 +395,8 @@ class WorkflowResource extends LazyLogging {
           else
             workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
         )
-      ).asScala
+      )
+      .asScala
       .toList
   }
 
@@ -656,7 +663,7 @@ class WorkflowResource extends LazyLogging {
           matchQuery = matchQuery.and(getSearchQuery(true), key)
         } else {
           // When the search query contains multiple words, sub-string search is not supported by MySQL.
-          matchQuery = matchQuery.and(getSearchQuery(false),  s"\"$key\"")
+          matchQuery = matchQuery.and(getSearchQuery(false), s"\" $ { key } \ "")
         }
       }
     }
@@ -727,7 +734,8 @@ class WorkflowResource extends LazyLogging {
             else
               workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
           )
-        ).asScala
+        )
+        .asScala
         .toList
 
     } catch {

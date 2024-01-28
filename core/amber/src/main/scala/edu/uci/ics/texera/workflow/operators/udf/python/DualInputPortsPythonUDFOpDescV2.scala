@@ -16,7 +16,6 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.jdk.CollectionConverters.IterableHasAsJava
 
-
 class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
     required = true,

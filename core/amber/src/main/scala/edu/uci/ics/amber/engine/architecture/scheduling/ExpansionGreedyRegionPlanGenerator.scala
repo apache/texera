@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
@@ -284,7 +287,11 @@ class ExpansionGreedyRegionPlanGenerator(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Set[Region] = {
-    regionDAG.vertexSet().asScala.filter(region => region.physicalOpIds.contains(physicalOpId)).toSet
+    regionDAG
+      .vertexSet()
+      .asScala
+      .filter(region => region.physicalOpIds.contains(physicalOpId))
+      .toSet
   }
 
   private def populateDownstreamLinks(

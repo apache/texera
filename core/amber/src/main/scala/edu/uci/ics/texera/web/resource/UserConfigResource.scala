@@ -38,11 +38,14 @@ class UserConfigResource {
     * the user_dictionary table as a json object
     */
   private def getDict(user: User): Map[String, String] = {
-        SqlServer.createDSLContext
-          .select()
-          .from(USER_CONFIG)
-          .where(USER_CONFIG.UID.eq(user.getUid))
-          .fetchInto(classOf[UserConfig]).asScala.map { entry => (entry.getKey, entry.getValue) }.toMap
+    SqlServer.createDSLContext
+      .select()
+      .from(USER_CONFIG)
+      .where(USER_CONFIG.UID.eq(user.getUid))
+      .fetchInto(classOf[UserConfig])
+      .asScala
+      .map { entry => (entry.getKey, entry.getValue) }
+      .toMap
   }
 
   @GET

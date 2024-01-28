@@ -36,7 +36,8 @@ abstract class SchedulingPolicy(
   protected val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
   protected val runningRegions = new mutable.HashSet[Region]()
-  protected val completedLinksOfRegion: mutable.MultiDict[Region, PhysicalLink] = mutable.MultiDict[Region, PhysicalLink]()
+  protected val completedLinksOfRegion: mutable.MultiDict[Region, PhysicalLink] =
+    mutable.MultiDict[Region, PhysicalLink]()
 
   protected def isRegionCompleted(
       executionState: ExecutionState,

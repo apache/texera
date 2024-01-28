@@ -77,7 +77,8 @@ case class LogicalPlan(
 
   def getUpstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
     jgraphtDag
-      .incomingEdgesOf(opId).asScala
+      .incomingEdgesOf(opId)
+      .asScala
       .map(e => operatorMap(e.fromOpId))
       .toList
   }

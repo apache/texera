@@ -42,10 +42,14 @@ object TwitterUtils {
           .map(e => Option(e.getSymbols).map(_.asScala.map(x => x.getText).mkString(",")).orNull)
           .orNull,
         Option(tweetData.getEntities)
-          .map(e => Option(e.getUrls).map(_.asScala.map(x => x.getExpandedUrl).mkString(",")).orNull)
+          .map(e =>
+            Option(e.getUrls).map(_.asScala.map(x => x.getExpandedUrl).mkString(",")).orNull
+          )
           .orNull,
         Option(tweetData.getEntities)
-          .map(e => Option(e.getUserMentions).map(_.asScala.map(x => x.getText).mkString(",")).orNull)
+          .map(e =>
+            Option(e.getUserMentions).map(_.asScala.map(x => x.getText).mkString(",")).orNull
+          )
           .orNull,
         user.get.getId,
         user.get.getCreatedAt,

@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-
 /**
   * Common operator executor of a map() function
   * A map() function transforms one input tuple to exactly one output tuple.

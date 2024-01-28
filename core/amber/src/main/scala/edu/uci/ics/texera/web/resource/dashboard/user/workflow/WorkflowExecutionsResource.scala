@@ -5,7 +5,12 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS, WORKFLOW_RUNTIME_STATISTICS, WORKFLOW_VERSION}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
+  USER,
+  WORKFLOW_EXECUTIONS,
+  WORKFLOW_RUNTIME_STATISTICS,
+  WORKFLOW_VERSION
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
@@ -32,7 +37,9 @@ object WorkflowExecutionsResource {
   }
 
   def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
-    val deadline = new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)).toLocalDateTime
+    val deadline = new Timestamp(
+      System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)
+    ).toLocalDateTime
     context
       .selectFrom(WORKFLOW_EXECUTIONS)
       .where(

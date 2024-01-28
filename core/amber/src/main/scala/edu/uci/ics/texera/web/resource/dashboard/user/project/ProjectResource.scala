@@ -4,7 +4,12 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, ProjectDao, ProjectUserAccessDao, WorkflowOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileOfProjectDao,
+  ProjectDao,
+  ProjectUserAccessDao,
+  WorkflowOfProjectDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
@@ -181,7 +186,8 @@ class ProjectResource {
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
           List()
         )
-      ).asScala
+      )
+      .asScala
       .toList
   }
 
@@ -211,7 +217,8 @@ class ProjectResource {
           "READ",
           fileRecord.into(FILE).into(classOf[File])
         )
-      ).asScala
+      )
+      .asScala
       .toList
   }
 

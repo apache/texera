@@ -7,7 +7,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
-
 class CSVOldScanSourceOpExec private[csvOld] (val desc: CSVOldScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()

@@ -3,7 +3,6 @@ import com.fasterxml.jackson.databind.JsonNode
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-
 object JSONUtil {
 
   /**

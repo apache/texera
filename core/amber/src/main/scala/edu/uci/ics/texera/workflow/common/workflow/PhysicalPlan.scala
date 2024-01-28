@@ -3,14 +3,17 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, SetHasAsScala}
-
 
 object PhysicalPlan {
 
