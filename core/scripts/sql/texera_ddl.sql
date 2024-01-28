@@ -199,7 +199,7 @@ CREATE TABLE IF NOT EXISTS workflow_runtime_statistics
     `data_processing_time` BIGINT UNSIGNED      NOT NULL DEFAULT 0,
     `control_processing_time` BIGINT UNSIGNED   NOT NULL DEFAULT 0,
     `idle_time`        BIGINT UNSIGNED          NOT NULL DEFAULT 0,
-    `num_workers`      INT UNSIGNED             NOT NULL DEFAULT 0
+    `num_workers`      INT UNSIGNED             NOT NULL DEFAULT 0,
     PRIMARY KEY (`workflow_id`, `execution_id`, `operator_id`, `time`),
     FOREIGN KEY (`workflow_id`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
     FOREIGN KEY (`execution_id`) REFERENCES `workflow_executions` (`eid`) ON DELETE CASCADE
