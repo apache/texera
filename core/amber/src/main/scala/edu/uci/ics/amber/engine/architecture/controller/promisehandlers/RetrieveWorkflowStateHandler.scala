@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.RetrieveWorkflowStateHandler.RetrieveWorkflowState
@@ -16,7 +17,7 @@ object RetrieveWorkflowStateHandler {
 trait RetrieveWorkflowStateHandler {
 
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler { (msg: RetrieveWorkflowState, sender) =>
+  registerHandler[RetrieveWorkflowState, Map[ActorVirtualIdentity, Unit]] { (msg, sender) =>
     execute(
       PropagateChannelMarker(
         cp.executionState.getAllOperatorExecutions.map(_._1).toSet,

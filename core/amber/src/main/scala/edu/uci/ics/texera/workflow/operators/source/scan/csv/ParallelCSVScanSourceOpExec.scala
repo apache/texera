@@ -23,7 +23,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
     new Iterator[Tuple]() {
       override def hasNext: Boolean = reader.hasNext
 
-      override def next: Tuple = {
+      override def next(): Tuple = {
 
         try {
           // obtain String representation of each field

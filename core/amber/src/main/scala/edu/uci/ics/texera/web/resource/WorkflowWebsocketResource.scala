@@ -6,11 +6,7 @@ import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
-import edu.uci.ics.texera.web.model.websocket.event.{
-  CacheStatusUpdateEvent,
-  WorkflowErrorEvent,
-  WorkflowStateEvent
-}
+import edu.uci.ics.texera.web.model.websocket.event.{CacheStatusUpdateEvent, WorkflowErrorEvent, WorkflowStateEvent}
 import edu.uci.ics.texera.web.model.websocket.request._
 import edu.uci.ics.texera.web.model.websocket.response._
 import edu.uci.ics.texera.web.service.{WorkflowCacheChecker, WorkflowService}
@@ -25,7 +21,7 @@ import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 import java.time.Instant
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
-import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 @ServerEndpoint(
   value = "/wsapi/workflow-websocket",

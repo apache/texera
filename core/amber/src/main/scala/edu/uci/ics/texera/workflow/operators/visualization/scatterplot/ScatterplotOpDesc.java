@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
+import edu.stanford.nlp.util.CollectionFactory;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
@@ -21,10 +22,15 @@ import edu.uci.ics.amber.engine.common.workflow.OutputPort;
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
+import org.apache.commons.collections.ListUtils;
 import scala.Tuple3;
-import scala.collection.immutable.List;
+import scala.collection.Iterator;
 
+import static scala.jdk.javaapi.CollectionConverters.asScala;
+
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Set;
 import java.util.function.Function;
 
@@ -107,7 +113,7 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 "Scatterplot",
                 "View the result in a scatterplot",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
+                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
                 asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,

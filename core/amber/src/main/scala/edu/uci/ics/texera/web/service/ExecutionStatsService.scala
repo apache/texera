@@ -61,7 +61,7 @@ class ExecutionStatsService(
               newStats.outputCount - oldStats.outputCount
             )
             (newId, res)
-        })
+        }.toMap)
       }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
@@ -172,7 +172,7 @@ class ExecutionStatsService(
             statsStore.withOperatorWorkerMapping(
               evt.workerMapping
                 .map({
-                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds)
+                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds.toSeq)
                 })
                 .toSeq
             )

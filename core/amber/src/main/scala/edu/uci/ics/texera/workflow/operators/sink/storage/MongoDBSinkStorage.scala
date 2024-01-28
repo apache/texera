@@ -63,7 +63,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
     mkTupleIterable(cursor)
   }
 
-  override def getStorageWriter(): SinkStorageWriter =
+  override def getStorageWriter: SinkStorageWriter =
     new MongoDBSinkStorageWriter(commitBatchSize)
 
   override def clear(): Unit = {

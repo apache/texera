@@ -5,12 +5,7 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity}
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
-  USER,
-  WORKFLOW_EXECUTIONS,
-  WORKFLOW_RUNTIME_STATISTICS,
-  WORKFLOW_VERSION
-}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW_EXECUTIONS, WORKFLOW_RUNTIME_STATISTICS, WORKFLOW_VERSION}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecutionsResource._
@@ -25,8 +20,8 @@ import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -49,6 +44,7 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.RESULT.ne("").or(WORKFLOW_EXECUTIONS.LOG_LOCATION.ne(""))
       )
       .fetchInto(classOf[WorkflowExecutions])
+      .asScala
       .toList
   }
 
@@ -62,6 +58,7 @@ object WorkflowExecutionsResource {
       .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
       .fetchInto(classOf[UInteger])
+      .asScala
       .toList
     if (executions.isEmpty) {
       None
@@ -184,6 +181,7 @@ class WorkflowExecutionsResource {
         .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
         .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[WorkflowExecutionEntry])
+        .asScala
         .toList
         .reverse
     }
@@ -211,6 +209,7 @@ class WorkflowExecutionsResource {
       )
       .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
       .fetchInto(classOf[WorkflowRuntimeStatistics])
+      .asScala
       .toList
   }
 

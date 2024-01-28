@@ -69,7 +69,7 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[Region])
           regionsScheduleOrder.remove(0)
           scheduledRegions.add(nextRegion)
         } else {
-          break
+          break()
         }
       }
     }

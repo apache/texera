@@ -116,7 +116,7 @@ case class LogicalPlan(
   }
 
   def getDownstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
-    val downstream = new mutable.MutableList[LogicalOp]
+    val downstream = new mutable.ArrayBuffer[LogicalOp]
     jgraphtDag
       .outgoingEdgesOf(opId)
       .forEach(e => downstream += operatorMap(e.toOpId))

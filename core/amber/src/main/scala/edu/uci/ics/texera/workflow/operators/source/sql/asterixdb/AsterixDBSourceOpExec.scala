@@ -7,16 +7,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseF
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
-import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
-  queryAsterixDB,
-  updateAsterixDBVersionMapping
-}
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
 
 import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
 import scala.collection.Iterator
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
@@ -90,7 +87,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
         }
       }
 
-      override def next: Tuple = {
+      override def next(): Tuple = {
         // if has the next Tuple in cache, return it and clear the cache
         cachedTuple.foreach(tuple => {
           cachedTuple = None
@@ -109,7 +106,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
                   curOffset.foreach(offset => {
                     if (offset > 0) {
                       curOffset = Option(offset - 1)
-                      break
+                      break()
                     }
                   })
 
@@ -117,7 +114,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
                   val tuple = buildTupleFromRow
 
                   if (tuple == null)
-                    break
+                    break()
 
                   // update the limit in order to adapt to progressive batches
                   curLimit.foreach(limit => {
@@ -130,14 +127,14 @@ class AsterixDBSourceOpExec private[asterixdb] (
                   // close the current resultSet and query
                   curResultIterator = None
                   curQueryString = None
-                  break
+                  break()
                 }
               case None =>
                 curQueryString = if (hasNextQuery) generateSqlQuery else None
                 curQueryString match {
                   case Some(query) =>
                     curResultIterator = queryAsterixDB(host, port, query)
-                    break
+                    break()
                   case None =>
                     curResultIterator = None
                     return null
@@ -178,7 +175,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           if (value == null || value.equals("null")) {
             // add the field as null
             tupleBuilder.add(attr, null)
-            break
+            break()
           }
 
           // otherwise, transform the type of the value

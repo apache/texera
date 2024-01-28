@@ -4,7 +4,7 @@ import kong.unirest.json.JSONObject
 
 import scala.collection.mutable
 import scala.collection.mutable.Map
-import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 object AsterixDBConnUtil {
 

@@ -14,7 +14,7 @@ import org.jooq.types.UInteger
 import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 object CollaborationResource {
   final val sessionIdSessionMap = new mutable.HashMap[String, Session]()

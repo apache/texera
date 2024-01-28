@@ -3,32 +3,16 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.AttributeTypeException
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  AttributeTypeUtils,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, AttributeTypeUtils, Schema}
 import org.apache.arrow.vector.types.FloatingPointPrecision
 import org.apache.arrow.vector.types.TimeUnit.MILLISECOND
 import org.apache.arrow.vector.types.pojo.ArrowType.PrimitiveType
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
-import org.apache.arrow.vector.{
-  BigIntVector,
-  BitVector,
-  FieldVector,
-  Float8Vector,
-  IntVector,
-  TimeStampVector,
-  VarBinaryVector,
-  VarCharVector,
-  VectorSchemaRoot
-}
+import org.apache.arrow.vector.{BigIntVector, BitVector, FieldVector, Float8Vector, IntVector, TimeStampVector, VarBinaryVector, VarCharVector, VectorSchemaRoot}
 
 import java.nio.charset.StandardCharsets
 import java.util
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IterableHasAsJava}
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
@@ -57,7 +41,7 @@ object ArrowUtils extends LazyLogging {
     Tuple
       .newBuilder(schema)
       .addSequentially(
-        vectorSchemaRoot.getFieldVectors
+        vectorSchemaRoot.getFieldVectors.asScala
           .map((fieldVector: FieldVector) => {
             val value: AnyRef = fieldVector.getObject(rowIndex)
             try {
@@ -89,7 +73,7 @@ object ArrowUtils extends LazyLogging {
     Schema
       .newBuilder()
       .add(
-        arrowSchema.getFields.toIterable
+        arrowSchema.getFields.asScala
           .map(field => new Attribute(field.getName, toAttributeType(field.getType)))
           .asJava
       )
@@ -152,7 +136,7 @@ object ArrowUtils extends LazyLogging {
     */
   def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
     val arrowSchema = vectorSchemaRoot.getSchema
-    val arrowFields = arrowSchema.getFields.toList
+    val arrowFields = arrowSchema.getFields.asScala.toList
 
     for (i <- arrowFields.indices) {
       val vector: FieldVector = vectorSchemaRoot.getVector(i)
@@ -220,7 +204,7 @@ object ArrowUtils extends LazyLogging {
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
     val arrowFields = new util.ArrayList[Field]
 
-    for (amberAttribute <- schema.getAttributes) {
+    for (amberAttribute <- schema.getAttributes.asScala) {
       val name = amberAttribute.getName
       val field = Field.nullablePrimitive(name, fromAttributeType(amberAttribute.getType))
       arrowFields.add(field)

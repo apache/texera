@@ -3,10 +3,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
@@ -17,14 +14,14 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
+import org.jgrapht.Graph
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 object ExpansionGreedyRegionPlanGenerator {
 
@@ -39,6 +36,7 @@ object ExpansionGreedyRegionPlanGenerator {
     graph.addVertex(newVertex)
     graph
       .outgoingEdgesOf(oldVertex)
+      .asScala
       .toList
       .foreach(oldEdge => {
         val dest = graph.getEdgeTarget(oldEdge)
@@ -47,6 +45,7 @@ object ExpansionGreedyRegionPlanGenerator {
       })
     graph
       .incomingEdgesOf(oldVertex)
+      .asScala
       .toList
       .foreach(oldEdge => {
         val source = graph.getEdgeSource(oldEdge)
@@ -96,11 +95,12 @@ class ExpansionGreedyRegionPlanGenerator(
     */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val nonBlockingDAG = physicalPlan.removeBlockingLinks()
-    new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
+    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
       nonBlockingDAG.dag
-    ).getConnectedComponents.toSet.zipWithIndex.map {
+    ).getConnectedComponents.asScala.toSet
+    connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
-        val operatorIds = connectedSubDAG.vertexSet().toSet
+        val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
         val links = operatorIds.flatMap(operatorId => {
           physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
             .getDownstreamPhysicalLinks(operatorId)
@@ -266,6 +266,7 @@ class ExpansionGreedyRegionPlanGenerator(
   ): DirectedAcyclicGraph[Region, RegionLink] = {
     regionDAG
       .vertexSet()
+      .asScala
       .toList
       .foreach(region => {
         val sourceOpIds = region.physicalOpIds
@@ -284,7 +285,7 @@ class ExpansionGreedyRegionPlanGenerator(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Set[Region] = {
-    regionDAG.vertexSet().filter(region => region.physicalOpIds.contains(physicalOpId)).toSet
+    regionDAG.vertexSet().asScala.filter(region => region.physicalOpIds.contains(physicalOpId)).toSet
   }
 
   private def populateDownstreamLinks(
@@ -321,7 +322,7 @@ class ExpansionGreedyRegionPlanGenerator(
     (
       RegionPlan(
         regions = regionDAG.iterator().asScala.toList,
-        regionLinks = regionDAG.edgeSet().toSet
+        regionLinks = regionDAG.edgeSet().asScala.toSet
       ),
       physicalPlan
     )

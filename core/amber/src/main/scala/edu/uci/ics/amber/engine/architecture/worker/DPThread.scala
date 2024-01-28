@@ -75,7 +75,7 @@ class DPThread(
         def run(): Unit = {
           Thread.currentThread().setName(getThreadName)
           logger.info("DP thread started")
-          startFuture.complete(Unit)
+          startFuture.complete(())
           try {
             runDPThreadMainLogic()
           } catch safely {
@@ -89,7 +89,7 @@ class DPThread(
                 CONTROLLER
               )
           }
-          endFuture.complete(Unit)
+          endFuture.complete(())
         }
       })
       startFuture.get()
