@@ -38,6 +38,13 @@ const disableInteractiveOption = {
   elementMove: false, // TODO: This is only a temporary change, will introduce another level of disable option.
 };
 
+export const MAIN_CANVAS = {
+  xMin: -960,
+  xMax: 2688, // xMin * 2.8
+  yMin: -540,
+  yMax: 1512, // yMin * 2.8
+};
+
 /**
  * WorkflowEditorComponent is the component for the main workflow editor part of the UI.
  *
@@ -126,11 +133,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     this.handleViewMouseoutOperator();
     this.handlePortHighlightEvent();
     this.registerPortDisplayNameChangeHandler();
-
     if (environment.executionStatusEnabled) {
       this.handleOperatorStatisticsUpdate();
     }
-
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -182,6 +187,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     // attach the JointJS graph (model) to the paper (view)
     this.paper = this.wrapper.attachMainJointPaper({
       el: this.editor,
+      background: { color: "#F6F6F6" },
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
       snapLinks: { radius: 40 },
       // disable jointjs default action that can make a link not connect to an operator

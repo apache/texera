@@ -1,9 +1,7 @@
 import { AfterViewInit, Component } from "@angular/core";
-import { fromEvent } from "rxjs";
-import { takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
+import { MAIN_CANVAS } from "../workflow-editor.component";
 import * as joint from "jointjs";
 
 @UntilDestroy()
@@ -14,10 +12,12 @@ import * as joint from "jointjs";
 })
 export class MiniMapComponent implements AfterViewInit {
   scale = 0;
+  paper!: joint.dia.Paper;
+  dragging = false;
   constructor(private workflowActionService: WorkflowActionService) {}
   ngAfterViewInit() {
     const map = document.getElementById("mini-map")!;
-    this.scale = map.offsetWidth / (MAIN_CANVAS_LIMIT.xMax - MAIN_CANVAS_LIMIT.xMin);
+    this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
     new joint.dia.Paper({
       el: map,
       model: this.workflowActionService.getJointGraphWrapper().jointGraph,
@@ -27,39 +27,36 @@ export class MiniMapComponent implements AfterViewInit {
       height: map.offsetHeight,
     })
       .scale(this.scale)
-      .translate(-MAIN_CANVAS_LIMIT.xMin * this.scale, -MAIN_CANVAS_LIMIT.yMin * this.scale);
+      .translate(-MAIN_CANVAS.xMin * this.scale, -MAIN_CANVAS.yMin * this.scale);
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
+        this.paper = mainPaper;
+        this.updateNavigator();
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
         mainPaper.on("resize", () => this.updateNavigator());
       });
-    fromEvent(document.getElementById("mini-map-navigator")!, "mousedown")
-      .pipe(untilDestroyed(this))
-      .subscribe(() =>
-        fromEvent<MouseEvent>(document, "mousemove")
-          .pipe(takeUntil(fromEvent(document, "mouseup")))
-          .subscribe(event => {
-            const paper = this.workflowActionService.getJointGraphWrapper().mainPaper;
-            paper.translate(
-              paper.translate().tx + -event.movementX / this.scale,
-              paper.translate().ty + -event.movementY / this.scale
-            );
-          })
-      );
+  }
+
+  onDrag(event: any) {
+    this.paper.translate(
+      this.paper.translate().tx + -event.event.movementX / this.scale,
+      this.paper.translate().ty + -event.event.movementY / this.scale
+    );
   }
 
   private updateNavigator(): void {
-    const mainPaper = this.workflowActionService.getJointGraphWrapper().mainPaper;
-    const mainPaperPoint = mainPaper.pageToLocalPoint({ x: 0, y: 0 });
-    const editor = document.getElementById("workflow-editor")!;
-    const navigator = document.getElementById("mini-map-navigator")!;
-    navigator.style.left = (mainPaperPoint.x - MAIN_CANVAS_LIMIT.xMin) * this.scale + "px";
-    navigator.style.top = (mainPaperPoint.y - MAIN_CANVAS_LIMIT.yMin) * this.scale + "px";
-    navigator.style.width = (editor.offsetWidth / mainPaper.scale().sx) * this.scale + "px";
-    navigator.style.height = (editor.offsetHeight / mainPaper.scale().sy) * this.scale + "px";
+    if (!this.dragging) {
+      const point = this.paper.pageToLocalPoint({ x: 0, y: 0 });
+      const editor = document.getElementById("workflow-editor")!;
+      const navigator = document.getElementById("mini-map-navigator")!;
+      navigator.style.left = (point.x - MAIN_CANVAS.xMin) * this.scale + "px";
+      navigator.style.top = (point.y - MAIN_CANVAS.yMin) * this.scale + "px";
+      navigator.style.width = (editor.offsetWidth / this.paper.scale().sx) * this.scale + "px";
+      navigator.style.height = (editor.offsetHeight / this.paper.scale().sy) * this.scale + "px";
+    }
   }
 }
