@@ -56,7 +56,7 @@ class LoggingSpec
 
   "determinant logger" should "log processing steps in local storage" in {
     val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
-      Some(new URI("file:///recovery-logs/tmp"))
+      Some(new URI("ram:///recovery-logs/tmp"))
     )
     logStorage.deleteStorage()
     val logManager = ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
