@@ -663,7 +663,7 @@ class WorkflowResource extends LazyLogging {
           matchQuery = matchQuery.and(getSearchQuery(true), key)
         } else {
           // When the search query contains multiple words, sub-string search is not supported by MySQL.
-          matchQuery = matchQuery.and(getSearchQuery(false), s"\" $ { key } \ "")
+          matchQuery = matchQuery.and(getSearchQuery(false), "\"" + key + "\"")
         }
       }
     }

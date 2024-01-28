@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 
 import scala.language.implicitConversions
+import scala.reflect.ClassTag
 
 /** class for developers to write control command handlers
   * usage:
@@ -70,7 +71,7 @@ class AsyncRPCHandlerInitializer(
     * @tparam R the expected return type of the control command.
     * @tparam C the type of the control command that the handler will process.
     */
-  def registerHandler[C <: ControlCommand[_], R](
+  def registerHandler[C <: ControlCommand[_]: ClassTag, R](
       handler: (C, ActorVirtualIdentity) => Future[R]
   )(implicit ev: C <:< ControlCommand[R]): Unit = {
     registerImpl({
