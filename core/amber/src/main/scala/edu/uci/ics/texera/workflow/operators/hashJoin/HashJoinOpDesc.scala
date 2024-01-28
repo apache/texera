@@ -67,8 +67,14 @@ class HashJoinOpDesc[K] extends LogicalOp {
       val buildAttrIndex: Int = buildSchema.getIndex(buildAttributeName)
       val probAttrIndex: Int = probeSchema.getIndex(probeAttributeName)
 
-      val buildPartition = inputPartitions.map(_.asInstanceOf[HashPartition]).find(_.hashColumnIndices.contains(buildAttrIndex)).get
-      val probePartition = inputPartitions.map(_.asInstanceOf[HashPartition]).find(_.hashColumnIndices.contains(probAttrIndex)).get
+      val buildPartition = inputPartitions
+        .map(_.asInstanceOf[HashPartition])
+        .find(_.hashColumnIndices.contains(buildAttrIndex))
+        .get
+      val probePartition = inputPartitions
+        .map(_.asInstanceOf[HashPartition])
+        .find(_.hashColumnIndices.contains(probAttrIndex))
+        .get
 
       // mapping from build/probe schema index to the final output schema index
       val schemaMappings = getOutputSchemaInternal(buildSchema, probeSchema)
