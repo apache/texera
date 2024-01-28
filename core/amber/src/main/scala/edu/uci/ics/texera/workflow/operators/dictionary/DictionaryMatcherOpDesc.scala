@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 /**
   * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
@@ -31,18 +31,17 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new DictionaryMatcherOpExec(this, operatorSchemaInfo))
+        OpExecInitInfo((_, _, _) => new DictionaryMatcherOpExec(this))
       )
-      .withInputPorts(operatorInfo.inputPorts)
-      .withOutputPorts(operatorInfo.outputPorts)
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

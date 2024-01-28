@@ -134,6 +134,7 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Unit = {
     val builtOpsInRegion = new mutable.HashSet[PhysicalOpIdentity]()
+    val resourceConfig = region.resourceConfig.get
     var frontier = region.sourcePhysicalOpIds
     while (frontier.nonEmpty) {
       frontier.foreach { (physicalOpId: PhysicalOpIdentity) =>
@@ -141,7 +142,7 @@ class WorkflowScheduler(
           buildOperator(
             workflow,
             physicalOpId,
-            region.config.get.operatorConfigs(physicalOpId),
+            resourceConfig.operatorConfigs(physicalOpId),
             akkaActorService
           )
           builtPhysicalOpIds.add(physicalOpId)
@@ -189,10 +190,12 @@ class WorkflowScheduler(
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
               val inputMappingList = pythonUDFPhysicalOp.inputPorts.values.flatMap {
-                case (inputPort, links) => links.map(link => LinkOrdinal(link, inputPort.id.id))
+                case (inputPort, links, schema) =>
+                  links.map(link => LinkOrdinal(link, inputPort.id.id))
               }.toList
               val outputMappingList = pythonUDFPhysicalOp.outputPorts.values.flatMap {
-                case (outputPort, links) => links.map(link => LinkOrdinal(link, outputPort.id.id))
+                case (outputPort, links, schema) =>
+                  links.map(link => LinkOrdinal(link, outputPort.id.id))
               }.toList
               asyncRPCClient
                 .send(
@@ -201,7 +204,7 @@ class WorkflowScheduler(
                     pythonUDFPhysicalOp.isSourceOperator,
                     inputMappingList,
                     outputMappingList,
-                    pythonUDFPhysicalOp.getOutputSchema
+                    pythonUDFPhysicalOp.outputPorts.values.head._3
                   ),
                   workerId
                 )

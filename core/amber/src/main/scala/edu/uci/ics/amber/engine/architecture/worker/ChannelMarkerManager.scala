@@ -1,20 +1,25 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
+import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ChannelMarkerPayload,
   NoAlignment,
   RequireAlignment
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelMarkerIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 
 import scala.collection.mutable
 
-class ChannelMarkerManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
+class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
+    extends AmberLogging {
 
   private val markerReceived =
-    new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelID]]().withDefaultValue(Set())
+    new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelIdentity]]().withDefaultValue(Set())
 
   /**
     * Checks if a channel marker is aligned, indicating if an epoch marker has been completely received
@@ -36,16 +41,19 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
     */
   def isMarkerAligned(
       upstreamLinkStatus: UpstreamLinkStatus,
-      from: ChannelID,
+      from: ChannelIdentity,
       marker: ChannelMarkerPayload
   ): Boolean = {
     val markerId = marker.id
     markerReceived.update(markerId, markerReceived(markerId) + from)
     // check if the epoch marker is completed
-    // TODO: rework the following logic to support control channels between workers
-    val sendersWithinScope = upstreamLinkStatus.allUncompletedSenders
-      .filter(sender => marker.scope.links.contains(upstreamLinkStatus.getInputLink(sender)))
-      .map(senderId => ChannelID(senderId, actorId, isControl = false))
+    val upstreams = marker.scope.filter(_.toWorkerId == actorId)
+    val sendersWithinScope = inputGateway.getAllChannels
+      .map(_.channelId)
+      .filter { id =>
+        upstreams.contains(id)
+      }
+      .toSet
     val markerReceivedFromAllChannels = sendersWithinScope.subsetOf(markerReceived(markerId))
     val markerCompleted = marker.markerType match {
       case RequireAlignment => markerReceivedFromAllChannels

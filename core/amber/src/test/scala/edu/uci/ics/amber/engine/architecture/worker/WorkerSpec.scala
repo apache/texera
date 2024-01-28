@@ -12,13 +12,14 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOn
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkerReplayInitialization
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, DataFrame, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   OperatorIdentity,
   PhysicalOpIdentity
 }
@@ -91,8 +92,8 @@ class WorkerSpec
       OpExecInitInfo((_, _, _) => mockOpExecutor)
     )
     .copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink))),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink)))
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
+      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
 
   private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
@@ -108,7 +109,7 @@ class WorkerSpec
     controls.foreach { ctrl =>
       worker ! NetworkMessage(
         seq,
-        WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, isControl = true), seq, ctrl)
+        WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, isControl = true), seq, ctrl)
       )
       seq += 1
     }
@@ -166,7 +167,7 @@ class WorkerSpec
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
-        ChannelID(identifier2, identifier1, isControl = false),
+        ChannelIdentity(identifier2, identifier1, isControl = false),
         0,
         DataFrame(Array(ITuple(1)))
       )
@@ -198,7 +199,7 @@ class WorkerSpec
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
-        ChannelID(identifier2, identifier1, isControl = false),
+        ChannelIdentity(identifier2, identifier1, isControl = false),
         0,
         DataFrame(batch1)
       )
@@ -206,7 +207,7 @@ class WorkerSpec
     worker ! NetworkMessage(
       2,
       WorkflowFIFOMessage(
-        ChannelID(identifier2, identifier1, isControl = false),
+        ChannelIdentity(identifier2, identifier1, isControl = false),
         1,
         DataFrame(batch2)
       )
@@ -215,7 +216,7 @@ class WorkerSpec
     worker ! NetworkMessage(
       4,
       WorkflowFIFOMessage(
-        ChannelID(identifier2, identifier1, isControl = false),
+        ChannelIdentity(identifier2, identifier1, isControl = false),
         2,
         DataFrame(batch3)
       )
@@ -237,14 +238,14 @@ class WorkerSpec
     worker ! NetworkMessage(
       1,
       WorkflowFIFOMessage(
-        ChannelID(CONTROLLER, identifier1, isControl = true),
+        ChannelIdentity(CONTROLLER, identifier1, isControl = true),
         1,
         updateInputLinking
       )
     )
     worker ! NetworkMessage(
       0,
-      WorkflowFIFOMessage(ChannelID(CONTROLLER, identifier1, isControl = true), 0, invocation)
+      WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, isControl = true), 0, invocation)
     )
     Random
       .shuffle((0 until 50).map { i =>
@@ -252,7 +253,7 @@ class WorkerSpec
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
-            ChannelID(identifier2, identifier1, isControl = false),
+            ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
             DataFrame(Array(ITuple(i)))
           )
@@ -268,7 +269,7 @@ class WorkerSpec
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
-            ChannelID(identifier2, identifier1, isControl = false),
+            ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
             DataFrame(Array(ITuple(i)))
           )

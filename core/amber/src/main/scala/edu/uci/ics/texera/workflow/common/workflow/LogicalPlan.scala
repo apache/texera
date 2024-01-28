@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import com.google.common.base.Verify
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
@@ -8,14 +7,14 @@ import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import java.util
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ArrayBuffer
 import scala.collection.{JavaConverters, mutable}
+import scala.util.{Failure, Success, Try}
 
 case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
 
@@ -49,8 +48,7 @@ object LogicalPlan {
 case class LogicalPlan(
     operators: List[LogicalOp],
     links: List[LogicalLink],
-    breakpoints: List[BreakpointInfo],
-    inputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = Map.empty
+    breakpoints: List[BreakpointInfo]
 ) extends LazyLogging {
 
   private lazy val operatorMap: Map[OperatorIdentity, LogicalOp] =
@@ -59,17 +57,6 @@ case class LogicalPlan(
   private lazy val jgraphtDag: DirectedAcyclicGraph[OperatorIdentity, LogicalLink] =
     LogicalPlan.toJgraphtDAG(operators, links)
 
-  private lazy val outputSchemaMap: Map[OperatorIdentity, List[Schema]] =
-    operatorMap.values
-      .map(op => {
-        val inputSchemas: Array[Schema] =
-          if (!op.isInstanceOf[SourceOperatorDescriptor])
-            inputSchemaMap(op.operatorIdentifier).map(s => s.get).toArray
-          else Array()
-        val outputSchemas = op.getOutputSchemas(inputSchemas).toList
-        (op.operatorIdentifier, outputSchemas)
-      })
-      .toMap
   def getTopologicalOpIds: util.Iterator[OperatorIdentity] = jgraphtDag.iterator()
 
   def getOperator(opId: String): LogicalOp = operatorMap(OperatorIdentity(opId))
@@ -104,10 +91,7 @@ case class LogicalPlan(
     this.copy(
       operators.filter(o => o.operatorIdentifier != opId),
       links.filter(l => l.fromOpId != opId && l.toOpId != opId),
-      breakpoints.filter(b => OperatorIdentity(b.operatorID) != opId),
-      inputSchemaMap.filter({
-        case (operatorId, _) => operatorId != opId
-      })
+      breakpoints.filter(b => OperatorIdentity(b.operatorID) != opId)
     )
   }
 
@@ -143,27 +127,20 @@ case class LogicalPlan(
     links.filter(l => l.fromOpId == opId)
   }
 
-  def getOpInputSchemas(opId: OperatorIdentity): List[Option[Schema]] = {
-    inputSchemaMap(opId)
-  }
-  def getOpOutputSchemas(opId: OperatorIdentity): List[Schema] = {
-    outputSchemaMap(opId)
-  }
-
-  def getOpSchemaInfo(opId: OperatorIdentity): OperatorSchemaInfo = {
-    val op = getOperator(opId)
-    val inputSchemas: Array[Schema] =
-      if (op.isInstanceOf[SourceOperatorDescriptor]) {
-        Array() // source ops have no input schema
-      } else { getOpInputSchemas(op.operatorIdentifier).map(s => s.get).toArray }
-    val outputSchemas = getOpOutputSchemas(opId).toArray
-    OperatorSchemaInfo(inputSchemas, outputSchemas)
+  def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
+    operators
+      .map(operator => {
+        operator.operatorIdentifier -> operator.operatorInfo.inputPorts.map(inputPort =>
+          operator.inputPortToSchemaMapping.get(inputPort.id)
+        )
+      })
+      .toMap
   }
 
   def propagateWorkflowSchema(
       context: WorkflowContext,
       errorList: Option[ArrayBuffer[(OperatorIdentity, Throwable)]]
-  ): LogicalPlan = {
+  ): Unit = {
 
     operators.foreach(operator => {
       if (operator.getContext == null) {
@@ -171,91 +148,45 @@ case class LogicalPlan(
       }
     })
 
-    // a map from an operator to the list of its input schema
-    val inputSchemaMap =
-      new mutable.HashMap[OperatorIdentity, mutable.MutableList[Option[Schema]]]()
-        .withDefault(opId =>
-          mutable.MutableList
-            .fill(getOperator(opId).operatorInfo.inputPorts.size)(Option.empty)
-        )
     // propagate output schema following topological order
     val topologicalOrderIterator = jgraphtDag.iterator()
     topologicalOrderIterator.forEachRemaining(opId => {
       val op = getOperator(opId)
-      // infer output schema of this operator based on its input schema
-      val outputSchemas: Option[Array[Schema]] = {
-        // call to "getOutputSchema" might cause exceptions, wrap in try/catch and return empty schema
-        try {
-          if (op.isInstanceOf[SourceOperatorDescriptor]) {
-            // op is a source operator, ask for it output schema
-            Option.apply(op.getOutputSchemas(Array()))
-          } else if (
-            !inputSchemaMap.contains(op.operatorIdentifier) || inputSchemaMap(op.operatorIdentifier)
-              .exists(s => s.isEmpty)
-          ) {
-            // op does not have input, or any of the op's input's output schema is null
-            // then this op's output schema cannot be inferred as well
-            Option.empty
-          } else {
-            // op's input schema is complete, try to infer its output schema
-            // if inference failed, print an exception message, but still continue the process
-            Option.apply(
-              op.getOutputSchemas(inputSchemaMap(op.operatorIdentifier).map(s => s.get).toArray)
+      val inputSchemas: Array[Option[Schema]] = if (op.isInstanceOf[SourceOperatorDescriptor]) {
+        Array()
+      } else {
+        op.operatorInfo.inputPorts
+          .flatMap(inputPort => {
+            links
+              .filter(link => link.toOpId == op.operatorIdentifier && link.toPortId == inputPort.id)
+              .map(link => {
+                val outputSchemaOpt =
+                  getOperator(link.fromOpId).outputPortToSchemaMapping.get(link.fromPortId)
+                if (outputSchemaOpt.isDefined) {
+                  op.inputPortToSchemaMapping(inputPort.id) = outputSchemaOpt.get
+                }
+                outputSchemaOpt
+              })
+          })
+          .toArray
+      }
+
+      if (!inputSchemas.contains(None)) {
+        Try(op.getOutputSchemas(inputSchemas.map(_.get))) match {
+          case Success(outputSchemas) =>
+            op.operatorInfo.outputPorts.foreach(outputPort =>
+              op.outputPortToSchemaMapping(outputPort.id) = outputSchemas(outputPort.id.id)
             )
-          }
-        } catch {
-          case e: Throwable =>
-            logger.error("got error", e)
+            assert(outputSchemas.length == op.operatorInfo.outputPorts.length)
+          case Failure(err) =>
+            logger.error("got error", err)
             errorList match {
-              case Some(list) => list.append((opId, e))
+              case Some(list) => list.append((opId, err))
               case None       =>
             }
-
-            Option.empty
         }
-      }
 
-      // exception: if op is a source operator, use its output schema as input schema for autocomplete
-      if (op.isInstanceOf[SourceOperatorDescriptor]) {
-        inputSchemaMap.update(
-          op.operatorIdentifier,
-          mutable.MutableList(outputSchemas.map(s => s(0)))
-        )
       }
-
-      if (!op.isInstanceOf[SinkOpDesc] && outputSchemas.nonEmpty) {
-        Verify.verify(outputSchemas.get.length == op.operatorInfo.outputPorts.length)
-      }
-
-      // update input schema of all outgoing links
-      val outLinks = links.filter(link => link.fromOpId == op.operatorIdentifier)
-      outLinks.foreach(link => {
-        val dest = getOperator(link.toOpId)
-        // get the input schema list, should be pre-populated with size equals to num of ports
-        val destInputSchemas = inputSchemaMap(dest.operatorIdentifier)
-        // put the schema into the ordinal corresponding to the port
-        val schemaOnPort =
-          outputSchemas.flatMap(schemas => schemas.toList.lift(link.fromPortId.id))
-        destInputSchemas(link.toPortId.id) = schemaOnPort
-        inputSchemaMap.update(dest.operatorIdentifier, destInputSchemas)
-      })
     })
-
-    this.copy(
-      operators,
-      links,
-      breakpoints,
-      inputSchemaMap
-        .filter({
-          case (_: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
-            !(schemas.exists(s => s.isEmpty) || schemas.isEmpty)
-        })
-        .map({ // we need to convert to immutable data structures
-          case (opId: OperatorIdentity, schemas: mutable.MutableList[Option[Schema]]) =>
-            (opId, schemas.toList)
-        })
-        .toMap
-    )
   }
-
 }
