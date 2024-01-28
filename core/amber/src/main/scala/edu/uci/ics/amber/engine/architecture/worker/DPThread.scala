@@ -59,7 +59,6 @@ class DPThread(
   @volatile
   private var stopped = false
 
-  // TODO: READY - COMPLETE (ABORT)
   def start(): Unit = {
     if (dpThreadExecutor != null) {
       logger.info("DP Thread is already running")
