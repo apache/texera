@@ -41,12 +41,11 @@ export class MiniMapComponent implements AfterViewInit {
       .subscribe(() =>
         fromEvent<MouseEvent>(document, "mousemove")
           .pipe(takeUntil(fromEvent(document, "mouseup")))
-          .subscribe(event => {
-            this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.next({
-              deltaX: -event.movementX / this.scale,
-              deltaY: -event.movementY / this.scale,
-            });
-          })
+          .subscribe(event =>
+            this.workflowActionService
+              .getJointGraphWrapper()
+              .navigatorMoveDelta.next({ deltaX: -event.movementX / this.scale, deltaY: -event.movementY / this.scale })
+          )
       );
     fromEvent(window, "resize")
       .pipe(auditTime(30))
