@@ -21,8 +21,10 @@ import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -33,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class FileOfProject extends TableImpl<FileOfProjectRecord> {
 
-    private static final long serialVersionUID = 1715925782;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.file_of_project</code>
@@ -51,18 +53,19 @@ public class FileOfProject extends TableImpl<FileOfProjectRecord> {
     /**
      * The column <code>texera_db.file_of_project.fid</code>.
      */
-    public final TableField<FileOfProjectRecord, UInteger> FID = createField(DSL.name("fid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<FileOfProjectRecord, UInteger> FID = createField(DSL.name("fid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file_of_project.pid</code>.
      */
-    public final TableField<FileOfProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<FileOfProjectRecord, UInteger> PID = createField(DSL.name("pid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
-    /**
-     * Create a <code>texera_db.file_of_project</code> table reference
-     */
-    public FileOfProject() {
-        this(DSL.name("file_of_project"), null);
+    private FileOfProject(Name alias, Table<FileOfProjectRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private FileOfProject(Name alias, Table<FileOfProjectRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -79,12 +82,11 @@ public class FileOfProject extends TableImpl<FileOfProjectRecord> {
         this(alias, FILE_OF_PROJECT);
     }
 
-    private FileOfProject(Name alias, Table<FileOfProjectRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private FileOfProject(Name alias, Table<FileOfProjectRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.file_of_project</code> table reference
+     */
+    public FileOfProject() {
+        this(DSL.name("file_of_project"), null);
     }
 
     public <O extends Record> FileOfProject(Table<O> child, ForeignKey<O, FileOfProjectRecord> key) {
@@ -98,7 +100,7 @@ public class FileOfProject extends TableImpl<FileOfProjectRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.FILE_OF_PROJECT_PID, Indexes.FILE_OF_PROJECT_PRIMARY);
+        return Arrays.<Index>asList(Indexes.FILE_OF_PROJECT_PID);
     }
 
     @Override

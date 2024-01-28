@@ -5,7 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 import org.jooq.types.UInteger;
 
@@ -59,12 +59,12 @@ public interface IProject extends Serializable {
     /**
      * Setter for <code>texera_db.project.creation_time</code>.
      */
-    public void setCreationTime(Timestamp value);
+    public void setCreationTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.project.creation_time</code>.
      */
-    public Timestamp getCreationTime();
+    public LocalDateTime getCreationTime();
 
     /**
      * Setter for <code>texera_db.project.color</code>.
@@ -83,10 +83,10 @@ public interface IProject extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IProject
      */
-    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IProject from);
+    public void from(IProject from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IProject
      */
-    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IProject> E into(E into);
+    public <E extends IProject> E into(E into);
 }

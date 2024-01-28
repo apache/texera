@@ -16,7 +16,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccess implements IProjectUserAccess {
 
-    private static final long serialVersionUID = -27326996;
+    private static final long serialVersionUID = 1L;
 
     private UInteger                   uid;
     private UInteger                   pid;
@@ -40,31 +40,49 @@ public class ProjectUserAccess implements IProjectUserAccess {
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.uid</code>.
+     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.uid</code>.
+     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.pid</code>.
+     */
     @Override
     public UInteger getPid() {
         return this.pid;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.pid</code>.
+     */
     @Override
     public void setPid(UInteger pid) {
         this.pid = pid;
     }
 
+    /**
+     * Getter for <code>texera_db.project_user_access.privilege</code>.
+     */
     @Override
     public ProjectUserAccessPrivilege getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.project_user_access.privilege</code>.
+     */
     @Override
     public void setPrivilege(ProjectUserAccessPrivilege privilege) {
         this.privilege = privilege;

@@ -22,7 +22,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserRecord extends UpdatableRecordImpl<UserRecord> implements Record6<UInteger, String, String, String, String, UserRole>, IUser {
 
-    private static final long serialVersionUID = -1818869465;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.user.uid</code>.
@@ -317,11 +317,11 @@ public class UserRecord extends UpdatableRecordImpl<UserRecord> implements Recor
     public UserRecord(UInteger uid, String name, String email, String password, String googleId, UserRole role) {
         super(User.USER);
 
-        set(0, uid);
-        set(1, name);
-        set(2, email);
-        set(3, password);
-        set(4, googleId);
-        set(5, role);
+        setUid(uid);
+        setName(name);
+        setEmail(email);
+        setPassword(password);
+        setGoogleId(googleId);
+        setRole(role);
     }
 }

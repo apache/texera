@@ -33,8 +33,6 @@ import java.util.HashMap;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
-import static scala.collection.JavaConverters.mapAsScalaMap;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 /**
@@ -95,7 +93,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withParallelizable(false)
                 .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
                 // assume partial op's output is the same as global op's
-                .withOutputPorts(asScalaBuffer(singletonList(partialOpOutputPort)).toList(), mapAsScalaMap(outputPortToSchemaMapping));
+                .withOutputPorts(asScala(singletonList(partialOpOutputPort)).toList(), asScala(outputPortToSchemaMapping));
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
@@ -113,7 +111,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         )
             .withId(globalOpId).withIsOneToManyOp(true)
             // assume partial op's output is the same as global op's
-            .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList(), mapAsScalaMap(inputPortToSchemaMapping))
+            .withInputPorts(asScala(singletonList(globalOpInputPort)).toList(), asScala(inputPortToSchemaMapping))
             .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
@@ -127,8 +125,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,

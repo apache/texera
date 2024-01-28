@@ -36,9 +36,7 @@ abstract class SchedulingPolicy(
   protected val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
   protected val runningRegions = new mutable.HashSet[Region]()
-  protected val completedLinksOfRegion =
-    new mutable.HashMap[Region, mutable.Set[PhysicalLink]]
-      with mutable.MultiMap[Region, PhysicalLink]
+  protected val completedLinksOfRegion: mutable.MultiDict[Region, PhysicalLink] = mutable.MultiDict[Region, PhysicalLink]()
 
   protected def isRegionCompleted(
       executionState: ExecutionState,
@@ -47,7 +45,7 @@ abstract class SchedulingPolicy(
 
     region.downstreamLinks
       .subsetOf(
-        completedLinksOfRegion.getOrElse(region, new mutable.HashSet[PhysicalLink]())
+        completedLinksOfRegion.get(region)
       ) &&
     region.physicalOpIds
       .forall(opId =>
@@ -109,7 +107,7 @@ abstract class SchedulingPolicy(
       link: PhysicalLink
   ): Set[Region] = {
     val regions = getRegions(link)
-    regions.foreach(region => completedLinksOfRegion.addBinding(region, link))
+    regions.foreach(region => completedLinksOfRegion.addOne((region, link)))
     regions.foreach(region => checkRegionCompleted(executionState, region))
     getNextSchedulingWork(workflow)
   }

@@ -4,7 +4,6 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -18,17 +17,17 @@ import org.jooq.impl.CatalogImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DefaultCatalog extends CatalogImpl {
 
-    private static final long serialVersionUID = -625238328;
+    private static final long serialVersionUID = 1L;
 
     /**
-     * The reference instance of <code></code>
+     * The reference instance of <code>DEFAULT_CATALOG</code>
      */
     public static final DefaultCatalog DEFAULT_CATALOG = new DefaultCatalog();
 
     /**
      * The schema <code>texera_db</code>.
      */
-    public final TexeraDb TEXERA_DB = edu.uci.ics.texera.web.model.jooq.generated.TexeraDb.TEXERA_DB;
+    public final TexeraDb TEXERA_DB = TexeraDb.TEXERA_DB;
 
     /**
      * No further instances allowed
@@ -39,12 +38,6 @@ public class DefaultCatalog extends CatalogImpl {
 
     @Override
     public final List<Schema> getSchemas() {
-        List result = new ArrayList();
-        result.addAll(getSchemas0());
-        return result;
-    }
-
-    private final List<Schema> getSchemas0() {
         return Arrays.<Schema>asList(
             TexeraDb.TEXERA_DB);
     }

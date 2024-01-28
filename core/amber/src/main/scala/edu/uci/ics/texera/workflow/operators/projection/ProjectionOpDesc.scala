@@ -9,16 +9,9 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class ProjectionOpDesc extends MapOpDesc {
 

@@ -6,7 +6,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IProject;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 import org.jooq.types.UInteger;
 
@@ -17,14 +17,14 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Project implements IProject {
 
-    private static final long serialVersionUID = 1494540996;
+    private static final long serialVersionUID = 1L;
 
-    private UInteger  pid;
-    private String    name;
-    private String    description;
-    private UInteger  ownerId;
-    private Timestamp creationTime;
-    private String    color;
+    private UInteger      pid;
+    private String        name;
+    private String        description;
+    private UInteger      ownerId;
+    private LocalDateTime creationTime;
+    private String        color;
 
     public Project() {}
 
@@ -38,12 +38,12 @@ public class Project implements IProject {
     }
 
     public Project(
-        UInteger  pid,
-        String    name,
-        String    description,
-        UInteger  ownerId,
-        Timestamp creationTime,
-        String    color
+        UInteger      pid,
+        String        name,
+        String        description,
+        UInteger      ownerId,
+        LocalDateTime creationTime,
+        String        color
     ) {
         this.pid = pid;
         this.name = name;
@@ -53,61 +53,97 @@ public class Project implements IProject {
         this.color = color;
     }
 
+    /**
+     * Getter for <code>texera_db.project.pid</code>.
+     */
     @Override
     public UInteger getPid() {
         return this.pid;
     }
 
+    /**
+     * Setter for <code>texera_db.project.pid</code>.
+     */
     @Override
     public void setPid(UInteger pid) {
         this.pid = pid;
     }
 
+    /**
+     * Getter for <code>texera_db.project.name</code>.
+     */
     @Override
     public String getName() {
         return this.name;
     }
 
+    /**
+     * Setter for <code>texera_db.project.name</code>.
+     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
+    /**
+     * Getter for <code>texera_db.project.description</code>.
+     */
     @Override
     public String getDescription() {
         return this.description;
     }
 
+    /**
+     * Setter for <code>texera_db.project.description</code>.
+     */
     @Override
     public void setDescription(String description) {
         this.description = description;
     }
 
+    /**
+     * Getter for <code>texera_db.project.owner_id</code>.
+     */
     @Override
     public UInteger getOwnerId() {
         return this.ownerId;
     }
 
+    /**
+     * Setter for <code>texera_db.project.owner_id</code>.
+     */
     @Override
     public void setOwnerId(UInteger ownerId) {
         this.ownerId = ownerId;
     }
 
+    /**
+     * Getter for <code>texera_db.project.creation_time</code>.
+     */
     @Override
-    public Timestamp getCreationTime() {
+    public LocalDateTime getCreationTime() {
         return this.creationTime;
     }
 
+    /**
+     * Setter for <code>texera_db.project.creation_time</code>.
+     */
     @Override
-    public void setCreationTime(Timestamp creationTime) {
+    public void setCreationTime(LocalDateTime creationTime) {
         this.creationTime = creationTime;
     }
 
+    /**
+     * Getter for <code>texera_db.project.color</code>.
+     */
     @Override
     public String getColor() {
         return this.color;
     }
 
+    /**
+     * Setter for <code>texera_db.project.color</code>.
+     */
     @Override
     public void setColor(String color) {
         this.color = color;

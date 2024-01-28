@@ -2,27 +2,18 @@ package edu.uci.ics.texera.web.resource.dashboard.user.quota
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{
-  File,
-  Workflow,
-  getUserCreatedFile,
-  getUserCreatedWorkflow,
-  getUserAccessedWorkflow,
-  getUserAccessedFiles,
-  getUserMongoDBSize,
-  deleteMongoCollection,
-  MongoStorage
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource.{File, MongoStorage, Workflow, deleteMongoCollection, getUserAccessedFiles, getUserAccessedWorkflow, getUserCreatedFile, getUserCreatedWorkflow, getUserMongoDBSize}
 import org.jooq.types.UInteger
 
 import java.util
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import io.dropwizard.auth.Auth
+
+import java.sql.Timestamp
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -92,10 +83,10 @@ object UserQuotaResource {
           fileRecord.get(FILE.FID),
           fileRecord.get(FILE.NAME),
           fileRecord.get(FILE.SIZE),
-          fileRecord.get(FILE.UPLOAD_TIME).getTime,
+          Timestamp.valueOf(fileRecord.get(FILE.UPLOAD_TIME)).getTime,
           fileRecord.get(FILE.DESCRIPTION)
         )
-      })
+      }).asScala
       .toList
   }
 
@@ -127,7 +118,7 @@ object UserQuotaResource {
           workflowRecord.get(WORKFLOW_OF_USER.WID),
           workflowRecord.get(WORKFLOW.NAME)
         )
-      })
+      }).asScala
       .toList
   }
 
@@ -195,8 +186,7 @@ object UserQuotaResource {
           getCollectionName(result.get(WORKFLOW_EXECUTIONS.RESULT)),
           result.get(WORKFLOW_EXECUTIONS.EID)
         )
-      })
-      .toList
+      }).asScala
       .toArray
 
     val collectionSizes = MongoDatabaseManager.getDatabaseSize(collections)

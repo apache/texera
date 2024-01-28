@@ -37,7 +37,6 @@ import java.util.function.Function;
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.DOUBLE;
 import static edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType.INTEGER;
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
 
 /**
  * Scatterplot operator to visualize the result as a scatterplot
@@ -113,8 +112,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                 "Scatterplot",
                 "View the result in a scatterplot",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,
                 false,

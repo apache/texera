@@ -14,7 +14,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
-import org.jgrapht.Graph
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
@@ -307,6 +306,7 @@ class ExpansionGreedyRegionPlanGenerator(
     blockingLinks
       .flatMap { link => getRegions(link.fromOpId, regionDAG).map(region => region -> link) }
       .groupBy(_._1)
+      .view
       .mapValues(_.map(_._2))
       .foreach {
         case (region, links) =>

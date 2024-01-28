@@ -2,18 +2,15 @@ package edu.uci.ics.texera.workflow.common.tuple
 
 import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
-  inferSchemaFromRows,
-  parseField
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{inferSchemaFromRows, parseField}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 import org.bson.Document
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import org.bson.types.Binary
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.{ListHasAsScala, SeqHasAsJava}
 
 object TupleUtils {
 

@@ -45,7 +45,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     }
     newExecution.setVid(vid)
     newExecution.setUid(uid.orNull)
-    newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()).toLocalDateTime)
     newExecution.setEnvironmentVersion(environmentVersion)
     workflowExecutionsDao.insert(newExecution)
     ExecutionIdentity(newExecution.getEid.longValue())

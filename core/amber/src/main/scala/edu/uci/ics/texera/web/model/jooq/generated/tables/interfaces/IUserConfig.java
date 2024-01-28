@@ -52,10 +52,10 @@ public interface IUserConfig extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IUserConfig
      */
-    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IUserConfig from);
+    public void from(IUserConfig from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IUserConfig
      */
-    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IUserConfig> E into(E into);
+    public <E extends IUserConfig> E into(E into);
 }

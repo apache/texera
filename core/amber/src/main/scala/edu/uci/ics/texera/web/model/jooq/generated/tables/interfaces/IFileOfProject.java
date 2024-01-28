@@ -42,10 +42,10 @@ public interface IFileOfProject extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IFileOfProject
      */
-    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFileOfProject from);
+    public void from(IFileOfProject from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IFileOfProject
      */
-    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFileOfProject> E into(E into);
+    public <E extends IFileOfProject> E into(E into);
 }

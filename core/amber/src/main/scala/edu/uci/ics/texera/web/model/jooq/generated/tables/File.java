@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.FileRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,8 +23,10 @@ import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -35,7 +37,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File extends TableImpl<FileRecord> {
 
-    private static final long serialVersionUID = -355080954;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.file</code>
@@ -53,43 +55,44 @@ public class File extends TableImpl<FileRecord> {
     /**
      * The column <code>texera_db.file.owner_uid</code>.
      */
-    public final TableField<FileRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<FileRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.fid</code>.
      */
-    public final TableField<FileRecord, UInteger> FID = createField(DSL.name("fid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<FileRecord, UInteger> FID = createField(DSL.name("fid"), SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.file.size</code>.
      */
-    public final TableField<FileRecord, UInteger> SIZE = createField(DSL.name("size"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<FileRecord, UInteger> SIZE = createField(DSL.name("size"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.name</code>.
      */
-    public final TableField<FileRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<FileRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.path</code>.
      */
-    public final TableField<FileRecord, String> PATH = createField(DSL.name("path"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
+    public final TableField<FileRecord, String> PATH = createField(DSL.name("path"), SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.description</code>.
      */
-    public final TableField<FileRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
+    public final TableField<FileRecord, String> DESCRIPTION = createField(DSL.name("description"), SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.file.upload_time</code>.
      */
-    public final TableField<FileRecord, Timestamp> UPLOAD_TIME = createField(DSL.name("upload_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
+    public final TableField<FileRecord, LocalDateTime> UPLOAD_TIME = createField(DSL.name("upload_time"), SQLDataType.LOCALDATETIME(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
 
-    /**
-     * Create a <code>texera_db.file</code> table reference
-     */
-    public File() {
-        this(DSL.name("file"), null);
+    private File(Name alias, Table<FileRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private File(Name alias, Table<FileRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -106,12 +109,11 @@ public class File extends TableImpl<FileRecord> {
         this(alias, FILE);
     }
 
-    private File(Name alias, Table<FileRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private File(Name alias, Table<FileRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.file</code> table reference
+     */
+    public File() {
+        this(DSL.name("file"), null);
     }
 
     public <O extends Record> File(Table<O> child, ForeignKey<O, FileRecord> key) {
@@ -125,12 +127,12 @@ public class File extends TableImpl<FileRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.FILE_IDX_FILE_NAME_DESCRIPTION, Indexes.FILE_OWNER_UID, Indexes.FILE_PRIMARY);
+        return Arrays.<Index>asList(Indexes.FILE_IDX_FILE_NAME_DESCRIPTION);
     }
 
     @Override
     public Identity<FileRecord, UInteger> getIdentity() {
-        return Keys.IDENTITY_FILE;
+        return (Identity<FileRecord, UInteger>) super.getIdentity();
     }
 
     @Override
@@ -183,7 +185,7 @@ public class File extends TableImpl<FileRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<UInteger, UInteger, UInteger, String, String, String, Timestamp> fieldsRow() {
+    public Row7<UInteger, UInteger, UInteger, String, String, String, LocalDateTime> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

@@ -11,9 +11,9 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jgrapht.graph.DirectedAcyclicGraph
 
 import java.util
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ArrayBuffer
-import scala.collection.{JavaConverters, mutable}
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.SetHasAsScala
 import scala.util.{Failure, Success, Try}
 
 case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
@@ -72,12 +72,12 @@ case class LogicalPlan(
       .toList
 
   def getAncestorOpIds(opId: OperatorIdentity): Set[OperatorIdentity] = {
-    JavaConverters.asScalaSet(jgraphtDag.getAncestors(opId)).toSet
+    jgraphtDag.getAncestors(opId).asScala.toSet
   }
 
   def getUpstreamOps(opId: OperatorIdentity): List[LogicalOp] = {
     jgraphtDag
-      .incomingEdgesOf(opId)
+      .incomingEdgesOf(opId).asScala
       .map(e => operatorMap(e.fromOpId))
       .toList
   }

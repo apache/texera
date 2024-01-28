@@ -21,7 +21,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class PublicProjectRecord extends UpdatableRecordImpl<PublicProjectRecord> implements Record2<UInteger, UInteger>, IPublicProject {
 
-    private static final long serialVersionUID = 89759719;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.public_project.pid</code>.
@@ -160,7 +160,7 @@ public class PublicProjectRecord extends UpdatableRecordImpl<PublicProjectRecord
     public PublicProjectRecord(UInteger pid, UInteger uid) {
         super(PublicProject.PUBLIC_PROJECT);
 
-        set(0, pid);
-        set(1, uid);
+        setPid(pid);
+        setUid(uid);
     }
 }

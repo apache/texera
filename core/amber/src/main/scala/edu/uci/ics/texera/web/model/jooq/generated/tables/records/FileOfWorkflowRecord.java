@@ -20,7 +20,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class FileOfWorkflowRecord extends UpdatableRecordImpl<FileOfWorkflowRecord> implements Record2<UInteger, UInteger>, IFileOfWorkflow {
 
-    private static final long serialVersionUID = -145862331;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.file_of_workflow.fid</code>.
@@ -159,7 +159,7 @@ public class FileOfWorkflowRecord extends UpdatableRecordImpl<FileOfWorkflowReco
     public FileOfWorkflowRecord(UInteger fid, UInteger wid) {
         super(FileOfWorkflow.FILE_OF_WORKFLOW);
 
-        set(0, fid);
-        set(1, wid);
+        setFid(fid);
+        setWid(wid);
     }
 }

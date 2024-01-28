@@ -5,7 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 
 import org.jooq.types.UInteger;
 
@@ -59,22 +59,22 @@ public interface IWorkflow extends Serializable {
     /**
      * Setter for <code>texera_db.workflow.creation_time</code>.
      */
-    public void setCreationTime(Timestamp value);
+    public void setCreationTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.workflow.creation_time</code>.
      */
-    public Timestamp getCreationTime();
+    public LocalDateTime getCreationTime();
 
     /**
      * Setter for <code>texera_db.workflow.last_modified_time</code>.
      */
-    public void setLastModifiedTime(Timestamp value);
+    public void setLastModifiedTime(LocalDateTime value);
 
     /**
      * Getter for <code>texera_db.workflow.last_modified_time</code>.
      */
-    public Timestamp getLastModifiedTime();
+    public LocalDateTime getLastModifiedTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
@@ -83,10 +83,10 @@ public interface IWorkflow extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IWorkflow
      */
-    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflow from);
+    public void from(IWorkflow from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IWorkflow
      */
-    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflow> E into(E into);
+    public <E extends IWorkflow> E into(E into);
 }

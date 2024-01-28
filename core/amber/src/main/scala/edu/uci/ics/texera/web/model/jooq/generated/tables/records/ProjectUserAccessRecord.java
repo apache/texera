@@ -22,7 +22,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccessRecord extends UpdatableRecordImpl<ProjectUserAccessRecord> implements Record3<UInteger, UInteger, ProjectUserAccessPrivilege>, IProjectUserAccess {
 
-    private static final long serialVersionUID = -1549467390;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.project_user_access.uid</code>.
@@ -200,8 +200,8 @@ public class ProjectUserAccessRecord extends UpdatableRecordImpl<ProjectUserAcce
     public ProjectUserAccessRecord(UInteger uid, UInteger pid, ProjectUserAccessPrivilege privilege) {
         super(ProjectUserAccess.PROJECT_USER_ACCESS);
 
-        set(0, uid);
-        set(1, pid);
-        set(2, privilege);
+        setUid(uid);
+        setPid(pid);
+        setPrivilege(privilege);
     }
 }

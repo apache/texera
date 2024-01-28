@@ -2,16 +2,9 @@ package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{WorkerReplayLoggingConfig, WorkerStateRestoreConfig}
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -27,8 +20,8 @@ import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
 import java.util.concurrent.ConcurrentHashMap
-import scala.collection.JavaConverters._
 import java.net.URI
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -158,7 +151,7 @@ class WorkflowService(
       // enable only if we have mysql
       if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
         val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-          workflowContext.workflowId + "/" + workflowContext.executionId
+          s"${workflowContext.workflowId}/${workflowContext.executionId}"
         )
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)

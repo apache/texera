@@ -20,7 +20,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProjectRecord extends UpdatableRecordImpl<WorkflowOfProjectRecord> implements Record2<UInteger, UInteger>, IWorkflowOfProject {
 
-    private static final long serialVersionUID = 919631497;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_of_project.wid</code>.
@@ -159,7 +159,7 @@ public class WorkflowOfProjectRecord extends UpdatableRecordImpl<WorkflowOfProje
     public WorkflowOfProjectRecord(UInteger wid, UInteger pid) {
         super(WorkflowOfProject.WORKFLOW_OF_PROJECT);
 
-        set(0, wid);
-        set(1, pid);
+        setWid(wid);
+        setPid(pid);
     }
 }

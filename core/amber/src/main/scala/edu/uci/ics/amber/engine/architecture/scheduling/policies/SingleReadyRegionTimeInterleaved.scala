@@ -49,7 +49,7 @@ class SingleReadyRegionTimeInterleaved(scheduleOrder: mutable.Buffer[Region])
       link: PhysicalLink
   ): Set[Region] = {
     val regions = getRegions(link)
-    regions.foreach(region => completedLinksOfRegion.addBinding(region, link))
+    regions.foreach(region => completedLinksOfRegion.addOne((region, link)))
     regions.foreach(region => checkRegionCompleted(executionState, region))
     if (regions.exists(region => isRegionCompleted(executionState, region))) {
       getNextSchedulingWork(workflow)

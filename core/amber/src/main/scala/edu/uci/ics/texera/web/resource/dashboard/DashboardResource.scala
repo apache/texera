@@ -17,7 +17,7 @@ import org.jooq.impl.DSL
 import org.jooq.impl.DSL.{falseCondition, groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
-import java.sql.Timestamp
+import java.time.LocalDateTime
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /**
@@ -216,7 +216,7 @@ class DashboardResource {
           // file attributes 7 columns
           DSL.inline(null, classOf[UInteger]).as("owner_uid"),
           DSL.inline(null, classOf[UInteger]).as("fid"),
-          DSL.inline(null, classOf[Timestamp]).as("upload_time"),
+          DSL.inline(null, classOf[LocalDateTime]).as("upload_time"),
           DSL.inline(null, classOf[String]).as("path"),
           DSL.inline(null, classOf[UInteger]).as("size"),
           DSL.inline(null, classOf[String]).as("email"),
@@ -250,7 +250,7 @@ class DashboardResource {
         PROJECT.CREATION_TIME.as("creation_time"),
         // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
-        DSL.inline(PROJECT.CREATION_TIME, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(PROJECT.CREATION_TIME, classOf[LocalDateTime]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
@@ -262,7 +262,7 @@ class DashboardResource {
         // file attributes 7 columns
         DSL.inline(null, classOf[UInteger]).as("owner_uid"),
         DSL.inline(null, classOf[UInteger]).as("fid"),
-        DSL.inline(null, classOf[Timestamp]).as("upload_time"),
+        DSL.inline(null, classOf[LocalDateTime]).as("upload_time"),
         DSL.inline(null, classOf[String]).as("path"),
         DSL.inline(null, classOf[UInteger]).as("size"),
         DSL.inline(null, classOf[String]).as("email"),
@@ -284,10 +284,10 @@ class DashboardResource {
         DSL.inline("file").as("resourceType"),
         FILE.NAME,
         FILE.DESCRIPTION,
-        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[LocalDateTime]).as("creation_time"),
         // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
-        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[LocalDateTime]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
@@ -323,10 +323,10 @@ class DashboardResource {
         DSL.inline("file").as("resourceType"),
         FILE.NAME,
         FILE.DESCRIPTION,
-        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[LocalDateTime]).as("creation_time"),
         // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
-        DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
+        DSL.inline(FILE.UPLOAD_TIME, classOf[LocalDateTime]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),

@@ -21,7 +21,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatist
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
@@ -36,7 +35,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = 304546079;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -46,82 +45,82 @@ public class TexeraDb extends SchemaImpl {
     /**
      * The table <code>texera_db.file</code>.
      */
-    public final File FILE = edu.uci.ics.texera.web.model.jooq.generated.tables.File.FILE;
+    public final File FILE = File.FILE;
 
     /**
      * The table <code>texera_db.file_of_project</code>.
      */
-    public final FileOfProject FILE_OF_PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject.FILE_OF_PROJECT;
+    public final FileOfProject FILE_OF_PROJECT = FileOfProject.FILE_OF_PROJECT;
 
     /**
      * The table <code>texera_db.file_of_workflow</code>.
      */
-    public final FileOfWorkflow FILE_OF_WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow.FILE_OF_WORKFLOW;
+    public final FileOfWorkflow FILE_OF_WORKFLOW = FileOfWorkflow.FILE_OF_WORKFLOW;
 
     /**
      * The table <code>texera_db.project</code>.
      */
-    public final Project PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.Project.PROJECT;
+    public final Project PROJECT = Project.PROJECT;
 
     /**
      * The table <code>texera_db.project_user_access</code>.
      */
-    public final ProjectUserAccess PROJECT_USER_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.ProjectUserAccess.PROJECT_USER_ACCESS;
+    public final ProjectUserAccess PROJECT_USER_ACCESS = ProjectUserAccess.PROJECT_USER_ACCESS;
 
     /**
      * The table <code>texera_db.public_project</code>.
      */
-    public final PublicProject PUBLIC_PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.PublicProject.PUBLIC_PROJECT;
+    public final PublicProject PUBLIC_PROJECT = PublicProject.PUBLIC_PROJECT;
 
     /**
      * The table <code>texera_db.user</code>.
      */
-    public final User USER = edu.uci.ics.texera.web.model.jooq.generated.tables.User.USER;
+    public final User USER = User.USER;
 
     /**
      * The table <code>texera_db.user_config</code>.
      */
-    public final UserConfig USER_CONFIG = edu.uci.ics.texera.web.model.jooq.generated.tables.UserConfig.USER_CONFIG;
+    public final UserConfig USER_CONFIG = UserConfig.USER_CONFIG;
 
     /**
      * The table <code>texera_db.user_file_access</code>.
      */
-    public final UserFileAccess USER_FILE_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.UserFileAccess.USER_FILE_ACCESS;
+    public final UserFileAccess USER_FILE_ACCESS = UserFileAccess.USER_FILE_ACCESS;
 
     /**
      * The table <code>texera_db.workflow</code>.
      */
-    public final Workflow WORKFLOW = edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow.WORKFLOW;
+    public final Workflow WORKFLOW = Workflow.WORKFLOW;
 
     /**
      * The table <code>texera_db.workflow_executions</code>.
      */
-    public final WorkflowExecutions WORKFLOW_EXECUTIONS = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions.WORKFLOW_EXECUTIONS;
+    public final WorkflowExecutions WORKFLOW_EXECUTIONS = WorkflowExecutions.WORKFLOW_EXECUTIONS;
 
     /**
      * The table <code>texera_db.workflow_of_project</code>.
      */
-    public final WorkflowOfProject WORKFLOW_OF_PROJECT = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject.WORKFLOW_OF_PROJECT;
+    public final WorkflowOfProject WORKFLOW_OF_PROJECT = WorkflowOfProject.WORKFLOW_OF_PROJECT;
 
     /**
      * The table <code>texera_db.workflow_of_user</code>.
      */
-    public final WorkflowOfUser WORKFLOW_OF_USER = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser.WORKFLOW_OF_USER;
+    public final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
 
     /**
      * The table <code>texera_db.workflow_runtime_statistics</code>.
      */
-    public final WorkflowRuntimeStatistics WORKFLOW_RUNTIME_STATISTICS = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS;
+    public final WorkflowRuntimeStatistics WORKFLOW_RUNTIME_STATISTICS = WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS;
 
     /**
      * The table <code>texera_db.workflow_user_access</code>.
      */
-    public final WorkflowUserAccess WORKFLOW_USER_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess.WORKFLOW_USER_ACCESS;
+    public final WorkflowUserAccess WORKFLOW_USER_ACCESS = WorkflowUserAccess.WORKFLOW_USER_ACCESS;
 
     /**
      * The table <code>texera_db.workflow_version</code>.
      */
-    public final WorkflowVersion WORKFLOW_VERSION = edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion.WORKFLOW_VERSION;
+    public final WorkflowVersion WORKFLOW_VERSION = WorkflowVersion.WORKFLOW_VERSION;
 
     /**
      * No further instances allowed
@@ -138,12 +137,6 @@ public class TexeraDb extends SchemaImpl {
 
     @Override
     public final List<Table<?>> getTables() {
-        List result = new ArrayList();
-        result.addAll(getTables0());
-        return result;
-    }
-
-    private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
             File.FILE,
             FileOfProject.FILE_OF_PROJECT,

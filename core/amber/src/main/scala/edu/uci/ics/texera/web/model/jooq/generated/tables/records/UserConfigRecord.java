@@ -21,7 +21,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserConfigRecord extends UpdatableRecordImpl<UserConfigRecord> implements Record3<UInteger, String, String>, IUserConfig {
 
-    private static final long serialVersionUID = 1371414609;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.user_config.uid</code>.
@@ -199,8 +199,8 @@ public class UserConfigRecord extends UpdatableRecordImpl<UserConfigRecord> impl
     public UserConfigRecord(UInteger uid, String key, String value) {
         super(UserConfig.USER_CONFIG);
 
-        set(0, uid);
-        set(1, key);
-        set(2, value);
+        setUid(uid);
+        setKey(key);
+        setValue(value);
     }
 }

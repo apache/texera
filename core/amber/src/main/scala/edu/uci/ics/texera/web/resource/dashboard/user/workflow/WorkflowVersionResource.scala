@@ -16,7 +16,7 @@ import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
   * This file handles various request related to workflows versions.
@@ -89,7 +89,7 @@ object WorkflowVersionResource {
       .select(WORKFLOW_VERSION.VID)
       .from(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(wid))
-      .fetchInto(classOf[UInteger])
+      .fetchInto(classOf[UInteger]).asScala
       .toList
     // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
     // version as an empty delta, so should do the check and create one once
@@ -145,7 +145,7 @@ object WorkflowVersionResource {
       .from(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .and(WORKFLOW_VERSION.VID.between(lowerBound).and(UpperBound))
-      .fetchInto(classOf[String])
+      .fetchInto(classOf[String]).asScala
       .toList
     contents.forall(content => !isSnapshotImportant(content))
   }
@@ -194,14 +194,14 @@ object WorkflowVersionResource {
     var lastVersionTime = lastVersion.getCreationTime
     impEncodedVersions = impEncodedVersions :+ VersionEntry(
       lastVersion.getVid,
-      lastVersion.getCreationTime,
+      Timestamp.valueOf(lastVersion.getCreationTime),
       lastVersion.getContent,
       true
     ) // the first (latest)
     // version is important even if it is positional
     var versionImportance: Boolean = true
     for (version <- versions.tail) {
-      if (isWithinTimeLimit(lastVersionTime, version.getCreationTime)) {
+      if (isWithinTimeLimit(Timestamp.valueOf(lastVersionTime), Timestamp.valueOf(version.getCreationTime))) {
         versionImportance = false
       } // try reducing unnecessary check of positional versions
       // because parsing the Json string is expensive
@@ -211,7 +211,7 @@ object WorkflowVersionResource {
       }
       impEncodedVersions = impEncodedVersions :+ VersionEntry(
         version.getVid,
-        version.getCreationTime,
+        Timestamp.valueOf(version.getCreationTime),
         version.getContent,
         versionImportance
       )
@@ -317,7 +317,7 @@ class WorkflowVersionResource {
           .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
           .from(WORKFLOW_VERSION)
           .where(WORKFLOW_VERSION.WID.eq(wid))
-          .fetchInto(classOf[WorkflowVersion])
+          .fetchInto(classOf[WorkflowVersion]).asScala
           .toList
       )
     }
@@ -350,7 +350,7 @@ class WorkflowVersionResource {
         .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
         .from(WORKFLOW_VERSION)
         .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
-        .fetchInto(classOf[WorkflowVersion])
+        .fetchInto(classOf[WorkflowVersion]).asScala
         .toList
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)

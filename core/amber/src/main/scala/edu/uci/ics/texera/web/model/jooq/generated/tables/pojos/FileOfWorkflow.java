@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class FileOfWorkflow implements IFileOfWorkflow {
 
-    private static final long serialVersionUID = 312416656;
+    private static final long serialVersionUID = 1L;
 
     private UInteger fid;
     private UInteger wid;
@@ -35,21 +35,33 @@ public class FileOfWorkflow implements IFileOfWorkflow {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.file_of_workflow.fid</code>.
+     */
     @Override
     public UInteger getFid() {
         return this.fid;
     }
 
+    /**
+     * Setter for <code>texera_db.file_of_workflow.fid</code>.
+     */
     @Override
     public void setFid(UInteger fid) {
         this.fid = fid;
     }
 
+    /**
+     * Getter for <code>texera_db.file_of_workflow.wid</code>.
+     */
     @Override
     public UInteger getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.file_of_workflow.wid</code>.
+     */
     @Override
     public void setWid(UInteger wid) {
         this.wid = wid;

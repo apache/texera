@@ -60,7 +60,7 @@ class CollaborationResource extends LazyLogging {
         val sessionIdSet: mutable.Set[String] =
           wIdSessionIdsMap.get(wId) match {
             case Some(set) =>
-              set.+(senderSessId)
+              set.union(Set(senderSessId))
             case None =>
               mutable.Set(senderSessId)
           }

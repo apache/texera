@@ -22,7 +22,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccessRecord extends UpdatableRecordImpl<WorkflowUserAccessRecord> implements Record3<UInteger, UInteger, WorkflowUserAccessPrivilege>, IWorkflowUserAccess {
 
-    private static final long serialVersionUID = 994708214;
+    private static final long serialVersionUID = 1L;
 
     /**
      * Setter for <code>texera_db.workflow_user_access.uid</code>.
@@ -200,8 +200,8 @@ public class WorkflowUserAccessRecord extends UpdatableRecordImpl<WorkflowUserAc
     public WorkflowUserAccessRecord(UInteger uid, UInteger wid, WorkflowUserAccessPrivilege privilege) {
         super(WorkflowUserAccess.WORKFLOW_USER_ACCESS);
 
-        set(0, uid);
-        set(1, wid);
-        set(2, privilege);
+        setUid(uid);
+        setWid(wid);
+        setPrivilege(privilege);
     }
 }

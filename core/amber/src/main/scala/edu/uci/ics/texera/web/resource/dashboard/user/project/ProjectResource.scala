@@ -4,27 +4,22 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileOfProjectDao,
-  ProjectDao,
-  ProjectUserAccessDao,
-  WorkflowOfProjectDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, ProjectDao, ProjectUserAccessDao, WorkflowOfProjectDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.jooq.types.UInteger
+
 import java.sql.Timestamp
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
   * This file handles various request related to projects.
@@ -80,7 +75,7 @@ object ProjectResource {
       if (pidMap.size() == 1) {
         s"and added to project: ${pidMap.values().toArray()(0)}"
       } else {
-        s"and added to projects: ${pidMap.values().mkString(", ")}"
+        s"and added to projects: ${pidMap.values().asScala.mkString(", ")}"
       }
     } else { // workflow does not belong to a project
       ""
@@ -186,7 +181,7 @@ class ProjectResource {
           workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
           List()
         )
-      )
+      ).asScala
       .toList
   }
 
@@ -216,7 +211,7 @@ class ProjectResource {
           "READ",
           fileRecord.into(FILE).into(classOf[File])
         )
-      )
+      ).asScala
       .toList
   }
 

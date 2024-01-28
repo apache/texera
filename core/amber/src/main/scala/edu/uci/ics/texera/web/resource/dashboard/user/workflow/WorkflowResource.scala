@@ -5,12 +5,7 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  WorkflowDao,
-  WorkflowOfProjectDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
@@ -21,14 +16,15 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
+import java.time.LocalDateTime
 import java.util
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.control.NonFatal
 
 /**
@@ -132,7 +128,7 @@ object WorkflowResource {
     var ownerFilter: Condition = noCondition()
     val ownerSet: mutable.Set[String] = mutable.Set()
     if (owners != null && !owners.isEmpty) {
-      for (owner <- owners) {
+      for (owner <- owners.asScala) {
         if (!ownerSet(owner)) {
           ownerSet += owner
           ownerFilter = ownerFilter.or(USER.EMAIL.eq(owner))
@@ -156,8 +152,8 @@ object WorkflowResource {
   ): Condition = {
     var projectIdFilter: Condition = noCondition()
     val projectIdSet: mutable.Set[UInteger] = mutable.Set()
-    if (projectIds != null && projectIds.nonEmpty) {
-      for (projectId <- projectIds) {
+    if (projectIds != null && projectIds.asScala.nonEmpty) {
+      for (projectId <- projectIds.asScala) {
         if (!projectIdSet(projectId)) {
           projectIdSet += projectId
           projectIdFilter = projectIdFilter.or(fieldToFilterOn.eq(projectId))
@@ -178,7 +174,7 @@ object WorkflowResource {
     var workflowIdFilter: Condition = noCondition()
     val workflowIdSet: mutable.Set[UInteger] = mutable.Set()
     if (workflowIDs != null && !workflowIDs.isEmpty) {
-      for (workflowID <- workflowIDs) {
+      for (workflowID <- workflowIDs.asScala) {
         if (!workflowIdSet(workflowID)) {
           workflowIdSet += workflowID
           workflowIdFilter = workflowIdFilter.or(WORKFLOW.WID.eq(workflowID))
@@ -203,7 +199,7 @@ object WorkflowResource {
   def getDateFilter(
       startDate: String,
       endDate: String,
-      fieldToFilterOn: TableField[_, Timestamp]
+      fieldToFilterOn: TableField[_, LocalDateTime]
   ): Condition = {
     var dateFilter: Condition = noCondition()
 
@@ -212,14 +208,14 @@ object WorkflowResource {
       val end = if (endDate.nonEmpty) endDate else "9999-12-31"
       val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
 
-      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime).toLocalDateTime
       val endTimestamp =
         if (end == "9999-12-31") {
-          new Timestamp(dateFormat.parse(end).getTime)
+          new Timestamp(dateFormat.parse(end).getTime).toLocalDateTime
         } else {
           new Timestamp(
             dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
-          )
+          ).toLocalDateTime
         }
       dateFilter = fieldToFilterOn.between(startTimestamp, endTimestamp)
 
@@ -236,8 +232,8 @@ object WorkflowResource {
     */
   def getOperatorsFilter(operators: java.util.List[String]): Condition = {
     var operatorsFilter: Condition = noCondition()
-    if (operators != null && operators.nonEmpty) {
-      for (operator <- operators) {
+    if (operators != null && operators.asScala.nonEmpty) {
+      for (operator <- operators.asScala) {
         val quotes = "\""
         val searchKey =
           "%" + quotes + "operatorType" + quotes + ":" + quotes + s"$operator" + quotes + "%"
@@ -307,7 +303,7 @@ class WorkflowResource extends LazyLogging {
     val user = sessionUser.getUser
     val quotes = "\""
     val operatorArray =
-      operator.replaceAllLiterally(" ", "").stripPrefix("[").stripSuffix("]").split(',')
+      operator.replace(" ", "").stripPrefix("[").stripSuffix("]").split(',')
     var orCondition: Condition = noCondition()
     for (i <- operatorArray.indices) {
       val operatorName = operatorArray(i)
@@ -339,7 +335,7 @@ class WorkflowResource extends LazyLogging {
     workflowEntries
       .map(workflowRecord => {
         workflowRecord.into(WORKFLOW).getWid.intValue().toString
-      })
+      }).asScala
       .toList
   }
 
@@ -393,7 +389,7 @@ class WorkflowResource extends LazyLogging {
           else
             workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
         )
-      )
+      ).asScala
       .toList
   }
 
@@ -418,8 +414,8 @@ class WorkflowResource extends LazyLogging {
         workflow.getDescription,
         workflow.getWid,
         workflow.getContent,
-        workflow.getCreationTime,
-        workflow.getLastModifiedTime,
+        Timestamp.valueOf(workflow.getCreationTime),
+        Timestamp.valueOf(workflow.getLastModifiedTime),
         !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
       )
     } else {
@@ -487,7 +483,7 @@ class WorkflowResource extends LazyLogging {
     }
 
     val resultWorkflows: ListBuffer[DashboardWorkflow] = ListBuffer()
-    val addToProject = workflowIDs.pid.nonEmpty;
+    val addToProject = workflowIDs.pid.nonEmpty
     // then start a transaction and do the duplication
     try {
       context.transaction { _ =>
@@ -641,7 +637,7 @@ class WorkflowResource extends LazyLogging {
     val user = sessionUser.getUser
 
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
-    val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
+    val splitKeywords = keywords.asScala.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
     var matchQuery: Condition = noCondition()
     for (key: String <- splitKeywords) {
       if (key != "") {
@@ -660,7 +656,7 @@ class WorkflowResource extends LazyLogging {
           matchQuery = matchQuery.and(getSearchQuery(true), key)
         } else {
           // When the search query contains multiple words, sub-string search is not supported by MySQL.
-          matchQuery = matchQuery.and(getSearchQuery(false), '"' + key + '"')
+          matchQuery = matchQuery.and(getSearchQuery(false),  s"\"$key\"")
         }
       }
     }
@@ -731,7 +727,7 @@ class WorkflowResource extends LazyLogging {
             else
               workflowRecord.component9().split(',').map(number => UInteger.valueOf(number)).toList
           )
-        )
+        ).asScala
         .toList
 
     } catch {

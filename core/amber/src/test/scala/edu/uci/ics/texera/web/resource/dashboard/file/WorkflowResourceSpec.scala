@@ -26,7 +26,6 @@ import java.text.{ParseException, SimpleDateFormat}
 import java.util
 import java.util.Collections
 import javax.ws.rs.BadRequestException
-import scala.collection.convert.ImplicitConversions.`collection asJava`
 
 class WorkflowResourceSpec
     extends AnyFlatSpec
@@ -170,10 +169,10 @@ class WorkflowResourceSpec
 
     // delete all files in the database
     var files = fileResource.getFileList(sessionUser1)
-    files.forEach(file => fileResource.deleteFile(file.file.getFid, sessionUser1))
+    files.foreach(file => fileResource.deleteFile(file.file.getFid, sessionUser1))
 
     files = fileResource.getFileList(sessionUser2)
-    files.forEach(file => fileResource.deleteFile(file.file.getFid, sessionUser2))
+    files.foreach(file => fileResource.deleteFile(file.file.getFid, sessionUser2))
   }
 
   override protected def afterAll(): Unit = {
@@ -497,9 +496,9 @@ class WorkflowResourceSpec
     val dateFilter: Condition =
       WorkflowResource.getDateFilter("2023-01-01", "2023-12-31", WORKFLOW.CREATION_TIME)
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-    val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
+    val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime).toLocalDateTime
     val endTimestamp =
-      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1)
+      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1).toLocalDateTime
     assert(
       dateFilter.toString == WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp).toString
     )
@@ -509,9 +508,9 @@ class WorkflowResourceSpec
     val dateFilter: Condition =
       WorkflowResource.getDateFilter("2023-01-01", "2023-12-31", WORKFLOW.LAST_MODIFIED_TIME)
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
-    val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
+    val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime).toLocalDateTime
     val endTimestamp =
-      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1)
+      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1).toLocalDateTime
     assert(
       dateFilter.toString == WORKFLOW.LAST_MODIFIED_TIME
         .between(startTimestamp, endTimestamp)

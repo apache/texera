@@ -22,8 +22,10 @@ import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
+import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
+import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -34,7 +36,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccess extends TableImpl<WorkflowUserAccessRecord> {
 
-    private static final long serialVersionUID = 712932299;
+    private static final long serialVersionUID = 1L;
 
     /**
      * The reference instance of <code>texera_db.workflow_user_access</code>
@@ -52,23 +54,24 @@ public class WorkflowUserAccess extends TableImpl<WorkflowUserAccessRecord> {
     /**
      * The column <code>texera_db.workflow_user_access.uid</code>.
      */
-    public final TableField<WorkflowUserAccessRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowUserAccessRecord, UInteger> UID = createField(DSL.name("uid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_user_access.wid</code>.
      */
-    public final TableField<WorkflowUserAccessRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowUserAccessRecord, UInteger> WID = createField(DSL.name("wid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_user_access.privilege</code>.
      */
-    public final TableField<WorkflowUserAccessRecord, WorkflowUserAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), org.jooq.impl.SQLDataType.VARCHAR(5).nullable(false).defaultValue(org.jooq.impl.DSL.inline("NONE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege.class), this, "");
+    public final TableField<WorkflowUserAccessRecord, WorkflowUserAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), SQLDataType.VARCHAR(5).nullable(false).defaultValue(DSL.inline("NONE", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege.class), this, "");
 
-    /**
-     * Create a <code>texera_db.workflow_user_access</code> table reference
-     */
-    public WorkflowUserAccess() {
-        this(DSL.name("workflow_user_access"), null);
+    private WorkflowUserAccess(Name alias, Table<WorkflowUserAccessRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowUserAccess(Name alias, Table<WorkflowUserAccessRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
     }
 
     /**
@@ -85,12 +88,11 @@ public class WorkflowUserAccess extends TableImpl<WorkflowUserAccessRecord> {
         this(alias, WORKFLOW_USER_ACCESS);
     }
 
-    private WorkflowUserAccess(Name alias, Table<WorkflowUserAccessRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowUserAccess(Name alias, Table<WorkflowUserAccessRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""));
+    /**
+     * Create a <code>texera_db.workflow_user_access</code> table reference
+     */
+    public WorkflowUserAccess() {
+        this(DSL.name("workflow_user_access"), null);
     }
 
     public <O extends Record> WorkflowUserAccess(Table<O> child, ForeignKey<O, WorkflowUserAccessRecord> key) {
@@ -104,7 +106,7 @@ public class WorkflowUserAccess extends TableImpl<WorkflowUserAccessRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_USER_ACCESS_PRIMARY, Indexes.WORKFLOW_USER_ACCESS_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_USER_ACCESS_WID);
     }
 
     @Override

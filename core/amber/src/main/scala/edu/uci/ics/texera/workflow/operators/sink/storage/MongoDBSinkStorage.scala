@@ -55,7 +55,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
     new Iterator[Tuple] {
       override def hasNext: Boolean = cursor.hasNext
       override def next(): Tuple = document2Tuple(cursor.next(), schema)
-    }.toIterable
+    }.iterator.to(Iterable)
   }
 
   override def getAll: Iterable[Tuple] = {

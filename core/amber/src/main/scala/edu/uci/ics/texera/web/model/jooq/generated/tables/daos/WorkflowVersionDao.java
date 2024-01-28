@@ -7,7 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowVersionRecord;
 
-import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import org.jooq.Configuration;
@@ -92,14 +92,14 @@ public class WorkflowVersionDao extends DAOImpl<WorkflowVersionRecord, edu.uci.i
     /**
      * Fetch records that have <code>creation_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowVersion> fetchRangeOfCreationTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowVersion> fetchRangeOfCreationTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
         return fetchRange(WorkflowVersion.WORKFLOW_VERSION.CREATION_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>creation_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowVersion> fetchByCreationTime(Timestamp... values) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowVersion> fetchByCreationTime(LocalDateTime... values) {
         return fetch(WorkflowVersion.WORKFLOW_VERSION.CREATION_TIME, values);
     }
 }

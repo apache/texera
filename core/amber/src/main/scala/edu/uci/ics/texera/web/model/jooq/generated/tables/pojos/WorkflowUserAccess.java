@@ -16,7 +16,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowUserAccess implements IWorkflowUserAccess {
 
-    private static final long serialVersionUID = -354047803;
+    private static final long serialVersionUID = 1L;
 
     private UInteger                    uid;
     private UInteger                    wid;
@@ -40,31 +40,49 @@ public class WorkflowUserAccess implements IWorkflowUserAccess {
         this.privilege = privilege;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.uid</code>.
+     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.uid</code>.
+     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.wid</code>.
+     */
     @Override
     public UInteger getWid() {
         return this.wid;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.wid</code>.
+     */
     @Override
     public void setWid(UInteger wid) {
         this.wid = wid;
     }
 
+    /**
+     * Getter for <code>texera_db.workflow_user_access.privilege</code>.
+     */
     @Override
     public WorkflowUserAccessPrivilege getPrivilege() {
         return this.privilege;
     }
 
+    /**
+     * Setter for <code>texera_db.workflow_user_access.privilege</code>.
+     */
     @Override
     public void setPrivilege(WorkflowUserAccessPrivilege privilege) {
         this.privilege = privilege;
