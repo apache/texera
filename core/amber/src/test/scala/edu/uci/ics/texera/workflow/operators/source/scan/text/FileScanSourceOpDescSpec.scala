@@ -116,11 +116,11 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTexeraTuple()
 
-    assert(processedTuple.next().getField("line") == 1)
-    assert(processedTuple.next().getField("line") == 2)
-    assert(processedTuple.next().getField("line") == 3)
-    assert(processedTuple.next().getField("line") == 4)
-    assert(processedTuple.next().getField("line") == 5)
+    assert(processedTuple.next().getField[Int]("line") == 1)
+    assert(processedTuple.next().getField[Int]("line") == 2)
+    assert(processedTuple.next().getField[Int]("line") == 3)
+    assert(processedTuple.next().getField[Int]("line") == 4)
+    assert(processedTuple.next().getField[Int]("line") == 5)
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     FileScanSourceOpExec.close()
   }

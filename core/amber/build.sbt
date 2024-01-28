@@ -91,7 +91,7 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "joda-time" % "joda-time" % "2.12.5" % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % jacksonVersion,
   // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
@@ -229,7 +229,7 @@ libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
 libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
-libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.5.1"
+libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
 // https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp
 libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4"
