@@ -22,7 +22,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
-import { NzContextMenuService, NzDropdownMenuComponent } from "ng-zorro-antd/dropdown";
+import { NzContextMenuService } from "ng-zorro-antd/dropdown";
 import { ActivatedRoute, Router } from "@angular/router";
 import * as _ from "lodash";
 import * as joint from "jointjs";
@@ -39,8 +39,6 @@ const disableInteractiveOption = {
   vertexRemove: false,
   elementMove: false, // TODO: This is only a temporary change, will introduce another level of disable option.
 };
-
-export const WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID = "workflow-editor-wrapper";
 
 /**
  * WorkflowEditorComponent is the component for the main workflow editor part of the UI.
@@ -86,7 +84,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
     private operatorMenu: OperatorMenuService,
-    private nzContextMenu: NzContextMenuService,
+    public nzContextMenu: NzContextMenuService,
     private route: ActivatedRoute,
     private router: Router
   ) {
@@ -157,10 +155,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     document.removeEventListener("keydown", this._handleKeyboardAction.bind(this));
   }
 
-  public contextMenu($event: MouseEvent, menu: NzDropdownMenuComponent): void {
-    this.nzContextMenu.create($event, menu);
-  }
-
   private _handleKeyboardAction(event: any) {
     this._onProcessKeyboardActionObservable = new Subject();
     this.workflowVersionService
@@ -220,9 +214,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       // use approximate z-index sorting, this is a workaround of a bug in async rendering mode
       // see https://github.com/clientIO/joint/issues/1320
       sorting: joint.dia.Paper.sorting.APPROX,
+      width: this.workflowEditor.offsetWidth,
+      height: this.workflowEditor.offsetHeight,
     });
-    this.paper.translate(0, 0);
-    this.paper.setDimensions(this.editorWrapper.offsetWidth, this.editorWrapper.offsetHeight);
   }
 
   private handleDisableJointPaperInteractiveness(): void {

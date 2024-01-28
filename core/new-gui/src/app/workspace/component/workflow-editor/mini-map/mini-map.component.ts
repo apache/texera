@@ -4,7 +4,6 @@ import { auditTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
-import { WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID } from "../workflow-editor.component";
 import * as joint from "jointjs";
 
 @UntilDestroy()
@@ -58,7 +57,7 @@ export class MiniMapComponent implements AfterViewInit {
   private updateNavigator(): void {
     const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
     const mainPaperPoint = mainPaper.pageToLocalPoint({ x: 0, y: 0 });
-    const editor = document.getElementById(WORKFLOW_EDITOR_JOINTJS_WRAPPER_ID)!;
+    const editor = document.getElementById("workflow-editor")!;
     const navigator = document.getElementById("mini-map-navigator")!;
     navigator.style.left = (mainPaperPoint.x - MAIN_CANVAS_LIMIT.xMin) * this.scale + "px";
     navigator.style.top = (mainPaperPoint.y - MAIN_CANVAS_LIMIT.yMin) * this.scale + "px";
