@@ -29,8 +29,6 @@ export class MiniMapComponent implements AfterViewInit {
     })
       .scale(this.scale)
       .translate(-MAIN_CANVAS_LIMIT.xMin * this.scale, -MAIN_CANVAS_LIMIT.yMin * this.scale);
-    const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
-    console.log(mainPaper);
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaperAttachedStream()
@@ -51,7 +49,6 @@ export class MiniMapComponent implements AfterViewInit {
             });
           })
       );
-
     fromEvent(window, "resize")
       .pipe(auditTime(30))
       .pipe(untilDestroyed(this))
