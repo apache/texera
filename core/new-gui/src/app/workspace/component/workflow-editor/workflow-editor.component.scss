@@ -1,58 +1,22 @@
-@import "../workspace.component.scss";
 #workflow-editor-wrapper {
   overflow: hidden;
   height: 100%;
+  position: relative; width: 100%;
 }
 
 #workflow-editor {
   background-color: #f6f6f6;
 }
 
-/**
-  * Component styles normally apply only to the HTML in the component's own template.
-  * Using ::ng-deep would force a style down through
-  * the child component tree into all the child component views
-  *
-  * The styles defined here under ::ng-deep is used to override
-  * the default style of the operators defined by the JointJS.
-  * !important forces the browser to make the style defined here
-  * higher prioritized.
-  **/
-
-::ng-deep #workflow-editor-wrapper .custom-highlighted-link.connection {
-  stroke: #e59700 !important ;
+::ng-deep #workflow-editor .connection-wrap {
+  stroke-width: 0;
 }
 
-::ng-deep #workflow-editor-wrapper .marker-arrowhead {
-  fill: #919191 !important;
+::ng-deep #workflow-editor .link-tools .tool-remove path {
+  fill: #d8656a;
+  transform: translate(-12px, -12px);
 }
 
-::ng-deep #workflow-editor-wrapper .connection-wrap {
-  stroke: #919191 !important;
-  stroke-width: 0 !important;
-}
-
-::ng-deep #workflow-editor-wrapper .link-tools .tool-remove {
-  width: 24px !important;
-}
-
-::ng-deep #workflow-editor-wrapper .link-tools .tool-remove path {
-  fill: #d8656a !important;
-  transform: translate(-12px, -12px) !important;
-}
-
-::ng-deep #workflow-editor-wrapper .link-tools .tool-remove circle {
-  fill-opacity: 0 !important;
-}
-
-::ng-deep #workflow-editor-wrapper .link-tools {
-  display: contents !important;
-}
-
-::ng-deep #workflow-editor-wrapper .available-magnet {
-  fill: #6f9d52 !important;
-}
-
-::ng-deep #workflow-editor-wrapper .available-cell rect.body {
-  stroke: #70c883 !important;
+::ng-deep #workflow-editor .link-tools .tool-remove circle {
+  fill-opacity: 0;
 }

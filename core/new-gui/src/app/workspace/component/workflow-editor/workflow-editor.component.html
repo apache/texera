@@ -1,9 +1,5 @@
-<div style="position: relative; width: 100%; height: 100%">
-  <div
-    id="workflow-editor-wrapper"
-    (contextmenu)="contextMenu($event, menu)">
-    <div id="workflow-editor"></div>
-  </div>
+<div id="workflow-editor-wrapper">
+    <div id="workflow-editor" (contextmenu)="contextMenu($event, menu)"></div>
 </div>
 
 <nz-dropdown-menu
