@@ -42,16 +42,18 @@ export class MiniMapComponent implements AfterViewInit {
       .subscribe(() =>
         fromEvent<MouseEvent>(document, "mousemove")
           .pipe(takeUntil(fromEvent(document, "mouseup")))
-          .subscribe(event =>
-            this.workflowActionService
-              .getJointGraphWrapper()
-              .navigatorMoveDelta.next({ deltaX: -event.movementX / this.scale, deltaY: -event.movementY / this.scale })
-          )
+          .subscribe(event => {
+            const paper = this.workflowActionService.getJointGraphWrapper().mainPaper;
+            paper.translate(
+              paper.translate().tx + -event.movementX / this.scale,
+              paper.translate().ty + -event.movementY / this.scale
+            );
+          })
       );
   }
 
   private updateNavigator(): void {
-    const mainPaper = this.workflowActionService.getJointGraphWrapper().getMainJointPaper();
+    const mainPaper = this.workflowActionService.getJointGraphWrapper().mainPaper;
     const mainPaperPoint = mainPaper.pageToLocalPoint({ x: 0, y: 0 });
     const editor = document.getElementById("workflow-editor")!;
     const navigator = document.getElementById("mini-map-navigator")!;

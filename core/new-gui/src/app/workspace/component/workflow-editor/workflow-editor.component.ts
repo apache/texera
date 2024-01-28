@@ -1,4 +1,4 @@
-import { AfterViewInit, ChangeDetectorRef, Component, ElementRef, OnDestroy } from "@angular/core";
+import { AfterViewInit, ChangeDetectorRef, Component, OnDestroy } from "@angular/core";
 import { fromEvent, merge, Subject } from "rxjs";
 import { NzModalCommentBoxComponent } from "./comment-box-modal/nz-modal-comment-box.component";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -10,13 +10,11 @@ import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-w
 import { fromJointPaperEvent, JointUIService, linkPathStrokeColor } from "../../service/joint-ui/joint-ui.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { ValidationWorkflowService } from "../../service/validation/validation-workflow.service";
-import { JointGraphWrapper } from "../../service/workflow-graph/model/joint-graph-wrapper";
 import { OperatorInfo } from "../../service/workflow-graph/model/operator-group";
-import { MAIN_CANVAS_LIMIT } from "./workflow-editor-constants";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowStatusService } from "../../service/workflow-status/workflow-status.service";
 import { ExecutionState, OperatorState } from "../../types/execute-workflow.interface";
-import { LogicalPort, OperatorLink, Point } from "../../types/workflow-common.interface";
+import { LogicalPort, OperatorLink } from "../../types/workflow-common.interface";
 import { auditTime, filter, map, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UndoRedoService } from "../../service/undo-redo/undo-redo.service";
@@ -60,12 +58,11 @@ const disableInteractiveOption = {
   styleUrls: ["workflow-editor.component.scss"],
 })
 export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
-  workflowEditor!: HTMLElement;
+  editor!: HTMLElement;
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
   private interactive: boolean = true;
   private gridOn: boolean = true;
-  private mouseDown: Point | undefined;
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
 
@@ -73,7 +70,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private workflowActionService: WorkflowActionService,
     private dynamicSchemaService: DynamicSchemaService,
     private dragDropService: DragDropService,
-    private elementRef: ElementRef,
     private resultPanelToggleService: ResultPanelToggleService,
     private validationWorkflowService: ValidationWorkflowService,
     private jointUIService: JointUIService,
@@ -84,9 +80,9 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
     private undoRedoService: UndoRedoService,
     private workflowVersionService: WorkflowVersionService,
     private operatorMenu: OperatorMenuService,
-    public nzContextMenu: NzContextMenuService,
     private route: ActivatedRoute,
-    private router: Router
+    private router: Router,
+    public nzContextMenu: NzContextMenuService
   ) {
     this.wrapper = this.workflowActionService.getJointGraphWrapper();
   }
@@ -105,7 +101,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   }
 
   ngAfterViewInit() {
-    this.workflowEditor = document.getElementById("workflow-editor")!;
+    this.editor = document.getElementById("workflow-editor")!;
     this.editorWrapper = document.getElementById("workflow-editor-wrapper")!;
     document.addEventListener("keydown", this._handleKeyboardAction.bind(this));
     this.initializeJointPaper();
@@ -135,7 +131,6 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       this.handleOperatorStatisticsUpdate();
     }
 
-    this.handlePaperMouseZoom();
     this.handleOperatorSuggestionHighlightEvent();
     this.handleElementDelete();
     this.handleElementSelectAll();
@@ -186,7 +181,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   private initializeJointPaper(): void {
     // attach the JointJS graph (model) to the paper (view)
     this.paper = this.wrapper.attachMainJointPaper({
-      el: this.workflowEditor,
+      el: this.editor,
       // enable jointjs feature that automatically snaps a link to the closest port with a radius of 30px
       snapLinks: { radius: 40 },
       // disable jointjs default action that can make a link not connect to an operator
@@ -214,8 +209,8 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       // use approximate z-index sorting, this is a workaround of a bug in async rendering mode
       // see https://github.com/clientIO/joint/issues/1320
       sorting: joint.dia.Paper.sorting.APPROX,
-      width: this.workflowEditor.offsetWidth,
-      height: this.workflowEditor.offsetHeight,
+      width: this.editor.offsetWidth,
+      height: this.editor.offsetHeight,
     });
   }
 
@@ -355,144 +350,19 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       .subscribe(newRatio => this.paper.scale(newRatio, newRatio));
   }
 
-  /**
-   * Handles zoom events when user slides the mouse wheel.
-   *
-   * The first filter will removes all the mousewheel events that are undefined
-   * The second filter will remove all the mousewheel events that are
-   *  from different components
-   *
-   * From the mousewheel event:
-   *  1. when delta Y is negative, the wheel is scrolling down, so
-   *      the jointJS paper will zoom in.
-   *  2. when delta Y is positive, the wheel is scrolling up, so the
-   *      jointJS paper will zoom out.
-   */
-  private handlePaperMouseZoom(): void {
-    fromEvent<WheelEvent>(document, "mousewheel")
-      .pipe(
-        filter(event => event !== undefined),
-        filter(event => this.elementRef.nativeElement.contains(event.target))
-      )
-      .forEach(event => {
-        if (event.metaKey || event.ctrlKey) {
-          if (event.deltaY < 0) {
-            // if zoom ratio already at minimum, do not zoom out.
-            if (this.wrapper.isZoomRatioMin()) {
-              return;
-            }
-            this.wrapper.setZoomProperty(this.wrapper.getZoomRatio() - JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
-          } else {
-            // if zoom ratio already at maximum, do not zoom in.
-            if (this.wrapper.isZoomRatioMax()) {
-              return;
-            }
-            this.wrapper.setZoomProperty(this.wrapper.getZoomRatio() + JointGraphWrapper.ZOOM_MOUSEWHEEL_DIFF);
-          }
-        }
-      });
-  }
-
-  /**
-   * This method handles user mouse drag events to pan JointJS paper.
-   *
-   * This method will listen to 4 events to implement the pan feature
-   *   1. pointerdown event in the JointJS paper to start panning
-   *   2. mousemove event on the document to change the offset of the paper
-   *   3. pointerup event in the JointJS paper to stop panning
-   *   4. mousewheel event on the document to start panning
-   */
   private handlePaperPan(): void {
-    // pointer down event to start the panning, this will record the original paper offset
     fromJointPaperEvent(this.paper, "blank:pointerdown")
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const x = event[0].screenX;
-        const y = event[0].screenY;
-        if (x !== undefined && y !== undefined) {
-          this.mouseDown = { x, y };
-        }
-        event[0].preventDefault();
-      });
-
-    // This observable captures the drop event to stop the panning
-    merge(fromEvent(document, "mouseup"), fromJointPaperEvent(this.paper, "blank:pointerup"))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.mouseDown = undefined;
-      });
-
-    /* mousemove event to move paper, this will calculate the new coordinate based on the
-     *  starting coordinate, the mousemove offset, and the current zoom ratio.
-     *  To move the paper based on the new coordinate, this will translate the paper by calling
-     *  the JointJS method .translate() to move paper's offset.
-     */
-    const mousePanEvent = fromEvent<MouseEvent>(document, "mousemove").pipe(
-      filter(() => this.mouseDown !== undefined),
-      map(event => {
-        event.preventDefault();
-        if (this.mouseDown === undefined) {
-          throw new Error("Error: Mouse down is undefined after the filter");
-        }
-        const newCoordinate = { x: event.screenX, y: event.screenY };
-        const panDelta = {
-          deltaX: newCoordinate.x - this.mouseDown.x,
-          deltaY: newCoordinate.y - this.mouseDown.y,
-        };
-        this.mouseDown = newCoordinate;
-        return panDelta;
-      })
-    );
-
-    const mouseWheelEvent = fromEvent<WheelEvent>(document, "mousewheel").pipe(
-      filter(event => this.elementRef.nativeElement.contains(event.target)),
-      filter(event => !(event.metaKey || event.ctrlKey)),
-      map(event => {
-        return { deltaX: -event.deltaX, deltaY: -event.deltaY };
-      })
-    );
-
-    merge(
-      mousePanEvent,
-      mouseWheelEvent,
-      this.wrapper.navigatorMoveDelta.pipe(
-        map(event => {
-          const scale = this.paper.scale();
-          return {
-            deltaX: event.deltaX * scale.sx,
-            deltaY: event.deltaY * scale.sy,
-          };
-        })
-      )
-    )
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        const oldOrigin = this.paper.translate();
-        const newOrigin = {
-          x: oldOrigin.tx + event.deltaX,
-          y: oldOrigin.ty + event.deltaY,
-        };
-
-        const scale = this.paper.scale();
-
-        // Check canvas limit
-        if (-newOrigin.x <= MAIN_CANVAS_LIMIT.xMin) {
-          newOrigin.x = -MAIN_CANVAS_LIMIT.xMin;
-        }
-        if (-newOrigin.y <= MAIN_CANVAS_LIMIT.yMin) {
-          newOrigin.y = -MAIN_CANVAS_LIMIT.yMin;
-        }
-        if (-newOrigin.x >= MAIN_CANVAS_LIMIT.xMax - this.editorWrapper.offsetWidth / scale.sx) {
-          newOrigin.x = -(MAIN_CANVAS_LIMIT.xMax - this.editorWrapper.offsetWidth / scale.sx);
-        }
-        if (-newOrigin.y >= MAIN_CANVAS_LIMIT.yMax - this.editorWrapper.offsetHeight / scale.sy) {
-          newOrigin.y = -(MAIN_CANVAS_LIMIT.yMax - this.editorWrapper.offsetHeight / scale.sy);
-        }
-
-        if (newOrigin.x !== oldOrigin.tx || newOrigin.y !== oldOrigin.ty) {
-          this.paper.translate(newOrigin.x, newOrigin.y);
-        }
-      });
+      .subscribe(() =>
+        fromEvent<MouseEvent>(document, "mousemove")
+          .pipe(takeUntil(fromEvent(document, "mouseup")))
+          .subscribe(event =>
+            this.paper.translate(
+              this.paper.translate().tx + event.movementX / this.paper.scale().sx,
+              this.paper.translate().ty + event.movementY / this.paper.scale().sy
+            )
+          )
+      );
   }
 
   /**
@@ -1409,18 +1279,18 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    * Handles mouse events to enable shared cursor.
    */
   private handlePointerEvents(): void {
-    fromEvent<MouseEvent>(this.workflowEditor, "mousemove")
+    fromEvent<MouseEvent>(this.editor, "mousemove")
       .pipe(untilDestroyed(this))
       .subscribe(e => {
         const jointPoint = this.paper.clientToLocalPoint({ x: e.clientX, y: e.clientY });
         this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("userCursor", jointPoint);
       });
-    fromEvent<MouseEvent>(this.workflowEditor, "mouseleave")
+    fromEvent<MouseEvent>(this.editor, "mouseleave")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", false);
       });
-    fromEvent<MouseEvent>(this.workflowEditor, "mouseenter")
+    fromEvent<MouseEvent>(this.editor, "mouseenter")
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("isActive", true);

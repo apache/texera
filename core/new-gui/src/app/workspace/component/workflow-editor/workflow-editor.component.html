@@ -1,9 +1,9 @@
 <div id="workflow-editor-wrapper">
     <div id="workflow-editor" (contextmenu)="nzContextMenu.create($event, menu)"></div>
+  <nz-dropdown-menu
+    nzNoAnimation
+    #menu="nzDropdownMenu">
+    <texera-context-menu></texera-context-menu>
+  </nz-dropdown-menu>
 </div>
 
-<nz-dropdown-menu
-  nzNoAnimation
-  #menu="nzDropdownMenu">
-  <texera-context-menu></texera-context-menu>
-</nz-dropdown-menu>
