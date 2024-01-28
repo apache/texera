@@ -1,6 +1,6 @@
 import { AfterViewInit, Component } from "@angular/core";
 import { fromEvent } from "rxjs";
-import { auditTime, takeUntil } from "rxjs/operators";
+import { takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS_LIMIT } from "../workflow-editor-constants";
@@ -35,6 +35,7 @@ export class MiniMapComponent implements AfterViewInit {
       .subscribe(mainPaper => {
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
+        mainPaper.on("resize", () => this.updateNavigator());
       });
     fromEvent(document.getElementById("mini-map-navigator")!, "mousedown")
       .pipe(untilDestroyed(this))
@@ -47,10 +48,6 @@ export class MiniMapComponent implements AfterViewInit {
               .navigatorMoveDelta.next({ deltaX: -event.movementX / this.scale, deltaY: -event.movementY / this.scale })
           )
       );
-    fromEvent(window, "resize")
-      .pipe(auditTime(30))
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.updateNavigator());
   }
 
   private updateNavigator(): void {
