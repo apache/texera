@@ -51,7 +51,7 @@ val akkaDependencies = Seq(
   "com.softwaremill.macwire" %% "util" % "2.5.8",
   "com.softwaremill.macwire" %% "proxy" % "2.5.8",
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
-  "ch.qos.logback" % "logback-classic" % "1.4.7"
+  "ch.qos.logback" % "logback-classic" % "1.2.3"
 )
 
 // dropwizard web framework
@@ -183,7 +183,7 @@ Test / PB.protoSources += PB.externalSourcePath.value
 // https://mvnrepository.com/artifact/org.scalamock/scalamock
 libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
 // https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
-libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.6.0" % Test
+libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
 
