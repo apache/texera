@@ -1,5 +1,5 @@
 import { AfterViewInit, Component } from "@angular/core";
-import { fromEvent, skipUntil } from "rxjs";
+import { fromEvent } from "rxjs";
 import { auditTime, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -39,16 +39,19 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
       });
-    fromEvent<MouseEvent>(document, "mousemove")
-      .pipe(skipUntil(fromEvent(document.getElementById("mini-map-navigator")!, "mousedown")))
-      .pipe(takeUntil(fromEvent(document, "mouseup")))
+    fromEvent(document.getElementById("mini-map-navigator")!, "mousedown")
       .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.next({
-          deltaX: -event.movementX / this.scale,
-          deltaY: -event.movementY / this.scale,
-        });
-      });
+      .subscribe(() =>
+        fromEvent<MouseEvent>(document, "mousemove")
+          .pipe(takeUntil(fromEvent(document, "mouseup")))
+          .subscribe(event => {
+            this.workflowActionService.getJointGraphWrapper().navigatorMoveDelta.next({
+              deltaX: -event.movementX / this.scale,
+              deltaY: -event.movementY / this.scale,
+            });
+          })
+      );
+
     fromEvent(window, "resize")
       .pipe(auditTime(30))
       .pipe(untilDestroyed(this))
