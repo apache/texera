@@ -11,7 +11,6 @@ import { StubOperatorMetadataService } from "../../service/operator-metadata/stu
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 import { NzModalModule, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { Overlay } from "@angular/cdk/overlay";
-import * as jQuery from "jquery";
 import * as joint from "jointjs";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { marbles } from "rxjs-marbles";
@@ -37,6 +36,7 @@ import { of } from "rxjs";
 import { NzContextMenuService, NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { RouterTestingModule } from "@angular/router/testing";
 import { createYTypeFromObject } from "../../types/shared-editing.interface";
+import * as jQuery from "jquery";
 
 describe("WorkflowEditorComponent", () => {
   /**
@@ -78,7 +78,7 @@ describe("WorkflowEditorComponent", () => {
       component = fixture.componentInstance;
       // detect changes first to run ngAfterViewInit and bind Model
       fixture.detectChanges();
-      jointGraph = component.getJointPaper().model;
+      jointGraph = component.paper.model;
     });
 
     it("should create", () => {
@@ -93,7 +93,7 @@ describe("WorkflowEditorComponent", () => {
 
       jointGraph.addCell(element);
 
-      expect(component.getJointPaper().findViewByModel(element.id)).toBeTruthy();
+      expect(component.paper.findViewByModel(element.id)).toBeTruthy();
     });
 
     it("should create a graph of multiple cells in the UI", () => {
@@ -127,9 +127,9 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraph.getLinks().find(link => link.id === link1.id)).toBeTruthy();
 
       // check the view is updated correctly
-      expect(component.getJointPaper().findViewByModel(element1.id)).toBeTruthy();
-      expect(component.getJointPaper().findViewByModel(element2.id)).toBeTruthy();
-      expect(component.getJointPaper().findViewByModel(link1.id)).toBeTruthy();
+      expect(component.paper.findViewByModel(element1.id)).toBeTruthy();
+      expect(component.paper.findViewByModel(element2.id)).toBeTruthy();
+      expect(component.paper.findViewByModel(link1.id)).toBeTruthy();
     });
   });
 
@@ -202,9 +202,7 @@ describe("WorkflowEditorComponent", () => {
       jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
-      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
-
-      // trigger a click on the cell view using its jQuery element
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
       jointCellView.$el.trigger("mousedown");
 
       fixture.detectChanges();
@@ -220,7 +218,7 @@ describe("WorkflowEditorComponent", () => {
       spyOn(jointGraphWrapper, "highlightCommentBoxes").and.callThrough();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.unhighlightCommentBoxes(mockCommentBox.commentBoxID);
-      const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
+      const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
       jointCellView.$el.trigger("mousedown");
       fixture.detectChanges();
       expect(jointGraphWrapper.getCurrentHighlightedCommentBoxIDs()).toEqual([mockCommentBox.commentBoxID]);
@@ -248,7 +246,7 @@ describe("WorkflowEditorComponent", () => {
       const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
       workflowActionService.addCommentBox(mockCommentBox);
       jointGraphWrapper.highlightCommentBoxes(mockCommentBox.commentBoxID);
-      const jointCellView = component.getJointPaper().findViewByModel(mockCommentBox.commentBoxID);
+      const jointCellView = component.paper.findViewByModel(mockCommentBox.commentBoxID);
       jointCellView.$el.trigger("dblclick");
       expect(nzModalService.create).toHaveBeenCalled();
       fixture.detectChanges();
@@ -274,15 +272,15 @@ describe("WorkflowEditorComponent", () => {
 
       // find a blank area on the JointJS paper
       const blankPoint = { x: mockPoint.x + 100, y: mockPoint.y + 100 };
-      expect(component.getJointPaper().findViewsFromPoint(blankPoint)).toEqual([]);
+      expect(component.paper.findViewsFromPoint(blankPoint)).toEqual([]);
 
       // trigger a click on the blank area using JointJS paper's jQuery element
-      const point = component.getJointPaper().localToClientPoint(blankPoint);
+      const point = component.paper.localToClientPoint(blankPoint);
       const event = jQuery.Event("mousedown", {
         clientX: point.x,
         clientY: point.y,
       });
-      component.getJointPaper().$el.trigger(event);
+      component.paper.$el.trigger(event);
 
       fixture.detectChanges();
 
@@ -298,7 +296,7 @@ describe("WorkflowEditorComponent", () => {
       jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
-      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // find the cell's child element with the joint highlighter class name `joint-highlight-stroke`
       const jointHighlighterElements = jointCellView.$el.children(".joint-highlight-stroke");
@@ -315,7 +313,7 @@ describe("WorkflowEditorComponent", () => {
       jointGraphWrapper.highlightOperators(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
-      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // find the cell's child element with the joint highlighter class name `joint-highlight-stroke`
       const jointHighlighterElements = jointCellView.$el.children(".joint-highlight-stroke");
@@ -338,8 +336,8 @@ describe("WorkflowEditorComponent", () => {
       workflowActionService.addLink(mockScanResultLink);
       const newProperty = { tableName: "test-table" };
       workflowActionService.setOperatorProperty(mockScanPredicate.operatorID, newProperty);
-      const operator1 = component.getJointPaper().getModelById(mockScanPredicate.operatorID);
-      const operator2 = component.getJointPaper().getModelById(mockResultPredicate.operatorID);
+      const operator1 = component.paper.getModelById(mockScanPredicate.operatorID);
+      const operator2 = component.paper.getModelById(mockResultPredicate.operatorID);
       expect(operator1.attr("rect/stroke")).not.toEqual("red");
       expect(operator2.attr("rect/stroke")).not.toEqual("red");
     });
@@ -491,7 +489,7 @@ describe("WorkflowEditorComponent", () => {
         m.hot("-e-")
           .pipe(tap(() => workflowActionService.getJointGraphWrapper().setZoomProperty(mockScaleRatio)))
           .subscribe(() => {
-            const currentScale = component.getJointPaper().scale();
+            const currentScale = component.paper.scale();
             expect(currentScale.sx).toEqual(mockScaleRatio);
             expect(currentScale.sy).toEqual(mockScaleRatio);
           });
@@ -502,15 +500,15 @@ describe("WorkflowEditorComponent", () => {
       "should react to jointJS paper restore default offset event",
       marbles(m => {
         const mockTranslation = 20;
-        const originalOffset = component.getJointPaper().translate();
-        component.getJointPaper().translate(mockTranslation, mockTranslation);
-        expect(component.getJointPaper().translate().tx).not.toEqual(originalOffset.tx);
-        expect(component.getJointPaper().translate().ty).not.toEqual(originalOffset.ty);
+        const originalOffset = component.paper.translate();
+        component.paper.translate(mockTranslation, mockTranslation);
+        expect(component.paper.translate().tx).not.toEqual(originalOffset.tx);
+        expect(component.paper.translate().ty).not.toEqual(originalOffset.ty);
         m.hot("-e-")
           .pipe(tap(() => workflowActionService.getJointGraphWrapper().restoreDefaultZoomAndOffset()))
           .subscribe(() => {
-            expect(component.getJointPaper().translate().tx).toEqual(originalOffset.tx);
-            expect(component.getJointPaper().translate().ty).toEqual(originalOffset.ty);
+            expect(component.paper.translate().tx).toEqual(originalOffset.tx);
+            expect(component.paper.translate().ty).toEqual(originalOffset.ty);
           });
       })
     );
@@ -820,7 +818,7 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).not.toContain(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the first operator element
-      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
       const event = jQuery.Event("mousedown", { shiftKey: true });
@@ -843,7 +841,7 @@ describe("WorkflowEditorComponent", () => {
       expect(jointGraphWrapper.getCurrentHighlightedOperatorIDs()).toContain(mockScanPredicate.operatorID);
 
       // find the joint Cell View object of the operator element
-      const jointCellView = component.getJointPaper().findViewByModel(mockScanPredicate.operatorID);
+      const jointCellView = component.paper.findViewByModel(mockScanPredicate.operatorID);
 
       // trigger a shift click on the cell view using its jQuery element
       const event = jQuery.Event("mousedown", { shiftKey: true });

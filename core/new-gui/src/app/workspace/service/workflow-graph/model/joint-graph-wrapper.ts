@@ -77,16 +77,14 @@ const DefaultContext: JointGraphContextType = {
 export class JointGraphWrapper {
   // zoom diff represents the ratio that is zoom in/out everytime, for clicking +/- buttons or using mousewheel
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
-  public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
 
   public static readonly ZOOM_MINIMUM: number = 0.7;
   public static readonly ZOOM_MAXIMUM: number = 1.3;
 
   public jointGraphContext = JointGraphWrapper.jointGraphContextFactory();
-  public navigatorMoveDelta: Subject<{ deltaX: number; deltaY: number }> = new Subject();
+  public mainPaper!: joint.dia.Paper;
 
-  private mainJointPaper!: joint.dia.Paper;
   private mainJointPaperAttachedStream: Subject<joint.dia.Paper> = new ReplaySubject(1);
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
@@ -185,14 +183,14 @@ export class JointGraphWrapper {
   public attachMainJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
     paperOptions.model = this.jointGraph;
     const paper = new joint.dia.Paper(paperOptions);
-    this.mainJointPaper = paper;
-    this.mainJointPaperAttachedStream.next(this.mainJointPaper);
+    this.mainPaper = paper;
+    this.mainJointPaperAttachedStream.next(this.mainPaper);
     this.jointGraphContext.attachPaper(paper);
     return paper;
   }
 
   public getMainJointPaper(): joint.dia.Paper {
-    return this.mainJointPaper;
+    return this.mainPaper;
   }
 
   public getMainJointPaperAttachedStream(): Observable<joint.dia.Paper> {
@@ -870,19 +868,6 @@ export class JointGraphWrapper {
   public setListenPositionChange(listenPositionChange: boolean): void {
     this.listenPositionChange = listenPositionChange;
   }
-
-  public freeze(): void {
-    this.mainJointPaper?.freeze();
-  }
-
-  public unfreeze(): void {
-    this.mainJointPaper?.unfreeze();
-  }
-
-  public updateViews(): void {
-    this.mainJointPaper?.updateViews();
-  }
-
   /**
    * Highlights the element with given elementID.
    *
