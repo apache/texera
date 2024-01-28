@@ -14,6 +14,7 @@ import org.jooq.Configuration;
 import org.jooq.Record4;
 import org.jooq.impl.DAOImpl;
 import org.jooq.types.UInteger;
+import org.jooq.types.ULong;
 
 
 /**
@@ -142,42 +143,42 @@ public class WorkflowRuntimeStatisticsDao extends DAOImpl<WorkflowRuntimeStatist
     /**
      * Fetch records that have <code>data_processing_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchRangeOfDataProcessingTime(UInteger lowerInclusive, UInteger upperInclusive) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchRangeOfDataProcessingTime(ULong lowerInclusive, ULong upperInclusive) {
         return fetchRange(WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>data_processing_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchByDataProcessingTime(UInteger... values) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchByDataProcessingTime(ULong... values) {
         return fetch(WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME, values);
     }
 
     /**
      * Fetch records that have <code>control_processing_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchRangeOfControlProcessingTime(UInteger lowerInclusive, UInteger upperInclusive) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchRangeOfControlProcessingTime(ULong lowerInclusive, ULong upperInclusive) {
         return fetchRange(WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>control_processing_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchByControlProcessingTime(UInteger... values) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchByControlProcessingTime(ULong... values) {
         return fetch(WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME, values);
     }
 
     /**
      * Fetch records that have <code>idle_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchRangeOfIdleTime(UInteger lowerInclusive, UInteger upperInclusive) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchRangeOfIdleTime(ULong lowerInclusive, ULong upperInclusive) {
         return fetchRange(WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.IDLE_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>idle_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchByIdleTime(UInteger... values) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowRuntimeStatistics> fetchByIdleTime(ULong... values) {
         return fetch(WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS.IDLE_TIME, values);
     }
 

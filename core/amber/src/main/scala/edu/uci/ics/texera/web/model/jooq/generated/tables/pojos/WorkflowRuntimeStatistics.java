@@ -9,6 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowRu
 import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
+import org.jooq.types.ULong;
 
 
 /**
@@ -17,7 +18,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
 
-    private static final long serialVersionUID = 633946948;
+    private static final long serialVersionUID = -2045109677;
 
     private UInteger  workflowId;
     private UInteger  executionId;
@@ -26,9 +27,9 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
     private UInteger  inputTupleCnt;
     private UInteger  outputTupleCnt;
     private Byte      status;
-    private UInteger  dataProcessingTime;
-    private UInteger  controlProcessingTime;
-    private UInteger  idleTime;
+    private ULong     dataProcessingTime;
+    private ULong     controlProcessingTime;
+    private ULong     idleTime;
     private UInteger  numWorkers;
 
     public WorkflowRuntimeStatistics() {}
@@ -55,9 +56,9 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         UInteger  inputTupleCnt,
         UInteger  outputTupleCnt,
         Byte      status,
-        UInteger  dataProcessingTime,
-        UInteger  controlProcessingTime,
-        UInteger  idleTime,
+        ULong     dataProcessingTime,
+        ULong     controlProcessingTime,
+        ULong     idleTime,
         UInteger  numWorkers
     ) {
         this.workflowId = workflowId;
@@ -144,32 +145,32 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
     }
 
     @Override
-    public UInteger getDataProcessingTime() {
+    public ULong getDataProcessingTime() {
         return this.dataProcessingTime;
     }
 
     @Override
-    public void setDataProcessingTime(UInteger dataProcessingTime) {
+    public void setDataProcessingTime(ULong dataProcessingTime) {
         this.dataProcessingTime = dataProcessingTime;
     }
 
     @Override
-    public UInteger getControlProcessingTime() {
+    public ULong getControlProcessingTime() {
         return this.controlProcessingTime;
     }
 
     @Override
-    public void setControlProcessingTime(UInteger controlProcessingTime) {
+    public void setControlProcessingTime(ULong controlProcessingTime) {
         this.controlProcessingTime = controlProcessingTime;
     }
 
     @Override
-    public UInteger getIdleTime() {
+    public ULong getIdleTime() {
         return this.idleTime;
     }
 
     @Override
-    public void setIdleTime(UInteger idleTime) {
+    public void setIdleTime(ULong idleTime) {
         this.idleTime = idleTime;
     }
 

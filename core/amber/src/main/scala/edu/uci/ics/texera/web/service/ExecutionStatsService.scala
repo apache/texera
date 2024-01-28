@@ -35,7 +35,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMP
 
 import java.time.Instant
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import org.jooq.types.UInteger
+import org.jooq.types.{UInteger, ULong}
 
 import java.util
 
@@ -164,9 +164,9 @@ class ExecutionStatsService(
         execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
         execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
         execution.setStatus(maptoStatusCode(stat.state))
-        execution.setDataProcessingTime(UInteger.valueOf(stat.dataProcessingTime))
-        execution.setControlProcessingTime(UInteger.valueOf(stat.controlProcessingTime))
-        execution.setIdleTime(UInteger.valueOf(stat.idleTime))
+        execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
+        execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
+        execution.setIdleTime(ULong.valueOf(stat.idleTime))
         execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
         list.add(execution)
       }

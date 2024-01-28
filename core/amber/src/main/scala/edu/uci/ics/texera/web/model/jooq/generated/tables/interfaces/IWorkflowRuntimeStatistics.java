@@ -8,6 +8,7 @@ import java.io.Serializable;
 import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
+import org.jooq.types.ULong;
 
 
 /**
@@ -89,32 +90,32 @@ public interface IWorkflowRuntimeStatistics extends Serializable {
     /**
      * Setter for <code>texera_db.workflow_runtime_statistics.data_processing_time</code>.
      */
-    public void setDataProcessingTime(UInteger value);
+    public void setDataProcessingTime(ULong value);
 
     /**
      * Getter for <code>texera_db.workflow_runtime_statistics.data_processing_time</code>.
      */
-    public UInteger getDataProcessingTime();
+    public ULong getDataProcessingTime();
 
     /**
      * Setter for <code>texera_db.workflow_runtime_statistics.control_processing_time</code>.
      */
-    public void setControlProcessingTime(UInteger value);
+    public void setControlProcessingTime(ULong value);
 
     /**
      * Getter for <code>texera_db.workflow_runtime_statistics.control_processing_time</code>.
      */
-    public UInteger getControlProcessingTime();
+    public ULong getControlProcessingTime();
 
     /**
      * Setter for <code>texera_db.workflow_runtime_statistics.idle_time</code>.
      */
-    public void setIdleTime(UInteger value);
+    public void setIdleTime(ULong value);
 
     /**
      * Getter for <code>texera_db.workflow_runtime_statistics.idle_time</code>.
      */
-    public UInteger getIdleTime();
+    public ULong getIdleTime();
 
     /**
      * Setter for <code>texera_db.workflow_runtime_statistics.num_workers</code>.
