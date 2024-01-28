@@ -273,3 +273,7 @@ libraryDependencies += "org.mindrot" % "jbcrypt" % "0.4"
 // https://mvnrepository.com/artifact/com.github.sisyphsu/dateparser
 libraryDependencies += "com.github.sisyphsu" % "dateparser" % "1.0.11"
 
+// https://mvnrepository.com/artifact/org.apache.commons/commons-vfs2
+libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0"
+
+
