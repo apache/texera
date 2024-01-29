@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
@@ -39,6 +39,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private editor?: any;
   private languageServerSocket?: WebSocket;
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
+  public componentRef: ComponentRef<CodeEditorComponent> | undefined;
 
   constructor(
     private sanitizer: DomSanitizer,

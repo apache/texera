@@ -1,7 +1,7 @@
 #code-editor-container {
   position: fixed;
   left: 25vw;
-  top: 100px;
+  top: random(100) + px;
   z-index: 3;
   resize: both;
   overflow: hidden;
