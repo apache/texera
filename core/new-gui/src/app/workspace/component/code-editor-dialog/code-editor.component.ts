@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, OnDestroy } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
@@ -14,7 +14,7 @@ import { Coeditor } from "../../../common/type/user";
 import { YType } from "../../types/shared-editing.interface";
 import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
-import { CloseAction, ErrorAction, MessageTransports } from "vscode-languageclient/lib/common/client.js";
+import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 
 /**
@@ -29,12 +29,11 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
  */
 @UntilDestroy()
 @Component({
-  selector: "texera-code-editor-dialog",
+  selector: "texera-code-editor",
   templateUrl: "code-editor.component.html",
   styleUrls: ["code-editor.component.scss"],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
-  @ViewChild("editor", { static: true }) divEditor?: ElementRef;
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
@@ -46,18 +45,30 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {}
+  ngAfterViewInit() {
+    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
+
+    this.code = (
+      this.workflowActionService
+        .getTexeraGraph()
+        .getSharedOperatorType(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0])
+        .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
+    ).get("code") as YText;
+
+    this.workflowVersionService
+      .getDisplayParticularVersionStream()
+      .pipe(takeUntil(this.workflowVersionStreamSubject))
+      .subscribe((displayParticularVersion: boolean) => {
+        if (displayParticularVersion) {
+          this.initDiffEditor();
+        } else {
+          this.initMonaco();
+          this.handleDisabledStatusChange();
+        }
+      });
+  }
 
   ngOnDestroy(): void {
-    const dialog = document.getElementById("mat-dialog-udf");
-    if (dialog !== null) {
-      localStorage.setItem("udfDialogStyle", dialog.style.cssText);
-    }
-
-    const panel = document.querySelector<HTMLElement>(".cdk-overlay-pane");
-    if (panel !== null) {
-      localStorage.setItem("udfPanelStyle", panel.style.cssText);
-    }
-
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
 
     if (
@@ -76,76 +87,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       this.workflowVersionStreamSubject.next();
       this.workflowVersionStreamSubject.complete();
     }
-  }
-
-  createLanguageClient(transports: MessageTransports): MonacoLanguageClient {
-    return new MonacoLanguageClient({
-      name: "Python UDF Language Client",
-      clientOptions: {
-        documentSelector: ["python"],
-        errorHandler: {
-          error: () => ({ action: ErrorAction.Continue }),
-          closed: () => ({ action: CloseAction.Restart }),
-        },
-      },
-      connectionProvider: {
-        get: () => {
-          return Promise.resolve(transports);
-        },
-      },
-    });
-  }
-
-  getLanguageServerSocket() {
-    return this.languageServerSocket;
-  }
-
-  ngAfterViewInit() {
-    const dialog = document.getElementById("mat-dialog-udf");
-    if (dialog !== null) {
-      // They are the actual width and height of the modal, the width and height in css will be the max size of resizing.
-      dialog.style.width = "800px";
-      dialog.style.height = "600px";
-    }
-    const dialogStyle = localStorage.getItem("udfDialogStyle");
-    if (dialog !== null && dialogStyle !== null) {
-      dialog.style.cssText = dialogStyle;
-    }
-
-    const panel = document.querySelector<HTMLElement>(".cdk-overlay-pane");
-    const panelStyle = localStorage.getItem("udfPanelStyle");
-    if (panel !== null && panelStyle !== null) {
-      panel.style.cssText = panelStyle;
-    }
-
-    const currentOperatorId: string = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs()[0];
-
-    if (currentOperatorId === undefined) {
-      return;
-    }
-
-    this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
-
-    this.code = (
-      this.workflowActionService
-        .getTexeraGraph()
-        .getSharedOperatorType(currentOperatorId)
-        .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
-    ).get("code") as YText;
-
-    this.workflowVersionService
-      .getDisplayParticularVersionStream()
-      .pipe(takeUntil(this.workflowVersionStreamSubject))
-      .subscribe((displayParticularVersion: boolean) => {
-        if (displayParticularVersion) {
-          this.initDiffEditor();
-        } else {
-          this.initMonaco();
-          this.handleDisabledStatusChange();
-        }
-      });
   }
 
   /**
@@ -167,7 +108,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * @private
    */
   private initMonaco() {
-    const editor = monaco.editor.create(this.divEditor?.nativeElement, {
+    const editor = monaco.editor.create(document.getElementById("code-editor")!, {
       language: "python",
       fontSize: 11,
       theme: "vs-dark",
@@ -186,23 +127,24 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.connectLanguageServer();
   }
 
-  /**
-   * Create a Monaco editor and connect it to MonacoBinding.
-   * @private
-   */
   private connectLanguageServer() {
-    const url = getWebsocketUrl("/python-language-server", "3000");
-
     if (this.languageServerSocket === undefined) {
-      this.languageServerSocket = new WebSocket(url);
+      this.languageServerSocket = new WebSocket(getWebsocketUrl("/python-language-server", "3000"));
       this.languageServerSocket.onopen = () => {
         if (this.languageServerSocket !== undefined) {
           const socket = toSocket(this.languageServerSocket);
           const reader = new WebSocketMessageReader(socket);
           const writer = new WebSocketMessageWriter(socket);
-          const languageClient = this.createLanguageClient({
-            reader,
-            writer,
+          const languageClient = new MonacoLanguageClient({
+            name: "Python UDF Language Client",
+            clientOptions: {
+              documentSelector: ["python"],
+              errorHandler: {
+                error: () => ({ action: ErrorAction.Continue }),
+                closed: () => ({ action: CloseAction.Restart }),
+              },
+            },
+            connectionProvider: { get: () => Promise.resolve({ reader, writer }) },
           });
           languageClient.start();
           reader.onClose(() => languageClient.stop());
@@ -212,37 +154,25 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   }
 
   private initDiffEditor() {
-    if (isUndefined(this.code)) {
-      return;
+    if (this.code) {
+      this.editor = monaco.editor.createDiffEditor(document.getElementById("code-editor")!, {
+        readOnly: true,
+        theme: "vs-dark",
+        fontSize: 11,
+        automaticLayout: true,
+      });
+      const currentWorkflowVersionCode = this.workflowActionService
+        .getTempWorkflow()
+        ?.content.operators?.filter(
+          operator =>
+            operator.operatorID ===
+            this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0]
+        )?.[0].operatorProperties.code;
+      this.editor.setModel({
+        original: monaco.editor.createModel(this.code.toString(), "python"),
+        modified: monaco.editor.createModel(currentWorkflowVersionCode, "python"),
+      });
     }
-    const diffEditor = monaco.editor.createDiffEditor(this.divEditor?.nativeElement, {
-      readOnly: true,
-      theme: "vs-dark",
-      fontSize: 11,
-      automaticLayout: true,
-    });
-    const leftModel = monaco.editor.createModel(this.code.toString(), "python");
-    const rightModel = monaco.editor.createModel(this.getCurrentWorkflowVersionCode(), "python");
-    diffEditor.setModel({
-      original: leftModel,
-      modified: rightModel,
-    });
-    this.editor = diffEditor;
-  }
-
-  /**
-   * Gets the latest workflow's selected operator's code.
-   * @private
-   */
-  private getCurrentWorkflowVersionCode(): string {
-    const workflow = this.workflowActionService.getTempWorkflow();
-    const currentOperatorId: string = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedOperatorIDs()[0];
-    const operatorInfo = workflow?.content.operators?.filter(
-      operator => operator.operatorID === currentOperatorId
-    )?.[0];
-    return operatorInfo?.operatorProperties.code;
   }
 
   /**

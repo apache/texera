@@ -1,14 +1,16 @@
 #code-editor-container {
   position: fixed;
-  left: 10px;
-  top: 10px;
+  left: 25vw;
+  top: 100px;
   z-index: 3;
   resize: both;
   overflow: hidden;
-  width: 60vw;
-  height: 60vh;
+  width: 50vw;
+  height: 50vh;
   min-width: 320px;
   min-height: 240px;
+  border-radius: 3px;
+  box-shadow: 0 3px 1px -2px #0003, 0 2px 2px #00000024, 0 1px 5px #0000001f;
 }
 
 #title {
@@ -16,7 +18,14 @@
   color: #fff;
   text-align: center;
   margin: 0;
-  padding: 10px;
+  padding-bottom: 10px;
+  line-height: 30px;
+}
+
+#close-button {
+  line-height: 0;
+  color: white;
+  float: right;
 }
 
 #code-editor {

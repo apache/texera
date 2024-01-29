@@ -3,8 +3,9 @@
      cdkDragBoundary="texera-workspace">
   <h5 id="title" cdkDragHandle>
     Python Script
+    <button nz-button nzType="text" nzSize="large" nzShape="circle" id="close-button"><span nz-icon nzType="close"></span></button>
   </h5>
-  <div id="code-editor"></div>
+  <div id="code-editor"></div>a
   <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
