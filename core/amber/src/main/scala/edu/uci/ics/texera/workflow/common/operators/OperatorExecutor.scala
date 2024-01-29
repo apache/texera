@@ -1,9 +1,10 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
+import edu.uci.ics.amber.engine.architecture.worker.{DataProcessor, PauseManager}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.AmberTuple
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -15,6 +16,14 @@ trait OperatorExecutor extends IOperatorExecutor {
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[(ITuple, Option[PortIdentity])] = {
+    tuple match {
+      case Left(value) =>
+        value match {
+          case tuple: DataProcessor.SpecialDataTuple => return Iterator.empty
+          case _ => // skip
+        }
+      case Right(value) => //skip
+    }
     processTexeraTuple(
       tuple.asInstanceOf[Either[Tuple, InputExhausted]],
       input,
