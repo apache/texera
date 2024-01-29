@@ -23,7 +23,6 @@
   <div
     #editor
     id="code-editor"></div>
-  a
   <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
