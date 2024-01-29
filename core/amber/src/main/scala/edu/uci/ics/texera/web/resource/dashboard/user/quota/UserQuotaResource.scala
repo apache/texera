@@ -22,7 +22,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.storage.MongoDatabaseManager
 import io.dropwizard.auth.Auth
 
-import java.sql.Timestamp
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object UserQuotaResource {
@@ -93,7 +92,7 @@ object UserQuotaResource {
           fileRecord.get(FILE.FID),
           fileRecord.get(FILE.NAME),
           fileRecord.get(FILE.SIZE),
-          Timestamp.valueOf(fileRecord.get(FILE.UPLOAD_TIME)).getTime,
+          fileRecord.get(FILE.UPLOAD_TIME).getTime,
           fileRecord.get(FILE.DESCRIPTION)
         )
       })

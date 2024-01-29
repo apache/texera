@@ -13,7 +13,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserRecord;
 import java.util.Arrays;
 import java.util.List;
 
-import org.jooq.Check;
 import org.jooq.Field;
 import org.jooq.ForeignKey;
 import org.jooq.Identity;
@@ -24,11 +23,8 @@ import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.Internal;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -39,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1259931841;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -57,39 +53,38 @@ public class User extends TableImpl<UserRecord> {
     /**
      * The column <code>texera_db.user.uid</code>.
      */
-    public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<UserRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.user.name</code>.
      */
-    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(256).nullable(false), this, "");
+    public final TableField<UserRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user.email</code>.
      */
-    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), SQLDataType.VARCHAR(256), this, "");
+    public final TableField<UserRecord, String> EMAIL = createField(DSL.name("email"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.password</code>.
      */
-    public final TableField<UserRecord, String> PASSWORD = createField(DSL.name("password"), SQLDataType.VARCHAR(256), this, "");
+    public final TableField<UserRecord, String> PASSWORD = createField(DSL.name("password"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.google_id</code>.
      */
-    public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), SQLDataType.VARCHAR(256), this, "");
+    public final TableField<UserRecord, String> GOOGLE_ID = createField(DSL.name("google_id"), org.jooq.impl.SQLDataType.VARCHAR(256), this, "");
 
     /**
      * The column <code>texera_db.user.role</code>.
      */
-    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), SQLDataType.VARCHAR(10).nullable(false).defaultValue(DSL.inline("INACTIVE", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
+    public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(10).nullable(false).defaultValue(org.jooq.impl.DSL.inline("INACTIVE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
 
-    private User(Name alias, Table<UserRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private User(Name alias, Table<UserRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.user</code> table reference
+     */
+    public User() {
+        this(DSL.name("user"), null);
     }
 
     /**
@@ -106,11 +101,12 @@ public class User extends TableImpl<UserRecord> {
         this(alias, USER);
     }
 
-    /**
-     * Create a <code>texera_db.user</code> table reference
-     */
-    public User() {
-        this(DSL.name("user"), null);
+    private User(Name alias, Table<UserRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private User(Name alias, Table<UserRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> User(Table<O> child, ForeignKey<O, UserRecord> key) {
@@ -124,12 +120,12 @@ public class User extends TableImpl<UserRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_IDX_USER_NAME);
+        return Arrays.<Index>asList(Indexes.USER_EMAIL, Indexes.USER_GOOGLE_ID, Indexes.USER_IDX_USER_NAME, Indexes.USER_PRIMARY);
     }
 
     @Override
     public Identity<UserRecord, UInteger> getIdentity() {
-        return (Identity<UserRecord, UInteger>) super.getIdentity();
+        return Keys.IDENTITY_USER;
     }
 
     @Override
@@ -140,13 +136,6 @@ public class User extends TableImpl<UserRecord> {
     @Override
     public List<UniqueKey<UserRecord>> getKeys() {
         return Arrays.<UniqueKey<UserRecord>>asList(Keys.KEY_USER_PRIMARY, Keys.KEY_USER_EMAIL, Keys.KEY_USER_GOOGLE_ID);
-    }
-
-    @Override
-    public List<Check<UserRecord>> getChecks() {
-        return Arrays.<Check<UserRecord>>asList(
-              Internal.createCheck(this, DSL.name("CK_nulltest"), "((`password` is not null) or (`google_id` is not null))", true)
-        );
     }
 
     @Override

@@ -6,7 +6,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowRuntimeStatistics;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -17,15 +17,15 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -446937835;
 
-    private UInteger      workflowId;
-    private UInteger      executionId;
-    private String        operatorId;
-    private LocalDateTime time;
-    private UInteger      inputTupleCnt;
-    private UInteger      outputTupleCnt;
-    private Byte          status;
+    private UInteger  workflowId;
+    private UInteger  executionId;
+    private String    operatorId;
+    private Timestamp time;
+    private UInteger  inputTupleCnt;
+    private UInteger  outputTupleCnt;
+    private Byte      status;
 
     public WorkflowRuntimeStatistics() {}
 
@@ -40,13 +40,13 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
     }
 
     public WorkflowRuntimeStatistics(
-        UInteger      workflowId,
-        UInteger      executionId,
-        String        operatorId,
-        LocalDateTime time,
-        UInteger      inputTupleCnt,
-        UInteger      outputTupleCnt,
-        Byte          status
+        UInteger  workflowId,
+        UInteger  executionId,
+        String    operatorId,
+        Timestamp time,
+        UInteger  inputTupleCnt,
+        UInteger  outputTupleCnt,
+        Byte      status
     ) {
         this.workflowId = workflowId;
         this.executionId = executionId;
@@ -57,113 +57,71 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         this.status = status;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_runtime_statistics.workflow_id</code>.
-     */
     @Override
     public UInteger getWorkflowId() {
         return this.workflowId;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_runtime_statistics.workflow_id</code>.
-     */
     @Override
     public void setWorkflowId(UInteger workflowId) {
         this.workflowId = workflowId;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_runtime_statistics.execution_id</code>.
-     */
     @Override
     public UInteger getExecutionId() {
         return this.executionId;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_runtime_statistics.execution_id</code>.
-     */
     @Override
     public void setExecutionId(UInteger executionId) {
         this.executionId = executionId;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_runtime_statistics.operator_id</code>.
-     */
     @Override
     public String getOperatorId() {
         return this.operatorId;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_runtime_statistics.operator_id</code>.
-     */
     @Override
     public void setOperatorId(String operatorId) {
         this.operatorId = operatorId;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_runtime_statistics.time</code>.
-     */
     @Override
-    public LocalDateTime getTime() {
+    public Timestamp getTime() {
         return this.time;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_runtime_statistics.time</code>.
-     */
     @Override
-    public void setTime(LocalDateTime time) {
+    public void setTime(Timestamp time) {
         this.time = time;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_runtime_statistics.input_tuple_cnt</code>.
-     */
     @Override
     public UInteger getInputTupleCnt() {
         return this.inputTupleCnt;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_runtime_statistics.input_tuple_cnt</code>.
-     */
     @Override
     public void setInputTupleCnt(UInteger inputTupleCnt) {
         this.inputTupleCnt = inputTupleCnt;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_runtime_statistics.output_tuple_cnt</code>.
-     */
     @Override
     public UInteger getOutputTupleCnt() {
         return this.outputTupleCnt;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_runtime_statistics.output_tuple_cnt</code>.
-     */
     @Override
     public void setOutputTupleCnt(UInteger outputTupleCnt) {
         this.outputTupleCnt = outputTupleCnt;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_runtime_statistics.status</code>.
-     */
     @Override
     public Byte getStatus() {
         return this.status;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_runtime_statistics.status</code>.
-     */
     @Override
     public void setStatus(Byte status) {
         this.status = status;

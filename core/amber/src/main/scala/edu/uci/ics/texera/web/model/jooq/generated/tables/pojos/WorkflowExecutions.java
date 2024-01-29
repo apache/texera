@@ -6,7 +6,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowExecutions;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -17,19 +17,19 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -379967912;
 
-    private UInteger      eid;
-    private UInteger      vid;
-    private UInteger      uid;
-    private Byte          status;
-    private String        result;
-    private LocalDateTime startingTime;
-    private LocalDateTime lastUpdateTime;
-    private Byte          bookmarked;
-    private String        name;
-    private String        environmentVersion;
-    private String        logLocation;
+    private UInteger  eid;
+    private UInteger  vid;
+    private UInteger  uid;
+    private Byte      status;
+    private String    result;
+    private Timestamp startingTime;
+    private Timestamp lastUpdateTime;
+    private Byte      bookmarked;
+    private String    name;
+    private String    environmentVersion;
+    private String    logLocation;
 
     public WorkflowExecutions() {}
 
@@ -48,17 +48,17 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     public WorkflowExecutions(
-        UInteger      eid,
-        UInteger      vid,
-        UInteger      uid,
-        Byte          status,
-        String        result,
-        LocalDateTime startingTime,
-        LocalDateTime lastUpdateTime,
-        Byte          bookmarked,
-        String        name,
-        String        environmentVersion,
-        String        logLocation
+        UInteger  eid,
+        UInteger  vid,
+        UInteger  uid,
+        Byte      status,
+        String    result,
+        Timestamp startingTime,
+        Timestamp lastUpdateTime,
+        Byte      bookmarked,
+        String    name,
+        String    environmentVersion,
+        String    logLocation
     ) {
         this.eid = eid;
         this.vid = vid;
@@ -73,177 +73,111 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.logLocation = logLocation;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.eid</code>.
-     */
     @Override
     public UInteger getEid() {
         return this.eid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.eid</code>.
-     */
     @Override
     public void setEid(UInteger eid) {
         this.eid = eid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.vid</code>.
-     */
     @Override
     public UInteger getVid() {
         return this.vid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.vid</code>.
-     */
     @Override
     public void setVid(UInteger vid) {
         this.vid = vid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.uid</code>.
-     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.uid</code>.
-     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.status</code>.
-     */
     @Override
     public Byte getStatus() {
         return this.status;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.status</code>.
-     */
     @Override
     public void setStatus(Byte status) {
         this.status = status;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.result</code>.
-     */
     @Override
     public String getResult() {
         return this.result;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.result</code>.
-     */
     @Override
     public void setResult(String result) {
         this.result = result;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.starting_time</code>.
-     */
     @Override
-    public LocalDateTime getStartingTime() {
+    public Timestamp getStartingTime() {
         return this.startingTime;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.starting_time</code>.
-     */
     @Override
-    public void setStartingTime(LocalDateTime startingTime) {
+    public void setStartingTime(Timestamp startingTime) {
         this.startingTime = startingTime;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.last_update_time</code>.
-     */
     @Override
-    public LocalDateTime getLastUpdateTime() {
+    public Timestamp getLastUpdateTime() {
         return this.lastUpdateTime;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.last_update_time</code>.
-     */
     @Override
-    public void setLastUpdateTime(LocalDateTime lastUpdateTime) {
+    public void setLastUpdateTime(Timestamp lastUpdateTime) {
         this.lastUpdateTime = lastUpdateTime;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.bookmarked</code>.
-     */
     @Override
     public Byte getBookmarked() {
         return this.bookmarked;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.bookmarked</code>.
-     */
     @Override
     public void setBookmarked(Byte bookmarked) {
         this.bookmarked = bookmarked;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.name</code>.
-     */
     @Override
     public String getName() {
         return this.name;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.name</code>.
-     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.environment_version</code>.
-     */
     @Override
     public String getEnvironmentVersion() {
         return this.environmentVersion;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.environment_version</code>.
-     */
     @Override
     public void setEnvironmentVersion(String environmentVersion) {
         this.environmentVersion = environmentVersion;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_executions.log_location</code>.
-     */
     @Override
     public String getLogLocation() {
         return this.logLocation;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_executions.log_location</code>.
-     */
     @Override
     public void setLogLocation(String logLocation) {
         this.logLocation = logLocation;

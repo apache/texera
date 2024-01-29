@@ -20,7 +20,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class FileOfProjectRecord extends UpdatableRecordImpl<FileOfProjectRecord> implements Record2<UInteger, UInteger>, IFileOfProject {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 184878485;
 
     /**
      * Setter for <code>texera_db.file_of_project.fid</code>.
@@ -159,7 +159,7 @@ public class FileOfProjectRecord extends UpdatableRecordImpl<FileOfProjectRecord
     public FileOfProjectRecord(UInteger fid, UInteger pid) {
         super(FileOfProject.FILE_OF_PROJECT);
 
-        setFid(fid);
-        setPid(pid);
+        set(0, fid);
+        set(1, pid);
     }
 }

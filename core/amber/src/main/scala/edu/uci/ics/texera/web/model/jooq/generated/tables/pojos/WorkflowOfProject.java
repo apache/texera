@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProject implements IWorkflowOfProject {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -2015179902;
 
     private UInteger wid;
     private UInteger pid;
@@ -35,33 +35,21 @@ public class WorkflowOfProject implements IWorkflowOfProject {
         this.pid = pid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_of_project.wid</code>.
-     */
     @Override
     public UInteger getWid() {
         return this.wid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_of_project.wid</code>.
-     */
     @Override
     public void setWid(UInteger wid) {
         this.wid = wid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_of_project.pid</code>.
-     */
     @Override
     public UInteger getPid() {
         return this.pid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_of_project.pid</code>.
-     */
     @Override
     public void setPid(UInteger pid) {
         this.pid = pid;

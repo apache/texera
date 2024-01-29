@@ -6,7 +6,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -17,15 +17,15 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class File implements IFile {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1773920374;
 
-    private UInteger      ownerUid;
-    private UInteger      fid;
-    private UInteger      size;
-    private String        name;
-    private String        path;
-    private String        description;
-    private LocalDateTime uploadTime;
+    private UInteger  ownerUid;
+    private UInteger  fid;
+    private UInteger  size;
+    private String    name;
+    private String    path;
+    private String    description;
+    private Timestamp uploadTime;
 
     public File() {}
 
@@ -40,13 +40,13 @@ public class File implements IFile {
     }
 
     public File(
-        UInteger      ownerUid,
-        UInteger      fid,
-        UInteger      size,
-        String        name,
-        String        path,
-        String        description,
-        LocalDateTime uploadTime
+        UInteger  ownerUid,
+        UInteger  fid,
+        UInteger  size,
+        String    name,
+        String    path,
+        String    description,
+        Timestamp uploadTime
     ) {
         this.ownerUid = ownerUid;
         this.fid = fid;
@@ -57,115 +57,73 @@ public class File implements IFile {
         this.uploadTime = uploadTime;
     }
 
-    /**
-     * Getter for <code>texera_db.file.owner_uid</code>.
-     */
     @Override
     public UInteger getOwnerUid() {
         return this.ownerUid;
     }
 
-    /**
-     * Setter for <code>texera_db.file.owner_uid</code>.
-     */
     @Override
     public void setOwnerUid(UInteger ownerUid) {
         this.ownerUid = ownerUid;
     }
 
-    /**
-     * Getter for <code>texera_db.file.fid</code>.
-     */
     @Override
     public UInteger getFid() {
         return this.fid;
     }
 
-    /**
-     * Setter for <code>texera_db.file.fid</code>.
-     */
     @Override
     public void setFid(UInteger fid) {
         this.fid = fid;
     }
 
-    /**
-     * Getter for <code>texera_db.file.size</code>.
-     */
     @Override
     public UInteger getSize() {
         return this.size;
     }
 
-    /**
-     * Setter for <code>texera_db.file.size</code>.
-     */
     @Override
     public void setSize(UInteger size) {
         this.size = size;
     }
 
-    /**
-     * Getter for <code>texera_db.file.name</code>.
-     */
     @Override
     public String getName() {
         return this.name;
     }
 
-    /**
-     * Setter for <code>texera_db.file.name</code>.
-     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Getter for <code>texera_db.file.path</code>.
-     */
     @Override
     public String getPath() {
         return this.path;
     }
 
-    /**
-     * Setter for <code>texera_db.file.path</code>.
-     */
     @Override
     public void setPath(String path) {
         this.path = path;
     }
 
-    /**
-     * Getter for <code>texera_db.file.description</code>.
-     */
     @Override
     public String getDescription() {
         return this.description;
     }
 
-    /**
-     * Setter for <code>texera_db.file.description</code>.
-     */
     @Override
     public void setDescription(String description) {
         this.description = description;
     }
 
-    /**
-     * Getter for <code>texera_db.file.upload_time</code>.
-     */
     @Override
-    public LocalDateTime getUploadTime() {
+    public Timestamp getUploadTime() {
         return this.uploadTime;
     }
 
-    /**
-     * Setter for <code>texera_db.file.upload_time</code>.
-     */
     @Override
-    public void setUploadTime(LocalDateTime uploadTime) {
+    public void setUploadTime(Timestamp uploadTime) {
         this.uploadTime = uploadTime;
     }
 

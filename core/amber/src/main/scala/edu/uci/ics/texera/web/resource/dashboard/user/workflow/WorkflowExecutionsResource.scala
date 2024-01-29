@@ -39,7 +39,7 @@ object WorkflowExecutionsResource {
   def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
     val deadline = new Timestamp(
       System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)
-    ).toLocalDateTime
+    )
     context
       .selectFrom(WORKFLOW_EXECUTIONS)
       .where(

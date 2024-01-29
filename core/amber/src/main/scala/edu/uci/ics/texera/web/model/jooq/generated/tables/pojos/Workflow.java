@@ -6,7 +6,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflow;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -17,14 +17,14 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Workflow implements IWorkflow {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -380738907;
 
-    private String        name;
-    private String        description;
-    private UInteger      wid;
-    private String        content;
-    private LocalDateTime creationTime;
-    private LocalDateTime lastModifiedTime;
+    private String    name;
+    private String    description;
+    private UInteger  wid;
+    private String    content;
+    private Timestamp creationTime;
+    private Timestamp lastModifiedTime;
 
     public Workflow() {}
 
@@ -38,12 +38,12 @@ public class Workflow implements IWorkflow {
     }
 
     public Workflow(
-        String        name,
-        String        description,
-        UInteger      wid,
-        String        content,
-        LocalDateTime creationTime,
-        LocalDateTime lastModifiedTime
+        String    name,
+        String    description,
+        UInteger  wid,
+        String    content,
+        Timestamp creationTime,
+        Timestamp lastModifiedTime
     ) {
         this.name = name;
         this.description = description;
@@ -53,99 +53,63 @@ public class Workflow implements IWorkflow {
         this.lastModifiedTime = lastModifiedTime;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.name</code>.
-     */
     @Override
     public String getName() {
         return this.name;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.name</code>.
-     */
     @Override
     public void setName(String name) {
         this.name = name;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.description</code>.
-     */
     @Override
     public String getDescription() {
         return this.description;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.description</code>.
-     */
     @Override
     public void setDescription(String description) {
         this.description = description;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.wid</code>.
-     */
     @Override
     public UInteger getWid() {
         return this.wid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.wid</code>.
-     */
     @Override
     public void setWid(UInteger wid) {
         this.wid = wid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.content</code>.
-     */
     @Override
     public String getContent() {
         return this.content;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.content</code>.
-     */
     @Override
     public void setContent(String content) {
         this.content = content;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.creation_time</code>.
-     */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.creation_time</code>.
-     */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow.last_modified_time</code>.
-     */
     @Override
-    public LocalDateTime getLastModifiedTime() {
+    public Timestamp getLastModifiedTime() {
         return this.lastModifiedTime;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow.last_modified_time</code>.
-     */
     @Override
-    public void setLastModifiedTime(LocalDateTime lastModifiedTime) {
+    public void setLastModifiedTime(Timestamp lastModifiedTime) {
         this.lastModifiedTime = lastModifiedTime;
     }
 

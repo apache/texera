@@ -54,10 +54,10 @@ public interface IUserFileAccess extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IUserFileAccess
      */
-    public void from(IUserFileAccess from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IUserFileAccess from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IUserFileAccess
      */
-    public <E extends IUserFileAccess> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IUserFileAccess> E into(E into);
 }

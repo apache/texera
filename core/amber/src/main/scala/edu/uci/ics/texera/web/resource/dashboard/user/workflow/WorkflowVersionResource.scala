@@ -196,7 +196,7 @@ object WorkflowVersionResource {
     var lastVersionTime = lastVersion.getCreationTime
     impEncodedVersions = impEncodedVersions :+ VersionEntry(
       lastVersion.getVid,
-      Timestamp.valueOf(lastVersion.getCreationTime),
+      lastVersion.getCreationTime,
       lastVersion.getContent,
       true
     ) // the first (latest)
@@ -205,8 +205,8 @@ object WorkflowVersionResource {
     for (version <- versions.tail) {
       if (
         isWithinTimeLimit(
-          Timestamp.valueOf(lastVersionTime),
-          Timestamp.valueOf(version.getCreationTime)
+          lastVersionTime,
+          version.getCreationTime
         )
       ) {
         versionImportance = false
@@ -218,7 +218,7 @@ object WorkflowVersionResource {
       }
       impEncodedVersions = impEncodedVersions :+ VersionEntry(
         version.getVid,
-        Timestamp.valueOf(version.getCreationTime),
+        version.getCreationTime,
         version.getContent,
         versionImportance
       )

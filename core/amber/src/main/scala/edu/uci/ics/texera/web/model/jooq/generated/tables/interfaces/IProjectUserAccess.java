@@ -54,10 +54,10 @@ public interface IProjectUserAccess extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IProjectUserAccess
      */
-    public void from(IProjectUserAccess from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IProjectUserAccess from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IProjectUserAccess
      */
-    public <E extends IProjectUserAccess> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IProjectUserAccess> E into(E into);
 }

@@ -15,7 +15,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class PublicProject implements IPublicProject {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -956065810;
 
     private UInteger pid;
     private UInteger uid;
@@ -35,33 +35,21 @@ public class PublicProject implements IPublicProject {
         this.uid = uid;
     }
 
-    /**
-     * Getter for <code>texera_db.public_project.pid</code>.
-     */
     @Override
     public UInteger getPid() {
         return this.pid;
     }
 
-    /**
-     * Setter for <code>texera_db.public_project.pid</code>.
-     */
     @Override
     public void setPid(UInteger pid) {
         this.pid = pid;
     }
 
-    /**
-     * Getter for <code>texera_db.public_project.uid</code>.
-     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
-    /**
-     * Setter for <code>texera_db.public_project.uid</code>.
-     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;

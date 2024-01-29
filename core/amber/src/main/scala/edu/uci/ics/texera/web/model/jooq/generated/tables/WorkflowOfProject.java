@@ -21,10 +21,8 @@ import org.jooq.Row2;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -35,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 644137750;
 
     /**
      * The reference instance of <code>texera_db.workflow_of_project</code>
@@ -53,19 +51,18 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
     /**
      * The column <code>texera_db.workflow_of_project.wid</code>.
      */
-    public final TableField<WorkflowOfProjectRecord, UInteger> WID = createField(DSL.name("wid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfProjectRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_of_project.pid</code>.
      */
-    public final TableField<WorkflowOfProjectRecord, UInteger> PID = createField(DSL.name("pid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowOfProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
-    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.workflow_of_project</code> table reference
+     */
+    public WorkflowOfProject() {
+        this(DSL.name("workflow_of_project"), null);
     }
 
     /**
@@ -82,11 +79,12 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
         this(alias, WORKFLOW_OF_PROJECT);
     }
 
-    /**
-     * Create a <code>texera_db.workflow_of_project</code> table reference
-     */
-    public WorkflowOfProject() {
-        this(DSL.name("workflow_of_project"), null);
+    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowOfProject(Name alias, Table<WorkflowOfProjectRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> WorkflowOfProject(Table<O> child, ForeignKey<O, WorkflowOfProjectRecord> key) {
@@ -100,7 +98,7 @@ public class WorkflowOfProject extends TableImpl<WorkflowOfProjectRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_OF_PROJECT_PID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_OF_PROJECT_PID, Indexes.WORKFLOW_OF_PROJECT_PRIMARY);
     }
 
     @Override

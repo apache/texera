@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowVersionRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,10 +23,8 @@ import org.jooq.Row4;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -37,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -1701791149;
 
     /**
      * The reference instance of <code>texera_db.workflow_version</code>
@@ -55,29 +53,28 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
     /**
      * The column <code>texera_db.workflow_version.vid</code>.
      */
-    public final TableField<WorkflowVersionRecord, UInteger> VID = createField(DSL.name("vid"), SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<WorkflowVersionRecord, UInteger> VID = createField(DSL.name("vid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.workflow_version.wid</code>.
      */
-    public final TableField<WorkflowVersionRecord, UInteger> WID = createField(DSL.name("wid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowVersionRecord, UInteger> WID = createField(DSL.name("wid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_version.content</code>.
      */
-    public final TableField<WorkflowVersionRecord, String> CONTENT = createField(DSL.name("content"), SQLDataType.CLOB.nullable(false), this, "");
+    public final TableField<WorkflowVersionRecord, String> CONTENT = createField(DSL.name("content"), org.jooq.impl.SQLDataType.CLOB.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_version.creation_time</code>.
      */
-    public final TableField<WorkflowVersionRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<WorkflowVersionRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
-    private WorkflowVersion(Name alias, Table<WorkflowVersionRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowVersion(Name alias, Table<WorkflowVersionRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.workflow_version</code> table reference
+     */
+    public WorkflowVersion() {
+        this(DSL.name("workflow_version"), null);
     }
 
     /**
@@ -94,11 +91,12 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
         this(alias, WORKFLOW_VERSION);
     }
 
-    /**
-     * Create a <code>texera_db.workflow_version</code> table reference
-     */
-    public WorkflowVersion() {
-        this(DSL.name("workflow_version"), null);
+    private WorkflowVersion(Name alias, Table<WorkflowVersionRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowVersion(Name alias, Table<WorkflowVersionRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> WorkflowVersion(Table<O> child, ForeignKey<O, WorkflowVersionRecord> key) {
@@ -112,12 +110,12 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_VERSION_WID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_VERSION_PRIMARY, Indexes.WORKFLOW_VERSION_WID);
     }
 
     @Override
     public Identity<WorkflowVersionRecord, UInteger> getIdentity() {
-        return (Identity<WorkflowVersionRecord, UInteger>) super.getIdentity();
+        return Keys.IDENTITY_WORKFLOW_VERSION;
     }
 
     @Override
@@ -170,7 +168,7 @@ public class WorkflowVersion extends TableImpl<WorkflowVersionRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row4<UInteger, UInteger, String, LocalDateTime> fieldsRow() {
+    public Row4<UInteger, UInteger, String, Timestamp> fieldsRow() {
         return (Row4) super.fieldsRow();
     }
 }

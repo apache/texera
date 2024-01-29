@@ -22,7 +22,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserFileAccessRecord extends UpdatableRecordImpl<UserFileAccessRecord> implements Record3<UInteger, UInteger, UserFileAccessPrivilege>, IUserFileAccess {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -638683500;
 
     /**
      * Setter for <code>texera_db.user_file_access.uid</code>.
@@ -200,8 +200,8 @@ public class UserFileAccessRecord extends UpdatableRecordImpl<UserFileAccessReco
     public UserFileAccessRecord(UInteger uid, UInteger fid, UserFileAccessPrivilege privilege) {
         super(UserFileAccess.USER_FILE_ACCESS);
 
-        setUid(uid);
-        setFid(fid);
-        setPrivilege(privilege);
+        set(0, uid);
+        set(1, fid);
+        set(2, privilege);
     }
 }

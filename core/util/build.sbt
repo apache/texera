@@ -14,5 +14,5 @@ lazy val util = project
     // https://mvnrepository.com/artifact/org.jooq/jooq
     libraryDependencies += "org.jooq" % "jooq" % "3.14.4",
     // https://mvnrepository.com/artifact/org.jooq/jooq-codegen
-    libraryDependencies += "org.jooq" % "jooq-codegen" % "3.14.4"
+    libraryDependencies += "org.jooq" % "jooq-codegen" % "3.12.4"
   )

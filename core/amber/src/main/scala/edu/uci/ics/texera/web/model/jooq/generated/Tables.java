@@ -23,7 +23,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
 
 /**
- * Convenience access to all tables in texera_db.
+ * Convenience access to all tables in texera_db
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {

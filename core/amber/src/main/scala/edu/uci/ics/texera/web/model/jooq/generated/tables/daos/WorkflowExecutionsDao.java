@@ -7,7 +7,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.daos;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowExecutionsRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.jooq.Configuration;
@@ -120,28 +120,28 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     /**
      * Fetch records that have <code>starting_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStartingTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfStartingTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.STARTING_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>starting_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByStartingTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByStartingTime(Timestamp... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.STARTING_TIME, values);
     }
 
     /**
      * Fetch records that have <code>last_update_time BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLastUpdateTime(LocalDateTime lowerInclusive, LocalDateTime upperInclusive) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLastUpdateTime(Timestamp lowerInclusive, Timestamp upperInclusive) {
         return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME, lowerInclusive, upperInclusive);
     }
 
     /**
      * Fetch records that have <code>last_update_time IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByLastUpdateTime(LocalDateTime... values) {
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByLastUpdateTime(Timestamp... values) {
         return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME, values);
     }
 

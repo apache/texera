@@ -22,10 +22,8 @@ import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -36,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -2015215347;
 
     /**
      * The reference instance of <code>texera_db.project_user_access</code>
@@ -54,24 +52,23 @@ public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
     /**
      * The column <code>texera_db.project_user_access.uid</code>.
      */
-    public final TableField<ProjectUserAccessRecord, UInteger> UID = createField(DSL.name("uid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<ProjectUserAccessRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project_user_access.pid</code>.
      */
-    public final TableField<ProjectUserAccessRecord, UInteger> PID = createField(DSL.name("pid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<ProjectUserAccessRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project_user_access.privilege</code>.
      */
-    public final TableField<ProjectUserAccessRecord, ProjectUserAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), SQLDataType.VARCHAR(5).nullable(false).defaultValue(DSL.inline("NONE", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege.class), this, "");
+    public final TableField<ProjectUserAccessRecord, ProjectUserAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), org.jooq.impl.SQLDataType.VARCHAR(5).nullable(false).defaultValue(org.jooq.impl.DSL.inline("NONE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege.class), this, "");
 
-    private ProjectUserAccess(Name alias, Table<ProjectUserAccessRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private ProjectUserAccess(Name alias, Table<ProjectUserAccessRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.project_user_access</code> table reference
+     */
+    public ProjectUserAccess() {
+        this(DSL.name("project_user_access"), null);
     }
 
     /**
@@ -88,11 +85,12 @@ public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
         this(alias, PROJECT_USER_ACCESS);
     }
 
-    /**
-     * Create a <code>texera_db.project_user_access</code> table reference
-     */
-    public ProjectUserAccess() {
-        this(DSL.name("project_user_access"), null);
+    private ProjectUserAccess(Name alias, Table<ProjectUserAccessRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private ProjectUserAccess(Name alias, Table<ProjectUserAccessRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> ProjectUserAccess(Table<O> child, ForeignKey<O, ProjectUserAccessRecord> key) {
@@ -106,7 +104,7 @@ public class ProjectUserAccess extends TableImpl<ProjectUserAccessRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.PROJECT_USER_ACCESS_PID);
+        return Arrays.<Index>asList(Indexes.PROJECT_USER_ACCESS_PID, Indexes.PROJECT_USER_ACCESS_PRIMARY);
     }
 
     @Override

@@ -21,7 +21,6 @@ import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
-import java.time.LocalDateTime
 import java.util
 import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
@@ -204,7 +203,7 @@ object WorkflowResource {
   def getDateFilter(
       startDate: String,
       endDate: String,
-      fieldToFilterOn: TableField[_, LocalDateTime]
+      fieldToFilterOn: TableField[_, Timestamp]
   ): Condition = {
     var dateFilter: Condition = noCondition()
 
@@ -213,14 +212,14 @@ object WorkflowResource {
       val end = if (endDate.nonEmpty) endDate else "9999-12-31"
       val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
 
-      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime).toLocalDateTime
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
       val endTimestamp =
         if (end == "9999-12-31") {
-          new Timestamp(dateFormat.parse(end).getTime).toLocalDateTime
+          new Timestamp(dateFormat.parse(end).getTime)
         } else {
           new Timestamp(
             dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
-          ).toLocalDateTime
+          )
         }
       dateFilter = fieldToFilterOn.between(startTimestamp, endTimestamp)
 
@@ -421,8 +420,8 @@ class WorkflowResource extends LazyLogging {
         workflow.getDescription,
         workflow.getWid,
         workflow.getContent,
-        Timestamp.valueOf(workflow.getCreationTime),
-        Timestamp.valueOf(workflow.getLastModifiedTime),
+        workflow.getCreationTime,
+        workflow.getLastModifiedTime,
         !WorkflowAccessResource.hasWriteAccess(wid, user.getUid)
       )
     } else {

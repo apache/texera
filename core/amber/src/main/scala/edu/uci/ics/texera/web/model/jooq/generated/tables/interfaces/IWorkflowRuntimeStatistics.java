@@ -5,7 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -49,12 +49,12 @@ public interface IWorkflowRuntimeStatistics extends Serializable {
     /**
      * Setter for <code>texera_db.workflow_runtime_statistics.time</code>.
      */
-    public void setTime(LocalDateTime value);
+    public void setTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.workflow_runtime_statistics.time</code>.
      */
-    public LocalDateTime getTime();
+    public Timestamp getTime();
 
     /**
      * Setter for <code>texera_db.workflow_runtime_statistics.input_tuple_cnt</code>.
@@ -93,10 +93,10 @@ public interface IWorkflowRuntimeStatistics extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IWorkflowRuntimeStatistics
      */
-    public void from(IWorkflowRuntimeStatistics from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowRuntimeStatistics from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IWorkflowRuntimeStatistics
      */
-    public <E extends IWorkflowRuntimeStatistics> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowRuntimeStatistics> E into(E into);
 }

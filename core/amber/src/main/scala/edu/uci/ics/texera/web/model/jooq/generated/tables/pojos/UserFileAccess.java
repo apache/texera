@@ -16,7 +16,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserFileAccess implements IUserFileAccess {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1954666889;
 
     private UInteger                uid;
     private UInteger                fid;
@@ -40,49 +40,31 @@ public class UserFileAccess implements IUserFileAccess {
         this.privilege = privilege;
     }
 
-    /**
-     * Getter for <code>texera_db.user_file_access.uid</code>.
-     */
     @Override
     public UInteger getUid() {
         return this.uid;
     }
 
-    /**
-     * Setter for <code>texera_db.user_file_access.uid</code>.
-     */
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
     }
 
-    /**
-     * Getter for <code>texera_db.user_file_access.fid</code>.
-     */
     @Override
     public UInteger getFid() {
         return this.fid;
     }
 
-    /**
-     * Setter for <code>texera_db.user_file_access.fid</code>.
-     */
     @Override
     public void setFid(UInteger fid) {
         this.fid = fid;
     }
 
-    /**
-     * Getter for <code>texera_db.user_file_access.privilege</code>.
-     */
     @Override
     public UserFileAccessPrivilege getPrivilege() {
         return this.privilege;
     }
 
-    /**
-     * Setter for <code>texera_db.user_file_access.privilege</code>.
-     */
     @Override
     public void setPrivilege(UserFileAccessPrivilege privilege) {
         this.privilege = privilege;

@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.ProjectRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -23,10 +23,8 @@ import org.jooq.Row6;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -37,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Project extends TableImpl<ProjectRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 1829720653;
 
     /**
      * The reference instance of <code>texera_db.project</code>
@@ -55,39 +53,38 @@ public class Project extends TableImpl<ProjectRecord> {
     /**
      * The column <code>texera_db.project.pid</code>.
      */
-    public final TableField<ProjectRecord, UInteger> PID = createField(DSL.name("pid"), SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
+    public final TableField<ProjectRecord, UInteger> PID = createField(DSL.name("pid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
      * The column <code>texera_db.project.name</code>.
      */
-    public final TableField<ProjectRecord, String> NAME = createField(DSL.name("name"), SQLDataType.VARCHAR(128).nullable(false), this, "");
+    public final TableField<ProjectRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project.description</code>.
      */
-    public final TableField<ProjectRecord, String> DESCRIPTION = createField(DSL.name("description"), SQLDataType.VARCHAR(10000), this, "");
+    public final TableField<ProjectRecord, String> DESCRIPTION = createField(DSL.name("description"), org.jooq.impl.SQLDataType.VARCHAR(10000), this, "");
 
     /**
      * The column <code>texera_db.project.owner_id</code>.
      */
-    public final TableField<ProjectRecord, UInteger> OWNER_ID = createField(DSL.name("owner_id"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<ProjectRecord, UInteger> OWNER_ID = createField(DSL.name("owner_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.project.creation_time</code>.
      */
-    public final TableField<ProjectRecord, LocalDateTime> CREATION_TIME = createField(DSL.name("creation_time"), SQLDataType.LOCALDATETIME(0).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<ProjectRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.project.color</code>.
      */
-    public final TableField<ProjectRecord, String> COLOR = createField(DSL.name("color"), SQLDataType.VARCHAR(6), this, "");
+    public final TableField<ProjectRecord, String> COLOR = createField(DSL.name("color"), org.jooq.impl.SQLDataType.VARCHAR(6), this, "");
 
-    private Project(Name alias, Table<ProjectRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private Project(Name alias, Table<ProjectRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.project</code> table reference
+     */
+    public Project() {
+        this(DSL.name("project"), null);
     }
 
     /**
@@ -104,11 +101,12 @@ public class Project extends TableImpl<ProjectRecord> {
         this(alias, PROJECT);
     }
 
-    /**
-     * Create a <code>texera_db.project</code> table reference
-     */
-    public Project() {
-        this(DSL.name("project"), null);
+    private Project(Name alias, Table<ProjectRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private Project(Name alias, Table<ProjectRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> Project(Table<O> child, ForeignKey<O, ProjectRecord> key) {
@@ -122,12 +120,12 @@ public class Project extends TableImpl<ProjectRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.PROJECT_IDX_USER_PROJECT_NAME_DESCRIPTION);
+        return Arrays.<Index>asList(Indexes.PROJECT_IDX_USER_PROJECT_NAME_DESCRIPTION, Indexes.PROJECT_OWNER_ID, Indexes.PROJECT_PRIMARY);
     }
 
     @Override
     public Identity<ProjectRecord, UInteger> getIdentity() {
-        return (Identity<ProjectRecord, UInteger>) super.getIdentity();
+        return Keys.IDENTITY_PROJECT;
     }
 
     @Override
@@ -180,7 +178,7 @@ public class Project extends TableImpl<ProjectRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, String, String, UInteger, LocalDateTime, String> fieldsRow() {
+    public Row6<UInteger, String, String, UInteger, Timestamp, String> fieldsRow() {
         return (Row6) super.fieldsRow();
     }
 }

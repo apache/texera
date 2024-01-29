@@ -22,10 +22,8 @@ import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -36,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserFileAccess extends TableImpl<UserFileAccessRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -1892082548;
 
     /**
      * The reference instance of <code>texera_db.user_file_access</code>
@@ -54,24 +52,23 @@ public class UserFileAccess extends TableImpl<UserFileAccessRecord> {
     /**
      * The column <code>texera_db.user_file_access.uid</code>.
      */
-    public final TableField<UserFileAccessRecord, UInteger> UID = createField(DSL.name("uid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<UserFileAccessRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_file_access.fid</code>.
      */
-    public final TableField<UserFileAccessRecord, UInteger> FID = createField(DSL.name("fid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<UserFileAccessRecord, UInteger> FID = createField(DSL.name("fid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_file_access.privilege</code>.
      */
-    public final TableField<UserFileAccessRecord, UserFileAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), SQLDataType.VARCHAR(5).nullable(false).defaultValue(DSL.inline("NONE", SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege.class), this, "");
+    public final TableField<UserFileAccessRecord, UserFileAccessPrivilege> PRIVILEGE = createField(DSL.name("privilege"), org.jooq.impl.SQLDataType.VARCHAR(5).nullable(false).defaultValue(org.jooq.impl.DSL.inline("NONE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege.class), this, "");
 
-    private UserFileAccess(Name alias, Table<UserFileAccessRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private UserFileAccess(Name alias, Table<UserFileAccessRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.user_file_access</code> table reference
+     */
+    public UserFileAccess() {
+        this(DSL.name("user_file_access"), null);
     }
 
     /**
@@ -88,11 +85,12 @@ public class UserFileAccess extends TableImpl<UserFileAccessRecord> {
         this(alias, USER_FILE_ACCESS);
     }
 
-    /**
-     * Create a <code>texera_db.user_file_access</code> table reference
-     */
-    public UserFileAccess() {
-        this(DSL.name("user_file_access"), null);
+    private UserFileAccess(Name alias, Table<UserFileAccessRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private UserFileAccess(Name alias, Table<UserFileAccessRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> UserFileAccess(Table<O> child, ForeignKey<O, UserFileAccessRecord> key) {
@@ -106,7 +104,7 @@ public class UserFileAccess extends TableImpl<UserFileAccessRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.USER_FILE_ACCESS_FID);
+        return Arrays.<Index>asList(Indexes.USER_FILE_ACCESS_FID, Indexes.USER_FILE_ACCESS_PRIMARY);
     }
 
     @Override

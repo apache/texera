@@ -4,6 +4,7 @@
 package edu.uci.ics.texera.web.model.jooq.generated.tables;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.Indexes;
 import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.UserConfigRecord;
@@ -13,16 +14,15 @@ import java.util.List;
 
 import org.jooq.Field;
 import org.jooq.ForeignKey;
+import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
 import org.jooq.Row3;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -33,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class UserConfig extends TableImpl<UserConfigRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -666438922;
 
     /**
      * The reference instance of <code>texera_db.user_config</code>
@@ -51,24 +51,23 @@ public class UserConfig extends TableImpl<UserConfigRecord> {
     /**
      * The column <code>texera_db.user_config.uid</code>.
      */
-    public final TableField<UserConfigRecord, UInteger> UID = createField(DSL.name("uid"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<UserConfigRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_config.key</code>.
      */
-    public final TableField<UserConfigRecord, String> KEY = createField(DSL.name("key"), SQLDataType.VARCHAR(256).nullable(false), this, "");
+    public final TableField<UserConfigRecord, String> KEY = createField(DSL.name("key"), org.jooq.impl.SQLDataType.VARCHAR(256).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.user_config.value</code>.
      */
-    public final TableField<UserConfigRecord, String> VALUE = createField(DSL.name("value"), SQLDataType.CLOB.nullable(false), this, "");
+    public final TableField<UserConfigRecord, String> VALUE = createField(DSL.name("value"), org.jooq.impl.SQLDataType.CLOB.nullable(false), this, "");
 
-    private UserConfig(Name alias, Table<UserConfigRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private UserConfig(Name alias, Table<UserConfigRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.user_config</code> table reference
+     */
+    public UserConfig() {
+        this(DSL.name("user_config"), null);
     }
 
     /**
@@ -85,11 +84,12 @@ public class UserConfig extends TableImpl<UserConfigRecord> {
         this(alias, USER_CONFIG);
     }
 
-    /**
-     * Create a <code>texera_db.user_config</code> table reference
-     */
-    public UserConfig() {
-        this(DSL.name("user_config"), null);
+    private UserConfig(Name alias, Table<UserConfigRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private UserConfig(Name alias, Table<UserConfigRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> UserConfig(Table<O> child, ForeignKey<O, UserConfigRecord> key) {
@@ -99,6 +99,11 @@ public class UserConfig extends TableImpl<UserConfigRecord> {
     @Override
     public Schema getSchema() {
         return TexeraDb.TEXERA_DB;
+    }
+
+    @Override
+    public List<Index> getIndexes() {
+        return Arrays.<Index>asList(Indexes.USER_CONFIG_PRIMARY);
     }
 
     @Override

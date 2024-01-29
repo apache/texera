@@ -9,7 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.Keys;
 import edu.uci.ics.texera.web.model.jooq.generated.TexeraDb;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.records.WorkflowRuntimeStatisticsRecord;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -22,10 +22,8 @@ import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
-import org.jooq.TableOptions;
 import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
-import org.jooq.impl.SQLDataType;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
 
@@ -36,7 +34,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisticsRecord> {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -657246688;
 
     /**
      * The reference instance of <code>texera_db.workflow_runtime_statistics</code>
@@ -54,44 +52,43 @@ public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisti
     /**
      * The column <code>texera_db.workflow_runtime_statistics.workflow_id</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> WORKFLOW_ID = createField(DSL.name("workflow_id"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> WORKFLOW_ID = createField(DSL.name("workflow_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_runtime_statistics.execution_id</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> EXECUTION_ID = createField(DSL.name("execution_id"), SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> EXECUTION_ID = createField(DSL.name("execution_id"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_runtime_statistics.operator_id</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), SQLDataType.VARCHAR(100).nullable(false), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, String> OPERATOR_ID = createField(DSL.name("operator_id"), org.jooq.impl.SQLDataType.VARCHAR(100).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.workflow_runtime_statistics.time</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, LocalDateTime> TIME = createField(DSL.name("time"), SQLDataType.LOCALDATETIME(6).nullable(false).defaultValue(DSL.field("CURRENT_TIMESTAMP(6)", SQLDataType.LOCALDATETIME)), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, Timestamp> TIME = createField(DSL.name("time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP(6)", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
 
     /**
      * The column <code>texera_db.workflow_runtime_statistics.input_tuple_cnt</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> INPUT_TUPLE_CNT = createField(DSL.name("input_tuple_cnt"), SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(DSL.inline("0", SQLDataType.INTEGERUNSIGNED)), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> INPUT_TUPLE_CNT = createField(DSL.name("input_tuple_cnt"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
 
     /**
      * The column <code>texera_db.workflow_runtime_statistics.output_tuple_cnt</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> OUTPUT_TUPLE_CNT = createField(DSL.name("output_tuple_cnt"), SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(DSL.inline("0", SQLDataType.INTEGERUNSIGNED)), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> OUTPUT_TUPLE_CNT = createField(DSL.name("output_tuple_cnt"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
 
     /**
      * The column <code>texera_db.workflow_runtime_statistics.status</code>.
      */
-    public final TableField<WorkflowRuntimeStatisticsRecord, Byte> STATUS = createField(DSL.name("status"), SQLDataType.TINYINT.nullable(false).defaultValue(DSL.inline("1", SQLDataType.TINYINT)), this, "");
+    public final TableField<WorkflowRuntimeStatisticsRecord, Byte> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("1", org.jooq.impl.SQLDataType.TINYINT)), this, "");
 
-    private WorkflowRuntimeStatistics(Name alias, Table<WorkflowRuntimeStatisticsRecord> aliased) {
-        this(alias, aliased, null);
-    }
-
-    private WorkflowRuntimeStatistics(Name alias, Table<WorkflowRuntimeStatisticsRecord> aliased, Field<?>[] parameters) {
-        super(alias, null, aliased, parameters, DSL.comment(""), TableOptions.table());
+    /**
+     * Create a <code>texera_db.workflow_runtime_statistics</code> table reference
+     */
+    public WorkflowRuntimeStatistics() {
+        this(DSL.name("workflow_runtime_statistics"), null);
     }
 
     /**
@@ -108,11 +105,12 @@ public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisti
         this(alias, WORKFLOW_RUNTIME_STATISTICS);
     }
 
-    /**
-     * Create a <code>texera_db.workflow_runtime_statistics</code> table reference
-     */
-    public WorkflowRuntimeStatistics() {
-        this(DSL.name("workflow_runtime_statistics"), null);
+    private WorkflowRuntimeStatistics(Name alias, Table<WorkflowRuntimeStatisticsRecord> aliased) {
+        this(alias, aliased, null);
+    }
+
+    private WorkflowRuntimeStatistics(Name alias, Table<WorkflowRuntimeStatisticsRecord> aliased, Field<?>[] parameters) {
+        super(alias, null, aliased, parameters, DSL.comment(""));
     }
 
     public <O extends Record> WorkflowRuntimeStatistics(Table<O> child, ForeignKey<O, WorkflowRuntimeStatisticsRecord> key) {
@@ -126,7 +124,7 @@ public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisti
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_RUNTIME_STATISTICS_EXECUTION_ID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_RUNTIME_STATISTICS_EXECUTION_ID, Indexes.WORKFLOW_RUNTIME_STATISTICS_PRIMARY);
     }
 
     @Override
@@ -183,7 +181,7 @@ public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisti
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<UInteger, UInteger, String, LocalDateTime, UInteger, UInteger, Byte> fieldsRow() {
+    public Row7<UInteger, UInteger, String, Timestamp, UInteger, UInteger, Byte> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

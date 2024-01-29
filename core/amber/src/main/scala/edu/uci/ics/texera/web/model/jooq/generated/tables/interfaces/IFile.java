@@ -5,7 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -79,12 +79,12 @@ public interface IFile extends Serializable {
     /**
      * Setter for <code>texera_db.file.upload_time</code>.
      */
-    public void setUploadTime(LocalDateTime value);
+    public void setUploadTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.file.upload_time</code>.
      */
-    public LocalDateTime getUploadTime();
+    public Timestamp getUploadTime();
 
     // -------------------------------------------------------------------------
     // FROM and INTO
@@ -93,10 +93,10 @@ public interface IFile extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IFile
      */
-    public void from(IFile from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IFile
      */
-    public <E extends IFile> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IFile> E into(E into);
 }

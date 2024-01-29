@@ -6,7 +6,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.pojos;
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowVersion;
 
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -17,12 +17,12 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowVersion implements IWorkflowVersion {
 
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = -1278018119;
 
-    private UInteger      vid;
-    private UInteger      wid;
-    private String        content;
-    private LocalDateTime creationTime;
+    private UInteger  vid;
+    private UInteger  wid;
+    private String    content;
+    private Timestamp creationTime;
 
     public WorkflowVersion() {}
 
@@ -34,10 +34,10 @@ public class WorkflowVersion implements IWorkflowVersion {
     }
 
     public WorkflowVersion(
-        UInteger      vid,
-        UInteger      wid,
-        String        content,
-        LocalDateTime creationTime
+        UInteger  vid,
+        UInteger  wid,
+        String    content,
+        Timestamp creationTime
     ) {
         this.vid = vid;
         this.wid = wid;
@@ -45,67 +45,43 @@ public class WorkflowVersion implements IWorkflowVersion {
         this.creationTime = creationTime;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_version.vid</code>.
-     */
     @Override
     public UInteger getVid() {
         return this.vid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_version.vid</code>.
-     */
     @Override
     public void setVid(UInteger vid) {
         this.vid = vid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_version.wid</code>.
-     */
     @Override
     public UInteger getWid() {
         return this.wid;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_version.wid</code>.
-     */
     @Override
     public void setWid(UInteger wid) {
         this.wid = wid;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_version.content</code>.
-     */
     @Override
     public String getContent() {
         return this.content;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_version.content</code>.
-     */
     @Override
     public void setContent(String content) {
         this.content = content;
     }
 
-    /**
-     * Getter for <code>texera_db.workflow_version.creation_time</code>.
-     */
     @Override
-    public LocalDateTime getCreationTime() {
+    public Timestamp getCreationTime() {
         return this.creationTime;
     }
 
-    /**
-     * Setter for <code>texera_db.workflow_version.creation_time</code>.
-     */
     @Override
-    public void setCreationTime(LocalDateTime creationTime) {
+    public void setCreationTime(Timestamp creationTime) {
         this.creationTime = creationTime;
     }
 

@@ -5,7 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces;
 
 
 import java.io.Serializable;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
 
@@ -69,22 +69,22 @@ public interface IWorkflowExecutions extends Serializable {
     /**
      * Setter for <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public void setStartingTime(LocalDateTime value);
+    public void setStartingTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.workflow_executions.starting_time</code>.
      */
-    public LocalDateTime getStartingTime();
+    public Timestamp getStartingTime();
 
     /**
      * Setter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public void setLastUpdateTime(LocalDateTime value);
+    public void setLastUpdateTime(Timestamp value);
 
     /**
      * Getter for <code>texera_db.workflow_executions.last_update_time</code>.
      */
-    public LocalDateTime getLastUpdateTime();
+    public Timestamp getLastUpdateTime();
 
     /**
      * Setter for <code>texera_db.workflow_executions.bookmarked</code>.
@@ -133,10 +133,10 @@ public interface IWorkflowExecutions extends Serializable {
     /**
      * Load data from another generated Record/POJO implementing the common interface IWorkflowExecutions
      */
-    public void from(IWorkflowExecutions from);
+    public void from(edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowExecutions from);
 
     /**
      * Copy data into another generated Record/POJO implementing the common interface IWorkflowExecutions
      */
-    public <E extends IWorkflowExecutions> E into(E into);
+    public <E extends edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowExecutions> E into(E into);
 }
