@@ -39,6 +39,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private languageServerSocket?: WebSocket;
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
   private operatorID!: string;
+  public title: string | undefined;
   public formControl!: FormControl;
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
 
@@ -51,6 +52,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ngAfterViewInit() {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.operatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+    this.title = this.workflowActionService.getTexeraGraph().getOperator(this.operatorID).customDisplayName;
     this.code = (
       this.workflowActionService
         .getTexeraGraph()
