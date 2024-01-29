@@ -1,8 +1,9 @@
-import { Component } from "@angular/core";
+import { Component, ViewChild, ViewContainerRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FieldType } from "@ngx-formly/core";
 import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
+import { CodeEditorService } from "../../service/code-editor/code-editor.service";
 
 /**
  * CodeareaCustomTemplateComponent is the custom template for 'codearea' type of formly field.
@@ -17,9 +18,7 @@ import { CoeditorPresenceService } from "../../service/workflow-graph/model/coed
   styleUrls: ["codearea-custom-template.component.scss"],
 })
 export class CodeareaCustomTemplateComponent extends FieldType<any> {
-  editorComponent = null as any;
-
-  constructor(private coeditorPresenceService: CoeditorPresenceService) {
+  constructor(private coeditorPresenceService: CoeditorPresenceService, private codeEditorService: CodeEditorService) {
     super();
     this.coeditorPresenceService
       .getCoeditorOpenedCodeEditorSubject()
@@ -32,6 +31,6 @@ export class CodeareaCustomTemplateComponent extends FieldType<any> {
   }
 
   openEditor(): void {
-    this.editorComponent = CodeEditorComponent;
+    const componentRef = this.codeEditorService.vc.createComponent(CodeEditorComponent);
   }
 }

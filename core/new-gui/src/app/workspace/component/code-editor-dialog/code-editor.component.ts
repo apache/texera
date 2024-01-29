@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnDestroy } from "@angular/core";
+import { AfterViewInit, Component, ElementRef, OnDestroy, ViewChild } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
@@ -34,6 +34,7 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
   styleUrls: ["code-editor.component.scss"],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
+  @ViewChild("editor", { static: true }) editorElement!: ElementRef;
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
@@ -108,7 +109,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * @private
    */
   private initMonaco() {
-    const editor = monaco.editor.create(document.getElementById("code-editor")!, {
+    const editor = monaco.editor.create(this.editorElement.nativeElement, {
       language: "python",
       fontSize: 11,
       theme: "vs-dark",
@@ -155,7 +156,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   private initDiffEditor() {
     if (this.code) {
-      this.editor = monaco.editor.createDiffEditor(document.getElementById("code-editor")!, {
+      this.editor = monaco.editor.createDiffEditor(this.editorElement.nativeElement, {
         readOnly: true,
         theme: "vs-dark",
         fontSize: 11,
