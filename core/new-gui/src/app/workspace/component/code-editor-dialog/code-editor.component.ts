@@ -18,7 +18,7 @@ import { CloseAction, ErrorAction, MessageTransports } from "vscode-languageclie
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 
 /**
- * CodeEditorDialogComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
+ * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
  *
  * It contains a shared-editable Monaco editor which is inside a mat-dialog-content. When the dialogue is invoked by
  * the button in CodeareaCustomTemplateComponent, this component will use the actual y-text of the code within the
@@ -30,10 +30,10 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 @UntilDestroy()
 @Component({
   selector: "texera-code-editor-dialog",
-  templateUrl: "./code-editor-dialog.component.html",
-  styleUrls: ["./code-editor-dialog.component.scss"],
+  templateUrl: "code-editor.component.html",
+  styleUrls: ["code-editor.component.scss"],
 })
-export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDestroy {
+export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) divEditor?: ElementRef;
   private code?: YText;
   private editor?: any;
@@ -45,9 +45,7 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
-  ) {
-    console.log("here!")
-  }
+  ) {}
 
   ngOnDestroy(): void {
     const dialog = document.getElementById("mat-dialog-udf");
@@ -253,9 +251,9 @@ export class CodeEditorDialogComponent implements AfterViewInit, SafeStyle, OnDe
    */
   private handleDisabledStatusChange(): void {
     //this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
-      //this.editor.updateOptions({
-       // readOnly: this.formControl.disabled,
-     // });
+    //this.editor.updateOptions({
+    // readOnly: this.formControl.disabled,
+    // });
     //});
   }
 }

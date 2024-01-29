@@ -1,0 +1,11 @@
+<div id="code-editor-container"
+     cdkDrag
+     cdkDragBoundary="texera-workspace">
+  <h5 id="title" cdkDragHandle>
+    Python Script
+  </h5>
+  <div id="code-editor"></div>
+  <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+    <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
+  </ng-container>
+</div>
