@@ -1,11 +1,27 @@
-<div id="code-editor-container"
-     cdkDrag
-     cdkDragBoundary="texera-workspace">
-  <h5 id="title" cdkDragHandle>
+<div
+  id="code-editor-container"
+  cdkDrag
+  cdkDragBoundary="texera-workspace">
+  <h5
+    id="title"
+    cdkDragHandle>
     Python Script
-    <button nz-button nzType="text" nzSize="large" nzShape="circle" id="close-button" (click)="componentRef?.destroy()"><span nz-icon nzType="close"></span></button>
+    <button
+      nz-button
+      nzType="text"
+      nzSize="large"
+      nzShape="circle"
+      id="close-button"
+      (click)="componentRef?.destroy()">
+      <span
+        nz-icon
+        nzType="close"></span>
+    </button>
   </h5>
-  <div #editor id="code-editor"></div>a
+  <div
+    #editor
+    id="code-editor"></div>
+  a
   <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
     <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
   </ng-container>
