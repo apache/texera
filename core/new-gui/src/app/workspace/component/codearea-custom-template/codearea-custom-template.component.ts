@@ -34,5 +34,6 @@ export class CodeareaCustomTemplateComponent extends FieldType<any> {
   openEditor(): void {
     this.componentRef = this.codeEditorService.vc.createComponent(CodeEditorComponent);
     this.componentRef.instance.componentRef = this.componentRef;
+    this.componentRef.instance.formControl = this.field.formControl;
   }
 }

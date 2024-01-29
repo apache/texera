@@ -1,25 +1,25 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { CodeEditorComponent } from "./code-editor.component";
-import { MAT_DIALOG_DATA, MatDialogRef } from "@angular/material/dialog";
-import { EMPTY } from "rxjs";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { mockPoint, mockScanPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
+import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
+import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 
 describe("CodeEditorDialogComponent", () => {
   let component: CodeEditorComponent;
   let fixture: ComponentFixture<CodeEditorComponent>;
+  let workflowActionService: WorkflowActionService;
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [CodeEditorComponent],
       providers: [
+        WorkflowActionService,
         {
-          provide: MatDialogRef,
-          useValue: {
-            keydownEvents: () => EMPTY,
-            backdropClick: () => EMPTY,
-          },
+          provide: OperatorMetadataService,
+          useClass: StubOperatorMetadataService,
         },
-        { provide: MAT_DIALOG_DATA, useValue: {} },
       ],
       imports: [HttpClientTestingModule],
     }).compileComponents();
@@ -28,6 +28,9 @@ describe("CodeEditorDialogComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CodeEditorComponent);
     component = fixture.componentInstance;
+    workflowActionService = TestBed.inject(WorkflowActionService);
+    workflowActionService.addOperator(mockScanPredicate, mockPoint);
+    workflowActionService.getJointGraphWrapper().highlightOperators(mockScanPredicate.operatorID);
     fixture.detectChanges();
   });
 

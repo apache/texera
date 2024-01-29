@@ -1,5 +1,5 @@
 import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, ViewChild } from "@angular/core";
-import { UntilDestroy } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
 import { YText } from "yjs/dist/src/types/YText";
@@ -16,16 +16,15 @@ import { getWebsocketUrl } from "src/app/common/util/url";
 import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
+import { FormControl } from "@angular/forms";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
  *
- * It contains a shared-editable Monaco editor which is inside a mat-dialog-content. When the dialogue is invoked by
+ * It contains a shared-editable Monaco editor. When the dialogue is invoked by
  * the button in CodeareaCustomTemplateComponent, this component will use the actual y-text of the code within the
  * operator property to connect to the editor.
  *
- * The dialogue can be closed with ESC key or by clicking on areas outside
- * the dialogue. Closing the dialogue will send the edited contend back to the custom template field.
  */
 @UntilDestroy()
 @Component({
@@ -39,6 +38,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   private editor?: any;
   private languageServerSocket?: WebSocket;
   private workflowVersionStreamSubject: Subject<void> = new Subject<void>();
+  private operatorID!: string;
+  public formControl!: FormControl;
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
 
   constructor(
@@ -49,11 +50,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ) {}
   ngAfterViewInit() {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
-
+    this.operatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     this.code = (
       this.workflowActionService
         .getTexeraGraph()
-        .getSharedOperatorType(this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0])
+        .getSharedOperatorType(this.operatorID)
         .get("operatorProperties") as YType<Readonly<{ [key: string]: any }>>
     ).get("code") as YText;
 
@@ -65,7 +66,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
           this.initDiffEditor();
         } else {
           this.initMonaco();
-          this.handleDisabledStatusChange();
+          this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
+            this.editor.updateOptions({
+              readOnly: this.formControl.disabled,
+            });
+          });
         }
       });
   }
@@ -177,15 +182,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     }
   }
 
-  /**
-   * Uses the formControl's status to change readonly status of the editor.
-   * @private
-   */
-  private handleDisabledStatusChange(): void {
-    //this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
-    //this.editor.updateOptions({
-    // readOnly: this.formControl.disabled,
-    // });
-    //});
+  onFocus() {
+    this.workflowActionService.getJointGraphWrapper().highlightOperators(this.operatorID);
   }
 }
