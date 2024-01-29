@@ -71,7 +71,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     )
 
     val buildDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      val buildPartition = inputPartitions.asInstanceOf[HashPartition]
+      val buildPartition = inputPartitions.head.asInstanceOf[HashPartition]
       val buildAttrIndex = buildSchema.getIndex(buildAttributeName)
       assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
       HashPartition(List(0))
