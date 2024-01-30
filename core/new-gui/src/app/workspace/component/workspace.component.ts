@@ -1,5 +1,5 @@
 import { Location } from "@angular/common";
-import { AfterViewInit, OnInit, Component, OnDestroy } from "@angular/core";
+import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
@@ -22,6 +22,7 @@ import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-a
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
+import { CodeEditorService } from "../service/code-editor/code-editor.service";
 
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -40,7 +41,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
-
+  @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
   constructor(
     private userService: UserService,
     private resultPanelToggleService: ResultPanelToggleService,
@@ -59,7 +60,8 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
     private router: Router,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private codeEditorService: CodeEditorService
   ) {}
 
   ngOnInit() {
@@ -112,11 +114,18 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.registerLoadOperatorMetadata();
 
     this.registerResultPanelToggleHandler();
+
+    this.codeEditorService.vc = this.vc;
   }
 
   ngOnDestroy() {
     this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
+  }
+
+  @HostListener("window:beforeunload")
+  unloadHandler() {
+    this.vc.clear();
   }
 
   registerResultPanelToggleHandler() {
