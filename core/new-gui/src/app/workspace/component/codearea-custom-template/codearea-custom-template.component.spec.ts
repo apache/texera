@@ -1,12 +1,11 @@
 /* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-
 import { CodeareaCustomTemplateComponent } from "./codearea-custom-template.component";
-import { MatDialogModule } from "@angular/material/dialog";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { FormControl } from "@angular/forms";
 
 describe("CodeareaCustomTemplateComponent", () => {
   let component: CodeareaCustomTemplateComponent;
@@ -15,7 +14,7 @@ describe("CodeareaCustomTemplateComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [CodeareaCustomTemplateComponent],
-      imports: [MatDialogModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
       providers: [
         WorkflowActionService,
         {
@@ -29,6 +28,7 @@ describe("CodeareaCustomTemplateComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
     component = fixture.componentInstance;
+    component.field = { formControl: new FormControl() };
     fixture.detectChanges();
   });
 

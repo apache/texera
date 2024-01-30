@@ -1,0 +1,30 @@
+<div
+  #container
+  id="code-editor-container"
+  cdkDrag
+  cdkDragBoundary="texera-workspace"
+  (focusin)="onFocus()">
+  <h5
+    id="title"
+    (focus)="onFocus()"
+    cdkDragHandle>
+    Python Script: {{ title }}
+    <button
+      nz-button
+      nzType="text"
+      nzSize="large"
+      nzShape="circle"
+      id="close-button"
+      (click)="componentRef?.destroy()">
+      <span
+        nz-icon
+        nzType="close"></span>
+    </button>
+  </h5>
+  <div
+    #editor
+    id="code-editor"></div>
+  <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
+    <div [innerHTML]="this.getCoeditorCursorStyles(user)"></div>
+  </ng-container>
+</div>

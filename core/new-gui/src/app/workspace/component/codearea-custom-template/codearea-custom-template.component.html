@@ -1,12 +1,11 @@
-<div class="attribute-container">
+<div id="editor-button">
   <button
-    (click)="onClickEditor()"
-    class="code-button"
+    (click)="openEditor()"
     nz-button
     nzShape="round"
     nzType="primary"
-    [ngClass]="{ 'readonly': readonly }">
-    <div *ngIf="!readonly">Edit code content</div>
-    <div *ngIf="readonly">View code content</div>
+    [ngClass]="{ 'readonly': this.field.formControl.disabled }">
+    <div *ngIf="!this.field.formControl.disabled">Edit code content</div>
+    <div *ngIf="this.field.formControl.disabled">View code content</div>
   </button>
 </div>
