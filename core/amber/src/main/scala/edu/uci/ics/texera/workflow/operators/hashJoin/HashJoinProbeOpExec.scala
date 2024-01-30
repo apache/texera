@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 
 class HashJoinProbeOpExec[K](
     val buildAttributeName: String,
@@ -21,7 +21,7 @@ class HashJoinProbeOpExec[K](
 ) extends OperatorExecutor {
   var currentTuple: Tuple = _
 
-  var buildTableHashMap: mutable.HashMap[K, (ArrayBuffer[Tuple], Boolean)] = _
+  var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -38,7 +38,7 @@ class HashJoinProbeOpExec[K](
           // probing phase
           val key = tuple.getField(probeAttributeName).asInstanceOf[K]
           val (matchedTuples, _) =
-            buildTableHashMap.getOrElse(key, (new ArrayBuffer[Tuple](), false))
+            buildTableHashMap.getOrElse(key, (new ListBuffer[Tuple](), false))
 
           if (matchedTuples.isEmpty) {
             // do not have a match with the probe tuple
@@ -68,9 +68,9 @@ class HashJoinProbeOpExec[K](
 
   private def performLeftAntiJoin: Iterator[Tuple] = {
     buildTableHashMap.valuesIterator
-      .filter({ case (_: ArrayBuffer[Tuple], joined: Boolean) => !joined })
+      .filter({ case (_: ListBuffer[Tuple], joined: Boolean) => !joined })
       .flatMap {
-        case (tuples: ArrayBuffer[Tuple], _: Boolean) =>
+        case (tuples: ListBuffer[Tuple], _: Boolean) =>
           tuples
             .map((tuple: Tuple) => {
               // creates a builder
@@ -128,7 +128,7 @@ class HashJoinProbeOpExec[K](
     }
   }
 
-  private def performJoin(probeTuple: Tuple, matchedTuples: ArrayBuffer[Tuple]): Iterator[Tuple] = {
+  private def performJoin(probeTuple: Tuple, matchedTuples: ListBuffer[Tuple]): Iterator[Tuple] = {
 
     matchedTuples
       .map(buildTuple => {
@@ -181,7 +181,7 @@ class HashJoinProbeOpExec[K](
   }
 
   override def open(): Unit = {
-    buildTableHashMap = new mutable.HashMap[K, (mutable.ArrayBuffer[Tuple], Boolean)]()
+    buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()
   }
 
   override def close(): Unit = {

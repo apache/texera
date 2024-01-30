@@ -8,13 +8,13 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 
 class HashJoinBuildOpExec[K](
     val buildAttributeName: String
 ) extends OperatorExecutor {
 
-  var buildTableHashMap: mutable.HashMap[K, (ArrayBuffer[Tuple], Boolean)] = _
+  var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
   var outputSchema: Schema =
     Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
 
@@ -43,12 +43,12 @@ class HashJoinBuildOpExec[K](
   private def building(tuple: Tuple): Unit = {
     val key = tuple.getField(buildAttributeName).asInstanceOf[K]
     val (storedTuples, _) =
-      buildTableHashMap.getOrElseUpdate(key, (new ArrayBuffer[Tuple](), false))
+      buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))
     storedTuples += tuple
   }
 
   override def open(): Unit = {
-    buildTableHashMap = new mutable.HashMap[K, (mutable.ArrayBuffer[Tuple], Boolean)]()
+    buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()
   }
 
   override def close(): Unit = {
