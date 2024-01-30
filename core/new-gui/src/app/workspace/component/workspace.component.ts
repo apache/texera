@@ -1,5 +1,5 @@
 import { Location } from "@angular/common";
-import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef } from "@angular/core";
+import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
@@ -121,6 +121,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   ngOnDestroy() {
     this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
+  }
+
+  @HostListener("window:beforeunload")
+  unloadHandler() {
+    this.vc.clear();
   }
 
   registerResultPanelToggleHandler() {

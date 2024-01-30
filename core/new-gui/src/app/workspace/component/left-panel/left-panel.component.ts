@@ -1,4 +1,4 @@
-import { Component, Type } from "@angular/core";
+import { Component, HostListener, OnDestroy, OnInit, Type } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
@@ -13,14 +13,15 @@ import { TimeTravelComponent } from "./time-travel/time-travel.component";
   templateUrl: "left-panel.component.html",
   styleUrls: ["left-panel.component.scss"],
 })
-export class LeftPanelComponent {
-  currentComponent: Type<any>;
+export class LeftPanelComponent implements OnDestroy, OnInit {
+  currentComponent: Type<any> = null as any;
   title = "Operators";
   screenWidth = window.innerWidth;
   width = 240;
-  lastWidth = 0;
   id = -1;
-  buttons = [
+  currentIndex = 0;
+  items = [
+    { component: null as any, title: "", icon: "", enabled: true },
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
     { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
     {
@@ -30,24 +31,43 @@ export class LeftPanelComponent {
       enabled: environment.userSystemEnabled,
     },
   ];
+  order = [1, 2, 3];
 
   constructor() {
-    this.currentComponent = OperatorMenuComponent;
+    const order = localStorage.getItem("left-panel-order");
+    if (order) this.order = order.split(",").map(Number);
+    this.openFrame(Number(localStorage.getItem("left-panel-index") || "1"));
+    const width = localStorage.getItem("left-panel-width");
+    if (width) this.width = Number(width);
   }
 
-  openFrame(title: string, component: Type<any>) {
-    if (!this.width) this.width = this.lastWidth;
-    this.title = title;
-    this.currentComponent = component;
-  }
-  drop(event: CdkDragDrop<string[]>) {
-    moveItemInArray(this.buttons, event.previousIndex, event.currentIndex);
+  ngOnInit(): void {
+    const style = localStorage.getItem("left-panel-style");
+    if (style) document.getElementById("left-panel-container")!.style.cssText = style;
   }
 
-  close() {
+  @HostListener("window:beforeunload")
+  ngOnDestroy(): void {
+    localStorage.setItem("left-panel-width", String(this.width));
+    localStorage.setItem("left-panel-order", String(this.order));
+    localStorage.setItem("left-panel-index", String(this.currentIndex));
+    localStorage.setItem("left-panel-style", document.getElementById("left-panel-container")!.style.cssText);
+  }
+
+  openFrame(i: number) {
+    if (!this.width) this.width = 240;
+    this.title = this.items[i].title;
+    this.currentComponent = this.items[i].component;
+    this.currentIndex = i;
+  }
+  onDrop(event: CdkDragDrop<string[]>) {
+    moveItemInArray(this.order, event.previousIndex, event.currentIndex);
+  }
+
+  onClose() {
     this.currentComponent = null as any;
-    this.lastWidth = this.width;
     this.width = 0;
+    this.currentIndex = 0;
   }
   onResize({ width }: NzResizeEvent) {
     cancelAnimationFrame(this.id);

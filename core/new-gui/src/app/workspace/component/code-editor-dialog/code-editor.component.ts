@@ -54,7 +54,8 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.operatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     this.title = this.workflowActionService.getTexeraGraph().getOperator(this.operatorID).customDisplayName;
-    this.containerElement.nativeElement.style.cssText = localStorage.getItem(this.operatorID)!;
+    const style = localStorage.getItem(this.operatorID);
+    if (style) this.containerElement.nativeElement.style.cssText = style;
     this.code = (
       this.workflowActionService
         .getTexeraGraph()

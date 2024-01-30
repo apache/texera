@@ -14,10 +14,10 @@
       id="left-dock"
       [ngClass]="{'shadow':  !width}"
       cdkDropList
-      (cdkDropListDropped)="drop($event)">
+      (cdkDropListDropped)="onDrop($event)">
       <li
         nz-menu-item
-        (click)="close()"
+        (click)="onClose()"
         *ngIf="this.width">
         <span
           nz-icon
@@ -36,18 +36,18 @@
       <li
         nz-menu-divider
         id="divider"></li>
-      <ng-container *ngFor="let button of buttons">
+      <ng-container *ngFor="let i of order">
         <li
           nz-menu-item
           cdkDrag
           nzTooltipPlacement="right"
-          nz-tooltip="{{button.title}}"
-          nzSelected="{{this.currentComponent === button.component}}"
-          *ngIf="button.enabled"
-          (click)="openFrame(button.title, button.component)">
+          nz-tooltip="{{this.items[i].title}}"
+          nzSelected="{{this.currentComponent === this.items[i].component}}"
+          *ngIf="this.items[i].enabled"
+          (click)="openFrame(i)">
           <span
             nz-icon
-            nzType="{{button.icon}}"></span>
+            nzType="{{this.items[i].icon}}"></span>
         </li>
       </ng-container>
     </ul>
