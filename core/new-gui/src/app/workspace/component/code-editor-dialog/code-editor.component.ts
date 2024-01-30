@@ -34,6 +34,7 @@ import { FormControl } from "@angular/forms";
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
   @ViewChild("editor", { static: true }) editorElement!: ElementRef;
+  @ViewChild("container", { static: true }) containerElement!: ElementRef;
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
@@ -53,6 +54,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.operatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     this.title = this.workflowActionService.getTexeraGraph().getOperator(this.operatorID).customDisplayName;
+    this.containerElement.nativeElement.style.cssText = localStorage.getItem(this.operatorID)!;
     this.code = (
       this.workflowActionService
         .getTexeraGraph()
@@ -79,7 +81,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
 
   ngOnDestroy(): void {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", false);
-
+    localStorage.setItem(this.operatorID, this.containerElement.nativeElement.style.cssText);
     if (
       this.languageServerSocket !== undefined &&
       this.languageServerSocket.readyState === this.languageServerSocket.OPEN
