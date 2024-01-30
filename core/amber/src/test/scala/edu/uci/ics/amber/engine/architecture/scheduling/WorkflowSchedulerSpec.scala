@@ -4,8 +4,8 @@ import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Execu
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
@@ -14,19 +14,27 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
 
-  def setOperatorCompleted(
+  def setLogicalOpCompleted(
       workflow: Workflow,
       executionState: ExecutionState,
       logicalOpId: OperatorIdentity
   ): Unit = {
     val physicalOps = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
     physicalOps.foreach { physicalOp =>
-      executionState.initOperatorState(
-        physicalOp.id,
-        OperatorConfig(List(WorkerConfig(workerId = null)))
-      )
-      executionState.getOperatorExecution(physicalOp.id).setAllWorkerState(COMPLETED)
+      setPhysicalOpCompleted(workflow, executionState, physicalOp.id)
     }
+  }
+
+  def setPhysicalOpCompleted(
+      workflow: Workflow,
+      executionState: ExecutionState,
+      physicalOpId: PhysicalOpIdentity
+  ): Unit = {
+    executionState.initOperatorState(
+      physicalOpId,
+      OperatorConfig(List(WorkerConfig(workerId = null)))
+    )
+    executionState.getOperatorExecution(physicalOpId).setAllWorkerState(COMPLETED)
   }
 
   "Scheduler" should "correctly schedule regions in headerlessCsv->keyword->sink workflow" in {
@@ -62,7 +70,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       headerlessCsvOpDesc.operatorIdentifier,
       keywordOpDesc.operatorIdentifier,
       sink.operatorIdentifier
-    ).foreach(logicalOpId => setOperatorCompleted(workflow, executionState, logicalOpId))
+    ).foreach(logicalOpId => setLogicalOpCompleted(workflow, executionState, logicalOpId))
     scheduler.schedulingPolicy.addToRunningRegions(
       scheduler.schedulingPolicy.startWorkflow(workflow),
       null
@@ -131,6 +139,22 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       )
     )
 
+    val hashJoin1PhysicalOps =
+      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(hashJoin1.operatorIdentifier)
+
+    val hashJoin1BuildPhysicalOp = hashJoin1PhysicalOps.head
+
+    val hashJoin1InternalLink =
+      workflow.physicalPlan.getDownstreamPhysicalLinks(hashJoin1BuildPhysicalOp.id).head
+
+    val hashJoin2PhysicalOps =
+      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(hashJoin2.operatorIdentifier)
+
+    val hashJoin2BuildPhysicalOp = hashJoin2PhysicalOps.head
+
+    val hashJoin2InternalLink =
+      workflow.physicalPlan.getDownstreamPhysicalLinks(hashJoin2BuildPhysicalOp.id).head
+
     val executionState = new ExecutionState(workflow)
     val scheduler =
       new WorkflowScheduler(
@@ -144,17 +168,23 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       null
     )
     Set(buildCsv.operatorIdentifier).foreach(logicalOpId =>
-      setOperatorCompleted(workflow, executionState, logicalOpId)
+      setLogicalOpCompleted(workflow, executionState, logicalOpId)
     )
     val opIdentity = buildCsv.operatorIdentifier
-    val physicalOpId = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(opIdentity).head.id
+    val buildCsvPhysicalOpId = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(opIdentity).head.id
+
+    val buildCsvHashJoin1BuildLink =
+      workflow.physicalPlan.getLinksBetween(buildCsvPhysicalOpId, hashJoin1BuildPhysicalOp.id).head
+    val buildCsvHashJoin2BuildLink =
+      workflow.physicalPlan.getLinksBetween(buildCsvPhysicalOpId, hashJoin2BuildPhysicalOp.id).head
+
     var nextRegions =
       scheduler.schedulingPolicy.onWorkerCompletion(
         workflow,
         executionState,
         VirtualIdentityUtils.createWorkerIdentity(
           workflow.context.workflowId,
-          physicalOpId,
+          buildCsvPhysicalOpId,
           0
         )
       )
@@ -163,62 +193,80 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       workflow,
       executionState,
-      PhysicalLink(
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            buildCsv.operatorIdentifier
-          )
-          .last
-          .id,
-        PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin1.operatorIdentifier
-          )
-          .head
-          .id,
-        PortIdentity()
-      )
+      buildCsvHashJoin1BuildLink
     )
     assert(nextRegions.isEmpty)
+
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       workflow,
       executionState,
-      PhysicalLink(
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            buildCsv.operatorIdentifier
-          )
-          .last
-          .id,
-        PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin2.operatorIdentifier
-          )
-          .head
-          .id,
-        PortIdentity()
-      )
+      buildCsvHashJoin2BuildLink
     )
-    assert(nextRegions.nonEmpty)
-    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
-    scheduler.schedulingPolicy.addToRunningRegions(nextRegions, null)
-    Set(
-      probeCsv.operatorIdentifier,
-      hashJoin1.operatorIdentifier,
-      hashJoin2.operatorIdentifier,
-      sink.operatorIdentifier
-    ).foreach(logicalOpId => setOperatorCompleted(workflow, executionState, logicalOpId))
-    val probeLogicalOpId = probeCsv.operatorIdentifier
-    val probePhysicalOpId =
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(probeLogicalOpId).head.id
+    assert(nextRegions.isEmpty)
+
+    setPhysicalOpCompleted(workflow, executionState, hashJoin1BuildPhysicalOp.id)
+    setPhysicalOpCompleted(workflow, executionState, hashJoin2BuildPhysicalOp.id)
+
     nextRegions = scheduler.schedulingPolicy.onWorkerCompletion(
       workflow,
       executionState,
       VirtualIdentityUtils.createWorkerIdentity(
         workflow.context.workflowId,
-        probePhysicalOpId,
+        hashJoin1BuildPhysicalOp.id,
+        0
+      )
+    )
+
+    assert(nextRegions.isEmpty)
+
+    nextRegions = scheduler.schedulingPolicy.onWorkerCompletion(
+      workflow,
+      executionState,
+      VirtualIdentityUtils.createWorkerIdentity(
+        workflow.context.workflowId,
+        hashJoin2BuildPhysicalOp.id,
+        0
+      )
+    )
+
+    assert(nextRegions.isEmpty)
+
+    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+      workflow,
+      executionState,
+      hashJoin1InternalLink
+    )
+
+    assert(nextRegions.isEmpty)
+
+    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+      workflow,
+      executionState,
+      hashJoin2InternalLink
+    )
+
+    assert(nextRegions.nonEmpty)
+
+    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
+
+    scheduler.schedulingPolicy.addToRunningRegions(nextRegions, null)
+
+    Set(
+      probeCsv.operatorIdentifier,
+      hashJoin1.operatorIdentifier,
+      hashJoin2.operatorIdentifier,
+      sink.operatorIdentifier
+    ).foreach(logicalOpId => setLogicalOpCompleted(workflow, executionState, logicalOpId))
+
+    val probeCsvLogicalOpId = probeCsv.operatorIdentifier
+    val probeCsvPhysicalOpId =
+      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(probeCsvLogicalOpId).head.id
+    nextRegions = scheduler.schedulingPolicy.onWorkerCompletion(
+      workflow,
+      executionState,
+      VirtualIdentityUtils.createWorkerIdentity(
+        workflow.context.workflowId,
+        probeCsvPhysicalOpId,
         0
       )
     )
