@@ -3,52 +3,60 @@
     cdkDrag
     cdkDragBoundary="texera-workspace"
     id="left-panel-container"
+    class="shadow"
     nz-resizable
     [nzMinWidth]="240"
     [nzMaxWidth]="screenWidth*0.5"
     [style.width.px]="width"
     (nzResize)="onResize($event)">
-    <h6
-      id="title"
-      cdkDragHandle>
-      <span id="spacer"></span>{{title}}
-    </h6>
     <ul
+      nz-menu
       id="left-dock"
-      nz-menu>
+      [ngClass]="{'shadow':  !width}"
+      cdkDropList
+      (cdkDropListDropped)="onDrop($event)">
       <li
         nz-menu-item
-        nzTooltipPlacement="left"
-        nz-tooltip="Operators"
-        (click)="openOperatorMenu()"
-        nzSelected>
+        (click)="onClose()"
+        *ngIf="this.width">
         <span
           nz-icon
-          nzType="appstore"></span>
+          nzType="minus"></span>
       </li>
       <li
         nz-menu-item
-        nzTooltipPlacement="left"
-        nz-tooltip="Versions"
-        (click)="openVersionsFrame()"
-        *ngIf="userSystemEnabled">
+        nzSelected
+        cdkDragHandle
+        *ngIf="!this.width">
         <span
           nz-icon
-          nzType="schedule"></span>
+          nzType="drag"
+          *ngIf="!this.width"></span>
       </li>
       <li
-        nz-menu-item
-        nzTooltipPlacement="left"
-        nz-tooltip="Time Travel"
-        (click)="openTimeTravelFrame()"
-        *ngIf="userSystemEnabled">
-        <span
-          nz-icon
-          nzType="clock-circle"
-          nzTheme="outline"></span>
-      </li>
+        nz-menu-divider
+        id="divider"></li>
+      <ng-container *ngFor="let i of order">
+        <li
+          nz-menu-item
+          cdkDrag
+          nzTooltipPlacement="right"
+          nz-tooltip="{{this.items[i].title}}"
+          nzSelected="{{this.currentComponent === this.items[i].component}}"
+          *ngIf="this.items[i].enabled"
+          (click)="openFrame(i)">
+          <span
+            nz-icon
+            nzType="{{this.items[i].icon}}"></span>
+        </li>
+      </ng-container>
     </ul>
     <div id="left-panel-content">
+      <h6
+        id="title"
+        cdkDragHandle>
+        {{title}}
+      </h6>
       <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
     </div>
     <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>

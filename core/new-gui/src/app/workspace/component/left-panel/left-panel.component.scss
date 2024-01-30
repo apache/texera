@@ -1,23 +1,16 @@
 #title {
-  padding: 10px 0 5px 0;
-}
-
-#spacer {
-  border-right: 1px solid #f0f0f0;
-  padding: 15px 46px 15px 0;
-  margin-right: 15px;
+  padding: 10px 0 4px 15px;
 }
 
 #left-panel-container {
-  width: 50%;
-  z-index: 2;
-  position: absolute;
+  position: fixed;
   top: 90px;
   left: 15px;
+  width: 50%;
+  z-index: 3;
   user-select: none;
   background: white;
   border-radius: 3px;
-  box-shadow: 0 3px 1px -2px #0003, 0 2px 2px #00000024, 0 1px 5px #0000001f;
 }
 
 #left-panel-content {
@@ -31,4 +24,17 @@
 #left-dock {
   display: inline-block;
   vertical-align: top;
+  padding-bottom: 10px;
+}
+
+#divider {
+  margin: 0;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+}
+
+.shadow {
+  box-shadow: 0 3px 1px -2px #0003, 0 2px 2px #00000024, 0 1px 5px #0000001f;
 }
