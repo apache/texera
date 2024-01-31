@@ -18,7 +18,7 @@ import org.jooq.ForeignKey;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row7;
+import org.jooq.Row11;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -26,6 +26,7 @@ import org.jooq.UniqueKey;
 import org.jooq.impl.DSL;
 import org.jooq.impl.TableImpl;
 import org.jooq.types.UInteger;
+import org.jooq.types.ULong;
 
 
 /**
@@ -34,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisticsRecord> {
 
-    private static final long serialVersionUID = -657246688;
+    private static final long serialVersionUID = -1804438546;
 
     /**
      * The reference instance of <code>texera_db.workflow_runtime_statistics</code>
@@ -83,6 +84,26 @@ public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisti
      * The column <code>texera_db.workflow_runtime_statistics.status</code>.
      */
     public final TableField<WorkflowRuntimeStatisticsRecord, Byte> STATUS = createField(DSL.name("status"), org.jooq.impl.SQLDataType.TINYINT.nullable(false).defaultValue(org.jooq.impl.DSL.inline("1", org.jooq.impl.SQLDataType.TINYINT)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_runtime_statistics.data_processing_time</code>.
+     */
+    public final TableField<WorkflowRuntimeStatisticsRecord, ULong> DATA_PROCESSING_TIME = createField(DSL.name("data_processing_time"), org.jooq.impl.SQLDataType.BIGINTUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.BIGINTUNSIGNED)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_runtime_statistics.control_processing_time</code>.
+     */
+    public final TableField<WorkflowRuntimeStatisticsRecord, ULong> CONTROL_PROCESSING_TIME = createField(DSL.name("control_processing_time"), org.jooq.impl.SQLDataType.BIGINTUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.BIGINTUNSIGNED)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_runtime_statistics.idle_time</code>.
+     */
+    public final TableField<WorkflowRuntimeStatisticsRecord, ULong> IDLE_TIME = createField(DSL.name("idle_time"), org.jooq.impl.SQLDataType.BIGINTUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.BIGINTUNSIGNED)), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_runtime_statistics.num_workers</code>.
+     */
+    public final TableField<WorkflowRuntimeStatisticsRecord, UInteger> NUM_WORKERS = createField(DSL.name("num_workers"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).defaultValue(org.jooq.impl.DSL.inline("0", org.jooq.impl.SQLDataType.INTEGERUNSIGNED)), this, "");
 
     /**
      * Create a <code>texera_db.workflow_runtime_statistics</code> table reference
@@ -177,11 +198,11 @@ public class WorkflowRuntimeStatistics extends TableImpl<WorkflowRuntimeStatisti
     }
 
     // -------------------------------------------------------------------------
-    // Row7 type methods
+    // Row11 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<UInteger, UInteger, String, Timestamp, UInteger, UInteger, Byte> fieldsRow() {
-        return (Row7) super.fieldsRow();
+    public Row11<UInteger, UInteger, String, Timestamp, UInteger, UInteger, Byte, ULong, ULong, ULong, UInteger> fieldsRow() {
+        return (Row11) super.fieldsRow();
     }
 }

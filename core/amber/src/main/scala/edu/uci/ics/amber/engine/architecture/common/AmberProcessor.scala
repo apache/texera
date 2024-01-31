@@ -35,10 +35,14 @@ class AmberProcessor(
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
 
+  // Measuring Time
+  var controlProcessingTime = 0L;
+
   def processControlPayload(
       channelId: ChannelIdentity,
       payload: ControlPayload
   ): Unit = {
+    val controlProcessingStartTime = System.nanoTime();
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.receive(invocation, channelId.fromWorkerId)
@@ -46,6 +50,7 @@ class AmberProcessor(
         asyncRPCClient.logControlReply(ret, channelId)
         asyncRPCClient.fulfillPromise(ret)
     }
+    controlProcessingTime += (System.nanoTime() - controlProcessingStartTime);
   }
 
 }

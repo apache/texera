@@ -15,7 +15,14 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
   workflowRuntimeStatistics?: WorkflowRuntimeStatistics[];
 
   private groupedStats?: Record<string, WorkflowRuntimeStatistics[]>;
-  public metrics: string[] = ["Input Tuple Count", "Output Tuple Count"];
+  public metrics: string[] = [
+    "Input Tuple Count",
+    "Output Tuple Count",
+    "Total Data Processing Time (s)",
+    "Total Control Processing Time (s)",
+    "Total Idle Time (s)",
+    "Number of Workers",
+  ];
 
   constructor() {}
 
@@ -52,6 +59,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       if (lastStat) {
         stat.inputTupleCount += lastStat.inputTupleCount;
         stat.outputTupleCount += lastStat.outputTupleCount;
+        stat.dataProcessingTime = stat.dataProcessingTime / 1000000000 + lastStat.dataProcessingTime;
+        stat.controlProcessingTime = stat.controlProcessingTime / 1000000000 + lastStat.controlProcessingTime;
+        stat.idleTime = stat.idleTime / 1000000000 + lastStat.idleTime;
       }
 
       stat.timestamp -= beginTimestamp;
@@ -78,11 +88,25 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
         const operatorName = operatorId.split("-")[0];
         const uuidLast6Digits = operatorId.slice(-6);
 
-        if (operatorName === "sink ") {
+        if (operatorName.startsWith("sink")) {
           return null;
         }
 
-        const yValues = metric_idx === 0 ? "inputTupleCount" : "outputTupleCount";
+        let yValues = "";
+        if (metric_idx === 0) {
+          yValues = "inputTupleCount";
+        } else if (metric_idx === 1) {
+          yValues = "outputTupleCount";
+        } else if (metric_idx === 2) {
+          yValues = "dataProcessingTime";
+        } else if (metric_idx === 3) {
+          yValues = "controlProcessingTime";
+        } else if (metric_idx === 4) {
+          yValues = "idleTime";
+        } else {
+          yValues = "numWorkers";
+        }
+
         if (!this.groupedStats) {
           return null;
         }
