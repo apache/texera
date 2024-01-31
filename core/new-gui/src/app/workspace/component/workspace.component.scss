@@ -95,11 +95,24 @@ texera-menu {
   right: 0;
 }
 
-.top-gray-bar {
-  height: 20px; 
-  background-color: lightgray;
-  width: 100%; 
+#right-panel-content {
+  min-height: 100%;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  display: inline-block;
+  width: calc(100% - 50px);
 }
+
+#title {
+  padding: 10px 0 4px 15px;
+}
+
+#left-dock {
+  display: inline-block;
+  vertical-align: top;
+  padding-bottom: 10px;
+}
+
 
 /**
   * this style specifies that the property editor for the operators

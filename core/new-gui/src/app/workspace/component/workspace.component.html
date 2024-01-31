@@ -25,8 +25,18 @@
     [style.width.px]="rightPanelWidth"
     (nzResize)="onResize($event)"
   >
-    <div class="top-gray-bar" cdkDragHandle></div>
-    <texera-property-editor></texera-property-editor>
+    <ul
+      nz-menu
+    >
+      <div id="right-panel-content">
+        <h6
+          id="title"
+          cdkDragHandle>
+          Property
+        </h6>
+      </div>
+      <texera-property-editor></texera-property-editor>
+    </ul>
     <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
   </div>
   <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"> </texera-workflow-editor>
