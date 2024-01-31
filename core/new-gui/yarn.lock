@@ -10322,9 +10322,6 @@ jointjs@3.5.4:
     graphlib "~2.1.8"
     jquery "~3.6.0"
     lodash "~4.17.21"
-  version "3.6.0"
-  resolved "https://registry.yarnpkg.com/jquery/-/jquery-3.6.0.tgz#c72a09f15c1bdce142f49dbf1170bdf8adac2470"
-  integrity sha512-JVzAR/AjBvVt2BmYhxRCSYysDsPcssdmTFnzyLEts9qNwmjmu4JTAMYubEfwVOSwpQ1I1sKKFcxhZCI2buerfw==
 
 jquery@~3.6.0:
   version "3.6.4"
