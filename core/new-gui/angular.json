@@ -90,7 +90,7 @@
           }
         },
         "test": {
-          "builder": "@angular-devkit/build-angular:karma",
+          "builder": "@angular-builders/custom-webpack:karma",
           "options": {
             "assets": ["src/assets"],
             "fileReplacements": [
@@ -110,6 +110,9 @@
               "node_modules/bootstrap/dist/css/bootstrap.min.css",
               "src/styles.scss"
             ],
+            "customWebpackConfig": {
+              "path": "./custom-webpack.config.js"
+            },
             "tsConfig": "src/tsconfig.spec.json"
           }
         },

@@ -97,7 +97,7 @@
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "14.1.0",
-    "@angular-devkit/build-angular": "~14.1.0",
+    "@angular-devkit/build-angular": "14.1.0",
     "@angular-eslint/eslint-plugin": "14.1.0",
     "@angular-eslint/eslint-plugin-template": "14.1.0",
     "@angular-eslint/template-parser": "14.1.0",
@@ -154,6 +154,9 @@
     "ts-node": "4.1.0",
     "typescript": "~4.7.0",
     "webpack-bundle-analyzer": "4.5.0"
+  },
+  "resolutions": {
+    "webpack": "5.76.1"
   },
   "browserslist": [
     "defaults",
