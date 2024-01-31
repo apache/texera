@@ -24,7 +24,7 @@ case class Region(
 ) {
 
   private val operators: Map[PhysicalOpIdentity, PhysicalOp] =
-    getEffectiveOperators.map(op => op.id -> op).toMap
+    getAllOperators.map(op => op.id -> op).toMap
 
   @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge] = {
     val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge](classOf[DefaultEdge])
@@ -44,20 +44,21 @@ case class Region(
     *   1) operators in this region;
     *   2) operators not in this region but receiving input from by this region.
     */
-  def getEffectiveOperators: Set[PhysicalOp] = physicalOps ++ downstreamOps
+  def getAllOperators: Set[PhysicalOp] = physicalOps ++ downstreamOps
 
-  def getEffectiveLinks: Set[PhysicalLink] = {
+  def getAllLinks: Set[PhysicalLink] = {
     physicalLinks ++ downstreamLinks
   }
 
-  def getEffectiveOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = {
+  def getOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = {
     operators(physicalOpId)
   }
 
   /**
-    * Effective source operators in a region are effective operators that have 0 effective input links.
+    * Effective source operators in a region.
+    * The effective source contains operators that have 0 input links in this region.
     */
-  def getEffectiveSourceOpIds: Set[PhysicalOpIdentity] = {
+  def getSourceOperators: Set[PhysicalOp] = {
     physicalOps
       .filter(physicalOp =>
         physicalOp
@@ -65,7 +66,7 @@ case class Region(
           .map(link => link.fromOpId)
           .forall(upstreamOpId => !physicalOps.map(_.id).contains(upstreamOpId))
       )
-      .map(_.id)
+
   }
 
 }

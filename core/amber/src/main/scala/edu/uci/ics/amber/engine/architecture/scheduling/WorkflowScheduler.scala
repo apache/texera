@@ -133,7 +133,7 @@ class WorkflowScheduler(
   ): Unit = {
     val resourceConfig = region.resourceConfig.get
     region.topologicalIterator().foreach { (physicalOpId: PhysicalOpIdentity) =>
-      val physicalOp = region.getEffectiveOperator(physicalOpId)
+      val physicalOp = region.getOperator(physicalOpId)
       buildOperator(
         physicalOp,
         resourceConfig.operatorConfigs(physicalOpId),
@@ -158,7 +158,7 @@ class WorkflowScheduler(
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
     val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
-      region.getEffectiveOperators.map(_.id).diff(initializedPythonOperators)
+      region.getAllOperators.map(_.id).diff(initializedPythonOperators)
     )
     Future
       .collect(
@@ -195,10 +195,10 @@ class WorkflowScheduler(
   }
 
   private def activateAllLinks(region: Region): Future[Seq[Unit]] = {
-    val allOperatorsInRegion = region.getEffectiveOperators.map(_.id)
+    val allOperatorsInRegion = region.getAllOperators.map(_.id)
     Future.collect(
       // activate all links
-      region.getEffectiveLinks
+      region.getAllLinks
         .filter(link => {
           !activatedLink.contains(link) &&
             allOperatorsInRegion.contains(link.fromOpId) &&
@@ -215,7 +215,7 @@ class WorkflowScheduler(
 
   private def openAllOperators(region: Region): Future[Seq[Unit]] = {
     val allNotOpenedOperators =
-      region.getEffectiveOperators.map(_.id).diff(openedOperators)
+      region.getAllOperators.map(_.id).diff(openedOperators)
     Future
       .collect(
         executionState
@@ -230,7 +230,7 @@ class WorkflowScheduler(
 
   private def startRegion(region: Region): Future[Seq[Unit]] = {
 
-    region.getEffectiveOperators
+    region.getAllOperators
       .map(_.id)
       .filter(opId =>
         executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.UNINITIALIZED
@@ -238,20 +238,23 @@ class WorkflowScheduler(
       .foreach(opId => executionState.getOperatorExecution(opId).setAllWorkerState(READY))
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
 
-    val ops = region.getEffectiveSourceOpIds
+    val ops = region.getSourceOperators
     if (!schedulingPolicy.getRunningRegions.contains(region)) {
-      val futures = ops.flatMap { opId =>
-        val opExecution = executionState.getOperatorExecution(opId)
-        opExecution.getBuiltWorkerIds
-          .map(worker =>
-            asyncRPCClient
-              .send(StartWorker(), worker)
-              .map(ret =>
-                // update worker state
-                opExecution.getWorkerInfo(worker).state = ret
-              )
-          )
-      }.toSeq
+      val futures = ops
+        .map(_.id)
+        .flatMap { opId =>
+          val opExecution = executionState.getOperatorExecution(opId)
+          opExecution.getBuiltWorkerIds
+            .map(worker =>
+              asyncRPCClient
+                .send(StartWorker(), worker)
+                .map(ret =>
+                  // update worker state
+                  opExecution.getWorkerInfo(worker).state = ret
+                )
+            )
+        }
+        .toSeq
       Future.collect(futures)
     } else {
       throw new WorkflowRuntimeException(
@@ -267,7 +270,7 @@ class WorkflowScheduler(
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
-        region.getEffectiveOperators
+        region.getAllOperators
           .map(_.id)
           .map(physicalOpId => {
             physicalOpId.logicalOpId.id -> executionState

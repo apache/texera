@@ -48,7 +48,7 @@ class DefaultResourceAllocator(
       region: Region
   ): (Region, Double) = {
 
-    val opToOperatorConfigMapping = region.getEffectiveOperators
+    val opToOperatorConfigMapping = region.getAllOperators
       .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
       .toMap
 
@@ -56,7 +56,7 @@ class DefaultResourceAllocator(
 
     propagatePartitionRequirement(region)
 
-    val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLink =>
+    val linkToLinkConfigMapping = region.getAllLinks.map { physicalLink =>
       physicalLink -> LinkConfig(
         generateChannelConfigs(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
@@ -93,7 +93,7 @@ class DefaultResourceAllocator(
     region
       .topologicalIterator()
       .foreach(physicalOpId => {
-        val physicalOp = region.getEffectiveOperator(physicalOpId)
+        val physicalOp = region.getOperator(physicalOpId)
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
@@ -101,7 +101,7 @@ class DefaultResourceAllocator(
             .flatMap((portId: PortIdentity) => {
               physicalOp
                 .getInputLinks(Some(portId))
-                .filter(link => region.getEffectiveLinks.contains(link))
+                .filter(link => region.getAllLinks.contains(link))
                 .map(link => {
                   val previousLinkPartitionInfo =
                     linkPartitionInfos.getOrElse(link, UnknownPartition())
