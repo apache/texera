@@ -11,6 +11,8 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class LimitOpExec(val limit: Int) extends OperatorExecutor {
   var count = 0
+  var i = 0;
+
 
   override def processTuple(tuple: Either[ITuple, InputExhausted], input: Int, pauseManager: PauseManager, asyncRPCClient: AsyncRPCClient): Iterator[(ITuple, Option[PortIdentity])] = {
     tuple match {

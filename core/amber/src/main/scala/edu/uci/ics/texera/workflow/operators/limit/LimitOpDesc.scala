@@ -31,7 +31,7 @@ class LimitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, _) => new LimitOpExec(limitPerWorker(idx)))
+        OpExecInitInfo((idx, _, _) => new LimitOpExec(operation, limitPerWorker(idx)))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
