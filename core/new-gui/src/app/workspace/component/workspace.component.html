@@ -1,45 +1,38 @@
+<div [ngClass]="{
+  'grid-container': true,
+  'texera-workspace': true,
+  'texera-original-workspace-grid-container': !this.showResultPanel,
+  'texera-workspace-grid-container': this.showResultPanel,
+  'user-system-enabled': this.userSystemEnabled
+}">
 <texera-menu [pid]="pid"></texera-menu>
 <texera-left-panel></texera-left-panel>
 <span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
 <ng-template #codeEditor></ng-template>
-<div
-  [ngClass]="{
-		'grid-container': true,
-		'texera-workspace': true,
-		'texera-original-workspace-grid-container': !this.showResultPanel,
-		'texera-workspace-grid-container': this.showResultPanel,
-		'user-system-enabled': this.userSystemEnabled
-	}">
-  <!-- <div class="texera-property-editor-grid-container grid-container">
-    <div class="texera-right-side-bar-split-editor-minimap">
-      <texera-property-editor style="overflow: auto"> </texera-property-editor>
-      <texera-mini-map> </texera-mini-map>
-    </div>
-  </div> -->
-  <div
-    cdkDrag
-    id="property-editor-container"
-    nz-resizable
-    [nzMinWidth]="400"
-    [nzMaxWidth]="800"
-    [style.width.px]="rightPanelWidth"
-    (nzResize)="onResize($event)"
-  >
-    <ul
-      nz-menu
-    >
-      <div id="right-panel-content">
-        <h6
-          id="title"
-          cdkDragHandle>
-          Property
-        </h6>
-      </div>
-      <texera-property-editor></texera-property-editor>
-    </ul>
-    <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
+<!-- 右侧面板开始 -->
+<div cdkDrag id="property-editor-container" 
+nz-resizable [nzMinWidth]="400" 
+[nzMaxWidth]="800" 
+[style.width.px]="rightPanelWidth" 
+(nzResize)="onResize($event)">
+  <!-- 菜单项 -->
+  <ul nz-menu nzMode="vertical">
+    <!-- 列表项迭代 -->
+    <ng-container *ngFor="let item of rightPanelItems; let i = index">
+      <li nz-menu-item *ngIf="item.enabled" (click)="openRightPanelFrame(i)">
+        {{ item.title }}
+        <span nz-icon [nzType]="item.icon" nzTheme="outline" class="icon-right"></span>
+      </li>
+    </ng-container>
+  </ul>
+  <!-- 动态组件容器 -->
+  <div *ngIf="currentRightPanelComponent" class="dynamic-component-container">
+    <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
   </div>
-  <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"> </texera-workflow-editor>
-  <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"> </texera-result-panel-toggle>
-  <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
+  <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
+</div>
+<!-- 右侧面板结束 -->
+<texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"></texera-workflow-editor>
+<texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"></texera-result-panel-toggle>
+<texera-result-panel class="texera-result-panel-grid-container grid-container"></texera-result-panel>
 </div>

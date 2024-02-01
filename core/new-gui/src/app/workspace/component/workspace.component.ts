@@ -1,5 +1,5 @@
 import { Location } from "@angular/common";
-import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener } from "@angular/core";
+import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener, Type } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
@@ -25,7 +25,10 @@ import { OperatorReuseCacheStatusService } from "../service/workflow-status/oper
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
-
+//changed
+import { MiniMapComponent } from './workflow-editor/mini-map/mini-map.component';
+import { PropertyEditorComponent } from './property-editor/property-editor.component';
+//changed
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
 @UntilDestroy()
@@ -39,6 +42,16 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
+  //changed
+  currentRightPanelComponent: Type<any> = null as any;
+  currentRightPanelTitle: string = "Property";
+  currentIndex = 0;
+  rightPanelItems = [
+    { component: PropertyEditorComponent, title: "Property", icon: "form", enabled: true },
+    { component: MiniMapComponent, title: "MiniMap", icon: "area-chart", enabled: true },
+  ];
+  //changed
+
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
@@ -46,6 +59,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   screenWidth = window.innerWidth;
   rightPanelWidth = 400;
+  
+  //change
+  openRightPanelFrame(index: number) {
+    this.currentRightPanelComponent = this.rightPanelItems[index].component;
+    this.currentRightPanelTitle = this.rightPanelItems[index].title;
+    this.currentIndex = index;
+  }
+  //change
 
   onResize(event: NzResizeEvent): void {
     if (event.width) {
