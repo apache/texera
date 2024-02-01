@@ -42,7 +42,7 @@ case class Region(
     * Return all PhysicalOps that this region may affect.
     * This includes:
     *   1) operators in this region;
-    *   2) operators not in this region but receiving input from by this region.
+    *   2) operators not in this region but receiving input from this region.
     */
   def getAllOperators: Set[PhysicalOp] = physicalOps ++ downstreamOps
 
