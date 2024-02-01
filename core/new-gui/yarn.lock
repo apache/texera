@@ -12515,10 +12515,10 @@ pkg-dir@^4.1.0:
   dependencies:
     find-up "^4.0.0"
 
-plotly.js-dist-min@^2.27.1:
-  version "2.27.1"
-  resolved "https://registry.yarnpkg.com/plotly.js-dist-min/-/plotly.js-dist-min-2.27.1.tgz#6594b6b7e9b39deaa60849be3f5f905fedaf91d5"
-  integrity sha512-fFPFityhOkDtjoIVd/9IJQbEEuKEjfmNALBVLZyHwLIkry5ygE4ZC/XENRqLnWR3rNJdTtEaxhM5zflcWTRlDA==
+plotly.js-dist-min@^2.0.0:
+  version "2.0.0"
+  resolved "https://registry.yarnpkg.com/plotly.js-dist-min/-/plotly.js-dist-min-2.0.0.tgz#285749295fb4af703c7bc0ae29d78ce7ca10ae4b"
+  integrity sha512-RaaRHuARgOnwu3xwOd6QiXFg0mu1dFLVmvGCaNZ/TbqdRhnjvz68zXnrW8MDJuv/Cao1iMx64dNxDyfbX0TBpg==
 
 popper.js@1.16.1:
   version "1.16.1"
