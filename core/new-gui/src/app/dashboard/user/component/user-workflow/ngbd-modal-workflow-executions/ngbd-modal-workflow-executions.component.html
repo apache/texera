@@ -190,8 +190,20 @@
                     nzType="edit"></i>
                 </button>
               </td>
-              <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
-              <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
+              <td
+                nzEllipsis
+                nzTooltipTitle="{{row.startingTime | date:'zzz'}}"
+                nz-tooltip
+                nzTooltipPlacement="top">
+                {{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}
+              </td>
+              <td
+                nzEllipsis
+                nzTooltipTitle="{{row.completionTime | date:'zzz'}}"
+                nz-tooltip
+                nzTooltipPlacement="top">
+                {{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}
+              </td>
               <td nzEllipsis>
                 <i
                   [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
