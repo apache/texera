@@ -105,7 +105,8 @@ class ExpansionGreedyRegionPlanGenerator(
           physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
             .getDownstreamPhysicalLinks(operatorId)
         })
-        Region(RegionIdentity(idx.toString), operatorIds, links)
+        val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
+        Region(RegionIdentity(idx), operators, links)
     }
   }
 
@@ -239,9 +240,6 @@ class ExpansionGreedyRegionPlanGenerator(
         )
     }
 
-    // mark source operators in each region
-    populateSourceOperators(regionDAG)
-
     // mark links that go to downstream regions
     populateDownstreamLinks(regionDAG)
 
@@ -261,30 +259,14 @@ class ExpansionGreedyRegionPlanGenerator(
       })
   }
 
-  private def populateSourceOperators(
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): DirectedAcyclicGraph[Region, RegionLink] = {
-    regionDAG
-      .vertexSet()
-      .toList
-      .foreach(region => {
-        val sourceOpIds = region.physicalOpIds
-          .filter(physicalOpId =>
-            physicalPlan
-              .getUpstreamPhysicalOpIds(physicalOpId)
-              .forall(upstreamOpId => !region.physicalOpIds.contains(upstreamOpId))
-          )
-        val newRegion = region.copy(sourcePhysicalOpIds = sourceOpIds)
-        replaceVertex(regionDAG, region, newRegion)
-      })
-    regionDAG
-  }
-
   private def getRegions(
       physicalOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Set[Region] = {
-    regionDAG.vertexSet().filter(region => region.physicalOpIds.contains(physicalOpId)).toSet
+    regionDAG
+      .vertexSet()
+      .filter(region => region.physicalOps.map(_.id).contains(physicalOpId))
+      .toSet
   }
 
   private def populateDownstreamLinks(
@@ -309,7 +291,10 @@ class ExpansionGreedyRegionPlanGenerator(
       .mapValues(_.map(_._2))
       .foreach {
         case (region, links) =>
-          val newRegion = region.copy(downstreamLinks = links)
+          val newRegion = region.copy(
+            downstreamLinks = links,
+            downstreamOps = links.map(_.toOpId).map(id => physicalPlan.getOperator(id))
+          )
           replaceVertex(regionDAG, region, newRegion)
       }
     regionDAG

@@ -48,8 +48,7 @@ class DefaultResourceAllocator(
       region: Region
   ): (Region, Double) = {
 
-    val opToOperatorConfigMapping = region.getEffectiveOperators
-      .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+    val opToOperatorConfigMapping = region.getAllOperators
       .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
       .toMap
 
@@ -57,7 +56,7 @@ class DefaultResourceAllocator(
 
     propagatePartitionRequirement(region)
 
-    val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLink =>
+    val linkToLinkConfigMapping = region.getAllLinks.map { physicalLink =>
       physicalLink -> LinkConfig(
         generateChannelConfigs(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
@@ -91,11 +90,10 @@ class DefaultResourceAllocator(
     * The output partition info of HJ will be derived after both links are propagated, which is in the second region.
     */
   private def propagatePartitionRequirement(region: Region): Unit = {
-    physicalPlan
+    region
       .topologicalIterator()
-      .filter(physicalOpId => region.getEffectiveOperators.contains(physicalOpId))
       .foreach(physicalOpId => {
-        val physicalOp = physicalPlan.getOperator(physicalOpId)
+        val physicalOp = region.getOperator(physicalOpId)
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
@@ -103,7 +101,7 @@ class DefaultResourceAllocator(
             .flatMap((portId: PortIdentity) => {
               physicalOp
                 .getInputLinks(Some(portId))
-                .filter(link => region.getEffectiveLinks.contains(link))
+                .filter(link => region.getAllLinks.contains(link))
                 .map(link => {
                   val previousLinkPartitionInfo =
                     linkPartitionInfos.getOrElse(link, UnknownPartition())
