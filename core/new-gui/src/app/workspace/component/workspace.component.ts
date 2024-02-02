@@ -48,8 +48,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   currentIndex = 0;
   rightPanelItems = [
     { component: PropertyEditorComponent, title: "Property", icon: "form", enabled: true },
-    { component: MiniMapComponent, title: "MiniMap", icon: "area-chart", enabled: true },
+    { component: MiniMapComponent, title: "MiniMap", icon: "compass", enabled: true },
   ];
+  display = true;
   //changed
 
   public pid?: number = undefined;
@@ -65,6 +66,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.currentRightPanelComponent = this.rightPanelItems[index].component;
     this.currentRightPanelTitle = this.rightPanelItems[index].title;
     this.currentIndex = index;
+    if (this.display == false) {
+      this.rightPanelWidth = 400;
+    }
+    this.display = true;
   }
   //change
 
@@ -72,6 +77,12 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     if (event.width) {
       this.rightPanelWidth = event.width;
     }
+  }
+
+  onClose(): void {
+    this.display = false;
+    this.currentRightPanelComponent = null as any;
+    this.rightPanelWidth = 0;
   }
 
   @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
@@ -111,6 +122,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - NaN || undefined will result in undefined.
      */
     this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
+    this.openRightPanelFrame(0); // initialize the right panel
   }
 
   ngAfterViewInit(): void {

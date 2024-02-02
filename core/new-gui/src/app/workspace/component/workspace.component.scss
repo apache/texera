@@ -85,14 +85,14 @@ texera-menu {
 /** floating right panel**/
 
 #property-editor-container {
+  position: fixed;
+  top: 600px;
+  right: 15px;
+  width: 50%;
+  z-index: 3;
+  user-select: none;
   background: white;
-  min-height: 300px;
-  // height: calc(100% - 200px);
-  width: 100%;
-  z-index: 1;
-  position: absolute;
-  top: 76px;
-  right: 0;
+  border-radius: 3px;
 }
 
 #right-panel-content {
@@ -107,7 +107,7 @@ texera-menu {
   padding: 10px 0 4px 15px;
 }
 
-#left-dock {
+#dock {
   display: inline-block;
   vertical-align: top;
   padding-bottom: 10px;

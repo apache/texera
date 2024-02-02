@@ -9,29 +9,62 @@
 <texera-left-panel></texera-left-panel>
 <span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
 <ng-template #codeEditor></ng-template>
-<!-- 右侧面板开始 -->
-<div cdkDrag id="property-editor-container" 
-nz-resizable [nzMinWidth]="400" 
-[nzMaxWidth]="800" 
-[style.width.px]="rightPanelWidth" 
-(nzResize)="onResize($event)">
-  <!-- 菜单项 -->
-  <ul nz-menu nzMode="vertical">
-    <!-- 列表项迭代 -->
-    <ng-container *ngFor="let item of rightPanelItems; let i = index">
-      <li nz-menu-item *ngIf="item.enabled" (click)="openRightPanelFrame(i)">
-        {{ item.title }}
-        <span nz-icon [nzType]="item.icon" nzTheme="outline" class="icon-right"></span>
+<div 
+  cdkDrag 
+  id="property-editor-container" 
+  nz-resizable 
+  [nzMinWidth]="400" 
+  [nzMaxWidth]="800" 
+  [style.width.px]="rightPanelWidth" 
+  (nzResize)="onResize($event)">
+    <div 
+      *ngIf="currentRightPanelComponent" 
+      id="right-panel-content">
+      <h6
+        id="title"
+        cdkDragHandle>
+        {{currentRightPanelTitle}}
+      </h6>
+      <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
+    </div>
+    <ul 
+      nz-menu 
+      id="dock">
+      <li
+        nz-menu-item
+        (click)="onClose()"
+        *ngIf="this.display">
+        <span
+          nz-icon
+          nzType="minus"></span>
       </li>
-    </ng-container>
-  </ul>
-  <!-- 动态组件容器 -->
-  <div *ngIf="currentRightPanelComponent" class="dynamic-component-container">
-    <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
-  </div>
-  <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
+      <li
+        nz-menu-item
+        nzSelected
+        cdkDragHandle
+        *ngIf="!this.display">
+        <span
+          nz-icon
+          nzType="drag"
+          *ngIf="!this.display"></span>
+      </li>
+      <ng-container *ngFor="let item of rightPanelItems; let i = index">
+        <li 
+          nz-menu-item 
+          *ngIf="item.enabled" 
+          (click)="openRightPanelFrame(i)"
+          nz-tooltip="{{item.title}}">
+          <span 
+            nz-icon 
+            [nzType]="item.icon" 
+            nzTheme="outline" 
+            class="icon-right">
+          </span>
+        </li>
+      </ng-container>
+    </ul>
+    <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
 </div>
-<!-- 右侧面板结束 -->
 <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"></texera-workflow-editor>
 <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"></texera-result-panel-toggle>
 <texera-result-panel class="texera-result-panel-grid-container grid-container"></texera-result-panel>
