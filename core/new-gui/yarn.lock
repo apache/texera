@@ -106,7 +106,7 @@
     "@angular-devkit/architect" "0.1303.11"
     rxjs "6.6.7"
 
-"@angular-devkit/core@13.3.11", "@angular-devkit/core@^13.0.3":
+"@angular-devkit/core@13.3.11":
   version "13.3.11"
   resolved "https://registry.yarnpkg.com/@angular-devkit/core/-/core-13.3.11.tgz#875b02b973a60869781447cc2723f660752f12a1"
   integrity sha512-rfqoLMRYhlz0wzKlHx7FfyIyQq8dKTsmbCoIVU1cEIH0gyTMVY7PbVzwRRcO6xp5waY+0hA+0Brriujpuhkm4w==
@@ -3614,7 +3614,7 @@
     estree-walker "^2.0.1"
     picomatch "^2.2.2"
 
-"@schematics/angular@13.3.11", "@schematics/angular@^13.0.3":
+"@schematics/angular@13.3.11":
   version "13.3.11"
   resolved "https://registry.yarnpkg.com/@schematics/angular/-/angular-13.3.11.tgz#7e3264c0da1ab16967eed85ef79c5445735c6160"
   integrity sha512-imKBnKYEse0SBVELZO/753nkpt3eEgpjrYkB+AFWF9YfO/4RGnYXDHoH8CFkzxPH9QQCgNrmsVFNiYGS+P/S1A==
@@ -11787,17 +11787,12 @@ ng-zorro-antd@13.4.0:
     date-fns "^2.16.1"
     tslib "^2.3.0"
 
-ng2-file-upload@2.0.0-3:
-  version "2.0.0-3"
-  resolved "https://registry.yarnpkg.com/ng2-file-upload/-/ng2-file-upload-2.0.0-3.tgz#0d95df9e59579fc142f62ac020cf16367c811d09"
-  integrity sha512-x0BWVJVO3uyc7l/6BWkdvXuAcDv5Jfnf3AGaxIGYGMxNb+64wuVzIjrAhwsoYyIR7qV2Q0X98UGkArq3jpr/hA==
+ng2-file-upload@1.4.0:
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/ng2-file-upload/-/ng2-file-upload-1.4.0.tgz#8dea28d573234c52af474ad2a4001b335271e5c4"
+  integrity sha512-3J/KPU/tyh/ad6TFeUbrxX+SihUj0iOEt2Zsg4EX7mB3GFiQscXOfcUOxCkBtPWWWaqt3azrYbVGzsYa3/7NzQ==
   dependencies:
-    tslib "^2.0.0"
-
-ngx-bootstrap@5.6.2:
-  version "5.6.2"
-  resolved "https://registry.yarnpkg.com/ngx-bootstrap/-/ngx-bootstrap-5.6.2.tgz#e648f826d303c29255c16772676efd30695740d1"
-  integrity sha512-6YHXtdXkGH3w0NQoaUgNYAcrj064Lv5RTO284ha/hvpNTrh55yQz2cVh0VvwBk3MjyY2tdmLH4SuCJDszYdYiw==
+    tslib "^1.9.0"
 
 ngx-color-picker@12.0.1:
   version "12.0.1"
