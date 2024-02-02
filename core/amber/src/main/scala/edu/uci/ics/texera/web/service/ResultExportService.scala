@@ -28,9 +28,8 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.{IterableHasAsScala, SeqHasAsJava}
 
 object ResultExportService {
   final val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -90,7 +89,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
     results.foreach { tuple =>
-      writer.writeRow(tuple.getFields.toSeq)
+      writer.writeRow(tuple.getFields.asScala.toSeq)
     }
     writer.close()
     val latestVersion =

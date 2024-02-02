@@ -229,8 +229,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
-    val leftOrder = Stream.continually(nextInt(10)).take(leftInput.length).toList
-    val rightOrder = Stream.continually(nextInt(10)).take(rightInput.length).toList
+    val leftOrder = LazyList.continually(nextInt(10)).take(leftInput.length).toList
+    val rightOrder = LazyList.continually(nextInt(10)).take(rightInput.length).toList
     val outputTuples: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]
 
     while (leftIndex < leftOrder.size || rightIndex < rightOrder.size) {
@@ -493,8 +493,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "test larger dataset(1k)" in {
-    val pointList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
-    val rangeList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
+    val pointList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
+    val rangeList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
     testJoin[Long](
       "point",
       "range",

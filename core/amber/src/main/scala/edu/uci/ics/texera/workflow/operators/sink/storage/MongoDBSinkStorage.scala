@@ -55,7 +55,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
     new Iterator[Tuple] {
       override def hasNext: Boolean = cursor.hasNext
       override def next(): Tuple = document2Tuple(cursor.next(), schema)
-    }.toIterable
+    }.iterator.to(Iterable)
   }
 
   override def getAll: Iterable[Tuple] = {
@@ -63,7 +63,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
     mkTupleIterable(cursor)
   }
 
-  override def getStorageWriter(): SinkStorageWriter =
+  override def getStorageWriter: SinkStorageWriter =
     new MongoDBSinkStorageWriter(commitBatchSize)
 
   override def clear(): Unit = {

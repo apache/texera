@@ -24,7 +24,7 @@ object ModifyLogicHandler {
 trait ModifyLogicHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: ModifyLogic, sender) =>
+  registerHandler[ModifyLogic, Unit] { (msg, sender) =>
     {
       val operator = cp.workflow.physicalPlan.getOperator(msg.newOp.id)
       val opExecution = cp.executionState.getOperatorExecution(msg.newOp.id)

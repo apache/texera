@@ -11,10 +11,9 @@ import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterFullArchiveSearchSourceOpExec(
     desc: TwitterFullArchiveSearchSourceOpDesc
@@ -36,7 +35,7 @@ class TwitterFullArchiveSearchSourceOpExec(
     new Iterator[Tuple]() {
       override def hasNext: Boolean = (hasNextRequest || tweetCache.nonEmpty) && curLimit > 0
 
-      override def next: Tuple = {
+      override def next(): Tuple = {
         // if the current cache is exhausted, query for the next response
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
@@ -122,7 +121,7 @@ class TwitterFullArchiveSearchSourceOpExec(
 
     userCache =
       if (response != null && response.getIncludes != null && response.getIncludes.getUsers != null)
-        response.getIncludes.getUsers
+        response.getIncludes.getUsers.asScala
           .map((userData: UserData) => userData.getId -> userData)
           .toMap
       else Map()

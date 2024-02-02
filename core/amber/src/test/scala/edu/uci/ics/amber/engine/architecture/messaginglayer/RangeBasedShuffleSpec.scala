@@ -20,7 +20,7 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
     RangeBasedShufflePartitioning(
       400,
       List(fakeID1, fakeID2, fakeID3, fakeID4, fakeID5),
-      Array(0),
+      Seq(0),
       -400,
       600
     )

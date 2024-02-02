@@ -5,7 +5,7 @@ import com.mongodb.client.{FindIterable, MongoCollection, MongoCursor}
 import org.bson.Document
 
 import java.util.concurrent.TimeUnit
-import collection.JavaConverters._
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class MongoCollectionManager(collection: MongoCollection[Document]) {
 
@@ -14,7 +14,7 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
   }
 
   def insertMany(documents: Iterable[Document]): Unit = {
-    collection.insertMany(documents.toList.asJava)
+    collection.insertMany(documents.toSeq.asJava)
   }
 
   def deleteMany(condition: Document): Unit = {
@@ -35,7 +35,7 @@ class MongoCollectionManager(collection: MongoCollection[Document]) {
       new Iterator[Document] {
         override def hasNext: Boolean = cursor.hasNext
         override def next(): Document = cursor.next()
-      }.toIterable
+      }.iterator.to(Iterable)
     } else {
       Iterable(collection.find().first())
     }

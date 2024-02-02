@@ -56,7 +56,7 @@ class WorkflowCompiler(
           )
       }
       executionStateStore.metadataStore.updateState(metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors: _*)
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors.toSeq: _*)
       )
     }
     logicalPlan

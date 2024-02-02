@@ -30,11 +30,11 @@ class PauseSpec
 
   val logger = Logger("PauseSpecLogger")
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
 
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
 
@@ -49,7 +49,7 @@ class PauseSpec
         ControllerConfig.default,
         error => {}
       )
-    val completion = Promise[Unit]
+    val completion = Promise[Unit]()
     client
       .registerCallback[WorkflowCompleted](evt => {
         completion.setDone()

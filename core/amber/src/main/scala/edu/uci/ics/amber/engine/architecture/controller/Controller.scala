@@ -111,7 +111,7 @@ class Controller(
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     val channel = cp.inputGateway.getChannel(workflowMsg.channelId)
     channel.acceptMessage(workflowMsg)
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
+    sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
     processMessages()
   }
 
@@ -136,7 +136,7 @@ class Controller(
   def handleDirectInvocation: Receive = {
     case c: ControlInvocation =>
       // only client and self can send direction invocations
-      val source = if (sender == self) {
+      val source = if (sender() == self) {
         SELF
       } else {
         CLIENT
@@ -168,7 +168,7 @@ class Controller(
   override val supervisorStrategy: SupervisorStrategy =
     AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
       case e: Throwable =>
-        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender)
+        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender())
         logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
         cp.asyncRPCServer.execute(FatalError(e, failedWorker), actorId)
         Stop

@@ -12,8 +12,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 
 import java.util
-import scala.collection.JavaConverters
-import scala.collection.JavaConverters.asScalaIterator
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala}
 
 case class OperatorInfo(
     userFriendlyName: String,
@@ -69,8 +68,7 @@ object OperatorMetadataGenerator {
         objectMapper.constructType(classOf[LogicalOp]).getRawClass
       )
     )
-    JavaConverters
-      .asScalaBuffer(new util.ArrayList[NamedType](types))
+    new util.ArrayList[NamedType](types).asScala
       .filter(t => t.getType != null && t.getName != null)
       .map(t => (t.getType.asInstanceOf[Class[_ <: LogicalOp]], t.getName))
       .toMap
@@ -98,7 +96,11 @@ object OperatorMetadataGenerator {
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("outputPorts")
     // remove operatorType from required list
     val operatorTypeIndex =
-      asScalaIterator(jsonSchema.get("required").asInstanceOf[ArrayNode].elements())
+      jsonSchema
+        .get("required")
+        .asInstanceOf[ArrayNode]
+        .elements()
+        .asScala
         .indexWhere(p => p.asText().equals("operatorType"))
     jsonSchema.get("required").asInstanceOf[ArrayNode].remove(operatorTypeIndex)
     // remove "title" for the operator - frontend uses userFriendlyName to show operator title

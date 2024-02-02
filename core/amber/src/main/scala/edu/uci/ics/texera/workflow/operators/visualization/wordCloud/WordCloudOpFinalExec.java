@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 
 import static edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc.finalInsertRetractSchema;
 import static edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc.partialAggregateSchema;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 /**
  * Merge word count maps into a single map (termFreqMap), calculate the size of each token based on its count, and
@@ -91,9 +92,9 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
                 List<Tuple> normalizedWordCloudTuples = normalizeWordCloudTuples();
                 List<Tuple> results = calculateResults(normalizedWordCloudTuples);
                 prevWordCloudTuples = normalizedWordCloudTuples;
-                return JavaConverters.asScalaIterator(results.iterator());
+                return asScala(results.iterator());
             } else {
-                return JavaConverters.asScalaIterator(Collections.emptyIterator());
+                return asScala(Collections.emptyIterator());
             }
         } else {
             if (counterSinceLastUpdate > 0) {
@@ -103,9 +104,9 @@ public class WordCloudOpFinalExec implements OperatorExecutor {
                 List<Tuple> normalizedWordCloudTuples = normalizeWordCloudTuples();
                 List<Tuple> results = calculateResults(normalizedWordCloudTuples);
                 prevWordCloudTuples = normalizedWordCloudTuples;
-                return JavaConverters.asScalaIterator(results.iterator());
+                return asScala(results.iterator());
             } else {
-                return JavaConverters.asScalaIterator(Collections.emptyIterator());
+                return asScala(Collections.emptyIterator());
             }
         }
     }

@@ -22,9 +22,8 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.annotation.tailrec
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 object ExpansionGreedyRegionPlanGenerator {
 
@@ -39,6 +38,7 @@ object ExpansionGreedyRegionPlanGenerator {
     graph.addVertex(newVertex)
     graph
       .outgoingEdgesOf(oldVertex)
+      .asScala
       .toList
       .foreach(oldEdge => {
         val dest = graph.getEdgeTarget(oldEdge)
@@ -47,6 +47,7 @@ object ExpansionGreedyRegionPlanGenerator {
       })
     graph
       .incomingEdgesOf(oldVertex)
+      .asScala
       .toList
       .foreach(oldEdge => {
         val source = graph.getEdgeSource(oldEdge)
@@ -96,11 +97,12 @@ class ExpansionGreedyRegionPlanGenerator(
     */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
     val nonBlockingDAG = physicalPlan.removeBlockingLinks()
-    new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
+    val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
       nonBlockingDAG.dag
-    ).getConnectedComponents.toSet.zipWithIndex.map {
+    ).getConnectedComponents.asScala.toSet
+    connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
-        val operatorIds = connectedSubDAG.vertexSet().toSet
+        val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
         val links = operatorIds.flatMap(operatorId => {
           physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
             .getDownstreamPhysicalLinks(operatorId)
@@ -265,6 +267,7 @@ class ExpansionGreedyRegionPlanGenerator(
   ): Set[Region] = {
     regionDAG
       .vertexSet()
+      .asScala
       .filter(region => region.physicalOps.map(_.id).contains(physicalOpId))
       .toSet
   }
@@ -288,6 +291,7 @@ class ExpansionGreedyRegionPlanGenerator(
     blockingLinks
       .flatMap { link => getRegions(link.fromOpId, regionDAG).map(region => region -> link) }
       .groupBy(_._1)
+      .view
       .mapValues(_.map(_._2))
       .foreach {
         case (region, links) =>
@@ -306,7 +310,7 @@ class ExpansionGreedyRegionPlanGenerator(
     (
       RegionPlan(
         regions = regionDAG.iterator().asScala.toList,
-        regionLinks = regionDAG.edgeSet().toSet
+        regionLinks = regionDAG.edgeSet().asScala.toSet
       ),
       physicalPlan
     )

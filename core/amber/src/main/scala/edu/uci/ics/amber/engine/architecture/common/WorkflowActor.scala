@@ -119,7 +119,7 @@ abstract class WorkflowActor(
   // actor behavior for FIFO messages
   def receiveMessageAndAck: Receive = {
     case NetworkMessage(id, workflowMsg @ WorkflowFIFOMessage(channel, _, _)) =>
-      actorRefMappingService.registerActorRef(channel.fromWorkerId, sender)
+      actorRefMappingService.registerActorRef(channel.fromWorkerId, sender())
       try {
         handleInputMessage(id, workflowMsg)
       } catch {
@@ -133,7 +133,7 @@ abstract class WorkflowActor(
 
   def receiveCreditMessages: Receive = {
     case CreditRequest(channel) =>
-      sender ! CreditResponse(channel, getQueuedCredit(channel))
+      sender() ! CreditResponse(channel, getQueuedCredit(channel))
     case CreditResponse(channel, credit) =>
       transferService.updateChannelCreditFromReceiver(channel, credit)
   }

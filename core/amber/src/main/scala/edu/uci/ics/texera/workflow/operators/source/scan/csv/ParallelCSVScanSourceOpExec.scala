@@ -8,8 +8,7 @@ import org.tukaani.xz.SeekableFileInputStream
 
 import java.util
 import java.util.stream.{IntStream, Stream}
-import scala.collection.Iterator
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class ParallelCSVScanSourceOpExec private[csv] (
     val desc: ParallelCSVScanSourceOpDesc,
@@ -23,7 +22,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
     new Iterator[Tuple]() {
       override def hasNext: Boolean = reader.hasNext
 
-      override def next: Tuple = {
+      override def next(): Tuple = {
 
         try {
           // obtain String representation of each field
@@ -53,7 +52,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
           // parse Strings into inferred AttributeTypes
           val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
             fields,
-            schema.getAttributes
+            schema.getAttributes.asScala
               .map((attr: Attribute) => attr.getType)
               .toArray
           )

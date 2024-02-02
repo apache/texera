@@ -9,7 +9,7 @@ class UnnestStringOpExec(opDesc: UnnestStringOpDesc) extends FlatMapOpExec {
   def splitByDelimiter(tuple: Tuple): Iterator[Tuple] = {
 
     val tupleValue = tuple.getField(this.opDesc.attribute).toString
-    val dataIterator = this.opDesc.delimiter.r.split(tupleValue).filter(!_.equals("")).toIterator
+    val dataIterator = this.opDesc.delimiter.r.split(tupleValue).filter(!_.equals("")).iterator
 
     val outputSchema = opDesc.operatorInfo.outputPorts
       .map(outputPort => opDesc.outputPortToSchemaMapping(outputPort.id))

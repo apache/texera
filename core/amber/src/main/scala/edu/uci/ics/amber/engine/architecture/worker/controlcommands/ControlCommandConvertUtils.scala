@@ -31,7 +31,7 @@ import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.immutable.ListMap
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(

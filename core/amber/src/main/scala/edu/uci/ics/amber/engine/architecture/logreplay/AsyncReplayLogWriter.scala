@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.Sequentia
 
 import java.util
 import java.util.concurrent.CompletableFuture
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class AsyncReplayLogWriter(
     handler: WorkflowFIFOMessage => Unit,

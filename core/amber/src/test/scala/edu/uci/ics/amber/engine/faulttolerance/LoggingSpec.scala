@@ -43,7 +43,7 @@ class LoggingSpec
   private val physicalOpId2 = PhysicalOpIdentity(operatorIdentity, "2nd-layer")
   private val mockLink = PhysicalLink(physicalOpId1, PortIdentity(), physicalOpId2, PortIdentity())
 
-  private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
+  private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
   val payloadToLog: Array[WorkflowFIFOMessagePayload] = Array(
     ControlInvocation(0, StartWorker()),
     ControlInvocation(0, AddPartitioning(mockLink, mockPolicy)),

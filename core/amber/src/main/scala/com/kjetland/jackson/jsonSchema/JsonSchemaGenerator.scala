@@ -4,7 +4,6 @@ import java.lang.annotation.Annotation
 import java.util
 import java.util.function.Supplier
 import java.util.{Optional, List => JList}
-
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription, JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.core.JsonParser.NumberType
 import com.fasterxml.jackson.databind._
@@ -16,9 +15,12 @@ import com.fasterxml.jackson.databind.node.{ArrayNode, JsonNodeFactory, ObjectNo
 import com.fasterxml.jackson.databind.util.ClassUtil
 import com.kjetland.jackson.jsonSchema.annotations._
 import io.github.classgraph.{ClassGraph, ScanResult}
+
 import javax.validation.constraints._
 import javax.validation.groups.Default
 import org.slf4j.LoggerFactory
+
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 
 object JsonSchemaGenerator {
 }
@@ -132,8 +134,6 @@ object JsonSchemaConfig {
               javaxValidationGroups:java.util.List[Class[_]]
             ):JsonSchemaConfig = {
 
-    import scala.collection.JavaConverters._
-
     JsonSchemaConfig(
       autoGenerateTitleForProperties,
       Option(defaultArrayFormat.orElse(null)),
@@ -171,7 +171,6 @@ case class SubclassesResolverImpl
   packagesToScan:List[String] = List(),
   classesToScan:List[String] = List()
 ) extends SubclassesResolver {
-  import scala.collection.JavaConverters._
 
   def this() = this(None, List(), List())
 
@@ -299,8 +298,6 @@ class JsonSchemaGenerator
 
   // Java API
   def this(rootObjectMapper: ObjectMapper, config:JsonSchemaConfig) = this(rootObjectMapper, false, config)
-
-  import scala.collection.JavaConverters._
 
   val log = LoggerFactory.getLogger(getClass)
 

@@ -50,7 +50,7 @@ class AmberClient(
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      val promise = Promise[Any]
+      val promise = Promise[Any]()
       clientActor ! CommandRequest(controlCommand, promise)
       promise.map(ret => ret.asInstanceOf[T])
     }
@@ -60,7 +60,7 @@ class AmberClient(
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      val promise = Promise[Any]
+      val promise = Promise[Any]()
       clientActor ! CommandRequest(controlCommand, promise)
       promise.map(ret => ret.asInstanceOf[T])
     }
@@ -70,7 +70,7 @@ class AmberClient(
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      val promise = Promise[Any]
+      val promise = Promise[Any]()
       promise.onSuccess { value =>
         callback(value.asInstanceOf[T])
       }

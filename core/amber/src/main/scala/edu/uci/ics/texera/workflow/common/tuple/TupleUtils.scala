@@ -12,8 +12,8 @@ import org.bson.Document
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import org.bson.types.Binary
 
-import scala.collection.JavaConverters._
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.{ListHasAsScala, SeqHasAsJava}
 
 object TupleUtils {
 

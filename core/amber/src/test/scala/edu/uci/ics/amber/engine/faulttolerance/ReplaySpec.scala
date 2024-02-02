@@ -37,7 +37,7 @@ class ReplaySpec
         fileName: String
     ): SequentialRecordStorage.SequentialRecordReader[ReplayLogRecord] =
       new SequentialRecordReader[ReplayLogRecord](null) {
-        override def mkRecordIterator(): Iterator[ReplayLogRecord] = iter.toIterator
+        override def mkRecordIterator(): Iterator[ReplayLogRecord] = iter.iterator
       }
 
     override def deleteStorage(): Unit = ???

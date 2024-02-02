@@ -42,7 +42,7 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
 
   def getIterativeTrainingIterator: Iterator[Tuple] = {
     new Iterator[Tuple] {
-      override def hasNext(): Boolean = {
+      override def hasNext: Boolean = {
         hasMoreIterations
       }
 

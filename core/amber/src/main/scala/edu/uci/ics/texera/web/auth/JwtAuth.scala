@@ -43,7 +43,7 @@ object JwtAuth {
     claims.setClaim("googleId", user.getGoogleId)
     claims.setClaim("email", user.getEmail)
     claims.setClaim("role", user.getRole)
-    claims.setExpirationTimeMinutesInTheFuture(dayToMin(expireInDays))
+    claims.setExpirationTimeMinutesInTheFuture(dayToMin(expireInDays).toFloat)
     claims
   }
 

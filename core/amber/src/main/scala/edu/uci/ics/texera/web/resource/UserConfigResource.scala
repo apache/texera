@@ -10,7 +10,7 @@ import io.dropwizard.auth.Auth
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core._
-import scala.jdk.CollectionConverters.asScalaBuffer
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /**
   * This class handles requests to read and write the user dictionary,
@@ -38,15 +38,14 @@ class UserConfigResource {
     * the user_dictionary table as a json object
     */
   private def getDict(user: User): Map[String, String] = {
-    Map(
-      asScalaBuffer(
-        SqlServer.createDSLContext
-          .select()
-          .from(USER_CONFIG)
-          .where(USER_CONFIG.UID.eq(user.getUid))
-          .fetchInto(classOf[UserConfig])
-      ) map { entry => (entry.getKey, entry.getValue) }: _*
-    )
+    SqlServer.createDSLContext
+      .select()
+      .from(USER_CONFIG)
+      .where(USER_CONFIG.UID.eq(user.getUid))
+      .fetchInto(classOf[UserConfig])
+      .asScala
+      .map { entry => (entry.getKey, entry.getValue) }
+      .toMap
   }
 
   @GET

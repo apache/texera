@@ -80,7 +80,7 @@ class FlowControl {
           toSend.append(msg)
           stashedMessages.dequeue()
         } else {
-          break
+          break()
         }
       }
     }

@@ -57,7 +57,7 @@ trait MonitoringHandler {
     workflowReshapeState.workloadSamples(collectedAt) = existingSamples
   }
 
-  registerHandler((msg: ControllerInitiateMonitoring, sender) => {
+  registerHandler[ControllerInitiateMonitoring, Unit]((msg, sender) => {
     if (!previousCallFinished) {
       Future.Done
     } else {

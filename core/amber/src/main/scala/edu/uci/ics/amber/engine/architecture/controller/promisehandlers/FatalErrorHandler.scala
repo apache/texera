@@ -17,7 +17,7 @@ object FatalErrorHandler {
 trait FatalErrorHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: FatalError, sender) =>
+  registerHandler[FatalError, Unit] { (msg, sender) =>
     {
       // log the error to console
       logger.error("FatalError received", msg)

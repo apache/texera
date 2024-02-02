@@ -156,7 +156,7 @@ class ReshapePartitioner(partitioner: Partitioner) extends Partitioner {
       for (i <- 0 until numBuckets) {
         receiverToWorkloadSamples(receivers(i)) = ArrayBuffer[Long](0)
       }
-      collectedTillNow.mapValues(_.toList).toMap
+      collectedTillNow.view.mapValues(_.toList).toMap
     } else {
       Map[ActorVirtualIdentity, List[Long]]()
     }

@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 import java.util
-import scala.jdk.CollectionConverters.iterableAsScalaIterableConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 

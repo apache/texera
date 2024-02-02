@@ -30,7 +30,7 @@ object LocalBreakpointTriggeredHandler {
 trait LocalBreakpointTriggeredHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: LocalBreakpointTriggered, sender) =>
+  registerHandler[LocalBreakpointTriggered, Unit] { (msg, sender) =>
     {
       // get the operator where the worker triggers breakpoint
       val targetOp = cp.executionState.getOperatorExecution(sender)

@@ -42,7 +42,7 @@ case object LinkConfig {
 
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
-        OneToOnePartitioning(defaultBatchSize, Array(toWorkerIds.head))
+        OneToOnePartitioning(defaultBatchSize, Seq(toWorkerIds.head))
 
       case BroadcastPartition() =>
         BroadcastPartitioning(defaultBatchSize, toWorkerIds)

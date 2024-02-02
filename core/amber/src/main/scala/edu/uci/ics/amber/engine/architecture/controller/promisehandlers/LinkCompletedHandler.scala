@@ -20,7 +20,7 @@ object LinkCompletedHandler {
 trait LinkCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: LinkCompleted, sender) =>
+  registerHandler[LinkCompleted, Unit] { (msg, sender) =>
     {
       // get the target link from workflow
       val link = cp.executionState.getLinkExecution(msg.link)

@@ -10,7 +10,7 @@ import java.net.URI
 import java.nio.charset.Charset
 import javax.websocket.HandshakeResponse
 import javax.websocket.server.{HandshakeRequest, ServerEndpointConfig}
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 /**
   * This configurator extracts HTTPSession and associates it to ServerEndpointConfig,

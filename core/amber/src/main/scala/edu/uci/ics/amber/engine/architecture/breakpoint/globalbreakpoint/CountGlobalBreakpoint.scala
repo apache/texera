@@ -32,7 +32,7 @@ class CountGlobalBreakpoint(id: String, val target: Long)
           assigned.append(
             (workers(i), new CountLocalBreakpoint(id, version, remaining - currentSum))
           )
-          break
+          break()
         }
         i += 1
       }
