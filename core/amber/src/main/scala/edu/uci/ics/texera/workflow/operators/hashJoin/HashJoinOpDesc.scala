@@ -20,7 +20,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, PhysicalPlan}
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 
 @JsonSchemaInject(json = """
@@ -54,7 +53,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
   var joinType: JoinType = JoinType.INNER
 
   override def getPhysicalPlan(
-      workflowIdentity: WorkflowIdentity,
+      workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
     val inputSchemas =
@@ -70,18 +69,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val buildInPartitionRequirement = List(
       Option(HashPartition(List(buildSchema.getIndex(buildAttributeName))))
     )
-    val joinDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      val buildAttrIndex: Int = buildSchema.getIndex(buildAttributeName)
-      val probAttrIndex: Int = probeSchema.getIndex(probeAttributeName)
 
-      val buildPartition = inputPartitions
-        .map(_.asInstanceOf[HashPartition])
-        .find(_.hashColumnIndices.contains(buildAttrIndex))
-        .get
-      val probePartition = inputPartitions
-        .map(_.asInstanceOf[HashPartition])
-        .find(_.hashColumnIndices.contains(probAttrIndex))
-        .get
     val buildDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
       val buildPartition = inputPartitions.head.asInstanceOf[HashPartition]
       val buildAttrIndex = buildSchema.getIndex(buildAttributeName)
@@ -96,7 +84,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(
           PhysicalOpIdentity(operatorIdentifier, "build"),
-          workflowIdentity,
+          workflowId,
           executionId,
           OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
         )
@@ -147,7 +135,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(
           PhysicalOpIdentity(operatorIdentifier, "probe"),
-          workflowIdentity,
+          workflowId,
           executionId,
           OpExecInitInfo((_, _, _) =>
             new HashJoinProbeOpExec[K](

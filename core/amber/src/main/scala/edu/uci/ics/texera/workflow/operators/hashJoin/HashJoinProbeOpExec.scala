@@ -41,7 +41,7 @@ class HashJoinProbeOpExec[K](
             buildTableHashMap.getOrElse(key, (new ListBuffer[Tuple](), false))
 
           if (matchedTuples.isEmpty) {
-            // do not have a match with the probe tuple
+            // does not have a match with the probe tuple
             if (joinType != JoinType.RIGHT_OUTER && joinType != JoinType.FULL_OUTER) {
               return Iterator()
             }
