@@ -17,7 +17,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecution
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL._
-import org.jooq.types.UInteger
+import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
 import java.sql.Timestamp
@@ -96,7 +96,11 @@ object WorkflowExecutionsResource {
       operatorId: String,
       inputTupleCount: UInteger,
       outputTupleCount: UInteger,
-      timestamp: Timestamp
+      timestamp: Timestamp,
+      dataProcessingTime: ULong,
+      controlProcessingTime: ULong,
+      idleTime: ULong,
+      numWorkers: UInteger
   )
 }
 
@@ -206,7 +210,11 @@ class WorkflowExecutionsResource {
         WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
         WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
         WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
-        WORKFLOW_RUNTIME_STATISTICS.TIME
+        WORKFLOW_RUNTIME_STATISTICS.TIME,
+        WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
+        WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
+        WORKFLOW_RUNTIME_STATISTICS.IDLE_TIME,
+        WORKFLOW_RUNTIME_STATISTICS.NUM_WORKERS
       )
       .from(WORKFLOW_RUNTIME_STATISTICS)
       .where(

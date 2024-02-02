@@ -78,9 +78,9 @@ class ExecutionState(workflow: Workflow) {
     operatorExecutions
 
   def getAllWorkersOfRegion(region: Region): Set[ActorVirtualIdentity] = {
-    val allOperatorsInRegion = region.getEffectiveOperators
-
-    allOperatorsInRegion.flatMap(opId => getOperatorExecution(opId).getBuiltWorkerIds.toList)
+    region.getAllOperators.flatMap(physicalOp =>
+      getOperatorExecution(physicalOp.id).getBuiltWorkerIds.toList
+    )
   }
 
   def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {

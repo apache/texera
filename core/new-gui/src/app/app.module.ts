@@ -60,7 +60,7 @@ import { UserFileComponent } from "./dashboard/user/component/user-file/user-fil
 import { UserQuotaComponent } from "./dashboard/user/component/user-quota/user-quota.component";
 import { UserIconComponent } from "./dashboard/user/component/user-icon/user-icon.component";
 import { UserAvatarComponent } from "./dashboard/user/component/user-avatar/user-avatar.component";
-import { CodeEditorDialogComponent } from "./workspace/component/code-editor-dialog/code-editor-dialog.component";
+import { CodeEditorComponent } from "./workspace/component/code-editor-dialog/code-editor.component";
 import { CodeareaCustomTemplateComponent } from "./workspace/component/codearea-custom-template/codearea-custom-template.component";
 import { MiniMapComponent } from "./workspace/component/workflow-editor/mini-map/mini-map.component";
 import { MenuComponent } from "./workspace/component/menu/menu.component";
@@ -175,7 +175,7 @@ registerLocaleData(en);
     VisualizationFrameComponent,
     VisualizationFrameContentComponent,
     CodeareaCustomTemplateComponent,
-    CodeEditorDialogComponent,
+    CodeEditorComponent,
     TypeCastingDisplayComponent,
     ShareAccessComponent,
     NgbdModalWorkflowExecutionsComponent,

@@ -46,7 +46,7 @@ class OperatorExecution(
       WorkerInfo(
         id,
         UNINITIALIZED,
-        WorkerStatistics(UNINITIALIZED, 0, 0),
+        WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0),
         mutable.HashSet(ChannelIdentity(CONTROLLER, id, isControl = true))
       )
     )
@@ -70,6 +70,12 @@ class OperatorExecution(
   def getInputRowCount: Long = statistics.map(_.inputTupleCount).sum
 
   def getOutputRowCount: Long = statistics.map(_.outputTupleCount).sum
+
+  def getDataProcessingTime: Long = statistics.map(_.dataProcessingTime).sum
+
+  def getControlProcessingTime: Long = statistics.map(_.controlProcessingTime).sum
+
+  def getIdleTime: Long = statistics.map(_.idleTime).sum
 
   def getBuiltWorkerIds: Array[ActorVirtualIdentity] = workers.values.asScala.map(_.id).toArray
 
@@ -109,5 +115,13 @@ class OperatorExecution(
   }
 
   def getOperatorStatistics: OperatorRuntimeStats =
-    OperatorRuntimeStats(getState, getInputRowCount, getOutputRowCount)
+    OperatorRuntimeStats(
+      getState,
+      getInputRowCount,
+      getOutputRowCount,
+      numWorkers,
+      getDataProcessingTime,
+      getControlProcessingTime,
+      getIdleTime
+    )
 }

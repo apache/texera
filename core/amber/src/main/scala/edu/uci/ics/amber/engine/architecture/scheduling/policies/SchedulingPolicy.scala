@@ -48,9 +48,11 @@ abstract class SchedulingPolicy(
       .subsetOf(
         completedLinksOfRegion.get(region)
       ) &&
-    region.physicalOpIds
-      .forall(opId =>
-        executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.COMPLETED
+    region.physicalOps
+      .forall(operator =>
+        executionState
+          .getOperatorExecution(operator.id)
+          .getState == WorkflowAggregatedState.COMPLETED
       )
   }
 
@@ -68,15 +70,15 @@ abstract class SchedulingPolicy(
       workflow: Workflow,
       workerId: ActorVirtualIdentity
   ): Set[Region] = {
-    val opId = workflow.physicalPlan.getPhysicalOpByWorkerId(workerId).id
-    runningRegions.filter(r => r.physicalOpIds.contains(opId)).toSet
+    val operator = workflow.physicalPlan.getPhysicalOpByWorkerId(workerId)
+    runningRegions.filter(r => r.physicalOps.contains(operator)).toSet
   }
 
   /**
     * A link's region is the region of the source operator of the link.
     */
   protected def getRegions(link: PhysicalLink): Set[Region] = {
-    runningRegions.filter(r => r.physicalOpIds.contains(link.fromOpId)).toSet
+    runningRegions.filter(r => r.physicalOps.map(_.id).contains(link.fromOpId)).toSet
   }
 
   // gets the ready regions that is not currently running
