@@ -29,7 +29,7 @@ object PauseHandler {
 trait PauseHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: PauseWorkflow, sender) =>
+  registerHandler[PauseWorkflow, Unit] { (msg, sender) =>
     {
       cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
       cp.controllerTimerService.disableMonitoring()

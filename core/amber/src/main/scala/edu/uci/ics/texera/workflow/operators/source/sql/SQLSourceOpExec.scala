@@ -57,7 +57,7 @@ abstract class SQLSourceOpExec(
           case Some(_) => true
           case None    =>
             // cache the next Tuple
-            cachedTuple = Option(next)
+            cachedTuple = Option(next())
             cachedTuple.isDefined
         }
 
@@ -72,7 +72,7 @@ abstract class SQLSourceOpExec(
         * @return Texera.Tuple
         */
       @throws[SQLException]
-      override def next: Tuple = {
+      override def next(): Tuple = {
 
         // if has the next Tuple in cache, return it and clear the cache
         cachedTuple.foreach(tuple => {
@@ -93,7 +93,7 @@ abstract class SQLSourceOpExec(
                   curOffset.foreach(offset => {
                     if (offset > 0) {
                       curOffset = Option(offset - 1)
-                      break
+                      break()
                     }
                   })
 
@@ -101,7 +101,7 @@ abstract class SQLSourceOpExec(
                   val tuple = buildTupleFromRow
 
                   if (tuple == null)
-                    break
+                    break()
 
                   // update the limit in order to adapt to progressive batches
                   curLimit.foreach(limit => {
@@ -116,14 +116,14 @@ abstract class SQLSourceOpExec(
                   curQuery.foreach(query => query.close())
                   curResultSet = None
                   curQuery = None
-                  break
+                  break()
                 }
               case None =>
                 curQuery = getNextQuery
                 curQuery match {
                   case Some(query) =>
                     curResultSet = Option(query.executeQuery)
-                    break
+                    break()
                   case None =>
                     curResultSet = None
                     return null
@@ -192,7 +192,7 @@ abstract class SQLSourceOpExec(
         if (value == null) {
           // add the field as null
           tupleBuilder.add(attr, null)
-          break
+          break()
         }
 
         // otherwise, transform the type of the value
