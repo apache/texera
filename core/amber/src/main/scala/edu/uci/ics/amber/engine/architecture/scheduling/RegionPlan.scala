@@ -13,7 +13,7 @@ case class RegionPlan(
   }
 
   def getRegionOfPhysicalLink(link: PhysicalLink): Region = {
-    regions.find(region => region.getEffectiveLinks.contains(link)).get
+    regions.find(region => region.getAllLinks.contains(link)).get
   }
 
 }

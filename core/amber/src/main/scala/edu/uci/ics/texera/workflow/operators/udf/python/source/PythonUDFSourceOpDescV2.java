@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
+import edu.uci.ics.amber.engine.common.workflow.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
@@ -16,10 +17,13 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Option;
 import edu.uci.ics.amber.engine.common.workflow.OutputPort;
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
+
+import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 
 public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
@@ -86,8 +90,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 "1-out Python UDF",
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
-                scala.collection.immutable.List.empty(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScala(new ArrayList<InputPort>()).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
                 false,
                 false,
                 true,

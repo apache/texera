@@ -19,6 +19,7 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, PhysicalPlan}
 
+import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
 
@@ -69,7 +70,18 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val buildInPartitionRequirement = List(
       Option(HashPartition(List(buildSchema.getIndex(buildAttributeName))))
     )
+    val joinDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
+      val buildAttrIndex: Int = buildSchema.getIndex(buildAttributeName)
+      val probAttrIndex: Int = probeSchema.getIndex(probeAttributeName)
 
+      val buildPartition = inputPartitions
+        .map(_.asInstanceOf[HashPartition])
+        .find(_.hashColumnIndices.contains(buildAttrIndex))
+        .get
+      val probePartition = inputPartitions
+        .map(_.asInstanceOf[HashPartition])
+        .find(_.hashColumnIndices.contains(probAttrIndex))
+        .get
     val buildDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
       val buildPartition = inputPartitions.head.asInstanceOf[HashPartition]
       val buildAttrIndex = buildSchema.getIndex(buildAttributeName)
@@ -206,7 +218,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val builder = Schema.newBuilder()
     builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {
-      probeSchema.getAttributes.foreach(attr => {
+      probeSchema.getAttributes.asScala.foreach(attr => {
         val attributeName = attr.getName
         if (
           builder.build().containsAttribute(attributeName) && attributeName != probeAttributeName

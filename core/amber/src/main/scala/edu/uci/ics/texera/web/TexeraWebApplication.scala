@@ -93,7 +93,7 @@ object TexeraWebApplication {
       list match {
         case Nil => map
         case "--cluster" :: value :: tail =>
-          nextOption(map ++ Map('cluster -> value.toBoolean), tail)
+          nextOption(map ++ Map(Symbol("cluster") -> value.toBoolean), tail)
         case option :: tail =>
           throw new InvalidArgumentException("unknown command-line arg")
       }
@@ -105,7 +105,7 @@ object TexeraWebApplication {
   def main(args: Array[String]): Unit = {
     val argMap = parseArgs(args)
 
-    val clusterMode = argMap.get('cluster).asInstanceOf[Option[Boolean]].getOrElse(false)
+    val clusterMode = argMap.get(Symbol("cluster")).asInstanceOf[Option[Boolean]].getOrElse(false)
 
     // start actor system master node
     actorSystem = AmberUtils.startActorMaster(clusterMode)

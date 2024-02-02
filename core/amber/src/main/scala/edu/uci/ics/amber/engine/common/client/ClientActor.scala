@@ -60,15 +60,15 @@ private[client] class ClientActor extends Actor with AmberLogging {
     case InitializeRequest(workflow, controllerConfig) =>
       assert(controller == null)
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
-      sender ! Ack
+      sender() ! Ack
     case CreditRequest(channelId: ChannelIdentity) =>
-      sender ! CreditResponse(channelId, getQueuedCredit(channelId))
+      sender() ! CreditResponse(channelId, getQueuedCredit(channelId))
     case ClosureRequest(closure) =>
       try {
-        sender ! closure()
+        sender() ! closure()
       } catch {
         case e: Throwable =>
-          sender ! e
+          sender() ! e
       }
     case commandRequest: CommandRequest =>
       controller ! ControlInvocation(controlId, commandRequest.command)
@@ -76,12 +76,12 @@ private[client] class ClientActor extends Actor with AmberLogging {
       controlId += 1
     case req: ObservableRequest =>
       handlers = req.pf orElse handlers
-      sender ! scala.runtime.BoxedUnit.UNIT
+      sender() ! scala.runtime.BoxedUnit.UNIT
     case NetworkMessage(
           mId,
           fifoMsg @ WorkflowFIFOMessage(_, _, payload)
         ) =>
-      sender ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channelId))
+      sender() ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channelId))
       payload match {
         case payload: ControlPayload =>
           payload match {
@@ -103,7 +103,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
         case _              => ???
       }
     case x: WorkflowRecoveryMessage =>
-      sender ! Ack
+      sender() ! Ack
       controller ! x
     case x: WorkflowRecoveryStatus =>
       handleControl(x)

@@ -36,9 +36,8 @@ abstract class SchedulingPolicy(
   protected val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
   protected val runningRegions = new mutable.HashSet[Region]()
-  protected val completedLinksOfRegion =
-    new mutable.HashMap[Region, mutable.Set[PhysicalLink]]
-      with mutable.MultiMap[Region, PhysicalLink]
+  protected val completedLinksOfRegion: mutable.MultiDict[Region, PhysicalLink] =
+    mutable.MultiDict[Region, PhysicalLink]()
 
   protected def isRegionCompleted(
       executionState: ExecutionState,
@@ -47,11 +46,13 @@ abstract class SchedulingPolicy(
 
     region.downstreamLinks
       .subsetOf(
-        completedLinksOfRegion.getOrElse(region, new mutable.HashSet[PhysicalLink]())
+        completedLinksOfRegion.get(region)
       ) &&
-    region.physicalOpIds
-      .forall(opId =>
-        executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.COMPLETED
+    region.physicalOps
+      .forall(operator =>
+        executionState
+          .getOperatorExecution(operator.id)
+          .getState == WorkflowAggregatedState.COMPLETED
       )
   }
 
@@ -69,15 +70,15 @@ abstract class SchedulingPolicy(
       workflow: Workflow,
       workerId: ActorVirtualIdentity
   ): Set[Region] = {
-    val opId = workflow.physicalPlan.getPhysicalOpByWorkerId(workerId).id
-    runningRegions.filter(r => r.physicalOpIds.contains(opId)).toSet
+    val operator = workflow.physicalPlan.getPhysicalOpByWorkerId(workerId)
+    runningRegions.filter(r => r.physicalOps.contains(operator)).toSet
   }
 
   /**
     * A link's region is the region of the source operator of the link.
     */
   protected def getRegions(link: PhysicalLink): Set[Region] = {
-    runningRegions.filter(r => r.physicalOpIds.contains(link.fromOpId)).toSet
+    runningRegions.filter(r => r.physicalOps.map(_.id).contains(link.fromOpId)).toSet
   }
 
   // gets the ready regions that is not currently running
@@ -109,7 +110,7 @@ abstract class SchedulingPolicy(
       link: PhysicalLink
   ): Set[Region] = {
     val regions = getRegions(link)
-    regions.foreach(region => completedLinksOfRegion.addBinding(region, link))
+    regions.foreach(region => completedLinksOfRegion.addOne((region, link)))
     regions.foreach(region => checkRegionCompleted(executionState, region))
     getNextSchedulingWork(workflow)
   }

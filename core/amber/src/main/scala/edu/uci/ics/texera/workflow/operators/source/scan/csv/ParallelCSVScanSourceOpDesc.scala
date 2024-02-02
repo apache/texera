@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, IOException}
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
