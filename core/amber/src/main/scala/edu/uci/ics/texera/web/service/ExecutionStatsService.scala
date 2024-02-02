@@ -62,10 +62,11 @@ class ExecutionStatsService(
                   newStats.state,
                   newStats.inputCount - oldStats.inputCount,
                   newStats.outputCount - oldStats.outputCount,
-                newStats.numWorkers,
-              newStats.dataProcessingTime - oldStats.dataProcessingTime,
-              newStats.controlProcessingTime - oldStats.controlProcessingTime,
-              newStats.idleTime - oldStats.idleTime)
+                  newStats.numWorkers,
+                  newStats.dataProcessingTime - oldStats.dataProcessingTime,
+                  newStats.controlProcessingTime - oldStats.controlProcessingTime,
+                  newStats.idleTime - oldStats.idleTime
+                )
                 (newId, res)
             }
             .toMap
