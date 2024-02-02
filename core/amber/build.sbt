@@ -276,6 +276,7 @@ libraryDependencies += "com.github.sisyphsu" % "dateparser" % "1.0.11"
 libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0"
 
 // For supporting MultiDict
+// https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
 libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
 
 
