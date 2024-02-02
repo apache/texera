@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.noctordeser.NoCtorDeserModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
+import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import java.nio.file.{Files, Path, Paths}
@@ -11,7 +12,7 @@ import java.text.SimpleDateFormat
 import java.util.concurrent.locks.Lock
 import scala.annotation.tailrec
 
-object Utils {
+object Utils extends LazyLogging {
 
   final val objectMapper = new ObjectMapper()
     .registerModule(DefaultScalaModule)
@@ -66,10 +67,9 @@ object Utils {
     } catch {
       case e: Throwable =>
         if (attempts > 1) {
-          // TODO: change the following to logger
-          e.printStackTrace()
-          println(
-            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1)
+          logger.warn(
+            "retrying after " + baseBackoffTimeInMS + "ms, number of attempts left: " + (attempts - 1),
+            e
           )
           Thread.sleep(baseBackoffTimeInMS)
           retry(attempts - 1, baseBackoffTimeInMS * 2)(fn)
@@ -104,10 +104,33 @@ object Utils {
       case WorkflowAggregatedState.PAUSED        => "Paused"
       case WorkflowAggregatedState.RESUMING      => "Resuming"
       case WorkflowAggregatedState.COMPLETED     => "Completed"
-      case WorkflowAggregatedState.ABORTED       => "Aborted"
+      case WorkflowAggregatedState.FAILED        => "Failed"
+      case WorkflowAggregatedState.KILLED        => "Killed"
       case WorkflowAggregatedState.UNKNOWN       => "Unknown"
       case WorkflowAggregatedState.Unrecognized(unrecognizedValue) =>
         s"Unrecognized($unrecognizedValue)"
+    }
+  }
+
+  /**
+    * @param state indicates the workflow state
+    * @return code indicates the status of the execution in the DB it is 0 by default for any unused states.
+    *         This code is stored in the DB and read in the frontend.
+    *         If these codes are changed, they also have to be changed in the frontend `ngbd-modal-workflow-executions.component.ts`
+    */
+  def maptoStatusCode(state: WorkflowAggregatedState): Byte = {
+    state match {
+      case WorkflowAggregatedState.UNINITIALIZED                   => 0
+      case WorkflowAggregatedState.READY                           => 0
+      case WorkflowAggregatedState.RUNNING                         => 1
+      case WorkflowAggregatedState.PAUSING                         => ???
+      case WorkflowAggregatedState.PAUSED                          => 2
+      case WorkflowAggregatedState.RESUMING                        => ???
+      case WorkflowAggregatedState.COMPLETED                       => 3
+      case WorkflowAggregatedState.FAILED                          => 4
+      case WorkflowAggregatedState.UNKNOWN                         => ???
+      case WorkflowAggregatedState.KILLED                          => 5
+      case WorkflowAggregatedState.Unrecognized(unrecognizedValue) => ???
     }
   }
 

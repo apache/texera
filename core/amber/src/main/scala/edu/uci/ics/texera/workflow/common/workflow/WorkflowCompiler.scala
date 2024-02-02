@@ -1,70 +1,119 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
-import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowPipelinedRegionsBuilder
-import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import com.google.protobuf.timestamp.Timestamp
+import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
+import edu.uci.ics.texera.web.storage.ExecutionStateStore
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.COMPILATION_ERROR
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
+import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.{ConstraintViolation, WorkflowContext}
-import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 
-object WorkflowCompiler {
+import java.time.Instant
+import scala.collection.mutable.ArrayBuffer
 
-  def isSink(operatorID: String, workflowCompiler: WorkflowCompiler): Boolean = {
-    val outLinks =
-      workflowCompiler.logicalPlan.links.filter(link => link.origin.operatorID == operatorID)
-    outLinks.isEmpty
-  }
+class WorkflowCompiler(
+    context: WorkflowContext
+) extends LazyLogging {
 
-  class ConstraintViolationException(val violations: Map[String, Set[ConstraintViolation]])
-      extends RuntimeException
+  def compileLogicalPlan(
+      logicalPlanPojo: LogicalPlanPojo,
+      executionStateStore: ExecutionStateStore
+  ): LogicalPlan = {
 
-}
+    val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
+    // remove previous error state
+    executionStateStore.metadataStore.updateState { metadataStore =>
+      metadataStore.withFatalErrors(
+        metadataStore.fatalErrors.filter(e => e.`type` != COMPILATION_ERROR)
+      )
+    }
 
-class WorkflowCompiler(val logicalPlan: LogicalPlan, val context: WorkflowContext) {
-  logicalPlan.operatorMap.values.foreach(initOperator)
+    var logicalPlan: LogicalPlan = LogicalPlan(logicalPlanPojo)
+    logicalPlan = SinkInjectionTransformer.transform(
+      logicalPlanPojo.opsToViewResult,
+      logicalPlan
+    )
 
-  def initOperator(operator: OperatorDescriptor): Unit = {
-    operator.setContext(context)
-  }
+    logicalPlan.propagateWorkflowSchema(context, Some(errorList))
 
-  def validate: Map[String, Set[ConstraintViolation]] =
-    this.logicalPlan.operatorMap
-      .map(o => (o._1, o._2.validate().toSet))
-      .filter(o => o._2.nonEmpty)
-
-  def amberWorkflow(workflowId: WorkflowIdentity, opResultStorage: OpResultStorage): Workflow = {
-    // pre-process: set output mode for sink based on the visualization operator before it
-    logicalPlan.getSinkOperators.foreach(sinkOpId => {
-      val sinkOp = logicalPlan.getOperator(sinkOpId)
-      val upstream = logicalPlan.getUpstream(sinkOpId)
-      if (upstream.nonEmpty) {
-        (upstream.head, sinkOp) match {
-          // match the combination of a visualization operator followed by a sink operator
-          case (viz: VisualizationOperator, sink: ProgressiveSinkOpDesc) =>
-            sink.setOutputMode(viz.outputMode())
-            sink.setChartType(viz.chartType())
-          case _ =>
-          //skip
-        }
+    // report compilation errors
+    if (errorList.nonEmpty) {
+      val executionErrors = errorList.map {
+        case (opId, err) =>
+          logger.error("error occurred in logical plan compilation", err)
+          WorkflowFatalError(
+            COMPILATION_ERROR,
+            Timestamp(Instant.now),
+            err.toString,
+            err.getStackTrace.mkString("\n"),
+            opId.id
+          )
       }
-    })
+      executionStateStore.metadataStore.updateState(metadataStore =>
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors: _*)
+      )
+    }
+    logicalPlan
+  }
 
-    val physicalPlan0 = logicalPlan.toPhysicalPlan(this.context, opResultStorage)
+  def compile(
+      logicalPlanPojo: LogicalPlanPojo,
+      opResultStorage: OpResultStorage,
+      lastCompletedExecutionLogicalPlan: Option[LogicalPlan] = Option.empty,
+      executionStateStore: ExecutionStateStore,
+      controllerConfig: ControllerConfig
+  ): Workflow = {
 
-    // create pipelined regions.
-    val physicalPlan1 = new WorkflowPipelinedRegionsBuilder(
-      workflowId,
-      logicalPlan,
-      physicalPlan0,
-      new MaterializationRewriter(context, opResultStorage)
-    ).buildPipelinedRegions()
+    // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
+    //  this plan will be compared in subsequent runs to check which operator can be replaced
+    //  by cache.
+    val originalLogicalPlan = compileLogicalPlan(logicalPlanPojo, executionStateStore)
 
-    // assign link strategies
-    val physicalPlan2 = new PartitionEnforcer(physicalPlan1).enforcePartition()
+    // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
+    val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
+      context,
+      originalLogicalPlan,
+      lastCompletedExecutionLogicalPlan,
+      opResultStorage,
+      logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
+    )
 
-    new Workflow(workflowId, physicalPlan2)
+    // the PhysicalPlan with topology expanded.
+    val physicalPlan = PhysicalPlan(context, rewrittenLogicalPlan)
+
+    // generate an RegionPlan with regions.
+    //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      rewrittenLogicalPlan,
+      physicalPlan,
+      opResultStorage
+    ).generate(context)
+
+    // validate the plan
+    // TODO: generalize validation to each plan
+    // the updated physical plan's all source operators should have 0 input ports
+    updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
+      assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
+    }
+    // the updated physical plan's all sink operators should have 1 output ports
+    updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
+      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.size == 1)
+    }
+
+    Workflow(
+      context,
+      originalLogicalPlan,
+      rewrittenLogicalPlan,
+      updatedPhysicalPlan,
+      regionPlan
+    )
+
   }
 
 }

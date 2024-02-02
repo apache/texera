@@ -2,10 +2,10 @@ wheel
 numpy
 pandas
 flake8
-black
+black==23.12.1
 iniconfig==1.1.1
 loguru==0.7.0
-pyarrow==12.0.1
+pyarrow==14.0.1
 pytest==7.4.0
 python-dateutil==2.8.1
 pytest-timeout
@@ -24,3 +24,4 @@ python-lsp-server[all]==1.5.0
 python-lsp-server[websockets]
 bidict==0.22.0
 cached_property
+psutil

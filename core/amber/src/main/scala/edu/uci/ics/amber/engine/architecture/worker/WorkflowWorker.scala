@@ -1,199 +1,146 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.Props
-import akka.util.Timeout
-import com.softwaremill.macwire.wire
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkCommunicationActor._
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{
-  NetworkInputPort,
-  NetworkOutputPort,
-  OutputManager
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
+import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  ActorCommandElement,
+  DPInputQueueElement,
+  FIFOMessageElement,
+  TimerBasedControlElement,
+  WorkerReplayInitialization
 }
-import edu.uci.ics.amber.engine.architecture.recovery.RecoveryQueue
-import edu.uci.ics.amber.engine.architecture.worker.WorkerInternalQueue.{
-  EndMarker,
-  InputEpochMarker,
-  InputTuple
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.getWorkerLogName
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ShutdownDPThreadHandler.ShutdownDPThread
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
-import edu.uci.ics.amber.engine.common.rpc.{AsyncRPCClient, AsyncRPCHandlerInitializer}
-import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
-import scala.concurrent.ExecutionContext
-import scala.concurrent.duration._
+import java.net.URI
+import java.util.concurrent.LinkedBlockingQueue
 
 object WorkflowWorker {
   def props(
-      id: ActorVirtualIdentity,
-      workerIndex: Int,
-      workerLayer: OpExecConfig,
-      parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-      supportFaultTolerance: Boolean
+      workerConfig: WorkerConfig,
+      physicalOp: PhysicalOp,
+      operatorConfig: OperatorConfig,
+      replayInitialization: WorkerReplayInitialization
   ): Props =
     Props(
       new WorkflowWorker(
-        id,
-        workerIndex: Int,
-        workerLayer: OpExecConfig,
-        parentNetworkCommunicationActorRef,
-        supportFaultTolerance
+        workerConfig,
+        physicalOp,
+        operatorConfig,
+        replayInitialization
       )
     )
 
   def getWorkerLogName(id: ActorVirtualIdentity): String = id.name.replace("Worker:", "")
+
+  final case class TriggerSend(msg: WorkflowFIFOMessage)
+
+  sealed trait DPInputQueueElement
+
+  final case class FIFOMessageElement(msg: WorkflowFIFOMessage) extends DPInputQueueElement
+  final case class TimerBasedControlElement(control: ControlInvocation) extends DPInputQueueElement
+  final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
+
+  final case class WorkerReplayInitialization(
+      restoreConfOpt: Option[WorkerStateRestoreConfig] = None,
+      replayLogConfOpt: Option[WorkerReplayLoggingConfig] = None
+  )
+  final case class WorkerStateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
+
+  final case class WorkerReplayLoggingConfig(writeTo: URI)
 }
 
 class WorkflowWorker(
-    actorId: ActorVirtualIdentity,
-    workerIndex: Int,
-    workerLayer: OpExecConfig,
-    parentNetworkCommunicationActorRef: NetworkSenderActorRef,
-    supportFaultTolerance: Boolean
-) extends WorkflowActor(actorId, parentNetworkCommunicationActorRef, supportFaultTolerance) {
-  lazy val operator: IOperatorExecutor =
-    workerLayer.initIOperatorExecutor((workerIndex, workerLayer))
-  lazy val recoveryQueue = new RecoveryQueue(logStorage.getReader)
-  lazy val upstreamLinkStatus: UpstreamLinkStatus = wire[UpstreamLinkStatus]
-  lazy val dataProcessor: DataProcessor = wire[DataProcessor]
-  lazy val dataInputPort: NetworkInputPort[DataPayload] =
-    new NetworkInputPort[DataPayload](this.actorId, this.handleDataPayload)
-  lazy val controlInputPort: NetworkInputPort[ControlPayload] =
-    new NetworkInputPort[ControlPayload](this.actorId, this.handleControlPayload)
-  lazy val dataOutputPort: NetworkOutputPort[DataPayload] =
-    new NetworkOutputPort[DataPayload](this.actorId, this.outputDataPayload)
-  lazy val outputManager: OutputManager = wire[OutputManager]
-  lazy val internalQueue: WorkerInternalQueue = dataProcessor.internalQueue
-  lazy val pauseManager: PauseManager = dataProcessor.pauseManager
-  lazy val breakpointManager: BreakpointManager = wire[BreakpointManager]
-  implicit val ec: ExecutionContext = context.dispatcher
-  implicit val timeout: Timeout = 5.seconds
-  val workerStateManager: WorkerStateManager = new WorkerStateManager()
-  val epochManager: EpochManager = wire[EpochManager]
-  val rpcHandlerInitializer: AsyncRPCHandlerInitializer =
-    wire[WorkerAsyncRPCHandlerInitializer]
+    workerConfig: WorkerConfig,
+    physicalOp: PhysicalOp,
+    operatorConfig: OperatorConfig,
+    replayInitialization: WorkerReplayInitialization
+) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerConfig.workerId) {
+  val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
+    new LinkedBlockingQueue()
+  var dp = new DataProcessor(
+    workerConfig.workerId,
+    logManager.sendCommitted
+  )
+  val timerService = new WorkerTimerService(actorService)
 
-  if (parentNetworkCommunicationActorRef != null) {
-    parentNetworkCommunicationActorRef.waitUntil(RegisterActorRef(this.actorId, self))
+  val dpThread =
+    new DPThread(workerConfig.workerId, dp, logManager, inputQueue)
+
+  override def initState(): Unit = {
+    dp.initTimerService(timerService)
+    dp.initOperator(
+      VirtualIdentityUtils.getWorkerIndex(workerConfig.workerId),
+      physicalOp,
+      operatorConfig,
+      currentOutputIterator = Iterator.empty
+    )
+    if (replayInitialization.restoreConfOpt.isDefined) {
+      context.parent ! ReplayStatusUpdate(actorId, status = true)
+      setupReplay(
+        dp,
+        replayInitialization.restoreConfOpt.get,
+        () => {
+          logger.info("replay completed!")
+          context.parent ! ReplayStatusUpdate(actorId, status = false)
+        }
+      )
+    }
+    dpThread.start()
   }
 
-  override def getLogName: String = getWorkerLogName(actorId)
-
-  def getSenderCredits(sender: ActorVirtualIdentity) = {
-    internalQueue.getSenderCredits(sender)
+  def handleDirectInvocation: Receive = {
+    case c: ControlInvocation =>
+      inputQueue.put(TimerBasedControlElement(c))
   }
 
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
     logger.error(s"Encountered fatal error, worker is shutting done.", reason)
-    asyncRPCClient.send(
-      FatalError(reason),
+    postStop()
+    dp.asyncRPCClient.send(
+      FatalError(reason, Some(workerConfig.workerId)),
       CONTROLLER
     )
   }
 
   override def receive: Receive = {
-    if (!recoveryQueue.isReplayCompleted) {
-      recoveryManager.registerOnStart(() =>
-        context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(true))
-      )
-      recoveryManager.registerOnEnd(() =>
-        context.parent ! WorkflowRecoveryMessage(actorId, UpdateRecoveryStatus(false))
-      )
-      val fifoState = recoveryManager.getFIFOState(logStorage.getReader.mkLogRecordIterator())
-      controlInputPort.overwriteFIFOState(fifoState)
-    }
-    dataProcessor.start()
-    receiveAndProcessMessages
+    super.receive orElse handleDirectInvocation
   }
 
-  def receiveAndProcessMessages: Receive =
-    acceptDirectInvocations orElse forwardResendRequest orElse disallowActorRefRelatedMessages orElse {
-      case NetworkMessage(id, WorkflowDataMessage(from, seqNum, payload)) =>
-        dataInputPort.handleMessage(
-          this.sender(),
-          getSenderCredits(from),
-          id,
-          from,
-          seqNum,
-          payload
-        )
-      case NetworkMessage(id, WorkflowControlMessage(from, seqNum, payload)) =>
-        controlInputPort.handleMessage(
-          this.sender(),
-          getSenderCredits(from),
-          id,
-          from,
-          seqNum,
-          payload
-        )
-      case NetworkMessage(id, CreditRequest(from, _)) =>
-        sender ! NetworkAck(id, Some(getSenderCredits(from)))
-      case other =>
-        throw new WorkflowRuntimeException(s"unhandled message: $other")
-    }
-
-  def acceptDirectInvocations: Receive = {
-    case invocation: ControlInvocation =>
-      this.handleControlPayload(SELF, invocation)
+  override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
+    inputQueue.put(FIFOMessageElement(workflowMsg))
+    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
-  def handleDataPayload(from: ActorVirtualIdentity, dataPayload: DataPayload): Unit = {
-    dataPayload match {
-      case DataFrame(payload) =>
-        payload.foreach { i =>
-          internalQueue.appendElement(InputTuple(from, i))
-        }
-      case EndOfUpstream() =>
-        internalQueue.appendElement(EndMarker(from))
-      case marker @ EpochMarker(_, _, _) =>
-        internalQueue.appendElement(InputEpochMarker(from, marker))
-      case _ =>
-        throw new NotImplementedError()
-    }
-  }
-
-  def handleControlPayload(
-      from: ActorVirtualIdentity,
-      controlPayload: ControlPayload
-  ): Unit = {
-    // let dp thread process it
-    controlPayload match {
-      case controlCommand @ (ControlInvocation(_, _) | ReturnInvocation(_, _)) =>
-        internalQueue.enqueueCommand(controlCommand, from)
-      case _ =>
-        throw new WorkflowRuntimeException(s"unhandled control payload: $controlPayload")
-    }
-  }
-
-  def outputDataPayload(
-      to: ActorVirtualIdentity,
-      self: ActorVirtualIdentity,
-      seqNum: Long,
-      payload: DataPayload
-  ): Unit = {
-    val msg = WorkflowDataMessage(self, seqNum, payload)
-    logManager.sendCommitted(SendRequest(to, msg))
+  /** flow-control */
+  override def getQueuedCredit(channelId: ChannelIdentity): Long = {
+    dp.getQueuedCredit(channelId)
   }
 
   override def postStop(): Unit = {
-    // shutdown dp thread by sending a command
-    val shutdown = ShutdownDPThread()
-    internalQueue.enqueueCommand(
-      ControlInvocation(AsyncRPCClient.IgnoreReply, shutdown),
-      SELF
-    )
-    shutdown.completed.get()
-    logger.info("stopped!")
+    super.postStop()
+    timerService.stopAdaptiveBatching()
+    dpThread.stop()
+    logManager.terminate()
   }
 
+  override def handleBackpressure(isBackpressured: Boolean): Unit = {
+    inputQueue.put(ActorCommandElement(Backpressure(isBackpressured)))
+  }
 }

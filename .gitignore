@@ -61,6 +61,9 @@ __pycache__/
 # Ingoring user generated resources
 user-resources/
 
+# Ingoring gmail tokens
+gmail/
+
 # Ignoring maven related files
 pom.xml.tag
 pom.xml.releaseBackup
@@ -84,6 +87,9 @@ rebel.xml
 *.log
 *.log.gz
 
+# Ignoring the entire log folder
+log/
+
 # Ignoring package-lock.json
 package-lock.json
 
@@ -93,3 +99,7 @@ scalapb/scalapb
 # Ignoring credentials
 client_secret_*
 StoredCredential*
+**/apache2/
+**/Apache24/
+**/php/
+Composer-Setup.exe

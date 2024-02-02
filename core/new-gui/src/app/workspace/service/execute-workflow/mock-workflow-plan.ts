@@ -20,28 +20,28 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
       ...mockScanPredicate.operatorProperties,
       operatorID: mockScanPredicate.operatorID,
       operatorType: mockScanPredicate.operatorType,
+      inputPorts: mockScanPredicate.inputPorts,
+      outputPorts: mockScanPredicate.outputPorts,
     },
     {
       ...mockResultPredicate.operatorProperties,
       operatorID: mockResultPredicate.operatorID,
       operatorType: mockResultPredicate.operatorType,
+      inputPorts: mockResultPredicate.inputPorts,
+      outputPorts: mockResultPredicate.outputPorts,
     },
   ],
   links: [
     {
-      origin: {
-        operatorID: mockScanPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
-      destination: {
-        operatorID: mockResultPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
+      fromOpId: mockScanPredicate.operatorID,
+      fromPortId: { id: 0, internal: false },
+      toOpId: mockResultPredicate.operatorID,
+      toPortId: { id: 0, internal: false },
     },
   ],
   breakpoints: [],
+  opsToViewResult: [],
+  opsToReuseResult: [],
 };
 
 export const mockWorkflowPlan_scan_sentiment_result: WorkflowGraph = new WorkflowGraph(
@@ -69,29 +69,19 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
   ],
   links: [
     {
-      origin: {
-        operatorID: mockScanPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
-      destination: {
-        operatorID: mockSentimentPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
+      fromOpId: mockScanPredicate.operatorID,
+      fromPortId: { id: 0, internal: false },
+      toOpId: mockSentimentPredicate.operatorID,
+      toPortId: { id: 0, internal: false },
     },
     {
-      origin: {
-        operatorID: mockSentimentPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
-      destination: {
-        operatorID: mockResultPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
+      fromOpId: mockSentimentPredicate.operatorID,
+      fromPortId: { id: 0, internal: false },
+      toOpId: mockResultPredicate.operatorID,
+      toPortId: { id: 0, internal: false },
     },
   ],
   breakpoints: [],
+  opsToViewResult: [],
+  opsToReuseResult: [],
 };

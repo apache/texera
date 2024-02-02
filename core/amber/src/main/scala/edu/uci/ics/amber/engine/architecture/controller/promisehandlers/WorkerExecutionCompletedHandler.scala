@@ -15,7 +15,7 @@ object WorkerExecutionCompletedHandler {
   final case class WorkerExecutionCompleted() extends ControlCommand[Unit]
 }
 
-/** indicate a worker has completed its job
+/** indicate a worker has completed its execution
   * i.e. received and processed all data from upstreams
   * note that this doesn't mean all the output of this worker
   * has been received by the downstream workers.
@@ -39,15 +39,17 @@ trait WorkerExecutionCompletedHandler {
         .collect(statsRequests)
         .flatMap(_ => {
           // if entire workflow is completed, clean up
-          if (workflow.isCompleted) {
+          if (cp.executionState.isCompleted) {
             // after query result come back: send completed event, cleanup ,and kill workflow
             sendToClient(WorkflowCompleted())
-            disableStatusUpdate()
-            disableMonitoring()
-            disableSkewHandling()
+            cp.controllerTimerService.disableStatusUpdate()
+            cp.controllerTimerService.disableMonitoring()
+            cp.controllerTimerService.disableSkewHandling()
             Future.Done
           } else {
-            scheduler.onWorkerCompletion(sender).flatMap(_ => Future.Unit)
+            cp.workflowScheduler
+              .onWorkerCompletion(cp.workflow, cp.actorRefService, cp.actorService, sender)
+              .flatMap(_ => Future.Unit)
           }
         })
     }

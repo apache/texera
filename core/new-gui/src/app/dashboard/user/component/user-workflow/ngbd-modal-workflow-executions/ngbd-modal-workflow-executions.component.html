@@ -9,7 +9,10 @@
       type="button">
       <span aria-hidden="true"> × </span>
     </button>
-    <h4 class="modal-title">Execution results of Workflow: {{workflowName}}</h4>
+    <h4 class="modal-title">
+      Execution results of Workflow: {{workflowName}}
+      <span *ngIf="workflow">{{workflow.wid}}</span>
+    </h4>
     <nz-input-group
       [nzPrefix]="prefixPopoverButton"
       [nzSuffix]="suffixIconSearch"
@@ -33,7 +36,9 @@
         <ul>
           <li>Search by Execution Name: <strong>executionName</strong></li>
           <li>Search by Execution User: <strong>user:John</strong></li>
-          <li>Search by Execution Status: <strong>status:initializing/running/paused/completed/aborted</strong></li>
+          <li>
+            Search by Execution Status: <strong>status:initializing/running/paused/completed/failed/killed</strong>
+          </li>
         </ul>
         <strong>
           For any execution name and user name, if the name contains space, using double quotes to enclose the name is
@@ -97,7 +102,7 @@
           [nzScroll]="{ x: '1000px' }"
           [nzShowPagination]="true"
           [nzShowSizeChanger]="true"
-          [nzTotal]="numOfExecutions">
+          [nzTotal]="allExecutionEntries.length">
           <thead>
             <tr>
               <th
@@ -111,7 +116,7 @@
                 nz-tooltip
                 nzTooltipPlacement="top">
                 {{column}}
-                <span *ngIf="column !== '' && column !== 'Status'">
+                <span *ngIf="column !== '' && column !== 'Status' && column !== 'Runtime Statistics'">
                   <button
                     (click)="onHit(column, i)"
                     *ngIf="this.showORhide[i]"
@@ -160,7 +165,7 @@
                 <label
                   *ngIf="workflowExecutionsIsEditingName.indexOf(i) === -1; else customeWorkflow "
                   class="execution-description workflow-name"
-                  >{{ abbreviate(row.name, true) }}</label
+                  >{{ abbreviate(row.name, true) }} ({{row.eId}})</label
                 >
                 <ng-template #customeWorkflow>
                   <input
@@ -185,8 +190,20 @@
                     nzType="edit"></i>
                 </button>
               </td>
-              <td nzEllipsis>{{row.startingTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
-              <td nzEllipsis>{{row.completionTime | date:'MM/dd/yyyy HH:mm:ss zzz'}}</td>
+              <td
+                nzEllipsis
+                nzTooltipTitle="{{row.startingTime | date:'zzz'}}"
+                nz-tooltip
+                nzTooltipPlacement="top">
+                {{row.startingTime | date:'MM/dd/yyyy HH:mm:ss'}}
+              </td>
+              <td
+                nzEllipsis
+                nzTooltipTitle="{{row.completionTime | date:'zzz'}}"
+                nz-tooltip
+                nzTooltipPlacement="top">
+                {{row.completionTime | date:'MM/dd/yyyy HH:mm:ss'}}
+              </td>
               <td nzEllipsis>
                 <i
                   [ngStyle]="{'color': getExecutionStatus(row.status)[2]}"
@@ -199,16 +216,34 @@
                   nzTooltipPlacement="top"></i>
               </td>
               <td nzEllipsis>
-                <i
-                  (nzOnConfirm)="onDelete(row)"
-                  class="trash-icon"
-                  nz-icon
-                  nz-popconfirm
+                <button
+                  nz-button
+                  nzType="default"
+                  nzSize="large"
+                  (click)="showRuntimeStatistics(row.eId)"
                   nz-tooltip
-                  nzPopconfirmTitle="Confirm to delete this execution."
+                  nzTooltipTitle="Display Runtime Statistics"
+                  nzTooltipPlacement="top">
+                  <span
+                    nz-icon
+                    nzType="line-chart"></span>
+                </button>
+              </td>
+              <td nzEllipsis>
+                <button
+                  nz-button
+                  nzType="default"
+                  nzSize="large"
+                  (nzOnConfirm)="onDelete(row)"
+                  nz-tooltip
                   nzTooltipPlacement="top"
                   nzTooltipTitle='Delete the Execution "{{row.name}}"'
-                  nzType="delete"></i>
+                  nz-popconfirm
+                  nzPopconfirmTitle="Confirm to delete this execution.">
+                  <span
+                    nz-icon
+                    nzType="delete"></span>
+                </button>
               </td>
             </tr>
           </tbody>

@@ -1,12 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import akka.actor.Cancellable
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.amber.engine.common.ambermessage.{WorkflowDataMessage, WorkflowMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.util.control.Breaks.{break, breakable}
 
 /**
   * We implement credit-based flow control. Suppose a sender worker S sends data in batches to a receiving worker R
@@ -31,99 +30,73 @@ import scala.collection.mutable.ArrayBuffer
   * because then there is no way for S to know when the data in its congestion control module can be sent. Thus,
   * whenever S receives a credit of 0, it registers a periodic callback that serves as a trigger for it to send
   * credit poll request to R. Then, R responds with a NetworkAck() for the credits.
+  *
+  * 4. In our current design, the term "Credit" refers to the message in memory size in bytes.
   */
 class FlowControl {
-  val receiverIdToCredits = new mutable.HashMap[ActorVirtualIdentity, Int]()
-  var backpressureRequestSentToMainActor = false
-  var receiverToCreditPollingHandle = new mutable.HashMap[ActorVirtualIdentity, Cancellable]()
-  private val dataMessagesAwaitingCredits =
-    new mutable.HashMap[ActorVirtualIdentity, mutable.Queue[WorkflowMessage]]()
 
-  def getOverloadedReceivers(): ArrayBuffer[ActorVirtualIdentity] = {
-    val overloadedReceivers = new ArrayBuffer[ActorVirtualIdentity]()
-    dataMessagesAwaitingCredits.keys.foreach(receiverId => {
-      if (
-        dataMessagesAwaitingCredits(
-          receiverId
-        ).size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits(receiverId)
-      ) {
-        overloadedReceivers.append(receiverId)
-      }
-    })
-    overloadedReceivers
-  }
+  private val maxByteAllowed = AmberConfig.maxCreditAllowedInBytesPerChannel
+  private var inflightCredit: Long = 0
+  private var queuedCredit: Long = 0
+  private val stashedMessages: mutable.Queue[NetworkMessage] = new mutable.Queue()
+  private var overloaded = false
+  def isOverloaded: Boolean = overloaded
 
   /**
     * Determines if an incoming message can be forwarded to the receiver based on the credits available.
     */
-  def getMessageToForward(
-      receiverId: ActorVirtualIdentity,
-      msg: WorkflowMessage
-  ): Option[WorkflowMessage] = {
-    val isDataMessage = msg.isInstanceOf[WorkflowDataMessage]
-    if (isDataMessage && Constants.flowControlEnabled) {
-      if (
-        receiverIdToCredits.getOrElseUpdate(
-          receiverId,
-          Constants.unprocessedBatchesCreditLimitPerSender
-        ) > 0
-      ) {
-        if (
-          dataMessagesAwaitingCredits
-            .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-            .isEmpty
-        ) {
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
-          return Some(msg)
-        } else {
-          dataMessagesAwaitingCredits(receiverId).enqueue(msg)
-          receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
-          return Some(dataMessagesAwaitingCredits(receiverId).dequeue())
-        }
+  def getMessagesToSend(msg: NetworkMessage): Iterable[NetworkMessage] = {
+    val creditNeeded = getInMemSize(msg.internalMessage)
+    // assume the biggest message can pass through flow control
+    assert(
+      creditNeeded <= maxByteAllowed,
+      s"Message $msg is too big to send through flow control, " +
+        s"max credit = $maxByteAllowed bytes " +
+        s"while the message size is $creditNeeded bytes."
+    )
+    if (stashedMessages.isEmpty) {
+      if (getCredit >= creditNeeded) {
+        inflightCredit += creditNeeded
+        Iterable(msg)
       } else {
-        dataMessagesAwaitingCredits(receiverId).enqueue(msg)
-        None
+        overloaded = true
+        stashedMessages.enqueue(msg)
+        Iterable.empty
       }
     } else {
-      Some(msg)
+      stashedMessages.enqueue(msg)
+      getMessagesToSend
     }
   }
 
-  def getMessagesToForward(receiverId: ActorVirtualIdentity): Array[WorkflowMessage] = {
-    val messageBuffer = new ArrayBuffer[WorkflowMessage]()
-    while (
-      dataMessagesAwaitingCredits
-        .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-        .nonEmpty && receiverIdToCredits.getOrElseUpdate(
-        receiverId,
-        Constants.unprocessedBatchesCreditLimitPerSender
-      ) > 0
-    ) {
-      messageBuffer.append(dataMessagesAwaitingCredits(receiverId).dequeue())
-      receiverIdToCredits(receiverId) = receiverIdToCredits(receiverId) - 1
+  def getMessagesToSend: Iterable[NetworkMessage] = {
+    val toSend = mutable.ArrayBuffer[NetworkMessage]()
+    breakable {
+      while (stashedMessages.nonEmpty) {
+        val msg = stashedMessages.front
+        val creditNeeded = getInMemSize(msg.internalMessage)
+        if (getCredit >= creditNeeded) {
+          inflightCredit += creditNeeded
+          toSend.append(msg)
+          stashedMessages.dequeue()
+        } else {
+          break
+        }
+      }
     }
-    messageBuffer.toArray
+    overloaded = stashedMessages.nonEmpty
+    toSend
   }
 
-  /**
-    * Decides whether parent should be backpressured based on the current data message put into
-    * `dataMessagesAwaitingCredits` queue.
-    */
-  def shouldBackpressureParent(receiverId: ActorVirtualIdentity): Boolean = {
-    Constants.flowControlEnabled &&
-    dataMessagesAwaitingCredits
-      .getOrElseUpdate(receiverId, new mutable.Queue[WorkflowMessage]())
-      .size > Constants.localSendingBufferLimitPerReceiver + receiverIdToCredits.getOrElseUpdate(
-      receiverId,
-      Constants.unprocessedBatchesCreditLimitPerSender
-    )
+  def updateQueuedCredit(newCredit: Long): Unit = {
+    queuedCredit = newCredit
   }
 
-  def updateCredits(receiverId: ActorVirtualIdentity, credits: Int): Unit = {
-    if (credits <= 0) {
-      receiverIdToCredits(receiverId) = 0
-    } else {
-      receiverIdToCredits(receiverId) = credits
-    }
+  def decreaseInflightCredit(ackedCredit: Long): Unit = {
+    inflightCredit -= ackedCredit
+  }
+
+  def getCredit: Long = {
+    maxByteAllowed - inflightCredit - queuedCredit
   }
 }

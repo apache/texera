@@ -7,7 +7,7 @@ import { environment } from "../../../../../environments/environment";
 import { AppSettings } from "../../../../common/app-setting";
 import { OperatorSchema } from "../../../types/operator-schema.interface";
 import { ExecuteWorkflowService } from "../../execute-workflow/execute-workflow.service";
-import { WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
+import { DEFAULT_WORKFLOW, WorkflowActionService } from "../../workflow-graph/model/workflow-action.service";
 import { DynamicSchemaService } from "../dynamic-schema.service";
 import { catchError, debounceTime, filter, mergeMap } from "rxjs/operators";
 
@@ -135,13 +135,21 @@ export class SchemaPropagationService {
   private invokeSchemaPropagationAPI(): Observable<SchemaPropagationResponse> {
     // create a Logical Plan based on the workflow graph
     const body = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    // remove unnecessary information for schema propagation.
+    const body2 = {
+      operators: body.operators,
+      links: body.links,
+      breakpoints: [],
+      opsToReuseResult: [],
+      opsToViewResult: [],
+    };
     // make a http post request to the API endpoint with the logical plan object
     return this.httpClient
       .post<SchemaPropagationResponse>(
         `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${
-          this.workflowActionService.getWorkflow().wid
+          this.workflowActionService.getWorkflow().wid ?? DEFAULT_WORKFLOW.wid
         }`,
-        JSON.stringify(body),
+        JSON.stringify(body2),
         { headers: { "Content-Type": "application/json" } }
       )
       .pipe(
@@ -205,7 +213,7 @@ export class SchemaPropagationService {
 
     let newJsonSchema = operatorSchema.jsonSchema;
 
-    const getAttrNames = (v: CustomJSONSchema7): string[] | undefined => {
+    const getAttrNames = (attrName: string, v: CustomJSONSchema7): string[] | undefined => {
       const i = v.autofillAttributeOnPort;
       if (i === undefined || i === null || !Number.isInteger(i) || i >= inputAttributes.length) {
         return undefined;
@@ -223,7 +231,7 @@ export class SchemaPropagationService {
       // https://github.com/ajv-validator/ajv/issues/1471
       // the null -> "" change is done by Ajv.validate() with useDefault set to true.
       // It is converted during the property editor form initialization and workflow validation, instead of during schema propagation.
-      if (v.title && !operatorSchema.jsonSchema.required?.includes(v.title)) {
+      if (!operatorSchema.jsonSchema.required?.includes(attrName)) {
         if (v.default) {
           if (typeof v.default !== "string") {
             throw new Error("default value must be a string");
@@ -241,10 +249,10 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeName",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "string",
-        enum: getAttrNames(old),
+        enum: getAttrNames(attrName, old),
         uniqueItems: true,
       })
     );
@@ -252,14 +260,14 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeNameList",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "array",
         uniqueItems: true,
         items: {
           ...(old.items as CustomJSONSchema7),
           type: "string",
-          enum: getAttrNames(old),
+          enum: getAttrNames(attrName, old),
         },
       })
     );
@@ -276,7 +284,7 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeName",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "string",
         enum: undefined,
@@ -287,7 +295,7 @@ export class SchemaPropagationService {
     newJsonSchema = DynamicSchemaService.mutateProperty(
       newJsonSchema,
       (k, v) => v.autofill === "attributeNameList",
-      old => ({
+      (attrName, old) => ({
         ...old,
         type: "array",
         uniqueItems: undefined,
@@ -323,6 +331,7 @@ export interface SchemaAttribute
 // input schema of an operator: an array of schemas at each input port
 export type OperatorInputSchema = ReadonlyArray<PortInputSchema | undefined>;
 export type PortInputSchema = ReadonlyArray<SchemaAttribute>;
+
 /**
  * The backend interface of the return object of a successful execution
  * of autocomplete API

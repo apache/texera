@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.sink.storage
 
 import com.mongodb.client.model.Sorts
 import com.mongodb.client.MongoCursor
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.web.storage.{MongoCollectionManager, MongoDatabaseManager}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.TupleUtils.document2Tuple
@@ -11,14 +11,9 @@ import org.bson.Document
 
 import scala.collection.mutable
 
-class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
+class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
-  // For backward compatibility of old mongoDB(version < 5)
-  schema.getAttributeNames.stream.forEach(name =>
-    assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
-  )
-
-  val commitBatchSize: Int = AmberUtils.amberConfig.getInt("storage.mongodb.commit-batch-size")
+  val commitBatchSize: Int = AmberConfig.sinkStorageMongoDBConfig.getInt("commit-batch-size")
   MongoDatabaseManager.dropCollection(id)
   val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
 
@@ -95,4 +90,12 @@ class MongoDBSinkStorage(id: String, schema: Schema) extends SinkStorageReader {
   }
 
   override def getSchema: Schema = schema
+
+  override def setSchema(schema: Schema): Unit = {
+    // For backward compatibility of old mongoDB(version < 5)
+    schema.getAttributeNames.stream.forEach(name =>
+      assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
+    )
+    this.schema = schema
+  }
 }

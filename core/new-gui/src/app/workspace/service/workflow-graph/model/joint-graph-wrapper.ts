@@ -1,6 +1,6 @@
-import { fromEvent, merge, Observable, ReplaySubject, Subject } from "rxjs";
-import { bufferToggle, filter, map, mergeMap, startWith, windowToggle } from "rxjs/operators";
-import { OperatorPort, Point } from "../../../types/workflow-common.interface";
+import { fromEvent, Observable, ReplaySubject, Subject } from "rxjs";
+import { filter, map } from "rxjs/operators";
+import { LogicalPort, Point } from "../../../types/workflow-common.interface";
 import * as joint from "jointjs";
 import * as dagre from "dagre";
 import * as graphlib from "graphlib";
@@ -8,8 +8,9 @@ import { ObservableContextManager } from "src/app/common/util/context";
 import { Coeditor, User } from "../../../../common/type/user";
 import { operatorCoeditorChangedPropertyClass, operatorCoeditorEditingClass } from "../../joint-ui/joint-ui.service";
 import { dia } from "jointjs/types/joint";
-import Selectors = dia.Cell.Selectors;
 import * as _ from "lodash";
+import Selectors = dia.Cell.Selectors;
+
 type linkIDType = { linkID: string };
 
 type JointModelEventInfo = {
@@ -45,7 +46,7 @@ export type JointHighlights = Readonly<{
   groups: readonly string[];
   links: readonly string[];
   commentBoxes: readonly string[];
-  ports: readonly OperatorPort[];
+  ports: readonly LogicalPort[];
 }>;
 
 export type JointGraphContextType = Readonly<{
@@ -76,18 +77,15 @@ const DefaultContext: JointGraphContextType = {
 export class JointGraphWrapper {
   // zoom diff represents the ratio that is zoom in/out everytime, for clicking +/- buttons or using mousewheel
   public static readonly ZOOM_CLICK_DIFF: number = 0.05;
-  public static readonly ZOOM_MOUSEWHEEL_DIFF: number = 0.01;
   public static readonly INIT_ZOOM_VALUE: number = 1;
 
   public static readonly ZOOM_MINIMUM: number = 0.7;
   public static readonly ZOOM_MAXIMUM: number = 1.3;
 
   public jointGraphContext = JointGraphWrapper.jointGraphContextFactory();
-  public navigatorMoveDelta: Subject<{ deltaX: number; deltaY: number }> = new Subject();
+  public mainPaper!: joint.dia.Paper;
 
-  private mainJointPaper: joint.dia.Paper | undefined;
   private mainJointPaperAttachedStream: Subject<joint.dia.Paper> = new ReplaySubject(1);
-  private miniMapPaper: joint.dia.Paper | undefined;
 
   private elementPositions: Map<string, PositionInfo> = new Map<string, PositionInfo>();
   private listenPositionChange: boolean = true;
@@ -95,13 +93,7 @@ export class JointGraphWrapper {
   // flag that indicates whether multiselect mode is on
   private multiSelect: boolean = false;
 
-  private currentHighlights: JointHighlights = {
-    operators: [],
-    groups: [],
-    links: [],
-    commentBoxes: [],
-    ports: [],
-  };
+  private reloadingWorkflow: boolean = false;
 
   // the currently highlighted operators' IDs
   private currentHighlightedOperators: string[] = [];
@@ -124,9 +116,9 @@ export class JointGraphWrapper {
 
   private jointCommentBoxUnhighlightStream = new Subject<readonly string[]>();
 
-  private jointPortHighlightStream = new Subject<readonly OperatorPort[]>();
+  private jointPortHighlightStream = new Subject<readonly LogicalPort[]>();
 
-  private jointPortUnhighlightStream = new Subject<readonly OperatorPort[]>();
+  private jointPortUnhighlightStream = new Subject<readonly LogicalPort[]>();
 
   private currentHighlightedCommentBoxes: string[] = [];
 
@@ -145,7 +137,7 @@ export class JointGraphWrapper {
   private currentHighlightedLinks: string[] = [];
   // the linkIDs of those links with a breakpoint
 
-  private currentHighlightedPorts: OperatorPort[] = [];
+  private currentHighlightedPorts: LogicalPort[] = [];
   // the IDs of ports currently being edited
   private linksWithBreakpoints: string[] = [];
 
@@ -157,15 +149,6 @@ export class JointGraphWrapper {
    *  involving the 'add' operation
    */
   private jointCellAddStream = fromEvent<JointModelEvent>(this.jointGraph, "add").pipe(map(value => value[0]));
-
-  /**
-   * This will capture all events in JointJS
-   *  involving the 'change position' operation
-   */
-  private jointCellDragStream = fromEvent<JointModelEvent>(this.jointGraph, "change:position").pipe(
-    map(value => value[0])
-  );
-
   /**
    * This will capture all events in JointJS
    *  involving the 'remove' operation
@@ -200,33 +183,18 @@ export class JointGraphWrapper {
   public attachMainJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
     paperOptions.model = this.jointGraph;
     const paper = new joint.dia.Paper(paperOptions);
-    this.mainJointPaper = paper;
-    this.mainJointPaperAttachedStream.next(this.mainJointPaper);
+    this.mainPaper = paper;
+    this.mainJointPaperAttachedStream.next(this.mainPaper);
     this.jointGraphContext.attachPaper(paper);
     return paper;
   }
 
-  public getMainJointPaper(): joint.dia.Paper | undefined {
-    return this.mainJointPaper;
+  public getMainJointPaper(): joint.dia.Paper {
+    return this.mainPaper;
   }
 
   public getMainJointPaperAttachedStream(): Observable<joint.dia.Paper> {
     return this.mainJointPaperAttachedStream;
-  }
-
-  public attachMiniMapJointPaper(paperOptions: joint.dia.Paper.Options): joint.dia.Paper {
-    paperOptions.model = this.jointGraph;
-    const paper = new joint.dia.Paper(paperOptions);
-    this.miniMapPaper = paper;
-    return paper;
-  }
-
-  public pageToJointLocalCoordinate(point: Point): Point {
-    if (!this.mainJointPaper) {
-      throw new Error("jointJS main paper is not initialized yet");
-    }
-    const jointLocalPoint = this.mainJointPaper.pageToLocalPoint(point);
-    return { x: jointLocalPoint.x, y: jointLocalPoint.y };
   }
 
   /**
@@ -242,6 +210,14 @@ export class JointGraphWrapper {
    */
   public getMultiSelectMode(): boolean {
     return this.multiSelect;
+  }
+
+  public setReloadingWorkflow(reloadingWorkflow: boolean): void {
+    this.reloadingWorkflow = reloadingWorkflow;
+  }
+
+  public getReloadingWorkflow(): boolean {
+    return this.reloadingWorkflow;
   }
 
   /**
@@ -273,7 +249,7 @@ export class JointGraphWrapper {
     return this.currentHighlightedLinks;
   }
 
-  public getCurrentHighlightedPortIDs(): readonly OperatorPort[] {
+  public getCurrentHighlightedPortIDs(): readonly LogicalPort[] {
     return this.currentHighlightedPorts;
   }
 
@@ -451,7 +427,7 @@ export class JointGraphWrapper {
   /**
    * Highlights the link with given linkID.
    * Emits an event to the link highlight stream.
-   * @param linkID
+   * @param linkIDs
    */
   public highlightLinks(...linkIDs: string[]): void {
     const highlightedLinkIDs: string[] = [];
@@ -464,7 +440,7 @@ export class JointGraphWrapper {
   /**
    * Unhighlights the given highlighted link.
    * Emits an event to the link unhighlight stream.
-   * @param unhighlightedLinkID
+   * @param linkIDs
    */
   public unhighlightLinks(...linkIDs: string[]): void {
     const unhighlightedLinkIDs: string[] = [];
@@ -494,27 +470,27 @@ export class JointGraphWrapper {
     }
   }
 
-  public highlightPorts(...operatorPortIDs: OperatorPort[]): void {
-    const highlightedOperatorPortIDs: OperatorPort[] = [];
+  public highlightPorts(...operatorPortIDs: LogicalPort[]): void {
+    const highlightedLogicalPortIDs: LogicalPort[] = [];
     operatorPortIDs
       .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) === undefined)
       .forEach(operatorPortID => {
         if (!this.multiSelect) this.unhighlightPorts(...this.currentHighlightedPorts);
         this.currentHighlightedPorts.push(operatorPortID);
-        highlightedOperatorPortIDs.push(operatorPortID);
+        highlightedLogicalPortIDs.push(operatorPortID);
       });
-    this.jointPortHighlightStream.next(highlightedOperatorPortIDs);
+    this.jointPortHighlightStream.next(highlightedLogicalPortIDs);
   }
 
-  public unhighlightPorts(...operatorPortIDs: OperatorPort[]): void {
-    const unhighlightedOperatorPortIDs: OperatorPort[] = [];
+  public unhighlightPorts(...operatorPortIDs: LogicalPort[]): void {
+    const unhighlightedLogicalPortIDs: LogicalPort[] = [];
     operatorPortIDs
       .filter(operatorPortID => _.find(this.currentHighlightedPorts, operatorPortID) !== undefined)
       .forEach(operatorPortID => {
         this.currentHighlightedPorts.splice(_.indexOf(this.currentHighlightedPorts, operatorPortID), 1);
-        unhighlightedOperatorPortIDs.push(operatorPortID);
+        unhighlightedLogicalPortIDs.push(operatorPortID);
       });
-    this.jointPortUnhighlightStream.next(unhighlightedOperatorPortIDs);
+    this.jointPortUnhighlightStream.next(unhighlightedLogicalPortIDs);
   }
 
   /**
@@ -590,35 +566,22 @@ export class JointGraphWrapper {
     return this.jointCommentBoxUnhighlightStream.asObservable();
   }
 
-  public getJointPortHighlightStream(): Observable<readonly OperatorPort[]> {
+  public getJointPortHighlightStream(): Observable<readonly LogicalPort[]> {
     return this.jointPortHighlightStream.asObservable();
   }
 
-  public getJointPortUnhighlightStream(): Observable<readonly OperatorPort[]> {
+  public getJointPortUnhighlightStream(): Observable<readonly LogicalPort[]> {
     return this.jointPortUnhighlightStream.asObservable();
   }
-
-  /**
-   * Gets the event stream of an element being dragged.
-   */
-  public getJointElementCellDragStream(): Observable<joint.dia.Element> {
-    const jointElementDragStream = this.jointCellDragStream.pipe(
-      filter(cell => cell.isElement()),
-      map(cell => <joint.dia.Element>cell)
-    );
-    return jointElementDragStream;
-  }
-
   /**
    * Returns an Observable stream capturing the element cell delete event in JointJS graph.
    * An element cell can be an operator or an group.
    */
   public getJointElementCellDeleteStream(): Observable<joint.dia.Element> {
-    const jointElementDeleteStream = this.jointCellDeleteStream.pipe(
+    return this.jointCellDeleteStream.pipe(
       filter(cell => cell.isElement()),
       map(cell => <joint.dia.Element>cell)
     );
-    return jointElementDeleteStream;
   }
 
   /**
@@ -630,12 +593,10 @@ export class JointGraphWrapper {
    *
    */
   public getJointLinkCellAddStream(): Observable<joint.dia.Link> {
-    const jointLinkAddStream = this.jointCellAddStream.pipe(
+    return this.jointCellAddStream.pipe(
       filter(cell => cell.isLink()),
       map(cell => <joint.dia.Link>cell)
     );
-
-    return jointLinkAddStream;
   }
 
   /**
@@ -647,12 +608,10 @@ export class JointGraphWrapper {
    *
    */
   public getJointLinkCellDeleteStream(): Observable<joint.dia.Link> {
-    const jointLinkDeleteStream = this.jointCellDeleteStream.pipe(
+    return this.jointCellDeleteStream.pipe(
       filter(cell => cell.isLink()),
       map(cell => <joint.dia.Link>cell)
     );
-
-    return jointLinkDeleteStream;
   }
 
   /**
@@ -734,11 +693,7 @@ export class JointGraphWrapper {
    *  - one end of the link is moved from one point to another point in the paper
    */
   public getJointLinkCellChangeStream(): Observable<joint.dia.Link> {
-    const jointLinkChangeStream = fromEvent<JointLinkChangeEvent>(this.jointGraph, "change:source change:target").pipe(
-      map(value => value[0])
-    );
-
-    return jointLinkChangeStream;
+    return fromEvent<JointLinkChangeEvent>(this.jointGraph, "change:source change:target").pipe(map(value => value[0]));
   }
 
   /**
@@ -821,7 +776,7 @@ export class JointGraphWrapper {
   /**
    * Unhighlights the given highlighted link.
    * Emits an event to the link unhighlight stream.
-   * @param unhighlightedLinkID
+   * @param linkID
    */
   public unhighlightLink(linkID: string): void {
     if (!this.currentHighlightedLinks.includes(linkID)) {
@@ -913,19 +868,6 @@ export class JointGraphWrapper {
   public setListenPositionChange(listenPositionChange: boolean): void {
     this.listenPositionChange = listenPositionChange;
   }
-
-  public freeze(): void {
-    this.mainJointPaper?.freeze();
-  }
-
-  public unfreeze(): void {
-    this.mainJointPaper?.unfreeze();
-  }
-
-  public updateViews(): void {
-    this.mainJointPaper?.updateViews();
-  }
-
   /**
    * Highlights the element with given elementID.
    *
@@ -1054,7 +996,7 @@ export class JointGraphWrapper {
           const NEW_ASYNC_MODE = this._async(this.prevContext());
 
           this.jointPaper.options.async = NEW_ASYNC_MODE;
-          if (CURRENT_ASYNC_MODE == true && NEW_ASYNC_MODE == false) this.jointPaper.updateViews();
+          if (CURRENT_ASYNC_MODE && !NEW_ASYNC_MODE) this.jointPaper.updateViews();
         }
         super.exit();
       }

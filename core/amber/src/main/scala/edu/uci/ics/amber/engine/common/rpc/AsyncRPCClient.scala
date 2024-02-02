@@ -1,15 +1,23 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputPort
+import edu.uci.ics.amber.engine.architecture.messaginglayer.NetworkOutputGateway
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlException
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.ControlPayload
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelMarkerPayload,
+  ChannelMarkerType,
+  ControlPayload
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 
 import scala.collection.mutable
@@ -37,8 +45,6 @@ object AsyncRPCClient {
   final val IgnoreReply = -1
   final val IgnoreReplyAndDoNotLog = -2
 
-  def noReplyNeeded(id: Long): Boolean = id < 0
-
   /** The invocation of a control command
     * @param commandID
     * @param command
@@ -54,7 +60,7 @@ object AsyncRPCClient {
 }
 
 class AsyncRPCClient(
-    controlOutputEndpoint: NetworkOutputPort[ControlPayload],
+    outputGateway: NetworkOutputGateway,
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
@@ -63,15 +69,32 @@ class AsyncRPCClient(
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
     val (p, id) = createPromise[T]()
-    logger.info(
-      s"send request: ${cmd} to $to (controlID: ${id})"
-    )
-    controlOutputEndpoint.sendTo(to, ControlInvocation(id, cmd))
+    logger.debug(s"send request: $cmd to $to (controlID: $id)")
+    outputGateway.sendTo(to, ControlInvocation(id, cmd))
     p
   }
 
+  def sendChannelMarker(
+      markerId: ChannelMarkerIdentity,
+      markerType: ChannelMarkerType,
+      scope: Set[ChannelIdentity],
+      cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
+      channelId: ChannelIdentity
+  ): Unit = {
+    logger.debug(s"send marker: $markerId to $channelId")
+    outputGateway.sendTo(
+      channelId,
+      ChannelMarkerPayload(markerId, markerType, scope, cmdMapping)
+    )
+  }
+
+  def createInvocation[T](cmd: ControlCommand[T]): (ControlInvocation, Future[T]) = {
+    val (p, id) = createPromise[T]()
+    (ControlInvocation(id, cmd), p)
+  }
+
   def sendToClient(cmd: ControlCommand[_]): Unit = {
-    controlOutputEndpoint.sendTo(CLIENT, ControlInvocation(0, cmd))
+    outputGateway.sendTo(CLIENT, ControlInvocation(0, cmd))
   }
 
   private def createPromise[T](): (Promise[T], Long) = {
@@ -84,7 +107,6 @@ class AsyncRPCClient(
   def fulfillPromise(ret: ReturnInvocation): Unit = {
     if (unfulfilledPromises.contains(ret.originalCommandID)) {
       val p = unfulfilledPromises(ret.originalCommandID)
-
       ret.controlReturn match {
         case error: Throwable =>
           p.setException(error)
@@ -98,7 +120,7 @@ class AsyncRPCClient(
     }
   }
 
-  def logControlReply(ret: ReturnInvocation, sender: ActorVirtualIdentity): Unit = {
+  def logControlReply(ret: ReturnInvocation, channelId: ChannelIdentity): Unit = {
     if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
@@ -106,12 +128,17 @@ class AsyncRPCClient(
       if (ret.controlReturn.isInstanceOf[WorkerStatistics]) {
         return
       }
-      logger.info(
-        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $sender (controlID: ${ret.originalCommandID})"
+      logger.debug(
+        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channelId (controlID: ${ret.originalCommandID})"
       )
+      ret.controlReturn match {
+        case throwable: Throwable =>
+          logger.error(s"received error from $channelId", throwable)
+        case _ =>
+      }
     } else {
       logger.info(
-        s"receive reply: null from $sender (controlID: ${ret.originalCommandID})"
+        s"receive reply: null from $channelId (controlID: ${ret.originalCommandID})"
       )
     }
   }

@@ -1,21 +1,23 @@
 package edu.uci.ics.texera.web.resource
+import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
 import javax.annotation.security.RolesAllowed
+import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import javax.ws.rs.{Consumes, POST, Path, PathParam, Produces}
 
 @Consumes(Array(MediaType.APPLICATION_JSON))
 @Produces(Array(MediaType.APPLICATION_JSON))
 @Path("/queryplan")
-class SchemaPropagationResource {
+class SchemaPropagationResource extends LazyLogging {
 
   @POST
   @Path("/autocomplete/{wid}")
@@ -25,27 +27,22 @@ class SchemaPropagationResource {
       @PathParam("wid") wid: UInteger,
       @Auth sessionUser: SessionUser
   ): SchemaPropagationResponse = {
-    try {
-      val workflow = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
-      val context = new WorkflowContext
-      context.userId = Option(sessionUser.getUser.getUid)
-      context.wId = wid
+    val logicalPlanPojo = Utils.objectMapper.readValue(workflowStr, classOf[LogicalPlanPojo])
 
-      val texeraWorkflowCompiler = new WorkflowCompiler(LogicalPlan(workflow), context)
+    val context = new WorkflowContext(
+      userId = Option(sessionUser.getUser.getUid),
+      workflowId = WorkflowIdentity(wid.toString.toLong)
+    )
 
-      // ignore errors during propagation.
-      val (schemaPropagationResult, _) =
-        texeraWorkflowCompiler.logicalPlan.propagateWorkflowSchema()
-      val responseContent = schemaPropagationResult.map(e =>
-        (e._1.operator, e._2.map(s => s.map(o => o.getAttributesScala)))
-      )
-      SchemaPropagationResponse(0, responseContent, null)
-    } catch {
-      case e: Throwable =>
-        e.printStackTrace()
-        SchemaPropagationResponse(1, null, e.getMessage)
-    }
+    val logicalPlan = LogicalPlan(logicalPlanPojo)
+
+    // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
+    logicalPlan.propagateWorkflowSchema(context, errorList = None)
+    val responseContent = logicalPlan.getInputSchemaMap
+      .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributesScala))))
+    SchemaPropagationResponse(0, responseContent, null)
+
   }
 
 }
