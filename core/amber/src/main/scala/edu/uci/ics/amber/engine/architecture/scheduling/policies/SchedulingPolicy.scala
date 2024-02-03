@@ -2,11 +2,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionState, Workflow}
-import edu.uci.ics.amber.engine.architecture.scheduling.Region
+import edu.uci.ics.amber.engine.architecture.scheduling.{GlobalPortIdentity, Region, RegionIdentity}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
 
@@ -19,8 +18,6 @@ object SchedulingPolicy {
       new SingleReadyRegion(scheduleOrder)
     } else if (policyName.equals("all-ready-regions")) {
       new AllReadyRegions(scheduleOrder)
-    } else if (policyName.equals("single-ready-region-time-interleaved")) {
-      new SingleReadyRegionTimeInterleaved(scheduleOrder)
     } else {
       throw new WorkflowRuntimeException(s"Unknown scheduling policy name")
     }
@@ -36,24 +33,14 @@ abstract class SchedulingPolicy(
   protected val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
   protected val runningRegions = new mutable.HashSet[Region]()
-  protected val completedLinksOfRegion: mutable.MultiDict[Region, PhysicalLink] =
-    mutable.MultiDict[Region, PhysicalLink]()
 
+  private val completedPortIdsOfRegion
+      : mutable.HashMap[RegionIdentity, mutable.HashSet[GlobalPortIdentity]] = mutable.HashMap()
   protected def isRegionCompleted(
       executionState: ExecutionState,
       region: Region
   ): Boolean = {
-
-    region.downstreamLinks
-      .subsetOf(
-        completedLinksOfRegion.get(region)
-      ) &&
-    region.physicalOps
-      .forall(operator =>
-        executionState
-          .getOperatorExecution(operator.id)
-          .getState == WorkflowAggregatedState.COMPLETED
-      )
+    region.getPorts.subsetOf(completedPortIdsOfRegion.getOrElse(region.id, mutable.HashSet()))
   }
 
   protected def checkRegionCompleted(
@@ -71,14 +58,14 @@ abstract class SchedulingPolicy(
       workerId: ActorVirtualIdentity
   ): Set[Region] = {
     val operator = workflow.physicalPlan.getPhysicalOpByWorkerId(workerId)
-    runningRegions.filter(r => r.physicalOps.contains(operator)).toSet
+    runningRegions.filter(r => r.getOperators.contains(operator)).toSet
   }
 
   /**
     * A link's region is the region of the source operator of the link.
     */
   protected def getRegions(link: PhysicalLink): Set[Region] = {
-    runningRegions.filter(r => r.physicalOps.map(_.id).contains(link.fromOpId)).toSet
+    runningRegions.filter(r => r.getOperators.map(_.id).contains(link.fromOpId)).toSet
   }
 
   // gets the ready regions that is not currently running
@@ -110,7 +97,13 @@ abstract class SchedulingPolicy(
       link: PhysicalLink
   ): Set[Region] = {
     val regions = getRegions(link)
-    regions.foreach(region => completedLinksOfRegion.addOne((region, link)))
+    regions.foreach(region => {
+      val portIds =
+        completedPortIdsOfRegion.getOrElse(region.id, new mutable.HashSet[GlobalPortIdentity]())
+      portIds.add(GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false))
+      portIds.add(GlobalPortIdentity(link.toOpId, link.toPortId, input = true))
+      completedPortIdsOfRegion(region.id) = portIds
+    })
     regions.foreach(region => checkRegionCompleted(executionState, region))
     getNextSchedulingWork(workflow)
   }
