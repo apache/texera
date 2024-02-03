@@ -9,7 +9,7 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-case class RegionLink(fromRegion: Region, toRegion: Region)
+case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
 case class RegionIdentity(id: Long)
 
