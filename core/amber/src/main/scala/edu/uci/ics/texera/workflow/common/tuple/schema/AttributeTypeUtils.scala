@@ -5,9 +5,9 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import java.sql.Timestamp
+import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.Try
 import scala.util.control.Exception.allCatch
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object AttributeTypeUtils extends Serializable {
 
@@ -65,7 +65,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   def parseFields(fields: Array[Object], schema: Schema): Array[Object] = {
-    parseFields(fields, schema.getAttributes.map(attr => attr.getType).toArray)
+    parseFields(fields, schema.getAttributes.asScala.map(attr => attr.getType).toArray)
   }
 
   /**

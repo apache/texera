@@ -18,7 +18,7 @@ object ResumeHandler {
 trait ResumeHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: ResumeWorkflow, sender) =>
+  registerHandler[ResumeWorkflow, Unit] { (msg, sender) =>
     {
 
       // send all workers resume

@@ -15,7 +15,7 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow._
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 @JsonSchemaInject(json = """
 {
@@ -64,14 +64,17 @@ class HashJoinOpDesc[K] extends LogicalOp {
     )
 
     val joinDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      val buildPartition = inputPartitions(0).asInstanceOf[HashPartition]
-      val probePartition = inputPartitions(1).asInstanceOf[HashPartition]
+      val buildAttrIndex: Int = buildSchema.getIndex(buildAttributeName)
+      val probAttrIndex: Int = probeSchema.getIndex(probeAttributeName)
 
-      val buildAttrIndex = buildSchema.getIndex(buildAttributeName)
-      val probAttrIndex = probeSchema.getIndex(probeAttributeName)
-
-      assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
-      assert(probePartition.hashColumnIndices.contains(probAttrIndex))
+      val buildPartition = inputPartitions
+        .map(_.asInstanceOf[HashPartition])
+        .find(_.hashColumnIndices.contains(buildAttrIndex))
+        .get
+      val probePartition = inputPartitions
+        .map(_.asInstanceOf[HashPartition])
+        .find(_.hashColumnIndices.contains(probAttrIndex))
+        .get
 
       // mapping from build/probe schema index to the final output schema index
       val schemaMappings = getOutputSchemaInternal(buildSchema, probeSchema)
@@ -140,7 +143,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val builder = Schema.newBuilder()
     builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {
-      probeSchema.getAttributes.foreach(attr => {
+      probeSchema.getAttributes.asScala.foreach(attr => {
         val attributeName = attr.getName
         if (
           builder.build().containsAttribute(attributeName) && attributeName != probeAttributeName

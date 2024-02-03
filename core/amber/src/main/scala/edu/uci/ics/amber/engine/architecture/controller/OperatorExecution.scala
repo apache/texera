@@ -17,7 +17,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, Workfl
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class OperatorExecution(
     workflowId: WorkflowIdentity,
