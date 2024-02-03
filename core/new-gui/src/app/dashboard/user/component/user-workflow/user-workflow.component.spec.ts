@@ -22,7 +22,6 @@ import { NzCalendarModule } from "ng-zorro-antd/calendar";
 import { NzSelectModule } from "ng-zorro-antd/select";
 import { NzPopoverModule } from "ng-zorro-antd/popover";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
-import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { OperatorMetadataService } from "src/app/workspace/service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "src/app/workspace/service/operator-metadata/stub-operator-metadata.service";
@@ -65,7 +64,6 @@ describe("SavedWorkflowSectionComponent", () => {
         ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserService, useClass: StubUserService },
-        { provide: NZ_I18N, useValue: en_US },
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         {
           provide: SearchService,
