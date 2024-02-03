@@ -46,7 +46,6 @@ import {
 import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
@@ -59,6 +58,7 @@ import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
 import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 export type PropertyDisplayComponent = TypeCastingDisplayComponent;
 
@@ -146,7 +146,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     public executeWorkflowService: ExecuteWorkflowService,
     private dynamicSchemaService: DynamicSchemaService,
     private schemaPropagationService: SchemaPropagationService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
     private userFileService: UserFileService,
@@ -682,7 +682,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         this.executeWorkflowService.modifyOperatorLogic(this.currentOperatorId);
         this.setInteractivity(false);
       } catch (e) {
-        this.notificationService.error(e);
+        this.notificationService.error((e as Error).message);
       }
     }
   }

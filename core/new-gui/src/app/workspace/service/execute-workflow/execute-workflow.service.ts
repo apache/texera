@@ -1,5 +1,5 @@
 import { Injectable } from "@angular/core";
-import { from, Observable, Subject } from "rxjs";
+import { Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
@@ -23,8 +23,8 @@ import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { Version as version } from "src/environments/version";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { exhaustiveGuard } from "../../../common/util/switch";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -71,7 +71,7 @@ export class ExecuteWorkflowService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private notificationService: NotificationService
+    private notificationService: NzMessageService
   ) {
     if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {

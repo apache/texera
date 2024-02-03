@@ -4,11 +4,11 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { merge } from "rxjs";
 import { ResultExportResponse } from "../../types/workflow-websocket.interface";
-import { NotificationService } from "../../../common/service/notification/notification.service";
 import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 import { ExecutionState, isNotInExecution } from "../../types/execute-workflow.interface";
 import { filter } from "rxjs/operators";
 import { WorkflowResultService } from "../workflow-result/workflow-result.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @Injectable({
   providedIn: "root",
@@ -20,7 +20,7 @@ export class WorkflowResultExportService {
   constructor(
     private workflowWebsocketService: WorkflowWebsocketService,
     private workflowActionService: WorkflowActionService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowResultService: WorkflowResultService
   ) {
@@ -44,7 +44,7 @@ export class WorkflowResultExportService {
     merge(
       this.executeWorkflowService
         .getExecutionStateStream()
-        .pipe(filter(({ previous, current }) => current.state === ExecutionState.Completed)),
+        .pipe(filter(({ current }) => current.state === ExecutionState.Completed)),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream()
     ).subscribe(() => {

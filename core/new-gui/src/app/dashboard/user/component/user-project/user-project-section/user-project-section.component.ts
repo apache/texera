@@ -5,11 +5,11 @@ import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { DashboardFile } from "../../../type/dashboard-file.interface";
-import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { isDefined } from "../../../../../common/util/predicate";
+import { NzMessageService } from "ng-zorro-antd/message";
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -47,7 +47,7 @@ export class UserProjectSectionComponent implements OnInit {
     private router: Router,
     private modalService: NgbModal,
     private userFileService: UserFileService,
-    private notificationService: NotificationService
+    private notificationService: NzMessageService
   ) {}
 
   ngOnInit(): void {

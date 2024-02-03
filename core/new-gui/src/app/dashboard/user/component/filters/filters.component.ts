@@ -4,10 +4,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Observable } from "rxjs";
 import { DashboardProject } from "../../type/dashboard-project.interface";
 import { remove } from "lodash-es";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UserProjectService } from "../../service/user-project/user-project.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { SearchFilterParameters } from "../../type/search-filter-parameters";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -65,7 +65,7 @@ export class FiltersComponent implements OnInit {
 
   constructor(
     private operatorMetadataService: OperatorMetadataService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private userProjectService: UserProjectService,
     private workflowPersistService: WorkflowPersistService
   ) {

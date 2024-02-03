@@ -1,14 +1,12 @@
 import { Component, HostListener, Inject, Input, LOCALE_ID } from "@angular/core";
 import { NzModalRef } from "ng-zorro-antd/modal";
-import { CommentBox, Comment } from "src/app/workspace/types/workflow-common.interface";
+import { CommentBox } from "src/app/workspace/types/workflow-common.interface";
 import { WorkflowActionService } from "src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import { UserService } from "src/app/common/service/user/user.service";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { User } from "src/app/common/type/user";
 import { untilDestroyed } from "@ngneat/until-destroy";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { formatDate } from "@angular/common";
-import { Array as YArray } from "yjs";
 import { YType } from "../../../types/shared-editing.interface";
 
 @UntilDestroy()
@@ -25,8 +23,7 @@ export class NzModalCommentBoxComponent {
     @Inject(LOCALE_ID) public locale: string,
     public workflowActionService: WorkflowActionService,
     public userService: UserService,
-    public modal: NzModalRef<any, number>,
-    public notificationService: NotificationService
+    public modal: NzModalRef<any, number>
   ) {
     this.userService
       .userChanged()
@@ -114,7 +111,7 @@ export class NzModalCommentBoxComponent {
     btn.setAttribute("hidden", "hidden");
   }
   public replyToComment(creatorName: string, content: string) {
-    this.inputValue += "@" + creatorName + ":\"" + content + "\"\n";
+    this.inputValue += "@" + creatorName + ':"' + content + '"\n';
   }
   toRelative(datetime: string): string {
     return formatDate(new Date(datetime), "MM/dd/yyyy, hh:mm:ss a z", this.locale);

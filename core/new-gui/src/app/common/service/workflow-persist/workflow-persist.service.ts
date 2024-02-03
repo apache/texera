@@ -6,8 +6,8 @@ import { AppSettings } from "../../app-setting";
 import { Workflow, WorkflowContent } from "../../type/workflow";
 import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workflow.interface";
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
-import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -30,7 +30,7 @@ export class WorkflowPersistService {
   // flag to disable workflow persist when displaying the read only particular version
   private workflowPersistFlag = true;
 
-  constructor(private http: HttpClient, private notificationService: NotificationService) {}
+  constructor(private http: HttpClient, private notificationService: NzMessageService) {}
 
   /**
    * persists a workflow to backend database and returns its updated information (e.g., new wid)
@@ -83,7 +83,7 @@ export class WorkflowPersistService {
 
   /**
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
-   * @param wid, the workflow id.
+   * @param wid
    */
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(

@@ -1,6 +1,6 @@
 import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { BreakpointTriggerInfo, ConsoleMessage } from "../../../types/workflow-common.interface";
+import { ConsoleMessage } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -8,7 +8,7 @@ import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { presetPalettes } from "@ant-design/colors";
 import { isDefined } from "../../../../common/util/predicate";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -47,7 +47,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowConsoleService: WorkflowConsoleService,
     private workflowWebsocketService: WorkflowWebsocketService,
-    private notificationService: NotificationService
+    private notificationService: NzMessageService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -157,7 +157,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     try {
       this.executeWorkflowService.skipTuples(this.workerIds);
     } catch (e) {
-      this.notificationService.error(e);
+      this.notificationService.error((e as Error).message);
     }
   }
 
@@ -165,7 +165,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     try {
       this.executeWorkflowService.retryExecution(this.workerIds);
     } catch (e) {
-      this.notificationService.error(e);
+      this.notificationService.error((e as Error).toString());
     }
   }
 

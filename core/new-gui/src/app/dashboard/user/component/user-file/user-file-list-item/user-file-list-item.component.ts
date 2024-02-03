@@ -3,8 +3,8 @@ import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { UserFileService } from "../../../service/user-file/user-file.service";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -46,7 +46,7 @@ export class UserFileListItemComponent {
   constructor(
     private modalService: NgbModal,
     private userFileService: UserFileService,
-    private notificationService: NotificationService
+    private notificationService: NzMessageService
   ) {}
 
   public confirmUpdateFileCustomName(name: string): void {

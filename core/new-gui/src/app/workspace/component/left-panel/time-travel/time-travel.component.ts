@@ -12,7 +12,7 @@ import { HttpClient } from "@angular/common/http";
 import { Observable, timer } from "rxjs";
 import { map } from "rxjs/operators";
 import { ReplayExecutionInfo } from "../../../types/workflow-websocket.interface";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -31,7 +31,7 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
     public executeWorkflowService: ExecuteWorkflowService,
     private workflowVersionService: WorkflowVersionService,
     private workflowExecutionsService: WorkflowExecutionsService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private http: HttpClient
   ) {}
 
@@ -39,7 +39,7 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
     // gets the versions result and updates the workflow versions table displayed on the form
     timer(0, 5000) // trigger per 5 secs
       .pipe(untilDestroyed(this))
-      .subscribe(e => {
+      .subscribe(() => {
         let wid = this.getWid();
         if (wid === undefined) {
           return;

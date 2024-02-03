@@ -6,8 +6,8 @@ import { User, Role } from "../../type/user";
 import { timer } from "rxjs";
 import { startWith, ignoreElements } from "rxjs/operators";
 import { JwtHelperService } from "@auth0/angular-jwt";
-import { NotificationService } from "../notification/notification.service";
 import { environment } from "../../../../environments/environment";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 export const TOKEN_KEY = "access_token";
 export const TOKEN_REFRESH_INTERVAL_IN_MIN = 15;
@@ -34,7 +34,7 @@ export class AuthService {
   constructor(
     private http: HttpClient,
     private jwtHelperService: JwtHelperService,
-    private notificationService: NotificationService
+    private notificationService: NzMessageService
   ) {}
 
   /**

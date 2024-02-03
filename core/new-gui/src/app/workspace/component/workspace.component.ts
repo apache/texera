@@ -16,7 +16,6 @@ import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/oper
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { Version } from "../../../environments/version";
 import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
@@ -60,7 +59,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private operatorMetadataService: OperatorMetadataService,
     private message: NzMessageService,
     private router: Router,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private codeEditorService: CodeEditorService
   ) {}
 

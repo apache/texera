@@ -1,12 +1,12 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { PublicProjectService } from "../../../service/public-project/public-project.service";
 import { UserService } from "../../../../../common/service/user/user.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -46,7 +46,7 @@ export class UserProjectListItemComponent implements OnInit {
 
   constructor(
     private userProjectService: UserProjectService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private modalService: NgbModal,
     private userService: UserService,
     private publicProjectService: PublicProjectService

@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, NgModule, ViewChild } from "@angular/core";
+import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { firstValueFrom } from "rxjs";
@@ -11,7 +11,6 @@ import { NgbdModalRemoveProjectWorkflowComponent } from "../user-project/user-pr
 import { DashboardEntry } from "../../type/dashboard-entry";
 import { UserService } from "../../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import * as JSZip from "jszip";
@@ -21,6 +20,7 @@ import { SearchResultsComponent } from "../search-results/search-results.compone
 import { SearchService } from "../../service/search.service";
 import { SortMethod } from "../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 /**
@@ -87,7 +87,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   constructor(
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private modalService: NgbModal,
     private router: Router,
     private fileSaverService: FileSaverService,

@@ -3,7 +3,7 @@ import { HttpClient, HttpErrorResponse } from "@angular/common/http";
 import { AppSettings } from "../../../common/app-setting";
 import { Subject } from "rxjs";
 import { CredentialResponse } from "../../../common/service/user/google-auth.service";
-import { NotificationService } from "../../../common/service/notification/notification.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 declare var window: any;
 @Injectable({
   providedIn: "root",
@@ -11,7 +11,7 @@ declare var window: any;
 export class GmailService {
   public client: any;
   private _googleCredentialResponse = new Subject<CredentialResponse>();
-  constructor(private http: HttpClient, private notificationService: NotificationService) {}
+  constructor(private http: HttpClient, private notificationService: NzMessageService) {}
   public authSender() {
     this.http
       .get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" })

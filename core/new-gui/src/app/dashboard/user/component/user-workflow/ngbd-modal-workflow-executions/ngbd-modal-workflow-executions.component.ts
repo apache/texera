@@ -6,12 +6,12 @@ import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
-import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 import { ChartType } from "src/app/workspace/types/visualization.interface";
 import { ceil } from "lodash";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -119,7 +119,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
     private modalService: NgbModal,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private runtimeStatisticsModal: NzModalService
   ) {}
 

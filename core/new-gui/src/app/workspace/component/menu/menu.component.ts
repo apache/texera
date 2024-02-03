@@ -22,12 +22,12 @@ import { WorkflowVersionService } from "../../../dashboard/user/service/workflow
 import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { NzUploadFile } from "ng-zorro-antd/upload";
 import { saveAs } from "file-saver";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { OperatorMenuService } from "../../service/operator-menu/operator-menu.service";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
 import { HttpErrorResponse } from "@angular/common/http";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -93,7 +93,7 @@ export class MenuComponent implements OnInit {
     public workflowResultExportService: WorkflowResultExportService,
     public workflowUtilService: WorkflowUtilService,
     private userProjectService: UserProjectService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     public operatorMenu: OperatorMenuService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
@@ -106,7 +106,7 @@ export class MenuComponent implements OnInit {
         if (event.isRunning) {
           this.durationUpdateSubscription = timer(1000, 1000)
             .pipe(untilDestroyed(this))
-            .subscribe(e => {
+            .subscribe(() => {
               this.executionDuration += 1000;
             });
         }

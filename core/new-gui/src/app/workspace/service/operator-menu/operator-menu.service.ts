@@ -1,12 +1,11 @@
 import { Injectable } from "@angular/core";
-import { environment } from "src/environments/environment";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
-import { Breakpoint, OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
+import { Breakpoint, CommentBox, OperatorLink, OperatorPredicate, Point } from "../../types/workflow-common.interface";
 import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
-import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 type OperatorPositions = {
   [key: string]: Point;
@@ -60,7 +59,7 @@ export class OperatorMenuService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private notificationService: NotificationService
+    private notificationService: NzMessageService
   ) {
     this.handleDisableOperatorStatusChange();
     this.handleViewResultOperatorStatusChange();
@@ -101,10 +100,7 @@ export class OperatorMenuService {
   }
 
   public getEffectivelyHighlightedCommentBoxes(): readonly string[] {
-    const highlightedCommentBoxes = this.workflowActionService
-      .getJointGraphWrapper()
-      .getCurrentHighlightedCommentBoxIDs();
-    return highlightedCommentBoxes;
+    return this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
   }
 
   /**
@@ -153,7 +149,7 @@ export class OperatorMenuService {
       this.effectivelyHighlightedOperators,
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
-    ).subscribe(event => {
+    ).subscribe(() => {
       const allDisabled = this.effectivelyHighlightedOperators.value.every(op =>
         this.workflowActionService.getTexeraGraph().isOperatorDisabled(op)
       );
@@ -170,7 +166,7 @@ export class OperatorMenuService {
       this.effectivelyHighlightedOperators,
       this.workflowActionService.getTexeraGraph().getViewResultOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
-    ).subscribe(event => {
+    ).subscribe(() => {
       const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
       );
@@ -191,7 +187,7 @@ export class OperatorMenuService {
       this.effectivelyHighlightedOperators,
       this.workflowActionService.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.workflowActionService.getWorkflowModificationEnabledStream()
-    ).subscribe(event => {
+    ).subscribe(() => {
       const effectiveHighlightedOperatorsExcludeSink = this.effectivelyHighlightedOperators.value.filter(
         op => !isSink(this.workflowActionService.getTexeraGraph().getOperator(op))
       );

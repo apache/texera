@@ -4,9 +4,9 @@ import { FormBuilder, FormControl, FormGroup, Validators } from "@angular/forms"
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ActivatedRoute, Router } from "@angular/router";
 import { HttpErrorResponse } from "@angular/common/http";
-import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { catchError } from "rxjs/operators";
 import { throwError } from "rxjs";
+import { NzMessageService } from "ng-zorro-antd/message";
 @UntilDestroy()
 @Component({
   selector: "texera-local-login",
@@ -22,7 +22,7 @@ export class LocalLoginComponent {
     private formBuilder: FormBuilder,
     private userService: UserService,
     private route: ActivatedRoute,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private router: Router
   ) {
     this.allForms = this.formBuilder.group({

@@ -5,9 +5,9 @@ import { ActivatedRoute, Router } from "@angular/router";
 import { catchError, mergeMap } from "rxjs/operators";
 import { throwError } from "rxjs";
 import { HttpErrorResponse } from "@angular/common/http";
-import { NotificationService } from "../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { GoogleAuthService } from "../../common/service/user/google-auth.service";
+import { NzMessageService } from "ng-zorro-antd/message";
 
 @UntilDestroy()
 @Component({
@@ -21,7 +21,7 @@ export class HomeComponent implements OnInit {
     private userService: UserService,
     private route: ActivatedRoute,
     private googleAuthService: GoogleAuthService,
-    private notificationService: NotificationService,
+    private notificationService: NzMessageService,
     private router: Router
   ) {}
 
