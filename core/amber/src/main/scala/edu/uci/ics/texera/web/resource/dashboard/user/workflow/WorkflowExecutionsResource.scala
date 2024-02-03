@@ -25,8 +25,8 @@ import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -37,7 +37,9 @@ object WorkflowExecutionsResource {
   }
 
   def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
-    val deadline = new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive))
+    val deadline = new Timestamp(
+      System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)
+    )
     context
       .selectFrom(WORKFLOW_EXECUTIONS)
       .where(
@@ -49,6 +51,7 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.RESULT.ne("").or(WORKFLOW_EXECUTIONS.LOG_LOCATION.ne(""))
       )
       .fetchInto(classOf[WorkflowExecutions])
+      .asScala
       .toList
   }
 
@@ -62,6 +65,7 @@ object WorkflowExecutionsResource {
       .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
       .fetchInto(classOf[UInteger])
+      .asScala
       .toList
     if (executions.isEmpty) {
       None
@@ -188,6 +192,7 @@ class WorkflowExecutionsResource {
         .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
         .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[WorkflowExecutionEntry])
+        .asScala
         .toList
         .reverse
     }
@@ -219,6 +224,7 @@ class WorkflowExecutionsResource {
       )
       .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
       .fetchInto(classOf[WorkflowRuntimeStatistics])
+      .asScala
       .toList
   }
 

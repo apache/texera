@@ -6,7 +6,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val leftPort: Int = 0

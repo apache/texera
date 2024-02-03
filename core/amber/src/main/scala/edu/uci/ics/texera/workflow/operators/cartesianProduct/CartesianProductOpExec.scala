@@ -53,7 +53,7 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
               )
               builder.build()
             })
-            .toIterator
+            .iterator
         }
 
       // is InputExhausted

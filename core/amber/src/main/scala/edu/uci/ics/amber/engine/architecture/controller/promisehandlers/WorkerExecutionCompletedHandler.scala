@@ -25,14 +25,14 @@ object WorkerExecutionCompletedHandler {
 trait WorkerExecutionCompletedHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: WorkerExecutionCompleted, sender) =>
+  registerHandler[WorkerExecutionCompleted, Unit] { (msg, sender) =>
     {
       assert(sender.isInstanceOf[ActorVirtualIdentity])
 
       // after worker execution is completed, query statistics immediately one last time
       // because the worker might be killed before the next query statistics interval
       // and the user sees the last update before completion
-      val statsRequests = new mutable.MutableList[Future[Unit]]()
+      val statsRequests = new mutable.ArrayBuffer[Future[Unit]]()
       statsRequests += execute(ControllerInitiateQueryStatistics(Option(List(sender))), CONTROLLER)
 
       Future

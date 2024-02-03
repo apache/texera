@@ -28,7 +28,7 @@ class ReservoirSamplingOpDesc extends LogicalOp {
   // Therefore the seeds have to be stored.
   @JsonIgnore
   private val seeds: Array[Int] =
-    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
+    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt())
 
   @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
   @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
