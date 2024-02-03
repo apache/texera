@@ -1,5 +1,6 @@
 import datetime
 import threading
+import time
 import typing
 from typing import Iterator, Optional, Union
 
@@ -59,6 +60,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
+        self.worker_start_time = 0
+
     def complete(self) -> None:
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the
@@ -70,6 +73,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # stop the data processing thread
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
+        self.context.statistics_manager.update_total_execution_time(
+            time.time_ns() - self.worker_start_time
+        )
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
         self._async_rpc_client.send(
             ActorVirtualIdentity(name="CONTROLLER"), control_command
@@ -97,6 +103,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def pre_start(self) -> None:
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
         self.context.state_manager.transit_to(WorkerState.READY)
+        self.worker_start_time = time.time_ns()
 
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
@@ -125,12 +132,20 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param tag: ActorVirtualIdentity, the sender.
         :param payload: ControlPayloadV2 to be handled.
         """
+        start_time = time.time_ns()
         match(
             (tag, get_one_of(payload)),
             typing.Tuple[ActorVirtualIdentity, ControlInvocationV2],
             self._async_rpc_server.receive,
             typing.Tuple[ActorVirtualIdentity, ReturnInvocationV2],
             self._async_rpc_client.receive,
+        )
+        end_time = time.time_ns()
+        self.context.statistics_manager.increase_control_processing_time(
+            end_time - start_time
+        )
+        self.context.statistics_manager.update_total_execution_time(
+            end_time - self.worker_start_time
         )
 
     def process_input_tuple(self) -> None:
@@ -301,10 +316,18 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Notify the DataProcessor thread and wait here until being switched back.
         """
+        start_time = time.time_ns()
         with self.context.tuple_processing_manager.context_switch_condition:
             self.context.tuple_processing_manager.context_switch_condition.notify()
             self.context.tuple_processing_manager.context_switch_condition.wait()
         self._post_switch_context_checks()
+        end_time = time.time_ns()
+        self.context.statistics_manager.increase_data_processing_time(
+            end_time - start_time
+        )
+        self.context.statistics_manager.update_total_execution_time(
+            end_time - self.worker_start_time
+        )
 
     def _check_and_report_debug_event(self) -> None:
         if self.context.debug_manager.has_debug_event():
