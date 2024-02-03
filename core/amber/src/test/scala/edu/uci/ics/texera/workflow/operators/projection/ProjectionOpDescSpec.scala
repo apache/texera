@@ -4,7 +4,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val schema = new Schema(
     new Attribute("field1", AttributeType.STRING),
@@ -33,7 +32,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field2", "f2")
     )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.length == 2)
+    assert(outputSchema.getAttributes.size() == 2)
 
   }
 
@@ -43,7 +42,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field1", "f1")
     )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.length == 2)
+    assert(outputSchema.getAttributes.size() == 2)
     assert(outputSchema.getIndex("f2") == 0)
     assert(outputSchema.getIndex("f1") == 1)
 
@@ -98,7 +97,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field2", "")
     )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.length == 2)
+    assert(outputSchema.getAttributes.size() == 2)
 
   }
 

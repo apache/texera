@@ -53,7 +53,7 @@ class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging
   }
 
   def allUncompletedSenders: Set[ActorVirtualIdentity] = {
-    upstreamMap.filterKeys(k => !completedLinks.contains(k)).values.flatten.toSet
+    upstreamMap.view.filterKeys(k => !completedLinks.contains(k)).values.flatten.toSet
   }
 
   def isLinkEOF(link: PhysicalLink): Boolean = {
