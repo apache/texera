@@ -31,7 +31,7 @@ object FriesReconfigurationAlgorithm {
   ): Set[PropagateChannelMarker] = {
     // independently schedule reconfigurations for each region:
     regionPlan.regions
-      .map(region => physicalPlan.getSubPlan(region.physicalOps.map(_.id)))
+      .map(region => physicalPlan.getSubPlan(region.getOperators.map(_.id)))
       .flatMap(regionSubPlan => computeMCS(regionSubPlan, reconfigurations, epochMarkerId))
       .toSet
   }
