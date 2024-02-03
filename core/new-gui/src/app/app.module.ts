@@ -72,7 +72,7 @@ import { DynamicModule } from "ng-dynamic-component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { BreakpointPropertyEditFrameComponent } from "./workspace/component/property-editor/breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
-import { NotificationComponent } from "./common/component/notification/notification.component";
+import { NotificationComponent } from "./common/component/notification/notification/notification.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
 import { VersionsListComponent } from "./workspace/component/left-panel/versions-list/versions-list.component";
 import { NzPaginationModule } from "ng-zorro-antd/pagination";

@@ -1,9 +1,6 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-
 import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
-import { CustomNgMaterialModule } from "../../../../../common/custom-ng-material.module";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
-
 import { FileUploadModule } from "ng2-file-upload";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { UserFileService } from "../../../service/user-file/user-file.service";
@@ -25,14 +22,7 @@ describe("NgbdModalFileAddComponent", () => {
         UserFileUploadService,
         NgbActiveModal,
       ],
-      imports: [
-        CustomNgMaterialModule,
-        NgbModule,
-        FormsModule,
-        FileUploadModule,
-        ReactiveFormsModule,
-        HttpClientTestingModule,
-      ],
+      imports: [NgbModule, FormsModule, FileUploadModule, ReactiveFormsModule, HttpClientTestingModule],
     }).compileComponents();
   }));
 
