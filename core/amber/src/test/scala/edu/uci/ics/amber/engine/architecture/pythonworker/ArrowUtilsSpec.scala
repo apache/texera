@@ -10,7 +10,7 @@ import org.apache.arrow.vector.types.{DateUnit, FloatingPointPrecision, Interval
 import org.scalatest.flatspec.AnyFlatSpec
 
 import java.sql.Timestamp
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class ArrowUtilsSpec extends AnyFlatSpec {
 

@@ -18,7 +18,7 @@ object RegionsTimeSlotExpiredHandler {
 trait RegionsTimeSlotExpiredHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: RegionsTimeSlotExpired, sender) =>
+  registerHandler[RegionsTimeSlotExpired, Unit] { (msg, sender) =>
     {
       val notCompletedRegions =
         msg.regions.diff(cp.workflowScheduler.schedulingPolicy.getCompletedRegions)

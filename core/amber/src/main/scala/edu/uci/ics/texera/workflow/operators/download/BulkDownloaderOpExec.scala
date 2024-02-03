@@ -14,8 +14,8 @@ import java.net.URL
 import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class BulkDownloaderOpExec(
     val workflowContext: WorkflowContext,
@@ -63,7 +63,7 @@ class BulkDownloaderOpExec(
   def downloadTuple(tuple: Tuple): Tuple = {
 
     val builder = Tuple.newBuilder(outputSchema)
-    outputSchema.getAttributes
+    outputSchema.getAttributes.asScala
       .foreach(attr => {
         if (attr.getName == resultAttribute) {
           builder.add(

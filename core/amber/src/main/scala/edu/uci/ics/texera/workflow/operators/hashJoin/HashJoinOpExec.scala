@@ -148,7 +148,7 @@ class HashJoinOpExec[K](
               // build the new tuple
               builder.build()
             })
-            .toIterator
+            .iterator
       }
   }
 
@@ -172,7 +172,7 @@ class HashJoinOpExec[K](
         // build the new tuple
         builder.build()
       })
-      .toIterator
+      .iterator
   }
 
   def fillNonJoinFields(

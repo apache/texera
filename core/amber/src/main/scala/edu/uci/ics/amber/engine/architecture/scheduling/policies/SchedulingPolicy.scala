@@ -19,8 +19,6 @@ object SchedulingPolicy {
       new SingleReadyRegion(scheduleOrder)
     } else if (policyName.equals("all-ready-regions")) {
       new AllReadyRegions(scheduleOrder)
-    } else if (policyName.equals("single-ready-region-time-interleaved")) {
-      new SingleReadyRegionTimeInterleaved(scheduleOrder)
     } else {
       throw new WorkflowRuntimeException(s"Unknown scheduling policy name")
     }

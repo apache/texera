@@ -28,12 +28,12 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 import scala.Tuple3;
 import scala.collection.immutable.List;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
-import static scala.collection.JavaConverters.mapAsScalaMap;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
@@ -93,11 +93,11 @@ public class WordCloudOpDesc extends VisualizationOperator {
                 .withParallelizable(false)
                 .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
                 // assume partial op's output is the same as global op's
-                .withOutputPorts(asScalaBuffer(singletonList(partialOpOutputPort)).toList(), mapAsScalaMap(outputPortToSchemaMapping));
+                .withOutputPorts(asScala(singletonList(partialOpOutputPort)).toList(), asScala(outputPortToSchemaMapping));
 
 
         PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
-        InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false, List.empty());
+        InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false, asScala(new ArrayList<PortIdentity>()).toSeq());
         HashMap<PortIdentity, Schema> inputPortToSchemaMapping = new HashMap<>();
         inputPortToSchemaMapping.put(globalOpInputPort.id(), outputPortToSchemaMapping().values().head());
         PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
@@ -111,7 +111,7 @@ public class WordCloudOpDesc extends VisualizationOperator {
         )
             .withId(globalOpId).withIsOneToManyOp(true)
             // assume partial op's output is the same as global op's
-            .withInputPorts(asScalaBuffer(singletonList(globalOpInputPort)).toList(), mapAsScalaMap(inputPortToSchemaMapping))
+            .withInputPorts(asScala(singletonList(globalOpInputPort)).toList(), asScala(inputPortToSchemaMapping))
             .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
 
         PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
@@ -125,8 +125,8 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,
