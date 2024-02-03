@@ -114,10 +114,7 @@ export class UserProjectSectionComponent implements OnInit {
           this.colorIsBright = UserProjectService.isLightColor(this.color);
           this.updateProjectStatus = "updated project color"; // cause workflow / file components to update project filtering list
         },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
+        error: e => this.notificationService.error((e as Error).message),
       });
   }
 
@@ -166,9 +163,8 @@ export class UserProjectSectionComponent implements OnInit {
           }
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         },
-        (err: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
-          this.notificationService.error(err.error.message);
+        e => {
+          this.notificationService.error((e as Error).message);
           if (!isDefined(this.pid)) {
             return;
           }
@@ -197,10 +193,7 @@ export class UserProjectSectionComponent implements OnInit {
           downloadLink.click();
           URL.revokeObjectURL(downloadLink.href);
         },
-        error: (err: unknown) => {
-          // TODO: fix this with notification component
-          this.notificationService.error((err as any).error.message);
-        },
+        error: e => this.notificationService.error((e as Error).message),
       });
   }
 

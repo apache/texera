@@ -41,11 +41,7 @@ export class GmailService {
       .put(`${AppSettings.getApiEndpoint()}/gmail/send`, { receiver: receiver, subject: subject, content: content })
       .subscribe({
         next: () => this.notificationService.success("Email sent successfully"),
-        error: (error: unknown) => {
-          if (error instanceof HttpErrorResponse) {
-            this.notificationService.error(error.error);
-          }
-        },
+        error: e => this.notificationService.error((e as Error).message),
       });
   }
 

@@ -140,10 +140,9 @@ export class WorkflowPersistService {
         name: name,
       })
       .pipe(
-        catchError((error: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(error.error.message);
-          return throwError(error);
+        catchError(e => {
+          this.notificationService.error((e as Error).message);
+          return throwError(e);
         })
       );
   }
@@ -158,10 +157,9 @@ export class WorkflowPersistService {
         description: description,
       })
       .pipe(
-        catchError((error: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(error.error.message);
-          return throwError(error);
+        catchError(e => {
+          this.notificationService.error((e as Error).message);
+          return throwError(e);
         })
       );
   }

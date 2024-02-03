@@ -419,7 +419,7 @@ export class MenuComponent implements OnInit {
         untilDestroyed(this)
       )
       .subscribe({
-        error: (response: unknown) => this.notificationService.error((response as HttpErrorResponse).error),
+        error: e => this.notificationService.error((e as Error).message),
       })
       .add(() => (this.isSaving = false));
   }

@@ -30,13 +30,9 @@ export class HomeComponent implements OnInit {
     this.googleAuthService.googleCredentialResponse
       .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
       .pipe(
-        catchError((err: unknown) => {
-          if (err instanceof HttpErrorResponse) {
-            this.notificationService.error(err.error.message, {
-              nzDuration: 10,
-            });
-          }
-          return throwError(() => err);
+        catchError(e => {
+          this.notificationService.error((e as Error).message, { nzDuration: 10 });
+          return throwError(() => e);
         }),
         untilDestroyed(this)
       )

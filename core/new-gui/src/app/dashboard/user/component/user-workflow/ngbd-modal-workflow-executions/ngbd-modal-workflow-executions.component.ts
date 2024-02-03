@@ -118,7 +118,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   constructor(
     public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
-    private modalService: NgbModal,
     private notificationService: NzMessageService,
     private runtimeStatisticsModal: NzModalService
   ) {}

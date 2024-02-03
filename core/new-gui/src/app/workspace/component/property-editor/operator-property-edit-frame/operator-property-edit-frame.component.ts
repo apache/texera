@@ -49,9 +49,6 @@ import { filter } from "rxjs/operators";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
-import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
-import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
@@ -133,7 +130,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   // for display component of some extra information
   extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-  public allUserWorkflowAccess: ReadonlyArray<ShareAccess> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -149,8 +145,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private notificationService: NzMessageService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
-    private userFileService: UserFileService,
-    private workflowGrantAccessService: ShareAccessService,
     private workflowStatusSerivce: WorkflowStatusService
   ) {}
 

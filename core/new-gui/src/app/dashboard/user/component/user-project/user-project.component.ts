@@ -25,7 +25,6 @@ export class UserProjectComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NzMessageService,
     private userService: UserService,
-    private publicProjectService: PublicProjectService,
     private modalService: NgbModal
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
