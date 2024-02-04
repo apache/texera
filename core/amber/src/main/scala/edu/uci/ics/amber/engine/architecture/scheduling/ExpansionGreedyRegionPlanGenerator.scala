@@ -42,8 +42,8 @@ object ExpansionGreedyRegionPlanGenerator {
       .toList
       .foreach(oldEdge => {
         val dest = graph.getEdgeTarget(oldEdge)
-        graph.addEdge(newVertex, dest, RegionLink(newVertex, dest))
         graph.removeEdge(oldEdge)
+        graph.addEdge(newVertex, dest, RegionLink(newVertex.id, dest.id))
       })
     graph
       .incomingEdgesOf(oldVertex)
@@ -51,8 +51,8 @@ object ExpansionGreedyRegionPlanGenerator {
       .toList
       .foreach(oldEdge => {
         val source = graph.getEdgeSource(oldEdge)
-        graph.addEdge(source, newVertex, RegionLink(source, newVertex))
         graph.removeEdge(oldEdge)
+        graph.addEdge(source, newVertex, RegionLink(source.id, newVertex.id))
       })
     graph.removeVertex(oldVertex)
   }
@@ -73,14 +73,20 @@ class ExpansionGreedyRegionPlanGenerator(
   private val executionClusterInfo = new ExecutionClusterInfo()
 
   /**
-    * Create RegionLinks between the regions of operators `upstreamOpId` and `downstreamOpId`.
-    * The links are to be added to the region DAG separately.
+    * Takes in a pair of operatorIds, `upstreamOpId` and `downstreamOpId`, finds all regions they each
+    * belong to, and creates the order relationships between the Regions of upstreamOpId, with the Regions
+    * of downstreamOpId. The relation ship can be N to M.
+    *
+    * This method does not consider ports.
+    *
+    * Returns pairs of (upstreamRegion, downstreamRegion) indicating the order from
+    * upstreamRegion to downstreamRegion.
     */
-  private def createLinks(
+  private def toRegionOrderPairs(
       upstreamOpId: PhysicalOpIdentity,
       downstreamOpId: PhysicalOpIdentity,
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): Set[RegionLink] = {
+  ): Set[(Region, Region)] = {
 
     val upstreamRegions = getRegions(upstreamOpId, regionDAG)
     val downstreamRegions = getRegions(downstreamOpId, regionDAG)
@@ -88,7 +94,7 @@ class ExpansionGreedyRegionPlanGenerator(
     upstreamRegions.flatMap { upstreamRegion =>
       downstreamRegions
         .filterNot(regionDAG.getDescendants(upstreamRegion).contains(_))
-        .map(downstreamRegion => RegionLink(upstreamRegion, downstreamRegion))
+        .map(downstreamRegion => (upstreamRegion, downstreamRegion))
     }
   }
 
@@ -103,12 +109,18 @@ class ExpansionGreedyRegionPlanGenerator(
     connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
         val operatorIds = connectedSubDAG.vertexSet().asScala.toSet
-        val links = operatorIds.flatMap(operatorId => {
-          physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
-            .getDownstreamPhysicalLinks(operatorId)
-        })
+        val links = operatorIds
+          .flatMap(operatorId => {
+            physicalPlan.getUpstreamPhysicalLinks(operatorId) ++ physicalPlan
+              .getDownstreamPhysicalLinks(operatorId)
+          })
+          .filter(link => operatorIds.contains(link.fromOpId))
         val operators = operatorIds.map(operatorId => physicalPlan.getOperator(operatorId))
-        Region(RegionIdentity(idx), operators, links)
+        Region(
+          id = RegionIdentity(idx),
+          physicalOps = operators,
+          physicalLinks = links
+        )
     }
   }
 
@@ -179,10 +191,13 @@ class ExpansionGreedyRegionPlanGenerator(
       .foreach {
         case List(prevLink, nextLink) =>
           // Create edges between regions
-          val regionLinks = createLinks(prevLink.fromOpId, nextLink.fromOpId, regionDAG)
+          val regionOrderPairs = toRegionOrderPairs(prevLink.fromOpId, nextLink.fromOpId, regionDAG)
           // Attempt to add edges to regionDAG
           try {
-            regionLinks.foreach(link => regionDAG.addEdge(link.fromRegion, link.toRegion, link))
+            regionOrderPairs.foreach {
+              case (fromRegion, toRegion) =>
+                regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+            }
           } catch {
             case _: IllegalArgumentException =>
               // adding the edge causes cycle. return the link for materialization replacement
@@ -230,9 +245,10 @@ class ExpansionGreedyRegionPlanGenerator(
     try {
       matReaderWriterPairs.foreach {
         case (writer, reader) =>
-          createLinks(writer, reader, regionDAG).foreach(link =>
-            regionDAG.addEdge(link.fromRegion, link.toRegion, link)
-          )
+          toRegionOrderPairs(writer, reader, regionDAG).foreach {
+            case (fromRegion, toRegion) =>
+              regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+          }
       }
     } catch {
       case _: IllegalArgumentException =>
@@ -268,7 +284,7 @@ class ExpansionGreedyRegionPlanGenerator(
     regionDAG
       .vertexSet()
       .asScala
-      .filter(region => region.physicalOps.map(_.id).contains(physicalOpId))
+      .filter(region => region.getOperators.map(_.id).contains(physicalOpId))
       .toSet
   }
 
@@ -296,8 +312,9 @@ class ExpansionGreedyRegionPlanGenerator(
       .foreach {
         case (region, links) =>
           val newRegion = region.copy(
-            downstreamLinks = links,
-            downstreamOps = links.map(_.toOpId).map(id => physicalPlan.getOperator(id))
+            physicalLinks = region.physicalLinks ++ links,
+            physicalOps =
+              region.getOperators ++ links.map(_.toOpId).map(id => physicalPlan.getOperator(id))
           )
           replaceVertex(regionDAG, region, newRegion)
       }
