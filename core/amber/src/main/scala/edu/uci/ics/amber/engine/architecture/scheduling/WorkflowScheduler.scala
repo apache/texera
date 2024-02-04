@@ -194,24 +194,26 @@ class WorkflowScheduler(
       )
   }
 
+  /**
+    * assign ports to all operators in this region
+    */
   private def assignPorts(region: Region): Future[Seq[Unit]] = {
     val resourceConfig = region.resourceConfig.get
-
     Future.collect(
-      // activate all links
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
-          physicalOp.inputPorts.keys.map(inputPortId =>
-            GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
-          )
+          physicalOp.inputPorts.keys
+            .map(inputPortId => GlobalPortIdentity(physicalOp.id, inputPortId, input = true))
+            .concat(
+              physicalOp.outputPorts.keys
+                .map(outputPortId => GlobalPortIdentity(physicalOp.id, outputPortId, input = false))
+            )
         }
         .flatMap { globalPortId =>
           {
-            val opId = globalPortId.opId
-            val portId = globalPortId.portId
-            val input = globalPortId.input
-            resourceConfig.operatorConfigs(opId).workerConfigs.map(_.workerId).map { workerId =>
-              asyncRPCClient.send(AssignPort(portId, input), workerId)
+            resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
+              workerId =>
+                asyncRPCClient.send(AssignPort(globalPortId.portId, globalPortId.input), workerId)
             }
           }
         }

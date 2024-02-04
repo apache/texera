@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
-import com.twitter.util.Future
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,

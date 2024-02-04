@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 object AssignPortHandler {
@@ -20,7 +19,6 @@ trait AssignPortHandler {
   registerHandler { (msg: AssignPort, sender) =>
     if (msg.input) {
       dp.inputGateway.addPort(msg.portId)
-      logger.warn("adding input port " + msg.portId)
     } else {
       dp.outputGateway.addPort(msg.portId)
     }
