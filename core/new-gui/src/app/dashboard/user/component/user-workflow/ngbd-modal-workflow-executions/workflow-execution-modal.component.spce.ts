@@ -17,7 +17,7 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     name: "workflow 1",
     description: "dummy description",
     content: jsonCast<WorkflowContent>(
-      ' {"operators":[],"operatorPositions":{},"links":[],"groups":[],"breakpoints":{}}'
+      " {\"operators\":[],\"operatorPositions\":{},\"links\":[],\"groups\":[],\"breakpoints\":{}}"
     ),
     creationTime: 1557787975000,
     lastModifiedTime: 1705673070000,
