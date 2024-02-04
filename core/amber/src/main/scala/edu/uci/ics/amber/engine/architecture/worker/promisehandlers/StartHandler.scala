@@ -9,11 +9,8 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.EndOfUpstream
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{
-  SOURCE_STARTER_ACTOR,
-  SOURCE_STARTER_OP
-}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_ACTOR
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 object StartHandler {
   final case class StartWorker() extends ControlCommand[WorkerState]

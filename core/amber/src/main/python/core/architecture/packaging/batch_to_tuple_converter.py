@@ -6,7 +6,8 @@ from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
-    PortIdentity, ChannelIdentity,
+    PortIdentity,
+    ChannelIdentity,
 )
 
 
@@ -51,10 +52,11 @@ class BatchToTupleConverter:
             port_id.internal = False
         self._ports[port_id] = Port()
 
-    def get_port_id(self, channel_id: ChannelIdentity)-> PortIdentity:
+    def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id
+
     def register_input(
-            self, channel_id: ChannelIdentity, port_id: PortIdentity
+        self, channel_id: ChannelIdentity, port_id: PortIdentity
     ) -> None:
         if port_id.id is None:
             port_id.id = 0
@@ -66,7 +68,7 @@ class BatchToTupleConverter:
         self._ports[port_id].add_channel(channel)
 
     def process_data_payload(
-            self, from_: ActorVirtualIdentity, payload: DataPayload
+        self, from_: ActorVirtualIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
         # special case used to yield for source op
         if from_ == BatchToTupleConverter.SOURCE_STARTER:
@@ -78,7 +80,10 @@ class BatchToTupleConverter:
             if channel_id.from_worker_id == from_:
                 current_channel_id = channel_id
 
-        if self._current_channel_id is None or self._current_channel_id != current_channel_id:
+        if (
+            self._current_channel_id is None
+            or self._current_channel_id != current_channel_id
+        ):
             self._current_channel_id = current_channel_id
             yield SenderChangeMarker(current_channel_id)
 
@@ -92,14 +97,22 @@ class BatchToTupleConverter:
             channel = self._channels[self._current_channel_id]
             channel.complete()
             port_id = channel.port_id
-            port_completed = all(map(lambda channel: channel.is_completed(), self._ports[port_id].channels))
+            port_completed = all(
+                map(
+                    lambda channel: channel.is_completed(),
+                    self._ports[port_id].channels,
+                )
+            )
 
             if port_completed:
                 yield InputExhausted()
 
             all_ports_completed = all(
-                map(lambda channel: self._ports[channel.port_id].is_completed(),
-                    self._channels.values()))
+                map(
+                    lambda channel: self._ports[channel.port_id].is_completed(),
+                    self._channels.values(),
+                )
+            )
             if all_ports_completed:
                 yield EndOfAllMarker()
 

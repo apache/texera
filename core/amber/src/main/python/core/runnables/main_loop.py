@@ -28,13 +28,15 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerExecutionCompletedV2,
     WorkerState,
     PythonConsoleMessageV2,
-    ConsoleMessage, PortCompletedV2,
+    ConsoleMessage,
+    PortCompletedV2,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
     ControlInvocationV2,
     ControlPayloadV2,
-    ReturnInvocationV2, PortIdentity,
+    ReturnInvocationV2,
+    PortIdentity,
 )
 
 
@@ -189,7 +191,8 @@ class MainLoop(StoppableQueueBlockingRunnable):
             control_command = set_one_of(
                 ControlCommandV2,
                 PortCompletedV2(
-                    self.context.tuple_processing_manager.current_input_port_id, input=True
+                    self.context.tuple_processing_manager.current_input_port_id,
+                    input=True,
                 ),
             )
             self._async_rpc_client.send(
@@ -206,7 +209,9 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param sender_change_marker: SenderChangeMarker which contains sender link.
         """
         self.context.tuple_processing_manager.current_input_port_id = (
-            self.context.batch_to_tuple_converter.get_port_id(sender_change_marker.channel_id)
+            self.context.batch_to_tuple_converter.get_port_id(
+                sender_change_marker.channel_id
+            )
         )
 
     def _process_end_of_all_marker(self, _: EndOfAllMarker) -> None:
@@ -224,7 +229,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             self._check_and_process_control()
             control_command = set_one_of(
                 ControlCommandV2,
-                PortCompletedV2(PortIdentity(0), input= False),
+                PortCompletedV2(PortIdentity(0), input=False),
             )
             self._async_rpc_client.send(
                 ActorVirtualIdentity(name="CONTROLLER"), control_command

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
 import edu.uci.ics.amber.engine.architecture.controller.PortExecution
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.mutable

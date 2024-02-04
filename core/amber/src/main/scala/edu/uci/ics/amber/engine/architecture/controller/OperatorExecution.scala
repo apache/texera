@@ -1,12 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   WorkerExecution,
   WorkerWorkloadInfo
 }
-import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -16,9 +14,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
-import edu.uci.ics.amber.engine.architecture.controller.PortExecution
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import java.util
 import scala.collection.mutable
