@@ -364,6 +364,9 @@ class TestMainLoop:
                             worker_state=WorkerState.RUNNING,
                             input_tuple_count=1,
                             output_tuple_count=1,
+                            data_processing_time=0,
+                            control_processing_time=0,
+                            idle_time=0
                         )
                     ),
                 )
