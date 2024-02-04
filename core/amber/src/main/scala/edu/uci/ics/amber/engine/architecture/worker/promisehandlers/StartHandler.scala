@@ -28,10 +28,9 @@ trait StartHandler {
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
-      dp.registerInput(
-        SOURCE_STARTER_ACTOR,
-        PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), dp.getOperatorId, PortIdentity())
-      )
+      dp.inputGateway
+        .getChannel(ChannelIdentity(SOURCE_STARTER_ACTOR, actorId, isControl = false))
+        .setPortId(PortIdentity())
       dp.processDataPayload(
         ChannelIdentity(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),
         EndOfUpstream()

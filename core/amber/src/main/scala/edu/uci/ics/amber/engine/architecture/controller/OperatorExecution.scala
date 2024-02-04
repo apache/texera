@@ -1,19 +1,24 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, WorkerWorkloadInfo}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  WorkerExecution,
+  WorkerWorkloadInfo
+}
+import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
-  ChannelIdentity,
   ExecutionIdentity,
   PhysicalOpIdentity,
   WorkflowIdentity
 }
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
+import edu.uci.ics.amber.engine.architecture.controller.PortExecution
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import java.util
 import scala.collection.mutable
@@ -31,7 +36,7 @@ class OperatorExecution(
 
   // workers of this operator
   private val workers =
-    new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerInfo]()
+    new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
@@ -40,20 +45,20 @@ class OperatorExecution(
 
   def statistics: Array[WorkerStatistics] = workers.values.asScala.map(_.stats).toArray
 
-  def initializeWorkerInfo(id: ActorVirtualIdentity): Unit = {
+  def initWorkerExecution(id: ActorVirtualIdentity): Unit = {
+
     workers.put(
       id,
-      WorkerInfo(
+      WorkerExecution(
         id,
         UNINITIALIZED,
-        WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0),
-        mutable.HashSet(ChannelIdentity(CONTROLLER, id, isControl = true))
+        WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0)
       )
     )
   }
-  def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = {
+  def getWorkerExecution(id: ActorVirtualIdentity): WorkerExecution = {
     if (!workers.containsKey(id)) {
-      initializeWorkerInfo(id)
+      initWorkerExecution(id)
     }
     workers.get(id)
   }
@@ -85,7 +90,7 @@ class OperatorExecution(
 
   def setAllWorkerState(state: WorkerState): Unit = {
     (0 until numWorkers).foreach { i =>
-      getWorkerInfo(
+      getWorkerExecution(
         VirtualIdentityUtils.createWorkerIdentity(workflowId, physicalOpId, i)
       ).state = state
     }
@@ -124,4 +129,20 @@ class OperatorExecution(
       getControlProcessingTime,
       getIdleTime
     )
+
+  def isInputPortCompleted(portId: PortIdentity): Boolean = {
+    workers
+      .values()
+      .asScala
+      .map(workerExecution => workerExecution.getInputPortExecution(portId))
+      .forall(_.completed)
+  }
+
+  def isOutputPortCompleted(portId: PortIdentity): Boolean = {
+    workers
+      .values()
+      .asScala
+      .map(workerExecution => workerExecution.getOutputPortExecution(portId))
+      .forall(_.completed)
+  }
 }

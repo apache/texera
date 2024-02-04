@@ -88,7 +88,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.isEmpty)
 
-    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
       PhysicalLink(csvPhysicalOpId, PortIdentity(), keywordPhysicalOpId, PortIdentity())
@@ -96,7 +96,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.isEmpty)
 
-    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
       PhysicalLink(keywordPhysicalOpId, PortIdentity(), sinkPhysicalOpId, PortIdentity())
@@ -183,7 +183,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       )
     assert(nextRegions.isEmpty)
 
-    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
       PhysicalLink(
@@ -204,7 +204,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       )
     )
     assert(nextRegions.isEmpty)
-    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
       PhysicalLink(
@@ -248,7 +248,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
 
-    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
       PhysicalLink(
@@ -271,7 +271,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
 
-    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
       PhysicalLink(
@@ -294,7 +294,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
 
-    nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
       PhysicalLink(

@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Initia
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -71,13 +72,12 @@ class WorkflowScheduler(
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 
-  def onLinkCompletion(
+  def onPortCompletion(
       workflow: Workflow,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
-      link: PhysicalLink
+      portId: GlobalPortIdentity
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, link)
+    val nextRegionsToSchedule = schedulingPolicy.onPortCompletion(workflow, executionState, portId)
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 
@@ -194,6 +194,31 @@ class WorkflowScheduler(
       )
   }
 
+  private def assignPorts(region: Region): Future[Seq[Unit]] = {
+    val resourceConfig = region.resourceConfig.get
+
+    Future.collect(
+      // activate all links
+      region.getOperators
+        .flatMap { physicalOp: PhysicalOp =>
+          physicalOp.inputPorts.keys.map(inputPortId =>
+            GlobalPortIdentity(physicalOp.id, inputPortId, input = true)
+          )
+        }
+        .flatMap { globalPortId =>
+          {
+            val opId = globalPortId.opId
+            val portId = globalPortId.portId
+            val input = globalPortId.input
+            resourceConfig.operatorConfigs(opId).workerConfigs.map(_.workerId).map { workerId =>
+              asyncRPCClient.send(AssignPort(portId, input), workerId)
+            }
+          }
+        }
+        .toSeq
+    )
+  }
+
   private def activateAllLinks(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion = region.getOperators.map(_.id)
     Future.collect(
@@ -250,7 +275,7 @@ class WorkflowScheduler(
                 .send(StartWorker(), worker)
                 .map(ret =>
                   // update worker state
-                  opExecution.getWorkerInfo(worker).state = ret
+                  opExecution.getWorkerExecution(worker).state = ret
                 )
             )
         }
@@ -284,6 +309,7 @@ class WorkflowScheduler(
     )
     Future(())
       .flatMap(_ => initializePythonOperators(region))
+      .flatMap(_ => assignPorts(region))
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
       .flatMap(_ => startRegion(region))

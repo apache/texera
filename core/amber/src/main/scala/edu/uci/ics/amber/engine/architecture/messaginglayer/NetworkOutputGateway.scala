@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
@@ -11,6 +12,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import java.util.concurrent.atomic.AtomicLong
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.mutable
 
@@ -24,6 +26,9 @@ class NetworkOutputGateway(
     val handler: WorkflowFIFOMessage => Unit
 ) extends AmberLogging
     with Serializable {
+
+  private val portIds: mutable.HashMap[PortIdentity, Boolean] = mutable.HashMap()
+
   private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
   def addOutputChannel(channelId: ChannelIdentity): Unit = {
@@ -72,6 +77,14 @@ class NetworkOutputGateway(
 
   def getSequenceNumber(channelId: ChannelIdentity): Long = {
     idToSequenceNums.getOrElseUpdate(channelId, new AtomicLong()).getAndIncrement()
+  }
+
+  def addPort(portId: PortIdentity): Unit = {
+    if (this.portIds.contains(portId)) {
+      return
+    }
+    this.portIds(portId) = false
+
   }
 
 }

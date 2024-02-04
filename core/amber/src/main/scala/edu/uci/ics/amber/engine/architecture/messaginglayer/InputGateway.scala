@@ -1,9 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
+import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 trait InputGateway {
+
   def tryPickControlChannel: Option[AmberFIFOChannel]
 
   def tryPickChannel: Option[AmberFIFOChannel]
@@ -17,4 +20,12 @@ trait InputGateway {
   def getAllControlChannels: Iterable[AmberFIFOChannel]
 
   def addEnforcer(enforcer: OrderEnforcer): Unit
+
+  def getAllPorts(): Set[PortIdentity]
+
+  def addPort(portId: PortIdentity): Unit
+
+  def updatePortStatus(portId: PortIdentity): Unit
+
+  def isPortCompleted(portId: PortIdentity): Boolean
 }

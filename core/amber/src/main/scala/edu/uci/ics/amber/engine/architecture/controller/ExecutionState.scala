@@ -1,14 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.Region
+import edu.uci.ics.amber.engine.architecture.scheduling.{GlobalPortIdentity, Region}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -16,20 +15,6 @@ import scala.collection.mutable
 
 class ExecutionState(workflow: Workflow) {
 
-  private val linkExecutions: Map[PhysicalLink, LinkExecution] =
-    workflow.physicalPlan.links.map { link =>
-      link -> new LinkExecution(
-        workflow.regionPlan
-          .getRegionOfPhysicalLink(link)
-          .resourceConfig
-          .get
-          .linkConfigs(link)
-          .channelConfigs
-          .map(_.toWorkerId)
-          .toSet
-          .size
-      )
-    }.toMap
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
 
@@ -50,7 +35,9 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values
-      .flatMap(operator => operator.getBuiltWorkerIds.map(worker => operator.getWorkerInfo(worker)))
+      .flatMap(operator =>
+        operator.getBuiltWorkerIds.map(worker => operator.getWorkerExecution(worker))
+      )
       .map(_.id)
 
   def getOperatorExecution(op: PhysicalOpIdentity): OperatorExecution = {
@@ -71,9 +58,6 @@ class ExecutionState(workflow: Workflow) {
     }
     throw new NoSuchElementException(s"cannot find operator with worker = $worker")
   }
-
-  def getLinkExecution(link: PhysicalLink): LinkExecution = linkExecutions(link)
-
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions
 

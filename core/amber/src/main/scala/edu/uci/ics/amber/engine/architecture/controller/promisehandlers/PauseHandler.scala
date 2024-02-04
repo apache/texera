@@ -46,7 +46,7 @@ trait PauseHandler {
                   // send pause to all workers
                   // pause message has no effect on completed or paused workers
                   .map { worker =>
-                    val info = opExecution.getWorkerInfo(worker)
+                    val info = opExecution.getWorkerExecution(worker)
                     // send a pause message
                     send(PauseWorker(), worker).flatMap { ret =>
                       info.state = ret

@@ -1,67 +1,56 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.common.{AmberLogging, VirtualIdentityUtils}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 
+import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.collection.mutable
 
 class UpstreamLinkStatus(val actorId: ActorVirtualIdentity) extends AmberLogging {
+  def getPortId(channelId: ChannelIdentity): PortIdentity = {
+    channelIdToInputPortMapping(channelId)
+  }
 
   /**
     * The scheduler may not schedule the entire workflow at once. Consider a 2-phase hash join where the first
     * region to be scheduled is the build part of the workflow and the join operator. The hash join workers will
     * only receive the workers from the upstream operator on the build side in `upstreamMap` through
     * `UpdateInputLinkingHandler`. Thus, the hash join worker may wrongly deduce that all inputs are done when
-    * the build part completes. Therefore, we have a `allUpstreamLinks` to track the number of actual upstream
+    * the build part completes. Therefore, we have a `inputDataChannels` to track the number of actual upstream
     * links that a worker receives data from.
     */
-  private val upstreamMap =
-    new mutable.HashMap[PhysicalLink, Set[ActorVirtualIdentity]].withDefaultValue(Set())
   private val upstreamMapReverse =
-    new mutable.HashMap[ActorVirtualIdentity, PhysicalLink]
-  private val endReceivedFromWorkers = new mutable.HashSet[ActorVirtualIdentity]
-  private val completedLinks = new mutable.HashSet[PhysicalLink]()
-  private var allUpstreamLinks: Set[PhysicalLink] = Set.empty
+    new mutable.HashMap[ActorVirtualIdentity, ChannelIdentity]
+  private val completedChannels = new mutable.HashSet[ChannelIdentity]()
+  private val inputDataChannels
+      : mutable.HashMap[PortIdentity, mutable.ListBuffer[ChannelIdentity]] =
+    mutable.HashMap()
+  private val channelIdToInputPortMapping: mutable.HashMap[ChannelIdentity, PortIdentity] =
+    mutable.HashMap()
 
-  def setAllUpstreamLinks(newSet: Set[PhysicalLink]): Unit = {
-    this.allUpstreamLinks = newSet
+  def registerInput(
+      fromWorkerId: ActorVirtualIdentity,
+      inputChannelId: ChannelIdentity,
+      portId: PortIdentity
+  ): Unit = {
+    val channelIds = inputDataChannels.getOrElseUpdate(portId, new mutable.ListBuffer())
+    channelIds.addOne(inputChannelId)
+    upstreamMapReverse.update(fromWorkerId, inputChannelId)
+    channelIdToInputPortMapping(inputChannelId) = portId
   }
 
-  def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLink): Unit = {
-    assert(
-      allUpstreamLinks.contains(input),
-      "unexpected input link " + input + " for operator " + VirtualIdentityUtils.getPhysicalOpId(
-        actorId
-      )
-    )
-    upstreamMap.update(input, upstreamMap(input) + identifier)
-    upstreamMapReverse.update(identifier, input)
+  def markChannelCompleted(channelId: ChannelIdentity): Unit = {
+    completedChannels.add(channelId)
   }
 
-  def getInputLink(workerId: ActorVirtualIdentity): PhysicalLink =
-    upstreamMapReverse(workerId)
-
-  def markWorkerEOF(identifier: ActorVirtualIdentity): Unit = {
-    if (identifier != null) {
-      endReceivedFromWorkers.add(identifier)
-      val link = upstreamMapReverse(identifier)
-      if (upstreamMap(link).subsetOf(endReceivedFromWorkers)) {
-        completedLinks.add(link)
-      }
-    }
-  }
-
-  def allUncompletedSenders: Set[ActorVirtualIdentity] = {
-    upstreamMap.view.filterKeys(k => !completedLinks.contains(k)).values.flatten.toSet
-  }
-
-  def isLinkEOF(link: PhysicalLink): Boolean = {
-    if (link == null) {
+  def isPortCompleted(portId: PortIdentity): Boolean = {
+    if (portId == null) {
       return true // special case for source operator
     }
-    completedLinks.contains(link)
+    val channelIds = inputDataChannels(portId)
+    channelIds.toSet.subsetOf(completedChannels)
   }
 
-  def isAllEOF: Boolean = completedLinks.equals(allUpstreamLinks)
+  def isAllEOF: Boolean = completedChannels.equals(inputDataChannels)
 }

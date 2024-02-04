@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.mutable
 
@@ -13,6 +14,8 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
 
   private val inputChannels =
     new mutable.HashMap[ChannelIdentity, AmberFIFOChannel]()
+
+  private val portIds: mutable.HashMap[PortIdentity, Boolean] = mutable.HashMap()
 
   private val enforcers = mutable.ListBuffer[OrderEnforcer]()
 
@@ -65,5 +68,28 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
 
   override def addEnforcer(enforcer: OrderEnforcer): Unit = {
     enforcers += enforcer
+  }
+
+  override def getAllPorts(): Set[PortIdentity] = {
+    this.portIds.keys.toSet
+  }
+
+  def addPort(portId: PortIdentity): Unit = {
+    if (this.portIds.contains(portId)) {
+      return
+    }
+    this.portIds(portId) = false
+  }
+
+  def updatePortStatus(portId: PortIdentity): Unit = {
+    if (
+      this.getAllDataChannels.filter(channel => channel.getPortId == portId).forall(_.isCompleted)
+    ) {
+      this.portIds(portId) = true
+    }
+  }
+
+  def isPortCompleted(portId: PortIdentity): Boolean = {
+    this.portIds(portId)
   }
 }
