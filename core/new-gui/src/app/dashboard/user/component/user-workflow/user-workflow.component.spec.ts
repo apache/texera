@@ -64,8 +64,8 @@ describe("SavedWorkflowSectionComponent", () => {
         HttpClient,
         ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
-        { provide: UserService, useClass: StubUserService },
         { provide: NZ_I18N, useValue: en_US },
+        { provide: UserService, useClass: StubUserService },
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         {
           provide: SearchService,
