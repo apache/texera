@@ -366,7 +366,7 @@ class TestMainLoop:
                             output_tuple_count=1,
                             data_processing_time=0,
                             control_processing_time=0,
-                            idle_time=0
+                            idle_time=0,
                         )
                     ),
                 )
