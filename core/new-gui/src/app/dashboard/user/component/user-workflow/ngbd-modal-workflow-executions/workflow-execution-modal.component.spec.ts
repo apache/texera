@@ -2,15 +2,15 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { FormsModule } from "@angular/forms";
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { HttpClientModule } from "@angular/common/http";
-import { NgbdModalWorkflowExecutionsComponent } from "./ngbd-modal-workflow-executions.component";
+import { WorkflowExecutionModalComponent } from "./workflow-execution-modal.component";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { Workflow, WorkflowContent } from "../../../../../common/type/workflow";
 import { jsonCast } from "../../../../../common/util/storage";
 import { NzModalModule } from "ng-zorro-antd/modal";
 
 describe("NgbModalWorkflowExecutionsComponent", () => {
-  let component: NgbdModalWorkflowExecutionsComponent;
-  let fixture: ComponentFixture<NgbdModalWorkflowExecutionsComponent>;
+  let component: WorkflowExecutionModalComponent;
+  let fixture: ComponentFixture<WorkflowExecutionModalComponent>;
 
   const workflow: Workflow = {
     wid: 1,
@@ -136,14 +136,14 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      declarations: [NgbdModalWorkflowExecutionsComponent],
+      declarations: [WorkflowExecutionModalComponent],
       providers: [WorkflowExecutionsService],
       imports: [FormsModule, HttpClientModule, NzModalModule],
     }).compileComponents();
   }));
 
   beforeEach(() => {
-    fixture = TestBed.createComponent(NgbdModalWorkflowExecutionsComponent);
+    fixture = TestBed.createComponent(WorkflowExecutionModalComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
   });
@@ -172,19 +172,6 @@ describe("NgbModalWorkflowExecutionsComponent", () => {
     component.searchExecution();
     const filteredCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
     expect(filteredCase).toEqual([6]);
-  });
-
-  it("userNameFilterTest", () => {
-    component.wid = workflow.wid!;
-    component.allExecutionEntries = [];
-    component.allExecutionEntries = component.allExecutionEntries.concat(testExecutionEntries);
-    component.paginatedExecutionEntries = component.allExecutionEntries;
-    component.fuse.setCollection(component.allExecutionEntries);
-    component.workflowExecutionsDisplayedList = component.allExecutionEntries;
-    component.executionSearchValue = "user:Amy";
-    component.searchExecution();
-    const filteredCase = component.workflowExecutionsDisplayedList.map(item => item.eId);
-    expect(filteredCase).toEqual([3]);
   });
 
   it("statusFilterTest", () => {

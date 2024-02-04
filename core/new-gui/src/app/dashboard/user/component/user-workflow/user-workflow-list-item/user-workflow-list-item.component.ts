@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { environment } from "src/environments/environment";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { NgbdModalWorkflowExecutionsComponent } from "../ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { WorkflowExecutionModalComponent } from "../ngbd-modal-workflow-executions/workflow-execution-modal.component";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -79,7 +79,7 @@ export class UserWorkflowListItemComponent {
    */
   public onClickGetWorkflowExecutions(): void {
     this.modalService.create({
-      nzContent: NgbdModalWorkflowExecutionsComponent,
+      nzContent: WorkflowExecutionModalComponent,
       nzComponentParams: { wid: this.workflow.wid },
       nzTitle: "Execution results of Workflow: " + this.workflow.name,
       nzFooter: null,

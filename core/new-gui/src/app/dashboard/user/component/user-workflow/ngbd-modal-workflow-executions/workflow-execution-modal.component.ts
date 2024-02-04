@@ -18,10 +18,10 @@ const MAX_USERNAME_SIZE = 5;
 @UntilDestroy()
 @Component({
   selector: "texera-ngbd-modal-workflow-executions",
-  templateUrl: "./ngbd-modal-workflow-executions.component.html",
-  styleUrls: ["./ngbd-modal-workflow-executions.component.scss"],
+  templateUrl: "./workflow-execution-modal.component.html",
+  styleUrls: ["./workflow-execution-modal.component.scss"],
 })
-export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewInit {
+export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
@@ -153,14 +153,14 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           Object.values(userNameData),
           ["user name"],
           "Users who ran the execution",
-          NgbdModalWorkflowExecutionsComponent.USERNAME_PIE_CHART_ID
+          WorkflowExecutionModalComponent.USERNAME_PIE_CHART_ID
         );
 
         this.generatePieChart(
           Object.values(statusData),
           ["status"],
           "Executions status",
-          NgbdModalWorkflowExecutionsComponent.STATUS_PIE_CHART_ID
+          WorkflowExecutionModalComponent.STATUS_PIE_CHART_ID
         );
         // generate an average processing time bar chart
         const processTimeData: Array<[string, ...c3.PrimitiveArray]> = [["processing time"]];
@@ -175,7 +175,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           "Execution Numbers",
           "Average Processing Time (m)",
           "Execution performance",
-          NgbdModalWorkflowExecutionsComponent.PROCESS_TIME_BAR_CHART
+          WorkflowExecutionModalComponent.PROCESS_TIME_BAR_CHART
         );
       });
   }
@@ -188,8 +188,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ) {
     c3.generate({
       size: {
-        height: NgbdModalWorkflowExecutionsComponent.HEIGHT,
-        width: NgbdModalWorkflowExecutionsComponent.WIDTH,
+        height: WorkflowExecutionModalComponent.HEIGHT,
+        width: WorkflowExecutionModalComponent.WIDTH,
       },
       data: {
         columns: dataToDisplay,
@@ -218,8 +218,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ) {
     c3.generate({
       size: {
-        height: NgbdModalWorkflowExecutionsComponent.BARCHARTSIZE,
-        width: NgbdModalWorkflowExecutionsComponent.BARCHARTSIZE,
+        height: WorkflowExecutionModalComponent.BARCHARTSIZE,
+        width: WorkflowExecutionModalComponent.BARCHARTSIZE,
       },
       data: {
         columns: dataToDisplay,
@@ -252,15 +252,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
    * calls the service to display the workflow executions on the table
    */
   displayWorkflowExecutions(): void {
-    if (this.wid !== undefined) {
-      this.workflowExecutionsService
-        .retrieveWorkflowExecutions(this.wid)
-        .pipe(untilDestroyed(this))
-        .subscribe(workflowExecutions => {
-          this.allExecutionEntries = workflowExecutions;
-          this.updatePaginatedExecutions();
-        });
-    }
+    this.workflowExecutionsService
+      .retrieveWorkflowExecutions(this.wid)
+      .pipe(untilDestroyed(this))
+      .subscribe(workflowExecutions => {
+        this.allExecutionEntries = workflowExecutions;
+        this.updatePaginatedExecutions();
+      });
   }
 
   /**
