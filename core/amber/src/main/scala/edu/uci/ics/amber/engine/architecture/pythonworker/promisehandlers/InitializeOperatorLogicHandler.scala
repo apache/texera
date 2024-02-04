@@ -8,8 +8,6 @@ object InitializeOperatorLogicHandler {
   final case class InitializeOperatorLogic(
       code: String,
       isSource: Boolean,
-      inputOrdinalMapping: Seq[LinkOrdinal],
-      outputOrdinalMapping: Seq[LinkOrdinal],
       outputSchema: Schema
   ) extends ControlCommand[Unit]
 }

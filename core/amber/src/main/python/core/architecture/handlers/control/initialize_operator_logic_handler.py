@@ -10,8 +10,4 @@ class InitializeOperatorLogicHandler(ControlHandler):
         context.operator_manager.initialize_operator(
             command.code, command.is_source, command.output_schema
         )
-        context.tuple_processing_manager.input_link_map = {
-            link_ordinal.link: link_ordinal.port_ordinal
-            for link_ordinal in command.input_ordinal_mapping
-        }
         return None

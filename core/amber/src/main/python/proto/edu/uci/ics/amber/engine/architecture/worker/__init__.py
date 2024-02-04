@@ -97,10 +97,8 @@ class LinkOrdinal(betterproto.Message):
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
-    input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
-    output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
     output_schema: Dict[str, str] = betterproto.map_field(
-        5, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 

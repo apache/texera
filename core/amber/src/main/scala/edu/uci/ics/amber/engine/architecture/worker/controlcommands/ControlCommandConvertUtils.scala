@@ -59,12 +59,10 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource, inputMapping, outputMapping, schema) =>
+      case InitializeOperatorLogic(code, isSource, schema) =>
         InitializeOperatorLogicV2(
           code,
           isSource,
-          inputMapping,
-          outputMapping,
           schema.getAttributes.asScala.foldLeft(ListMap[String, String]())((list, attr) =>
             list + (attr.getName -> attr.getType.toString)
           )

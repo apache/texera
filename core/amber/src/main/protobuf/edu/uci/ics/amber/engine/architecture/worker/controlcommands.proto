@@ -60,9 +60,7 @@ message LinkOrdinal {
 message InitializeOperatorLogicV2 {
     string code = 1;
     bool is_source = 2;
-    repeated LinkOrdinal input_ordinal_mapping = 3;
-    repeated LinkOrdinal output_ordinal_mapping = 4;
-    map<string, string> output_schema = 5;
+    map<string, string> output_schema = 3;
 }
 
 message ModifyOperatorLogicV2 {

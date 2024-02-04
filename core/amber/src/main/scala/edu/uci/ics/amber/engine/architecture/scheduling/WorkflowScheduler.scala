@@ -167,21 +167,11 @@ class WorkflowScheduler(
           .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
-              val inputMappingList = pythonUDFPhysicalOp.inputPorts.values.flatMap {
-                case (inputPort, links, schema) =>
-                  links.map(link => LinkOrdinal(link, inputPort.id.id))
-              }.toList
-              val outputMappingList = pythonUDFPhysicalOp.outputPorts.values.flatMap {
-                case (outputPort, links, schema) =>
-                  links.map(link => LinkOrdinal(link, outputPort.id.id))
-              }.toList
               asyncRPCClient
                 .send(
                   InitializeOperatorLogic(
                     pythonUDFPhysicalOp.getPythonCode,
                     pythonUDFPhysicalOp.isSourceOperator,
-                    inputMappingList,
-                    outputMappingList,
                     pythonUDFPhysicalOp.outputPorts.values.head._3
                   ),
                   workerId
