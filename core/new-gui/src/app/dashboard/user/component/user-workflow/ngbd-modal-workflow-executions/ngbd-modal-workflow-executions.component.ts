@@ -252,13 +252,15 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
    * calls the service to display the workflow executions on the table
    */
   displayWorkflowExecutions(): void {
-    this.workflowExecutionsService
-      .retrieveWorkflowExecutions(this.wid)
-      .pipe(untilDestroyed(this))
-      .subscribe(workflowExecutions => {
-        this.allExecutionEntries = workflowExecutions;
-        this.updatePaginatedExecutions();
-      });
+    if (this.wid !== undefined) {
+      this.workflowExecutionsService
+        .retrieveWorkflowExecutions(this.wid)
+        .pipe(untilDestroyed(this))
+        .subscribe(workflowExecutions => {
+          this.allExecutionEntries = workflowExecutions;
+          this.updatePaginatedExecutions();
+        });
+    }
   }
 
   /**
