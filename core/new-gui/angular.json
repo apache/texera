@@ -111,70 +111,10 @@
             "tsConfig": "src/tsconfig.spec.json"
           }
         },
-        "e2e": {
-          "builder": "multi-target:multi-target",
-          "options": {
-            "targets": ["texera-gui:build:production", "texera-gui:cypress-headless-with-fullstack"],
-            "sequential": true
-          },
-          "configurations": {
-            "watch": {
-              "targets": ["texera-gui:build:production", "texera-gui:cypress-watch-with-fullstack"],
-              "sequential": true
-            }
-          }
-        },
         "lint": {
           "builder": "@angular-eslint/builder:lint",
           "options": {
             "lintFilePatterns": ["src/**/*.ts", "src/**/*.html"]
-          }
-        },
-        "fullstack": {
-          "builder": "multi-target:cmd-target",
-          "options": {
-            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./conf/web-config.yml",
-            "detached": true
-          }
-        },
-        "kill-fullstack": {
-          "builder": "multi-target:cmd-target",
-          "options": {
-            "cmd": "cd .. && java -jar ./web/target/web-0.1.0.jar server ./conf/web-config.yml",
-            "kill": true
-          }
-        },
-        "cypress-watch": {
-          "builder": "@nrwl/cypress:cypress",
-          "options": {
-            "cypressConfig": "./e2e/cypress.json",
-            "tsConfig": "./e2e/tsconfig.e2e.json",
-            "exit": false,
-            "headless": false,
-            "watch": true
-          }
-        },
-        "cypress-headless": {
-          "builder": "@nrwl/cypress:cypress",
-          "options": {
-            "cypressConfig": "./e2e/cypress.json",
-            "tsConfig": "./e2e/tsconfig.e2e.json",
-            "exit": true,
-            "headless": true
-          }
-        },
-        "cypress-headless-with-fullstack": {
-          "builder": "multi-target:multi-target",
-          "options": {
-            "targets": ["texera-gui:fullstack", "texera-gui:cypress-headless", "texera-gui:kill-fullstack"],
-            "sequential": true
-          }
-        },
-        "cypress-watch-with-fullstack": {
-          "builder": "multi-target:multi-target",
-          "options": {
-            "targets": ["texera-gui:fullstack", "texera-gui:cypress-watch", "texera-gui:kill-fullstack"],
-            "sequential": true
           }
         }
       }
