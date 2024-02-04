@@ -9,10 +9,7 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.Modify
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
-import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
-  ControlException,
-  ControlReturnV2
-}
+import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{ControlException, ControlReturnV2}
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
@@ -24,6 +21,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandle
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -48,10 +46,12 @@ object ControlCommandConvertUtils {
         SchedulerTimeSlotEventV2(timeSlotExpired)
       case OpenOperator() =>
         OpenOperatorV2()
+      case AssignPort(portId, input) =>
+        AssignPortV2(portId, input)
       case AddPartitioning(tag: PhysicalLink, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
-//      case AddInputChannel(identifier, inputLink) =>
-//        UpdateInputLinkingV2(identifier, inputLink)
+      case AddInputChannel(channelId, portId) =>
+        AddInputChannelV2(channelId, portId)
       case QueryStatistics() =>
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
@@ -92,7 +92,7 @@ object ControlCommandConvertUtils {
         WorkerExecutionCompleted()
       case PythonConsoleMessageV2(message) =>
         ConsoleMessageTriggered(message)
-//      case LinkCompletedV2(link) => LinkCompleted(link)
+      case PortCompletedV2(portId, input) => PortCompleted(portId, input)
       case _ =>
         throw new UnsupportedOperationException(
           s"V2 controlCommand $controlCommand cannot be converted to V1"
