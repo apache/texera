@@ -1,50 +1,38 @@
-<div class="modal-header">
-  <h4 class="modal-title">Add Files</h4>
-  <button
-    (click)="activeModal.dismiss('close')"
-    aria-label="Close"
-    class="close"
-    type="button">
-    <span aria-hidden="true">&times;</span>
-  </button>
+<div
+  (click)="clickUpload.click()"
+  (fileOver)="haveFileOver($event)"
+  (onFileDrop)="getFileDropped($event)"
+  [ngClass]="{ 'have-file-over': haveDropZoneOver }"
+  [uploader]="uploader"
+  class="drag-file-area"
+  ng2FileDrop>
+  Drop Files Here
+  <div id="hide">
+    <input
+      #clickUpload
+      (change)="handleClickUploadFile($event)"
+      multiple
+      type="file" />
+  </div>
 </div>
-<div class="modal-body">
-  <div
-    (click)="clickUpload.click()"
-    (fileOver)="haveFileOver($event)"
-    (onFileDrop)="getFileDropped($event)"
-    [ngClass]="{ 'have-file-over': haveDropZoneOver }"
-    [uploader]="uploader"
-    class="drag-file-area"
-    ng2FileDrop>
-    Drop Files Here
-    <div id="hide">
-      <input
-        #clickUpload
-        (change)="handleClickUploadFile($event)"
-        multiple
-        type="file" />
-    </div>
-  </div>
-  <div *ngIf="getFileArrayLength()">
-    <li
-      *ngFor="let fileUploadItem of getFileArray()"
-      class="file-queue-item">
-      <span>
-        <label>{{ fileUploadItem.name }}</label>
-      </span>
-      <button
-        nz-button
-        nzType="primary"
-        nzDanger
-        (click)="deleteFile(fileUploadItem)"
-        [disabled]="fileUploadItem.isUploadingFlag">
-        <span
-          nz-icon
-          nzType="delete"></span>
-      </button>
-    </li>
-  </div>
+<div *ngIf="getFileArrayLength()">
+  <li
+    *ngFor="let fileUploadItem of getFileArray()"
+    class="file-queue-item">
+    <span>
+      <label>{{ fileUploadItem.name }}</label>
+    </span>
+    <button
+      nz-button
+      nzType="primary"
+      nzDanger
+      (click)="deleteFile(fileUploadItem)"
+      [disabled]="fileUploadItem.isUploadingFlag">
+      <span
+        nz-icon
+        nzType="delete"></span>
+    </button>
+  </li>
 </div>
 <div class="modal-footer">
   <div *ngIf="getFileArrayLength()">
@@ -55,9 +43,4 @@
       upload
     </button>
   </div>
-  <button
-    (click)="activeModal.dismiss('close')"
-    class="btn btn-outline-dark bottom-size">
-    Close
-  </button>
 </div>
