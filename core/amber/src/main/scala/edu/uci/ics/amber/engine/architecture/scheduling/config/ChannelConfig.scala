@@ -40,5 +40,5 @@ case object ChannelConfig {
 }
 case class ChannelConfig(
     channelId: ChannelIdentity,
-    inputPortId: PortIdentity
+    toPortId: PortIdentity
 )
