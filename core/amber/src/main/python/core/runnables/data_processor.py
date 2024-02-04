@@ -16,7 +16,6 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ConsoleMessage,
     ConsoleMessageType,
 )
-from proto.edu.uci.ics.amber.engine.common import PortIdentity
 
 
 class DataProcessor(Runnable, Stoppable):
@@ -43,7 +42,7 @@ class DataProcessor(Runnable, Stoppable):
                 port: int
                 if port_id is None:
                     # no upstream, special case for source operator.
-                    port = PortIdentity(0)
+                    port = 0
                 else:
                     port = port_id.id
 
