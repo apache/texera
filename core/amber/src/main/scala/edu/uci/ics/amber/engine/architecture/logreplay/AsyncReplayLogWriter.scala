@@ -51,7 +51,7 @@ class AsyncReplayLogWriter(
     gracefullyStopped.complete(())
   }
 
-  def drainWriterQueueAndProcess(): Boolean = {
+  private def drainWriterQueueAndProcess(): Boolean = {
     var stop = false
     if (writerQueue.drainTo(drained) == 0) {
       drained.add(writerQueue.take())
@@ -61,12 +61,11 @@ class AsyncReplayLogWriter(
       drainedScala = drainedScala.dropRight(1)
       stop = true
     }
-    drainedScala
-      .filter(_.isLeft)
-      .map(_.left.get)
-      .foreach(x => writer.writeRecord(x))
+    drainedScala.foreach {
+      case Left(replayLogRecord) => writer.writeRecord(replayLogRecord)
+      case Right(workflowFIFOMessage) => handler(workflowFIFOMessage)
+    }
     writer.flush()
-    drainedScala.filter(_.isRight).foreach(x => handler(x.right.get))
     drained.clear()
     stop
   }
