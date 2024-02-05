@@ -50,7 +50,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
     OperatorInfo(
       "MySQL Source",
       "Read data from a MySQL instance",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

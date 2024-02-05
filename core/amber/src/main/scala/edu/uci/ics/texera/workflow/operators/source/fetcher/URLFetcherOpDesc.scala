@@ -66,7 +66,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = "URL fetcher",
       operatorDescription = "Fetch the content of a single url",
-      operatorGroupName = OperatorGroupConstants.SOURCE_GROUP,
+      operatorGroupName = OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
