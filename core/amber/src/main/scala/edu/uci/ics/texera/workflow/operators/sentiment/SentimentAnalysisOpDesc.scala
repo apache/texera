@@ -59,7 +59,7 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
     new OperatorInfo(
       "Sentiment Analysis",
       "analysis the sentiment of a text using machine learning",
-      OperatorGroupConstants.ANALYTICS_GROUP,
+      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
       supportReconfiguration = true

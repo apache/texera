@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.metadata
 object OperatorGroupConstants {
   final val SOURCE_GROUP = "Source"
   final val SEARCH_GROUP = "Search"
-  final val ANALYTICS_GROUP = "Analytics"
+  final val MACHINE_LEARNING_GROUP = "Machine Learning"
   final val JOIN_GROUP = "Join"
   final val UTILITY_GROUP = "Utilities"
   final val SET_GROUP = "Set"
@@ -17,7 +17,7 @@ object OperatorGroupConstants {
   final val OperatorGroupOrderList: List[GroupInfo] = List(
     GroupInfo(SOURCE_GROUP, 0),
     GroupInfo(SEARCH_GROUP, 1),
-    GroupInfo(ANALYTICS_GROUP, 2),
+    GroupInfo(MACHINE_LEARNING_GROUP, 2),
     GroupInfo(JOIN_GROUP, 3),
     GroupInfo(UTILITY_GROUP, 4),
     GroupInfo(SET_GROUP, 5),
