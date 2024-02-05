@@ -354,7 +354,8 @@ class TestMainLoop:
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
-        stats_invocation = mock_query_statistics.payload.return_invocation
+        elem = output_queue.get()
+        stats_invocation = elem.payload.return_invocation
         stats = stats_invocation.control_return.worker_statistics
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
