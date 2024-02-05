@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web
 
-import ch.vorburger.mariadb4j.DB
 import com.mysql.cj.jdbc.MysqlDataSource
 import org.jooq.DSLContext
 import org.jooq.impl.DSL

@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -10,9 +9,9 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
+import scala.collection.mutable.ListBuffer
 
-class HashJoinOpExec[K](
+class HashJoinProbeOpExec[K](
     val buildAttributeName: String,
     val probeAttributeName: String,
     val joinType: JoinType,
@@ -20,49 +19,9 @@ class HashJoinOpExec[K](
     val probeSchema: Schema,
     val outputSchema: Schema
 ) extends OperatorExecutor {
-
-  var isBuildTableFinished: Boolean = false
-  var buildTableHashMap: mutable.HashMap[K, (ArrayBuffer[Tuple], Boolean)] = _
-
-  var currentEntry: Iterator[Tuple] = _
   var currentTuple: Tuple = _
 
-  val buildTableTransferBatchSize = 4000
-
-  def getBuildHashTableBatches(): ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]] = {
-    val sendingMap = new ArrayBuffer[mutable.HashMap[K, ArrayBuffer[Tuple]]]
-    var count = 1
-    var curr = new mutable.HashMap[K, ArrayBuffer[Tuple]]
-    for ((key, tuples) <- buildTableHashMap) {
-      curr.put(key, tuples._1)
-      if (count % buildTableTransferBatchSize == 0) {
-        sendingMap.append(curr)
-        curr = new mutable.HashMap[K, ArrayBuffer[Tuple]]
-      }
-      count += 1
-    }
-    if (!curr.isEmpty) sendingMap.append(curr)
-    sendingMap
-  }
-
-  /**
-    * This function does not handle duplicates. It merges whatever it is given. It will treat
-    * duplicate tuples of the key as new tuples and will append it. The responsibility to not send
-    * duplicates is with the senders.
-    */
-  def mergeIntoHashTable(additionalTable: mutable.HashMap[_, ArrayBuffer[Tuple]]): Boolean = {
-    try {
-      for ((key, tuples) <- additionalTable) {
-        val (storedTuples, _) =
-          buildTableHashMap.getOrElseUpdate(key.asInstanceOf[K], (new ArrayBuffer[Tuple](), false))
-        storedTuples.appendAll(tuples)
-      }
-      true
-    } catch {
-      case _: Exception =>
-        false
-    }
-  }
+  var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
@@ -72,25 +31,17 @@ class HashJoinOpExec[K](
   ): Iterator[Tuple] = {
     tuple match {
       case Left(tuple) =>
-        // The operatorInfo() in HashJoinOpDesc has a inputPorts list. In that the
-        // small input port comes first. So, it is assigned the inputNum 0. Similarly
-        // the large input is assigned the inputNum 1.
-
         if (input == 0) {
-          // building phase
-          building(tuple)
+          buildTableHashMap.update(tuple.getField("key"), tuple.getField("value"))
           Iterator()
-        } else if (!isBuildTableFinished) {
-          // should never happen, building phase has to finish before first probe
-          throw new WorkflowRuntimeException("Probe table came before build table ended")
         } else {
           // probing phase
           val key = tuple.getField(probeAttributeName).asInstanceOf[K]
           val (matchedTuples, _) =
-            buildTableHashMap.getOrElse(key, (new ArrayBuffer[Tuple](), false))
+            buildTableHashMap.getOrElse(key, (new ListBuffer[Tuple](), false))
 
           if (matchedTuples.isEmpty) {
-            // do not have a match with the probe tuple
+            // does not have a match with the probe tuple
             if (joinType != JoinType.RIGHT_OUTER && joinType != JoinType.FULL_OUTER) {
               return Iterator()
             }
@@ -100,29 +51,26 @@ class HashJoinOpExec[K](
             buildTableHashMap.put(key, (matchedTuples, true))
             performJoin(tuple, matchedTuples)
           }
-
         }
-      case Right(_) =>
-        if (input == 0 && !isBuildTableFinished) {
-          // the first input is exhausted, building phase finished
-          isBuildTableFinished = true
+      case Right(_) => {
+        if (input == 0) {
           Iterator()
         } else {
-          // the second input is exhausted, probing phase finished
           if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
             performLeftAntiJoin
           } else {
             Iterator()
           }
         }
+      }
     }
   }
 
   private def performLeftAntiJoin: Iterator[Tuple] = {
     buildTableHashMap.valuesIterator
-      .filter({ case (_: ArrayBuffer[Tuple], joined: Boolean) => !joined })
+      .filter({ case (_: ListBuffer[Tuple], joined: Boolean) => !joined })
       .flatMap {
-        case (tuples: ArrayBuffer[Tuple], _: Boolean) =>
+        case (tuples: ListBuffer[Tuple], _: Boolean) =>
           tuples
             .map((tuple: Tuple) => {
               // creates a builder
@@ -148,31 +96,8 @@ class HashJoinOpExec[K](
               // build the new tuple
               builder.build()
             })
-            .iterator
+            .toIterator
       }
-  }
-
-  private def performJoin(probeTuple: Tuple, matchedTuples: ArrayBuffer[Tuple]): Iterator[Tuple] = {
-
-    matchedTuples
-      .map(buildTuple => {
-        // creates a builder with the build tuple filled
-        val builder = Tuple
-          .newBuilder(outputSchema)
-          .add(buildTuple)
-
-        // append the probe tuple
-        fillNonJoinFields(
-          builder,
-          probeSchema,
-          probeTuple.getFields.toArray(),
-          resolveDuplicateName = true
-        )
-
-        // build the new tuple
-        builder.build()
-      })
-      .iterator
   }
 
   def fillNonJoinFields(
@@ -201,6 +126,29 @@ class HashJoinOpExec[K](
           }
         }
     }
+  }
+
+  private def performJoin(probeTuple: Tuple, matchedTuples: ListBuffer[Tuple]): Iterator[Tuple] = {
+
+    matchedTuples
+      .map(buildTuple => {
+        // creates a builder with the build tuple filled
+        val builder = Tuple
+          .newBuilder(outputSchema)
+          .add(buildTuple)
+
+        // append the probe tuple
+        fillNonJoinFields(
+          builder,
+          probeSchema,
+          probeTuple.getFields.toArray(),
+          resolveDuplicateName = true
+        )
+
+        // build the new tuple
+        builder.build()
+      })
+      .toIterator
   }
 
   private def performRightAntiJoin(tuple: Tuple): Iterator[Tuple] = {
@@ -232,15 +180,8 @@ class HashJoinOpExec[K](
     Iterator(builder.build())
   }
 
-  private def building(tuple: Tuple): Unit = {
-    val key = tuple.getField(buildAttributeName).asInstanceOf[K]
-    val (storedTuples, _) =
-      buildTableHashMap.getOrElseUpdate(key, (new ArrayBuffer[Tuple](), false))
-    storedTuples += tuple
-  }
-
   override def open(): Unit = {
-    buildTableHashMap = new mutable.HashMap[K, (mutable.ArrayBuffer[Tuple], Boolean)]()
+    buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()
   }
 
   override def close(): Unit = {

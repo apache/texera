@@ -42,10 +42,10 @@ class WorkerSpec
     with BeforeAndAfterAll
     with MockFactory {
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
@@ -96,7 +96,7 @@ class WorkerSpec
       outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
 
-  private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
+  private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
   private val mockHandler = mock[WorkflowFIFOMessage => Unit]
   private val mockOutputManager = mock[OutputManager]
 

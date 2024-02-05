@@ -24,7 +24,7 @@ object QueryWorkerStatisticsHandler {
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler((msg: ControllerInitiateQueryStatistics, sender) => {
+  registerHandler[ControllerInitiateQueryStatistics, Unit]((msg, sender) => {
     // send to specified workers (or all workers by default)
     val workers = msg.filterByWorkers.getOrElse(cp.executionState.getAllBuiltWorkers).toList
 

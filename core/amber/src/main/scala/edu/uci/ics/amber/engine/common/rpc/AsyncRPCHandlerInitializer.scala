@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.common.rpc
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerType}
+import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelMarkerIdentity
 }
 
+import scala.language.implicitConversions
 import scala.reflect.ClassTag
 
 /** class for developers to write control command handlers
@@ -42,39 +43,47 @@ class AsyncRPCHandlerInitializer(
     ctrlReceiver: AsyncRPCServer
 ) {
 
-  /** register a sync handler for one type of control command
-    * note that register handler allows multiple handlers for a control message and uses the latest handler.
-    * @param handler the lambda function for handling that type of control, it returns B
-    * @param ev enforce the compiler to check the input type of the handler extends control command
-    *           also shows error on the editor when the return type is not correct
-    * @tparam B the return type of the control command
-    * @tparam C control command type
+  /**
+    * TODO: In scala 3, we can further simplify the command registration by using match types:
+    * Thus we can write the following code:
+    * trait Command[T]
+    *
+    * type ReturnType[X] = X match{
+    *   case Command[t] => t
+    * }
+    * def foo[D < : Command[_](func: D => ReturnType[D]): Unit = {
+    *   // Implementation...
+    * }
+    * case class I() extends Command[Int]
+    * foo[I]((cmd) => {123}) // this will pass the compilation
+    * foo[I]((cmd) => {"123"}) // this will fail
     */
-  def registerHandler[B, C: ClassTag](
-      handler: (C, ActorVirtualIdentity) => B
-  )(implicit ev: C <:< ControlCommand[B]): Unit = {
-    registerImpl({ case (c: C, s) => Future { handler(c, s) } })
+
+  // syntax sugar to avoid explicit future conversion in control handlers.
+  implicit def returnAsFuture[R](ret: R): Future[R] = Future[R](ret)
+
+  /**
+    * Registers a synchronous handler for a specific type of control command.
+    * Note: This method allows multiple handlers for a control message and uses the most recently registered handler.
+    *
+    * @param handler a lambda function to handle the specified type of control command. It returns a value of type R.
+    *
+    * @tparam R the expected return type of the control command.
+    * @tparam C the type of the control command that the handler will process.
+    */
+  def registerHandler[C <: ControlCommand[_]: ClassTag, R](
+      handler: (C, ActorVirtualIdentity) => Future[R]
+  )(implicit ev: C <:< ControlCommand[R]): Unit = {
+    registerImpl({
+      case (c: C, s) =>
+        handler(c, s)
+    })
   }
 
   private def registerImpl(
       newHandler: PartialFunction[(ControlCommand[_], ActorVirtualIdentity), Future[_]]
   ): Unit = {
     ctrlReceiver.registerHandler(newHandler)
-  }
-
-  /** register an async handler for one type of control command
-    * note that register handler allows multiple handlers for a control message and uses the latest handler.
-    * @param handler the lambda function for handling that type of control, it returns future[B]
-    * @param ev enforce the compiler to check the input type of the handler extends control command
-    *           also shows error on the editor when the return type is not correct
-    * @param d dummy param to prevent double definition of registerHandler
-    * @tparam B the return type of the control command
-    * @tparam C control command type
-    */
-  def registerHandler[B, C: ClassTag](
-      handler: (C, ActorVirtualIdentity) => Future[B]
-  )(implicit ev: C <:< ControlCommand[B], d: DummyImplicit): Unit = {
-    registerImpl({ case (c: C, s) => handler(c, s) })
   }
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {

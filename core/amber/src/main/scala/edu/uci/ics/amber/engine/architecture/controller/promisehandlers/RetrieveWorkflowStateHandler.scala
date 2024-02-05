@@ -16,7 +16,7 @@ object RetrieveWorkflowStateHandler {
 trait RetrieveWorkflowStateHandler {
 
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler { (msg: RetrieveWorkflowState, sender) =>
+  registerHandler[RetrieveWorkflowState, Map[ActorVirtualIdentity, Unit]] { (msg, sender) =>
     execute(
       PropagateChannelMarker(
         cp.executionState.getAllOperatorExecutions.map(_._1).toSet,
