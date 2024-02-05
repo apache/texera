@@ -324,8 +324,13 @@ class DataProcessor(
           outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
         if (inputGateway.getAllPorts().forall(portId => inputGateway.isPortCompleted(portId))) {
-          // TODO: add support for non-default output port.
-          outputIterator.appendSpecialTupleToEnd(FinalizePort(PortIdentity(), input = false))
+          // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
+          outputGateway
+            .getPortIds()
+            .foreach(outputPortId =>
+              outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
+            )
+
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }

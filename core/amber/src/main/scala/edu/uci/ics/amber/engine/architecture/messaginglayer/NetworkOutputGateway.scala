@@ -87,4 +87,8 @@ class NetworkOutputGateway(
 
   }
 
+  def getPortIds(): Set[PortIdentity] = {
+    this.portIds.keys.toSet
+  }
+
 }
