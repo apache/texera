@@ -8,6 +8,8 @@ object OperatorGroupConstants {
   final val MACHINE_LEARNING_GROUP = "Machine Learning"
   final val JOIN_GROUP = "Join"
   final val SET_GROUP = "Set"
+  final val AGGREGATE_GROUP = "Aggregate"
+  final val SORT_GROUP = "Sort"
   final val UTILITY_GROUP = "Utilities"
   final val API_GROUP = "External API"
   final val UDF_GROUP = "User-defined Functions"
@@ -25,10 +27,12 @@ object OperatorGroupConstants {
     GroupInfo(MACHINE_LEARNING_GROUP, 4),
     GroupInfo(JOIN_GROUP, 5),
     GroupInfo(SET_GROUP, 6),
-    GroupInfo(UTILITY_GROUP, 7),
-    GroupInfo(API_GROUP, 8),
-    GroupInfo(UDF_GROUP, 9),
-    GroupInfo(VISUALIZATION_GROUP, 10)
+    GroupInfo(AGGREGATE_GROUP, 7),
+    GroupInfo(SORT_GROUP, 8),
+    GroupInfo(UTILITY_GROUP, 9),
+    GroupInfo(API_GROUP, 10),
+    GroupInfo(UDF_GROUP, 11),
+    GroupInfo(VISUALIZATION_GROUP, 12)
   )
 
 }
