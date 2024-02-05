@@ -143,8 +143,7 @@ class DataProcessor(
   // 3. state manager
   val stateManager: WorkerStateManager = new WorkerStateManager()
   // 4. batch producer
-  val outputManager: OutputManager =
-    new OutputManager(actorId, outputGateway)
+  val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   // 5. epoch manager
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
 
