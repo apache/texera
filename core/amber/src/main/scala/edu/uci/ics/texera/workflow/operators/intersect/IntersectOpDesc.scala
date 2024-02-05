@@ -37,7 +37,7 @@ class IntersectOpDesc extends LogicalOp {
     OperatorInfo(
       "Intersect",
       "Take the intersect of two inputs",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity()), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort())
     )

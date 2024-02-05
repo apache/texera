@@ -6,6 +6,7 @@ object OperatorGroupConstants {
   final val ANALYTICS_GROUP = "Analytics"
   final val JOIN_GROUP = "Join"
   final val UTILITY_GROUP = "Utilities"
+  final val SET_GROUP = "Set"
   final val UDF_GROUP = "User-defined Functions"
   final val VISUALIZATION_GROUP = "Visualization"
 
@@ -19,8 +20,9 @@ object OperatorGroupConstants {
     GroupInfo(ANALYTICS_GROUP, 2),
     GroupInfo(JOIN_GROUP, 3),
     GroupInfo(UTILITY_GROUP, 4),
-    GroupInfo(UDF_GROUP, 5),
-    GroupInfo(VISUALIZATION_GROUP, 6)
+    GroupInfo(SET_GROUP, 5),
+    GroupInfo(UDF_GROUP, 6),
+    GroupInfo(VISUALIZATION_GROUP, 7)
   )
 
 }
