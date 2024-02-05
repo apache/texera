@@ -166,6 +166,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(hashJoin1.operatorIdentifier)
 
     val hashJoin1BuildPhysicalOp = hashJoin1PhysicalOps.head
+    val hashJoin1ProbePhysicalOp = hashJoin1PhysicalOps(1)
 
     val hashJoin1InternalLink =
       workflow.physicalPlan.getDownstreamPhysicalLinks(hashJoin1BuildPhysicalOp.id).head
@@ -174,6 +175,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       workflow.physicalPlan.getPhysicalOpsOfLogicalOp(hashJoin2.operatorIdentifier)
 
     val hashJoin2BuildPhysicalOp = hashJoin2PhysicalOps.head
+    val hashJoin2ProbePhysicalOp = hashJoin2PhysicalOps(1)
 
     val hashJoin2InternalLink =
       workflow.physicalPlan.getDownstreamPhysicalLinks(hashJoin2BuildPhysicalOp.id).head
@@ -239,7 +241,6 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         0
       )
     )
-
     assert(nextRegions.isEmpty)
 
     nextRegions = scheduler.schedulingPolicy.onWorkerCompletion(
@@ -251,7 +252,6 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         0
       )
     )
-
     assert(nextRegions.isEmpty)
 
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
@@ -259,7 +259,6 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       executionState,
       hashJoin1InternalLink
     )
-
     assert(nextRegions.isEmpty)
 
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
@@ -267,9 +266,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       executionState,
       hashJoin2InternalLink
     )
-
     assert(nextRegions.nonEmpty)
-
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
 
     scheduler.schedulingPolicy.addToRunningRegions(nextRegions, null)
@@ -300,19 +297,9 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       workflow,
       executionState,
       PhysicalLink(
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            probeCsv.operatorIdentifier
-          )
-          .head
-          .id,
+        probeCsvPhysicalOpId,
         PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin1.operatorIdentifier
-          )
-          .head
-          .id,
+        hashJoin1ProbePhysicalOp.id,
         PortIdentity(1)
       )
     )
@@ -323,42 +310,24 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       workflow,
       executionState,
       PhysicalLink(
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin1.operatorIdentifier
-          )
-          .head
-          .id,
+        hashJoin1ProbePhysicalOp.id,
         PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin2.operatorIdentifier
-          )
-          .head
-          .id,
+        hashJoin2ProbePhysicalOp.id,
         PortIdentity(1)
       )
     )
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
 
+    val sinkPhysicalOpId =
+      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(sink.operatorIdentifier).head.id
     nextRegions = scheduler.schedulingPolicy.onLinkCompletion(
       workflow,
       executionState,
       PhysicalLink(
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin2.operatorIdentifier
-          )
-          .head
-          .id,
+        hashJoin2ProbePhysicalOp.id,
         PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            sink.operatorIdentifier
-          )
-          .head
-          .id,
+        sinkPhysicalOpId,
         PortIdentity()
       )
     )
