@@ -18,7 +18,6 @@ import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 import { NzFormModule } from "ng-zorro-antd/form";
-import { en_US, NZ_I18N } from "ng-zorro-antd/i18n";
 import { NzAutocompleteModule } from "ng-zorro-antd/auto-complete";
 import { NzIconModule } from "ng-zorro-antd/icon";
 import { NzInputModule } from "ng-zorro-antd/input";
@@ -54,7 +53,7 @@ import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/user/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/user/component/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/user/component/share-access/share-access.component";
-import { NgbdModalWorkflowExecutionsComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { WorkflowExecutionModalComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-modal.component";
 import { NgbdModalFileAddComponent } from "./dashboard/user/component/user-file/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
 import { UserQuotaComponent } from "./dashboard/user/component/user-quota/user-quota.component";
@@ -178,7 +177,7 @@ registerLocaleData(en);
     CodeEditorComponent,
     TypeCastingDisplayComponent,
     ShareAccessComponent,
-    NgbdModalWorkflowExecutionsComponent,
+    WorkflowExecutionModalComponent,
     ConsoleFrameComponent,
     ErrorFrameComponent,
     ResultTableFrameComponent,
@@ -290,7 +289,6 @@ registerLocaleData(en);
     UserFileService,
     UserFileUploadService,
     FileSaverService,
-    { provide: NZ_I18N, useValue: en_US },
     {
       provide: HTTP_INTERCEPTORS,
       useClass: BlobErrorHttpInterceptor,
