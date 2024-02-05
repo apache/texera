@@ -73,7 +73,7 @@ class ProjectionOpDesc extends MapOpDesc {
     OperatorInfo(
       "Projection",
       "Keeps the column",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
