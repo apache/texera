@@ -34,7 +34,9 @@ class Port:
         self.channels.append(channel)
 
     def is_completed(self) -> bool:
-        return all(map(lambda channel: channel.is_completed(), self.channels))
+        return bool(self.channels) and all(
+            map(lambda channel: channel.is_completed(), self.channels)
+        )
 
 
 class BatchToTupleConverter:
@@ -50,7 +52,10 @@ class BatchToTupleConverter:
             port_id.id = 0
         if port_id.internal is None:
             port_id.internal = False
-        self._ports[port_id] = Port()
+
+        # each port can only be added and initialized once.
+        if port_id not in self._ports:
+            self._ports[port_id] = Port()
 
     def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id
@@ -108,10 +113,15 @@ class BatchToTupleConverter:
                 yield InputExhausted()
 
             all_ports_completed = all(
-                map(
-                    lambda channel: self._ports[channel.port_id].is_completed(),
-                    self._channels.values(),
-                )
+                map(lambda port: port.is_completed(), self._ports.values())
+            )
+
+            from loguru import logger
+
+            logger.info("found " + str(len(self._ports)))
+            logger.info(
+                "ports "
+                + str(list(map(lambda port: port.is_completed(), self._ports.values())))
             )
             if all_ports_completed:
                 yield EndOfAllMarker()

@@ -79,6 +79,7 @@ class NetworkOutputGateway(
   }
 
   def addPort(portId: PortIdentity): Unit = {
+    // each port can only be added and initialized once.
     if (this.portIds.contains(portId)) {
       return
     }

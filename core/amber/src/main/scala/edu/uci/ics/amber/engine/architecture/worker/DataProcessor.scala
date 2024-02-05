@@ -318,17 +318,14 @@ class DataProcessor(
         channel.complete()
         val portId = channel.getPortId
         this.inputGateway.updatePortStatus(portId)
-
         if (inputGateway.isPortCompleted(portId)) {
           initBatch(channelId, Array.empty)
           processInputTuple(Right(InputExhausted()))
           outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
         if (inputGateway.getAllPorts().forall(portId => inputGateway.isPortCompleted(portId))) {
-          logger.info(
-            s"operator completed, append FinalizeOperator message" + s" total ${inputGateway.getAllDataChannels.size} data channels."
-          )
-          outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = false))
+          // TODO: add support for non-default output port.
+          outputIterator.appendSpecialTupleToEnd(FinalizePort(PortIdentity(), input = false))
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }
