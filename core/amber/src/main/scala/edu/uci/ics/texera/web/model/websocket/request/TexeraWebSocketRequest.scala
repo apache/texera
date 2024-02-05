@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[RegisterWIdRequest]),
+    new Type(value = classOf[RegisterWorkflowIdRequest]),
     new Type(value = classOf[AddBreakpointRequest]),
     new Type(value = classOf[EditingTimeCompilationRequest]),
     new Type(value = classOf[HeartBeatRequest]),
@@ -25,7 +25,8 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
     new Type(value = classOf[WorkflowPauseRequest]),
     new Type(value = classOf[WorkflowResumeRequest]),
     new Type(value = classOf[PythonExpressionEvaluateRequest]),
-    new Type(value = classOf[DebugCommandRequest])
+    new Type(value = classOf[DebugCommandRequest]),
+    new Type(value = classOf[WorkflowInteractionRequest])
   )
 )
 trait TexeraWebSocketRequest {}

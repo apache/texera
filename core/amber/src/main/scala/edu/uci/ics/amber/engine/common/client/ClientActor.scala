@@ -9,11 +9,11 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkAck,
   NetworkMessage
 }
+import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
   ControlPayload,
   DataPayload,
   WorkflowFIFOMessage,
@@ -27,8 +27,7 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.collection.mutable
 
@@ -47,9 +46,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
   val promiseMap = new mutable.LongMap[Promise[Any]]()
   var handlers: PartialFunction[Any, Unit] = PartialFunction.empty
 
-  private val controlChannelId = ChannelID(CLIENT, CONTROLLER, isControl = true)
-
-  private def getQueuedCredit(channel: ChannelID): Long = {
+  private def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0L // client does not have queued credits
   }
 
@@ -63,35 +60,28 @@ private[client] class ClientActor extends Actor with AmberLogging {
     case InitializeRequest(workflow, controllerConfig) =>
       assert(controller == null)
       controller = context.actorOf(Controller.props(workflow, controllerConfig))
-      sender ! Ack
-    case CreditRequest(channel: ChannelID) =>
-      sender ! CreditResponse(channel, getQueuedCredit(channel))
+      sender() ! Ack
+    case CreditRequest(channelId: ChannelIdentity) =>
+      sender() ! CreditResponse(channelId, getQueuedCredit(channelId))
     case ClosureRequest(closure) =>
       try {
-        sender ! closure()
+        sender() ! closure()
       } catch {
         case e: Throwable =>
-          sender ! e
+          sender() ! e
       }
     case commandRequest: CommandRequest =>
-      controller ! NetworkMessage(
-        0,
-        WorkflowFIFOMessage(
-          controlChannelId,
-          controlId,
-          ControlInvocation(controlId, commandRequest.command)
-        )
-      )
+      controller ! ControlInvocation(controlId, commandRequest.command)
       promiseMap(controlId) = commandRequest.promise
       controlId += 1
     case req: ObservableRequest =>
       handlers = req.pf orElse handlers
-      sender ! scala.runtime.BoxedUnit.UNIT
+      sender() ! scala.runtime.BoxedUnit.UNIT
     case NetworkMessage(
           mId,
           fifoMsg @ WorkflowFIFOMessage(_, _, payload)
         ) =>
-      sender ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channel))
+      sender() ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channelId))
       payload match {
         case payload: ControlPayload =>
           payload match {
@@ -113,8 +103,10 @@ private[client] class ClientActor extends Actor with AmberLogging {
         case _              => ???
       }
     case x: WorkflowRecoveryMessage =>
-      sender ! Ack
+      sender() ! Ack
       controller ! x
+    case x: WorkflowRecoveryStatus =>
+      handleControl(x)
     case other =>
       logger.warn("client actor cannot handle " + other) //skip
   }

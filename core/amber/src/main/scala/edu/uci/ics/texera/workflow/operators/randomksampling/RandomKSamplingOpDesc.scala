@@ -1,16 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.randomksampling
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.util.Random
 
@@ -20,7 +17,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   // Fault tolerance requires that the restarted worker should produce the exactly same output.
   // Therefore the seeds have to be stored.
   @JsonIgnore
-  private val seeds: Array[Int] = Array.fill(Constants.currentWorkerNum)(Random.nextInt)
+  private val seeds: Array[Int] =
+    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt())
 
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")
@@ -29,8 +27,19 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   @JsonIgnore
   def getSeed(index: Int): Int = seeds(index)
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    OpExecConfig.oneToOneLayer(operatorIdentifier, p => new RandomKSamplingOpExec(p._1, this))
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((idx, _, _) => new RandomKSamplingOpExec(idx, this))
+      )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
   }
 
   override def operatorInfo: OperatorInfo =

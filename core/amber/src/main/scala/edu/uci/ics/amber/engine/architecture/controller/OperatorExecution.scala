@@ -5,16 +5,26 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerInfo, 
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LayerIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.collectionAsScalaIterableConverter
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends Serializable {
+class OperatorExecution(
+    workflowId: WorkflowIdentity,
+    val executionId: ExecutionIdentity,
+    physicalOpId: PhysicalOpIdentity,
+    numWorkers: Int
+) extends Serializable {
   /*
    * Variables related to runtime information
    */
@@ -30,18 +40,20 @@ class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends S
 
   def statistics: Array[WorkerStatistics] = workers.values.asScala.map(_.stats).toArray
 
+  def initializeWorkerInfo(id: ActorVirtualIdentity): Unit = {
+    workers.put(
+      id,
+      WorkerInfo(
+        id,
+        UNINITIALIZED,
+        WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0),
+        mutable.HashSet(ChannelIdentity(CONTROLLER, id, isControl = true))
+      )
+    )
+  }
   def getWorkerInfo(id: ActorVirtualIdentity): WorkerInfo = {
     if (!workers.containsKey(id)) {
-      workers.put(
-        id,
-        WorkerInfo(
-          id,
-          UNINITIALIZED,
-          WorkerStatistics(UNINITIALIZED, 0, 0),
-          mutable.HashSet(ChannelID(CONTROLLER, id, isControl = true)),
-          null
-        )
-      )
+      initializeWorkerInfo(id)
     }
     workers.get(id)
   }
@@ -59,6 +71,12 @@ class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends S
 
   def getOutputRowCount: Long = statistics.map(_.outputTupleCount).sum
 
+  def getDataProcessingTime: Long = statistics.map(_.dataProcessingTime).sum
+
+  def getControlProcessingTime: Long = statistics.map(_.controlProcessingTime).sum
+
+  def getIdleTime: Long = statistics.map(_.idleTime).sum
+
   def getBuiltWorkerIds: Array[ActorVirtualIdentity] = workers.values.asScala.map(_.id).toArray
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {
@@ -67,7 +85,9 @@ class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends S
 
   def setAllWorkerState(state: WorkerState): Unit = {
     (0 until numWorkers).foreach { i =>
-      getWorkerInfo(VirtualIdentityUtils.createWorkerIdentity(layerIdentity, i)).state = state
+      getWorkerInfo(
+        VirtualIdentityUtils.createWorkerIdentity(workflowId, physicalOpId, i)
+      ).state = state
     }
   }
 
@@ -95,5 +115,13 @@ class OperatorExecution(layerIdentity: LayerIdentity, numWorkers: Int) extends S
   }
 
   def getOperatorStatistics: OperatorRuntimeStats =
-    OperatorRuntimeStats(getState, getInputRowCount, getOutputRowCount)
+    OperatorRuntimeStats(
+      getState,
+      getInputRowCount,
+      getOutputRowCount,
+      numWorkers,
+      getDataProcessingTime,
+      getControlProcessingTime,
+      getIdleTime
+    )
 }

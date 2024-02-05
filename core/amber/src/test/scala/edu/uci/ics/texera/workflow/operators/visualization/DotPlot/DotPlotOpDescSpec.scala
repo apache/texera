@@ -62,13 +62,12 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |        yield {'html-content': html}
          |""".stripMargin
 
-    val generatedPythonCode =
-      opDesc.generatePythonCode(null) // null value for OperatorSchemaInfo for simplicity
+    val generatedPythonCode = opDesc.generatePythonCode()
 
     assert(generatedPythonCode === expectedPythonCode)
   }
 
-  it should "return 1 worker" in {
-    assert(opDesc.numWorkers() === 1)
+  it should "not be parallelizable" in {
+    assert(!opDesc.parallelizable())
   }
 }

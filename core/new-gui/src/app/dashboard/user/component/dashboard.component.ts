@@ -1,6 +1,8 @@
-import { Component } from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 import { UserService } from "../../../common/service/user/user.service";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { FlarumService } from "../service/flarum/flarum.service";
 
 /**
  * dashboardComponent is the component which contains all the subcomponents
@@ -15,8 +17,28 @@ import { UserService } from "../../../common/service/user/user.service";
   styleUrls: ["./dashboard.component.scss"],
   providers: [WorkflowPersistService],
 })
-export class DashboardComponent {
+@UntilDestroy()
+export class DashboardComponent implements OnInit {
   isAdmin = this.userService.isAdmin();
 
-  constructor(private userService: UserService) {}
+  constructor(private userService: UserService, private flarumService: FlarumService) {}
+
+  ngOnInit(): void {
+    if (!document.cookie.includes("flarum_remember")) {
+      this.flarumService
+        .auth()
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: (response: any) => {
+            document.cookie = `flarum_remember=${response.token};path=/`;
+          },
+          error: (err: unknown) => {
+            this.flarumService
+              .register()
+              .pipe(untilDestroyed(this))
+              .subscribe(() => this.ngOnInit());
+          },
+        });
+    }
+  }
 }

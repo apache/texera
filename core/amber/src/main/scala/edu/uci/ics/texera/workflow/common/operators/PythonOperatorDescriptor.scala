@@ -1,56 +1,50 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.Constants
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
-import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpExecV2
-import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpExecV2
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
-import scala.collection.mutable
+trait PythonOperatorDescriptor extends LogicalOp {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
 
-trait PythonOperatorDescriptor extends OperatorDescriptor {
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    val generatedCode = generatePythonCode(operatorSchemaInfo)
+    val generatedCode = generatePythonCode()
     if (asSource()) {
-      OpExecConfig
-        .localLayer(
+      PhysicalOp
+        .sourcePhysicalOp(
+          workflowId,
+          executionId,
           operatorIdentifier,
-          _ =>
-            new PythonUDFSourceOpExecV2(
-              generatedCode,
-              operatorSchemaInfo.outputSchemas.head
-            )
+          OpExecInitInfo(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withParallelizable(parallelizable())
     } else {
-      OpExecConfig
-        .oneToOneLayer(
+      PhysicalOp
+        .oneToOnePhysicalOp(
+          workflowId,
+          executionId,
           operatorIdentifier,
-          _ =>
-            new PythonUDFOpExecV2(
-              generatedCode,
-              operatorSchemaInfo.outputSchemas.head
-            )
+          OpExecInitInfo(generatedCode)
         )
-        .copy(numWorkers = numWorkers(), dependency = dependency().toMap)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withParallelizable(parallelizable())
     }
   }
 
-  def numWorkers(): Int = Constants.numWorkerPerNode
-
-  def dependency(): mutable.Map[Int, Int] = mutable.Map()
-
+  def parallelizable(): Boolean = false
   def asSource(): Boolean = false
 
   /**
     * This method is to be implemented to generate the actual Python source code
-    * based on operators predicates. It also has access to input and output schema
-    * information for reference or validation purposes.
+    * based on operators predicates.
     *
-    * @param operatorSchemaInfo the actual input and output schema information of
-    *                           this operator.
     * @return a String representation of the executable Python source code.
     */
-  def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String
+  def generatePythonCode(): String
 
 }

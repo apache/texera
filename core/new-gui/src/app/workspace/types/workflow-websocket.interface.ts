@@ -23,9 +23,9 @@ import { BreakpointFaultedTuple, BreakpointTriggerInfo, ConsoleUpdateEvent } fro
  * 2. value is the payload this request/event needs
  */
 
-export interface RegisterWIdRequest
+export interface RegisterWorkflowIdRequest
   extends Readonly<{
-    wId: number;
+    workflowId: number;
   }> {}
 
 export interface WorkflowExecuteRequest
@@ -33,6 +33,12 @@ export interface WorkflowExecuteRequest
     executionName: string;
     engineVersion: string;
     logicalPlan: LogicalPlan;
+  }> {}
+
+export interface ReplayExecutionInfo
+  extends Readonly<{
+    eid: number;
+    interaction: string;
   }> {}
 
 export interface RegisterWIdEvent
@@ -62,11 +68,6 @@ export interface WorkflowErrorEvent
 
 export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator;
-}>;
-
-export type SkipTuple = Readonly<{
-  actorPath: string;
-  faultedTuple: BreakpointFaultedTuple;
 }>;
 
 export type WorkerTuples = Readonly<{
@@ -179,25 +180,26 @@ export type WorkflowStateInfo = Readonly<{
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
-  RegisterWIdRequest: RegisterWIdRequest;
+  RegisterWorkflowIdRequest: RegisterWorkflowIdRequest;
   AddBreakpointRequest: BreakpointInfo;
   EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
   ResultPaginationRequest: PaginationRequest;
-  RetryRequest: {};
-  SkipTupleRequest: SkipTuple;
+  RetryRequest: { workers: ReadonlyArray<string> };
+  SkipTupleRequest: { workers: ReadonlyArray<string> };
   WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
+  WorkflowInteractionRequest: {};
   WorkflowResumeRequest: {};
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
   DebugCommandRequest: DebugCommandRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
-  RegisterWIdResponse: RegisterWIdEvent;
+  RegisterWorkflowIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
   WorkflowStateEvent: WorkflowStateInfo;
   OperatorStatisticsUpdateEvent: OperatorStatsUpdate;

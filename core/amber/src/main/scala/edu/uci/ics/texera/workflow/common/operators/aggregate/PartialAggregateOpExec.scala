@@ -6,15 +6,10 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.internalAggObjKey
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 object PartialAggregateOpExec {
   val INTERNAL_AGGREGATE_PARTIAL_OBJECT = "__internal_aggregate_partial_object__";
@@ -26,13 +21,13 @@ object PartialAggregateOpExec {
 class PartialAggregateOpExec(
     val aggFuncs: List[DistributedAggregation[Object]],
     val groupByKeys: List[String],
-    val operatorSchemaInfo: OperatorSchemaInfo
+    val inputSchema: Schema
 ) extends OperatorExecutor {
 
   var schema: Schema = Schema
     .newBuilder()
     // add group by keys
-    .add(groupByKeys.map(k => operatorSchemaInfo.inputSchemas(0).getAttribute(k)).asJava)
+    .add(groupByKeys.map(k => inputSchema.getAttribute(k)).asJava)
     // add intermediate internal aggregation objects
     .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)).asJava)
     .build()

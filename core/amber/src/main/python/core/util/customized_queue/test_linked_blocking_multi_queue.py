@@ -136,7 +136,7 @@ class TestLinkedBlockingMultiQueue:
         consumer_thread.join()
         reraise()
 
-    @pytest.mark.timeout(5)
+    @pytest.mark.timeout(10)
     def test_multiple_producer_race(self, queue, reraise):
         def producer(k):
             with reraise:

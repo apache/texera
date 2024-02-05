@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import com.flipkart.zjsonpatch.{JsonDiff, JsonPatch}
-import edu.uci.ics.amber.engine.common.AmberUtils
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
@@ -16,7 +16,7 @@ import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
   * This file handles various request related to workflows versions.
@@ -29,7 +29,7 @@ object WorkflowVersionResource {
   final private lazy val workflowDao = new WorkflowDao(context.configuration)
   // constant to indicate versions should be aggregated if they are within the specified time limit
   private final val AGGREGATE_TIME_LIMIT_MILLSEC =
-    AmberUtils.amberConfig.getInt("user-sys.version-time-limit-in-minutes") * 60000
+    AmberConfig.workflowVersionCollapseIntervalInMinutes * 60000
   // list of Json keys in the diff patch that are considered UNimportant
   private final val VERSION_UNIMPORTANCE_RULES = List("/operatorPositions/")
   private final val SNAPSHOT_UNIMPORTANCE_RULES = List("replace")
@@ -90,6 +90,7 @@ object WorkflowVersionResource {
       .from(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .fetchInto(classOf[UInteger])
+      .asScala
       .toList
     // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
     // version as an empty delta, so should do the check and create one once
@@ -146,6 +147,7 @@ object WorkflowVersionResource {
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .and(WORKFLOW_VERSION.VID.between(lowerBound).and(UpperBound))
       .fetchInto(classOf[String])
+      .asScala
       .toList
     contents.forall(content => !isSnapshotImportant(content))
   }
@@ -201,7 +203,12 @@ object WorkflowVersionResource {
     // version is important even if it is positional
     var versionImportance: Boolean = true
     for (version <- versions.tail) {
-      if (isWithinTimeLimit(lastVersionTime, version.getCreationTime)) {
+      if (
+        isWithinTimeLimit(
+          lastVersionTime,
+          version.getCreationTime
+        )
+      ) {
         versionImportance = false
       } // try reducing unnecessary check of positional versions
       // because parsing the Json string is expensive
@@ -318,6 +325,7 @@ class WorkflowVersionResource {
           .from(WORKFLOW_VERSION)
           .where(WORKFLOW_VERSION.WID.eq(wid))
           .fetchInto(classOf[WorkflowVersion])
+          .asScala
           .toList
       )
     }
@@ -351,6 +359,7 @@ class WorkflowVersionResource {
         .from(WORKFLOW_VERSION)
         .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
         .fetchInto(classOf[WorkflowVersion])
+        .asScala
         .toList
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)

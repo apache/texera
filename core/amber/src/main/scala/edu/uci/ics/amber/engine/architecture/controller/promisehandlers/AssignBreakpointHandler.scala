@@ -26,8 +26,8 @@ trait AssignBreakpointHandler {
   registerHandler { (msg: AssignGlobalBreakpoint[_], sender) =>
     {
       // get target operator
-      val operatorId = new OperatorIdentity(cp.workflow.workflowId.id, msg.operatorID)
-      val operators = cp.workflow.physicalPlan.layersOfLogicalOperator(operatorId)
+      val operatorId = new OperatorIdentity(msg.operatorID)
+      val operators = cp.workflow.physicalPlan.getPhysicalOpsOfLogicalOp(operatorId)
 
       // get the last operator (output of the operator)
       val operator = operators.last

@@ -29,14 +29,14 @@ object PauseHandler {
 trait PauseHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: PauseWorkflow, sender) =>
+  registerHandler[PauseWorkflow, Unit] { (msg, sender) =>
     {
       cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
       cp.controllerTimerService.disableMonitoring()
       cp.controllerTimerService.disableSkewHandling()
       Future
         .collect(cp.executionState.getAllOperatorExecutions.map {
-          case (layerId, opExecution) =>
+          case (physicalOpId, opExecution) =>
             // create a buffer for the current input tuple
             // since we need to show them on the frontend
             val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
@@ -63,17 +63,18 @@ trait PauseHandler {
               )
               .map { ret =>
                 // for each paused operator, send the input tuple
-                sendToClient(ReportCurrentProcessingTuple(layerId.operator, buffer.toArray))
+                sendToClient(
+                  ReportCurrentProcessingTuple(physicalOpId.logicalOpId.id, buffer.toArray)
+                )
               }
         }.toSeq)
         .map { ret =>
           // update frontend workflow status
           sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus))
           sendToClient(WorkflowPaused())
-          logger.info(s"controller pause cursor = ${cp.cursor.getStep}")
+          logger.info(s"workflow paused")
         }
         .unit
     }
   }
-
 }

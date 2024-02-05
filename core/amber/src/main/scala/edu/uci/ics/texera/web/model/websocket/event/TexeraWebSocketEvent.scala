@@ -7,13 +7,13 @@ import edu.uci.ics.texera.web.model.websocket.response.python.PythonExpressionEv
 import edu.uci.ics.texera.web.model.websocket.response.{
   HeartBeatResponse,
   ModifyLogicResponse,
-  RegisterWIdResponse
+  RegisterWorkflowIdResponse
 }
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 @JsonSubTypes(
   Array(
-    new Type(value = classOf[RegisterWIdResponse]),
+    new Type(value = classOf[RegisterWorkflowIdResponse]),
     new Type(value = classOf[HeartBeatResponse]),
     new Type(value = classOf[WorkflowErrorEvent]),
     new Type(value = classOf[WorkflowStateEvent]),

@@ -1,15 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{PAUSED, READY, RUNNING}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, LinkIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 object UpdateInputLinkingHandler {
 
-  final case class UpdateInputLinking(identifier: ActorVirtualIdentity, inputLink: LinkIdentity)
-      extends ControlCommand[Unit]
+  final case class UpdateInputLinking(
+      identifier: ActorVirtualIdentity,
+      inputLink: PhysicalLink
+  ) extends ControlCommand[Unit]
 }
 
 trait UpdateInputLinkingHandler {

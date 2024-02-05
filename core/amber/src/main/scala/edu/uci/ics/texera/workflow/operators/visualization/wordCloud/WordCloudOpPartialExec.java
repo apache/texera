@@ -17,6 +17,7 @@ import java.io.StringReader;
 import java.util.*;
 
 import static edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc.partialAggregateSchema;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 
 /**
@@ -93,7 +94,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
                 lastUpdatedTime = System.currentTimeMillis();
                 return computeResultIteratorForOneBatch();
             } else {
-                return JavaConverters.asScalaIterator(Collections.emptyIterator());
+                return asScala(Collections.emptyIterator());
             }
         } else { // input exhausted
             lastUpdatedTime = System.currentTimeMillis();
@@ -103,7 +104,7 @@ public class WordCloudOpPartialExec implements OperatorExecutor {
 
     public Iterator<Tuple> computeResultIteratorForOneBatch() {
         try {
-            Iterator<Tuple> resultIterator = JavaConverters.asScalaIterator(
+            Iterator<Tuple> resultIterator = asScala(
                     calculateWordCount(textList, getLuceneAnalyzer()).iterator());
             textList.clear();
             return resultIterator;

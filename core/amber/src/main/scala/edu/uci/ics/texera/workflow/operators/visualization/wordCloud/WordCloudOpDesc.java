@@ -4,37 +4,40 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInt;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecFunc;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
-import edu.uci.ics.amber.engine.common.virtualidentity.LayerIdentity;
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity;
-import edu.uci.ics.amber.engine.common.virtualidentity.util;
+import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity;
+import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink;
 import edu.uci.ics.texera.workflow.common.ProgressiveUtils;
-import edu.uci.ics.texera.workflow.common.metadata.InputPort;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
-import edu.uci.ics.texera.workflow.common.metadata.OutputPort;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan;
+import edu.uci.ics.amber.engine.common.workflow.InputPort;
+import edu.uci.ics.amber.engine.common.workflow.OutputPort;
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationConstants;
 import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator;
-import scala.reflect.ClassTag;
+import scala.Tuple3;
+import scala.collection.immutable.List;
 
-import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 /**
  * WordCloud is a visualization operator that can be used by the caller to generate data for wordcloud.js in frontend.
  * WordCloud returns tuples with word (String) and its font size (Integer) for frontend.
- *
- * @author Mingji Han, Xiaozhen Liu
  */
 
 public class WordCloudOpDesc extends VisualizationOperator {
@@ -62,35 +65,59 @@ public class WordCloudOpDesc extends VisualizationOperator {
             .add(partialAggregateSchema).build();
 
     @Override
-    public OpExecConfig operatorExecutor(OperatorSchemaInfo operatorSchemaInfo) {
-        throw new UnsupportedOperationException("opExec implemented in operatorExecutorMultiLayer");
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+        throw new UnsupportedOperationException("opExec implemented in getPhysicalPlan");
     }
 
     @Override
-    public PhysicalPlan operatorExecutorMultiLayer(OperatorSchemaInfo operatorSchemaInfo) {
+    public PhysicalPlan getPhysicalPlan(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         if (topN == null) {
             topN = 100;
         }
 
-        LayerIdentity partialId = util.makeLayer(operatorIdentifier(), "partial");
-        OpExecConfig partialLayer = OpExecConfig.oneToOneLayer(
+        PhysicalOpIdentity partialOpId = new PhysicalOpIdentity(operatorIdentifier(), "partial");
+        OutputPort partialOpOutputPort = new OutputPort(new PortIdentity(0, true), "");
+        HashMap<PortIdentity, Schema> outputPortToSchemaMapping = new HashMap<>();
+        outputPortToSchemaMapping.put(partialOpOutputPort.id(), outputPortToSchemaMapping().values().head());
+        PhysicalOp partialPhysicalOp = PhysicalOp.oneToOnePhysicalOp(
+                        workflowId,
+                        executionId,
+                        this.operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                        worker -> new WordCloudOpPartialExec(textColumn)
+                        )
+                )
+                .withId(partialOpId)
+                .withIsOneToManyOp(true)
+                .withParallelizable(false)
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
+                // assume partial op's output is the same as global op's
+                .withOutputPorts(asScala(singletonList(partialOpOutputPort)).toList(), asScala(outputPortToSchemaMapping));
+
+
+        PhysicalOpIdentity globalOpId = new PhysicalOpIdentity(operatorIdentifier(), "global");
+        InputPort globalOpInputPort = new InputPort(new PortIdentity(0, true), "", false, asScala(new ArrayList<PortIdentity>()).toSeq());
+        HashMap<PortIdentity, Schema> inputPortToSchemaMapping = new HashMap<>();
+        inputPortToSchemaMapping.put(globalOpInputPort.id(), outputPortToSchemaMapping().values().head());
+        PhysicalOp globalPhysicalOp = PhysicalOp.manyToOnePhysicalOp(
+                workflowId,
+                executionId,
                 this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpPartialExec(textColumn)
-        ).withId(partialId).withIsOneToManyOp(true).withNumWorkers(1).withOutputPorts(
-                asScalaBuffer(singletonList(new OutputPort("internal-output"))).toList());
+                OpExecInitInfo.apply(
+                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                worker -> new WordCloudOpFinalExec(topN)
+                )
+        )
+            .withId(globalOpId).withIsOneToManyOp(true)
+            // assume partial op's output is the same as global op's
+            .withInputPorts(asScala(singletonList(globalOpInputPort)).toList(), asScala(inputPortToSchemaMapping))
+            .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
 
+        PhysicalOp[] physicalOps = {partialPhysicalOp, globalPhysicalOp};
+        PhysicalLink[] links = {new PhysicalLink(partialPhysicalOp.id(), partialOpOutputPort.id(), globalPhysicalOp.id(), globalOpInputPort.id())};
 
-        LayerIdentity finalId = util.makeLayer(operatorIdentifier(), "global");
-        OpExecConfig finalLayer = OpExecConfig.manyToOneLayer(
-                this.operatorIdentifier(),
-                (OpExecFunc & Serializable) i -> new WordCloudOpFinalExec(topN)
-        ).withId(finalId).withIsOneToManyOp(true)
-                .withInputPorts(asScalaBuffer(singletonList(new InputPort("internal-input", false))).toList());
-
-        OpExecConfig[] layers = {partialLayer, finalLayer};
-        LinkIdentity[] links = {new LinkIdentity(partialLayer.id(), 0, finalLayer.id(), 0)};
-
-        return PhysicalPlan.apply(layers, links);
+        return PhysicalPlan.apply(physicalOps, links);
     }
 
     @Override
@@ -98,9 +125,13 @@ public class WordCloudOpDesc extends VisualizationOperator {
         return new OperatorInfo("Word Cloud",
                 "Generate word cloud for result texts",
                 OperatorGroupConstants.VISUALIZATION_GROUP(),
-                asScalaBuffer(singletonList(new InputPort("", false))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(""))).toList(),
-                false, false, false, false);
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
+                false,
+                false,
+                false,
+                false
+        );
     }
 
     @Override

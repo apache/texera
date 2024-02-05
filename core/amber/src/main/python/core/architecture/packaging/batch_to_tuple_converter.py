@@ -5,31 +5,32 @@ from core.models import Tuple, ArrowTableTupleProvider
 from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
 from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
-from proto.edu.uci.ics.amber.engine.common import ActorVirtualIdentity, LinkIdentity
+from proto.edu.uci.ics.amber.engine.common import (
+    ActorVirtualIdentity,
+    PhysicalLink,
+)
 
 
 class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
     def __init__(self):
-        self._input_map: Dict[ActorVirtualIdentity, LinkIdentity] = dict()
+        self._input_map: Dict[ActorVirtualIdentity, PhysicalLink] = dict()
         self._upstream_map: defaultdict[
-            LinkIdentity, Set[ActorVirtualIdentity]
+            PhysicalLink, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
-        self._current_link: Optional[LinkIdentity] = None
-        self._all_upstream_link_ids: Set[LinkIdentity] = set()
+        self._current_link: Optional[PhysicalLink] = None
+        self._all_upstream_links: Set[PhysicalLink] = set()
         self._end_received_from_workers: defaultdict[
-            LinkIdentity, Set[ActorVirtualIdentity]
+            PhysicalLink, Set[ActorVirtualIdentity]
         ] = defaultdict(set)
-        self._completed_link_ids: Set[LinkIdentity] = set()
+        self._completed_links: Set[PhysicalLink] = set()
 
-    def update_all_upstream_link_ids(
-        self, upstream_link_ids: Set[LinkIdentity]
-    ) -> None:
-        self._all_upstream_link_ids = upstream_link_ids
+    def update_all_upstream_links(self, upstream_links: Set[PhysicalLink]) -> None:
+        self._all_upstream_links = upstream_links
 
     def register_input(
-        self, identifier: ActorVirtualIdentity, input_: LinkIdentity
+        self, identifier: ActorVirtualIdentity, input_: PhysicalLink
     ) -> None:
         self._upstream_map[input_].add(identifier)
         self._input_map[identifier] = input_
@@ -58,9 +59,9 @@ class BatchToTupleConverter:
         elif isinstance(payload, EndOfUpstream):
             self._end_received_from_workers[link].add(from_)
             if self._upstream_map[link] == self._end_received_from_workers[link]:
-                self._completed_link_ids.add(link)
+                self._completed_links.add(link)
                 yield InputExhausted()
-            if self._completed_link_ids == self._all_upstream_link_ids:
+            if self._completed_links == self._all_upstream_links:
                 yield EndOfAllMarker()
 
         else:

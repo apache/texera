@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, DeadLetter, Props}
+import com.typesafe.config.ConfigFactory.defaultApplication
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
@@ -14,7 +15,9 @@ object AmberUtils {
     map.toSeq
       .flatMap { case (k, vs) => vs.map((_, k)) }
       .groupBy(_._1)
+      .view
       .mapValues(_.map(_._2).toSet)
+      .toMap
 
   def startActorMaster(clusterMode: Boolean): ActorSystem = {
     var localIpAddress = "localhost"
@@ -35,13 +38,11 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$localIpAddress:2552" ]
         """)
       .withFallback(akkaConfig)
-    Constants.masterNodeAddr = createMasterAddress(localIpAddress)
+    AmberConfig.masterNodeAddr = createMasterAddress(localIpAddress)
     createAmberSystem(masterConfig)
   }
 
-  def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(amberConfig)
-
-  def amberConfig: Config = ConfigFactory.load()
+  def akkaConfig: Config = ConfigFactory.load("cluster").withFallback(defaultApplication())
 
   def createMasterAddress(addr: String): Address = Address("akka", "Amber", addr, 2552)
 
@@ -64,15 +65,15 @@ object AmberUtils {
         akka.cluster.seed-nodes = [ "akka://Amber@$addr:2552" ]
         """)
       .withFallback(akkaConfig)
-    Constants.masterNodeAddr = createMasterAddress(addr)
+    AmberConfig.masterNodeAddr = createMasterAddress(addr)
     createAmberSystem(workerConfig)
   }
 
   def createAmberSystem(actorSystemConf: Config): ActorSystem = {
     val system = ActorSystem("Amber", actorSystemConf)
-    system.actorOf(Props[ClusterListener], "cluster-info")
+    system.actorOf(Props[ClusterListener](), "cluster-info")
     val deadLetterMonitorActor =
-      system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
+      system.actorOf(Props[DeadLetterMonitorActor](), name = "dead-letter-monitor-actor")
     system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
     system
   }

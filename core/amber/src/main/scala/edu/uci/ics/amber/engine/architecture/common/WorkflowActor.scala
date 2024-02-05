@@ -5,17 +5,29 @@ import akka.pattern.ask
 import akka.util.Timeout
 import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
+  CreditRequest,
+  CreditResponse,
   GetActorRef,
   MessageBecomesDeadLetter,
   NetworkAck,
   NetworkMessage,
-  RegisterActorRef,
-  CreditResponse,
-  CreditRequest
+  RegisterActorRef
+}
+import edu.uci.ics.amber.engine.architecture.logreplay.{
+  ReplayLogGenerator,
+  ReplayLogManager,
+  ReplayLogRecord,
+  ReplayOrderEnforcer
+}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  TriggerSend,
+  WorkerReplayLoggingConfig,
+  WorkerStateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
@@ -46,13 +58,15 @@ object WorkflowActor {
   final case class NetworkMessage(messageId: Long, internalMessage: WorkflowFIFOMessage)
 
   // sent from network communicator to next worker to poll for credit information
-  final case class CreditRequest(channelEndpointID: ChannelID)
+  final case class CreditRequest(channelId: ChannelIdentity)
 
-  final case class CreditResponse(channelEndpointID: ChannelID, credit: Long)
+  final case class CreditResponse(channelId: ChannelIdentity, credit: Long)
 }
 
-abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
-    extends Actor
+abstract class WorkflowActor(
+    replayLogConfOpt: Option[WorkerReplayLoggingConfig],
+    val actorId: ActorVirtualIdentity
+) extends Actor
     with Stash
     with AmberLogging {
 
@@ -76,6 +90,25 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
   val transferService: AkkaMessageTransferService =
     new AkkaMessageTransferService(actorService, actorRefMappingService, handleBackpressure)
 
+  logger.info(s"worker replay log writing conf: $replayLogConfOpt")
+
+  val logStorage: SequentialRecordStorage[ReplayLogRecord] =
+    SequentialRecordStorage.getStorage(replayLogConfOpt.map(_.writeTo))
+  val logManager: ReplayLogManager =
+    ReplayLogManager.createLogManager(logStorage, getLogName, sendMessageFromLogWriterToActor)
+
+  def getLogName: String = actorId.name.replace("Worker:", "")
+
+  def sendMessageFromLogWriterToActor(msg: WorkflowFIFOMessage): Unit = {
+    // limitation: TriggerSend will be processed after input messages before it.
+    self ! TriggerSend(msg)
+  }
+
+  def handleTriggerSend: Receive = {
+    case TriggerSend(msg) =>
+      transferService.send(msg)
+  }
+
   def receiveActorRefRelatedMessages: Receive = {
     case GetActorRef(actorId, replyTo) =>
       actorRefMappingService.retrieveActorRef(actorId, replyTo)
@@ -86,7 +119,7 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
   // actor behavior for FIFO messages
   def receiveMessageAndAck: Receive = {
     case NetworkMessage(id, workflowMsg @ WorkflowFIFOMessage(channel, _, _)) =>
-      actorRefMappingService.registerActorRef(channel.from, sender)
+      actorRefMappingService.registerActorRef(channel.fromWorkerId, sender())
       try {
         handleInputMessage(id, workflowMsg)
       } catch {
@@ -100,14 +133,25 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
 
   def receiveCreditMessages: Receive = {
     case CreditRequest(channel) =>
-      sender ! CreditResponse(channel, getQueuedCredit(channel))
+      sender() ! CreditResponse(channel, getQueuedCredit(channel))
     case CreditResponse(channel, credit) =>
       transferService.updateChannelCreditFromReceiver(channel, credit)
   }
 
   def receiveDeadLetterMessage: Receive = {
     case MessageBecomesDeadLetter(msg) =>
-      actorRefMappingService.removeActorRef(msg.internalMessage.channel.from)
+      val dest = msg.internalMessage.channelId.toWorkerId
+      if (dest == actorId) {
+        actorService.scheduleOnce(
+          100.millis,
+          () => {
+            logger.warn(s"sending message to self failed, retry sending $msg to self directly.")
+            self ! msg
+          }
+        )
+      } else {
+        actorRefMappingService.removeActorRef(dest)
+      }
   }
 
   def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit
@@ -115,7 +159,7 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
   //
   //flow control:
   //
-  def getQueuedCredit(channelID: ChannelID): Long
+  def getQueuedCredit(channelId: ChannelIdentity): Long
 
   def handleBackpressure(isBackpressured: Boolean): Unit
 
@@ -124,10 +168,40 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
   //
   def initState(): Unit
 
+  def setupReplay(
+      amberProcessor: AmberProcessor,
+      replayConf: WorkerStateRestoreConfig,
+      onComplete: () => Unit
+  ): Unit = {
+    val logStorageToRead =
+      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(replayConf.readFrom))
+    val replayTo = replayConf.replayDestination
+    val (processSteps, messages) =
+      ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
+    logger.info(
+      s"setting up replay, " +
+        s"read from ${replayConf.readFrom} " +
+        s"current step = ${logManager.getStep} " +
+        s"target step = $replayTo " +
+        s"# of log record to replay = ${processSteps.size}"
+    )
+    val orderEnforcer = new ReplayOrderEnforcer(
+      logManager,
+      processSteps,
+      startStep = logManager.getStep,
+      onComplete
+    )
+    amberProcessor.inputGateway.addEnforcer(orderEnforcer)
+    messages.foreach(message =>
+      amberProcessor.inputGateway.getChannel(message.channelId).acceptMessage(message)
+    )
+  }
+
   override def preStart(): Unit = {
     try {
       transferService.initialize()
       initState()
+      context.parent ! RegisterActorRef(actorId, context.self)
     } catch {
       case t: Throwable =>
         logger.warn("actor initialization failed due to exception", t)
@@ -137,6 +211,7 @@ abstract class WorkflowActor(val actorId: ActorVirtualIdentity)
 
   override def receive: Receive = {
     receiveActorRefRelatedMessages orElse
+      handleTriggerSend orElse
       receiveMessageAndAck orElse
       receiveCreditMessages orElse
       receiveDeadLetterMessage

@@ -2,18 +2,18 @@ import { Observable, Subject } from "rxjs";
 import {
   Breakpoint,
   Comment,
-  PortDescription,
   CommentBox,
+  LogicalPort,
   OperatorLink,
-  OperatorPort,
   OperatorPredicate,
   PartitionInfo,
+  PortDescription,
   PortProperty,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
-import { User, CoeditorState } from "../../../../common/type/user";
-import { createYTypeFromObject, YType, updateYTypeFromObject } from "../../../types/shared-editing.interface";
+import { CoeditorState, User } from "../../../../common/type/user";
+import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
@@ -130,7 +130,7 @@ export class WorkflowGraph {
   }>();
 
   public readonly portPropertyChangedSubject = new Subject<{
-    operatorPortID: OperatorPort;
+    operatorPortID: LogicalPort;
     newProperty: PortProperty;
   }>();
 
@@ -183,7 +183,7 @@ export class WorkflowGraph {
     return this.getSharedOperatorType(operatorID).get("operatorProperties") as YType<OperatorPropertiesType>;
   }
 
-  public getSharedPortDescriptionType(operatorPortID: OperatorPort): YType<PortDescription> | undefined {
+  public getSharedPortDescriptionType(operatorPortID: LogicalPort): YType<PortDescription> | undefined {
     const isInput = operatorPortID?.portID.includes("input");
     const portListObject = isInput
       ? this.getOperator(operatorPortID.operatorID).inputPorts
@@ -571,8 +571,7 @@ export class WorkflowGraph {
       throw new Error(`operator ${operatorID} does not exist`);
     }
     const yoperator = this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
-    const operator = yoperator.toJSON();
-    return operator;
+    return yoperator.toJSON();
   }
 
   /**
@@ -645,7 +644,7 @@ export class WorkflowGraph {
     }
   }
 
-  public hasPort(operatorPortID: OperatorPort): boolean {
+  public hasPort(operatorPortID: LogicalPort): boolean {
     if (!this.hasOperator(operatorPortID.operatorID)) return false;
     const operator = this.getOperator(operatorPortID.operatorID);
     if (operatorPortID.portID.includes("input")) {
@@ -659,7 +658,7 @@ export class WorkflowGraph {
     } else return false;
   }
 
-  public getPortDescription(operatorPortID: OperatorPort): PortDescription | undefined {
+  public getPortDescription(operatorPortID: LogicalPort): PortDescription | undefined {
     if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
     const operator = this.getOperator(operatorPortID.operatorID);
@@ -704,7 +703,7 @@ export class WorkflowGraph {
    * @param source source port
    * @param target target port
    */
-  public deleteLink(source: OperatorPort, target: OperatorPort): void {
+  public deleteLink(source: LogicalPort, target: LogicalPort): void {
     const link = this.getLink(source, target);
     if (!link) {
       throw new Error(`link from ${source.operatorID}.${source.portID}
@@ -728,7 +727,7 @@ export class WorkflowGraph {
    * @param source source operator and port of the link
    * @param target target operator and port of the link
    */
-  public hasLink(source: OperatorPort, target: OperatorPort): boolean {
+  public hasLink(source: LogicalPort, target: LogicalPort): boolean {
     try {
       const link = this.getLink(source, target);
       return true;
@@ -761,7 +760,7 @@ export class WorkflowGraph {
    * @param source source operator and port of the link
    * @param target target operator and port of the link
    */
-  public getLink(source: OperatorPort, target: OperatorPort): OperatorLink {
+  public getLink(source: LogicalPort, target: LogicalPort): OperatorLink {
     const links = this.getAllLinks().filter(value => isEqual(value.source, source) && isEqual(value.target, target));
     if (links.length === 0) {
       throw new Error(`link with source ${source} and target ${target} does not exist`);
@@ -824,7 +823,7 @@ export class WorkflowGraph {
     updateYTypeFromObject(previousProperty, newProperty);
   }
 
-  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+  public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
     newProperty = newProperty as PortProperty;
     if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
@@ -836,7 +835,9 @@ export class WorkflowGraph {
     );
     portDescriptionSharedType.set(
       "dependencies",
-      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
+      createYTypeFromObject<Array<{ id: number; internal: boolean }>>(
+        (newProperty as PortProperty).dependencies
+      ) as unknown as Y.Array<number>
     );
   }
 
@@ -1009,7 +1010,7 @@ export class WorkflowGraph {
   }
 
   public getPortPropertyChangedStream(): Observable<{
-    operatorPortID: OperatorPort;
+    operatorPortID: LogicalPort;
     newProperty: PortProperty;
   }> {
     return this.portPropertyChangedSubject.asObservable();
@@ -1075,7 +1076,7 @@ export class WorkflowGraph {
     }
   }
 
-  public assertLinkExists(source: OperatorPort, target: OperatorPort): void {
+  public assertLinkExists(source: LogicalPort, target: LogicalPort): void {
     if (!this.hasLink(source, target)) {
       throw new Error(`link from ${source.operatorID}.${source.portID}
         to ${target.operatorID}.${target.portID} already exists`);
