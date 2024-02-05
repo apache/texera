@@ -1,4 +1,4 @@
-from typing import Iterator, Optional, Set, Union, Dict, List
+from typing import Iterator, Optional, Union, Dict, List
 
 from core.models import Tuple, ArrowTableTupleProvider
 from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker

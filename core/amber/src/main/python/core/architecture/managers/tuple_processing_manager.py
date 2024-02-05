@@ -1,8 +1,8 @@
 from threading import Event, Condition
-from typing import Optional, Union, Tuple, Iterator, Mapping
+from typing import Optional, Union, Tuple, Iterator
 
 from core.models import InputExhausted
-from proto.edu.uci.ics.amber.engine.common import PhysicalLink, PortIdentity
+from proto.edu.uci.ics.amber.engine.common import PortIdentity
 
 
 class TupleProcessingManager:

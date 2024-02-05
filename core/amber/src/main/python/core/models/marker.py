@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 
-from proto.edu.uci.ics.amber.engine.common import PortIdentity, ChannelIdentity
+from proto.edu.uci.ics.amber.engine.common import ChannelIdentity
 
 
 @dataclass

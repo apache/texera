@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, 
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
