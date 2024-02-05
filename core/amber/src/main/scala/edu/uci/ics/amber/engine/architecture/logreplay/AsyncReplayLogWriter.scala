@@ -62,7 +62,7 @@ class AsyncReplayLogWriter(
       stop = true
     }
     drainedScala.foreach {
-      case Left(replayLogRecord) => writer.writeRecord(replayLogRecord)
+      case Left(replayLogRecord)      => writer.writeRecord(replayLogRecord)
       case Right(workflowFIFOMessage) => handler(workflowFIFOMessage)
     }
     writer.flush()

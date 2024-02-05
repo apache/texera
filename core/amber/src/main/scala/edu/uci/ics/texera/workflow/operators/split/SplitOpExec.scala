@@ -24,7 +24,7 @@ class SplitOpExec(
       asyncRPCClient: AsyncRPCClient
   ): Iterator[(ITuple, Option[PortIdentity])] = {
     tuple match {
-      case Left(iTuple)=>
+      case Left(iTuple) =>
         val isTraining = random.nextInt(100) < opDesc.k
         // training output port: 0, testing output port: 1
         val port = if (isTraining) PortIdentity(0) else PortIdentity(1)

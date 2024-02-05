@@ -64,7 +64,7 @@ class WorkerSpec
     ): Iterator[(ITuple, Option[PortIdentity])] = {
       tuple match {
         case Left(iTuple) => Iterator((iTuple, None))
-        case Right(_)    => Iterator.empty
+        case Right(_)     => Iterator.empty
       }
     }
   }
