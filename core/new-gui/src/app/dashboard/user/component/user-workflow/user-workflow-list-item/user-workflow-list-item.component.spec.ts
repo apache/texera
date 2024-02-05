@@ -10,6 +10,7 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { HttpClient, HttpHandler } from "@angular/common/http";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { StubUserProjectService } from "../../../service/user-project/stub-user-project.service";
+import { NzModalModule } from "ng-zorro-antd/modal";
 
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
@@ -17,6 +18,7 @@ describe("UserWorkflowListItemComponent", () => {
   const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
   beforeEach(async () => {
     await TestBed.configureTestingModule({
+      imports: [NzModalModule],
       declarations: [UserWorkflowListItemComponent, UniquePipe],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },

@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { environment } from "src/environments/environment";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { NgbdModalWorkflowExecutionsComponent } from "../ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { WorkflowExecutionModalComponent } from "../ngbd-modal-workflow-executions/workflow-execution-modal.component";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -14,6 +14,7 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
+import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 
 @UntilDestroy()
 @Component({
@@ -59,7 +60,8 @@ export class UserWorkflowListItemComponent {
   workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
 
   constructor(
-    private modalService: NgbModal,
+    private modalService: NzModalService,
+    private ngbModalService: NgbModal,
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService,
     private userProjectService: UserProjectService
@@ -76,12 +78,14 @@ export class UserWorkflowListItemComponent {
    * open the workflow executions page
    */
   public onClickGetWorkflowExecutions(): void {
-    const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
-      windowClass: "custom-ngbd-modal-class",
-      modalDialogClass: "modal-dialog-centered",
+    this.modalService.create({
+      nzContent: WorkflowExecutionModalComponent,
+      nzComponentParams: { wid: this.workflow.wid },
+      nzTitle: "Execution results of Workflow: " + this.workflow.name,
+      nzFooter: null,
+      nzWidth: "80%",
+      nzCentered: true,
     });
-    modalRef.componentInstance.workflow = this.workflow;
-    modalRef.componentInstance.workflowName = this.workflow.name;
   }
 
   public confirmUpdateWorkflowCustomName(name: string): void {
@@ -113,7 +117,7 @@ export class UserWorkflowListItemComponent {
    */
   public async onClickOpenShareAccess(): Promise<void> {
     const owners = await firstValueFrom(this.workflowPersistService.retrieveOwners());
-    const modalRef = this.modalService.open(ShareAccessComponent);
+    const modalRef = this.ngbModalService.open(ShareAccessComponent);
     modalRef.componentInstance.writeAccess = this.entry.workflow.accessLevel === "WRITE";
     modalRef.componentInstance.type = "workflow";
     modalRef.componentInstance.id = this.workflow.wid;
