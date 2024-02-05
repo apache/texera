@@ -357,7 +357,7 @@ class TestMainLoop:
         elem = output_queue.get()
         stats_invocation = elem.payload.return_invocation
         stats = stats_invocation.control_return.worker_statistics
-        assert output_queue.get() == ControlElement(
+        assert elem == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
