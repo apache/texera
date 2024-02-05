@@ -162,8 +162,14 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, AddInputChannel(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
+    sendControlToWorker(worker, Array(invocation, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -194,8 +200,14 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, AddInputChannel(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
+    sendControlToWorker(worker, Array(invocation, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -234,13 +246,19 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, AddInputChannel(identifier2, mockLink))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
     worker ! NetworkMessage(
       1,
       WorkflowFIFOMessage(
         ChannelIdentity(CONTROLLER, identifier1, isControl = true),
         1,
-        updateInputLinking
+        addInputChannel
       )
     )
     worker ! NetworkMessage(

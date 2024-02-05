@@ -91,7 +91,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
-      PhysicalLink(csvPhysicalOpId, PortIdentity(), keywordPhysicalOpId, PortIdentity())
+      GlobalPortIdentity(csvPhysicalOpId, PortIdentity(), input = false)
     )
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.isEmpty)
@@ -99,7 +99,23 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
-      PhysicalLink(keywordPhysicalOpId, PortIdentity(), sinkPhysicalOpId, PortIdentity())
+      GlobalPortIdentity(keywordPhysicalOpId, PortIdentity(), input = true)
+    )
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.isEmpty)
+
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
+      workflow,
+      executionState,
+      GlobalPortIdentity(keywordPhysicalOpId, PortIdentity(), input = false)
+    )
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.isEmpty)
+
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
+      workflow,
+      executionState,
+      GlobalPortIdentity(sinkPhysicalOpId, PortIdentity(), input = true)
     )
     assert(nextRegions.isEmpty)
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
@@ -182,11 +198,10 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         )
       )
     assert(nextRegions.isEmpty)
-
     nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
-      PhysicalLink(
+      GlobalPortIdentity(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             buildCsv.operatorIdentifier
@@ -194,20 +209,29 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           .last
           .id,
         PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin1.operatorIdentifier
-          )
-          .head
-          .id,
-        PortIdentity()
+        input = false
       )
     )
     assert(nextRegions.isEmpty)
     nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
-      PhysicalLink(
+      GlobalPortIdentity(
+        workflow.physicalPlan
+          .getPhysicalOpsOfLogicalOp(
+            hashJoin1.operatorIdentifier
+          )
+          .head
+          .id,
+        PortIdentity(),
+        input = true
+      )
+    )
+    assert(nextRegions.isEmpty)
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
+      workflow,
+      executionState,
+      GlobalPortIdentity(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             buildCsv.operatorIdentifier
@@ -215,13 +239,21 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           .last
           .id,
         PortIdentity(),
+        input = false
+      )
+    )
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
+      workflow,
+      executionState,
+      GlobalPortIdentity(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             hashJoin2.operatorIdentifier
           )
           .head
           .id,
-        PortIdentity()
+        PortIdentity(),
+        input = true
       )
     )
     assert(nextRegions.nonEmpty)
@@ -251,7 +283,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
-      PhysicalLink(
+      GlobalPortIdentity(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             probeCsv.operatorIdentifier
@@ -259,13 +291,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           .head
           .id,
         PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin1.operatorIdentifier
-          )
-          .head
-          .id,
-        PortIdentity(1)
+        input = false
       )
     )
     assert(nextRegions.isEmpty)
@@ -274,21 +300,15 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
-      PhysicalLink(
+      GlobalPortIdentity(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             hashJoin1.operatorIdentifier
           )
           .head
           .id,
-        PortIdentity(),
-        workflow.physicalPlan
-          .getPhysicalOpsOfLogicalOp(
-            hashJoin2.operatorIdentifier
-          )
-          .head
-          .id,
-        PortIdentity(1)
+        PortIdentity(1),
+        input = true
       )
     )
     assert(nextRegions.isEmpty)
@@ -297,7 +317,41 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     nextRegions = scheduler.schedulingPolicy.onPortCompletion(
       workflow,
       executionState,
-      PhysicalLink(
+      GlobalPortIdentity(
+        workflow.physicalPlan
+          .getPhysicalOpsOfLogicalOp(
+            hashJoin1.operatorIdentifier
+          )
+          .head
+          .id,
+        PortIdentity(),
+        input = false
+      )
+    )
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
+
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
+      workflow,
+      executionState,
+      GlobalPortIdentity(
+        workflow.physicalPlan
+          .getPhysicalOpsOfLogicalOp(
+            hashJoin2.operatorIdentifier
+          )
+          .head
+          .id,
+        PortIdentity(1),
+        input = true
+      )
+    )
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
+
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
+      workflow,
+      executionState,
+      GlobalPortIdentity(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             hashJoin2.operatorIdentifier
@@ -305,13 +359,24 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
           .head
           .id,
         PortIdentity(),
+        input = false
+      )
+    )
+    assert(nextRegions.isEmpty)
+    assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
+
+    nextRegions = scheduler.schedulingPolicy.onPortCompletion(
+      workflow,
+      executionState,
+      GlobalPortIdentity(
         workflow.physicalPlan
           .getPhysicalOpsOfLogicalOp(
             sink.operatorIdentifier
           )
           .head
           .id,
-        PortIdentity()
+        PortIdentity(),
+        input = true
       )
     )
     assert(nextRegions.isEmpty)
