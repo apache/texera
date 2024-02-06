@@ -4,11 +4,9 @@ import com.google.common.collect.Queues
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
-import org.graalvm.compiler.nodes.NamedLocationIdentity.mutable
 
 import java.util
 import java.util.concurrent.CompletableFuture
-import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.ListHasAsScala
 
