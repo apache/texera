@@ -62,10 +62,9 @@ class WorkerSpec
         pauseManager: PauseManager,
         asyncRPCClient: AsyncRPCClient
     ): Iterator[(ITuple, Option[PortIdentity])] = {
-      if (tuple.isLeft) {
-        Iterator((tuple.left.get, None))
-      } else {
-        Iterator.empty
+      tuple match {
+        case Left(iTuple) => Iterator((iTuple, None))
+        case Right(_)     => Iterator.empty
       }
     }
   }
