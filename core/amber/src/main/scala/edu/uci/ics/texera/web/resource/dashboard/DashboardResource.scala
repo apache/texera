@@ -3,24 +3,20 @@ package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  FileDao,
-  ProjectDao,
-  UserDao,
-  WorkflowDao,
-  WorkflowOfProjectDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileDao, ProjectDao, UserDao, WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
+import org.jooq.impl.DSL
+import org.jooq.impl.DSL._
+import org.jooq.impl.Internal.fields
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import org.jooq.{Field, Record1, SelectConditionStep}
+import org.jooq.{Field, Record, Record1, SelectConditionStep, SelectHavingStep, SelectSeekStepN}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
@@ -43,11 +39,17 @@ object DashboardResource {
       project: Option[Project],
       file: Option[DashboardFile]
   )
+
+  val FILE_RESOURCE_TYPE = "file"
+  val WORKFLOW_RESOURCE_TYPE = "workflow"
+  val PROJECT_RESOURCE_TYPE = "project"
+  val ALL_RESOURCE_TYPE = ""
+
   case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
 
   case class SearchQueryParams(
       @QueryParam("query") keywords: java.util.List[String] = new util.ArrayList[String](),
-      @QueryParam("resourceType") @DefaultValue("") resourceType: String = "",
+      @QueryParam("resourceType") @DefaultValue("") resourceType: String = ALL_RESOURCE_TYPE,
       @QueryParam("createDateStart") @DefaultValue("") creationStartDate: String = "",
       @QueryParam("createDateEnd") @DefaultValue("") creationEndDate: String = "",
       @QueryParam("modifiedDateStart") @DefaultValue("") modifiedStartDate: String = "",
@@ -63,7 +65,7 @@ object DashboardResource {
 
   case class SearchFieldMapping(
       specificResourceType: String,
-      baseQuery: SelectConditionStep[Record1[UInteger]],
+      baseQuery: SelectConditionStep[Record],
       fieldsForKeywords: List[Field[String]],
       fieldsForCreationDate: List[Field[Timestamp]],
       fieldsForModifiedDate: List[Field[Timestamp]],
@@ -73,77 +75,14 @@ object DashboardResource {
       fieldsForProjectIds: List[Field[UInteger]]
   )
 
-  private class SearchResultState(
-      var remainingCount: Int,
-      var remainingOffset: Int,
-      var hasMore: Boolean,
-      val result: mutable.ArrayBuffer[DashboardClickableFileEntry] = mutable.ArrayBuffer()
-  )
-}
+  private def retrieveResultAsDashboardEntry[T](
+                                  iterator: Iterator[
+                                    Record1[T]
+                                  ], // Assuming T is the type of the ID (e.g., UInteger for WID, FID, PID)
+                                  resultState: SearchResultState,
+                                  toEntry: T => DashboardClickableFileEntry // Conversion function from ID to entry
+                                ): Unit = {
 
-@Produces(Array(MediaType.APPLICATION_JSON))
-@Path("/dashboard")
-class DashboardResource {
-
-  // Refactored searchAllResources method to call specific methods for each resource type
-  @GET
-  @Path("/search")
-  def searchAllResources(
-      @Auth user: SessionUser,
-      @BeanParam params: SearchQueryParams
-  ): DashboardSearchResult = {
-    val resultState = new SearchResultState(params.count, params.offset, false)
-    // Handling Workflows
-    if (
-      (params.resourceType.isEmpty && (!resultState.hasMore || resultState.remainingCount > 0)) || params.resourceType == "workflow"
-    ) {
-      val workflowsFieldMapping = getFieldMappingsForWorkflowSearch(user)
-      val retrievedWIDs =
-        FulltextSearchQueryUtils.executeSearch(params, workflowsFieldMapping).iterator().asScala
-      processResource(
-        retrievedWIDs,
-        resultState,
-        wid => toWorkflowEntry(user.getUid, wid)
-      )
-    }
-    // Handling Files
-    if (
-      (params.resourceType.isEmpty && (!resultState.hasMore || resultState.remainingCount > 0)) || params.resourceType == "file"
-    ) {
-      val filesFieldMapping = getFieldMappingsForFileSearch(user)
-      val retrievedFIDs =
-        FulltextSearchQueryUtils.executeSearch(params, filesFieldMapping).iterator().asScala
-      processResource(
-        retrievedFIDs,
-        resultState,
-        fid => toFileEntry(user.getUid, fid)
-      )
-    }
-
-    // Handling Projects
-    if (
-      (params.resourceType.isEmpty && (!resultState.hasMore || resultState.remainingCount > 0)) || params.resourceType == "project"
-    ) {
-      val projectsFieldMapping = getFieldMappingsForProjectSearch(user)
-      val retrievedPIDs =
-        FulltextSearchQueryUtils.executeSearch(params, projectsFieldMapping).iterator().asScala
-      processResource(
-        retrievedPIDs,
-        resultState,
-        pid => toProjectEntry(pid)
-      )
-    }
-
-    DashboardSearchResult(resultState.result.toList, resultState.hasMore)
-  }
-
-  private def processResource[T](
-      iterator: Iterator[
-        Record1[T]
-      ], // Assuming T is the type of the ID (e.g., UInteger for WID, FID, PID)
-      resultState: SearchResultState,
-      toEntry: T => DashboardClickableFileEntry // Conversion function from ID to entry
-  ): Unit = {
     // Skip items based on the remainingOffset
     while (resultState.remainingOffset > 0 && iterator.hasNext) {
       iterator.next()
@@ -168,7 +107,7 @@ class DashboardResource {
 
   def getFieldMappingsForWorkflowSearch(user: SessionUser): SearchFieldMapping = {
     SearchFieldMapping(
-      "workflow",
+      WORKFLOW_RESOURCE_TYPE,
       queryAccessibleWorkflowsOfUser(user),
       List(WORKFLOW.NAME, WORKFLOW.CONTENT, WORKFLOW.DESCRIPTION),
       List(WORKFLOW.CREATION_TIME),
@@ -182,7 +121,7 @@ class DashboardResource {
 
   def getFieldMappingsForFileSearch(user: SessionUser): SearchFieldMapping = {
     SearchFieldMapping(
-      "file",
+      FILE_RESOURCE_TYPE,
       queryAccessibleFilesOfUser(user),
       List(FILE.NAME, FILE.DESCRIPTION),
       List(FILE.UPLOAD_TIME),
@@ -196,7 +135,7 @@ class DashboardResource {
 
   def getFieldMappingsForProjectSearch(user: SessionUser): SearchFieldMapping = {
     SearchFieldMapping(
-      "project",
+      PROJECT_RESOURCE_TYPE,
       queryAccessibleProjectsOfUser(user),
       List(PROJECT.NAME, PROJECT.DESCRIPTION),
       List(PROJECT.CREATION_TIME),
@@ -208,9 +147,9 @@ class DashboardResource {
     )
   }
 
-  def queryAccessibleWorkflowsOfUser(user: SessionUser): SelectConditionStep[Record1[UInteger]] = {
+  private def queryAccessibleWorkflowsOfUser(user: SessionUser): SelectHavingStep[Record] = {
     context
-      .selectDistinct(WORKFLOW.WID)
+      .selectDistinct(getWorkflowPartSchema():_*, DSL.inline("workflow").as("resourceType"))
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
@@ -225,11 +164,12 @@ class DashboardResource {
       .where(
         WORKFLOW_USER_ACCESS.UID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid))
       )
+      .groupBy(WORKFLOW.WID) // for group concat of project IDs.
   }
 
-  def queryAccessibleFilesOfUser(user: SessionUser): SelectConditionStep[Record1[UInteger]] = {
+  private def queryAccessibleFilesOfUser(user: SessionUser): SelectConditionStep[Record] = {
     context
-      .selectDistinct(FILE.FID)
+      .selectDistinct(getFilePartSchema():_*, DSL.inline("file").as("resourceType"))
       .from(USER_FILE_ACCESS)
       .join(FILE)
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
@@ -238,14 +178,71 @@ class DashboardResource {
       .where(USER_FILE_ACCESS.UID.eq(user.getUid))
   }
 
-  def queryAccessibleProjectsOfUser(user: SessionUser): SelectConditionStep[Record1[UInteger]] = {
+  private def queryAccessibleProjectsOfUser(user: SessionUser): SelectConditionStep[Record] = {
     context
-      .selectDistinct(PROJECT.PID)
+      .selectDistinct(getProjectPartSchema():_*, DSL.inline("project").as("resourceType"))
       .from(PROJECT)
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
       .where(PROJECT_USER_ACCESS.UID.eq(user.getUid))
   }
+
+  def getWorkflowPartSchema(): Seq[Field[_]] = {
+    Seq(WORKFLOW.fields(): _*,
+      USER.UID,
+      USER.NAME,
+      WORKFLOW_USER_ACCESS.PRIVILEGE,
+      groupConcat(WORKFLOW_OF_PROJECT.PID)
+        .as("projects")
+      )
+  }
+
+  def getFilePartSchema(): Seq[Field[_]] = {
+    Seq(FILE.fields():_*, USER.UID, USER_FILE_ACCESS.PRIVILEGE)
+  }
+
+  def getProjectPartSchema(): Seq[Field[_]] = PROJECT.fields()
+
+
+  def getUnifiedSchema(): Seq[Field[_]] = {
+    Seq(field("resourceType", classOf[String])) ++
+      getWorkflowPartSchema() ++
+      getFilePartSchema() ++
+      getProjectPartSchema()
+  }
+
+
+
+  private class SearchResultState(
+      var remainingCount: Int,
+      var remainingOffset: Int,
+      var hasMore: Boolean,
+      val result: mutable.ArrayBuffer[DashboardClickableFileEntry] = mutable.ArrayBuffer()
+  )
+
+  def searchAllResources(
+                          @Auth user: SessionUser,
+                          @BeanParam params: SearchQueryParams
+                        ): DashboardSearchResult = {
+    val filesFieldMapping = getFieldMappingsForFileSearch(user)
+    val searchQuery =
+      FulltextSearchQueryUtils.addSearchConditions(params, filesFieldMapping)
+    val filesFieldMapping1 = getFieldMappingsForFileSearch(user)
+    val searchQuery2 = {
+      FulltextSearchQueryUtils.addSearchConditions(params, filesFieldMapping1)
+    }
+    val filesFieldMapping2 = getFieldMappingsForProjectSearch(user)
+    val searchQuery3 = {
+      FulltextSearchQueryUtils.addSearchConditions(params, filesFieldMapping2)
+    }
+    searchQuery
+      .union(searchQuery2)
+      .union(searchQuery3)
+      .offset(params.offset)
+      .limit(params.count)
+      .fetch()
+  }
+
 
   def toWorkflowEntry(uid: UInteger, wid: UInteger): DashboardClickableFileEntry = {
     val workflow = workflowDao.fetchOneByWid(wid)
@@ -262,7 +259,7 @@ class DashboardResource {
       workflow,
       projects.asScala.map(p => UInteger.valueOf(p.getPid.intValue())).toList
     )
-    DashboardClickableFileEntry("workflow", Some(dashboardWorkflow), None, None)
+    DashboardClickableFileEntry(WORKFLOW_RESOURCE_TYPE, Some(dashboardWorkflow), None, None)
   }
 
   def toFileEntry(uid: UInteger, fid: UInteger): DashboardClickableFileEntry = {
@@ -273,11 +270,27 @@ class DashboardResource {
       .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
       .fetchOne()
     val dashboardFile = DashboardFile(user.getEmail, access.getPrivilege.toString, file)
-    DashboardClickableFileEntry("file", None, None, Some(dashboardFile))
+    DashboardClickableFileEntry(FILE_RESOURCE_TYPE, None, None, Some(dashboardFile))
   }
 
   def toProjectEntry(pid: UInteger): DashboardClickableFileEntry = {
-    DashboardClickableFileEntry("project", None, Some(projectDao.fetchOneByPid(pid)), None)
+    DashboardClickableFileEntry(PROJECT_RESOURCE_TYPE, None, Some(projectDao.fetchOneByPid(pid)), None)
   }
 
+
+}
+
+@Produces(Array(MediaType.APPLICATION_JSON))
+@Path("/dashboard")
+class DashboardResource {
+
+  // Refactored searchAllResources method to call specific methods for each resource type
+  @GET
+  @Path("/search")
+  def searchAllResourcesCall(
+      @Auth user: SessionUser,
+      @BeanParam params: SearchQueryParams
+  ): DashboardSearchResult = {
+    DashboardResource.searchAllResources(user, params)
+  }
 }

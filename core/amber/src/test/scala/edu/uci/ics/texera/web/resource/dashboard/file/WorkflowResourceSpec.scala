@@ -198,7 +198,7 @@ class WorkflowResourceSpec
     // search
     val DashboardWorkflowEntryList =
       dashboardResource
-        .searchAllResources(
+        .searchAllResourcesCall(
           sessionUser1,
           SearchQueryParams(keywords = getKeywordsArray(keywordInWorkflow1Content))
         )
@@ -215,7 +215,7 @@ class WorkflowResourceSpec
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     val DashboardWorkflowEntryList =
       dashboardResource
-        .searchAllResources(
+        .searchAllResourcesCall(
           sessionUser1,
           SearchQueryParams(keywords = getKeywordsArray(keywordInWorkflow1Content))
         )
@@ -224,7 +224,7 @@ class WorkflowResourceSpec
     assertSameWorkflow(testWorkflow1, DashboardWorkflowEntryList.head.workflow.get)
     val DashboardWorkflowEntryList1 =
       dashboardResource
-        .searchAllResources(
+        .searchAllResourcesCall(
           sessionUser1,
           SearchQueryParams(keywords = getKeywordsArray("text sear"))
         )
@@ -237,7 +237,7 @@ class WorkflowResourceSpec
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     val DashboardWorkflowEntryList =
-      dashboardResource.searchAllResources(sessionUser1, SearchQueryParams())
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams())
     assert(DashboardWorkflowEntryList.results.length == 2)
   }
 
@@ -251,7 +251,7 @@ class WorkflowResourceSpec
     keywords.add(keywordInWorkflow1Content)
     keywords.add(testWorkflow1.getDescription)
     val DashboardWorkflowEntryList = dashboardResource
-      .searchAllResources(sessionUser1, SearchQueryParams(keywords = keywords))
+      .searchAllResourcesCall(sessionUser1, SearchQueryParams(keywords = keywords))
       .results
     assert(DashboardWorkflowEntryList.size == 1)
     assert(DashboardWorkflowEntryList.head.workflow.get.ownerName.equals(testUser.getName))
@@ -259,7 +259,7 @@ class WorkflowResourceSpec
 
     keywords.add("nonexistent")
     val DashboardWorkflowEntryList2 = dashboardResource
-      .searchAllResources(sessionUser1, SearchQueryParams(keywords = keywords))
+      .searchAllResourcesCall(sessionUser1, SearchQueryParams(keywords = keywords))
       .results
     assert(DashboardWorkflowEntryList2.isEmpty)
 
@@ -268,7 +268,7 @@ class WorkflowResourceSpec
     keywordsReverseOrder.add(keywordInWorkflow1Content)
     val DashboardWorkflowEntryList1 =
       dashboardResource
-        .searchAllResources(sessionUser1, SearchQueryParams(keywords = keywordsReverseOrder))
+        .searchAllResourcesCall(sessionUser1, SearchQueryParams(keywords = keywordsReverseOrder))
         .results
     assert(DashboardWorkflowEntryList1.size == 1)
     assert(DashboardWorkflowEntryList1.head.workflow.get.ownerName.equals(testUser.getName))
@@ -284,7 +284,7 @@ class WorkflowResourceSpec
 
     def testInner(keywords: String): Unit = {
       val DashboardWorkflowEntryList = dashboardResource
-        .searchAllResources(
+        .searchAllResourcesCall(
           sessionUser1,
           SearchQueryParams(keywords = getKeywordsArray(keywords))
         )
@@ -308,7 +308,7 @@ class WorkflowResourceSpec
 
     val DashboardWorkflowEntryList =
       dashboardResource
-        .searchAllResources(sessionUser1, SearchQueryParams(getKeywordsArray("+-@()<>~*\"")))
+        .searchAllResourcesCall(sessionUser1, SearchQueryParams(getKeywordsArray("+-@()<>~*\"")))
         .results
     assert(DashboardWorkflowEntryList.size == 2)
 
@@ -326,7 +326,7 @@ class WorkflowResourceSpec
       // search with reserved characters in keywords
       val DashboardWorkflowEntryList =
         dashboardResource
-          .searchAllResources(user, SearchQueryParams(getKeywordsArray(workflow.getDescription)))
+          .searchAllResourcesCall(user, SearchQueryParams(getKeywordsArray(workflow.getDescription)))
           .results
       assert(DashboardWorkflowEntryList.size == 1)
       assert(DashboardWorkflowEntryList.head.workflow.get.ownerName.equals(user.getName()))
@@ -343,7 +343,7 @@ class WorkflowResourceSpec
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     val DashboardWorkflowEntryList =
       dashboardResource
-        .searchAllResources(sessionUser1, SearchQueryParams(getKeywordsArray(exampleEmailAddress)))
+        .searchAllResourcesCall(sessionUser1, SearchQueryParams(getKeywordsArray(exampleEmailAddress)))
         .results
     assert(DashboardWorkflowEntryList.size == 1)
     assertSameWorkflow(
@@ -504,7 +504,7 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
     // search
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
@@ -516,7 +516,7 @@ class WorkflowResourceSpec
     projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(sessionUser1, SearchQueryParams(getKeywordsArray("")))
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams(getKeywordsArray("")))
     assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
@@ -533,7 +533,7 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
 
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("unique"))
       )
@@ -553,7 +553,7 @@ class WorkflowResourceSpec
     )
     assert(response.getStatusInfo.getStatusCode == 200)
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("common"))
       )
@@ -573,7 +573,7 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
 
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test", "project1"))
       )
@@ -606,28 +606,28 @@ class WorkflowResourceSpec
     assert(response.getStatusInfo.getStatusCode == 200)
     // search resources with all resourceType
     var DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(getKeywordsArray("test"))
       )
     assert(DashboardClickableFileEntryList.results.length == 6)
 
     // filter resources by workflow
-    DashboardClickableFileEntryList = dashboardResource.searchAllResources(
+    DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
       sessionUser1,
       SearchQueryParams(resourceType = "workflow", keywords = getKeywordsArray("test"))
     )
     assert(DashboardClickableFileEntryList.results.length == 1)
 
     // filter resources by project
-    DashboardClickableFileEntryList = dashboardResource.searchAllResources(
+    DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
       sessionUser1,
       SearchQueryParams(resourceType = "project", keywords = getKeywordsArray("test"))
     )
     assert(DashboardClickableFileEntryList.results.length == 3)
 
     // filter resources by file
-    DashboardClickableFileEntryList = dashboardResource.searchAllResources(
+    DashboardClickableFileEntryList = dashboardResource.searchAllResourcesCall(
       sessionUser1,
       SearchQueryParams(resourceType = "file", keywords = getKeywordsArray("test"))
     )
@@ -653,7 +653,7 @@ class WorkflowResourceSpec
 
     // Perform search with multiple keywords
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(keywords = getKeywordsArray("test", "project"))
       )
@@ -670,7 +670,7 @@ class WorkflowResourceSpec
 
     // Perform search for resources using sessionUser1
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(keywords = getKeywordsArray("test"))
       )
@@ -695,7 +695,7 @@ class WorkflowResourceSpec
 
     // Request the first page of results (page size is 10)
     val firstPage =
-      dashboardResource.searchAllResources(sessionUser1, SearchQueryParams(count = 10))
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams(count = 10))
 
     // Assert that the first page has 10 results
     assert(firstPage.results.length == 10)
@@ -703,7 +703,7 @@ class WorkflowResourceSpec
 
     // Request the second page of results
     val secondPage =
-      dashboardResource.searchAllResources(sessionUser1, SearchQueryParams(count = 10, offset = 10))
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams(count = 10, offset = 10))
 
     // Assert that the second page has 10 results
     assert(secondPage.results.length == 10)
@@ -711,7 +711,7 @@ class WorkflowResourceSpec
 
     // Request the third page of results
     val thirdPage =
-      dashboardResource.searchAllResources(sessionUser1, SearchQueryParams(count = 10, offset = 20))
+      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams(count = 10, offset = 20))
 
     // Assert that the third page has 5 results (since we only have 25 resources)
     assert(thirdPage.results.length == 1)
@@ -730,7 +730,7 @@ class WorkflowResourceSpec
 
     // Retrieve resources ordered by name in ascending order
     var resources =
-      dashboardResource.searchAllResources(
+      dashboardResource.searchAllResourcesCall(
         sessionUser1,
         SearchQueryParams(resourceType = "workflow", orderBy = "NameAsc")
       )
@@ -740,7 +740,7 @@ class WorkflowResourceSpec
     assert(resources.results(1).workflow.get.workflow.getName == "test_workflow2")
     assert(resources.results(2).workflow.get.workflow.getName == "test_workflow3")
 
-    resources = dashboardResource.searchAllResources(
+    resources = dashboardResource.searchAllResourcesCall(
       sessionUser1,
       SearchQueryParams(resourceType = "workflow", orderBy = "NameDesc")
     )

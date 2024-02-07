@@ -1,11 +1,8 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
-  SearchFieldMapping,
-  SearchQueryParams
-}
-import org.jooq.{Condition, Field, OrderField, Record1, Result}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{SearchFieldMapping, SearchQueryParams}
+import org.jooq.{Condition, Field, OrderField, Record, Record1, Result, SelectSeekStepN}
 import org.jooq.impl.DSL.{condition, noCondition}
 import org.jooq.types.UInteger
 
@@ -16,10 +13,10 @@ import scala.collection.Seq
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
-  def executeSearch(
+  def addSearchConditions(
       searchQueryParams: SearchQueryParams,
       fieldMapping: SearchFieldMapping
-  ): Result[Record1[UInteger]] = {
+  ): SelectSeekStepN[Record] = {
     val splitKeywords = searchQueryParams.keywords.asScala
       .flatMap(_.split("[+\\-()<>~*@\"]"))
       .filter(_.nonEmpty)
@@ -55,7 +52,6 @@ object FulltextSearchQueryUtils {
     fieldMapping.baseQuery
       .and(whereCondition)
       .orderBy(getOrderFields(fieldMapping.specificResourceType, searchQueryParams): _*)
-      .fetch()
   }
 
   private def getOrderFields(
@@ -115,11 +111,11 @@ object FulltextSearchQueryUtils {
         var conditionForKeyword = condition(
           s"MATCH($indexedCompoundFields) AGAINST('+$key$subStringSearchEnabled' IN BOOLEAN MODE)"
         )
-        // perform exact "contains" to improve the quality of search results
-        // if the following has a huge performance overhead, consider removing the LIKE part.
-        for (fieldName <- fullFieldNames) {
-          conditionForKeyword = conditionForKeyword.or(s"$fieldName LIKE '%$key%'")
-        }
+//        // perform exact "contains" to improve the quality of search results
+//        // if the following has a huge performance overhead, consider removing the LIKE part.
+//        for (fieldName <- fullFieldNames) {
+//          conditionForKeyword = conditionForKeyword.or(s"$fieldName LIKE '%$key%'")
+//        }
         result = result.and(conditionForKeyword)
       }
     }
