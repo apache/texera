@@ -57,6 +57,7 @@ export class UserWorkflowListItemComponent {
   editingDescription = false;
   /** Whether tracking metadata information about executions is enabled. */
   workflowExecutionsTrackingEnabled: boolean = environment.workflowExecutionsTrackingEnabled;
+  projectIDs;
 
   constructor(
     private modalService: NgbModal,
@@ -70,6 +71,7 @@ export class UserWorkflowListItemComponent {
       .subscribe(userProjectsList => {
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
       });
+    this.projectIDs = new Set(this.entry.workflow.projectIDs);
   }
 
   /**
