@@ -78,7 +78,8 @@ class OperatorExecution(
 
   def getIdleTime: Long = statistics.map(_.idleTime).sum
 
-  def getBuiltWorkerIds: Array[ActorVirtualIdentity] = workerExecutions.values.asScala.map(_.id).toArray
+  def getBuiltWorkerIds: Array[ActorVirtualIdentity] =
+    workerExecutions.values.asScala.map(_.id).toArray
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {
     getBuiltWorkerIds

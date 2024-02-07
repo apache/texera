@@ -314,9 +314,10 @@ class DataProcessor(
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
         val channel = this.inputGateway.getChannel(channelId)
-        channel.complete()
         val portId = channel.getPortId
-        this.inputGateway.updatePortStatus(portId)
+
+        this.inputGateway.getPort(portId).channels(channelId) = true
+
         if (inputGateway.isPortCompleted(portId)) {
           initBatch(channelId, Array.empty)
           processInputTuple(Right(InputExhausted()))

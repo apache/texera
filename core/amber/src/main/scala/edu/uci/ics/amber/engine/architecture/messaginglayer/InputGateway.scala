@@ -24,7 +24,7 @@ trait InputGateway {
 
   def addPort(portId: PortIdentity): Unit
 
-  def updatePortStatus(portId: PortIdentity): Unit
+  def getPort(portId: PortIdentity): WorkerPort
 
   def isPortCompleted(portId: PortIdentity): Boolean
 }

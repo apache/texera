@@ -20,7 +20,6 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   private val fifoQueue = new mutable.Queue[WorkflowFIFOMessage]
   private val holdCredit = new AtomicLong()
   private var portId: Option[PortIdentity] = None
-  private var completed: Boolean = false
 
   def acceptMessage(msg: WorkflowFIFOMessage): Unit = {
     val seq = msg.sequenceNumber
@@ -100,13 +99,5 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
 
   def getPortId: PortIdentity = {
     this.portId.get
-  }
-
-  def complete(): Unit = {
-    this.completed = true
-  }
-
-  def isCompleted: Boolean = {
-    this.completed
   }
 }

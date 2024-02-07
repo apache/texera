@@ -272,7 +272,6 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     )
     assert(nextRegions.isEmpty)
 
-
     setPhysicalOpCompleted(workflow, executionState, hashJoin1BuildPhysicalOp.id)
     setPhysicalOpCompleted(workflow, executionState, hashJoin2BuildPhysicalOp.id)
 
@@ -350,7 +349,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       GlobalPortIdentity(
         probeCsvPhysicalOpId,
         PortIdentity(),
-        input= false
+        input = false
       )
     )
     assert(nextRegions.isEmpty)

@@ -15,7 +15,7 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
   private val inputChannels =
     new mutable.HashMap[ChannelIdentity, AmberFIFOChannel]()
 
-  private val portIds: mutable.HashMap[PortIdentity, Boolean] = mutable.HashMap()
+  private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
   private val enforcers = mutable.ListBuffer[OrderEnforcer]()
 
@@ -71,26 +71,24 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
   }
 
   override def getAllPorts(): Set[PortIdentity] = {
-    this.portIds.keys.toSet
+    this.ports.keys.toSet
   }
 
   def addPort(portId: PortIdentity): Unit = {
     // each port can only be added and initialized once.
-    if (this.portIds.contains(portId)) {
+    if (this.ports.contains(portId)) {
       return
     }
-    this.portIds(portId) = false
+    this.ports(portId) = WorkerPort()
   }
 
-  def updatePortStatus(portId: PortIdentity): Unit = {
-    if (
-      this.getAllDataChannels.filter(channel => channel.getPortId == portId).forall(_.isCompleted)
-    ) {
-      this.portIds(portId) = true
-    }
-  }
+  def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
   def isPortCompleted(portId: PortIdentity): Boolean = {
-    this.portIds(portId)
+    // a port without channels is not completed.
+    if (this.ports(portId).channels.isEmpty) {
+      return false
+    }
+    this.ports(portId).channels.values.forall(completed => completed)
   }
 }
