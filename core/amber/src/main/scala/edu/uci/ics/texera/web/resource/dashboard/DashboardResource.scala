@@ -12,32 +12,23 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL._
-import org.jooq.impl.Internal.fields
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import org.jooq.{Field, Record, Record1, SelectConditionStep, SelectHavingStep, SelectSeekStepN}
+import org.jooq.{Condition, Field, OrderField, Record, Select, SelectConditionStep, SelectLimitStep, SelectOrderByStep}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.util
-import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
 object DashboardResource {
   final private lazy val context = SqlServer.createDSLContext()
-  final private lazy val workflowDao = new WorkflowDao(context.configuration)
-  final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
-  final private lazy val workflowOfUserDao = new WorkflowOfUserDao(context.configuration)
-  final private lazy val workflowUserAccessDao = new WorkflowUserAccessDao(context.configuration)
-  final private lazy val userDao = new UserDao(context.configuration)
-  final private lazy val fileDao = new FileDao(context.configuration)
-  final private lazy val projectDao = new ProjectDao(context.configuration)
   case class DashboardClickableFileEntry(
       resourceType: String,
-      workflow: Option[DashboardWorkflow],
-      project: Option[Project],
-      file: Option[DashboardFile]
+      workflow: Option[DashboardWorkflow] = None,
+      project: Option[Project] = None,
+      file: Option[DashboardFile] = None
   )
 
   val FILE_RESOURCE_TYPE = "file"
@@ -65,7 +56,6 @@ object DashboardResource {
 
   case class SearchFieldMapping(
       specificResourceType: String,
-      baseQuery: SelectConditionStep[Record],
       fieldsForKeywords: List[Field[String]],
       fieldsForCreationDate: List[Field[Timestamp]],
       fieldsForModifiedDate: List[Field[Timestamp]],
@@ -75,40 +65,11 @@ object DashboardResource {
       fieldsForProjectIds: List[Field[UInteger]]
   )
 
-  private def retrieveResultAsDashboardEntry[T](
-                                  iterator: Iterator[
-                                    Record1[T]
-                                  ], // Assuming T is the type of the ID (e.g., UInteger for WID, FID, PID)
-                                  resultState: SearchResultState,
-                                  toEntry: T => DashboardClickableFileEntry // Conversion function from ID to entry
-                                ): Unit = {
-
-    // Skip items based on the remainingOffset
-    while (resultState.remainingOffset > 0 && iterator.hasNext) {
-      iterator.next()
-      resultState.remainingOffset -= 1
-    }
-
-    // Check if we have exhausted the iterator while skipping for offset
-    if (!iterator.hasNext) {
-      resultState.hasMore = false
-      return
-    }
-
-    // Process items based on the remainingCount
-    while (resultState.remainingCount > 0 && iterator.hasNext) {
-      resultState.result.append(toEntry(iterator.next().value1()))
-      resultState.remainingCount -= 1
-    }
-    resultState.hasMore = iterator.hasNext
-  }
-
   // Construct query for workflows
 
   def getFieldMappingsForWorkflowSearch(user: SessionUser): SearchFieldMapping = {
     SearchFieldMapping(
       WORKFLOW_RESOURCE_TYPE,
-      queryAccessibleWorkflowsOfUser(user),
       List(WORKFLOW.NAME, WORKFLOW.CONTENT, WORKFLOW.DESCRIPTION),
       List(WORKFLOW.CREATION_TIME),
       List(WORKFLOW.LAST_MODIFIED_TIME),
@@ -122,7 +83,6 @@ object DashboardResource {
   def getFieldMappingsForFileSearch(user: SessionUser): SearchFieldMapping = {
     SearchFieldMapping(
       FILE_RESOURCE_TYPE,
-      queryAccessibleFilesOfUser(user),
       List(FILE.NAME, FILE.DESCRIPTION),
       List(FILE.UPLOAD_TIME),
       List(FILE.UPLOAD_TIME),
@@ -136,7 +96,6 @@ object DashboardResource {
   def getFieldMappingsForProjectSearch(user: SessionUser): SearchFieldMapping = {
     SearchFieldMapping(
       PROJECT_RESOURCE_TYPE,
-      queryAccessibleProjectsOfUser(user),
       List(PROJECT.NAME, PROJECT.DESCRIPTION),
       List(PROJECT.CREATION_TIME),
       List(),
@@ -147,9 +106,10 @@ object DashboardResource {
     )
   }
 
-  private def queryAccessibleWorkflowsOfUser(user: SessionUser): SelectHavingStep[Record] = {
+  private def queryAccessibleWorkflowsOfUser(user: SessionUser, condition:Condition, orderByFields:List[OrderField[_]]): SelectLimitStep[Record] = {
+    val selectedFields = getWorkflowPartSchema ++ Seq(DSL.inline("workflow").as("resourceType"))
     context
-      .selectDistinct(getWorkflowPartSchema():_*, DSL.inline("workflow").as("resourceType"))
+      .selectDistinct(getUnifiedSchemaFor(selectedFields):_*)
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
@@ -164,31 +124,39 @@ object DashboardResource {
       .where(
         WORKFLOW_USER_ACCESS.UID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid))
       )
+      .and(condition)
       .groupBy(WORKFLOW.WID) // for group concat of project IDs.
+      .orderBy(orderByFields:_*)
   }
 
-  private def queryAccessibleFilesOfUser(user: SessionUser): SelectConditionStep[Record] = {
+  private def queryAccessibleFilesOfUser(user: SessionUser, condition: Condition, orderByFields:List[OrderField[_]]): SelectLimitStep[Record] = {
+    val selectedFields = getFilePartSchema ++ Seq(DSL.inline("file").as("resourceType"))
     context
-      .selectDistinct(getFilePartSchema():_*, DSL.inline("file").as("resourceType"))
+      .selectDistinct(getUnifiedSchemaFor(selectedFields):_*)
       .from(USER_FILE_ACCESS)
       .join(FILE)
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
       .join(USER)
       .on(FILE.OWNER_UID.eq(USER.UID))
       .where(USER_FILE_ACCESS.UID.eq(user.getUid))
+      .and(condition)
+      .orderBy(orderByFields:_*)
   }
 
-  private def queryAccessibleProjectsOfUser(user: SessionUser): SelectConditionStep[Record] = {
+  private def queryAccessibleProjectsOfUser(user: SessionUser, condition:Condition, orderByFields:List[OrderField[_]]): SelectLimitStep[Record] = {
+    val selectedFields = getProjectPartSchema ++ Seq(DSL.inline("project").as("resourceType"))
     context
-      .selectDistinct(getProjectPartSchema():_*, DSL.inline("project").as("resourceType"))
+      .selectDistinct(getUnifiedSchemaFor(selectedFields):_*)
       .from(PROJECT)
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
       .where(PROJECT_USER_ACCESS.UID.eq(user.getUid))
+      .and(condition)
+      .orderBy(orderByFields:_*)
   }
 
-  def getWorkflowPartSchema(): Seq[Field[_]] = {
-    Seq(WORKFLOW.fields(): _*,
+  val getWorkflowPartSchema: Seq[Field[_]] = {
+    WORKFLOW.fields() ++ Seq(
       USER.UID,
       USER.NAME,
       WORKFLOW_USER_ACCESS.PRIVILEGE,
@@ -197,84 +165,110 @@ object DashboardResource {
       )
   }
 
-  def getFilePartSchema(): Seq[Field[_]] = {
-    Seq(FILE.fields():_*, USER.UID, USER_FILE_ACCESS.PRIVILEGE)
+  def getUnifiedSchemaFor(keepFields:Seq[Field[_]]): Seq[Field[_]] = {
+    getUnifiedSchema.map(field =>{
+      keepFields.find(f => f.getQualifiedName == field.getQualifiedName) match {
+        case Some(value) => value
+        case None => field // TODO: fix
+      }
+    })
   }
 
-  def getProjectPartSchema(): Seq[Field[_]] = PROJECT.fields()
-
-
-  def getUnifiedSchema(): Seq[Field[_]] = {
-    Seq(field("resourceType", classOf[String])) ++
-      getWorkflowPartSchema() ++
-      getFilePartSchema() ++
-      getProjectPartSchema()
+  val getFilePartSchema: Seq[Field[_]] = {
+    FILE.fields() ++ Seq(USER.UID, USER_FILE_ACCESS.PRIVILEGE)
   }
 
+  val getProjectPartSchema: Seq[Field[_]] = PROJECT.fields()
 
 
-  private class SearchResultState(
-      var remainingCount: Int,
-      var remainingOffset: Int,
-      var hasMore: Boolean,
-      val result: mutable.ArrayBuffer[DashboardClickableFileEntry] = mutable.ArrayBuffer()
-  )
+  val getUnifiedSchema: Seq[Field[_]] = {
+    (Set(field("resourceType", classOf[String])) ++
+      getWorkflowPartSchema ++
+      getFilePartSchema ++
+      getProjectPartSchema).toSeq
+  }
+
 
   def searchAllResources(
                           @Auth user: SessionUser,
                           @BeanParam params: SearchQueryParams
                         ): DashboardSearchResult = {
-    val filesFieldMapping = getFieldMappingsForFileSearch(user)
-    val searchQuery =
-      FulltextSearchQueryUtils.addSearchConditions(params, filesFieldMapping)
-    val filesFieldMapping1 = getFieldMappingsForFileSearch(user)
-    val searchQuery2 = {
-      FulltextSearchQueryUtils.addSearchConditions(params, filesFieldMapping1)
+
+    def buildQuery(resourceType: String): SelectLimitStep[Record] = {
+      val fieldMapping = resourceType match {
+        case WORKFLOW_RESOURCE_TYPE => getFieldMappingsForWorkflowSearch(user)
+        case FILE_RESOURCE_TYPE => getFieldMappingsForFileSearch(user)
+        case PROJECT_RESOURCE_TYPE => getFieldMappingsForProjectSearch(user)
+      }
+
+      val condition = FulltextSearchQueryUtils.getSearchConditions(params, fieldMapping)
+      val orderByFields = FulltextSearchQueryUtils.getOrderFields(fieldMapping, params)
+
+      resourceType match {
+        case WORKFLOW_RESOURCE_TYPE => queryAccessibleWorkflowsOfUser(user, condition, orderByFields)
+        case FILE_RESOURCE_TYPE => queryAccessibleFilesOfUser(user, condition, orderByFields)
+        case PROJECT_RESOURCE_TYPE => queryAccessibleProjectsOfUser(user, condition, orderByFields)
+      }
     }
-    val filesFieldMapping2 = getFieldMappingsForProjectSearch(user)
-    val searchQuery3 = {
-      FulltextSearchQueryUtils.addSearchConditions(params, filesFieldMapping2)
+
+    val query = params.resourceType match {
+      case ALL_RESOURCE_TYPE =>
+        val query1 = buildQuery(WORKFLOW_RESOURCE_TYPE)
+        val query2 = buildQuery(FILE_RESOURCE_TYPE)
+        val query3 = buildQuery(PROJECT_RESOURCE_TYPE)
+        query1.unionAll(query2).unionAll(query3)
+      case _ => buildQuery(params.resourceType)
     }
-    searchQuery
-      .union(searchQuery2)
-      .union(searchQuery3)
-      .offset(params.offset)
-      .limit(params.count)
-      .fetch()
+
+    val queryResult = query.offset(params.offset).limit(params.count + 1).fetch()
+
+    val entries = queryResult.asScala.toList.map(record => {
+      val resourceType = record.get("resourceType", classOf[String])
+      resourceType match {
+        case WORKFLOW_RESOURCE_TYPE => DashboardClickableFileEntry(resourceType, workflow = Some(toWorkflowEntry(user, record)))
+        case FILE_RESOURCE_TYPE => DashboardClickableFileEntry(resourceType, file = Some(toFileEntry(record)))
+        case PROJECT_RESOURCE_TYPE => DashboardClickableFileEntry(resourceType, project = Some(record.into(PROJECT).into(classOf[Project])))
+      }
+    })
+
+    DashboardSearchResult(results = entries, more = queryResult.size() > params.count)
   }
 
 
-  def toWorkflowEntry(uid: UInteger, wid: UInteger): DashboardClickableFileEntry = {
-    val workflow = workflowDao.fetchOneByWid(wid)
-    val projects = workflowOfProjectDao.fetchByWid(wid)
-    // assume we only have one uid per wid.
-    val userId = workflowOfUserDao.fetchByWid(wid).asScala.map(_.getUid).head
-    // assume we only have one access level per wid.
-    val access = workflowUserAccessDao.fetchByWid(wid).asScala.head
-    val user = userDao.fetchOneByUid(userId)
-    val dashboardWorkflow = DashboardWorkflow(
-      userId == uid,
-      access.getPrivilege.toString,
-      user.getName,
-      workflow,
-      projects.asScala.map(p => UInteger.valueOf(p.getPid.intValue())).toList
+  def toWorkflowEntry(user:SessionUser, record: Record): DashboardWorkflow = {
+    DashboardWorkflow(
+      record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+      record
+        .into(WORKFLOW_USER_ACCESS)
+        .into(classOf[WorkflowUserAccess])
+        .getPrivilege
+        .toString,
+      record.into(USER).getName,
+      record.into(WORKFLOW).into(classOf[Workflow]),
+      if (record.get("projects") == null) {
+        List[UInteger]()
+      } else {
+        record
+          .get("projects")
+          .asInstanceOf[String]
+          .split(',')
+          .map(number => UInteger.valueOf(number))
+          .toList
+      }
     )
-    DashboardClickableFileEntry(WORKFLOW_RESOURCE_TYPE, Some(dashboardWorkflow), None, None)
   }
 
-  def toFileEntry(uid: UInteger, fid: UInteger): DashboardClickableFileEntry = {
-    val file = fileDao.fetchOneByFid(fid)
-    val user = userDao.fetchOneByUid(uid)
-    val access = context
-      .selectFrom(USER_FILE_ACCESS)
-      .where(USER_FILE_ACCESS.UID.eq(uid).and(USER_FILE_ACCESS.FID.eq(fid)))
-      .fetchOne()
-    val dashboardFile = DashboardFile(user.getEmail, access.getPrivilege.toString, file)
-    DashboardClickableFileEntry(FILE_RESOURCE_TYPE, None, None, Some(dashboardFile))
-  }
-
-  def toProjectEntry(pid: UInteger): DashboardClickableFileEntry = {
-    DashboardClickableFileEntry(PROJECT_RESOURCE_TYPE, None, Some(projectDao.fetchOneByPid(pid)), None)
+  def toFileEntry(record: Record): DashboardFile = {
+    DashboardFile(
+      record.into(USER).getEmail,
+      record
+        .get(
+          USER_FILE_ACCESS.PRIVILEGE,
+          classOf[UserFileAccessPrivilege]
+        )
+        .toString,
+      record.into(FILE).into(classOf[File])
+    )
   }
 
 

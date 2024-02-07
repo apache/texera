@@ -2,21 +2,19 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{SearchFieldMapping, SearchQueryParams}
-import org.jooq.{Condition, Field, OrderField, Record, Record1, Result, SelectSeekStepN}
+import org.jooq.{Condition, Field, OrderField, Record, Record1, Result, SelectOrderByStep, SelectSeekStepN}
 import org.jooq.impl.DSL.{condition, noCondition}
-import org.jooq.types.UInteger
 
 import java.sql.Timestamp
 import java.text.{ParseException, SimpleDateFormat}
 import java.util.concurrent.TimeUnit
-import scala.collection.Seq
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
-  def addSearchConditions(
+  def getSearchConditions(
       searchQueryParams: SearchQueryParams,
       fieldMapping: SearchFieldMapping
-  ): SelectSeekStepN[Record] = {
+  ): Condition = {
     val splitKeywords = searchQueryParams.keywords.asScala
       .flatMap(_.split("[+\\-()<>~*@\"]"))
       .filter(_.nonEmpty)
@@ -49,13 +47,12 @@ object FulltextSearchQueryUtils {
       // Apply fulltext search filter
       .and(getFulltextSearchConditions(splitKeywords, fieldMapping.fieldsForKeywords))
 
-    fieldMapping.baseQuery
-      .and(whereCondition)
-      .orderBy(getOrderFields(fieldMapping.specificResourceType, searchQueryParams): _*)
+    noCondition().and(whereCondition)
+      //.orderBy(getOrderFields(fieldMapping.specificResourceType, searchQueryParams): _*)
   }
 
-  private def getOrderFields(
-      specificResourceType: String,
+  def getOrderFields(
+                      fieldMapping: SearchFieldMapping,
       searchQueryParams: SearchQueryParams
   ): List[OrderField[_]] = {
     // Regex pattern to extract column name and order direction
@@ -63,7 +60,7 @@ object FulltextSearchQueryUtils {
 
     searchQueryParams.orderBy match {
       case pattern(column, order) =>
-        val field = getColumnField(specificResourceType, column)
+        val field = getColumnField(fieldMapping.specificResourceType, column)
         field match {
           case Some(value) =>
             List(order match {
@@ -111,11 +108,11 @@ object FulltextSearchQueryUtils {
         var conditionForKeyword = condition(
           s"MATCH($indexedCompoundFields) AGAINST('+$key$subStringSearchEnabled' IN BOOLEAN MODE)"
         )
-//        // perform exact "contains" to improve the quality of search results
-//        // if the following has a huge performance overhead, consider removing the LIKE part.
-//        for (fieldName <- fullFieldNames) {
-//          conditionForKeyword = conditionForKeyword.or(s"$fieldName LIKE '%$key%'")
-//        }
+        // perform exact "contains" to improve the quality of search results
+        // if the following has a huge performance overhead, consider removing the LIKE part.
+        for (fieldName <- fullFieldNames) {
+          conditionForKeyword = conditionForKeyword.or(s"$fieldName LIKE '%$key%'")
+        }
         result = result.and(conditionForKeyword)
       }
     }
