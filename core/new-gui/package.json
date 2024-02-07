@@ -132,7 +132,6 @@
     "karma-coverage": "~2.2.1",
     "karma-jasmine": "4.0.1",
     "karma-jasmine-html-reporter": "1.7.0",
-    "ngx-pipes": "3.0.0",
     "nodecat": "2.0.0",
     "nx": "14.4.6",
     "nz-tslint-rules": "0.901.2",

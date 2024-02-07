@@ -4,7 +4,6 @@
     <nz-list-item-meta-avatar [ngStyle]="{ 'margin-left': editable ? 'none' : '16px' }">
       <label
         *ngIf="editable"
-        nz-checkbox
         class="workflow-item-checkbox"
         id="{{workflow.wid}}"
         [(ngModel)]="entry.checked"></label>
@@ -36,7 +35,6 @@
           *ngIf="editable"
           (click)="editingName = true"
           nz-button
-          mat-card-title="Customize Workflow Name"
           nz-tooltip="Customize Workflow Name"
           nzSize="small"
           nzTooltipPlacement="bottom"
@@ -113,7 +111,7 @@
     *ngIf="userProjectsMap.size > 0"
     class="project-label-container">
     <div
-      *ngFor="let projectID of entry.workflow.projectIDs | unique"
+      *ngFor="let projectID of getProjectIds()"
       class="project-label">
       <a
         *ngIf="userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"

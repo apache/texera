@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { UniquePipe } from "ngx-pipes";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
 import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
@@ -19,7 +18,7 @@ describe("UserWorkflowListItemComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [NzModalModule],
-      declarations: [UserWorkflowListItemComponent, UniquePipe],
+      declarations: [UserWorkflowListItemComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },
