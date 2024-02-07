@@ -4385,17 +4385,17 @@
   resolved "https://registry.yarnpkg.com/@types/parse-json/-/parse-json-4.0.0.tgz#2f8bb441434d163b35fb8ffdccd7138927ffb8c0"
   integrity sha512-//oorEZjL6sbPcKUaCdIGlIUeH26mgzimjBB77G6XRgnDl/L5wOnpyBGRe/Mmf5CVW3PwEBE1NjiMZ/ssFh4wA==
 
-"@types/plotly.js-dist-min@^2.3.4":
-  version "2.3.4"
-  resolved "https://registry.yarnpkg.com/@types/plotly.js-dist-min/-/plotly.js-dist-min-2.3.4.tgz#dcac506a1e5dc87aa84d0dc910830127f3cd4482"
-  integrity sha512-ISwLFV6Zs/v3DkaRFLyk2rvYAfVdnYP2VVVy7h+fBDWw52sn7sMUzytkWiN4M75uxr1uz1uiBioePTDpAfoFIg==
+"@types/plotly.js-basic-dist-min@^2.12.4":
+  version "2.12.4"
+  resolved "https://registry.yarnpkg.com/@types/plotly.js-basic-dist-min/-/plotly.js-basic-dist-min-2.12.4.tgz#b42fa4dfbb3fee51ce1284b9fb37b1cae82b5b6e"
+  integrity sha512-BtvgBR52ZQ9N346gq8eAom9vwh1HAcGTxIUDrQXRMEP75XrSaOF/bXm8PtrZ9WGNUIxo9NxZ6+juKWamJKkYyQ==
   dependencies:
     "@types/plotly.js" "*"
 
 "@types/plotly.js@*":
-  version "2.12.31"
-  resolved "https://registry.yarnpkg.com/@types/plotly.js/-/plotly.js-2.12.31.tgz#fb4651bdd819baf746bd0a793dd4de35e30d0ccd"
-  integrity sha512-FmzZQquzgTnQnywzyg7zlTTD4UFOroJ6/ac2KAueLCMQF7c+dwjZxgRohHB7Qzz0dZpFgic0VSkC2re7j6oluQ==
+  version "2.29.0"
+  resolved "https://registry.yarnpkg.com/@types/plotly.js/-/plotly.js-2.29.0.tgz#cf178067fc21ce0e66dc9d0f020059189bd43d48"
+  integrity sha512-iFHic6T4o6/olhqGvPhh/D0sdEoYhvU639xlMd5VCW7b+8VBS9RmkcLvoJFHXuuJUBVTlAxZaB9FQbkH2oi+lQ==
 
 "@types/prettier@^2.1.5":
   version "2.7.3"
@@ -12018,10 +12018,10 @@ pkg-dir@^4.1.0:
   dependencies:
     find-up "^4.0.0"
 
-plotly.js-dist-min@^2.27.1:
-  version "2.27.1"
-  resolved "https://registry.yarnpkg.com/plotly.js-dist-min/-/plotly.js-dist-min-2.27.1.tgz#6594b6b7e9b39deaa60849be3f5f905fedaf91d5"
-  integrity sha512-fFPFityhOkDtjoIVd/9IJQbEEuKEjfmNALBVLZyHwLIkry5ygE4ZC/XENRqLnWR3rNJdTtEaxhM5zflcWTRlDA==
+plotly.js-basic-dist-min@^2.29.0:
+  version "2.29.0"
+  resolved "https://registry.yarnpkg.com/plotly.js-basic-dist-min/-/plotly.js-basic-dist-min-2.29.0.tgz#2614dfe6898347e3fbe76182a45549a81119b931"
+  integrity sha512-l2b2UxOm37guxZo3cyMQP4PFOJ3JITgjuxkgRojtrqRnNE+VqlZgAA7E1uRICiOhQrnBMjIYD6dfBI4P4QSh1g==
 
 popper.js@1.16.1:
   version "1.16.1"

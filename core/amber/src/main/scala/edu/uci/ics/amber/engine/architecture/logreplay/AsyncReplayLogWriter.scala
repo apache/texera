@@ -7,6 +7,7 @@ import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.Sequentia
 
 import java.util
 import java.util.concurrent.CompletableFuture
+import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class AsyncReplayLogWriter(
@@ -51,7 +52,7 @@ class AsyncReplayLogWriter(
     gracefullyStopped.complete(())
   }
 
-  def drainWriterQueueAndProcess(): Boolean = {
+  private def drainWriterQueueAndProcess(): Boolean = {
     var stop = false
     if (writerQueue.drainTo(drained) == 0) {
       drained.add(writerQueue.take())
@@ -61,12 +62,18 @@ class AsyncReplayLogWriter(
       drainedScala = drainedScala.dropRight(1)
       stop = true
     }
-    drainedScala
-      .filter(_.isLeft)
-      .map(_.left.get)
-      .foreach(x => writer.writeRecord(x))
+
+    val (replayLogRecords, workflowFIFOMessages) =
+      drainedScala.foldLeft((ListBuffer[ReplayLogRecord](), ListBuffer[WorkflowFIFOMessage]())) {
+        case ((accLogs, accMsgs), Left(logRecord))    => (accLogs += logRecord, accMsgs)
+        case ((accLogs, accMsgs), Right(fifoMessage)) => (accLogs, accMsgs += fifoMessage)
+      }
+    // write logs first
+    replayLogRecords.foreach(replayLogRecord => writer.writeRecord(replayLogRecord))
     writer.flush()
-    drainedScala.filter(_.isRight).foreach(x => handler(x.right.get))
+    // send messages after logs are written
+    workflowFIFOMessages.foreach(workflowFIFOMessage => handler(workflowFIFOMessage))
+
     drained.clear()
     stop
   }
