@@ -31,20 +31,19 @@ class OperatorExecution(
    * Variables related to runtime information
    */
 
-  // workers of this operator
-  private val workers =
+  private val workerExecutions =
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
 
-  def states: Array[WorkerState] = workers.values.asScala.map(_.state).toArray
+  def states: Array[WorkerState] = workerExecutions.values.asScala.map(_.state).toArray
 
-  def statistics: Array[WorkerStatistics] = workers.values.asScala.map(_.stats).toArray
+  def statistics: Array[WorkerStatistics] = workerExecutions.values.asScala.map(_.stats).toArray
 
   def initWorkerExecution(id: ActorVirtualIdentity): Unit = {
 
-    workers.put(
+    workerExecutions.put(
       id,
       WorkerExecution(
         id,
@@ -54,10 +53,10 @@ class OperatorExecution(
     )
   }
   def getWorkerExecution(id: ActorVirtualIdentity): WorkerExecution = {
-    if (!workers.containsKey(id)) {
+    if (!workerExecutions.containsKey(id)) {
       initWorkerExecution(id)
     }
-    workers.get(id)
+    workerExecutions.get(id)
   }
 
   def getWorkerWorkloadInfo(id: ActorVirtualIdentity): WorkerWorkloadInfo = {
@@ -79,7 +78,7 @@ class OperatorExecution(
 
   def getIdleTime: Long = statistics.map(_.idleTime).sum
 
-  def getBuiltWorkerIds: Array[ActorVirtualIdentity] = workers.values.asScala.map(_.id).toArray
+  def getBuiltWorkerIds: Array[ActorVirtualIdentity] = workerExecutions.values.asScala.map(_.id).toArray
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = {
     getBuiltWorkerIds
@@ -128,7 +127,7 @@ class OperatorExecution(
     )
 
   def isInputPortCompleted(portId: PortIdentity): Boolean = {
-    workers
+    workerExecutions
       .values()
       .asScala
       .map(workerExecution => workerExecution.getInputPortExecution(portId))
@@ -136,7 +135,7 @@ class OperatorExecution(
   }
 
   def isOutputPortCompleted(portId: PortIdentity): Boolean = {
-    workers
+    workerExecutions
       .values()
       .asScala
       .map(workerExecution => workerExecution.getOutputPortExecution(portId))

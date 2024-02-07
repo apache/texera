@@ -30,24 +30,23 @@ trait PortCompletedHandler {
         input = msg.input
       )
 
-      val operatorExecution =
-        cp.executionState.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
+      val operatorExecution = cp.executionState.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
       val workerExecution = operatorExecution.getWorkerExecution(sender)
-      if (msg.input) {
-        workerExecution.getInputPortExecution(msg.portId).setCompleted()
-      } else {
-        workerExecution.getOutputPortExecution(msg.portId).setCompleted()
-      }
 
-      if (
-        operatorExecution.isInputPortCompleted(msg.portId) || operatorExecution
-          .isOutputPortCompleted(msg.portId)
-      ) {
+      // set the port on this worker to be completed
+      (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
+      else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
+
+      // check if the port on this operator is completed
+      val isPortCompleted = if (msg.input) operatorExecution.isInputPortCompleted(msg.portId)
+      else operatorExecution.isOutputPortCompleted(msg.portId)
+
+      if (isPortCompleted) {
         cp.workflowScheduler
           .onPortCompletion(cp.workflow, cp.actorService, globalPortId)
           .flatMap(_ => Future.Unit)
       } else {
-        // if the link is not completed yet, do nothing
+        // if the port is not completed yet, do nothing
         Future(())
       }
     }
