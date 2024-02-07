@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
-import * as Plotly from "plotly.js-dist-min";
+import * as Plotly from "plotly.js-basic-dist-min";
 import { MatTabChangeEvent } from "@angular/material/tabs";
 
 @UntilDestroy()
