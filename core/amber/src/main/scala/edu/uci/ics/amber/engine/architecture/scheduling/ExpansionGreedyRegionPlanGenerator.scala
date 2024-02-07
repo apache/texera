@@ -203,6 +203,7 @@ class ExpansionGreedyRegionPlanGenerator(
               // adding the edge causes cycle. return the link for materialization replacement
               return Some(Set(nextLink))
           }
+        case List(_) | Nil =>
       }
     None
   }
@@ -272,7 +273,7 @@ class ExpansionGreedyRegionPlanGenerator(
     // generate the region configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
-        val (newRegion, estimationCost) = resourceAllocator.allocate(region)
+        val (newRegion, _) = resourceAllocator.allocate(region)
         replaceVertex(regionDAG, region, newRegion)
       })
   }
