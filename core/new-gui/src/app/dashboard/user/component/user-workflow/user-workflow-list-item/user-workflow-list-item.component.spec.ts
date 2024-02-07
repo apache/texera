@@ -1,5 +1,4 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { UniquePipe } from "ngx-pipes";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
 import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
@@ -10,6 +9,7 @@ import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { HttpClient, HttpHandler } from "@angular/common/http";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { StubUserProjectService } from "../../../service/user-project/stub-user-project.service";
+import { NzModalModule } from "ng-zorro-antd/modal";
 
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
@@ -17,7 +17,8 @@ describe("UserWorkflowListItemComponent", () => {
   const fileSaverServiceSpy = jasmine.createSpyObj<FileSaverService>(["saveAs"]);
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      declarations: [UserWorkflowListItemComponent, UniquePipe],
+      imports: [NzModalModule],
+      declarations: [UserWorkflowListItemComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },
