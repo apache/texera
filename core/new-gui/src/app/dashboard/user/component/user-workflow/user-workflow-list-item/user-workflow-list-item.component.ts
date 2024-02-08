@@ -14,7 +14,6 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 
 @UntilDestroy()
 @Component({
@@ -61,7 +60,6 @@ export class UserWorkflowListItemComponent {
 
   constructor(
     private modalService: NzModalService,
-    private ngbModalService: NgbModal,
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService,
     private userProjectService: UserProjectService
@@ -72,6 +70,10 @@ export class UserWorkflowListItemComponent {
       .subscribe(userProjectsList => {
         this.userProjectsMap = new Map(userProjectsList.map(userProject => [userProject.pid, userProject]));
       });
+  }
+
+  getProjectIds() {
+    return new Set(this.entry.workflow.projectIDs);
   }
 
   /**
@@ -116,12 +118,18 @@ export class UserWorkflowListItemComponent {
    * open the Modal based on the workflow clicked on
    */
   public async onClickOpenShareAccess(): Promise<void> {
-    const owners = await firstValueFrom(this.workflowPersistService.retrieveOwners());
-    const modalRef = this.ngbModalService.open(ShareAccessComponent);
-    modalRef.componentInstance.writeAccess = this.entry.workflow.accessLevel === "WRITE";
-    modalRef.componentInstance.type = "workflow";
-    modalRef.componentInstance.id = this.workflow.wid;
-    modalRef.componentInstance.allOwners = owners;
+    this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzComponentParams: {
+        writeAccess: this.entry.workflow.accessLevel === "WRITE",
+        type: "workflow",
+        id: this.workflow.wid,
+        allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
+      },
+      nzFooter: null,
+      nzTitle: "Share this workflow with others",
+      nzCentered: true,
+    });
   }
 
   /**
