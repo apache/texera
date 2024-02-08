@@ -85,16 +85,6 @@ abstract class SchedulingPolicy(
     regions
   }
 
-  def onWorkerCompletion(
-      workflow: Workflow,
-      executionState: ExecutionState,
-      workerId: ActorVirtualIdentity
-  ): Set[Region] = {
-    val regions = getRegions(workflow, workerId)
-    regions.foreach(region => checkRegionCompleted(executionState, region))
-    getNextSchedulingWork(workflow)
-  }
-
   def onPortCompletion(
       workflow: Workflow,
       executionState: ExecutionState,

@@ -60,17 +60,6 @@ class WorkflowScheduler(
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 
-  def onWorkerCompletion(
-      workflow: Workflow,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
-      akkaActorService: AkkaActorService,
-      workerId: ActorVirtualIdentity
-  ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule =
-      schedulingPolicy.onWorkerCompletion(workflow, executionState, workerId)
-    doSchedulingWork(nextRegionsToSchedule, akkaActorService)
-  }
-
   def onPortCompletion(
       workflow: Workflow,
       akkaActorService: AkkaActorService,
