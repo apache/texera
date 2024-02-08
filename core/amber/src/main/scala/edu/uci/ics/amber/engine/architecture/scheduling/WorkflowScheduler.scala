@@ -158,7 +158,7 @@ class WorkflowScheduler(
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
     val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
-      region.getAllOperators.map(_.id).diff(initializedPythonOperators)
+      region.getOperators.map(_.id).diff(initializedPythonOperators)
     )
     Future
       .collect(
@@ -195,10 +195,10 @@ class WorkflowScheduler(
   }
 
   private def activateAllLinks(region: Region): Future[Seq[Unit]] = {
-    val allOperatorsInRegion = region.getAllOperators.map(_.id)
+    val allOperatorsInRegion = region.getOperators.map(_.id)
     Future.collect(
       // activate all links
-      region.getAllLinks
+      region.getLinks
         .filter(link => {
           !activatedLink.contains(link) &&
             allOperatorsInRegion.contains(link.fromOpId) &&
@@ -215,7 +215,7 @@ class WorkflowScheduler(
 
   private def openAllOperators(region: Region): Future[Seq[Unit]] = {
     val allNotOpenedOperators =
-      region.getAllOperators.map(_.id).diff(openedOperators)
+      region.getOperators.map(_.id).diff(openedOperators)
     Future
       .collect(
         executionState
@@ -230,7 +230,7 @@ class WorkflowScheduler(
 
   private def startRegion(region: Region): Future[Seq[Unit]] = {
 
-    region.getAllOperators
+    region.getOperators
       .map(_.id)
       .filter(opId =>
         executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.UNINITIALIZED
@@ -258,7 +258,7 @@ class WorkflowScheduler(
       Future.collect(futures)
     } else {
       throw new WorkflowRuntimeException(
-        s"Start region called on an already running region: ${region.physicalOps.mkString(",")}"
+        s"Start region called on an already running region: ${region.id}"
       )
     }
   }
@@ -270,7 +270,7 @@ class WorkflowScheduler(
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
-        region.getAllOperators
+        region.getOperators
           .map(_.id)
           .map(physicalOpId => {
             physicalOpId.logicalOpId.id -> executionState
@@ -314,7 +314,7 @@ class WorkflowScheduler(
         }
     } else {
       throw new WorkflowRuntimeException(
-        s"Resume region called on an already running region: ${region.physicalOps.mkString(",")}"
+        s"Resume region called on an already running region: ${region.id}"
       )
     }
 

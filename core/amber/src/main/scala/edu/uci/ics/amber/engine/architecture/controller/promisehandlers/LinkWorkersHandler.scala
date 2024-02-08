@@ -22,7 +22,7 @@ object LinkWorkersHandler {
 trait LinkWorkersHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: LinkWorkers, sender) =>
+  registerHandler[LinkWorkers, Unit] { (msg, sender) =>
     {
       val resourceConfig = cp.workflow.regionPlan
         .getRegionOfPhysicalLink(msg.link)

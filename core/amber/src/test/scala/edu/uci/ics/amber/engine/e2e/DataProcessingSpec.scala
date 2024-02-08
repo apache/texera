@@ -39,10 +39,10 @@ class DataProcessingSpec
 
   val resultStorage = new OpResultStorage()
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
     resultStorage.close()
   }
@@ -50,7 +50,7 @@ class DataProcessingSpec
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[ITuple]] = {
     var results: Map[OperatorIdentity, List[ITuple]] = null
     val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
-    val completion = Promise[Unit]
+    val completion = Promise[Unit]()
     client.registerCallback[FatalError](evt => {
       completion.setException(evt.e)
       client.shutdown()

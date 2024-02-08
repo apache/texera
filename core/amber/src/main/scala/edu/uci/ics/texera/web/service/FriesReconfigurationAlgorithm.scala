@@ -15,7 +15,7 @@ import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.asScalaSet
+import scala.jdk.CollectionConverters.SetHasAsScala
 
 object FriesReconfigurationAlgorithm {
 
@@ -31,7 +31,7 @@ object FriesReconfigurationAlgorithm {
   ): Set[PropagateChannelMarker] = {
     // independently schedule reconfigurations for each region:
     regionPlan.regions
-      .map(region => physicalPlan.getSubPlan(region.physicalOps.map(_.id)))
+      .map(region => physicalPlan.getSubPlan(region.getOperators.map(_.id)))
       .flatMap(regionSubPlan => computeMCS(regionSubPlan, reconfigurations, epochMarkerId))
       .toSet
   }
@@ -88,7 +88,7 @@ object FriesReconfigurationAlgorithm {
 
     val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
     connectedSets.forEach(component => {
-      val componentSet = asScalaSet(component).toSet
+      val componentSet = component.asScala.toSet
       val componentPlan = mcsPlan.getSubPlan(componentSet)
 
       // generate the reconfiguration command for this component

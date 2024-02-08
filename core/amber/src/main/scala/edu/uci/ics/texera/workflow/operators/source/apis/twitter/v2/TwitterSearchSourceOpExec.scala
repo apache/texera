@@ -9,10 +9,9 @@ import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterSearchSourceOpExec(
     desc: TwitterSearchSourceOpDesc
@@ -33,7 +32,7 @@ class TwitterSearchSourceOpExec(
     new Iterator[Tuple]() {
       override def hasNext: Boolean = (hasNextRequest || tweetCache.nonEmpty) && curLimit > 0
 
-      override def next: Tuple = {
+      override def next(): Tuple = {
         // if the current cache is exhausted, query for the next response
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
@@ -113,7 +112,7 @@ class TwitterSearchSourceOpExec(
 
     userCache =
       if (response != null && response.getIncludes != null && response.getIncludes.getUsers != null)
-        response.getIncludes.getUsers
+        response.getIncludes.getUsers.asScala
           .map((userData: UserData) => userData.getId -> userData)
           .toMap
       else Map()

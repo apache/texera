@@ -53,19 +53,24 @@ class ExecutionStatsService(
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       if (AmberConfig.isUserSystemEnabled) {
-        storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
-          case ((newId, newStats), (oldId, oldStats)) =>
-            val res = OperatorRuntimeStats(
-              newStats.state,
-              newStats.inputCount - oldStats.inputCount,
-              newStats.outputCount - oldStats.outputCount,
-              newStats.numWorkers,
-              newStats.dataProcessingTime - oldStats.dataProcessingTime,
-              newStats.controlProcessingTime - oldStats.controlProcessingTime,
-              newStats.idleTime - oldStats.idleTime
-            )
-            (newId, res)
-        })
+        storeRuntimeStatistics(
+          newState.operatorInfo
+            .zip(oldState.operatorInfo)
+            .collect {
+              case ((newId, newStats), (oldId, oldStats)) =>
+                val res = OperatorRuntimeStats(
+                  newStats.state,
+                  newStats.inputCount - oldStats.inputCount,
+                  newStats.outputCount - oldStats.outputCount,
+                  newStats.numWorkers,
+                  newStats.dataProcessingTime - oldStats.dataProcessingTime,
+                  newStats.controlProcessingTime - oldStats.controlProcessingTime,
+                  newStats.idleTime - oldStats.idleTime
+                )
+                (newId, res)
+            }
+            .toMap
+        )
       }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
@@ -184,7 +189,7 @@ class ExecutionStatsService(
             statsStore.withOperatorWorkerMapping(
               evt.workerMapping
                 .map({
-                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds)
+                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds.toSeq)
                 })
                 .toSeq
             )

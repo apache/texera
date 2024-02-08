@@ -216,7 +216,7 @@ object SkewDetectionHandler {
                 retPairs.append((sortedWorkers(i), sortedWorkers(j), true))
                 skewedToHelperMappingHistory(sortedWorkers(i)) = sortedWorkers(j)
                 skewedToStateTransferOrIntimationDone(sortedWorkers(i)) = false
-                break
+                break()
               }
             }
           }

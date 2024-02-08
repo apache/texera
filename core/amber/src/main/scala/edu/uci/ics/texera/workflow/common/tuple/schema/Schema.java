@@ -11,6 +11,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 /**
  * A schema is a list of attributes that describe all the columns of a table.
@@ -42,11 +43,11 @@ public class Schema implements Serializable {
     }
 
     public scala.collection.immutable.List<Attribute> getAttributesScala() {
-        return JavaConverters.asScalaBuffer(attributes).toList();
+        return asScala(attributes).toList();
     }
 
     public scala.collection.immutable.List<String> getAttributeNamesScala() {
-        return JavaConverters.asScalaBuffer(getAttributeNames()).toList();
+        return asScala(getAttributeNames()).toList();
     }
 
     @JsonIgnore

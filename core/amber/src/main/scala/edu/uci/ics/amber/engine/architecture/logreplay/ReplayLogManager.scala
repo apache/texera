@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
 import edu.uci.ics.amber.engine.common.storage.{EmptyRecordStorage, SequentialRecordStorage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 //In-mem formats:
