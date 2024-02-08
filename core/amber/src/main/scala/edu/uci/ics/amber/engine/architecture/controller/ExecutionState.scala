@@ -56,12 +56,6 @@ class ExecutionState(workflow: Workflow) {
   def getOperatorExecution(op: PhysicalOpIdentity): OperatorExecution = {
     operatorExecutions(op)
   }
-
-  def getBuiltPythonWorkers: Iterable[ActorVirtualIdentity] =
-    workflow.physicalPlan.operators
-      .filter(operator => operator.isPythonOperator)
-      .flatMap(op => getOperatorExecution(op.id).getBuiltWorkerIds)
-
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
     operatorExecutions.values.foreach { execution =>
       val result = execution.getBuiltWorkerIds.find(x => x == worker)
@@ -114,30 +108,11 @@ class ExecutionState(workflow: Workflow) {
       WorkflowAggregatedState.UNKNOWN
     }
   }
-
-  def physicalOpToWorkersMapping: Iterable[(PhysicalOpIdentity, Seq[ActorVirtualIdentity])] = {
-    workflow.physicalPlan.operators
-      .map(physicalOp => physicalOp.id)
-      .map(physicalOpId => {
-        (physicalOpId, getAllWorkersForOperators(Set(physicalOpId)).toSeq)
-      })
-  }
-
   def getAllWorkersForOperators(
       operators: Set[PhysicalOpIdentity]
   ): Set[ActorVirtualIdentity] = {
     operators.flatMap(physicalOpId => getOperatorExecution(physicalOpId).getBuiltWorkerIds)
   }
-
-  def filterPythonPhysicalOpIds(
-      fromOperatorsList: Set[PhysicalOpIdentity]
-  ): Set[PhysicalOpIdentity] = {
-    fromOperatorsList.filter(physicalOpId =>
-      getOperatorExecution(physicalOpId).getBuiltWorkerIds.nonEmpty &&
-        workflow.physicalPlan.getOperator(physicalOpId).isPythonOperator
-    )
-  }
-
   def getPythonWorkerToOperatorExec(
       pythonPhysicalOpIds: Set[PhysicalOpIdentity]
   ): Iterable[(ActorVirtualIdentity, PhysicalOp)] = {
