@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { ActivatedRoute, Router } from "@angular/router";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { DashboardFile } from "../../../type/dashboard-file.interface";
@@ -10,6 +10,7 @@ import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { isDefined } from "../../../../../common/util/predicate";
+
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -45,7 +46,7 @@ export class UserProjectSectionComponent implements OnInit {
     private userProjectService: UserProjectService,
     private activatedRoute: ActivatedRoute,
     private router: Router,
-    private modalService: NgbModal,
+    private modalService: NzModalService,
     private userFileService: UserFileService,
     private notificationService: NotificationService
   ) {}
@@ -65,15 +66,29 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   public onClickOpenAddFile() {
-    const modalRef = this.modalService.open(NgbdModalAddProjectFileComponent);
-    modalRef.componentInstance.addedFiles = this.getUserProjectFilesArray();
-    modalRef.componentInstance.projectId = this.pid;
+    this.modalService.create({
+      nzContent: NgbdModalAddProjectFileComponent,
+      nzComponentParams: {
+        addedFiles: this.getUserProjectFilesArray(),
+        projectId: this.pid,
+      },
+      nzFooter: null,
+      nzTitle: "Add Files To Project",
+      nzCentered: true,
+    });
   }
 
   public onClickOpenRemoveFile() {
-    const modalRef = this.modalService.open(NgbdModalRemoveProjectFileComponent);
-    modalRef.componentInstance.addedFiles = this.getUserProjectFilesArray();
-    modalRef.componentInstance.projectId = this.pid;
+    this.modalService.create({
+      nzContent: NgbdModalRemoveProjectFileComponent,
+      nzComponentParams: {
+        addedFiles: this.getUserProjectFilesArray(),
+        projectId: this.pid,
+      },
+      nzFooter: null,
+      nzTitle: "Remove Files From Project",
+      nzCentered: true,
+    });
   }
 
   public getUserProjectFilesArray(): ReadonlyArray<DashboardFile> {

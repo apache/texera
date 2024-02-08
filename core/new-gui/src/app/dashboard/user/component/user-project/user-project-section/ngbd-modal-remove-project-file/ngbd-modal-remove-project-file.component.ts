@@ -1,5 +1,4 @@
 import { Component, Input, OnInit } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { forkJoin, Observable } from "rxjs";
 import { UserProjectService } from "../../../../service/user-project/user-project.service";
 import { DashboardFile } from "../../../../type/dashboard-file.interface";
@@ -18,11 +17,7 @@ export class NgbdModalRemoveProjectFileComponent implements OnInit {
 
   public checkedFiles: boolean[] = [];
 
-  constructor(
-    public activeModal: NgbActiveModal,
-    private userProjectService: UserProjectService,
-    private userFileService: UserFileService
-  ) {}
+  constructor(private userProjectService: UserProjectService, private userFileService: UserFileService) {}
 
   ngOnInit(): void {
     this.checkedFiles = new Array(this.addedFiles.length).fill(false);
@@ -41,10 +36,7 @@ export class NgbdModalRemoveProjectFileComponent implements OnInit {
 
     forkJoin(observables)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.userProjectService.refreshFilesOfProject(this.projectId);
-        this.activeModal.close();
-      });
+      .subscribe(() => this.userProjectService.refreshFilesOfProject(this.projectId));
   }
 
   public isAllChecked() {

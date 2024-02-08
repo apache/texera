@@ -1,5 +1,4 @@
 import { Component, Input, OnInit } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { forkJoin, Observable } from "rxjs";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
 import { UserProjectService } from "../../../../service/user-project/user-project.service";
@@ -20,14 +19,10 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
   public checkedFiles: boolean[] = [];
   private addedFileKeys: Set<number> = new Set<number>();
 
-  constructor(
-    public activeModal: NgbActiveModal,
-    private userFileService: UserFileService,
-    private userProjectService: UserProjectService
-  ) {}
+  constructor(private userFileService: UserFileService, private userProjectService: UserProjectService) {}
 
   ngOnInit(): void {
-    /* determine which files are already part of this project. 
+    /* determine which files are already part of this project.
        this is used to filter which files are shown to the user */
     this.addedFiles.forEach(fileEntry => this.addedFileKeys.add(fileEntry.file.fid!));
     this.refreshProjectFileEntries();
@@ -56,10 +51,7 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
 
     forkJoin(observables)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.userProjectService.refreshFilesOfProject(this.projectId);
-        this.activeModal.close();
-      });
+      .subscribe(() => this.userProjectService.refreshFilesOfProject(this.projectId));
   }
 
   public addFileSizeUnit(fileSize: number): string {
