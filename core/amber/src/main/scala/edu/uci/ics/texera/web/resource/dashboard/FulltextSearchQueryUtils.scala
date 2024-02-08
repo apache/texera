@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{SearchFieldMapping, SearchQueryParams}
-import org.jooq.{Condition, Field, OrderField, Record, Record1, Result, SelectOrderByStep, SelectSeekStepN}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import org.jooq.{Condition, Field, OrderField}
 import org.jooq.impl.DSL.{condition, noCondition}
 
 import java.sql.Timestamp
@@ -11,48 +11,9 @@ import java.util.concurrent.TimeUnit
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
-  def getSearchConditions(
-      searchQueryParams: SearchQueryParams,
-      fieldMapping: SearchFieldMapping
-  ): Condition = {
-    val splitKeywords = searchQueryParams.keywords.asScala
-      .flatMap(_.split("[+\\-()<>~*@\"]"))
-      .filter(_.nonEmpty)
-      .toSeq
-    val whereCondition = noCondition()
-      // Apply creation_time date filter
-      .and(
-        getDateFilter(
-          searchQueryParams.creationStartDate,
-          searchQueryParams.creationEndDate,
-          fieldMapping.fieldsForCreationDate
-        )
-      )
-      // Apply lastModified_time date filter
-      .and(
-        getDateFilter(
-          searchQueryParams.modifiedStartDate,
-          searchQueryParams.modifiedEndDate,
-          fieldMapping.fieldsForModifiedDate
-        )
-      )
-      // Apply workflowID filter
-      .and(getContainsFilter(searchQueryParams.workflowIDs, fieldMapping.fieldsForWorkflowIds))
-      // Apply owner filter
-      .and(getContainsFilter(searchQueryParams.owners, fieldMapping.fieldsForOwner))
-      // Apply operators filter
-      .and(getOperatorsFilter(searchQueryParams.operators, fieldMapping.fieldsForOperators))
-      // Apply projectId filter
-      .and(getContainsFilter(searchQueryParams.projectIds, fieldMapping.fieldsForProjectIds))
-      // Apply fulltext search filter
-      .and(getFulltextSearchConditions(splitKeywords, fieldMapping.fieldsForKeywords))
-
-    noCondition().and(whereCondition)
-      //.orderBy(getOrderFields(fieldMapping.specificResourceType, searchQueryParams): _*)
-  }
 
   def getOrderFields(
-                      fieldMapping: SearchFieldMapping,
+                      specificResourceType: String,
       searchQueryParams: SearchQueryParams
   ): List[OrderField[_]] = {
     // Regex pattern to extract column name and order direction
@@ -60,7 +21,7 @@ object FulltextSearchQueryUtils {
 
     searchQueryParams.orderBy match {
       case pattern(column, order) =>
-        val field = getColumnField(fieldMapping.specificResourceType, column)
+        val field = getColumnField(specificResourceType, column)
         field match {
           case Some(value) =>
             List(order match {
@@ -119,21 +80,14 @@ object FulltextSearchQueryUtils {
     result
   }
 
-  def getContainsFilter[T](values: java.util.List[T], fields: List[Field[T]]): Condition = {
-    if (values.asScala.nonEmpty && fields.isEmpty) {
-      return noCondition()
-    }
-    var filter: Condition = noCondition()
+  def getContainsFilter[T](values: java.util.List[T], field: Field[T]): Condition = {
     val valueSet = values.asScala.toSet
-    for (field <- fields) {
-      var filterForOneField: Condition = noCondition()
-      for (value <- valueSet) {
-        filterForOneField = filterForOneField.or(field.eq(value))
-      }
-      // make sure every field contains the value
-      filter = filter.and(filterForOneField)
+    var filterForOneField: Condition = noCondition()
+    for (value <- valueSet) {
+      filterForOneField = filterForOneField.or(field.eq(value))
     }
-    filter
+    // make sure every field contains the value
+    filterForOneField
   }
 
   /**
@@ -150,31 +104,26 @@ object FulltextSearchQueryUtils {
   def getDateFilter(
       startDate: String,
       endDate: String,
-      fieldToFilterOn: List[Field[Timestamp]]
+      fieldToFilterOn: Field[Timestamp]
   ): Condition = {
-    if (fieldToFilterOn.isEmpty) {
-      return noCondition()
-    }
-    var dateFilter: Condition = noCondition()
-    for (field <- fieldToFilterOn) {
-      if (startDate.nonEmpty || endDate.nonEmpty) {
-        val start = if (startDate.nonEmpty) startDate else "1970-01-01"
-        val end = if (endDate.nonEmpty) endDate else "9999-12-31"
-        val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
+    if (startDate.nonEmpty || endDate.nonEmpty) {
+      val start = if (startDate.nonEmpty) startDate else "1970-01-01"
+      val end = if (endDate.nonEmpty) endDate else "9999-12-31"
+      val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
 
-        val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
-        val endTimestamp =
-          if (end == "9999-12-31") {
-            new Timestamp(dateFormat.parse(end).getTime)
-          } else {
-            new Timestamp(
-              dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
-            )
-          }
-        dateFilter = dateFilter.and(field.between(startTimestamp, endTimestamp))
-      }
+      val startTimestamp = new Timestamp(dateFormat.parse(start).getTime)
+      val endTimestamp =
+        if (end == "9999-12-31") {
+          new Timestamp(dateFormat.parse(end).getTime)
+        } else {
+          new Timestamp(
+            dateFormat.parse(end).getTime + TimeUnit.DAYS.toMillis(1) - 1
+          )
+        }
+      fieldToFilterOn.between(startTimestamp, endTimestamp)
+    } else {
+      noCondition()
     }
-    dateFilter
   }
 
   /**
@@ -186,14 +135,9 @@ object FulltextSearchQueryUtils {
     */
   def getOperatorsFilter(
       operators: java.util.List[String],
-      fields: List[Field[String]]
+      field: Field[String]
   ): Condition = {
-    if (operators.asScala.nonEmpty && fields.isEmpty) {
-      return noCondition()
-    }
-    var operatorsFilter: Condition = noCondition()
     val operatorSet = operators.asScala.toSet
-    for (field <- fields) {
       var fieldFilter = noCondition()
       for (operator <- operatorSet) {
         val quotes = "\""
@@ -201,9 +145,7 @@ object FulltextSearchQueryUtils {
           "%" + quotes + "operatorType" + quotes + ":" + quotes + operator + quotes + "%"
         fieldFilter = fieldFilter.or(field.likeIgnoreCase(searchKey))
       }
-      operatorsFilter = operatorsFilter.and(fieldFilter)
-    }
-    operatorsFilter
+    fieldFilter
   }
 
 }
