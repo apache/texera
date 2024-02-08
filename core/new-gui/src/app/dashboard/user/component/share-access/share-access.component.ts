@@ -1,5 +1,4 @@
 import { Component, Input, OnInit } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { ShareAccess } from "../../type/share-access.interface";
@@ -24,7 +23,6 @@ export class ShareAccessComponent implements OnInit {
   public ownerSearchValue?: string;
   currentEmail: string | undefined = "";
   constructor(
-    public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
     private formBuilder: FormBuilder,
     private userService: UserService,
@@ -84,11 +82,6 @@ export class ShareAccessComponent implements OnInit {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.currentEmail === userToRemove) {
-          this.activeModal.close();
-        }
-        this.ngOnInit();
-      });
+      .subscribe(() => this.ngOnInit());
   }
 }
