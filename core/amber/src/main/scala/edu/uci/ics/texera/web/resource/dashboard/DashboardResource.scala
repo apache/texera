@@ -109,7 +109,7 @@ object DashboardResource {
   private def queryAccessibleWorkflowsOfUser(user: SessionUser, condition:Condition, orderByFields:List[OrderField[_]]): SelectLimitStep[Record] = {
     val selectedFields = getWorkflowPartSchema ++ Seq(DSL.inline("workflow").as("resourceType"))
     context
-      .selectDistinct(getUnifiedSchemaFor(selectedFields):_*)
+      .select(getUnifiedSchemaFor(selectedFields):_*)
       .from(WORKFLOW)
       .leftJoin(WORKFLOW_USER_ACCESS)
       .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW.WID))
@@ -132,7 +132,7 @@ object DashboardResource {
   private def queryAccessibleFilesOfUser(user: SessionUser, condition: Condition, orderByFields:List[OrderField[_]]): SelectLimitStep[Record] = {
     val selectedFields = getFilePartSchema ++ Seq(DSL.inline("file").as("resourceType"))
     context
-      .selectDistinct(getUnifiedSchemaFor(selectedFields):_*)
+      .select(getUnifiedSchemaFor(selectedFields):_*)
       .from(USER_FILE_ACCESS)
       .join(FILE)
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
@@ -146,7 +146,7 @@ object DashboardResource {
   private def queryAccessibleProjectsOfUser(user: SessionUser, condition:Condition, orderByFields:List[OrderField[_]]): SelectLimitStep[Record] = {
     val selectedFields = getProjectPartSchema ++ Seq(DSL.inline("project").as("resourceType"))
     context
-      .selectDistinct(getUnifiedSchemaFor(selectedFields):_*)
+      .select(getUnifiedSchemaFor(selectedFields):_*)
       .from(PROJECT)
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
@@ -166,10 +166,11 @@ object DashboardResource {
   }
 
   def getUnifiedSchemaFor(keepFields:Seq[Field[_]]): Seq[Field[_]] = {
+    def mkUniqueAlias(field:Field[_]): String = field.toString.replace("\"","").replace(".","_")
     getUnifiedSchema.map(field =>{
       keepFields.find(f => f.getQualifiedName == field.getQualifiedName) match {
         case Some(value) => value
-        case None => field // TODO: fix
+        case None => DSL.inline(null, field).as(mkUniqueAlias(field))
       }
     })
   }
@@ -216,7 +217,7 @@ object DashboardResource {
         val query1 = buildQuery(WORKFLOW_RESOURCE_TYPE)
         val query2 = buildQuery(FILE_RESOURCE_TYPE)
         val query3 = buildQuery(PROJECT_RESOURCE_TYPE)
-        query1.unionAll(query2).unionAll(query3)
+        context.select(getUnifiedSchema:_*).from(query1.union(query2).union(query3))
       case _ => buildQuery(params.resourceType)
     }
 
@@ -239,9 +240,7 @@ object DashboardResource {
     DashboardWorkflow(
       record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
       record
-        .into(WORKFLOW_USER_ACCESS)
-        .into(classOf[WorkflowUserAccess])
-        .getPrivilege
+        .get(WORKFLOW_USER_ACCESS.PRIVILEGE)
         .toString,
       record.into(USER).getName,
       record.into(WORKFLOW).into(classOf[Workflow]),
