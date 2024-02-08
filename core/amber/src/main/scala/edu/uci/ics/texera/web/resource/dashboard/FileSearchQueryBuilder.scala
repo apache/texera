@@ -22,7 +22,8 @@ class FileSearchQueryBuilder extends SearchQueryBuilder {
     _fileUploadTime = FILE.UPLOAD_TIME,
     _filePath = FILE.PATH,
     _fileSize = FILE.SIZE,
-    _userEmail = USER.EMAIL
+    _userEmail = USER.EMAIL,
+    _fileUserAccess = USER_FILE_ACCESS.PRIVILEGE
   )
 
   override protected def constructFromClause(user: SessionUser, params: DashboardResource.SearchQueryParams): TableLike[_] = {
@@ -54,7 +55,7 @@ class FileSearchQueryBuilder extends SearchQueryBuilder {
       record.into(USER).getEmail,
       record
         .get(
-          USER_FILE_ACCESS.PRIVILEGE,
+          mappedResourceSchema.fileUserAccess,
           classOf[UserFileAccessPrivilege]
         )
         .toString,
