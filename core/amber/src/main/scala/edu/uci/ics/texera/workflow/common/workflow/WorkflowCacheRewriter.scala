@@ -110,7 +110,7 @@ object WorkflowCacheRewriter {
         } else {
           sink.setStorage(
             storage.create(
-              o.getContext.executionId + "_",
+              s"${o.getContext.executionId}_",
               storageKey,
               storageType
             )
@@ -121,7 +121,7 @@ object WorkflowCacheRewriter {
           // add the sink collection name to the JSON array of sinks
           val storageNode = objectMapper.createObjectNode()
           storageNode.put("storageType", storageType)
-          storageNode.put("storageKey", o.getContext.executionId + "_" + storageKey)
+          storageNode.put("storageKey", s"${o.getContext.executionId}_$storageKey")
           sinksPointers.add(storageNode)
         }
         storage.get(storageKey)

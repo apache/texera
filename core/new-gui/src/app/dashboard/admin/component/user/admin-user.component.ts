@@ -1,8 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
-
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { AdminUserService } from "../../service/admin-user.service";
 import { Role, User } from "../../../../common/type/user";
 import { UserService } from "../../../../common/service/user/user.service";
@@ -29,7 +28,7 @@ export class AdminUserComponent implements OnInit {
   constructor(
     private adminUserService: AdminUserService,
     private userService: UserService,
-    private modalService: NgbModal
+    private modalService: NzModalService
   ) {
     this.currentUid = this.userService.getCurrentUser()?.uid;
   }
@@ -100,12 +99,15 @@ export class AdminUserComponent implements OnInit {
     this.listOfDisplayUser = this.userList.filter(user => (user.email || "").indexOf(this.emailSearchValue) !== -1);
   }
 
-  clickToViewQuota(userUid: number) {
-    const modalRef = this.modalService.open(UserQuotaComponent, {
-      size: "xl",
-      modalDialogClass: "modal-dialog-centered",
+  clickToViewQuota(uid: number) {
+    this.modalService.create({
+      nzContent: UserQuotaComponent,
+      nzComponentParams: { userUid: uid },
+      nzFooter: null,
+      nzWidth: "80%",
+      nzBodyStyle: { padding: "0" },
+      nzCentered: true,
     });
-    modalRef.componentInstance.userUid = userUid;
   }
 
   public filterByRole: NzTableFilterFn<User> = (list: string[], user: User) =>

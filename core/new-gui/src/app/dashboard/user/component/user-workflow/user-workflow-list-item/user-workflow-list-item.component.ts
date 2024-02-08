@@ -74,6 +74,10 @@ export class UserWorkflowListItemComponent {
       });
   }
 
+  getProjectIds() {
+    return new Set(this.entry.workflow.projectIDs);
+  }
+
   /**
    * open the workflow executions page
    */
