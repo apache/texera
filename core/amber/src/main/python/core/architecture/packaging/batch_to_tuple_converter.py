@@ -26,7 +26,7 @@ class Channel:
         return self.completed
 
 
-class Port:
+class WorkerPort:
     def __init__(self):
         self.channels: List[Channel] = list()
 
@@ -43,7 +43,7 @@ class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
     def __init__(self):
-        self._ports: Dict[PortIdentity, Port] = dict()
+        self._ports: Dict[PortIdentity, WorkerPort] = dict()
         self._channels: Dict[ChannelIdentity, Channel] = dict()
         self._current_channel_id: Optional[ChannelIdentity] = None
 
@@ -55,7 +55,7 @@ class BatchToTupleConverter:
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
-            self._ports[port_id] = Port()
+            self._ports[port_id] = WorkerPort()
 
     def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id
