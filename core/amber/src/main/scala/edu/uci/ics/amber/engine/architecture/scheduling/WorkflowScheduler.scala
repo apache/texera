@@ -133,17 +133,18 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Unit = {
     val resourceConfig = region.resourceConfig.get
-    region.topologicalIterator()
+    region
+      .topologicalIterator()
       // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
       .filter(physicalOpId => !openedOperators.contains(physicalOpId))
       .foreach { (physicalOpId: PhysicalOpIdentity) =>
-      val physicalOp = region.getOperator(physicalOpId)
-      buildOperator(
-        physicalOp,
-        resourceConfig.operatorConfigs(physicalOpId),
-        akkaActorService
-      )
-    }
+        val physicalOp = region.getOperator(physicalOpId)
+        buildOperator(
+          physicalOp,
+          resourceConfig.operatorConfigs(physicalOpId),
+          akkaActorService
+        )
+      }
   }
 
   private def buildOperator(
@@ -165,7 +166,8 @@ class WorkflowScheduler(
     val opIdsToInit = region.getOperators
       .filter(physicalOp => physicalOp.isPythonOperator)
       // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
-      .map(_.id).diff(openedOperators)
+      .map(_.id)
+      .diff(openedOperators)
 
     Future
       .collect(
