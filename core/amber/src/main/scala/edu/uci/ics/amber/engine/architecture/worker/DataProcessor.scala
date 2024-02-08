@@ -26,6 +26,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
   RUNNING
 }
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
@@ -36,7 +37,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.{
+  IOperatorExecutor,
+  ISinkOperatorExecutor,
+  InputExhausted,
+  VirtualIdentityUtils
+}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
 import scala.collection.mutable
@@ -156,6 +162,9 @@ class DataProcessor(
   // dp thread stats:
   protected var inputTupleCount = 0L
   protected var outputTupleCount = 0L
+  var startTime = 0L
+  var totalExecutionTime = 0L
+  var dataProcessingTime = 0L
 
   def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLink): Unit = {
     upstreamLinkStatus.registerInput(identifier, input)
@@ -184,7 +193,24 @@ class DataProcessor(
     *
     * @return (input tuple count, output tuple count)
     */
-  def collectStatistics(): (Long, Long) = (inputTupleCount, outputTupleCount)
+  def collectStatistics(): WorkerStatistics = {
+    // sink operator doesn't output to downstream so internal count is 0
+    // but for user-friendliness we show its input count as output count
+    val displayOut = operator match {
+      case sink: ISinkOperatorExecutor =>
+        inputTupleCount
+      case _ =>
+        outputTupleCount
+    }
+    WorkerStatistics(
+      stateManager.getCurrentState,
+      inputTupleCount,
+      displayOut,
+      dataProcessingTime,
+      controlProcessingTime,
+      totalExecutionTime - dataProcessingTime - controlProcessingTime
+    )
+  }
 
   /** process currentInputTuple through operator logic.
     * this function is only called by the DP thread
@@ -269,12 +295,14 @@ class DataProcessor(
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
   def continueDataProcessing(): Unit = {
+    val dataProcessingStartTime = System.nanoTime()
     if (hasUnfinishedOutput) {
       outputOneTuple()
     } else {
       currentInputIdx += 1
       processInputTuple(Left(inputBatch(currentInputIdx)))
     }
+    dataProcessingTime += (System.nanoTime() - dataProcessingStartTime)
   }
 
   private[this] def initBatch(channelId: ChannelIdentity, batch: Array[ITuple]): Unit = {
@@ -297,6 +325,7 @@ class DataProcessor(
       channelId: ChannelIdentity,
       dataPayload: DataPayload
   ): Unit = {
+    val dataProcessingStartTime = System.nanoTime()
     dataPayload match {
       case DataFrame(tuples) =>
         stateManager.conditionalTransitTo(
@@ -329,6 +358,7 @@ class DataProcessor(
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }
+    dataProcessingTime += (System.nanoTime() - dataProcessingStartTime)
   }
 
   def processChannelMarker(

@@ -2,7 +2,7 @@ name := "texera"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.12.15"
+scalaVersion := "2.13.12"
 
 semanticdbEnabled := true
 semanticdbVersion := scalafixSemanticdb.revision
@@ -16,7 +16,7 @@ scalacOptions += "-feature"
 // to check deprecation warnings
 scalacOptions += "-deprecation"
 // to check unused imports
-scalacOptions += "-Ywarn-unused-import"
+scalacOptions += "-Ywarn-unused:imports"
 
 conflictManager := ConflictManager.latestRevision
 
@@ -46,10 +46,10 @@ val akkaDependencies = Seq(
   "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
   "com.typesafe.akka" %% "akka-persistence" % akkaVersion,
   "io.kamon" % "sigar-loader" % "1.6.6-rev002",
-  "com.softwaremill.macwire" %% "macros" % "2.3.6" % Provided,
-  "com.softwaremill.macwire" %% "macrosakka" % "2.3.6" % Provided,
-  "com.softwaremill.macwire" %% "util" % "2.3.6",
-  "com.softwaremill.macwire" %% "proxy" % "2.3.6",
+  "com.softwaremill.macwire" %% "macros" % "2.5.8" % Provided,
+  "com.softwaremill.macwire" %% "macrosakka" % "2.5.8" % Provided,
+  "com.softwaremill.macwire" %% "util" % "2.5.8",
+  "com.softwaremill.macwire" %% "proxy" % "2.5.8",
   "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
   "ch.qos.logback" % "logback-classic" % "1.2.3"
 )
@@ -73,7 +73,7 @@ val dropwizardDependencies = Seq(
   "com.liveperson" % "dropwizard-websockets" % "1.3.14",
   "org.glassfish.jersey.media" % "jersey-media-multipart" % jerseyMultipartVersion,
   // https://mvnrepository.com/artifact/commons-io/commons-io
-  "commons-io" % "commons-io" % "2.11.0"
+  "commons-io" % "commons-io" % "2.15.1"
 )
 
 
@@ -82,16 +82,16 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
   "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
   "javax.validation" % "validation-api" % "2.0.1.Final",
   "org.slf4j" % "slf4j-api" % "1.7.26",
-  "io.github.classgraph" % "classgraph" % "4.8.21",
+  "io.github.classgraph" % "classgraph" % "4.8.157",
   "ch.qos.logback" % "logback-classic" % "1.2.3" % "test",
-  "com.github.java-json-tools" % "json-schema-validator" % "2.2.11" % "test",
+  "com.github.java-json-tools" % "json-schema-validator" % "2.2.14" % "test",
   "com.fasterxml.jackson.module" % "jackson-module-kotlin" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion % "test",
-  "joda-time" % "joda-time" % "2.10.1" % "test",
+  "joda-time" % "joda-time" % "2.12.5" % "test",
   "com.fasterxml.jackson.datatype" % "jackson-datatype-joda" % jacksonVersion % "test",
   "com.fasterxml.jackson.module" % "jackson-module-jsonSchema" % jacksonVersion,
-  "com.fasterxml.jackson.module" % "jackson-module-scala_2.12" % jacksonVersion,
+  "com.fasterxml.jackson.module" % "jackson-module-scala_2.13" % jacksonVersion,
   // https://mvnrepository.com/artifact/com.fasterxml.jackson.module/jackson-module-no-ctor-deser
   "com.fasterxml.jackson.module" % "jackson-module-no-ctor-deser" % jacksonVersion,
 )
@@ -101,7 +101,6 @@ val mbknorJacksonJsonSchemaDependencies = Seq(
 val luceneVersion = "8.7.0"
 val luceneDependencies = Seq(
   "org.apache.lucene" % "lucene-core" % luceneVersion,
-  "org.apache.lucene" % "lucene-analyzers-common" % luceneVersion,
   "org.apache.lucene" % "lucene-queryparser" % luceneVersion,
   "org.apache.lucene" % "lucene-queries" % luceneVersion,
   "org.apache.lucene" % "lucene-memory" % luceneVersion
@@ -144,9 +143,9 @@ val arrowDependencies = Seq(
 // MongoDB related
 val mongoDbDependencies = Seq(
   // https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
-  "org.mongodb" % "mongo-java-driver" % "3.12.10",
+  "org.mongodb" % "mongo-java-driver" % "3.12.12",
   // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
-  "org.apache.commons" % "commons-jcs3-core" % "3.0"
+  "org.apache.commons" % "commons-jcs3-core" % "3.1"
 )
 
 libraryDependencies ++= akkaDependencies
@@ -174,7 +173,7 @@ libraryDependencies ++= Seq(
   "com.thesamet.scalapb" %% "scalapb-runtime" % scalapb.compiler.Version.scalapbVersion % "protobuf"
 )
 // For ScalaPB 0.11.x:
-libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.11.0"
+libraryDependencies += "com.thesamet.scalapb" %% "scalapb-json4s" % "0.12.0"
 
 // enable protobuf compilation in Test
 Test / PB.protoSources += PB.externalSourcePath.value
@@ -182,80 +181,80 @@ Test / PB.protoSources += PB.externalSourcePath.value
 /////////////////////////////////////////////////////////////////////////////
 // Test related
 // https://mvnrepository.com/artifact/org.scalamock/scalamock
-libraryDependencies += "org.scalamock" %% "scalamock" % "4.4.0" % Test
+libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
 // https://mvnrepository.com/artifact/ch.vorburger.mariaDB4j/mariaDB4j
 libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
-libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.9" % Test
+libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
 
 /////////////////////////////////////////////////////////////////////////////
 // Workflow version control related
 // https://mvnrepository.com/artifact/com.flipkart.zjsonpatch/zjsonpatch
-libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.2.1"
+libraryDependencies += "com.flipkart.zjsonpatch" % "zjsonpatch" % "0.4.13"
 
 /////////////////////////////////////////////////////////////////////////////
 // Uncategorized
 
 // https://mvnrepository.com/artifact/io.reactivex.rxjava3/rxjava
-libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.3"
+libraryDependencies += "io.reactivex.rxjava3" % "rxjava" % "3.1.6"
 
 // https://mvnrepository.com/artifact/org.postgresql/postgresql
-libraryDependencies += "org.postgresql" % "postgresql" % "42.2.18"
+libraryDependencies += "org.postgresql" % "postgresql" % "42.5.4"
 
 // https://mvnrepository.com/artifact/com.typesafe.scala-logging/scala-logging
-libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.2"
+libraryDependencies += "com.typesafe.scala-logging" %% "scala-logging" % "3.9.5"
 
 // https://mvnrepository.com/artifact/org.scalactic/scalactic
-libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.2"
+libraryDependencies += "org.scalactic" %% "scalactic" % "3.2.15"
 
 // https://mvnrepository.com/artifact/com.github.tototoshi/scala-csv
-libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.6"
+libraryDependencies += "com.github.tototoshi" %% "scala-csv" % "1.3.10"
 
 // https://mvnrepository.com/artifact/com.univocity/univocity-parsers
 libraryDependencies += "com.univocity" % "univocity-parsers" % "2.9.1"
 
 // https://mvnrepository.com/artifact/com.konghq/unirest-java
-libraryDependencies += "com.konghq" % "unirest-java" % "3.11.11"
+libraryDependencies += "com.konghq" % "unirest-java" % "3.14.2"
 
 // https://mvnrepository.com/artifact/com.github.marianobarrios/lbmq
 libraryDependencies += "com.github.marianobarrios" % "lbmq" % "0.6.0"
 
 // https://mvnrepository.com/artifact/io.github.redouane59.twitter/twittered
-libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.16"
+libraryDependencies += "io.github.redouane59.twitter" % "twittered" % "2.21"
 
 // https://mvnrepository.com/artifact/org.jooq/jooq
 libraryDependencies += "org.jooq" % "jooq" % "3.14.4"
 
 // https://mvnrepository.com/artifact/mysql/mysql-connector-java
-libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.23"
+libraryDependencies += "mysql" % "mysql-connector-java" % "8.0.33"
 
 // https://mvnrepository.com/artifact/org.jgrapht/jgrapht-core
 libraryDependencies += "org.jgrapht" % "jgrapht-core" % "1.4.0"
 
 // https://mvnrepository.com/artifact/edu.stanford.nlp/stanford-corenlp
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2"
-libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "3.9.2" classifier "models"
+libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4"
+libraryDependencies += "edu.stanford.nlp" % "stanford-corenlp" % "4.5.4" classifier "models"
 
 // https://mvnrepository.com/artifact/com.twitter/chill-akka
-libraryDependencies += "com.twitter" %% "chill-akka" % "0.9.3"
+libraryDependencies += "com.twitter" %% "chill-akka" % "0.10.0"
 
 // https://mvnrepository.com/artifact/com.twitter/util-core
-libraryDependencies += "com.twitter" %% "util-core" % "20.9.0"
+libraryDependencies += "com.twitter" %% "util-core" % "22.12.0"
 
 // https://mvnrepository.com/artifact/com.typesafe.play/play-json
-libraryDependencies += "com.typesafe.play" %% "play-json" % "2.7.3"
+libraryDependencies += "com.typesafe.play" %% "play-json" % "2.9.4"
 
 // https://mvnrepository.com/artifact/org.fusesource.leveldbjni/leveldbjni-all
 libraryDependencies += "org.fusesource.leveldbjni" % "leveldbjni-all" % "1.8"
 
 // https://mvnrepository.com/artifact/com.github.nscala-time/nscala-time
-libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.22.0"
+libraryDependencies += "com.github.nscala-time" %% "nscala-time" % "2.32.0"
 
 // https://mvnrepository.com/artifact/com.google.guava/guava
 libraryDependencies += "com.google.guava" % "guava" % "29.0-jre"
 
 // https://mvnrepository.com/artifact/org.tukaani/xz
-libraryDependencies += "org.tukaani" % "xz" % "1.5"
+libraryDependencies += "org.tukaani" % "xz" % "1.9"
 
 // https://mvnrepository.com/artifact/org.jasypt/jasypt
 libraryDependencies += "org.jasypt" % "jasypt" % "1.9.3"
@@ -275,5 +274,9 @@ libraryDependencies += "com.github.sisyphsu" % "dateparser" % "1.0.11"
 
 // https://mvnrepository.com/artifact/org.apache.commons/commons-vfs2
 libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0"
+
+// For supporting MultiDict
+// https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
+libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
 
 
