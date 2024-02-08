@@ -121,10 +121,10 @@ export class UserWorkflowListItemComponent {
     this.modalService.create({
       nzContent: ShareAccessComponent,
       nzComponentParams: {
-        writeAccess : this.entry.workflow.accessLevel === "WRITE",
-        type : "workflow",
-        id : this.workflow.wid,
-        allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners())
+        writeAccess: this.entry.workflow.accessLevel === "WRITE",
+        type: "workflow",
+        id: this.workflow.wid,
+        allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
       },
       nzFooter: null,
       nzTitle: "Share this workflow with others",

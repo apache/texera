@@ -90,9 +90,10 @@ export class UserFileListItemComponent {
     const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
       nzComponentParams: {
-        writeAccess : this.entry.accessLevel === "WRITE",
-        type : "file",
-        id : this.entry.file.fid},
+        writeAccess: this.entry.accessLevel === "WRITE",
+        type: "file",
+        id: this.entry.file.fid,
+      },
       nzFooter: null,
       nzTitle: "Share this file with others",
       nzCentered: true,
