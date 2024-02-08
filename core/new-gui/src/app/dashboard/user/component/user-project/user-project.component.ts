@@ -4,7 +4,6 @@ import { DashboardProject } from "../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../common/service/user/user.service";
-import { PublicProjectService } from "../../service/public-project/public-project.service";
 import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import { PublicProjectComponent } from "./public-project/public-project.component";
 
@@ -25,7 +24,6 @@ export class UserProjectComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     private userService: UserService,
-    private publicProjectService: PublicProjectService,
     private modalService: NgbModal
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
