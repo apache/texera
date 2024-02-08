@@ -26,8 +26,9 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    private schemaPropagationService: SchemaPropagationService
-  ) {}
+    private schemaPropagationService: SchemaPropagationService,
+  ) {
+  }
 
   ngOnInit(): void {
     this.registerTypeCastingPropertyChangeHandler();
@@ -55,7 +56,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
       .pipe(
         filter(op => op.operator.operatorID === this.currentOperatorId),
         filter(op => op.operator.operatorType === TYPE_CASTING_OPERATOR_TYPE),
-        map(event => event.operator)
+        map(event => event.operator),
       )
       .pipe(untilDestroyed(this))
       .subscribe(op => {
@@ -70,11 +71,11 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
     this.schemaToDisplay = [];
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
 
-    const castTypeMap = op.operatorProperties["typeCastingUnits"].reduce(
+    const castTypeMap = op.operatorProperties["typeCastingUnits"] ?? [].reduce(
       (map_: { [x: string]: any }, castTo: { attribute: string; resultType: string }) => (
         (map_[castTo.attribute] = castTo.resultType), map_
       ),
-      {}
+      {},
     );
 
     inputSchema?.forEach(schema =>
@@ -88,7 +89,7 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
         } else {
           this.schemaToDisplay.push(attr);
         }
-      })
+      }),
     );
   }
 }

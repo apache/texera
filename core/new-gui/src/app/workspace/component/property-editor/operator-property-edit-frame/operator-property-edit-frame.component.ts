@@ -417,21 +417,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         },
       };
 
-      // conditionally hide the field according to the schema
-      if (
-        isDefined(mapSource.hideExpectedValue) &&
-        isDefined(mapSource.hideTarget) &&
-        isDefined(mapSource.hideType) &&
-        hideTypes.includes(mapSource.hideType)
-      ) {
-        mappedField.hideExpression = createShouldHideFieldFunc(
-          mapSource.hideTarget,
-          mapSource.hideType,
-          mapSource.hideExpectedValue,
-          mapSource.hideOnNull
-        );
-      }
-
       // if the title is fileName, then change it to custom autocomplete input template
       if (mappedField.key == "fileName") {
         mappedField.type = "inputautocomplete";
