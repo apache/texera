@@ -58,10 +58,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
 
+  //changed
   screenWidth = window.innerWidth;
   rightPanelWidth = 400;
   
-  //change
   openRightPanelFrame(index: number) {
     this.currentRightPanelComponent = this.rightPanelItems[index].component;
     this.currentRightPanelTitle = this.rightPanelItems[index].title;
@@ -71,7 +71,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     }
     this.display = true;
   }
-  //change
 
   onResize(event: NzResizeEvent): void {
     if (event.width) {
@@ -84,6 +83,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.currentRightPanelComponent = null as any;
     this.rightPanelWidth = 0;
   }
+  //changed
 
   @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
   constructor(
