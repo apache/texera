@@ -1,53 +1,33 @@
 import { Component } from "@angular/core";
-import { FieldArrayType, FieldTypeConfig } from "@ngx-formly/core";
+import { FieldArrayType } from "@ngx-formly/core";
 
 @Component({
-  // selector: 'formly-array-type',
   template: `
-    <div class="mb-3">
-      <legend *ngIf="props.label">{{ props.label }}</legend>
-      <p *ngIf="props.description">{{ props.description }}</p>
-
-      <div
-        class="alert alert-danger"
-        role="alert"
-        *ngIf="showError && formControl.errors">
-        <formly-validation-message [field]="field"></formly-validation-message>
+    <ng-container *ngIf="!props.hideLabel">
+      <hr>
+      <div style="display: flex; justify-content: space-between;">
+        <h5>{{ props.label }}</h5>
+        <button nz-button [nzSize]="'small'" [nzType]="'primary'" [nzShape]="'circle'" type="button" (click)="add()">
+          <span *ngIf="props.addText">{{ props.addText }}</span>
+          <i nz-icon nzType="plus" nzTheme="outline"></i>
+        </button>
       </div>
 
-      <div
-        *ngFor="let field of field.fieldGroup; let i = index"
-        class="row">
-        <formly-field
-          class="col-10"
-          [field]="field"></formly-field>
-        <div
-          *ngIf="field.props?.removable !== false"
-          class="col-2 text-right">
-          <button
-            class="btn btn-danger"
-            type="button"
-            (click)="remove(i)"
-            [disabled]="formControl.disabled">
-            -
-          </button>
-        </div>
-      </div>
-
-      <div class="d-flex flex-row-reverse">
-        <button
-          class="btn btn-primary"
-          type="button"
-          (click)="add()"
-          [disabled]="formControl.disabled">
-          +
+      <hr>
+    </ng-container>
+    <div *ngFor="let field of field.fieldGroup; let i = index;" class="row container__array">
+      <formly-field class="col" [field]="field"></formly-field>
+      <div class="btn-remove">
+        <button nz-button [nzSize]="'small'" [nzShape]="'circle'" nzDanger *ngIf="!props.hideRemoveButtons"
+                type="button" (click)="remove(i)">
+          <span *ngIf="props.removeText">{{ props.removeText }}</span>
+          <i nz-icon nzType="delete" nzTheme="outline"></i>
         </button>
       </div>
     </div>
   `,
 })
-export class ArrayTypeComponent extends FieldArrayType<FieldTypeConfig> {}
-
+export class ArrayTypeComponent extends FieldArrayType {}
 /**  Copyright 2018 Google Inc. All Rights Reserved.
  Use of this source code is governed by an MIT-style license that
  can be found in the LICENSE file at http://angular.io/license */
