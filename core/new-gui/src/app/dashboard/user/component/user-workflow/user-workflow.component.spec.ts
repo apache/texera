@@ -9,7 +9,6 @@ import { MatDividerModule } from "@angular/material/divider";
 import { MatListModule } from "@angular/material/list";
 import { MatCardModule } from "@angular/material/card";
 import { MatDialogModule } from "@angular/material/dialog";
-import { NgbActiveModal, NgbModule } from "@ng-bootstrap/ng-bootstrap";
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import { HttpClient } from "@angular/common/http";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
@@ -40,6 +39,7 @@ import { SearchService } from "../../service/search.service";
 import { StubSearchService } from "../../service/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { delay } from "rxjs";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -58,9 +58,9 @@ describe("SavedWorkflowSectionComponent", () => {
         SearchResultsComponent,
       ],
       providers: [
+        NzModalService,
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },
-        NgbActiveModal,
         HttpClient,
         ShareAccessService,
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
@@ -77,7 +77,6 @@ describe("SavedWorkflowSectionComponent", () => {
         MatListModule,
         MatCardModule,
         MatDialogModule,
-        NgbModule,
         FormsModule,
         RouterTestingModule,
         HttpClientTestingModule,
