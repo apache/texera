@@ -3,27 +3,20 @@ import { FieldArrayType } from "@ngx-formly/core";
 
 @Component({
   template: `
-    <ng-container *ngIf="!props.hideLabel">
+    <div *ngIf="!props.hideLabel" style="padding-bottom: 10px;">
       <hr>
-      <div style="display: flex; justify-content: space-between;">
-        <h5>{{ props.label }}</h5>
-        <button nz-button [nzSize]="'small'" [nzType]="'primary'" [nzShape]="'circle'" type="button" (click)="add()">
-          <span *ngIf="props.addText">{{ props.addText }}</span>
-          <i nz-icon nzType="plus" nzTheme="outline"></i>
-        </button>
-      </div>
-
-      <hr>
-    </ng-container>
-    <div *ngFor="let field of field.fieldGroup; let i = index;" class="row container__array">
-      <formly-field class="col" [field]="field"></formly-field>
-      <div class="btn-remove">
-        <button nz-button [nzSize]="'small'" [nzShape]="'circle'" nzDanger *ngIf="!props.hideRemoveButtons"
-                type="button" (click)="remove(i)">
-          <span *ngIf="props.removeText">{{ props.removeText }}</span>
-          <i nz-icon nzType="delete" nzTheme="outline"></i>
-        </button>
-      </div>
+      <h5 style="display:inline-block;">{{ props.label }}</h5>
+      <button nz-button [nzSize]="'small'" [nzType]="'primary'" [nzShape]="'circle'" type="button" (click)="add()" style="display:inline-block;vertical-align: baseline;float: right;">
+        <span *ngIf="props.addText">{{ props.addText }}</span>
+        <i nz-icon nzType="plus"></i>
+      </button>
+    </div>
+    <div *ngFor="let field of field.fieldGroup; let i = index;" class="row" style="margin: 0;border-top: 1px solid rgba(0,0,0,.1); padding-top: 15px;">
+      <formly-field class="col" [field]="field" style="padding-left: 0;"></formly-field>
+      <button nz-button [nzSize]="'small'" [nzShape]="'circle'" nzDanger *ngIf="!props.hideRemoveButtons" type="button" (click)="remove(i)">
+        <span *ngIf="props.removeText">{{ props.removeText }}</span>
+        <i nz-icon nzType="delete"></i>
+      </button>
     </div>
   `,
 })
