@@ -53,23 +53,8 @@ abstract class SchedulingPolicy(
     }
   }
 
-  protected def getRegions(
-      workflow: Workflow,
-      workerId: ActorVirtualIdentity
-  ): Set[Region] = {
-    val operator = workflow.physicalPlan.getPhysicalOpByWorkerId(workerId)
-    runningRegions.filter(r => r.getOperators.contains(operator)).toSet
-  }
-
-  /**
-    * A link's region is the region of the source operator of the link.
-    */
-  protected def getRegions(link: PhysicalLink): Set[Region] = {
-    runningRegions.filter(r => r.getOperators.map(_.id).contains(link.fromOpId)).toSet
-  }
-
-  protected def getRegions(portId: GlobalPortIdentity): Set[Region] = {
-    runningRegions.filter(r => r.getPorts.contains(portId)).toSet
+  protected def getRegion(portId: GlobalPortIdentity): Option[Region] = {
+    runningRegions.find(r => r.getPorts.contains(portId))
   }
 
   // gets the ready regions that is not currently running
@@ -90,17 +75,18 @@ abstract class SchedulingPolicy(
       executionState: ExecutionState,
       portId: GlobalPortIdentity
   ): Set[Region] = {
-    val regions = getRegions(portId)
-    regions.foreach(region => {
-      val portIds =
-        completedPortIdsOfRegion.getOrElseUpdate(
-          region.id,
-          new mutable.HashSet[GlobalPortIdentity]()
-        )
-      portIds.add(portId)
-    })
-    regions.foreach(region => checkRegionCompleted(executionState, region))
-    getNextSchedulingWork(workflow)
+    getRegion(portId) match {
+      case Some(region) =>
+        val portIds =
+          completedPortIdsOfRegion.getOrElseUpdate(
+            region.id,
+            new mutable.HashSet[GlobalPortIdentity]()
+          )
+        portIds.add(portId)
+        checkRegionCompleted(executionState, region)
+        getNextSchedulingWork(workflow)
+      case None => Set() // currently, the virtual input ports of source operators do not belong to any region
+    }
   }
 
   def onTimeSlotExpired(workflow: Workflow): Set[Region] = {
