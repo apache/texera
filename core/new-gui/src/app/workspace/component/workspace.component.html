@@ -50,22 +50,20 @@
           nzType="drag"
           *ngIf="!this.display"></span>
       </li>
-      <ng-container *ngFor="let item of rightPanelItems; let i = index">
-        <li
-          nz-menu-item
-          *ngIf="item.enabled"
-          (click)="item.title !== 'Property' || isAnyElementSelected() ? openRightPanelFrame(i) : null"
-          nz-tooltip="{{item.title}}"
-          [class.disabled]="item.title === 'Property' && !isAnyElementSelected()"
-          nzSelected="{{currentIndex === i}}" >
-          <span
-            nz-icon
-            [nzType]="item.icon"
-            nzTheme="outline"
-            class="icon-right">
-          </span>
-        </li>
-      </ng-container>
+      <div cdkDropList class="drag-list" (cdkDropListDropped)="drop($event)">
+        <ng-container *ngFor="let item of rightPanelItems; let i = index">
+          <li
+            nz-menu-item
+            *ngIf="item.enabled"
+            (click)="item.title !== 'Property' || isAnyElementSelected() ? openRightPanelFrame(i) : null"
+            nz-tooltip="{{item.title}}"
+            [class.disabled]="item.title === 'Property' && !isAnyElementSelected()"
+            nzSelected="{{currentIndex === i}}"
+            cdkDrag>
+            <span nz-icon [nzType]="item.icon" nzTheme="outline" class="icon-right"></span>
+          </li>
+        </ng-container>
+      </div>
     </ul>
     <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
 </div>

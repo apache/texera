@@ -28,6 +28,7 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 //changed
 import { MiniMapComponent } from './workflow-editor/mini-map/mini-map.component';
 import { PropertyEditorComponent } from './property-editor/property-editor.component';
+import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 //changed
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
@@ -45,8 +46,9 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   timer = setInterval(() => {
     if (this.isAnyElementSelected() === false && this.display) {
-      this.currentIndex = 1;
-      this.currentRightPanelComponent = this.rightPanelItems[this.currentIndex].component;
+      let minimapIndex = this.rightPanelItems.findIndex(item => item.title === "MiniMap");
+      this.currentIndex = minimapIndex;
+      this.currentRightPanelComponent = this.rightPanelItems[minimapIndex].component;
     }
   }, 500);
 
@@ -106,6 +108,11 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   getCurrentComponent(): string {
     return this.rightPanelItems[this.currentIndex].title
+  }
+
+  drop(event: CdkDragDrop<string[]>): void {
+    moveItemInArray(this.rightPanelItems, event.previousIndex, event.currentIndex);
+    this.currentIndex = event.currentIndex;
   }
   //changed
 
