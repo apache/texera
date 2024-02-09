@@ -75,7 +75,8 @@ class DPThread(
         def run(): Unit = {
           Thread.currentThread().setName(getThreadName)
           logger.info("DP thread started")
-          startFuture.complete(Unit)
+          startFuture.complete(())
+          dp.startTime = System.nanoTime()
           try {
             runDPThreadMainLogic()
           } catch safely {
@@ -89,7 +90,8 @@ class DPThread(
                 CONTROLLER
               )
           }
-          endFuture.complete(Unit)
+          dp.totalExecutionTime = (System.nanoTime() - dp.startTime)
+          endFuture.complete(())
         }
       })
       startFuture.get()
@@ -186,6 +188,7 @@ class DPThread(
           }
         }
       }
+      dp.totalExecutionTime = System.nanoTime() - dp.startTime
       // End of Main loop
     }
   }

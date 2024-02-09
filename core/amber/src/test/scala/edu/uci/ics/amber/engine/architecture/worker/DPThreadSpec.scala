@@ -171,7 +171,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
-      Some(new URI("file:///recovery-logs/tmp"))
+      Some(new URI("ram:///recovery-logs/tmp"))
     )
     logStorage.deleteStorage()
     val logManager: ReplayLogManager =

@@ -4,7 +4,7 @@ import edu.uci.ics.texera.Utils
 import org.jooq.types.UInteger
 
 import java.nio.file.{Files, Path}
-import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 object PathUtils {
 

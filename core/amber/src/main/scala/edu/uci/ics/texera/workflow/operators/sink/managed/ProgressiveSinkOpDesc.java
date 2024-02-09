@@ -23,11 +23,13 @@ import scala.Option;
 import scala.Tuple3;
 import scala.collection.immutable.List;
 
+import java.util.ArrayList;
 import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
@@ -72,8 +74,8 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 "View Results",
                 "View the results",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,

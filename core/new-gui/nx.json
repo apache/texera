@@ -5,8 +5,8 @@
       "runner": "@nrwl/nx-cloud",
       "options": {
         "cacheableOperations": [
-          "lint",
-          "e2e"
+          "build",
+          "lint"
         ],
         "runtimeCacheInputs": [
           "node -v",

@@ -48,7 +48,7 @@ class IntervalJoinOpExec(
                 ) == 0
               })
               .map(rightTuple => joinTuples(currentTuple, rightTuple))
-              .toIterator
+              .iterator
           } else {
             Iterator()
           }
@@ -67,7 +67,7 @@ class IntervalJoinOpExec(
                 ) == 0
               })
               .map(leftTuple => joinTuples(leftTuple, currentTuple))
-              .toIterator
+              .iterator
           } else {
             Iterator()
           }

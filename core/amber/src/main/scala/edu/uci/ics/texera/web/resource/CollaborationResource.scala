@@ -14,7 +14,7 @@ import org.jooq.types.UInteger
 import javax.websocket.server.ServerEndpoint
 import javax.websocket.{OnClose, OnMessage, OnOpen, Session}
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 object CollaborationResource {
   final val sessionIdSessionMap = new mutable.HashMap[String, Session]()
@@ -60,7 +60,7 @@ class CollaborationResource extends LazyLogging {
         val sessionIdSet: mutable.Set[String] =
           wIdSessionIdsMap.get(wId) match {
             case Some(set) =>
-              set.+(senderSessId)
+              set.union(Set(senderSessId))
             case None =>
               mutable.Set(senderSessId)
           }

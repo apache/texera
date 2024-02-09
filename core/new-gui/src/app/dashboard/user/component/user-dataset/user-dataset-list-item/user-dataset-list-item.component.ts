@@ -1,23 +1,11 @@
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { DashboardEntry } from "../../../type/dashboard-entry";
-import { Workflow } from "../../../../../common/type/workflow";
 import { Dataset } from "../../../../../common/type/dataset";
-import { DashboardProject } from "../../../type/dashboard-project.interface";
-import { environment } from "../../../../../../environments/environment";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import {
-  DEFAULT_WORKFLOW_NAME,
-  WorkflowPersistService,
-} from "../../../../../common/service/workflow-persist/workflow-persist.service";
-import { FileSaverService } from "../../../service/user-file/file-saver.service";
-import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { DatasetService } from "../../../service/user-dataset/dataset.service";
-import { NgbdModalWorkflowExecutionsComponent } from "../../user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
-import { firstValueFrom } from "rxjs";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
-import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import {NzModalService} from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -65,7 +53,7 @@ export class UserDatasetListItemComponent {
   datasetVersionTrackingEnabled: boolean = true;
 
   constructor(
-    private modalService: NgbModal,
+    private modalService: NzModalService,
     private datasetService: DatasetService,
     private notificationService: NotificationService
   ) {}
@@ -112,15 +100,18 @@ export class UserDatasetListItemComponent {
         });
   }
 
-  public onClickGetDatasetVersions() {}
-
   public onClickOpenShareAccess() {
-    const modalRef = this.modalService.open(ShareAccessComponent);
-    modalRef.componentInstance.writeAccess = this.entry.dataset.accessPrivilege === "WRITE";
-    modalRef.componentInstance.type = "dataset";
-    modalRef.componentInstance.id = this.dataset.did;
-    modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
-      this.refresh.emit();
+    const modalRef = this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzComponentParams: {
+        writeAccess: this.entry.dataset.accessPrivilege === "WRITE",
+        type: "dataset",
+        id: this.entry.dataset.dataset.did
+      },
+      nzFooter: null,
+      nzTitle: "Share this dataset with others",
+      nzCentered: true,
     });
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refresh.emit());
   }
 }

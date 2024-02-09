@@ -43,7 +43,7 @@ export class GmailService {
         next: () => this.notificationService.success("Email sent successfully"),
         error: (error: unknown) => {
           if (error instanceof HttpErrorResponse) {
-            this.notificationService.error(error.error);
+            console.error(error.error);
           }
         },
       });

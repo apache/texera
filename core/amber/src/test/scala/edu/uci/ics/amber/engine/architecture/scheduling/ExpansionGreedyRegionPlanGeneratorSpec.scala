@@ -79,28 +79,26 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     assert(regions.size == 2)
 
     val buildRegion = regions
-      .find(v =>
-        v.physicalOpIds.exists(op =>
-          OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
-        )
+      .find(region =>
+        region.getOperators
+          .map(_.id)
+          .exists(physicalOpId =>
+            OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc1.operatorIdentifier
+          )
       )
       .get
     val probeRegion = regions
-      .find(v =>
-        v.physicalOpIds.exists(op =>
-          OperatorIdentity(op.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
-        )
+      .find(region =>
+        region.getOperators
+          .map(_.id)
+          .exists(physicalOpId =>
+            OperatorIdentity(physicalOpId.logicalOpId.id) == headerlessCsvOpDesc2.operatorIdentifier
+          )
       )
       .get
 
     assert(workflow.regionPlan.getUpstreamRegions(probeRegion).size == 1)
     assert(workflow.regionPlan.getUpstreamRegions(probeRegion).contains(buildRegion))
-    assert(buildRegion.downstreamLinks.size == 1)
-    assert(
-      buildRegion.downstreamLinks.exists(link =>
-        link.toOpId.logicalOpId == joinOpDesc.operatorIdentifier
-      )
-    )
   }
 
   "RegionPlanGenerator" should "correctly find regions in csv->->filter->join->sink workflow" in {

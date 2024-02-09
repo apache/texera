@@ -11,7 +11,6 @@ type UserServiceType = AdminUserService | UserQuotaService;
 @UntilDestroy()
 @Component({
   templateUrl: "./user-quota.component.html",
-  styleUrls: ["./user-quota.component.scss"],
 })
 export class UserQuotaComponent implements OnInit {
   userUid: number = -1;

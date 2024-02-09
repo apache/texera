@@ -14,7 +14,7 @@ import edu.uci.ics.amber.engine.common.workflow.InputPort
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
