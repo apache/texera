@@ -61,7 +61,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   //changed
   screenWidth = window.innerWidth;
   rightPanelWidth = 397;
-  
+
   openRightPanelFrame(index: number) {
     this.currentRightPanelComponent = this.rightPanelItems[index].component;
     this.currentRightPanelTitle = this.rightPanelItems[index].title;
@@ -72,6 +72,18 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.display = true;
   }
 
+  public isAnyElementSelected(): boolean {
+    // operator ID
+    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    // Link ID
+    const highlightedLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
+    // Comment Box ID
+    const highlightedCommentBoxes = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
+  
+    // If a list is not empty, means there is element been slected
+    return highlightedOperators.length > 0 || highlightedLinks.length > 0 || highlightedCommentBoxes.length > 0;
+  }
+  
   onResize(event: NzResizeEvent): void {
     if (event.width) {
       this.rightPanelWidth = event.width;
@@ -126,7 +138,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - NaN || undefined will result in undefined.
      */
     this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
-    this.openRightPanelFrame(0); // initialize the right panel
+    this.openRightPanelFrame(1); // initialize the right panel
   }
 
   ngAfterViewInit(): void {

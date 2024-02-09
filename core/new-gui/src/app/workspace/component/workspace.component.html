@@ -9,16 +9,16 @@
 <texera-left-panel></texera-left-panel>
 <span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
 <ng-template #codeEditor></ng-template>
-<div 
-  cdkDrag 
-  id="property-editor-container" 
-  nz-resizable 
-  [nzMinWidth]="397" 
-  [nzMaxWidth]="800" 
-  [style.width.px]="rightPanelWidth" 
+<div
+  cdkDrag
+  id="property-editor-container"
+  nz-resizable
+  [nzMinWidth]="397"
+  [nzMaxWidth]="800"
+  [style.width.px]="rightPanelWidth"
   (nzResize)="onResize($event)">
-    <div 
-      *ngIf="currentRightPanelComponent" 
+    <div
+      *ngIf="currentRightPanelComponent"
       id="right-panel-content">
       <h6
         id="title"
@@ -29,8 +29,8 @@
         <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
       </div>
     </div>
-    <ul 
-      nz-menu 
+    <ul
+      nz-menu
       id="dock">
       <li
         nz-menu-item
@@ -51,15 +51,16 @@
           *ngIf="!this.display"></span>
       </li>
       <ng-container *ngFor="let item of rightPanelItems; let i = index">
-        <li 
-          nz-menu-item 
-          *ngIf="item.enabled" 
-          (click)="openRightPanelFrame(i)"
-          nz-tooltip="{{item.title}}">
-          <span 
-            nz-icon 
-            [nzType]="item.icon" 
-            nzTheme="outline" 
+        <li
+          nz-menu-item
+          *ngIf="item.enabled"
+          (click)="item.title !== 'Property' || isAnyElementSelected() ? openRightPanelFrame(i) : null"
+          nz-tooltip="{{item.title}}"
+          [class.disabled]="item.title === 'Property' && !isAnyElementSelected()">
+          <span
+            nz-icon
+            [nzType]="item.icon"
+            nzTheme="outline"
             class="icon-right">
           </span>
         </li>

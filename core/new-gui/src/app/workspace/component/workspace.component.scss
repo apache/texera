@@ -9,6 +9,11 @@
   height: 100%;
 }
 
+.disabled {
+  pointer-events: none; /* disable click */
+  color: #ccc; /* change color to inform */
+}
+
 .texera-workspace {
   --header-height: 40px;
   --resultbar-height: 25px;
