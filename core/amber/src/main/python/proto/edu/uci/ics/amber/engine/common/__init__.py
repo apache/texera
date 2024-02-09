@@ -24,6 +24,13 @@ class ActorVirtualIdentity(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class ChannelIdentity(betterproto.Message):
+    from_worker_id: "ActorVirtualIdentity" = betterproto.message_field(1)
+    to_worker_id: "ActorVirtualIdentity" = betterproto.message_field(2)
+    is_control: bool = betterproto.bool_field(3)
+
+
+@dataclass(eq=False, repr=False)
 class OperatorIdentity(betterproto.Message):
     id: str = betterproto.string_field(1)
 

@@ -87,6 +87,10 @@ class OperatorRuntimeStats(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
     input_count: int = betterproto.int64_field(2)
     output_count: int = betterproto.int64_field(3)
+    num_workers: int = betterproto.int32_field(4)
+    data_processing_time: int = betterproto.int64_field(5)
+    control_processing_time: int = betterproto.int64_field(6)
+    idle_time: int = betterproto.int64_field(7)
 
 
 @dataclass(eq=False, repr=False)

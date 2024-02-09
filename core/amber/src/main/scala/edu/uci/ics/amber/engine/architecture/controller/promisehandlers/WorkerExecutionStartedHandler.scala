@@ -20,7 +20,7 @@ trait WorkerExecutionStartedHandler {
   registerHandler { (msg: WorkerStateUpdated, sender) =>
     {
       // set the state
-      cp.executionState.getOperatorExecution(sender).getWorkerInfo(sender).state = msg.state
+      cp.executionState.getOperatorExecution(sender).getWorkerExecution(sender).state = msg.state
       sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus))
     }
   }

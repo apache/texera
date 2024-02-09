@@ -9,11 +9,8 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.EndOfUpstream
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{
-  SOURCE_STARTER_ACTOR,
-  SOURCE_STARTER_OP
-}
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.SOURCE_STARTER_ACTOR
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 object StartHandler {
   final case class StartWorker() extends ControlCommand[WorkerState]
@@ -28,10 +25,11 @@ trait StartHandler {
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
-      dp.registerInput(
-        SOURCE_STARTER_ACTOR,
-        PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), dp.getOperatorId, PortIdentity())
-      )
+      val dummyInputPortId = PortIdentity()
+      dp.inputGateway.addPort(dummyInputPortId)
+      dp.inputGateway
+        .getChannel(ChannelIdentity(SOURCE_STARTER_ACTOR, actorId, isControl = false))
+        .setPortId(dummyInputPortId)
       dp.processDataPayload(
         ChannelIdentity(SOURCE_STARTER_ACTOR, dp.actorId, isControl = false),
         EndOfUpstream()

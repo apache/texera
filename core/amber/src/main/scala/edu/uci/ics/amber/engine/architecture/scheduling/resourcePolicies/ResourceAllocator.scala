@@ -61,6 +61,7 @@ class DefaultResourceAllocator(
         generateChannelConfigs(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          toPortId = physicalLink.toPortId,
           linkPartitionInfos(physicalLink)
         ),
         toPartitioning(

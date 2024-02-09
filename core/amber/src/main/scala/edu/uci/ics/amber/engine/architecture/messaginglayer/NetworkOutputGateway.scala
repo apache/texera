@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import java.util.concurrent.atomic.AtomicLong
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.mutable
 
@@ -24,6 +25,9 @@ class NetworkOutputGateway(
     val handler: WorkflowFIFOMessage => Unit
 ) extends AmberLogging
     with Serializable {
+
+  private val portIds: mutable.HashMap[PortIdentity, Boolean] = mutable.HashMap()
+
   private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
   def addOutputChannel(channelId: ChannelIdentity): Unit = {
@@ -72,6 +76,19 @@ class NetworkOutputGateway(
 
   def getSequenceNumber(channelId: ChannelIdentity): Long = {
     idToSequenceNums.getOrElseUpdate(channelId, new AtomicLong()).getAndIncrement()
+  }
+
+  def addPort(portId: PortIdentity): Unit = {
+    // each port can only be added and initialized once.
+    if (this.portIds.contains(portId)) {
+      return
+    }
+    this.portIds(portId) = false
+
+  }
+
+  def getPortIds(): Set[PortIdentity] = {
+    this.portIds.keys.toSet
   }
 
 }

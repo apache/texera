@@ -18,7 +18,7 @@ class ControllerAsyncRPCHandlerInitializer(
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler
-    with LinkCompletedHandler
+    with PortCompletedHandler
     with FatalErrorHandler
     with ConsoleMessageHandler
     with RetryWorkflowHandler

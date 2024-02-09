@@ -32,15 +32,12 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     * the first one received. The method also handles the cleanup of received markers once they are
     * aligned.
     *
-    * @param upstreamLinkStatus The current status of upstream links, indicating which senders
-    *                           have not yet completed sending markers.
     * @param from               The channel ID from which the current marker has arrived.
     * @param marker             The payload of the channel marker being checked for alignment.
     * @return Boolean indicating if the epoch marker is completely received from all senders
     *         within the scope. Returns true if the marker is aligned, otherwise false.
     */
   def isMarkerAligned(
-      upstreamLinkStatus: UpstreamLinkStatus,
       from: ChannelIdentity,
       marker: ChannelMarkerPayload
   ): Boolean = {

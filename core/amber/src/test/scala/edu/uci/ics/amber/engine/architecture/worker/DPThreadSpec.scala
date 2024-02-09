@@ -37,10 +37,10 @@ import scala.collection.mutable
 
 class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
-  private val identifier: ActorVirtualIdentity = ActorVirtualIdentity("DP mock")
-  private val senderID: ActorVirtualIdentity = ActorVirtualIdentity("mock sender")
-  private val dataChannelID = ChannelIdentity(senderID, identifier, isControl = false)
-  private val controlChannelID = ChannelIdentity(senderID, identifier, isControl = true)
+  private val workerId: ActorVirtualIdentity = ActorVirtualIdentity("DP mock")
+  private val senderWorkerId: ActorVirtualIdentity = ActorVirtualIdentity("mock sender")
+  private val dataChannelId = ChannelIdentity(senderWorkerId, workerId, isControl = false)
+  private val controlChannelId = ChannelIdentity(senderWorkerId, workerId, isControl = true)
   private val operator = mock[OperatorExecutor]
   private val operatorIdentity = OperatorIdentity("testOperator")
   private val physicalOp1 = PhysicalOp(
@@ -49,15 +49,18 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
+
+  private val mockInputPortId = PortIdentity()
   private val physicalOp2 = PhysicalOp(
     id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
     workflowId = DEFAULT_WORKFLOW_ID,
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
-  ).withInputPorts(List(InputPort()), mutable.Map(PortIdentity() -> null))
+  ).withInputPorts(List(InputPort()), mutable.Map(mockInputPortId -> null))
     .withOutputPorts(List(OutputPort()), mutable.Map(PortIdentity() -> null))
+
   private val mockLink =
-    PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, PortIdentity())
+    PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, mockInputPortId)
 
   private val physicalOp = PhysicalOp
     .oneToOnePhysicalOp(
@@ -76,18 +79,19 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     ReplayLogManager.createLogManager(logStorage, "none", x => {})
 
   "DP Thread" should "handle pause/resume during processing" in {
-    val dp = new DataProcessor(identifier, x => {})
-    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
+    val dp = new DataProcessor(workerId, x => {})
+    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.registerInput(senderID, mockLink)
+    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
-    val dpThread = new DPThread(identifier, dp, logManager, inputQueue)
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
       (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
     }
-    val message = WorkflowFIFOMessage(dataChannelID, 0, DataFrame(tuples))
+    val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
     inputQueue.put(FIFOMessageElement(message))
     inputQueue.put(
       TimerBasedControlElement(ControlInvocation(0, PauseWorker()))
@@ -102,21 +106,22 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle pause/resume using fifo messages" in {
-    val dp = new DataProcessor(identifier, x => {})
-    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
+    val dp = new DataProcessor(workerId, x => {})
+    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.registerInput(senderID, mockLink)
+    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
-    val dpThread = new DPThread(identifier, dp, logManager, inputQueue)
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
       (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
     }
-    val message = WorkflowFIFOMessage(dataChannelID, 0, DataFrame(tuples))
-    val pauseControl = WorkflowFIFOMessage(controlChannelID, 0, ControlInvocation(0, PauseWorker()))
+    val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
+    val pauseControl = WorkflowFIFOMessage(controlChannelId, 0, ControlInvocation(0, PauseWorker()))
     val resumeControl =
-      WorkflowFIFOMessage(controlChannelID, 1, ControlInvocation(1, ResumeWorker()))
+      WorkflowFIFOMessage(controlChannelId, 1, ControlInvocation(1, ResumeWorker()))
     inputQueue.put(FIFOMessageElement(message))
     inputQueue.put(
       FIFOMessageElement(pauseControl)
@@ -131,24 +136,27 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
-    val dp = new DataProcessor(identifier, x => {})
-    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
+    val dp = new DataProcessor(workerId, x => {})
+    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val anotherSender = ActorVirtualIdentity("another")
-    dp.registerInput(senderID, mockLink)
-    dp.registerInput(anotherSender, mockLink)
+    val anotherSenderWorkerId = ActorVirtualIdentity("another")
+    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
+      .setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
-    val dpThread = new DPThread(identifier, dp, logManager, inputQueue)
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
       (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
     }
-    val dataChannelID2 = ChannelIdentity(anotherSender, identifier, isControl = false)
-    val message1 = WorkflowFIFOMessage(dataChannelID, 0, DataFrame(tuples.slice(0, 100)))
-    val message2 = WorkflowFIFOMessage(dataChannelID, 1, DataFrame(tuples.slice(100, 200)))
+    val dataChannelID2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
+    val message1 = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples.slice(0, 100)))
+    val message2 = WorkflowFIFOMessage(dataChannelId, 1, DataFrame(tuples.slice(100, 200)))
     val message3 = WorkflowFIFOMessage(dataChannelID2, 0, DataFrame(tuples.slice(300, 1000)))
-    val message4 = WorkflowFIFOMessage(dataChannelID, 2, DataFrame(tuples.slice(200, 300)))
+    val message4 = WorkflowFIFOMessage(dataChannelId, 2, DataFrame(tuples.slice(200, 300)))
     val message5 = WorkflowFIFOMessage(dataChannelID2, 1, DataFrame(tuples.slice(1000, 5000)))
     inputQueue.put(FIFOMessageElement(message1))
     inputQueue.put(FIFOMessageElement(message2))
@@ -162,12 +170,15 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   }
 
   "DP Thread" should "write determinant logs to local storage while processing" in {
-    val dp = new DataProcessor(identifier, x => {})
-    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(identifier))), Iterator.empty)
+    val dp = new DataProcessor(workerId, x => {})
+    dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    val anotherSender = ActorVirtualIdentity("another")
-    dp.registerInput(senderID, mockLink)
-    dp.registerInput(anotherSender, mockLink)
+    val anotherSenderWorkerId = ActorVirtualIdentity("another")
+    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
+      .setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](
@@ -176,17 +187,17 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     logStorage.deleteStorage()
     val logManager: ReplayLogManager =
       ReplayLogManager.createLogManager(logStorage, "tmpLog", x => {})
-    val dpThread = new DPThread(identifier, dp, logManager, inputQueue)
+    val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
       (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
     }
-    val dataChannelID2 = ChannelIdentity(anotherSender, identifier, isControl = false)
-    val message1 = WorkflowFIFOMessage(dataChannelID, 0, DataFrame(tuples.slice(0, 100)))
-    val message2 = WorkflowFIFOMessage(dataChannelID, 1, DataFrame(tuples.slice(100, 200)))
-    val message3 = WorkflowFIFOMessage(dataChannelID2, 0, DataFrame(tuples.slice(300, 1000)))
-    val message4 = WorkflowFIFOMessage(dataChannelID, 2, DataFrame(tuples.slice(200, 300)))
-    val message5 = WorkflowFIFOMessage(dataChannelID2, 1, DataFrame(tuples.slice(1000, 5000)))
+    val dataChannelId2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
+    val message1 = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples.slice(0, 100)))
+    val message2 = WorkflowFIFOMessage(dataChannelId, 1, DataFrame(tuples.slice(100, 200)))
+    val message3 = WorkflowFIFOMessage(dataChannelId2, 0, DataFrame(tuples.slice(300, 1000)))
+    val message4 = WorkflowFIFOMessage(dataChannelId, 2, DataFrame(tuples.slice(200, 300)))
+    val message5 = WorkflowFIFOMessage(dataChannelId2, 1, DataFrame(tuples.slice(1000, 5000)))
     inputQueue.put(FIFOMessageElement(message1))
     inputQueue.put(FIFOMessageElement(message2))
     inputQueue.put(FIFOMessageElement(message3))

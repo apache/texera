@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -16,20 +15,6 @@ import scala.collection.mutable
 
 class ExecutionState(workflow: Workflow) {
 
-  private val linkExecutions: Map[PhysicalLink, LinkExecution] =
-    workflow.physicalPlan.links.map { link =>
-      link -> new LinkExecution(
-        workflow.regionPlan
-          .getRegionOfPhysicalLink(link)
-          .resourceConfig
-          .get
-          .linkConfigs(link)
-          .channelConfigs
-          .map(_.toWorkerId)
-          .toSet
-          .size
-      )
-    }.toMap
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
 
@@ -50,7 +35,9 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values
-      .flatMap(operator => operator.getBuiltWorkerIds.map(worker => operator.getWorkerInfo(worker)))
+      .flatMap(operator =>
+        operator.getBuiltWorkerIds.map(worker => operator.getWorkerExecution(worker))
+      )
       .map(_.id)
 
   def getOperatorExecution(op: PhysicalOpIdentity): OperatorExecution = {
@@ -71,9 +58,6 @@ class ExecutionState(workflow: Workflow) {
     }
     throw new NoSuchElementException(s"cannot find operator with worker = $worker")
   }
-
-  def getLinkExecution(link: PhysicalLink): LinkExecution = linkExecutions(link)
-
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions
 

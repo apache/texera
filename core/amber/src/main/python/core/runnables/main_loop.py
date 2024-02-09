@@ -27,15 +27,16 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     ConsoleMessageType,
     WorkerExecutionCompletedV2,
     WorkerState,
-    LinkCompletedV2,
     PythonConsoleMessageV2,
     ConsoleMessage,
+    PortCompletedV2,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
     ControlInvocationV2,
     ControlPayloadV2,
     ReturnInvocationV2,
+    PortIdentity,
 )
 
 
@@ -186,11 +187,12 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
     def _process_input_exhausted(self, input_exhausted: InputExhausted):
         self._process_tuple(input_exhausted)
-        if self.context.tuple_processing_manager.current_input_link is not None:
+        if self.context.tuple_processing_manager.current_input_port_id is not None:
             control_command = set_one_of(
                 ControlCommandV2,
-                LinkCompletedV2(
-                    self.context.tuple_processing_manager.current_input_link
+                PortCompletedV2(
+                    self.context.tuple_processing_manager.current_input_port_id,
+                    input=True,
                 ),
             )
             self._async_rpc_client.send(
@@ -206,8 +208,10 @@ class MainLoop(StoppableQueueBlockingRunnable):
 
         :param sender_change_marker: SenderChangeMarker which contains sender link.
         """
-        self.context.tuple_processing_manager.current_input_link = (
-            sender_change_marker.link
+        self.context.tuple_processing_manager.current_input_port_id = (
+            self.context.batch_to_tuple_converter.get_port_id(
+                sender_change_marker.channel_id
+            )
         )
 
     def _process_end_of_all_marker(self, _: EndOfAllMarker) -> None:
@@ -223,6 +227,13 @@ class MainLoop(StoppableQueueBlockingRunnable):
             batch.schema = self.context.operator_manager.operator.output_schema
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
+            control_command = set_one_of(
+                ControlCommandV2,
+                PortCompletedV2(PortIdentity(0), input=False),
+            )
+            self._async_rpc_client.send(
+                ActorVirtualIdentity(name="CONTROLLER"), control_command
+            )
         self.complete()
 
     def _process_data_element(self, data_element: DataElement) -> None:
