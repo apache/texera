@@ -33,7 +33,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetOfEnvironment extends TableImpl<DatasetOfEnvironmentRecord> {
 
-    private static final long serialVersionUID = -52192690;
+    private static final long serialVersionUID = -1883655224;
 
     /**
      * The reference instance of <code>texera_db.dataset_of_environment</code>
@@ -59,9 +59,9 @@ public class DatasetOfEnvironment extends TableImpl<DatasetOfEnvironmentRecord> 
     public final TableField<DatasetOfEnvironmentRecord, UInteger> EID = createField(DSL.name("eid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
-     * The column <code>texera_db.dataset_of_environment.version_descriptor</code>.
+     * The column <code>texera_db.dataset_of_environment.dvid</code>.
      */
-    public final TableField<DatasetOfEnvironmentRecord, String> VERSION_DESCRIPTOR = createField(DSL.name("version_descriptor"), org.jooq.impl.SQLDataType.VARCHAR(128), this, "");
+    public final TableField<DatasetOfEnvironmentRecord, UInteger> DVID = createField(DSL.name("dvid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.dataset_of_environment</code> table reference
@@ -103,7 +103,7 @@ public class DatasetOfEnvironment extends TableImpl<DatasetOfEnvironmentRecord> 
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_OF_ENVIRONMENT_EID, Indexes.DATASET_OF_ENVIRONMENT_PRIMARY);
+        return Arrays.<Index>asList(Indexes.DATASET_OF_ENVIRONMENT_DVID, Indexes.DATASET_OF_ENVIRONMENT_EID, Indexes.DATASET_OF_ENVIRONMENT_PRIMARY);
     }
 
     @Override
@@ -118,11 +118,15 @@ public class DatasetOfEnvironment extends TableImpl<DatasetOfEnvironmentRecord> 
 
     @Override
     public List<ForeignKey<DatasetOfEnvironmentRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<DatasetOfEnvironmentRecord, ?>>asList(Keys.DATASET_OF_ENVIRONMENT_IBFK_1);
+        return Arrays.<ForeignKey<DatasetOfEnvironmentRecord, ?>>asList(Keys.DATASET_OF_ENVIRONMENT_IBFK_1, Keys.DATASET_OF_ENVIRONMENT_IBFK_2);
     }
 
     public Environment environment() {
         return new Environment(this, Keys.DATASET_OF_ENVIRONMENT_IBFK_1);
+    }
+
+    public DatasetVersion datasetVersion() {
+        return new DatasetVersion(this, Keys.DATASET_OF_ENVIRONMENT_IBFK_2);
     }
 
     @Override
@@ -156,7 +160,7 @@ public class DatasetOfEnvironment extends TableImpl<DatasetOfEnvironmentRecord> 
     // -------------------------------------------------------------------------
 
     @Override
-    public Row3<UInteger, UInteger, String> fieldsRow() {
+    public Row3<UInteger, UInteger, UInteger> fieldsRow() {
         return (Row3) super.fieldsRow();
     }
 }

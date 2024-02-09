@@ -16,8 +16,9 @@ DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
 DROP TABLE IF EXISTS `dataset`;
-DROP TABLE IF EXISTS `dataset_of_workflow`;
-DROP TABLE IF EXISTS `dataset_of_user`;
+DROP TABLE IF EXISTS `dataset_user_access`;
+DROP TABLE IF EXISTS `dataset_version`;
+
 
 SET PERSIST time_zone = '+00:00'; -- this line is mandatory
 SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
@@ -229,13 +230,6 @@ CREATE TABLE IF NOT EXISTS dataset_user_access
     PRIMARY KEY(`did`, `uid`),
     FOREIGN KEY (`did`) REFERENCES `dataset` (`did`) ON DELETE CASCADE,
     FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
-    ) ENGINE = INNODB;
-
-CREATE TABLE IF NOT EXISTS dataset_of_workflow
-(
-    `did`             INT UNSIGNED NOT NULL,
-    `wid`             INT UNSIGNED NOT NULL,
-    PRIMARY KEY(`did`, `wid`)
     ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS dataset_version

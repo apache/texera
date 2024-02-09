@@ -11,9 +11,12 @@ import { DatasetVersion } from "../../../../../common/type/dataset";
 import { filter, switchMap } from "rxjs/operators";
 import readXlsxFile from "read-excel-file";
 import * as Papa from "papaparse";
-import {ParseResult} from "papaparse";
-import {MIME_TYPE_SIZE_LIMITS_MB, MIME_TYPES} from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
-import {NotificationService} from "../../../../../common/service/notification/notification.service";
+import { ParseResult } from "papaparse";
+import {
+  MIME_TYPE_SIZE_LIMITS_MB,
+  MIME_TYPES,
+} from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
+import { NotificationService } from "../../../../../common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -41,10 +44,11 @@ export class UserDatasetExplorerComponent implements OnInit {
   public versionCreatorBaseVersion: DatasetVersion | undefined;
 
   constructor(
-      private route: ActivatedRoute,
-      private router: Router,
-      private datasetService: DatasetService,
-      private notificationService: NotificationService) {}
+    private route: ActivatedRoute,
+    private router: Router,
+    private datasetService: DatasetService,
+    private notificationService: NotificationService
+  ) {}
 
   // item for control the resizeable sider
   MAX_SIDER_WIDTH = 600;
@@ -165,32 +169,32 @@ export class UserDatasetExplorerComponent implements OnInit {
   onClickDownloadCurrentFile() {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
       this.datasetService
-          .retrieveDatasetVersionSingleFile(this.did, this.selectedVersion?.dvid, this.currentDisplayedFileName)
-          .pipe()
-          .subscribe({
-            next: blob => {
-              // download this blob, the filename is the direct name of this file(e.g., /a/b/c.txt, name would be c.txt)
-              const url = URL.createObjectURL(blob);
+        .retrieveDatasetVersionSingleFile(this.did, this.selectedVersion?.dvid, this.currentDisplayedFileName)
+        .pipe()
+        .subscribe({
+          next: blob => {
+            // download this blob, the filename is the direct name of this file(e.g., /a/b/c.txt, name would be c.txt)
+            const url = URL.createObjectURL(blob);
 
-              // Create a temporary link element
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = this.currentDisplayedFileName.split('/').pop() || 'download'; // Extract the file name
+            // Create a temporary link element
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = this.currentDisplayedFileName.split("/").pop() || "download"; // Extract the file name
 
-              // Append the link to the body
-              document.body.appendChild(a);
-              // Trigger the download
-              a.click();
-              // Remove the link after download
-              document.body.removeChild(a);
-              // Release the blob URL
-              URL.revokeObjectURL(url);
-              this.notificationService.info(`File ${this.currentDisplayedFileName} is downloading`)
-            },
-            error: (error: unknown) => {
-              this.notificationService.error(`Error downloading file '${this.currentDisplayedFileName}'`);
-            },
-          });
+            // Append the link to the body
+            document.body.appendChild(a);
+            // Trigger the download
+            a.click();
+            // Remove the link after download
+            document.body.removeChild(a);
+            // Release the blob URL
+            URL.revokeObjectURL(url);
+            this.notificationService.info(`File ${this.currentDisplayedFileName} is downloading`);
+          },
+          error: (error: unknown) => {
+            this.notificationService.error(`Error downloading file '${this.currentDisplayedFileName}'`);
+          },
+        });
     }
   }
 

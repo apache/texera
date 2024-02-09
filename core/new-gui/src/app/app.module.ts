@@ -136,7 +136,7 @@ import { NzModalModule } from "ng-zorro-antd/modal";
 import { OverlayModule } from "@angular/cdk/overlay";
 import { MatInputModule } from "@angular/material/input";
 import { MatTabsModule } from "@angular/material/tabs";
-import {NzSpinModule} from "ng-zorro-antd/spin";
+import { NzSpinModule } from "ng-zorro-antd/spin";
 
 registerLocaleData(en);
 

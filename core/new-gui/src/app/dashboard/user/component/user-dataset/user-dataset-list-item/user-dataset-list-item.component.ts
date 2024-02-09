@@ -5,7 +5,7 @@ import { Dataset } from "../../../../../common/type/dataset";
 import { DatasetService } from "../../../service/user-dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import {NzModalService} from "ng-zorro-antd/modal";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -106,7 +106,7 @@ export class UserDatasetListItemComponent {
       nzComponentParams: {
         writeAccess: this.entry.dataset.accessPrivilege === "WRITE",
         type: "dataset",
-        id: this.entry.dataset.dataset.did
+        id: this.entry.dataset.dataset.did,
       },
       nzFooter: null,
       nzTitle: "Share this dataset with others",

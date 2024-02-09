@@ -15,28 +15,28 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetOfEnvironment implements IDatasetOfEnvironment {
 
-    private static final long serialVersionUID = -317442235;
+    private static final long serialVersionUID = 1743926591;
 
     private UInteger did;
     private UInteger eid;
-    private String   versionDescriptor;
+    private UInteger dvid;
 
     public DatasetOfEnvironment() {}
 
     public DatasetOfEnvironment(IDatasetOfEnvironment value) {
         this.did = value.getDid();
         this.eid = value.getEid();
-        this.versionDescriptor = value.getVersionDescriptor();
+        this.dvid = value.getDvid();
     }
 
     public DatasetOfEnvironment(
         UInteger did,
         UInteger eid,
-        String   versionDescriptor
+        UInteger dvid
     ) {
         this.did = did;
         this.eid = eid;
-        this.versionDescriptor = versionDescriptor;
+        this.dvid = dvid;
     }
 
     @Override
@@ -60,13 +60,13 @@ public class DatasetOfEnvironment implements IDatasetOfEnvironment {
     }
 
     @Override
-    public String getVersionDescriptor() {
-        return this.versionDescriptor;
+    public UInteger getDvid() {
+        return this.dvid;
     }
 
     @Override
-    public void setVersionDescriptor(String versionDescriptor) {
-        this.versionDescriptor = versionDescriptor;
+    public void setDvid(UInteger dvid) {
+        this.dvid = dvid;
     }
 
     @Override
@@ -75,7 +75,7 @@ public class DatasetOfEnvironment implements IDatasetOfEnvironment {
 
         sb.append(did);
         sb.append(", ").append(eid);
-        sb.append(", ").append(versionDescriptor);
+        sb.append(", ").append(dvid);
 
         sb.append(")");
         return sb.toString();
@@ -89,7 +89,7 @@ public class DatasetOfEnvironment implements IDatasetOfEnvironment {
     public void from(IDatasetOfEnvironment from) {
         setDid(from.getDid());
         setEid(from.getEid());
-        setVersionDescriptor(from.getVersionDescriptor());
+        setDvid(from.getDvid());
     }
 
     @Override

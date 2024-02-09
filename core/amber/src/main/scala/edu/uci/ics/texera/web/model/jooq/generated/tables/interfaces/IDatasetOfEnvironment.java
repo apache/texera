@@ -36,14 +36,14 @@ public interface IDatasetOfEnvironment extends Serializable {
     public UInteger getEid();
 
     /**
-     * Setter for <code>texera_db.dataset_of_environment.version_descriptor</code>.
+     * Setter for <code>texera_db.dataset_of_environment.dvid</code>.
      */
-    public void setVersionDescriptor(String value);
+    public void setDvid(UInteger value);
 
     /**
-     * Getter for <code>texera_db.dataset_of_environment.version_descriptor</code>.
+     * Getter for <code>texera_db.dataset_of_environment.dvid</code>.
      */
-    public String getVersionDescriptor();
+    public UInteger getDvid();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

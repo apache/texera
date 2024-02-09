@@ -69,16 +69,16 @@ public class DatasetOfEnvironmentDao extends DAOImpl<DatasetOfEnvironmentRecord,
     }
 
     /**
-     * Fetch records that have <code>version_descriptor BETWEEN lowerInclusive AND upperInclusive</code>
+     * Fetch records that have <code>dvid BETWEEN lowerInclusive AND upperInclusive</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetOfEnvironment> fetchRangeOfVersionDescriptor(String lowerInclusive, String upperInclusive) {
-        return fetchRange(DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.VERSION_DESCRIPTOR, lowerInclusive, upperInclusive);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetOfEnvironment> fetchRangeOfDvid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DVID, lowerInclusive, upperInclusive);
     }
 
     /**
-     * Fetch records that have <code>version_descriptor IN (values)</code>
+     * Fetch records that have <code>dvid IN (values)</code>
      */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetOfEnvironment> fetchByVersionDescriptor(String... values) {
-        return fetch(DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.VERSION_DESCRIPTOR, values);
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetOfEnvironment> fetchByDvid(UInteger... values) {
+        return fetch(DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DVID, values);
     }
 }
