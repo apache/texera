@@ -25,7 +25,9 @@
         cdkDragHandle>
         {{currentRightPanelTitle}}
       </h6>
-      <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
+      <div [class]="getCurrentComponent()">
+        <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
+      </div>
     </div>
     <ul 
       nz-menu 

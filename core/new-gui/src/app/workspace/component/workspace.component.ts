@@ -83,6 +83,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     this.currentRightPanelComponent = null as any;
     this.rightPanelWidth = 47;
   }
+
+  getCurrentComponent(): string {
+    return this.rightPanelItems[this.currentIndex].title
+  }
   //changed
 
   @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
