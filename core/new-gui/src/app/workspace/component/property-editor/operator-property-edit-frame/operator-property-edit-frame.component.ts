@@ -432,6 +432,14 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
+      // if the title is Dummy, then make this field read-only 
+      if (mappedField.key == "Dummy") {
+        mappedField.templateOptions = {
+          ...mappedField.templateOptions, // Spread operator to preserve existing options
+          readonly: true, // This makes the field read-only
+        };
+      }
+
       // if the title is fileName, then change it to custom autocomplete input template
       if (mappedField.key == "fileName") {
         mappedField.type = "inputautocomplete";
