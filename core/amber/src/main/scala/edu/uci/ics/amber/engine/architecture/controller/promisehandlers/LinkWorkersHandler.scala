@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -31,24 +31,19 @@ trait LinkWorkersHandler {
       val linkConfig = resourceConfig.linkConfigs(msg.link)
 
       val futures = linkConfig.channelConfigs
-        .flatMap(channelConfig => {
+        .map(_.channelId)
+        .flatMap(channelId => {
           cp.executionState.builtChannels
-            .add(ChannelIdentity(CONTROLLER, channelConfig.fromWorkerId, isControl = true))
+            .add(ChannelIdentity(CONTROLLER, channelId.fromWorkerId, isControl = true))
           cp.executionState.builtChannels
-            .add(ChannelIdentity(CONTROLLER, channelConfig.toWorkerId, isControl = true))
+            .add(ChannelIdentity(CONTROLLER, channelId.toWorkerId, isControl = true))
           cp.executionState.builtChannels
-            .add(
-              ChannelIdentity(
-                channelConfig.fromWorkerId,
-                channelConfig.toWorkerId,
-                isControl = false
-              )
-            )
+            .add(channelId)
           Seq(
-            send(AddPartitioning(msg.link, linkConfig.partitioning), channelConfig.fromWorkerId),
+            send(AddPartitioning(msg.link, linkConfig.partitioning), channelId.fromWorkerId),
             send(
-              UpdateInputLinking(channelConfig.fromWorkerId, msg.link),
-              channelConfig.toWorkerId
+              AddInputChannel(channelId, msg.link.toPortId),
+              channelId.toWorkerId
             )
           )
         })
