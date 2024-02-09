@@ -87,7 +87,7 @@ texera-menu {
 #property-editor-container {
   position: fixed;
   top: 90px;
-  right: 15px;
+  right: 0px;
   width: 50%;
   z-index: 3;
   user-select: none;
@@ -100,7 +100,7 @@ texera-menu {
   max-height: calc(100vh - 200px);
   overflow-y: auto;
   display: inline-block;
-  width: calc(100% - 50px);
+  width: calc(100% - 47px);
 }
 
 #title {

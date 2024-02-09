@@ -81,7 +81,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   onClose(): void {
     this.display = false;
     this.currentRightPanelComponent = null as any;
-    this.rightPanelWidth = 0;
+    this.rightPanelWidth = 47;
   }
   //changed
 
