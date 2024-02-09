@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.scatter3D
+package edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -21,25 +21,25 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 """)
 class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(value = "title", required = true)
-  @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("chart title")
-  var title: String = ""
+  @JsonSchemaTitle("Plot Title")
+  @JsonPropertyDescription("The value for the plot tile")
+  var title: String = "Scatter3D Chart"
 
   @JsonProperty(value = "x", required = true)
-  @JsonSchemaTitle("Value X")
-  @JsonPropertyDescription("the value x axis")
+  @JsonSchemaTitle("X Column")
+  @JsonPropertyDescription("Data column for the x-axis")
   @AutofillAttributeName
   var x: String = ""
 
   @JsonProperty(value = "y", required = true)
-  @JsonSchemaTitle("Value Y")
-  @JsonPropertyDescription("the value y axis")
+  @JsonSchemaTitle("Y Column")
+  @JsonPropertyDescription("Data column for the y-axis")
   @AutofillAttributeName
   var y: String = ""
 
   @JsonProperty(value = "z", required = true)
-  @JsonSchemaTitle("Value Z")
-  @JsonPropertyDescription("the value z axis")
+  @JsonSchemaTitle("Z Column")
+  @JsonPropertyDescription("Data column for the z-axis")
   @AutofillAttributeName
   var z: String = ""
 
@@ -49,7 +49,7 @@ class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDesc
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Scatter3D",
+      "Scatter3D Chart",
       "Visualize data in a Scatter3D Plot",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -104,7 +104,6 @@ class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDesc
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        original_table = table
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
