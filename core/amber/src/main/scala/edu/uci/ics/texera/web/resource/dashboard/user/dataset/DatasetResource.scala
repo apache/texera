@@ -326,12 +326,12 @@ class DatasetResource {
         DashboardDataset(
           new Dataset(
             createdDataset.getDid,
+            createdDataset.getOwnerUid,
             createdDataset.getName,
             createdDataset.getIsPublic,
             createdDataset.getStoragePath,
             createdDataset.getDescription,
             createdDataset.getCreationTime,
-            createdDataset.getOwnerUid
           ),
           DatasetUserAccessPrivilege.WRITE,
           isOwner = true

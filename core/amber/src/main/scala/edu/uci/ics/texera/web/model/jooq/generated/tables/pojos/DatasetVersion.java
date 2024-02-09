@@ -17,40 +17,40 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class DatasetVersion implements IDatasetVersion {
 
-    private static final long serialVersionUID = 62879048;
+    private static final long serialVersionUID = -1253265124;
 
     private UInteger  dvid;
     private UInteger  did;
+    private UInteger  creatorUid;
     private String    name;
     private String    versionHash;
     private Timestamp creationTime;
-    private UInteger  creatorUid;
 
     public DatasetVersion() {}
 
     public DatasetVersion(IDatasetVersion value) {
         this.dvid = value.getDvid();
         this.did = value.getDid();
+        this.creatorUid = value.getCreatorUid();
         this.name = value.getName();
         this.versionHash = value.getVersionHash();
         this.creationTime = value.getCreationTime();
-        this.creatorUid = value.getCreatorUid();
     }
 
     public DatasetVersion(
         UInteger  dvid,
         UInteger  did,
+        UInteger  creatorUid,
         String    name,
         String    versionHash,
-        Timestamp creationTime,
-        UInteger  creatorUid
+        Timestamp creationTime
     ) {
         this.dvid = dvid;
         this.did = did;
+        this.creatorUid = creatorUid;
         this.name = name;
         this.versionHash = versionHash;
         this.creationTime = creationTime;
-        this.creatorUid = creatorUid;
     }
 
     @Override
@@ -71,6 +71,16 @@ public class DatasetVersion implements IDatasetVersion {
     @Override
     public void setDid(UInteger did) {
         this.did = did;
+    }
+
+    @Override
+    public UInteger getCreatorUid() {
+        return this.creatorUid;
+    }
+
+    @Override
+    public void setCreatorUid(UInteger creatorUid) {
+        this.creatorUid = creatorUid;
     }
 
     @Override
@@ -104,25 +114,15 @@ public class DatasetVersion implements IDatasetVersion {
     }
 
     @Override
-    public UInteger getCreatorUid() {
-        return this.creatorUid;
-    }
-
-    @Override
-    public void setCreatorUid(UInteger creatorUid) {
-        this.creatorUid = creatorUid;
-    }
-
-    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("DatasetVersion (");
 
         sb.append(dvid);
         sb.append(", ").append(did);
+        sb.append(", ").append(creatorUid);
         sb.append(", ").append(name);
         sb.append(", ").append(versionHash);
         sb.append(", ").append(creationTime);
-        sb.append(", ").append(creatorUid);
 
         sb.append(")");
         return sb.toString();
@@ -136,10 +136,10 @@ public class DatasetVersion implements IDatasetVersion {
     public void from(IDatasetVersion from) {
         setDvid(from.getDvid());
         setDid(from.getDid());
+        setCreatorUid(from.getCreatorUid());
         setName(from.getName());
         setVersionHash(from.getVersionHash());
         setCreationTime(from.getCreationTime());
-        setCreatorUid(from.getCreatorUid());
     }
 
     @Override

@@ -17,44 +17,44 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Dataset implements IDataset {
 
-    private static final long serialVersionUID = -422317927;
+    private static final long serialVersionUID = 860030245;
 
     private UInteger  did;
+    private UInteger  ownerUid;
     private String    name;
     private Byte      isPublic;
     private String    storagePath;
     private String    description;
     private Timestamp creationTime;
-    private UInteger  ownerUid;
 
     public Dataset() {}
 
     public Dataset(IDataset value) {
         this.did = value.getDid();
+        this.ownerUid = value.getOwnerUid();
         this.name = value.getName();
         this.isPublic = value.getIsPublic();
         this.storagePath = value.getStoragePath();
         this.description = value.getDescription();
         this.creationTime = value.getCreationTime();
-        this.ownerUid = value.getOwnerUid();
     }
 
     public Dataset(
         UInteger  did,
+        UInteger  ownerUid,
         String    name,
         Byte      isPublic,
         String    storagePath,
         String    description,
-        Timestamp creationTime,
-        UInteger  ownerUid
+        Timestamp creationTime
     ) {
         this.did = did;
+        this.ownerUid = ownerUid;
         this.name = name;
         this.isPublic = isPublic;
         this.storagePath = storagePath;
         this.description = description;
         this.creationTime = creationTime;
-        this.ownerUid = ownerUid;
     }
 
     @Override
@@ -65,6 +65,16 @@ public class Dataset implements IDataset {
     @Override
     public void setDid(UInteger did) {
         this.did = did;
+    }
+
+    @Override
+    public UInteger getOwnerUid() {
+        return this.ownerUid;
+    }
+
+    @Override
+    public void setOwnerUid(UInteger ownerUid) {
+        this.ownerUid = ownerUid;
     }
 
     @Override
@@ -118,26 +128,16 @@ public class Dataset implements IDataset {
     }
 
     @Override
-    public UInteger getOwnerUid() {
-        return this.ownerUid;
-    }
-
-    @Override
-    public void setOwnerUid(UInteger ownerUid) {
-        this.ownerUid = ownerUid;
-    }
-
-    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("Dataset (");
 
         sb.append(did);
+        sb.append(", ").append(ownerUid);
         sb.append(", ").append(name);
         sb.append(", ").append(isPublic);
         sb.append(", ").append(storagePath);
         sb.append(", ").append(description);
         sb.append(", ").append(creationTime);
-        sb.append(", ").append(ownerUid);
 
         sb.append(")");
         return sb.toString();
@@ -150,12 +150,12 @@ public class Dataset implements IDataset {
     @Override
     public void from(IDataset from) {
         setDid(from.getDid());
+        setOwnerUid(from.getOwnerUid());
         setName(from.getName());
         setIsPublic(from.getIsPublic());
         setStoragePath(from.getStoragePath());
         setDescription(from.getDescription());
         setCreationTime(from.getCreationTime());
-        setOwnerUid(from.getOwnerUid());
     }
 
     @Override

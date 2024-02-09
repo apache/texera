@@ -188,20 +188,6 @@ public class WorkflowExecutionsDao extends DAOImpl<WorkflowExecutionsRecord, edu
     }
 
     /**
-     * Fetch records that have <code>environment_eid BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfEnvironmentEid(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_EID, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>environment_eid IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchByEnvironmentEid(UInteger... values) {
-        return fetch(WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_EID, values);
-    }
-
-    /**
      * Fetch records that have <code>log_location BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions> fetchRangeOfLogLocation(String lowerInclusive, String upperInclusive) {

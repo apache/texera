@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Dataset extends TableImpl<DatasetRecord> {
 
-    private static final long serialVersionUID = -362211921;
+    private static final long serialVersionUID = 578477320;
 
     /**
      * The reference instance of <code>texera_db.dataset</code>
@@ -56,6 +56,11 @@ public class Dataset extends TableImpl<DatasetRecord> {
     public final TableField<DatasetRecord, UInteger> DID = createField(DSL.name("did"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false).identity(true), this, "");
 
     /**
+     * The column <code>texera_db.dataset.owner_uid</code>.
+     */
+    public final TableField<DatasetRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
      * The column <code>texera_db.dataset.name</code>.
      */
     public final TableField<DatasetRecord, String> NAME = createField(DSL.name("name"), org.jooq.impl.SQLDataType.VARCHAR(128).nullable(false), this, "");
@@ -68,7 +73,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     /**
      * The column <code>texera_db.dataset.storage_path</code>.
      */
-    public final TableField<DatasetRecord, String> STORAGE_PATH = createField(DSL.name("storage_path"), org.jooq.impl.SQLDataType.VARCHAR(512), this, "");
+    public final TableField<DatasetRecord, String> STORAGE_PATH = createField(DSL.name("storage_path"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
 
     /**
      * The column <code>texera_db.dataset.description</code>.
@@ -79,11 +84,6 @@ public class Dataset extends TableImpl<DatasetRecord> {
      * The column <code>texera_db.dataset.creation_time</code>.
      */
     public final TableField<DatasetRecord, Timestamp> CREATION_TIME = createField(DSL.name("creation_time"), org.jooq.impl.SQLDataType.TIMESTAMP.nullable(false).defaultValue(org.jooq.impl.DSL.field("CURRENT_TIMESTAMP", org.jooq.impl.SQLDataType.TIMESTAMP)), this, "");
-
-    /**
-     * The column <code>texera_db.dataset.owner_uid</code>.
-     */
-    public final TableField<DatasetRecord, UInteger> OWNER_UID = createField(DSL.name("owner_uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
 
     /**
      * Create a <code>texera_db.dataset</code> table reference
@@ -125,7 +125,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.DATASET_OWNER_UID, Indexes.DATASET_PRIMARY);
+        return Arrays.<Index>asList(Indexes.DATASET_IDX_DATASET_NAME_DESCRIPTION, Indexes.DATASET_OWNER_UID, Indexes.DATASET_PRIMARY);
     }
 
     @Override
@@ -183,7 +183,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     // -------------------------------------------------------------------------
 
     @Override
-    public Row7<UInteger, String, Byte, String, String, Timestamp, UInteger> fieldsRow() {
+    public Row7<UInteger, UInteger, String, Byte, String, String, Timestamp> fieldsRow() {
         return (Row7) super.fieldsRow();
     }
 }

@@ -37,6 +37,16 @@ public interface IDatasetVersion extends Serializable {
     public UInteger getDid();
 
     /**
+     * Setter for <code>texera_db.dataset_version.creator_uid</code>.
+     */
+    public void setCreatorUid(UInteger value);
+
+    /**
+     * Getter for <code>texera_db.dataset_version.creator_uid</code>.
+     */
+    public UInteger getCreatorUid();
+
+    /**
      * Setter for <code>texera_db.dataset_version.name</code>.
      */
     public void setName(String value);
@@ -65,16 +75,6 @@ public interface IDatasetVersion extends Serializable {
      * Getter for <code>texera_db.dataset_version.creation_time</code>.
      */
     public Timestamp getCreationTime();
-
-    /**
-     * Setter for <code>texera_db.dataset_version.creator_uid</code>.
-     */
-    public void setCreatorUid(UInteger value);
-
-    /**
-     * Getter for <code>texera_db.dataset_version.creator_uid</code>.
-     */
-    public UInteger getCreatorUid();
 
     // -------------------------------------------------------------------------
     // FROM and INTO

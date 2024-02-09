@@ -76,6 +76,20 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
     }
 
     /**
+     * Fetch records that have <code>creator_uid BETWEEN lowerInclusive AND upperInclusive</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfCreatorUid(UInteger lowerInclusive, UInteger upperInclusive) {
+        return fetchRange(DatasetVersion.DATASET_VERSION.CREATOR_UID, lowerInclusive, upperInclusive);
+    }
+
+    /**
+     * Fetch records that have <code>creator_uid IN (values)</code>
+     */
+    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetVersion> fetchByCreatorUid(UInteger... values) {
+        return fetch(DatasetVersion.DATASET_VERSION.CREATOR_UID, values);
+    }
+
+    /**
      * Fetch records that have <code>name BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfName(String lowerInclusive, String upperInclusive) {
@@ -115,19 +129,5 @@ public class DatasetVersionDao extends DAOImpl<DatasetVersionRecord, edu.uci.ics
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetVersion> fetchByCreationTime(Timestamp... values) {
         return fetch(DatasetVersion.DATASET_VERSION.CREATION_TIME, values);
-    }
-
-    /**
-     * Fetch records that have <code>creator_uid BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetVersion> fetchRangeOfCreatorUid(UInteger lowerInclusive, UInteger upperInclusive) {
-        return fetchRange(DatasetVersion.DATASET_VERSION.CREATOR_UID, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>creator_uid IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.DatasetVersion> fetchByCreatorUid(UInteger... values) {
-        return fetch(DatasetVersion.DATASET_VERSION.CREATOR_UID, values);
     }
 }

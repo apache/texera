@@ -17,7 +17,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -1893151705;
+    private static final long serialVersionUID = -379967912;
 
     private UInteger  eid;
     private UInteger  vid;
@@ -29,7 +29,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     private Byte      bookmarked;
     private String    name;
     private String    environmentVersion;
-    private UInteger  environmentEid;
     private String    logLocation;
 
     public WorkflowExecutions() {}
@@ -45,7 +44,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.bookmarked = value.getBookmarked();
         this.name = value.getName();
         this.environmentVersion = value.getEnvironmentVersion();
-        this.environmentEid = value.getEnvironmentEid();
         this.logLocation = value.getLogLocation();
     }
 
@@ -60,7 +58,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         Byte      bookmarked,
         String    name,
         String    environmentVersion,
-        UInteger  environmentEid,
         String    logLocation
     ) {
         this.eid = eid;
@@ -73,7 +70,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.bookmarked = bookmarked;
         this.name = name;
         this.environmentVersion = environmentVersion;
-        this.environmentEid = environmentEid;
         this.logLocation = logLocation;
     }
 
@@ -178,16 +174,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     }
 
     @Override
-    public UInteger getEnvironmentEid() {
-        return this.environmentEid;
-    }
-
-    @Override
-    public void setEnvironmentEid(UInteger environmentEid) {
-        this.environmentEid = environmentEid;
-    }
-
-    @Override
     public String getLogLocation() {
         return this.logLocation;
     }
@@ -211,7 +197,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(", ").append(bookmarked);
         sb.append(", ").append(name);
         sb.append(", ").append(environmentVersion);
-        sb.append(", ").append(environmentEid);
         sb.append(", ").append(logLocation);
 
         sb.append(")");
@@ -234,7 +219,6 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setBookmarked(from.getBookmarked());
         setName(from.getName());
         setEnvironmentVersion(from.getEnvironmentVersion());
-        setEnvironmentEid(from.getEnvironmentEid());
         setLogLocation(from.getLogLocation());
     }
 
