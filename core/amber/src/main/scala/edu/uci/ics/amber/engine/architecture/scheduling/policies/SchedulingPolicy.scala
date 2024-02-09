@@ -43,7 +43,6 @@ abstract class SchedulingPolicy(
     region.getPorts.subsetOf(completedPortIdsOfRegion.getOrElse(region.id, mutable.HashSet()))
   }
 
-
   private def getRegion(portId: GlobalPortIdentity): Option[Region] = {
     runningRegions.find(r => r.getPorts.contains(portId))
   }
@@ -79,11 +78,12 @@ abstract class SchedulingPolicy(
           completedRegions.add(region)
         }
         getNextSchedulingWork(workflow)
-      case None => Set() // currently, the virtual input ports of source operators do not belong to any region
+      case None =>
+        Set() // currently, the virtual input ports of source operators do not belong to any region
     }
   }
 
-  def addToRunningRegions(regions: Set[Region], actorService: AkkaActorService): Unit = {
+  def addToRunningRegions(regions: Set[Region]): Unit = {
     runningRegions ++= regions
   }
 

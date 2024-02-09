@@ -80,9 +80,7 @@ class WorkflowScheduler(
     }
   }
 
-  private def constructRegion(
-      region: Region,
-      akkaActorService: AkkaActorService
+  private def constructRegion(region: Region, akkaActorService: AkkaActorService
   ): Unit = {
     val resourceConfig = region.resourceConfig.get
     region
@@ -102,11 +100,11 @@ class WorkflowScheduler(
   private def buildOperator(
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
-      controllerActorService: AkkaActorService
+      actorService: AkkaActorService
   ): Unit = {
     val opExecution = executionState.initOperatorState(physicalOp.id, operatorConfig)
     physicalOp.build(
-      controllerActorService,
+      actorService,
       opExecution,
       operatorConfig,
       controllerConfig.workerRestoreConfMapping,
@@ -214,7 +212,6 @@ class WorkflowScheduler(
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
 
     val ops = region.getSourceOperators
-    if (!schedulingPolicy.getRunningRegions.contains(region)) {
       val futures = ops
         .map(_.id)
         .flatMap { opId =>
@@ -231,17 +228,9 @@ class WorkflowScheduler(
         }
         .toSeq
       Future.collect(futures)
-    } else {
-      throw new WorkflowRuntimeException(
-        s"Start region called on an already running region: ${region.id}"
-      )
-    }
   }
 
-  private def prepareAndStartRegion(
-      region: Region,
-      actorService: AkkaActorService
-  ): Future[Unit] = {
+  private def prepareAndStartRegion(region: Region): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
@@ -265,7 +254,7 @@ class WorkflowScheduler(
       .flatMap(_ => startRegion(region))
       .map(_ => {
         constructingRegions.remove(region.id)
-        schedulingPolicy.addToRunningRegions(Set(region), actorService)
+        schedulingPolicy.addToRunningRegions(Set(region))
         startedRegions.add(region.id)
       })
   }
@@ -278,7 +267,7 @@ class WorkflowScheduler(
     constructingRegions.add(region.id)
 
     constructRegion(region, actorService)
-    prepareAndStartRegion(region, actorService).rescue {
+    prepareAndStartRegion(region).rescue {
       case err: Throwable =>
         // this call may come from client or worker(by execution completed)
         // thus we need to force it to send error to client.

@@ -71,8 +71,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
       sink.operatorIdentifier
     ).foreach(logicalOpId => setLogicalOpCompleted(workflow, executionState, logicalOpId))
     scheduler.schedulingPolicy.addToRunningRegions(
-      scheduler.schedulingPolicy.startWorkflow(workflow),
-      null
+      scheduler.schedulingPolicy.startWorkflow(workflow)
     )
     val csvPhysicalOpId = workflow.physicalPlan
       .getPhysicalOpsOfLogicalOp(headerlessCsvOpDesc.operatorIdentifier)
@@ -186,8 +185,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         null
       )
     scheduler.schedulingPolicy.addToRunningRegions(
-      scheduler.schedulingPolicy.startWorkflow(workflow),
-      null
+      scheduler.schedulingPolicy.startWorkflow(workflow)
     )
     Set(buildCsv.operatorIdentifier).foreach(logicalOpId =>
       setLogicalOpCompleted(workflow, executionState, logicalOpId)
@@ -285,7 +283,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     assert(scheduler.schedulingPolicy.getCompletedRegions.size == 1)
     assert(nextRegions.size == 1)
 
-    scheduler.schedulingPolicy.addToRunningRegions(nextRegions, null)
+    scheduler.schedulingPolicy.addToRunningRegions(nextRegions)
 
     Set(
       probeCsv.operatorIdentifier,
