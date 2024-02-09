@@ -36,24 +36,15 @@ abstract class SchedulingPolicy(
 
   private val completedPortIdsOfRegion
       : mutable.HashMap[RegionIdentity, mutable.HashSet[GlobalPortIdentity]] = mutable.HashMap()
-  protected def isRegionCompleted(
+  private def isRegionCompleted(
       executionState: ExecutionState,
       region: Region
   ): Boolean = {
     region.getPorts.subsetOf(completedPortIdsOfRegion.getOrElse(region.id, mutable.HashSet()))
   }
 
-  protected def checkRegionCompleted(
-      executionState: ExecutionState,
-      region: Region
-  ): Unit = {
-    if (isRegionCompleted(executionState, region)) {
-      runningRegions.remove(region)
-      completedRegions.add(region)
-    }
-  }
 
-  protected def getRegion(portId: GlobalPortIdentity): Option[Region] = {
+  private def getRegion(portId: GlobalPortIdentity): Option[Region] = {
     runningRegions.find(r => r.getPorts.contains(portId))
   }
 
@@ -83,14 +74,13 @@ abstract class SchedulingPolicy(
             new mutable.HashSet[GlobalPortIdentity]()
           )
         portIds.add(portId)
-        checkRegionCompleted(executionState, region)
+        if (isRegionCompleted(executionState, region)) {
+          runningRegions.remove(region)
+          completedRegions.add(region)
+        }
         getNextSchedulingWork(workflow)
       case None => Set() // currently, the virtual input ports of source operators do not belong to any region
     }
-  }
-
-  def onTimeSlotExpired(workflow: Workflow): Set[Region] = {
-    getNextSchedulingWork(workflow)
   }
 
   def addToRunningRegions(regions: Set[Region], actorService: AkkaActorService): Unit = {
