@@ -56,7 +56,8 @@
           *ngIf="item.enabled"
           (click)="item.title !== 'Property' || isAnyElementSelected() ? openRightPanelFrame(i) : null"
           nz-tooltip="{{item.title}}"
-          [class.disabled]="item.title === 'Property' && !isAnyElementSelected()">
+          [class.disabled]="item.title === 'Property' && !isAnyElementSelected()"
+          nzSelected="{{currentIndex === i}}" >
           <span
             nz-icon
             [nzType]="item.icon"
