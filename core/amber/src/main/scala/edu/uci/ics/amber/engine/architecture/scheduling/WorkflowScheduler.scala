@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
@@ -13,7 +16,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.AmberConfig
@@ -268,55 +270,21 @@ class WorkflowScheduler(
       })
   }
 
-  private def resumeRegion(
-      region: Region,
-      actorService: AkkaActorService
-  ): Future[Unit] = {
-    if (!schedulingPolicy.getRunningRegions.contains(region)) {
-      Future
-        .collect(
-          executionState
-            .getAllWorkersOfRegion(region)
-            .map(worker =>
-              asyncRPCClient
-                .send(SchedulerTimeSlotEvent(false), worker)
-            )
-            .toSeq
-        )
-        .map { _ =>
-          schedulingPolicy.addToRunningRegions(Set(region), actorService)
-        }
-    } else {
-      throw new WorkflowRuntimeException(
-        s"Resume region called on an already running region: ${region.id}"
-      )
-    }
-
-  }
-
-  private def scheduleRegion(
-      region: Region,
-      actorService: AkkaActorService
-  ): Future[Unit] = {
+  private def scheduleRegion(region: Region, actorService: AkkaActorService): Future[Unit] = {
     if (constructingRegions.contains(region.id)) {
       return Future(())
     }
-    if (!startedRegions.contains(region.id)) {
-      constructingRegions.add(region.id)
 
-      constructRegion(region, actorService)
-      prepareAndStartRegion(region, actorService).rescue {
-        case err: Throwable =>
-          // this call may come from client or worker(by execution completed)
-          // thus we need to force it to send error to client.
-          asyncRPCClient.sendToClient(FatalError(err, None))
-          Future.Unit
-      }
-    } else {
-      // region has already been constructed. Just needs to resume
-      resumeRegion(region, actorService)
+    constructingRegions.add(region.id)
+
+    constructRegion(region, actorService)
+    prepareAndStartRegion(region, actorService).rescue {
+      case err: Throwable =>
+        // this call may come from client or worker(by execution completed)
+        // thus we need to force it to send error to client.
+        asyncRPCClient.sendToClient(FatalError(err, None))
+        Future.Unit
     }
-
   }
 
 }
