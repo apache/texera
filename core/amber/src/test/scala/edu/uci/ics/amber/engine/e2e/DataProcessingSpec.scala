@@ -237,7 +237,6 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-
   "Engine" should "execute csv->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
