@@ -60,14 +60,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   //changed
   screenWidth = window.innerWidth;
-  rightPanelWidth = 400;
+  rightPanelWidth = 397;
   
   openRightPanelFrame(index: number) {
     this.currentRightPanelComponent = this.rightPanelItems[index].component;
     this.currentRightPanelTitle = this.rightPanelItems[index].title;
     this.currentIndex = index;
     if (this.display == false) {
-      this.rightPanelWidth = 400;
+      this.rightPanelWidth = 397;
     }
     this.display = true;
   }

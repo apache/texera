@@ -13,7 +13,7 @@
   cdkDrag 
   id="property-editor-container" 
   nz-resizable 
-  [nzMinWidth]="400" 
+  [nzMinWidth]="397" 
   [nzMaxWidth]="800" 
   [style.width.px]="rightPanelWidth" 
   (nzResize)="onResize($event)">
@@ -26,6 +26,9 @@
         {{currentRightPanelTitle}}
       </h6>
       <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
+      <!-- <div id="texera-right-side-bar-split-editor-minimap">
+        <texera-mini-map></texera-mini-map>
+      </div> -->
     </div>
     <ul 
       nz-menu 
