@@ -44,7 +44,7 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   timer = setInterval(() => {
-    if (this.isAnyElementSelected() === false) {
+    if (this.isAnyElementSelected() === false && this.display) {
       this.currentIndex = 1;
       this.currentRightPanelComponent = this.rightPanelItems[this.currentIndex].component;
     }
