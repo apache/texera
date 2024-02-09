@@ -80,8 +80,7 @@ class WorkflowScheduler(
     }
   }
 
-  private def constructRegion(region: Region, akkaActorService: AkkaActorService
-  ): Unit = {
+  private def constructRegion(region: Region, akkaActorService: AkkaActorService): Unit = {
     val resourceConfig = region.resourceConfig.get
     region
       .topologicalIterator()
@@ -201,7 +200,7 @@ class WorkflowScheduler(
       .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
   }
 
-  private def startRegion(region: Region): Future[Seq[Unit]] = {
+  private def sendStarts(region: Region): Future[Seq[Unit]] = {
 
     region.getOperators
       .map(_.id)
@@ -210,27 +209,24 @@ class WorkflowScheduler(
       )
       .foreach(opId => executionState.getOperatorExecution(opId).setAllWorkerState(READY))
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
-
-    val ops = region.getSourceOperators
-      val futures = ops
-        .map(_.id)
-        .flatMap { opId =>
-          val opExecution = executionState.getOperatorExecution(opId)
-          opExecution.getBuiltWorkerIds
-            .map(worker =>
-              asyncRPCClient
-                .send(StartWorker(), worker)
-                .map(ret =>
-                  // update worker state
-                  opExecution.getWorkerExecution(worker).state = ret
-                )
-            )
+    val sourceOpIds = region.getSourceOperators.map(_.id)
+    Future.collect(sourceOpIds.flatMap { opId =>
+      executionState
+        .getOperatorExecution(opId)
+        .getWorkerExecutions
+        .map {
+          case (workerId, workerExecution) =>
+            asyncRPCClient
+              .send(StartWorker(), workerId)
+              .map(ret =>
+                // update worker state
+                workerExecution.state = ret
+              )
         }
-        .toSeq
-      Future.collect(futures)
+    }.toSeq)
   }
 
-  private def prepareAndStartRegion(region: Region): Future[Unit] = {
+  private def executeRegion(region: Region): Future[Unit] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
@@ -251,7 +247,7 @@ class WorkflowScheduler(
       .flatMap(_ => assignPorts(region))
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
-      .flatMap(_ => startRegion(region))
+      .flatMap(_ => sendStarts(region))
       .map(_ => {
         constructingRegions.remove(region.id)
         schedulingPolicy.addToRunningRegions(Set(region))
@@ -267,7 +263,7 @@ class WorkflowScheduler(
     constructingRegions.add(region.id)
 
     constructRegion(region, actorService)
-    prepareAndStartRegion(region).rescue {
+    executeRegion(region).rescue {
       case err: Throwable =>
         // this call may come from client or worker(by execution completed)
         // thus we need to force it to send error to client.
