@@ -19,7 +19,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.AmberConfig
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -46,8 +45,6 @@ class WorkflowScheduler(
   // This will be refactored later.
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val activatedLink = new mutable.HashSet[PhysicalLink]()
-
-  private val constructingRegions = new mutable.HashSet[RegionIdentity]()
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
   def startWorkflow(
@@ -249,18 +246,12 @@ class WorkflowScheduler(
       .flatMap(_ => openAllOperators(region))
       .flatMap(_ => sendStarts(region))
       .map(_ => {
-        constructingRegions.remove(region.id)
         schedulingPolicy.addToRunningRegions(Set(region))
         startedRegions.add(region.id)
       })
   }
 
   private def scheduleRegion(region: Region, actorService: AkkaActorService): Future[Unit] = {
-    if (constructingRegions.contains(region.id)) {
-      return Future(())
-    }
-
-    constructingRegions.add(region.id)
 
     constructRegion(region, actorService)
     executeRegion(region).rescue {
