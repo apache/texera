@@ -331,7 +331,7 @@ class DatasetResource {
             createdDataset.getIsPublic,
             createdDataset.getStoragePath,
             createdDataset.getDescription,
-            createdDataset.getCreationTime,
+            createdDataset.getCreationTime
           ),
           DatasetUserAccessPrivilege.WRITE,
           isOwner = true

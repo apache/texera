@@ -8,10 +8,14 @@
       <span title="{{ node.data.name }}">
         <i
           *ngIf="node.data.children"
-          class="fa fa-folder"></i>
+          nz-icon
+          nzType="folder"
+          nzTheme="outline"></i>
         <i
           *ngIf="!node.data.children"
-          class="fa fa-file"></i>
+          nz-icon
+          nzType="file"
+          nzTheme="outline"></i>
         {{ node.data.name }}
         <button
           nz-button
