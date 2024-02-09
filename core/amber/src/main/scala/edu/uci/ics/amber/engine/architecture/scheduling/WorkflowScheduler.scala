@@ -14,7 +14,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
-import edu.uci.ics.amber.engine.architecture.worker.controlcommands.LinkOrdinal
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -23,7 +23,7 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
@@ -42,10 +42,11 @@ class WorkflowScheduler(
       regionsToSchedule
     )
 
-  // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
-  // track of those already built
+  // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we do not want
+  // to build, init them multiple times. Currently, we use "opened" to indicate that an operator is built,
+  // execution function is initialized, and ready for input.
+  // This will be refactored later.
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
-  private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val activatedLink = new mutable.HashSet[PhysicalLink]()
 
   private val constructingRegions = new mutable.HashSet[RegionIdentity]()
@@ -60,24 +61,12 @@ class WorkflowScheduler(
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 
-  def onWorkerCompletion(
+  def onPortCompletion(
       workflow: Workflow,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService,
-      workerId: ActorVirtualIdentity
+      portId: GlobalPortIdentity
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule =
-      schedulingPolicy.onWorkerCompletion(workflow, executionState, workerId)
-    doSchedulingWork(nextRegionsToSchedule, akkaActorService)
-  }
-
-  def onLinkCompletion(
-      workflow: Workflow,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
-      akkaActorService: AkkaActorService,
-      link: PhysicalLink
-  ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.onLinkCompletion(workflow, executionState, link)
+    val nextRegionsToSchedule = schedulingPolicy.onPortCompletion(workflow, executionState, portId)
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 
@@ -132,14 +121,18 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Unit = {
     val resourceConfig = region.resourceConfig.get
-    region.topologicalIterator().foreach { (physicalOpId: PhysicalOpIdentity) =>
-      val physicalOp = region.getOperator(physicalOpId)
-      buildOperator(
-        physicalOp,
-        resourceConfig.operatorConfigs(physicalOpId),
-        akkaActorService
-      )
-    }
+    region
+      .topologicalIterator()
+      // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
+      .filter(physicalOpId => !openedOperators.contains(physicalOpId))
+      .foreach { (physicalOpId: PhysicalOpIdentity) =>
+        val physicalOp = region.getOperator(physicalOpId)
+        buildOperator(
+          physicalOp,
+          resourceConfig.operatorConfigs(physicalOpId),
+          akkaActorService
+        )
+      }
   }
 
   private def buildOperator(
@@ -157,31 +150,25 @@ class WorkflowScheduler(
     )
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
-    val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
-      region.getOperators.map(_.id).diff(initializedPythonOperators)
-    )
+
+    val opIdsToInit = region.getOperators
+      .filter(physicalOp => physicalOp.isPythonOperator)
+      // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
+      .map(_.id)
+      .diff(openedOperators)
+
     Future
       .collect(
         // initialize python operator code
         executionState
-          .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
+          .getPythonWorkerToOperatorExec(opIdsToInit)
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
-              val inputMappingList = pythonUDFPhysicalOp.inputPorts.values.flatMap {
-                case (inputPort, links, schema) =>
-                  links.map(link => LinkOrdinal(link, inputPort.id.id))
-              }.toList
-              val outputMappingList = pythonUDFPhysicalOp.outputPorts.values.flatMap {
-                case (outputPort, links, schema) =>
-                  links.map(link => LinkOrdinal(link, outputPort.id.id))
-              }.toList
               asyncRPCClient
                 .send(
                   InitializeOperatorLogic(
                     pythonUDFPhysicalOp.getPythonCode,
                     pythonUDFPhysicalOp.isSourceOperator,
-                    inputMappingList,
-                    outputMappingList,
                     pythonUDFPhysicalOp.outputPorts.values.head._3
                   ),
                   workerId
@@ -189,9 +176,33 @@ class WorkflowScheduler(
           }
           .toSeq
       )
-      .onSuccess(_ =>
-        uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
-      )
+  }
+
+  /**
+    * assign ports to all operators in this region
+    */
+  private def assignPorts(region: Region): Future[Seq[Unit]] = {
+    val resourceConfig = region.resourceConfig.get
+    Future.collect(
+      region.getOperators
+        .flatMap { physicalOp: PhysicalOp =>
+          physicalOp.inputPorts.keys
+            .map(inputPortId => GlobalPortIdentity(physicalOp.id, inputPortId, input = true))
+            .concat(
+              physicalOp.outputPorts.keys
+                .map(outputPortId => GlobalPortIdentity(physicalOp.id, outputPortId, input = false))
+            )
+        }
+        .flatMap { globalPortId =>
+          {
+            resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
+              workerId =>
+                asyncRPCClient.send(AssignPort(globalPortId.portId, globalPortId.input), workerId)
+            }
+          }
+        }
+        .toSeq
+    )
   }
 
   private def activateAllLinks(region: Region): Future[Seq[Unit]] = {
@@ -250,7 +261,7 @@ class WorkflowScheduler(
                 .send(StartWorker(), worker)
                 .map(ret =>
                   // update worker state
-                  opExecution.getWorkerInfo(worker).state = ret
+                  opExecution.getWorkerExecution(worker).state = ret
                 )
             )
         }
@@ -284,6 +295,7 @@ class WorkflowScheduler(
     )
     Future(())
       .flatMap(_ => initializePythonOperators(region))
+      .flatMap(_ => assignPorts(region))
       .flatMap(_ => activateAllLinks(region))
       .flatMap(_ => openAllOperators(region))
       .flatMap(_ => startRegion(region))

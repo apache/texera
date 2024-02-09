@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   ChannelIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -16,20 +15,6 @@ import scala.collection.mutable
 
 class ExecutionState(workflow: Workflow) {
 
-  private val linkExecutions: Map[PhysicalLink, LinkExecution] =
-    workflow.physicalPlan.links.map { link =>
-      link -> new LinkExecution(
-        workflow.regionPlan
-          .getRegionOfPhysicalLink(link)
-          .resourceConfig
-          .get
-          .linkConfigs(link)
-          .channelConfigs
-          .map(_.toWorkerId)
-          .toSet
-          .size
-      )
-    }.toMap
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
 
@@ -50,18 +35,14 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values
-      .flatMap(operator => operator.getBuiltWorkerIds.map(worker => operator.getWorkerInfo(worker)))
+      .flatMap(operator =>
+        operator.getBuiltWorkerIds.map(worker => operator.getWorkerExecution(worker))
+      )
       .map(_.id)
 
   def getOperatorExecution(op: PhysicalOpIdentity): OperatorExecution = {
     operatorExecutions(op)
   }
-
-  def getBuiltPythonWorkers: Iterable[ActorVirtualIdentity] =
-    workflow.physicalPlan.operators
-      .filter(operator => operator.isPythonOperator)
-      .flatMap(op => getOperatorExecution(op.id).getBuiltWorkerIds)
-
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
     operatorExecutions.values.foreach { execution =>
       val result = execution.getBuiltWorkerIds.find(x => x == worker)
@@ -71,9 +52,6 @@ class ExecutionState(workflow: Workflow) {
     }
     throw new NoSuchElementException(s"cannot find operator with worker = $worker")
   }
-
-  def getLinkExecution(link: PhysicalLink): LinkExecution = linkExecutions(link)
-
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions
 
@@ -114,30 +92,11 @@ class ExecutionState(workflow: Workflow) {
       WorkflowAggregatedState.UNKNOWN
     }
   }
-
-  def physicalOpToWorkersMapping: Iterable[(PhysicalOpIdentity, Seq[ActorVirtualIdentity])] = {
-    workflow.physicalPlan.operators
-      .map(physicalOp => physicalOp.id)
-      .map(physicalOpId => {
-        (physicalOpId, getAllWorkersForOperators(Set(physicalOpId)).toSeq)
-      })
-  }
-
   def getAllWorkersForOperators(
       operators: Set[PhysicalOpIdentity]
   ): Set[ActorVirtualIdentity] = {
     operators.flatMap(physicalOpId => getOperatorExecution(physicalOpId).getBuiltWorkerIds)
   }
-
-  def filterPythonPhysicalOpIds(
-      fromOperatorsList: Set[PhysicalOpIdentity]
-  ): Set[PhysicalOpIdentity] = {
-    fromOperatorsList.filter(physicalOpId =>
-      getOperatorExecution(physicalOpId).getBuiltWorkerIds.nonEmpty &&
-        workflow.physicalPlan.getOperator(physicalOpId).isPythonOperator
-    )
-  }
-
   def getPythonWorkerToOperatorExec(
       pythonPhysicalOpIds: Set[PhysicalOpIdentity]
   ): Iterable[(ActorVirtualIdentity, PhysicalOp)] = {
