@@ -54,7 +54,6 @@ class WorkflowScheduler(
 
   def startWorkflow(
       workflow: Workflow,
-      akkaActorRefMappingService: AkkaActorRefMappingService,
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.startWorkflow(workflow)
@@ -68,39 +67,6 @@ class WorkflowScheduler(
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule = schedulingPolicy.onPortCompletion(workflow, executionState, portId)
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
-  }
-
-  def onTimeSlotExpired(
-      workflow: Workflow,
-      timeExpiredRegions: Set[Region],
-      akkaActorRefMappingService: AkkaActorRefMappingService,
-      akkaActorService: AkkaActorService
-  ): Future[Seq[Unit]] = {
-    val nextRegions = schedulingPolicy.onTimeSlotExpired(workflow)
-    var regionsToPause: Set[Region] = Set()
-    if (nextRegions.nonEmpty) {
-      regionsToPause = timeExpiredRegions
-    }
-
-    doSchedulingWork(nextRegions, akkaActorService)
-      .flatMap(_ => {
-        val pauseFutures = new ArrayBuffer[Future[Unit]]()
-        regionsToPause.foreach(stoppingRegion => {
-          schedulingPolicy.removeFromRunningRegion(Set(stoppingRegion))
-          executionState
-            .getAllWorkersOfRegion(stoppingRegion)
-            .foreach(wid => {
-              pauseFutures.append(
-                asyncRPCClient
-                  .send(SchedulerTimeSlotEvent(true), wid)
-              )
-            })
-        })
-        Future.collect(pauseFutures)
-      })
-      .map(_ => {
-        Seq()
-      })
   }
 
   private def doSchedulingWork(

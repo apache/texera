@@ -26,7 +26,6 @@ class ControllerAsyncRPCHandlerInitializer(
     with EvaluatePythonExpressionHandler
     with MonitoringHandler
     with SkewDetectionHandler
-    with RegionsTimeSlotExpiredHandler
     with DebugCommandHandler
     with ChannelMarkerHandler
     with RetrieveWorkflowStateHandler {
