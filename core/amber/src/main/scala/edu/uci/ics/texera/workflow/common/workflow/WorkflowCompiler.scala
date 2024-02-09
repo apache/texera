@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
+import edu.uci.ics.amber.engine.architecture.scheduling.{CostBasedRegionPlanGenerator, ExpansionGreedyRegionPlanGenerator}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
@@ -89,7 +89,7 @@ class WorkflowCompiler(
 
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+    val (regionPlan, updatedPhysicalPlan) = new CostBasedRegionPlanGenerator(
       rewrittenLogicalPlan,
       physicalPlan,
       opResultStorage
