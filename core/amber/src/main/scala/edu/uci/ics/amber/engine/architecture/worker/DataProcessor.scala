@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortCompletedHandler.PortCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
@@ -16,8 +16,8 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, Work
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
   DPOutputIterator,
-  FinalizeLink,
-  FinalizeOperator
+  FinalizeOperator,
+  FinalizePort
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
@@ -30,13 +30,13 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF, SOURCE_STARTER_OP}
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{
   IOperatorExecutor,
   ISinkOperatorExecutor,
@@ -58,7 +58,7 @@ object DataProcessor {
 
     override def inMemSize: Long = 0
   }
-  case class FinalizeLink(link: PhysicalLink) extends SpecialDataTuple
+  case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialDataTuple
   case class FinalizeOperator() extends SpecialDataTuple
 
   class DPOutputIterator extends Iterator[(ITuple, Option[PortIdentity])] {
@@ -115,24 +115,15 @@ class DataProcessor(
     }
     this.operatorConfig = operatorConfig
     this.physicalOp = physicalOp
-    this.upstreamLinkStatus.setAllUpstreamLinks(
-      if (physicalOp.isSourceOperator) {
-        Set(
-          PhysicalLink(SOURCE_STARTER_OP, PortIdentity(), physicalOp.id, PortIdentity())
-        ) // special case for source operator
-      } else {
-        physicalOp.getInputLinks().toSet
-      }
-    )
+
     this.outputIterator.setTupleOutput(currentOutputIterator)
   }
 
   var outputIterator: DPOutputIterator = new DPOutputIterator()
 
-  var operatorOpened: Boolean = false
   var inputBatch: Array[ITuple] = _
   var currentInputIdx: Int = -1
-  var currentBatchChannel: ChannelIdentity = _
+  var currentChannelId: ChannelIdentity = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -149,14 +140,11 @@ class DataProcessor(
   val pauseManager: PauseManager = wire[PauseManager]
   // 2. breakpoint manager
   val breakpointManager: BreakpointManager = new BreakpointManager(asyncRPCClient)
-  // 3. upstream links
-  val upstreamLinkStatus: UpstreamLinkStatus = wire[UpstreamLinkStatus]
-  // 4. state manager
+  // 3. state manager
   val stateManager: WorkerStateManager = new WorkerStateManager()
-  // 5. batch producer
-  val outputManager: OutputManager =
-    new OutputManager(actorId, outputGateway)
-  // 6. epoch manager
+  // 4. batch producer
+  val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
+  // 5. epoch manager
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
 
   // dp thread stats:
@@ -166,21 +154,9 @@ class DataProcessor(
   var totalExecutionTime = 0L
   var dataProcessingTime = 0L
 
-  def registerInput(identifier: ActorVirtualIdentity, input: PhysicalLink): Unit = {
-    upstreamLinkStatus.registerInput(identifier, input)
-  }
-
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
   }
-
-  private def getInputPortId(workerId: ActorVirtualIdentity): PortIdentity = {
-    val inputLink = upstreamLinkStatus.getInputLink(workerId)
-    if (inputLink.fromOpId == SOURCE_STARTER_OP) PortIdentity() // special case for source operator
-    else if (!physicalOp.getInputLinks().contains(inputLink)) PortIdentity()
-    else inputLink.toPortId
-  }
-
   def onInterrupt(): Unit = {
     adaptiveBatchingMonitor.pauseAdaptiveBatching()
   }
@@ -222,7 +198,7 @@ class DataProcessor(
       outputIterator.setTupleOutput(
         operator.processTuple(
           tuple,
-          getInputPortId(currentBatchChannel.fromWorkerId).id,
+          this.inputGateway.getChannel(currentChannelId).getPortId.id,
           pauseManager,
           asyncRPCClient
         )
@@ -271,11 +247,8 @@ class DataProcessor(
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
-      case FinalizeLink(link) =>
-        logger.info(s"process FinalizeLink message")
-        if (link != null && link.fromOpId != SOURCE_STARTER_OP) {
-          asyncRPCClient.send(LinkCompleted(link), CONTROLLER)
-        }
+      case FinalizePort(portId, input) =>
+        asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case _ =>
         if (breakpointManager.evaluateTuple(outputTuple)) {
           pauseManager.pause(UserPause)
@@ -283,7 +256,6 @@ class DataProcessor(
           stateManager.transitTo(PAUSED)
         } else {
           outputTupleCount += 1
-          // println(s"send output $outputTuple at step $totalValidStep")
           val outLinks = physicalOp.getOutputLinks(outputPortOpt)
           outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
         }
@@ -306,7 +278,7 @@ class DataProcessor(
   }
 
   private[this] def initBatch(channelId: ChannelIdentity, batch: Array[ITuple]): Unit = {
-    currentBatchChannel = channelId
+    currentChannelId = channelId
     inputBatch = batch
     currentInputIdx = 0
   }
@@ -341,20 +313,24 @@ class DataProcessor(
         initBatch(channelId, tuples)
         processInputTuple(Left(inputBatch(currentInputIdx)))
       case EndOfUpstream() =>
-        val currentLink = upstreamLinkStatus.getInputLink(channelId.fromWorkerId)
-        upstreamLinkStatus.markWorkerEOF(channelId.fromWorkerId)
-        if (upstreamLinkStatus.isLinkEOF(currentLink)) {
+        val channel = this.inputGateway.getChannel(channelId)
+        val portId = channel.getPortId
+
+        this.inputGateway.getPort(portId).channels(channelId) = true
+
+        if (inputGateway.isPortCompleted(portId)) {
           initBatch(channelId, Array.empty)
           processInputTuple(Right(InputExhausted()))
-          logger.info(
-            s"$currentLink completed, append FinalizeLink message"
-          )
-          outputIterator.appendSpecialTupleToEnd(FinalizeLink(currentLink))
+          outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
-        if (upstreamLinkStatus.isAllEOF) {
-          logger.info(
-            s"operator completed, append FinalizeOperator message"
-          )
+        if (inputGateway.getAllPorts().forall(portId => inputGateway.isPortCompleted(portId))) {
+          // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
+          outputGateway
+            .getPortIds()
+            .foreach(outputPortId =>
+              outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
+            )
+
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }
@@ -372,7 +348,7 @@ class DataProcessor(
     if (marker.markerType == RequireAlignment) {
       pauseManager.pauseInputChannel(EpochMarkerPause(markerId), List(channelId))
     }
-    if (channelMarkerManager.isMarkerAligned(upstreamLinkStatus, channelId, marker)) {
+    if (channelMarkerManager.isMarkerAligned(channelId, marker)) {
       logManager.markAsReplayDestination(markerId)
       // invoke the control command carried with the epoch marker
       logger.info(s"process marker from $channelId, id = ${marker.id}, cmd = ${command}")
