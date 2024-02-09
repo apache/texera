@@ -42,10 +42,11 @@ class WorkflowScheduler(
       regionsToSchedule
     )
 
-  // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we need to keep
-  // track of those already built
+  // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we do not want
+  // to build, init them multiple times. Currently, we use "opened" to indicate that an operator is built,
+  // execution function is initialized, and ready for input.
+  // This will be refactored later.
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
-  private val initializedPythonOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val activatedLink = new mutable.HashSet[PhysicalLink]()
 
   private val constructingRegions = new mutable.HashSet[RegionIdentity]()
@@ -120,14 +121,18 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService
   ): Unit = {
     val resourceConfig = region.resourceConfig.get
-    region.topologicalIterator().foreach { (physicalOpId: PhysicalOpIdentity) =>
-      val physicalOp = region.getOperator(physicalOpId)
-      buildOperator(
-        physicalOp,
-        resourceConfig.operatorConfigs(physicalOpId),
-        akkaActorService
-      )
-    }
+    region
+      .topologicalIterator()
+      // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
+      .filter(physicalOpId => !openedOperators.contains(physicalOpId))
+      .foreach { (physicalOpId: PhysicalOpIdentity) =>
+        val physicalOp = region.getOperator(physicalOpId)
+        buildOperator(
+          physicalOp,
+          resourceConfig.operatorConfigs(physicalOpId),
+          akkaActorService
+        )
+      }
   }
 
   private def buildOperator(
@@ -145,14 +150,18 @@ class WorkflowScheduler(
     )
   }
   private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
-    val uninitializedPythonOperators = executionState.filterPythonPhysicalOpIds(
-      region.getOperators.map(_.id).diff(initializedPythonOperators)
-    )
+
+    val opIdsToInit = region.getOperators
+      .filter(physicalOp => physicalOp.isPythonOperator)
+      // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
+      .map(_.id)
+      .diff(openedOperators)
+
     Future
       .collect(
         // initialize python operator code
         executionState
-          .getPythonWorkerToOperatorExec(uninitializedPythonOperators)
+          .getPythonWorkerToOperatorExec(opIdsToInit)
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
               asyncRPCClient
@@ -166,9 +175,6 @@ class WorkflowScheduler(
                 )
           }
           .toSeq
-      )
-      .onSuccess(_ =>
-        uninitializedPythonOperators.foreach(opId => initializedPythonOperators.add(opId))
       )
   }
 
