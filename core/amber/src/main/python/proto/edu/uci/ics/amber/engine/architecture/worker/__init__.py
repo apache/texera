@@ -55,9 +55,15 @@ class OpenOperatorV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class UpdateInputLinkingV2(betterproto.Message):
-    identifier: "__common__.ActorVirtualIdentity" = betterproto.message_field(1)
-    input_link: "__common__.PhysicalLink" = betterproto.message_field(2)
+class AssignPortV2(betterproto.Message):
+    port_id: "__common__.PortIdentity" = betterproto.message_field(1)
+    input: bool = betterproto.bool_field(2)
+
+
+@dataclass(eq=False, repr=False)
+class AddInputChannelV2(betterproto.Message):
+    channel_id: "__common__.ChannelIdentity" = betterproto.message_field(1)
+    port_id: "__common__.PortIdentity" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -91,10 +97,8 @@ class LinkOrdinal(betterproto.Message):
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
-    input_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(3)
-    output_ordinal_mapping: List["LinkOrdinal"] = betterproto.message_field(4)
     output_schema: Dict[str, str] = betterproto.map_field(
-        5, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
     )
 
 
@@ -140,8 +144,9 @@ class QuerySelfWorkloadMetricsV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class LinkCompletedV2(betterproto.Message):
-    link: "__common__.PhysicalLink" = betterproto.message_field(1)
+class PortCompletedV2(betterproto.Message):
+    port_id: "__common__.PortIdentity" = betterproto.message_field(1)
+    input: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -149,20 +154,21 @@ class ControlCommandV2(betterproto.Message):
     start_worker: "StartWorkerV2" = betterproto.message_field(1, group="sealed_value")
     pause_worker: "PauseWorkerV2" = betterproto.message_field(2, group="sealed_value")
     resume_worker: "ResumeWorkerV2" = betterproto.message_field(3, group="sealed_value")
+    assign_port: "AssignPortV2" = betterproto.message_field(4, group="sealed_value")
     add_partitioning: "AddPartitioningV2" = betterproto.message_field(
-        4, group="sealed_value"
-    )
-    update_input_linking: "UpdateInputLinkingV2" = betterproto.message_field(
         5, group="sealed_value"
     )
-    query_statistics: "QueryStatisticsV2" = betterproto.message_field(
+    add_input_channel: "AddInputChannelV2" = betterproto.message_field(
         6, group="sealed_value"
     )
-    query_current_input_tuple: "QueryCurrentInputTupleV2" = betterproto.message_field(
+    query_statistics: "QueryStatisticsV2" = betterproto.message_field(
         7, group="sealed_value"
     )
+    query_current_input_tuple: "QueryCurrentInputTupleV2" = betterproto.message_field(
+        8, group="sealed_value"
+    )
     open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
-    link_completed: "LinkCompletedV2" = betterproto.message_field(
+    port_completed: "PortCompletedV2" = betterproto.message_field(
         10, group="sealed_value"
     )
     scheduler_time_slot_event: "SchedulerTimeSlotEventV2" = betterproto.message_field(
@@ -200,6 +206,9 @@ class WorkerStatistics(betterproto.Message):
     worker_state: "WorkerState" = betterproto.enum_field(1)
     input_tuple_count: int = betterproto.int64_field(2)
     output_tuple_count: int = betterproto.int64_field(3)
+    data_processing_time: int = betterproto.int64_field(4)
+    control_processing_time: int = betterproto.int64_field(5)
+    idle_time: int = betterproto.int64_field(6)
 
 
 @dataclass(eq=False, repr=False)

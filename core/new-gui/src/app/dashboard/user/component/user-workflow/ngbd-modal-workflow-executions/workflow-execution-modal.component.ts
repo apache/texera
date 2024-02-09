@@ -1,8 +1,6 @@
 import { AfterViewInit, Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbActiveModal, NgbModal } from "@ng-bootstrap/ng-bootstrap";
 import * as c3 from "c3";
-import { Workflow } from "../../../../../common/type/workflow";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
@@ -20,21 +18,18 @@ const MAX_USERNAME_SIZE = 5;
 @UntilDestroy()
 @Component({
   selector: "texera-ngbd-modal-workflow-executions",
-  templateUrl: "./ngbd-modal-workflow-executions.component.html",
-  styleUrls: ["./ngbd-modal-workflow-executions.component.scss"],
+  templateUrl: "./workflow-execution-modal.component.html",
+  styleUrls: ["./workflow-execution-modal.component.scss"],
 })
-export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewInit {
+export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
-
   public static readonly WIDTH = 300;
   public static readonly HEIGHT = 300;
-
   public static readonly BARCHARTSIZE = 600;
 
-  @Input() workflow!: Workflow;
-  @Input() workflowName!: string;
+  @Input() wid!: number;
 
   public workflowExecutionsDisplayedList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
@@ -116,9 +111,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   modalRef?: NzModalRef;
 
   constructor(
-    public activeModal: NgbActiveModal,
     private workflowExecutionsService: WorkflowExecutionsService,
-    private modalService: NgbModal,
     private notificationService: NotificationService,
     private runtimeStatisticsModal: NzModalService
   ) {}
@@ -129,11 +122,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   }
 
   ngAfterViewInit() {
-    if (this.workflow === undefined || this.workflow.wid === undefined) {
-      return;
-    }
     this.workflowExecutionsService
-      .retrieveWorkflowExecutions(this.workflow.wid)
+      .retrieveWorkflowExecutions(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         // generate charts data
@@ -163,14 +153,14 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           Object.values(userNameData),
           ["user name"],
           "Users who ran the execution",
-          NgbdModalWorkflowExecutionsComponent.USERNAME_PIE_CHART_ID
+          WorkflowExecutionModalComponent.USERNAME_PIE_CHART_ID
         );
 
         this.generatePieChart(
           Object.values(statusData),
           ["status"],
           "Executions status",
-          NgbdModalWorkflowExecutionsComponent.STATUS_PIE_CHART_ID
+          WorkflowExecutionModalComponent.STATUS_PIE_CHART_ID
         );
         // generate an average processing time bar chart
         const processTimeData: Array<[string, ...c3.PrimitiveArray]> = [["processing time"]];
@@ -185,7 +175,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
           "Execution Numbers",
           "Average Processing Time (m)",
           "Execution performance",
-          NgbdModalWorkflowExecutionsComponent.PROCESS_TIME_BAR_CHART
+          WorkflowExecutionModalComponent.PROCESS_TIME_BAR_CHART
         );
       });
   }
@@ -198,8 +188,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ) {
     c3.generate({
       size: {
-        height: NgbdModalWorkflowExecutionsComponent.HEIGHT,
-        width: NgbdModalWorkflowExecutionsComponent.WIDTH,
+        height: WorkflowExecutionModalComponent.HEIGHT,
+        width: WorkflowExecutionModalComponent.WIDTH,
       },
       data: {
         columns: dataToDisplay,
@@ -228,8 +218,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   ) {
     c3.generate({
       size: {
-        height: NgbdModalWorkflowExecutionsComponent.BARCHARTSIZE,
-        width: NgbdModalWorkflowExecutionsComponent.BARCHARTSIZE,
+        height: WorkflowExecutionModalComponent.BARCHARTSIZE,
+        width: WorkflowExecutionModalComponent.BARCHARTSIZE,
       },
       data: {
         columns: dataToDisplay,
@@ -262,11 +252,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
    * calls the service to display the workflow executions on the table
    */
   displayWorkflowExecutions(): void {
-    if (this.workflow === undefined || this.workflow.wid === undefined) {
-      return;
-    }
     this.workflowExecutionsService
-      .retrieveWorkflowExecutions(this.workflow.wid)
+      .retrieveWorkflowExecutions(this.wid)
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
@@ -299,15 +286,13 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   }
 
   onBookmarkToggle(row: WorkflowExecutionsEntry) {
-    if (this.workflow.wid === undefined) return;
     const wasPreviouslyBookmarked = row.bookmarked;
-
     // Update bookmark state locally.
     row.bookmarked = !wasPreviouslyBookmarked;
 
     // Update on the server.
     this.workflowExecutionsService
-      .groupSetIsBookmarked(this.workflow.wid, [row.eId], wasPreviouslyBookmarked)
+      .groupSetIsBookmarked(this.wid, [row.eId], wasPreviouslyBookmarked)
       .pipe(untilDestroyed(this))
       .subscribe({
         error: (_: unknown) => (row.bookmarked = wasPreviouslyBookmarked),
@@ -315,7 +300,6 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   }
 
   setBookmarked(): void {
-    if (this.workflow.wid === undefined) return;
     if (this.setOfExecution !== undefined) {
       // isBookmarked: true if all the execution are bookmarked, false if there is one that is unbookmarked
       const isBookmarked = !Array.from(this.setOfExecution).some(execution => {
@@ -326,7 +310,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
         execution.bookmarked = !isBookmarked;
       });
       this.workflowExecutionsService
-        .groupSetIsBookmarked(this.workflow.wid, Array.from(this.setOfEid), isBookmarked)
+        .groupSetIsBookmarked(this.wid, Array.from(this.setOfEid), isBookmarked)
         .pipe(untilDestroyed(this))
         .subscribe({});
     }
@@ -335,11 +319,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   /* delete a single execution */
 
   onDelete(row: WorkflowExecutionsEntry) {
-    if (this.workflow.wid == undefined) {
-      return;
-    }
     this.workflowExecutionsService
-      .groupDeleteWorkflowExecutions(this.workflow.wid, [row.eId])
+      .groupDeleteWorkflowExecutions(this.wid, [row.eId])
       .pipe(untilDestroyed(this))
       .subscribe({
         complete: () => {
@@ -350,29 +331,24 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   }
 
   onGroupDelete() {
-    if (this.workflow.wid !== undefined) {
-      this.workflowExecutionsService
-        .groupDeleteWorkflowExecutions(this.workflow.wid, Array.from(this.setOfEid))
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          complete: () => {
-            this.allExecutionEntries = this.allExecutionEntries?.filter(
-              execution => !Array.from(this.setOfExecution).includes(execution)
-            );
-            this.handlePaginationAfterDeletingExecutions();
-            this.setOfEid.clear();
-            this.setOfExecution.clear();
-          },
-        });
-    }
+    this.workflowExecutionsService
+      .groupDeleteWorkflowExecutions(this.wid, Array.from(this.setOfEid))
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        complete: () => {
+          this.allExecutionEntries = this.allExecutionEntries?.filter(
+            execution => !Array.from(this.setOfExecution).includes(execution)
+          );
+          this.handlePaginationAfterDeletingExecutions();
+          this.setOfEid.clear();
+          this.setOfExecution.clear();
+        },
+      });
   }
 
   /* rename a single execution */
 
   confirmUpdateWorkflowExecutionsCustomName(row: WorkflowExecutionsEntry, name: string, index: number): void {
-    if (this.workflow.wid === undefined) {
-      return;
-    }
     // if name doesn't change, no need to call API
     if (name === row.name) {
       this.workflowExecutionsIsEditingName = this.workflowExecutionsIsEditingName.filter(
@@ -382,7 +358,7 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
     }
 
     this.workflowExecutionsService
-      .updateWorkflowExecutionsName(this.workflow.wid, row.eId, name)
+      .updateWorkflowExecutionsName(this.wid, row.eId, name)
       .pipe(untilDestroyed(this))
       .subscribe(() => {
         if (this.workflowExecutionsDisplayedList === undefined) {
@@ -719,12 +695,8 @@ export class NgbdModalWorkflowExecutionsComponent implements OnInit, AfterViewIn
   }
 
   showRuntimeStatistics(eId: number): void {
-    if (this.workflow.wid === undefined) {
-      return;
-    }
-
     this.workflowExecutionsService
-      .retrieveWorkflowRuntimeStatistics(this.workflow.wid, eId)
+      .retrieveWorkflowRuntimeStatistics(this.wid, eId)
       .pipe(untilDestroyed(this))
       .subscribe(workflowRuntimeStatistics => {
         this.modalRef = this.runtimeStatisticsModal.create({

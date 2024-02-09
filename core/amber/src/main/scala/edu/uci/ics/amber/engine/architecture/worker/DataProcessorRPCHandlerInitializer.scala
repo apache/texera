@@ -16,7 +16,8 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with QueryStatisticsHandler
     with ResumeHandler
     with StartHandler
-    with UpdateInputLinkingHandler
+    with AssignPortHandler
+    with AddInputChannelHandler
     with AssignLocalBreakpointHandler
     with ShutdownDPThreadHandler
     with MonitoringHandler
