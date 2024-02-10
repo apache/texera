@@ -12,9 +12,7 @@ export class WorkflowStatusService {
   private statusSubject = new Subject<Record<string, OperatorStatistics>>();
   private currentStatus: Record<string, OperatorStatistics> = {};
 
-  constructor(
-    private workflowWebsocketService: WorkflowWebsocketService,
-  ) {
+  constructor(private workflowWebsocketService: WorkflowWebsocketService) {
     if (!environment.executionStatusEnabled) {
       return;
     }
@@ -37,14 +35,17 @@ export class WorkflowStatusService {
   }
 
   public resetStatus(): void {
-    const initStatus: Record<string, OperatorStatistics> = Object.keys(this.currentStatus).reduce((accumulator, operatorId) => {
-      accumulator[operatorId] = {
-        operatorState: OperatorState.Uninitialized,
-        aggregatedInputRowCount: 0,
-        aggregatedOutputRowCount: 0,
-      };
-      return accumulator;
-    }, {} as Record<string, OperatorStatistics>);
+    const initStatus: Record<string, OperatorStatistics> = Object.keys(this.currentStatus).reduce(
+      (accumulator, operatorId) => {
+        accumulator[operatorId] = {
+          operatorState: OperatorState.Uninitialized,
+          aggregatedInputRowCount: 0,
+          aggregatedOutputRowCount: 0,
+        };
+        return accumulator;
+      },
+      {} as Record<string, OperatorStatistics>
+    );
     this.statusSubject.next(initStatus);
   }
 }
