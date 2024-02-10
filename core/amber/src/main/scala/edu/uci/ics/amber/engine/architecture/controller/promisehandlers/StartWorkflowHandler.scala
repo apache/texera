@@ -20,7 +20,7 @@ trait StartWorkflowHandler {
   registerHandler { (msg: StartWorkflow, sender) =>
     {
       if (cp.executionState.getState.isUninitialized) {
-        cp.workflowScheduler
+        cp.workflowExecutor
           .startWorkflow()
           .map(_ => {
             cp.controllerTimerService.enableStatusUpdate()

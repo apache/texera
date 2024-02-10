@@ -59,7 +59,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
     )
     val executionState = new ExecutionState(workflow)
     val scheduler =
-      new WorkflowScheduler(
+      new WorkflowExecutor(
         workflow.regionPlan.regions.toBuffer,
         executionState,
         ControllerConfig.default,
@@ -178,7 +178,7 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
 
     val executionState = new ExecutionState(workflow)
     val scheduler =
-      new WorkflowScheduler(
+      new WorkflowExecutor(
         workflow.regionPlan.regions.toBuffer,
         executionState,
         ControllerConfig.default,

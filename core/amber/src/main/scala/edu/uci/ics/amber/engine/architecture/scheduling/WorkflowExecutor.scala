@@ -27,7 +27,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class WorkflowScheduler(
+class WorkflowExecutor(
     regionPlan: RegionPlan,
     executionState: ExecutionState,
     actorService: AkkaActorService,
@@ -45,31 +45,21 @@ class WorkflowScheduler(
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
   def startWorkflow(): Future[Seq[Unit]] = {
-    doSchedulingWork(getNextRegions)
+    executeRegions(getNextRegions)
   }
 
-  def onPortCompletion(portId: GlobalPortIdentity): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule: Set[Region] = regionExecutionState.getRegion(portId) match {
-      case Some(region) =>
-        if (regionExecutionState.isRegionCompleted(executionState, region)) {
-          regionExecutionState.runningRegions.remove(region)
-          regionExecutionState.completedRegions.add(region)
-          getNextRegions
-        } else {
-          Set()
-        }
-      case None =>
-        // currently, the virtual input ports of source operators do not belong to any region
-        Set()
-    }
-
-    doSchedulingWork(nextRegionsToSchedule)
+  def onPortCompletion(portId: GlobalPortIdentity): Unit = {
+    regionExecutionState
+      .getRegion(portId)
+      .filter(region => regionExecutionState.isRegionCompleted(executionState, region))
+      .map { region =>
+        regionExecutionState.runningRegions.remove(region)
+        regionExecutionState.completedRegions.add(region)
+      }
   }
 
-  private def doSchedulingWork(regions: Set[Region]): Future[Seq[Unit]] = {
-    Future.collect(
-      regions.toSeq.map(region => scheduleRegion(region))
-    )
+  private def executeRegions(regions: Set[Region]): Future[Seq[Unit]] = {
+    Future.collect(regions.toSeq.map(region => scheduleRegion(region)))
   }
 
   private def constructRegion(region: Region): Unit = {
@@ -216,6 +206,7 @@ class WorkflowScheduler(
   }
 
   private def executeRegion(region: Region): Future[Unit] = {
+    regionExecutionState.addToRunningRegions(Set(region))
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
@@ -238,7 +229,7 @@ class WorkflowScheduler(
       .flatMap(_ => openOperators(region))
       .flatMap(_ => sendStarts(region))
       .map(_ => {
-        regionExecutionState.addToRunningRegions(Set(region))
+
         startedRegions.add(region.id)
       })
   }
@@ -256,7 +247,9 @@ class WorkflowScheduler(
   }
 
   private def getNextRegions: Set[Region] = {
-
+    if (regionExecutionState.runningRegions.nonEmpty) {
+      return Set.empty
+    }
     def getRegionsOrder(regionPlan: RegionPlan): List[Set[RegionIdentity]] = {
       val levels = mutable.Map.empty[RegionIdentity, Int]
       val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]

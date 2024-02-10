@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.common.{
   AmberProcessor
 }
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowScheduler
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutor
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -29,7 +29,7 @@ class ControllerProcessor(
 
   @transient var actorService: AkkaActorService = _
 
-  var workflowScheduler : WorkflowScheduler = _
+  var workflowExecutor : WorkflowExecutor = _
 
   def setupActorService(akkaActorService: AkkaActorService): Unit = {
     this.actorService = akkaActorService
@@ -46,8 +46,8 @@ class ControllerProcessor(
     this.logManager = logManager
   }
 
-  def initWorkflowScheduler() : Unit  = {
-    this.workflowScheduler = new WorkflowScheduler(
+  def initWorkflowExecutor() : Unit  = {
+    this.workflowExecutor = new WorkflowExecutor(
       workflow.regionPlan,
       executionState,
       actorService,
