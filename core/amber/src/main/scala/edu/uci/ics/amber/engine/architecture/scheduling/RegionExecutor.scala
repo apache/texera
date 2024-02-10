@@ -6,19 +6,17 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatusUpdate
 }
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.RegionExecutionState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
@@ -35,15 +33,29 @@ class RegionExecutor(
 ) {
 
   def scheduleRegion: Future[Unit] = {
+
+    // find out the operators needs to be built.
+    // some operators may have already been built in previous regions.
     val operatorsToBuild = region
       .topologicalIterator()
       .filter(opId => { !executionState.hasOperatorExecution(opId) })
       .map(opId => region.getOperator(opId))
-    val linksToInit = region.getLinks
+
+    // fetch resource config
     val resourceConfig = region.resourceConfig.get
+
+    // mark the region as running
     regionExecutionState.addToRunningRegions(Set(region))
 
-    buildOperators(operatorsToBuild, resourceConfig)
+    // build operators, init workers
+    operatorsToBuild.foreach(physicalOp =>
+      buildOperator(
+        physicalOp,
+        resourceConfig.operatorConfigs(physicalOp.id)
+      )
+    )
+
+    // update UI
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
@@ -52,7 +64,7 @@ class RegionExecutor(
           .map(physicalOpId => {
             physicalOpId.logicalOpId.id -> executionState
               .getOperatorExecution(physicalOpId)
-              .getBuiltWorkerIds
+              .getWorkerIds
               .map(_.name)
               .toList
           })
@@ -60,6 +72,7 @@ class RegionExecutor(
       )
     )
 
+    // initialize the operators that are uninitialized
     val operatorsToInit = region.getOperators.filter(op =>
       executionState.getAllOperatorExecutions
         .filter(a => a._2.getState == WorkflowAggregatedState.UNINITIALIZED)
@@ -71,7 +84,7 @@ class RegionExecutor(
     Future(())
       .flatMap(_ => initExecutors(operatorsToInit))
       .flatMap(_ => assignPorts(region))
-      .flatMap(_ => connectChannels(linksToInit))
+      .flatMap(_ => connectChannels(region.getLinks))
       .flatMap(_ => openOperators(operatorsToInit))
       .flatMap(_ => sendStarts(region))
       .rescue {
@@ -83,20 +96,6 @@ class RegionExecutor(
       }
     Future.Unit
   }
-
-  private def buildOperators(
-      operators: Iterator[PhysicalOp],
-      resourceConfig: ResourceConfig
-  ): Unit = {
-    operators.foreach(physicalOp =>
-      buildOperator(
-        physicalOp,
-        resourceConfig.operatorConfigs(physicalOp.id)
-      )
-    )
-
-  }
-
   private def buildOperator(
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig
@@ -117,8 +116,7 @@ class RegionExecutor(
         operators
           .filter(op => op.isPythonOperator)
           .flatMap(op => {
-            val workerIds = executionState.getOperatorExecution(op.id).getWorkerExecutions.keys
-            workerIds.map(workerId => (workerId, op))
+            executionState.getOperatorExecution(op.id).getWorkerIds.map(workerId => (workerId, op))
           })
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
@@ -135,10 +133,6 @@ class RegionExecutor(
           .toSeq
       )
   }
-
-  /**
-    * assign ports to all operators in this region
-    */
   private def assignPorts(region: Region): Future[Seq[Unit]] = {
     val resourceConfig = region.resourceConfig.get
     Future.collect(
@@ -174,8 +168,7 @@ class RegionExecutor(
       .collect(
         operators
           .map(_.id)
-          .map(opId => executionState.getOperatorExecution(opId))
-          .flatMap(operatorExecution => operatorExecution.getWorkerExecutions.keys)
+          .flatMap(opId => executionState.getOperatorExecution(opId).getWorkerIds)
           .map { workerId =>
             asyncRPCClient.send(OpenOperator(), workerId)
           }

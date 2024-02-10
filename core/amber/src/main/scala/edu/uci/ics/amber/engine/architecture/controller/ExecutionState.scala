@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -35,9 +34,7 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values
-      .flatMap(operator =>
-        operator.getBuiltWorkerIds.map(worker => operator.getWorkerExecution(worker))
-      )
+      .flatMap(operator => operator.getWorkerIds.map(worker => operator.getWorkerExecution(worker)))
       .map(_.id)
 
   def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = {
@@ -49,7 +46,7 @@ class ExecutionState(workflow: Workflow) {
   }
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
     operatorExecutions.values.foreach { execution =>
-      val result = execution.getBuiltWorkerIds.find(x => x == worker)
+      val result = execution.getWorkerIds.find(x => x == worker)
       if (result.isDefined) {
         return execution
       }
@@ -61,7 +58,7 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllWorkersOfRegion(region: Region): Set[ActorVirtualIdentity] = {
     region.getOperators.flatMap(physicalOp =>
-      getOperatorExecution(physicalOp.id).getBuiltWorkerIds.toList
+      getOperatorExecution(physicalOp.id).getWorkerIds.toList
     )
   }
 
@@ -99,7 +96,7 @@ class ExecutionState(workflow: Workflow) {
   def getAllWorkersForOperators(
       operators: Set[PhysicalOpIdentity]
   ): Set[ActorVirtualIdentity] = {
-    operators.flatMap(physicalOpId => getOperatorExecution(physicalOpId).getBuiltWorkerIds)
+    operators.flatMap(physicalOpId => getOperatorExecution(physicalOpId).getWorkerIds)
   }
 
 }
