@@ -45,7 +45,7 @@ trait PortCompletedHandler {
 
       if (isPortCompleted) {
         cp.workflowScheduler
-          .onPortCompletion(cp.workflow, cp.actorService, globalPortId)
+          .onPortCompletion(cp.actorService, globalPortId)
           .flatMap(_ => Future.Unit)
       } else {
         // if the port is not completed yet, do nothing

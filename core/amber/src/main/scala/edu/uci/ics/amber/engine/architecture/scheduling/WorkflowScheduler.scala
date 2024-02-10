@@ -3,13 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
@@ -18,7 +15,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHa
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -51,7 +47,6 @@ class WorkflowScheduler(
   }
 
   def onPortCompletion(
-      workflow: Workflow,
       akkaActorService: AkkaActorService,
       portId: GlobalPortIdentity
   ): Future[Seq[Unit]] = {
