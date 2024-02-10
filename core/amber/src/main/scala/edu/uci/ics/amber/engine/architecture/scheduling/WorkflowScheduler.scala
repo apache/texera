@@ -55,12 +55,6 @@ class WorkflowScheduler(
   ): Future[Seq[Unit]] = {
     val nextRegionsToSchedule: Set[Region] = regionExecutionState.getRegion(portId) match {
       case Some(region) =>
-        val portIds =
-          regionExecutionState.completedPortIdsOfRegion.getOrElseUpdate(
-            region.id,
-            new mutable.HashSet[GlobalPortIdentity]()
-          )
-        portIds.add(portId)
         if (regionExecutionState.isRegionCompleted(executionState, region)) {
           regionExecutionState.runningRegions.remove(region)
           regionExecutionState.completedRegions.add(region)

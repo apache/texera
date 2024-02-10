@@ -11,8 +11,6 @@ class RegionExecutionState {
   // regions currently running
   val runningRegions = new mutable.HashSet[Region]()
 
-   val completedPortIdsOfRegion
-      : mutable.HashMap[RegionIdentity, mutable.HashSet[GlobalPortIdentity]] = mutable.HashMap()
    def isRegionCompleted(
       executionState: ExecutionState,
       region: Region
