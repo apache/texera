@@ -19,22 +19,29 @@ class WorkflowExecutor(
 ) extends LazyLogging {
   val regionExecutionState: RegionExecutionState = new RegionExecutionState()
 
+  private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutor] = mutable.HashMap()
+
   def executeNextRegions(): Future[Unit] = {
-    Future.collect(
-      getNextRegions.toSeq.map(region =>
-        new RegionExecutor(
-          region,
-          executionState,
-          regionExecutionState,
-          asyncRPCClient,
-          actorService,
-          controllerConfig
-        ).execute
+    Future
+      .collect(
+        getNextRegions.toSeq
+          .map(region => {
+            regionExecutors(region.id) = new RegionExecutor(
+              region,
+              executionState,
+              regionExecutionState,
+              asyncRPCClient,
+              actorService,
+              controllerConfig
+            )
+            regionExecutors(region.id)
+          })
+          .map(regionExecutor => regionExecutor.execute)
       )
-    ).unit
+      .unit
   }
 
-  def onPortCompletion(portId: GlobalPortIdentity): Unit = {
+  def updateRegionExecutionState(portId: GlobalPortIdentity): Unit = {
     regionExecutionState
       .getRegion(portId)
       .filter(region => regionExecutionState.isRegionCompleted(executionState, region))
