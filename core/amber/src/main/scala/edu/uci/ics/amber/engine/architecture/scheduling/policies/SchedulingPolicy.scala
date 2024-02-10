@@ -1,15 +1,19 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionState, Workflow}
-import edu.uci.ics.amber.engine.architecture.scheduling.{GlobalPortIdentity, Region, RegionIdentity}
+import edu.uci.ics.amber.engine.architecture.scheduling.{
+  GlobalPortIdentity,
+  Region,
+  RegionIdentity,
+  RegionPlan
+}
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.control.Breaks.{break, breakable}
 
-
-
 class SchedulingPolicy(
-    protected val regionsScheduleOrder: mutable.Buffer[Region]
+    protected val regionPlan: RegionPlan
 ) {
 
   // regions sent by the policy to be scheduled at least once
@@ -33,23 +37,35 @@ class SchedulingPolicy(
 
   // gets the ready regions that is not currently running
   protected def getNextSchedulingWork(workflow: Workflow): Set[Region] = {
-    val nextToSchedule: mutable.HashSet[Region] = new mutable.HashSet[Region]()
-    breakable {
-      while (regionsScheduleOrder.nonEmpty) {
-        val nextRegion = regionsScheduleOrder.head
-        val upstreamRegions = workflow.regionPlan.getUpstreamRegions(nextRegion)
-        if (upstreamRegions.forall(completedRegions.contains)) {
-          assert(!scheduledRegions.contains(nextRegion))
-          nextToSchedule.add(nextRegion)
-          regionsScheduleOrder.remove(0)
-          scheduledRegions.add(nextRegion)
-        } else {
-          break()
+
+    def getRegionsOrder(regionPlan: RegionPlan): List[Set[RegionIdentity]] = {
+      val levels = mutable.Map.empty[RegionIdentity, Int]
+      val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
+      val iterator = regionPlan.topologicalIterator()
+
+      iterator.foreach { currentVertex =>
+        val currentLevel = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
+          (maxLevel, incomingEdge) =>
+            val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
+            val sourceLevel = levels.getOrElse(sourceVertex, 0)
+            math.max(maxLevel, sourceLevel + 1)
         }
+        levels.update(currentVertex, currentLevel)
+        val verticesAtCurrentLevel =
+          levelSets.getOrElseUpdate(currentLevel, mutable.Set.empty[RegionIdentity])
+        verticesAtCurrentLevel.add(currentVertex)
       }
+
+      val maxLevel = levels.values.maxOption.getOrElse(0)
+      (0 to maxLevel).toList.map(level => levelSets.getOrElse(level, mutable.Set.empty).toSet)
     }
 
-    nextToSchedule.toSet
+    getRegionsOrder(regionPlan)
+      .map(regionIds => regionIds.diff(completedRegions.map(_.id))).find(_.nonEmpty) match {
+      case Some(regionIds) => regionIds.map(regionId => regionPlan.getRegion(regionId))
+      case None => Set()
+    }
+
   }
 
   def startWorkflow(workflow: Workflow): Set[Region] = {
@@ -72,8 +88,10 @@ class SchedulingPolicy(
         if (isRegionCompleted(executionState, region)) {
           runningRegions.remove(region)
           completedRegions.add(region)
+          getNextSchedulingWork(workflow)
+        }else{
+          Set()
         }
-        getNextSchedulingWork(workflow)
       case None =>
         Set() // currently, the virtual input ports of source operators do not belong to any region
     }

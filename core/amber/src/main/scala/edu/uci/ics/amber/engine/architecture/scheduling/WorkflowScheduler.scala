@@ -28,12 +28,12 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import scala.collection.mutable
 
 class WorkflowScheduler(
-    regionsToSchedule: mutable.Buffer[Region],
+    regionPlan: RegionPlan,
     executionState: ExecutionState,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
-  val schedulingPolicy: SchedulingPolicy = new SchedulingPolicy(regionsToSchedule)
+  val schedulingPolicy: SchedulingPolicy = new SchedulingPolicy(regionPlan)
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we do not want
   // to build, init them multiple times. Currently, we use "opened" to indicate that an operator is built,

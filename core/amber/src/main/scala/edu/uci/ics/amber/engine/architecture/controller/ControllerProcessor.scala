@@ -20,7 +20,7 @@ class ControllerProcessor(
   val executionState = new ExecutionState(workflow)
   val workflowScheduler =
     new WorkflowScheduler(
-      workflow.regionPlan.regions.toBuffer,
+      workflow.regionPlan,
       executionState,
       controllerConfig,
       asyncRPCClient
