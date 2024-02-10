@@ -73,20 +73,20 @@ export class ExecuteWorkflowService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private notificationService: NotificationService
   ) {
-      workflowWebsocketService.websocketEvent().subscribe(event => {
-        switch (event.type) {
-          case "WorkerAssignmentUpdateEvent":
-            this.assignedWorkerIds.set(event.operatorId, event.workerIds);
-            break;
-          default:
-            // workflow status related event
-            this.handleReconfigurationEvent(event);
-            const newState = this.handleExecutionEvent(event);
-            if (newState !== undefined) {
-              this.updateExecutionState(newState);
-            }
-        }
-      });
+    workflowWebsocketService.websocketEvent().subscribe(event => {
+      switch (event.type) {
+        case "WorkerAssignmentUpdateEvent":
+          this.assignedWorkerIds.set(event.operatorId, event.workerIds);
+          break;
+        default:
+          // workflow status related event
+          this.handleReconfigurationEvent(event);
+          const newState = this.handleExecutionEvent(event);
+          if (newState !== undefined) {
+            this.updateExecutionState(newState);
+          }
+      }
+    });
   }
 
   public handleReconfigurationEvent(event: TexeraWebsocketEvent) {
@@ -182,8 +182,6 @@ export class ExecuteWorkflowService {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     this.sendExecutionRequest(executionName, logicalPlan);
   }
-
-
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
