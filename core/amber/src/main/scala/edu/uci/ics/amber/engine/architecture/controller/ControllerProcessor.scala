@@ -19,7 +19,6 @@ class ControllerProcessor(
 
   val executionState = new ExecutionState(workflow)
 
-
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
   @transient var controllerTimerService: ControllerTimerService = _
@@ -29,7 +28,7 @@ class ControllerProcessor(
 
   @transient var actorService: AkkaActorService = _
 
-  var workflowExecutor : WorkflowExecutor = _
+  var workflowExecutor: WorkflowExecutor = _
 
   def setupActorService(akkaActorService: AkkaActorService): Unit = {
     this.actorService = akkaActorService
@@ -46,7 +45,7 @@ class ControllerProcessor(
     this.logManager = logManager
   }
 
-  def initWorkflowExecutor() : Unit  = {
+  def initWorkflowExecutor(): Unit = {
     this.workflowExecutor = new WorkflowExecutor(
       workflow.regionPlan,
       executionState,

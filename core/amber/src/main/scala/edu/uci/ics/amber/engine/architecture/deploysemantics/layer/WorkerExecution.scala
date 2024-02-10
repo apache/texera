@@ -9,11 +9,11 @@ import scala.collection.mutable
 
 // TODO: remove redundant info
 case class WorkerExecution(
-                            id: ActorVirtualIdentity,
-                            var state: WorkerState,
-                            var stats: WorkerStatistics,
-                            inputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] = mutable.HashMap(),
-                            outputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] = mutable.HashMap()
+    id: ActorVirtualIdentity,
+    var state: WorkerState,
+    var stats: WorkerStatistics,
+    inputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] = mutable.HashMap(),
+    outputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] = mutable.HashMap()
 ) extends Serializable {
 
   def getInputPortExecution(portId: PortIdentity): WorkerPortExecution = {

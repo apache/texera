@@ -32,7 +32,7 @@ class RegionExecutor(
     controllerConfig: ControllerConfig
 ) {
 
-  def scheduleRegion: Future[Unit] = {
+  def execute: Future[Unit] = {
 
     // find out the operators needs to be built.
     // some operators may have already been built in previous regions.

@@ -45,7 +45,7 @@ trait PortCompletedHandler {
 
       if (isPortCompleted) {
         cp.workflowExecutor.onPortCompletion(globalPortId)
-        cp.workflowExecutor.startWorkflow().unit
+        cp.workflowExecutor.executeNextRegions()
       } else {
         // if the port is not completed yet, do nothing
         Future(())
