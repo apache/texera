@@ -143,7 +143,10 @@ class WorkflowExecutor(
   private def openOperators(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {
     Future
       .collect(
-        operators.map(_.id).map(opId => executionState.getOperatorExecution(opId)).flatMap(operatorExecution => operatorExecution.getWorkerExecutions.keys)
+        operators
+          .map(_.id)
+          .map(opId => executionState.getOperatorExecution(opId))
+          .flatMap(operatorExecution => operatorExecution.getWorkerExecutions.keys)
           .map { workerId =>
             asyncRPCClient.send(OpenOperator(), workerId)
           }
@@ -152,13 +155,6 @@ class WorkflowExecutor(
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
-
-    region.getOperators
-      .map(_.id)
-      .filter(opId =>
-        executionState.getOperatorExecution(opId).getState == WorkflowAggregatedState.UNINITIALIZED
-      )
-      .foreach(opId => executionState.getOperatorExecution(opId).setAllWorkerState(READY))
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     val sourceOpIds = region.getSourceOperators.map(_.id)
     Future.collect(sourceOpIds.flatMap { opId =>
