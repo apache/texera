@@ -20,7 +20,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 """)
 class Scatter3dChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(value = "title", required = true)
+  @JsonProperty(value = "title", required = true, defaultValue = "Scatter3D Chart")
   @JsonSchemaTitle("Plot Title")
   @JsonPropertyDescription("The value for the plot tile")
   var title: String = "Scatter3D Chart"
