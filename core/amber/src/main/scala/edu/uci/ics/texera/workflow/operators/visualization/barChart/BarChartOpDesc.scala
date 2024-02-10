@@ -21,7 +21,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-//type constraint: value can only be numeric
+ //type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
