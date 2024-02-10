@@ -69,8 +69,6 @@ export const defaultEnvironment = {
    */
   workflowExecutionsTrackingEnabled: false,
 
-  amberEngineEnabled: true,
-
   /**
    * whether linkBreakpoint is supported
    */

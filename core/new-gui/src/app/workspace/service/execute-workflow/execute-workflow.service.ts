@@ -73,7 +73,6 @@ export class ExecuteWorkflowService {
     private workflowWebsocketService: WorkflowWebsocketService,
     private notificationService: NotificationService
   ) {
-    if (environment.amberEngineEnabled) {
       workflowWebsocketService.websocketEvent().subscribe(event => {
         switch (event.type) {
           case "WorkerAssignmentUpdateEvent":
@@ -88,7 +87,6 @@ export class ExecuteWorkflowService {
             }
         }
       });
-    }
   }
 
   public handleReconfigurationEvent(event: TexeraWebsocketEvent) {
@@ -181,22 +179,13 @@ export class ExecuteWorkflowService {
   }
 
   public executeWorkflow(executionName: string): void {
-    if (environment.amberEngineEnabled) {
-      this.executeWorkflowAmberTexera(executionName);
-    } else {
-      throw new Error("old texera engine not supported");
-    }
-  }
-
-  public executeWorkflowAmberTexera(executionName: string): void {
-    // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
-    console.log(logicalPlan);
     this.sendExecutionRequest(executionName, logicalPlan);
   }
 
-  public executeWorkflowAmberTexeraWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
-    // get the current workflow graph
+
+
+  public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
     this.sendExecutionRequest(
       `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
@@ -234,9 +223,6 @@ export class ExecuteWorkflowService {
   }
 
   public pauseWorkflow(): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
     if (this.currentState === undefined || this.currentState.state !== ExecutionState.Running) {
       throw new Error("cannot pause workflow, the current execution state is " + this.currentState?.state);
     }
@@ -244,9 +230,6 @@ export class ExecuteWorkflowService {
   }
 
   public killWorkflow(): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
     if (
       this.currentState.state === ExecutionState.Uninitialized ||
       this.currentState.state === ExecutionState.Completed
@@ -257,9 +240,6 @@ export class ExecuteWorkflowService {
   }
 
   public addExecutionInteraction(): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
     if (
       this.currentState.state === ExecutionState.Uninitialized ||
       this.currentState.state === ExecutionState.Completed
@@ -270,9 +250,6 @@ export class ExecuteWorkflowService {
   }
 
   public resumeWorkflow(): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
     if (
       !(
         this.currentState.state === ExecutionState.Paused ||
@@ -285,9 +262,6 @@ export class ExecuteWorkflowService {
   }
 
   public addBreakpointRuntime(linkID: string, breakpointData: Breakpoint): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
     if (
       this.currentState.state !== ExecutionState.BreakpointTriggered &&
       this.currentState.state !== ExecutionState.Paused
@@ -302,9 +276,6 @@ export class ExecuteWorkflowService {
   }
 
   public skipTuples(workers: ReadonlyArray<string>): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
     if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot skip tuples, the current execution state is " + this.currentState.state);
     }
@@ -312,9 +283,6 @@ export class ExecuteWorkflowService {
   }
 
   public retryExecution(workers: ReadonlyArray<string>): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
     if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
@@ -322,10 +290,6 @@ export class ExecuteWorkflowService {
   }
 
   public modifyOperatorLogic(operatorID: string): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
-    console.log("modifying operator logic " + operatorID);
     if (
       this.currentState.state !== ExecutionState.BreakpointTriggered &&
       this.currentState.state !== ExecutionState.Paused
