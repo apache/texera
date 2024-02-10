@@ -4,7 +4,6 @@ import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
-import edu.uci.ics.amber.engine.architecture.scheduling.policies.RegionExecutionState
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
 import scala.collection.mutable
@@ -17,7 +16,6 @@ class WorkflowExecutor(
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
-  val regionExecutionState: RegionExecutionState = new RegionExecutionState()
 
   private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutor] = mutable.HashMap()
 
@@ -29,7 +27,6 @@ class WorkflowExecutor(
             regionExecutors(region.id) = new RegionExecutor(
               region,
               executionState,
-              regionExecutionState,
               asyncRPCClient,
               actorService,
               controllerConfig
@@ -42,17 +39,21 @@ class WorkflowExecutor(
   }
 
   def updateRegionExecutionState(portId: GlobalPortIdentity): Unit = {
-    regionExecutionState
-      .getRegion(portId)
-      .filter(region => regionExecutionState.isRegionCompleted(executionState, region))
-      .map { region =>
-        regionExecutionState.runningRegions.remove(region)
-        regionExecutionState.completedRegions.add(region)
+    regionPlan.regions
+      .filter(region => region.getPorts.contains(portId))
+      .filter(region => RegionExecution.isRegionCompleted(executionState, region))
+      .foreach { region =>
+        regionExecutors(region.id).regionExecution.running = false
+        regionExecutors(region.id).regionExecution.completed = true
       }
   }
 
   private def getNextRegions: Set[Region] = {
-    if (regionExecutionState.runningRegions.nonEmpty) {
+    if (
+      regionExecutors.values
+        .map(regionExecutor => regionExecutor.getRegionExecution)
+        .exists(regionExecution => regionExecution.running)
+    ) {
       return Set.empty
     }
     def getRegionsOrder(regionPlan: RegionPlan): List[Set[RegionIdentity]] = {
@@ -78,7 +79,16 @@ class WorkflowExecutor(
     }
 
     getRegionsOrder(regionPlan)
-      .map(regionIds => regionIds.diff(regionExecutionState.completedRegions.map(_.id)))
+      .map(regionIds =>
+        regionIds.diff(
+          regionExecutors
+            .filter {
+              case (_, regionExecutor) => regionExecutor.regionExecution.completed
+            }
+            .keys
+            .toSet
+        )
+      )
       .find(_.nonEmpty) match {
       case Some(regionIds) => regionIds.map(regionId => regionPlan.getRegion(regionId))
       case None            => Set()

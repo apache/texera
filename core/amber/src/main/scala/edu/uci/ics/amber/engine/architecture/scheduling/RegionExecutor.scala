@@ -12,7 +12,6 @@ import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Execu
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.architecture.scheduling.policies.RegionExecutionState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -23,14 +22,36 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.Seq
 
+object RegionExecution {
+  def isRegionCompleted(
+      executionState: ExecutionState,
+      region: Region
+  ): Boolean = {
+    region.getPorts.forall(globalPortId => {
+      val operatorExecution = executionState.getOperatorExecution(globalPortId.opId)
+      if (globalPortId.input) operatorExecution.isInputPortCompleted(globalPortId.portId)
+      else operatorExecution.isOutputPortCompleted(globalPortId.portId)
+    })
+  }
+}
+case class RegionExecution() {
+  var running: Boolean = false
+  var completed: Boolean = false
+
+}
 class RegionExecutor(
     region: Region,
     executionState: ExecutionState,
-    regionExecutionState: RegionExecutionState,
     asyncRPCClient: AsyncRPCClient,
     actorService: AkkaActorService,
     controllerConfig: ControllerConfig
 ) {
+
+  val regionExecution: RegionExecution = RegionExecution()
+
+  def getRegionExecution: RegionExecution = {
+    regionExecution
+  }
 
   def execute: Future[Unit] = {
 
@@ -45,7 +66,7 @@ class RegionExecutor(
     val resourceConfig = region.resourceConfig.get
 
     // mark the region as running
-    regionExecutionState.addToRunningRegions(Set(region))
+    regionExecution.running = true
 
     // build operators, init workers
     operatorsToBuild.foreach(physicalOp =>
