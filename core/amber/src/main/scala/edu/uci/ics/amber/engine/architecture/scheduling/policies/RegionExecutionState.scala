@@ -5,9 +5,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{GlobalPortIdentity, Reg
 
 import scala.collection.mutable
 
-class SchedulingPolicy(
-    protected val regionPlan: RegionPlan
-) {
+class RegionExecutionState {
 
   val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
@@ -19,7 +17,13 @@ class SchedulingPolicy(
       executionState: ExecutionState,
       region: Region
   ): Boolean = {
-    region.getPorts.subsetOf(completedPortIdsOfRegion.getOrElse(region.id, mutable.HashSet()))
+     region.getPorts.forall(
+       globalPortId => {
+         val operatorExecution = executionState.getOperatorExecution(globalPortId.opId)
+         if (globalPortId.input) operatorExecution.isInputPortCompleted(globalPortId.portId)
+         else operatorExecution.isOutputPortCompleted(globalPortId.portId)
+       }
+     )
   }
 
   def getRegion(portId: GlobalPortIdentity): Option[Region] = {

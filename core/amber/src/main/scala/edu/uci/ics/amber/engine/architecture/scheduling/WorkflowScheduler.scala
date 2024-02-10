@@ -3,14 +3,17 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatusUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatusUpdate
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.architecture.scheduling.policies.SchedulingPolicy
+import edu.uci.ics.amber.engine.architecture.scheduling.policies.RegionExecutionState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -30,7 +33,7 @@ class WorkflowScheduler(
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
-  val schedulingPolicy: SchedulingPolicy = new SchedulingPolicy(regionPlan)
+  val regionExecutionState: RegionExecutionState = new RegionExecutionState()
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we do not want
   // to build, init them multiple times. Currently, we use "opened" to indicate that an operator is built,
@@ -50,23 +53,24 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService,
       portId: GlobalPortIdentity
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule =  schedulingPolicy.getRegion(portId) match {
+    val nextRegionsToSchedule: Set[Region] = regionExecutionState.getRegion(portId) match {
       case Some(region) =>
         val portIds =
-          schedulingPolicy.completedPortIdsOfRegion.getOrElseUpdate(
+          regionExecutionState.completedPortIdsOfRegion.getOrElseUpdate(
             region.id,
             new mutable.HashSet[GlobalPortIdentity]()
           )
         portIds.add(portId)
-        if (schedulingPolicy.isRegionCompleted(executionState, region)) {
-          schedulingPolicy.runningRegions.remove(region)
-          schedulingPolicy.completedRegions.add(region)
+        if (regionExecutionState.isRegionCompleted(executionState, region)) {
+          regionExecutionState.runningRegions.remove(region)
+          regionExecutionState.completedRegions.add(region)
           getNextRegions
-        }else{
-          Set[Region]()
+        } else {
+          Set()
         }
       case None =>
-        Set[Region]() // currently, the virtual input ports of source operators do not belong to any region
+        // currently, the virtual input ports of source operators do not belong to any region
+        Set()
     }
 
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
@@ -76,13 +80,9 @@ class WorkflowScheduler(
       regions: Set[Region],
       actorService: AkkaActorService
   ): Future[Seq[Unit]] = {
-    if (regions.nonEmpty) {
-      Future.collect(
-        regions.toArray.map(region => scheduleRegion(region, actorService))
-      )
-    } else {
-      Future(Seq())
-    }
+    Future.collect(
+      regions.toSeq.map(region => scheduleRegion(region, actorService))
+    )
   }
 
   private def constructRegion(region: Region, akkaActorService: AkkaActorService): Unit = {
@@ -253,7 +253,7 @@ class WorkflowScheduler(
       .flatMap(_ => openOperators(region))
       .flatMap(_ => sendStarts(region))
       .map(_ => {
-        schedulingPolicy.addToRunningRegions(Set(region))
+        regionExecutionState.addToRunningRegions(Set(region))
         startedRegions.add(region.id)
       })
   }
@@ -295,9 +295,10 @@ class WorkflowScheduler(
     }
 
     getRegionsOrder(regionPlan)
-      .map(regionIds => regionIds.diff(schedulingPolicy.completedRegions.map(_.id))).find(_.nonEmpty) match {
+      .map(regionIds => regionIds.diff(regionExecutionState.completedRegions.map(_.id)))
+      .find(_.nonEmpty) match {
       case Some(regionIds) => regionIds.map(regionId => regionPlan.getRegion(regionId))
-      case None => Set()
+      case None            => Set()
     }
 
   }
