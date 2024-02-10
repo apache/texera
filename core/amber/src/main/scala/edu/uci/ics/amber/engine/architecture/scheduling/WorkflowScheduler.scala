@@ -33,11 +33,7 @@ class WorkflowScheduler(
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
-  val schedulingPolicy: SchedulingPolicy =
-    SchedulingPolicy.createPolicy(
-      AmberConfig.schedulingPolicyName,
-      regionsToSchedule
-    )
+  val schedulingPolicy: SchedulingPolicy = new SchedulingPolicy(regionsToSchedule)
 
   // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we do not want
   // to build, init them multiple times. Currently, we use "opened" to indicate that an operator is built,

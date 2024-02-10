@@ -2,26 +2,13 @@ package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionState, Workflow}
 import edu.uci.ics.amber.engine.architecture.scheduling.{GlobalPortIdentity, Region, RegionIdentity}
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 
 import scala.collection.mutable
+import scala.util.control.Breaks.{break, breakable}
 
-object SchedulingPolicy {
-  def createPolicy(
-      policyName: String,
-      scheduleOrder: mutable.Buffer[Region]
-  ): SchedulingPolicy = {
-    if (policyName.equals("single-ready-region")) {
-      new SingleReadyRegion(scheduleOrder)
-    } else if (policyName.equals("all-ready-regions")) {
-      new AllReadyRegions(scheduleOrder)
-    } else {
-      throw new WorkflowRuntimeException(s"Unknown scheduling policy name")
-    }
-  }
-}
 
-abstract class SchedulingPolicy(
+
+class SchedulingPolicy(
     protected val regionsScheduleOrder: mutable.Buffer[Region]
 ) {
 
@@ -45,16 +32,28 @@ abstract class SchedulingPolicy(
   }
 
   // gets the ready regions that is not currently running
-  protected def getNextSchedulingWork(workflow: Workflow): Set[Region]
+  protected def getNextSchedulingWork(workflow: Workflow): Set[Region] = {
+    val nextToSchedule: mutable.HashSet[Region] = new mutable.HashSet[Region]()
+    breakable {
+      while (regionsScheduleOrder.nonEmpty) {
+        val nextRegion = regionsScheduleOrder.head
+        val upstreamRegions = workflow.regionPlan.getUpstreamRegions(nextRegion)
+        if (upstreamRegions.forall(completedRegions.contains)) {
+          assert(!scheduledRegions.contains(nextRegion))
+          nextToSchedule.add(nextRegion)
+          regionsScheduleOrder.remove(0)
+          scheduledRegions.add(nextRegion)
+        } else {
+          break()
+        }
+      }
+    }
+
+    nextToSchedule.toSet
+  }
 
   def startWorkflow(workflow: Workflow): Set[Region] = {
-    val regions = getNextSchedulingWork(workflow)
-    if (regions.isEmpty) {
-      throw new WorkflowRuntimeException(
-        s"No first region is being scheduled"
-      )
-    }
-    regions
+    getNextSchedulingWork(workflow)
   }
 
   def onPortCompletion(
