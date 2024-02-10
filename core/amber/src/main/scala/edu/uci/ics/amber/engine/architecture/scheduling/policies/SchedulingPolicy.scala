@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.policies
 
-import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.{ExecutionState, Workflow}
 import edu.uci.ics.amber.engine.architecture.scheduling.{GlobalPortIdentity, Region, RegionIdentity}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.mutable
 
@@ -32,7 +29,7 @@ abstract class SchedulingPolicy(
   protected val scheduledRegions = new mutable.HashSet[Region]()
   protected val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
-  protected val runningRegions = new mutable.HashSet[Region]()
+  private val runningRegions = new mutable.HashSet[Region]()
 
   private val completedPortIdsOfRegion
       : mutable.HashMap[RegionIdentity, mutable.HashSet[GlobalPortIdentity]] = mutable.HashMap()
@@ -86,12 +83,6 @@ abstract class SchedulingPolicy(
   def addToRunningRegions(regions: Set[Region]): Unit = {
     runningRegions ++= regions
   }
-
-  def removeFromRunningRegion(regions: Set[Region]): Unit = {
-    runningRegions --= regions
-  }
-
-  def getRunningRegions: Set[Region] = runningRegions.toSet
 
   def getCompletedRegions: Set[Region] = completedRegions.toSet
 

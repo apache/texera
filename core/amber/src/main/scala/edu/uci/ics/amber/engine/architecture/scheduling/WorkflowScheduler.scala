@@ -107,7 +107,7 @@ class WorkflowScheduler(
       controllerConfig.workerLoggingConfMapping
     )
   }
-  private def initializePythonOperators(region: Region): Future[Seq[Unit]] = {
+  private def initExecutors(region: Region): Future[Seq[Unit]] = {
 
     val opIdsToInit = region.getOperators
       .filter(physicalOp => physicalOp.isPythonOperator)
@@ -163,10 +163,9 @@ class WorkflowScheduler(
     )
   }
 
-  private def activateAllLinks(region: Region): Future[Seq[Unit]] = {
+  private def connectChannels(region: Region): Future[Seq[Unit]] = {
     val allOperatorsInRegion = region.getOperators.map(_.id)
     Future.collect(
-      // activate all links
       region.getLinks
         .filter(link => {
           !activatedLink.contains(link) &&
@@ -182,7 +181,7 @@ class WorkflowScheduler(
     )
   }
 
-  private def openAllOperators(region: Region): Future[Seq[Unit]] = {
+  private def openOperators(region: Region): Future[Seq[Unit]] = {
     val allNotOpenedOperators =
       region.getOperators.map(_.id).diff(openedOperators)
     Future
@@ -240,10 +239,10 @@ class WorkflowScheduler(
       )
     )
     Future(())
-      .flatMap(_ => initializePythonOperators(region))
+      .flatMap(_ => initExecutors(region))
       .flatMap(_ => assignPorts(region))
-      .flatMap(_ => activateAllLinks(region))
-      .flatMap(_ => openAllOperators(region))
+      .flatMap(_ => connectChannels(region))
+      .flatMap(_ => openOperators(region))
       .flatMap(_ => sendStarts(region))
       .map(_ => {
         schedulingPolicy.addToRunningRegions(Set(region))
