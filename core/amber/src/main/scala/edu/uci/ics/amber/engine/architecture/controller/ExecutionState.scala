@@ -40,8 +40,12 @@ class ExecutionState(workflow: Workflow) {
       )
       .map(_.id)
 
-  def getOperatorExecution(op: PhysicalOpIdentity): OperatorExecution = {
-    operatorExecutions(op)
+  def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = {
+    operatorExecutions(opId)
+  }
+
+  def hasOperatorExecution(opId: PhysicalOpIdentity): Boolean = {
+    operatorExecutions.contains(opId)
   }
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
     operatorExecutions.values.foreach { execution =>

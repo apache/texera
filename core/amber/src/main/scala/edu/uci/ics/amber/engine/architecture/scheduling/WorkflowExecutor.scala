@@ -12,14 +12,13 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWork
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.scheduling.policies.RegionExecutionState
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
@@ -36,11 +35,6 @@ class WorkflowExecutor(
 ) extends LazyLogging {
   val regionExecutionState: RegionExecutionState = new RegionExecutionState()
 
-  // Since one operator/link(i.e. links within an operator) can belong to multiple regions, we do not want
-  // to build, init them multiple times. Currently, we use "opened" to indicate that an operator is built,
-  // execution function is initialized, and ready for input.
-  // This will be refactored later.
-  private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
   def startWorkflow(): Future[Seq[Unit]] = {
@@ -61,19 +55,17 @@ class WorkflowExecutor(
     Future.collect(regions.toSeq.map(region => scheduleRegion(region)))
   }
 
-  private def constructRegion(region: Region): Unit = {
-    val resourceConfig = region.resourceConfig.get
-    region
-      .topologicalIterator()
-      // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
-      .filter(physicalOpId => !openedOperators.contains(physicalOpId))
-      .foreach { (physicalOpId: PhysicalOpIdentity) =>
-        val physicalOp = region.getOperator(physicalOpId)
-        buildOperator(
-          physicalOp,
-          resourceConfig.operatorConfigs(physicalOpId)
-        )
-      }
+  private def buildOperators(
+      operators: Iterator[PhysicalOp],
+      resourceConfig: ResourceConfig
+  ): Unit = {
+    operators.foreach(physicalOp =>
+      buildOperator(
+        physicalOp,
+        resourceConfig.operatorConfigs(physicalOp.id)
+      )
+    )
+
   }
 
   private def buildOperator(
@@ -94,13 +86,11 @@ class WorkflowExecutor(
       .collect(
         // initialize executors in Python
         operators
-          .filter(op=> op.isPythonOperator)
-          .flatMap(
-            op => {
-              val workerIds = executionState.getOperatorExecution(op.id).getWorkerExecutions.keys
-              workerIds.map(workerId => (workerId, op))
-            }
-          )
+          .filter(op => op.isPythonOperator)
+          .flatMap(op => {
+            val workerIds = executionState.getOperatorExecution(op.id).getWorkerExecutions.keys
+            workerIds.map(workerId => (workerId, op))
+          })
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
               asyncRPCClient
@@ -146,26 +136,19 @@ class WorkflowExecutor(
 
   private def connectChannels(links: Set[PhysicalLink]): Future[Seq[Unit]] = {
     Future.collect(
-        links
-        .map { link: PhysicalLink =>asyncRPCClient.send(LinkWorkers(link), CONTROLLER)
-        }
-        .toSeq
+      links.map { link: PhysicalLink => asyncRPCClient.send(LinkWorkers(link), CONTROLLER) }.toSeq
     )
   }
 
-  private def openOperators(region: Region): Future[Seq[Unit]] = {
-    val allNotOpenedOperators =
-      region.getOperators.map(_.id).diff(openedOperators)
+  private def openOperators(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {
     Future
       .collect(
-        executionState
-          .getAllWorkersForOperators(allNotOpenedOperators)
-          .map { workerID =>
-            asyncRPCClient.send(OpenOperator(), workerID)
+        operators.map(_.id).map(opId => executionState.getOperatorExecution(opId)).flatMap(operatorExecution => operatorExecution.getWorkerExecutions.keys)
+          .map { workerId =>
+            asyncRPCClient.send(OpenOperator(), workerId)
           }
           .toSeq
       )
-      .onSuccess(_ => allNotOpenedOperators.foreach(opId => openedOperators.add(opId)))
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
@@ -194,8 +177,16 @@ class WorkflowExecutor(
     }.toSeq)
   }
 
-  private def executeRegion(region: Region): Future[Unit] = {
+  private def scheduleRegion(region: Region): Future[Unit] = {
+    val operatorsToBuild = region
+      .topologicalIterator()
+      .filter(opId => { !executionState.hasOperatorExecution(opId) })
+      .map(opId => region.getOperator(opId))
+    val linksToInit = region.getLinks
+    val resourceConfig = region.resourceConfig.get
     regionExecutionState.addToRunningRegions(Set(region))
+
+    buildOperators(operatorsToBuild, resourceConfig)
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
@@ -211,30 +202,33 @@ class WorkflowExecutor(
           .toMap
       )
     )
-    val operatorsToInit = region.getOperators.filter(op=> executionState.getAllOperatorExecutions.filter(a=> a._2.getState == WorkflowAggregatedState.UNINITIALIZED).map(_._1).toSet.contains(op.id))
-    val linksToInit = region.getLinks
+
+    val operatorsToInit = region.getOperators.filter(op =>
+      executionState.getAllOperatorExecutions
+        .filter(a => a._2.getState == WorkflowAggregatedState.UNINITIALIZED)
+        .map(_._1)
+        .toSet
+        .contains(op.id)
+    )
+
     Future(())
       .flatMap(_ => initExecutors(operatorsToInit))
       .flatMap(_ => assignPorts(region))
       .flatMap(_ => connectChannels(linksToInit))
-      .flatMap(_ => openOperators(region))
+      .flatMap(_ => openOperators(operatorsToInit))
       .flatMap(_ => sendStarts(region))
       .map(_ => {
 
         startedRegions.add(region.id)
       })
-  }
-
-  private def scheduleRegion(region: Region): Future[Unit] = {
-
-    constructRegion(region)
-    executeRegion(region).rescue {
-      case err: Throwable =>
-        // this call may come from client or worker(by execution completed)
-        // thus we need to force it to send error to client.
-        asyncRPCClient.sendToClient(FatalError(err, None))
-        Future.Unit
-    }
+      .rescue {
+        case err: Throwable =>
+          // this call may come from client or worker(by execution completed)
+          // thus we need to force it to send error to client.
+          asyncRPCClient.sendToClient(FatalError(err, None))
+          Future.Unit
+      }
+    Future.Unit
   }
 
   private def getNextRegions: Set[Region] = {
