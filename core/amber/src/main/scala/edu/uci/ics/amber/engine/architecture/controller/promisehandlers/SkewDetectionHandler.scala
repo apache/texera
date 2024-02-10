@@ -286,7 +286,7 @@ trait SkewDetectionHandler {
     val futures = new ArrayBuffer[Future[Boolean]]()
     cp.executionState
       .getOperatorExecution(prevPhysicalOp.id)
-      .getWorkerIds
+      .getBuiltWorkerIds
       .foreach(id => {
         futures.append(
           send(
@@ -312,7 +312,7 @@ trait SkewDetectionHandler {
     val futures = new ArrayBuffer[Future[Boolean]]()
     cp.executionState
       .getOperatorExecution(prevPhysicalOp.id)
-      .getWorkerIds
+      .getBuiltWorkerIds
       .foreach(id => {
         if (
           workflowReshapeState.workloadSamples.contains(id) && workflowReshapeState
@@ -360,7 +360,7 @@ trait SkewDetectionHandler {
     val futuresArr = new ArrayBuffer[Future[Boolean]]()
     cp.executionState
       .getOperatorExecution(prevPhysicalOp.id)
-      .getWorkerIds
+      .getBuiltWorkerIds
       .foreach(id => {
         futuresArr.append(send(PauseSkewMitigation(skewedWorker, helperWorker), id))
       })

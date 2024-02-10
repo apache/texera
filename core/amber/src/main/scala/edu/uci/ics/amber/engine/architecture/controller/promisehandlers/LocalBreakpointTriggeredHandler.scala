@@ -56,7 +56,7 @@ trait LocalBreakpointTriggeredHandler {
         // first pause the workers, then get their local breakpoints
         Future
           .collect(
-            targetOp.getWorkerIds.map { worker =>
+            targetOp.getBuiltWorkerIds.map { worker =>
               send(PauseWorker(), worker).flatMap { ret =>
                 send(QueryAndRemoveBreakpoints(unResolved), worker)
               }

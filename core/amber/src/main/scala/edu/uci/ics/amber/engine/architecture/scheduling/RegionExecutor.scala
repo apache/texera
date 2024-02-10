@@ -86,7 +86,7 @@ class RegionExecutor(
           .map(physicalOpId => {
             physicalOpId.logicalOpId.id -> executionState
               .getOperatorExecution(physicalOpId)
-              .getWorkerIds
+              .getBuiltWorkerIds
               .map(_.name)
               .toList
           })
@@ -138,7 +138,10 @@ class RegionExecutor(
         operators
           .filter(op => op.isPythonOperator)
           .flatMap(op => {
-            executionState.getOperatorExecution(op.id).getWorkerIds.map(workerId => (workerId, op))
+            executionState
+              .getOperatorExecution(op.id)
+              .getBuiltWorkerIds
+              .map(workerId => (workerId, op))
           })
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
@@ -190,7 +193,7 @@ class RegionExecutor(
       .collect(
         operators
           .map(_.id)
-          .flatMap(opId => executionState.getOperatorExecution(opId).getWorkerIds)
+          .flatMap(opId => executionState.getOperatorExecution(opId).getBuiltWorkerIds)
           .map { workerId =>
             asyncRPCClient.send(OpenOperator(), workerId)
           }

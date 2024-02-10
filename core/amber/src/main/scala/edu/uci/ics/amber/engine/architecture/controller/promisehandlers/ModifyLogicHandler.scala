@@ -37,7 +37,7 @@ trait ModifyLogicHandler {
         WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)
       }
       Future
-        .collect(opExecution.getWorkerIds.map { worker =>
+        .collect(opExecution.getBuiltWorkerIds.map { worker =>
           send(workerCommand, worker).onFailure((err: Throwable) => {
             logger.error("Failure when performing reconfiguration", err)
             // report error to frontend

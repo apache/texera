@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -34,7 +33,9 @@ class ExecutionState(workflow: Workflow) {
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values
-      .flatMap(operator => operator.getWorkerIds.map(worker => operator.getWorkerExecution(worker)))
+      .flatMap(operator =>
+        operator.getBuiltWorkerIds.map(worker => operator.getWorkerExecution(worker))
+      )
       .map(_.id)
 
   def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = {
@@ -46,7 +47,7 @@ class ExecutionState(workflow: Workflow) {
   }
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
     operatorExecutions.values.foreach { execution =>
-      val result = execution.getWorkerIds.find(x => x == worker)
+      val result = execution.getBuiltWorkerIds.find(x => x == worker)
       if (result.isDefined) {
         return execution
       }
@@ -55,12 +56,6 @@ class ExecutionState(workflow: Workflow) {
   }
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions
-
-  def getAllWorkersOfRegion(region: Region): Set[ActorVirtualIdentity] = {
-    region.getOperators.flatMap(physicalOp =>
-      getOperatorExecution(physicalOp.id).getWorkerIds.toList
-    )
-  }
 
   def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
     operatorExecutions.map(op => (op._1.logicalOpId.id, op._2.getOperatorStatistics)).toMap
@@ -92,11 +87,6 @@ class ExecutionState(workflow: Workflow) {
     } else {
       WorkflowAggregatedState.UNKNOWN
     }
-  }
-  def getAllWorkersForOperators(
-      operators: Set[PhysicalOpIdentity]
-  ): Set[ActorVirtualIdentity] = {
-    operators.flatMap(physicalOpId => getOperatorExecution(physicalOpId).getWorkerIds)
   }
 
 }

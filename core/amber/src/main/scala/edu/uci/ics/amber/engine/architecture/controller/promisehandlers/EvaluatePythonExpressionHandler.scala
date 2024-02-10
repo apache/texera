@@ -30,7 +30,7 @@ trait EvaluatePythonExpressionHandler {
 
       Future
         .collect(
-          opExecution.getWorkerIds
+          opExecution.getBuiltWorkerIds
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList
         )
