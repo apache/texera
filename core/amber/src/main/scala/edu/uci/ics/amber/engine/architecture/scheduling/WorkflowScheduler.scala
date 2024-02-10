@@ -22,6 +22,7 @@ import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class WorkflowScheduler(
     regionPlan: RegionPlan,
@@ -42,15 +43,32 @@ class WorkflowScheduler(
   def startWorkflow(
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.startWorkflow()
-    doSchedulingWork(nextRegionsToSchedule, akkaActorService)
+    doSchedulingWork(getNextRegions, akkaActorService)
   }
 
   def onPortCompletion(
       akkaActorService: AkkaActorService,
       portId: GlobalPortIdentity
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.onPortCompletion(executionState, portId)
+    val nextRegionsToSchedule =  schedulingPolicy.getRegion(portId) match {
+      case Some(region) =>
+        val portIds =
+          schedulingPolicy.completedPortIdsOfRegion.getOrElseUpdate(
+            region.id,
+            new mutable.HashSet[GlobalPortIdentity]()
+          )
+        portIds.add(portId)
+        if (schedulingPolicy.isRegionCompleted(executionState, region)) {
+          schedulingPolicy.runningRegions.remove(region)
+          schedulingPolicy.completedRegions.add(region)
+          getNextRegions
+        }else{
+          Set[Region]()
+        }
+      case None =>
+        Set[Region]() // currently, the virtual input ports of source operators do not belong to any region
+    }
+
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 
@@ -250,6 +268,38 @@ class WorkflowScheduler(
         asyncRPCClient.sendToClient(FatalError(err, None))
         Future.Unit
     }
+  }
+
+  private def getNextRegions: Set[Region] = {
+
+    def getRegionsOrder(regionPlan: RegionPlan): List[Set[RegionIdentity]] = {
+      val levels = mutable.Map.empty[RegionIdentity, Int]
+      val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
+      val iterator = regionPlan.topologicalIterator()
+
+      iterator.foreach { currentVertex =>
+        val currentLevel = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
+          (maxLevel, incomingEdge) =>
+            val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
+            val sourceLevel = levels.getOrElse(sourceVertex, 0)
+            math.max(maxLevel, sourceLevel + 1)
+        }
+        levels.update(currentVertex, currentLevel)
+        val verticesAtCurrentLevel =
+          levelSets.getOrElseUpdate(currentLevel, mutable.Set.empty[RegionIdentity])
+        verticesAtCurrentLevel.add(currentVertex)
+      }
+
+      val maxLevel = levels.values.maxOption.getOrElse(0)
+      (0 to maxLevel).toList.map(level => levelSets.getOrElse(level, mutable.Set.empty).toSet)
+    }
+
+    getRegionsOrder(regionPlan)
+      .map(regionIds => regionIds.diff(schedulingPolicy.completedRegions.map(_.id))).find(_.nonEmpty) match {
+      case Some(regionIds) => regionIds.map(regionId => regionPlan.getRegion(regionId))
+      case None => Set()
+    }
+
   }
 
 }
