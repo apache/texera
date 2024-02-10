@@ -50,6 +50,17 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var fields: String = ""
 
+  @JsonProperty(defaultValue = "false", required = false)
+  @JsonSchemaTitle("Long Input Form")
+  @JsonPropertyDescription("Check if Using Long Input Form")
+  var isLongInputForm: Boolean = _
+
+  @JsonProperty(defaultValue = "", required = false)
+  @JsonSchemaTitle("Long Input Form Column")
+  @JsonPropertyDescription("Select a column for long input form")
+  @AutofillAttributeName
+  var colLongInputForm: String = ""
+
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
   @JsonPropertyDescription("Orientation Style")
@@ -78,7 +89,16 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
     var truthy = ""
-    if (orientation) truthy = "True"
+    if (orientation)
+      truthy = "True"
+    else
+      truthy = "False"
+
+    var colorCode = ""
+    if (isLongInputForm && colLongInputForm != "")
+      colorCode = "True"
+    else
+      colorCode = "False"
     val finalCode = s"""
                         |from pytexera import *
                         |
@@ -102,10 +122,14 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
                         |        ${manipulateTable()}
                         |        if not table.empty and '$fields' != '$value':
-                        |           if ($truthy):
-                        |              fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h', title='$title'))
-                        |           else:
-                        |              fig = go.Figure(px.bar(table, y='$value', x='$fields', title='$title'))
+                        |           if $truthy and $colorCode:
+                        |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$colLongInputForm", orientation = 'h', title='$title'))
+                        |           elif not $truthy and not $colorCode:
+                        |               fig = go.Figure(px.bar(table, y='$value', x='$fields', title='$title'))
+                        |           elif $truthy and not $colorCode:
+                        |               fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h', title='$title'))
+                        |           elif  not $truthy and $colorCode:
+                        |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$colLongInputForm", title='$title'))
                         |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
                         |           # use latest plotly lib in html
                         |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
