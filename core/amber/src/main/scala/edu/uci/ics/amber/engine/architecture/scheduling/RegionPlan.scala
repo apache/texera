@@ -19,15 +19,12 @@ case class RegionPlan(
   @transient private lazy val regionMapping: Map[RegionIdentity, Region] =
     regions.map(region => region.id -> region).toMap
 
-  def getUpstreamRegions(region: Region): Set[Region] = {
-    regionLinks
-      .filter(link => link.toRegionId == region.id)
-      .map(_.fromRegionId)
-      .map(regionId => regionMapping(regionId))
+  def getRegionOfLink(link: PhysicalLink): Region = {
+    regions.find(region => region.getLinks.contains(link)).get
   }
 
-  def getRegionOfPhysicalLink(link: PhysicalLink): Region = {
-    regions.find(region => region.getLinks.contains(link)).get
+  def getRegionOfPortId(portId: GlobalPortIdentity): Region = {
+    regions.find(region => region.getPorts.contains(portId)).get
   }
 
   def topologicalIterator(): Iterator[RegionIdentity] = {

@@ -63,13 +63,11 @@ class WorkflowExecutor(
   }
 
   def markRegionCompletion(portId: GlobalPortIdentity): Unit = {
-    regionPlan.regions
-      .filter(region => region.getPorts.contains(portId))
-      .filter(region => RegionExecution.isRegionCompleted(executionState, region))
-      .foreach { region =>
-        regionExecutors(region.id).regionExecution.running = false
-        regionExecutors(region.id).regionExecution.completed = true
-      }
+    val region = regionPlan.getRegionOfPortId(portId)
+    if (RegionExecution.isRegionCompleted(executionState, region)) {
+      regionExecutors(region.id).regionExecution.running = false
+      regionExecutors(region.id).regionExecution.completed = true
+    }
   }
 
   /**
