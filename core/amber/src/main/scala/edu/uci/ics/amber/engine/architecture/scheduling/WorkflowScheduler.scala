@@ -30,6 +30,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class WorkflowScheduler(
     regionPlan: RegionPlan,
     executionState: ExecutionState,
+    actorService: AkkaActorService,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
@@ -43,16 +44,11 @@ class WorkflowScheduler(
   private val activatedLink = new mutable.HashSet[PhysicalLink]()
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
-  def startWorkflow(
-      akkaActorService: AkkaActorService
-  ): Future[Seq[Unit]] = {
-    doSchedulingWork(getNextRegions, akkaActorService)
+  def startWorkflow(): Future[Seq[Unit]] = {
+    doSchedulingWork(getNextRegions)
   }
 
-  def onPortCompletion(
-      akkaActorService: AkkaActorService,
-      portId: GlobalPortIdentity
-  ): Future[Seq[Unit]] = {
+  def onPortCompletion(portId: GlobalPortIdentity): Future[Seq[Unit]] = {
     val nextRegionsToSchedule: Set[Region] = regionExecutionState.getRegion(portId) match {
       case Some(region) =>
         if (regionExecutionState.isRegionCompleted(executionState, region)) {
@@ -67,19 +63,16 @@ class WorkflowScheduler(
         Set()
     }
 
-    doSchedulingWork(nextRegionsToSchedule, akkaActorService)
+    doSchedulingWork(nextRegionsToSchedule)
   }
 
-  private def doSchedulingWork(
-      regions: Set[Region],
-      actorService: AkkaActorService
-  ): Future[Seq[Unit]] = {
+  private def doSchedulingWork(regions: Set[Region]): Future[Seq[Unit]] = {
     Future.collect(
-      regions.toSeq.map(region => scheduleRegion(region, actorService))
+      regions.toSeq.map(region => scheduleRegion(region))
     )
   }
 
-  private def constructRegion(region: Region, akkaActorService: AkkaActorService): Unit = {
+  private def constructRegion(region: Region): Unit = {
     val resourceConfig = region.resourceConfig.get
     region
       .topologicalIterator()
@@ -89,16 +82,14 @@ class WorkflowScheduler(
         val physicalOp = region.getOperator(physicalOpId)
         buildOperator(
           physicalOp,
-          resourceConfig.operatorConfigs(physicalOpId),
-          akkaActorService
+          resourceConfig.operatorConfigs(physicalOpId)
         )
       }
   }
 
   private def buildOperator(
       physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
-      actorService: AkkaActorService
+      operatorConfig: OperatorConfig
   ): Unit = {
     val opExecution = executionState.initOperatorState(physicalOp.id, operatorConfig)
     physicalOp.build(
@@ -252,9 +243,9 @@ class WorkflowScheduler(
       })
   }
 
-  private def scheduleRegion(region: Region, actorService: AkkaActorService): Future[Unit] = {
+  private def scheduleRegion(region: Region): Future[Unit] = {
 
-    constructRegion(region, actorService)
+    constructRegion(region)
     executeRegion(region).rescue {
       case err: Throwable =>
         // this call may come from client or worker(by execution completed)

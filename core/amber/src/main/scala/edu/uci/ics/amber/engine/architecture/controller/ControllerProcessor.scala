@@ -18,13 +18,7 @@ class ControllerProcessor(
 ) extends AmberProcessor(actorId, outputHandler) {
 
   val executionState = new ExecutionState(workflow)
-  val workflowScheduler =
-    new WorkflowScheduler(
-      workflow.regionPlan,
-      executionState,
-      controllerConfig,
-      asyncRPCClient
-    )
+
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
@@ -34,6 +28,9 @@ class ControllerProcessor(
   }
 
   @transient var actorService: AkkaActorService = _
+
+  var workflowScheduler : WorkflowScheduler = _
+
   def setupActorService(akkaActorService: AkkaActorService): Unit = {
     this.actorService = akkaActorService
   }
@@ -47,6 +44,16 @@ class ControllerProcessor(
 
   def setupLogManager(logManager: ReplayLogManager): Unit = {
     this.logManager = logManager
+  }
+
+  def initWorkflowScheduler() : Unit  = {
+    this.workflowScheduler = new WorkflowScheduler(
+      workflow.regionPlan,
+      executionState,
+      actorService,
+      controllerConfig,
+      asyncRPCClient
+    )
   }
 
 }
