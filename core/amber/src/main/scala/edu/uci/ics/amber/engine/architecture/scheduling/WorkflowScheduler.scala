@@ -44,10 +44,9 @@ class WorkflowScheduler(
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
   def startWorkflow(
-      workflow: Workflow,
       akkaActorService: AkkaActorService
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.startWorkflow(workflow)
+    val nextRegionsToSchedule = schedulingPolicy.startWorkflow()
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 
@@ -56,7 +55,7 @@ class WorkflowScheduler(
       akkaActorService: AkkaActorService,
       portId: GlobalPortIdentity
   ): Future[Seq[Unit]] = {
-    val nextRegionsToSchedule = schedulingPolicy.onPortCompletion(workflow, executionState, portId)
+    val nextRegionsToSchedule = schedulingPolicy.onPortCompletion(executionState, portId)
     doSchedulingWork(nextRegionsToSchedule, akkaActorService)
   }
 

@@ -10,14 +10,11 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import scala.util.control.Breaks.{break, breakable}
 
 class SchedulingPolicy(
     protected val regionPlan: RegionPlan
 ) {
 
-  // regions sent by the policy to be scheduled at least once
-  protected val scheduledRegions = new mutable.HashSet[Region]()
   protected val completedRegions = new mutable.HashSet[Region]()
   // regions currently running
   private val runningRegions = new mutable.HashSet[Region]()
@@ -34,9 +31,7 @@ class SchedulingPolicy(
   private def getRegion(portId: GlobalPortIdentity): Option[Region] = {
     runningRegions.find(r => r.getPorts.contains(portId))
   }
-
-  // gets the ready regions that is not currently running
-  protected def getNextSchedulingWork(workflow: Workflow): Set[Region] = {
+  private def getNextRegions: Set[Region] = {
 
     def getRegionsOrder(regionPlan: RegionPlan): List[Set[RegionIdentity]] = {
       val levels = mutable.Map.empty[RegionIdentity, Int]
@@ -68,12 +63,11 @@ class SchedulingPolicy(
 
   }
 
-  def startWorkflow(workflow: Workflow): Set[Region] = {
-    getNextSchedulingWork(workflow)
+  def startWorkflow(): Set[Region] = {
+    getNextRegions
   }
 
   def onPortCompletion(
-      workflow: Workflow,
       executionState: ExecutionState,
       portId: GlobalPortIdentity
   ): Set[Region] = {
@@ -88,7 +82,7 @@ class SchedulingPolicy(
         if (isRegionCompleted(executionState, region)) {
           runningRegions.remove(region)
           completedRegions.add(region)
-          getNextSchedulingWork(workflow)
+          getNextRegions
         }else{
           Set()
         }
