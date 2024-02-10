@@ -46,7 +46,8 @@ class RegionExecutor(
     actorService: AkkaActorService,
     controllerConfig: ControllerConfig
 ) {
-
+  // TODO: for now we keep the state with the Executor.
+  //   After refactoring the ExecutionState, we can move this into executionState
   val regionExecution: RegionExecution = RegionExecution()
 
   def getRegionExecution: RegionExecution = {
@@ -199,21 +200,25 @@ class RegionExecutor(
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
     asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
-    val sourceOpIds = region.getSourceOperators.map(_.id)
-    Future.collect(sourceOpIds.flatMap { opId =>
-      executionState
-        .getOperatorExecution(opId)
-        .getWorkerExecutions
-        .map {
-          case (workerId, workerExecution) =>
-            asyncRPCClient
-              .send(StartWorker(), workerId)
-              .map(ret =>
-                // update worker state
-                workerExecution.state = ret
-              )
+    Future.collect(
+      region.getSourceOperators
+        .map(_.id)
+        .flatMap { opId =>
+          executionState
+            .getOperatorExecution(opId)
+            .getWorkerExecutions
+            .map {
+              case (workerId, workerExecution) =>
+                asyncRPCClient
+                  .send(StartWorker(), workerId)
+                  .map(ret =>
+                    // update worker state
+                    workerExecution.state = ret
+                  )
+            }
         }
-    }.toSeq)
+        .toSeq
+    )
   }
 
 }

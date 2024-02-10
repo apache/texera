@@ -19,10 +19,33 @@ class WorkflowExecutor(
 
   private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutor] = mutable.HashMap()
 
+  private val regionExecutionOrder: List[Set[RegionIdentity]] = {
+    val levels = mutable.Map.empty[RegionIdentity, Int]
+    val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
+
+    regionPlan.topologicalIterator().foreach { currentVertex =>
+      val currentLevel = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
+        (maxLevel, incomingEdge) =>
+          val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
+          math.max(maxLevel, levels.getOrElse(sourceVertex, 0) + 1)
+      }
+
+      levels(currentVertex) = currentLevel
+      levelSets.getOrElseUpdate(currentLevel, mutable.Set.empty).add(currentVertex)
+    }
+
+    val maxLevel = levels.values.maxOption.getOrElse(0)
+    (0 to maxLevel).toList.map(level => levelSets.getOrElse(level, mutable.Set.empty).toSet)
+  }
+
+  /**
+    * The entry function for WorkflowExecutor.
+    * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
+    */
   def executeNextRegions(): Future[Unit] = {
     Future
       .collect(
-        getNextRegions.toSeq
+        getNextRegions
           .map(region => {
             regionExecutors(region.id) = new RegionExecutor(
               region,
@@ -34,11 +57,12 @@ class WorkflowExecutor(
             regionExecutors(region.id)
           })
           .map(regionExecutor => regionExecutor.execute)
+          .toSeq
       )
       .unit
   }
 
-  def updateRegionExecutionState(portId: GlobalPortIdentity): Unit = {
+  def markRegionCompletion(portId: GlobalPortIdentity): Unit = {
     regionPlan.regions
       .filter(region => region.getPorts.contains(portId))
       .filter(region => RegionExecution.isRegionCompleted(executionState, region))
@@ -48,51 +72,23 @@ class WorkflowExecutor(
       }
   }
 
+  /**
+    * get the next batch of Regions to execute.
+    */
   private def getNextRegions: Set[Region] = {
-    if (
-      regionExecutors.values
-        .map(regionExecutor => regionExecutor.getRegionExecution)
-        .exists(regionExecution => regionExecution.running)
-    ) {
+    if (regionExecutors.values.map(_.getRegionExecution).exists(_.running)) {
       return Set.empty
     }
-    def getRegionsOrder(regionPlan: RegionPlan): List[Set[RegionIdentity]] = {
-      val levels = mutable.Map.empty[RegionIdentity, Int]
-      val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
-      val iterator = regionPlan.topologicalIterator()
 
-      iterator.foreach { currentVertex =>
-        val currentLevel = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
-          (maxLevel, incomingEdge) =>
-            val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
-            val sourceLevel = levels.getOrElse(sourceVertex, 0)
-            math.max(maxLevel, sourceLevel + 1)
-        }
-        levels.update(currentVertex, currentLevel)
-        val verticesAtCurrentLevel =
-          levelSets.getOrElseUpdate(currentLevel, mutable.Set.empty[RegionIdentity])
-        verticesAtCurrentLevel.add(currentVertex)
-      }
+    val completedRegions: Set[RegionIdentity] = regionExecutors.collect {
+      case (regionId, executor) if executor.regionExecution.completed => regionId
+    }.toSet
 
-      val maxLevel = levels.values.maxOption.getOrElse(0)
-      (0 to maxLevel).toList.map(level => levelSets.getOrElse(level, mutable.Set.empty).toSet)
-    }
-
-    getRegionsOrder(regionPlan)
-      .map(regionIds =>
-        regionIds.diff(
-          regionExecutors
-            .filter {
-              case (_, regionExecutor) => regionExecutor.regionExecution.completed
-            }
-            .keys
-            .toSet
-        )
-      )
-      .find(_.nonEmpty) match {
-      case Some(regionIds) => regionIds.map(regionId => regionPlan.getRegion(regionId))
-      case None            => Set()
-    }
+    regionExecutionOrder
+      .map(_ -- completedRegions)
+      .find(_.nonEmpty)
+      .getOrElse(Set.empty)
+      .map(regionPlan.getRegion)
 
   }
 
