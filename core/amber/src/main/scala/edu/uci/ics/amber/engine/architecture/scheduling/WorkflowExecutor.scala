@@ -41,7 +41,6 @@ class WorkflowExecutor(
   // execution function is initialized, and ready for input.
   // This will be refactored later.
   private val openedOperators = new mutable.HashSet[PhysicalOpIdentity]()
-  private val activatedLink = new mutable.HashSet[PhysicalLink]()
   private val startedRegions = new mutable.HashSet[RegionIdentity]()
 
   def startWorkflow(): Future[Seq[Unit]] = {
@@ -90,19 +89,18 @@ class WorkflowExecutor(
       controllerConfig.workerLoggingConfMapping
     )
   }
-  private def initExecutors(region: Region): Future[Seq[Unit]] = {
-
-    val opIdsToInit = region.getOperators
-      .filter(physicalOp => physicalOp.isPythonOperator)
-      // TOOTIMIZE: using opened state which indicates an operator is built, init, and opened.
-      .map(_.id)
-      .diff(openedOperators)
-
+  private def initExecutors(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {
     Future
       .collect(
-        // initialize python operator code
-        executionState
-          .getPythonWorkerToOperatorExec(opIdsToInit)
+        // initialize executors in Python
+        operators
+          .filter(op=> op.isPythonOperator)
+          .flatMap(
+            op => {
+              val workerIds = executionState.getOperatorExecution(op.id).getWorkerExecutions.keys
+              workerIds.map(workerId => (workerId, op))
+            }
+          )
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
               asyncRPCClient
@@ -146,19 +144,10 @@ class WorkflowExecutor(
     )
   }
 
-  private def connectChannels(region: Region): Future[Seq[Unit]] = {
-    val allOperatorsInRegion = region.getOperators.map(_.id)
+  private def connectChannels(links: Set[PhysicalLink]): Future[Seq[Unit]] = {
     Future.collect(
-      region.getLinks
-        .filter(link => {
-          !activatedLink.contains(link) &&
-            allOperatorsInRegion.contains(link.fromOpId) &&
-            allOperatorsInRegion.contains(link.toOpId)
-        })
-        .map { link: PhysicalLink =>
-          asyncRPCClient
-            .send(LinkWorkers(link), CONTROLLER)
-            .onSuccess(_ => activatedLink.add(link))
+        links
+        .map { link: PhysicalLink =>asyncRPCClient.send(LinkWorkers(link), CONTROLLER)
         }
         .toSeq
     )
@@ -222,10 +211,12 @@ class WorkflowExecutor(
           .toMap
       )
     )
+    val operatorsToInit = region.getOperators.filter(op=> executionState.getAllOperatorExecutions.filter(a=> a._2.getState == WorkflowAggregatedState.UNINITIALIZED).map(_._1).toSet.contains(op.id))
+    val linksToInit = region.getLinks
     Future(())
-      .flatMap(_ => initExecutors(region))
+      .flatMap(_ => initExecutors(operatorsToInit))
       .flatMap(_ => assignPorts(region))
-      .flatMap(_ => connectChannels(region))
+      .flatMap(_ => connectChannels(linksToInit))
       .flatMap(_ => openOperators(region))
       .flatMap(_ => sendStarts(region))
       .map(_ => {

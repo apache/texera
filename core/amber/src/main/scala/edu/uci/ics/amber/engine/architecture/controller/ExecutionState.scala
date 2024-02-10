@@ -97,15 +97,5 @@ class ExecutionState(workflow: Workflow) {
   ): Set[ActorVirtualIdentity] = {
     operators.flatMap(physicalOpId => getOperatorExecution(physicalOpId).getBuiltWorkerIds)
   }
-  def getPythonWorkerToOperatorExec(
-      pythonPhysicalOpIds: Set[PhysicalOpIdentity]
-  ): Iterable[(ActorVirtualIdentity, PhysicalOp)] = {
-    pythonPhysicalOpIds
-      .map(opId => workflow.physicalPlan.getOperator(opId))
-      .filter(physicalOp => physicalOp.isPythonOperator)
-      .flatMap(physicalOp =>
-        getOperatorExecution(physicalOp.id).getBuiltWorkerIds.map(worker => (worker, physicalOp))
-      )
-  }
 
 }
