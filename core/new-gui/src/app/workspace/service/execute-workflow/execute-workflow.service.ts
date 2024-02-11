@@ -25,6 +25,7 @@ import { sessionGetObject, sessionSetObject } from "../../../common/util/storage
 import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { exhaustiveGuard } from "../../../common/util/switch";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -71,6 +72,7 @@ export class ExecuteWorkflowService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
+    private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService
   ) {
     workflowWebsocketService.websocketEvent().subscribe(event => {
@@ -180,11 +182,15 @@ export class ExecuteWorkflowService {
 
   public executeWorkflow(executionName: string): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    this.resetExecutionState();
+    this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan);
   }
 
   public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    this.resetExecutionState();
+    this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(
       `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
       logicalPlan,
