@@ -22,7 +22,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.Seq
 
-object RegionExecution {
+case object RegionExecution {
   def isRegionCompleted(
       executionState: ExecutionState,
       region: Region
@@ -39,7 +39,7 @@ case class RegionExecution() {
   var completed: Boolean = false
 
 }
-class RegionExecutor(
+class RegionExecutionController(
     region: Region,
     executionState: ExecutionState,
     asyncRPCClient: AsyncRPCClient,

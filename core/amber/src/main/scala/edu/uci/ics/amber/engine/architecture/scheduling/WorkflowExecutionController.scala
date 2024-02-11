@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class WorkflowExecutor(
+class WorkflowExecutionController(
     regionPlan: RegionPlan,
     executionState: ExecutionState,
     actorService: AkkaActorService,
@@ -17,7 +17,8 @@ class WorkflowExecutor(
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutor] = mutable.HashMap()
+  private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutionController] =
+    mutable.HashMap()
 
   private val regionExecutionOrder: List[Set[RegionIdentity]] = {
     val levels = mutable.Map.empty[RegionIdentity, Int]
@@ -47,7 +48,7 @@ class WorkflowExecutor(
       .collect(
         getNextRegions
           .map(region => {
-            regionExecutors(region.id) = new RegionExecutor(
+            regionExecutors(region.id) = new RegionExecutionController(
               region,
               executionState,
               asyncRPCClient,
