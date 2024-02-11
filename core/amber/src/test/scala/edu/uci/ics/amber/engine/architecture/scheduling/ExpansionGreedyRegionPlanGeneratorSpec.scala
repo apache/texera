@@ -97,8 +97,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       )
       .get
 
-    assert(workflow.regionPlan.getUpstreamRegions(probeRegion).size == 1)
-    assert(workflow.regionPlan.getUpstreamRegions(probeRegion).contains(buildRegion))
+    assert(workflow.regionPlan.regionLinks.contains(RegionLink(buildRegion.id, probeRegion.id)))
+
   }
 
   "RegionPlanGenerator" should "correctly find regions in csv->->filter->join->sink workflow" in {

@@ -115,8 +115,7 @@ class RegionExecutor(
           // thus we need to force it to send error to client.
           asyncRPCClient.sendToClient(FatalError(err, None))
           Future.Unit
-      }
-    Future.Unit
+      }.unit
   }
   private def buildOperator(
       physicalOp: PhysicalOp,

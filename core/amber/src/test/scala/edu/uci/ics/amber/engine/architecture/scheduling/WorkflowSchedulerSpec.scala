@@ -1,40 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState, Workflow}
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.COMPLETED
-import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
-import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
-class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
-
-  def setLogicalOpCompleted(
-      workflow: Workflow,
-      executionState: ExecutionState,
-      logicalOpId: OperatorIdentity
-  ): Unit = {
-    val physicalOps = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
-    physicalOps.foreach { physicalOp =>
-      setPhysicalOpCompleted(workflow, executionState, physicalOp.id)
-    }
-  }
-
-  def setPhysicalOpCompleted(
-      workflow: Workflow,
-      executionState: ExecutionState,
-      physicalOpId: PhysicalOpIdentity
-  ): Unit = {
-    executionState.initOperatorState(
-      physicalOpId,
-      OperatorConfig(List(WorkerConfig(workerId = null)))
-    )
-    executionState.getOperatorExecution(physicalOpId).setAllWorkerState(COMPLETED)
-  }
+class WorkflowSchedulerSpec extends AnyFlatSpec {
 
   "Scheduler" should "correctly schedule regions in headerlessCsv->keyword->sink workflow" in {
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
@@ -57,62 +29,18 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
-    val executionState = new ExecutionState(workflow)
-    val scheduler =
-      new WorkflowExecutor(
-        workflow.regionPlan.regions.toBuffer,
-        executionState,
-        ControllerConfig.default,
-        null
-      )
-    Set(
-      headerlessCsvOpDesc.operatorIdentifier,
-      keywordOpDesc.operatorIdentifier,
-      sink.operatorIdentifier
-    ).foreach(logicalOpId => setLogicalOpCompleted(workflow, executionState, logicalOpId))
-    scheduler.regionExecutionState.addToRunningRegions(
-      scheduler.regionExecutionState.startWorkflow(workflow)
-    )
-    val csvPhysicalOpId = workflow.physicalPlan
-      .getPhysicalOpsOfLogicalOp(headerlessCsvOpDesc.operatorIdentifier)
-      .head
-      .id
-    val keywordPhysicalOpId =
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(keywordOpDesc.operatorIdentifier).head.id
-    val sinkPhysicalOpId =
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(sink.operatorIdentifier).head.id
+    assert(workflow.regionPlan.regions.size == 1)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
+      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+    }
 
-    var nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(csvPhysicalOpId, PortIdentity(), input = false)
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.isEmpty)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
+      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    }
 
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(keywordPhysicalOpId, PortIdentity(), input = true)
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.isEmpty)
-
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(keywordPhysicalOpId, PortIdentity(), input = false)
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.isEmpty)
-
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(sinkPhysicalOpId, PortIdentity(), input = true)
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 1)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
+      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+    }
 
   }
 
@@ -163,219 +91,18 @@ class WorkflowSchedulerSpec extends AnyFlatSpec with MockFactory {
         )
       )
     )
+    assert(workflow.regionPlan.regions.size == 2)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
+      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+    }
 
-    val hashJoin1PhysicalOps =
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(hashJoin1.operatorIdentifier)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
+      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    }
 
-    val hashJoin1BuildPhysicalOp = hashJoin1PhysicalOps.head
-    val hashJoin1ProbePhysicalOp = hashJoin1PhysicalOps(1)
-
-    val hashJoin2PhysicalOps =
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(hashJoin2.operatorIdentifier)
-
-    val hashJoin2BuildPhysicalOp = hashJoin2PhysicalOps.head
-    val hashJoin2ProbePhysicalOp = hashJoin2PhysicalOps(1)
-
-    val executionState = new ExecutionState(workflow)
-    val scheduler =
-      new WorkflowExecutor(
-        workflow.regionPlan.regions.toBuffer,
-        executionState,
-        ControllerConfig.default,
-        null
-      )
-    scheduler.regionExecutionState.addToRunningRegions(
-      scheduler.regionExecutionState.startWorkflow(workflow)
-    )
-    Set(buildCsv.operatorIdentifier).foreach(logicalOpId =>
-      setLogicalOpCompleted(workflow, executionState, logicalOpId)
-    )
-    val opIdentity = buildCsv.operatorIdentifier
-    val buildCsvPhysicalOpId = workflow.physicalPlan.getPhysicalOpsOfLogicalOp(opIdentity).head.id
-
-    // buildCsv worker output port completes
-    var nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        buildCsvPhysicalOpId,
-        PortIdentity(),
-        input = false
-      )
-    )
-    assert(nextRegions.isEmpty)
-
-    // hashJoin1 build input port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin1BuildPhysicalOp.id,
-        PortIdentity(),
-        input = true
-      )
-    )
-    assert(nextRegions.isEmpty)
-
-    // hashJoin2 build input port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin2BuildPhysicalOp.id,
-        PortIdentity(),
-        input = true
-      )
-    )
-    assert(nextRegions.isEmpty)
-
-    // hashJoin1 build output port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin1BuildPhysicalOp.id,
-        PortIdentity(internal = true),
-        input = false
-      )
-    )
-    assert(nextRegions.isEmpty)
-
-    setPhysicalOpCompleted(workflow, executionState, hashJoin1BuildPhysicalOp.id)
-
-    // hashJoin2 build output port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin2BuildPhysicalOp.id,
-        PortIdentity(internal = true),
-        input = false
-      )
-    )
-    assert(nextRegions.isEmpty)
-
-    setPhysicalOpCompleted(workflow, executionState, hashJoin2BuildPhysicalOp.id)
-
-    // hashJoin1 probe worker intput port 0 completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin1ProbePhysicalOp.id,
-        PortIdentity(internal = true),
-        input = true
-      )
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.isEmpty)
-
-    // hashJoin2 probe worker intput port 0 completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin2ProbePhysicalOp.id,
-        PortIdentity(internal = true),
-        input = true
-      )
-    )
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 1)
-    assert(nextRegions.size == 1)
-
-    scheduler.regionExecutionState.addToRunningRegions(nextRegions)
-
-    Set(
-      probeCsv.operatorIdentifier,
-      hashJoin1.operatorIdentifier,
-      hashJoin2.operatorIdentifier,
-      sink.operatorIdentifier
-    ).foreach(logicalOpId => setLogicalOpCompleted(workflow, executionState, logicalOpId))
-
-    val probeCsvLogicalOpId = probeCsv.operatorIdentifier
-    val probeCsvPhysicalOpId =
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(probeCsvLogicalOpId).head.id
-
-    // probeCsv worker output port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        probeCsvPhysicalOpId,
-        PortIdentity(),
-        input = false
-      )
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 1)
-
-    // hashJoin1 probe worker input port 1 completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin1ProbePhysicalOp.id,
-        PortIdentity(1),
-        input = true
-      )
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 1)
-
-    // hashJoin1 probe worker output port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin1ProbePhysicalOp.id,
-        PortIdentity(),
-        input = false
-      )
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 1)
-
-    // hashJoin2 probe worker input port 1 completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin2ProbePhysicalOp.id,
-        PortIdentity(1),
-        input = true
-      )
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 1)
-
-    val sinkPhysicalOpId =
-      workflow.physicalPlan.getPhysicalOpsOfLogicalOp(sink.operatorIdentifier).head.id
-
-    // hashJoin2 probe worker output port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        hashJoin2ProbePhysicalOp.id,
-        PortIdentity(),
-        input = false
-      )
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 1)
-
-    // sink worker input port completes
-    nextRegions = scheduler.regionExecutionState.onPortCompletion(
-      workflow,
-      executionState,
-      GlobalPortIdentity(
-        sinkPhysicalOpId,
-        PortIdentity(),
-        input = true
-      )
-    )
-    assert(nextRegions.isEmpty)
-    assert(scheduler.regionExecutionState.getCompletedRegions.size == 2)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
+      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+    }
   }
 
 }
