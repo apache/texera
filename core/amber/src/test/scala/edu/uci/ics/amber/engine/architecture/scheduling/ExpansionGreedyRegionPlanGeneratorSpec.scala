@@ -39,15 +39,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
 
     assert(workflow.regionPlan.regions.size == 1)
     workflow.regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
-      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+      case (regionId, opCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
-      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+      case (regionId, linkCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
-      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+      case (regionId, portCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -87,15 +90,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
 
     assert(workflow.regionPlan.regions.size == 2)
     workflow.regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
-      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+      case (regionId, opCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(2, 2)).foreach {
-      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+      case (regionId, linkCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(4, 4)).foreach {
-      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+      case (regionId, portCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
 
     val buildRegion = workflow.regionPlan.regions
@@ -162,15 +168,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     )
     assert(workflow.regionPlan.regions.size == 2)
     workflow.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
-      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+      case (regionId, opCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
-      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+      case (regionId, linkCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(7, 4)).foreach {
-      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+      case (regionId, portCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -223,15 +232,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     )
     assert(workflow.regionPlan.regions.size == 2)
     workflow.regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
-      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+      case (regionId, opCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
-      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+      case (regionId, linkCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
-      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+      case (regionId, portCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -284,15 +296,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     )
     assert(workflow.regionPlan.regions.size == 2)
     workflow.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
-      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+      case (regionId, opCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
-      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+      case (regionId, linkCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
     workflow.regionPlan.topologicalIterator().zip(Iterator(8, 4)).foreach {
-      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+      case (regionId, portCount) =>
+        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
