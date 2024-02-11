@@ -48,7 +48,6 @@ describe("ExecuteWorkflowService", () => {
 
     service = TestBed.inject(ExecuteWorkflowService);
     mockWorkflowSnapshotService = TestBed.inject(WorkflowSnapshotService);
-    environment.pauseResumeEnabled = true;
   });
 
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
