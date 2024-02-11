@@ -37,8 +37,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       )
     )
 
-    val regions = workflow.regionPlan.regions
-    assert(regions.size == 1)
+    assert(workflow.regionPlan.regions.size == 1)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
+      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
+      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
+      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+    }
   }
 
   "RegionPlanGenerator" should "correctly find regions in csv->(csv->)->join->sink workflow" in {
@@ -75,10 +85,20 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       )
     )
 
-    val regions = workflow.regionPlan.regions
-    assert(regions.size == 2)
+    assert(workflow.regionPlan.regions.size == 2)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
+      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+    }
 
-    val buildRegion = regions
+    workflow.regionPlan.topologicalIterator().zip(Iterator(2, 2)).foreach {
+      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 4)).foreach {
+      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+    }
+
+    val buildRegion = workflow.regionPlan.regions
       .find(region =>
         region.getOperators
           .map(_.id)
@@ -87,7 +107,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           )
       )
       .get
-    val probeRegion = regions
+    val probeRegion = workflow.regionPlan.regions
       .find(region =>
         region.getOperators
           .map(_.id)
@@ -140,8 +160,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
         )
       )
     )
-    val regions = workflow.regionPlan.regions
-    assert(regions.size == 2)
+    assert(workflow.regionPlan.regions.size == 2)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
+      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
+      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(7, 4)).foreach {
+      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+    }
   }
 
   "RegionPlanGenerator" should "correctly find regions in buildcsv->probecsv->hashjoin->hashjoin->sink workflow" in {
@@ -191,8 +221,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
         )
       )
     )
-    val regions = workflow.regionPlan.regions
-    assert(regions.size == 2)
+    assert(workflow.regionPlan.regions.size == 2)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
+      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
+      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
+      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+    }
   }
 
   "RegionPlanGenerator" should "correctly find regions in csv->split->training-infer workflow" in {
@@ -242,8 +282,18 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
         )
       )
     )
-    val regions = workflow.regionPlan.regions
-    assert(regions.size == 2)
+    assert(workflow.regionPlan.regions.size == 2)
+    workflow.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
+      case (regionId, opCount) => assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
+      case (regionId, linkCount) => assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+    }
+
+    workflow.regionPlan.topologicalIterator().zip(Iterator(8, 4)).foreach {
+      case (regionId, portCount) => assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+    }
   }
 
 }
