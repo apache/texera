@@ -91,6 +91,7 @@ class Controller(
 
   override def initState(): Unit = {
     cp.setupActorService(actorService)
+    cp.initWorkflowExecutionController()
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
     cp.setupLogManager(logManager)

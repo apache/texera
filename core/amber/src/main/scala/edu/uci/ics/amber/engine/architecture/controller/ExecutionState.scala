@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -40,8 +38,12 @@ class ExecutionState(workflow: Workflow) {
       )
       .map(_.id)
 
-  def getOperatorExecution(op: PhysicalOpIdentity): OperatorExecution = {
-    operatorExecutions(op)
+  def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = {
+    operatorExecutions(opId)
+  }
+
+  def hasOperatorExecution(opId: PhysicalOpIdentity): Boolean = {
+    operatorExecutions.contains(opId)
   }
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
     operatorExecutions.values.foreach { execution =>
@@ -54,12 +56,6 @@ class ExecutionState(workflow: Workflow) {
   }
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions
-
-  def getAllWorkersOfRegion(region: Region): Set[ActorVirtualIdentity] = {
-    region.getOperators.flatMap(physicalOp =>
-      getOperatorExecution(physicalOp.id).getBuiltWorkerIds.toList
-    )
-  }
 
   def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
     operatorExecutions.map(op => (op._1.logicalOpId.id, op._2.getOperatorStatistics)).toMap
@@ -91,21 +87,6 @@ class ExecutionState(workflow: Workflow) {
     } else {
       WorkflowAggregatedState.UNKNOWN
     }
-  }
-  def getAllWorkersForOperators(
-      operators: Set[PhysicalOpIdentity]
-  ): Set[ActorVirtualIdentity] = {
-    operators.flatMap(physicalOpId => getOperatorExecution(physicalOpId).getBuiltWorkerIds)
-  }
-  def getPythonWorkerToOperatorExec(
-      pythonPhysicalOpIds: Set[PhysicalOpIdentity]
-  ): Iterable[(ActorVirtualIdentity, PhysicalOp)] = {
-    pythonPhysicalOpIds
-      .map(opId => workflow.physicalPlan.getOperator(opId))
-      .filter(physicalOp => physicalOp.isPythonOperator)
-      .flatMap(physicalOp =>
-        getOperatorExecution(physicalOp.id).getBuiltWorkerIds.map(worker => (worker, physicalOp))
-      )
   }
 
 }

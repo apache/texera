@@ -19,7 +19,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, Workfl
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, EnumerationHasAsScala}
 
 class OperatorExecution(
     workflowId: WorkflowIdentity,
@@ -58,6 +58,13 @@ class OperatorExecution(
     }
     workerExecutions.get(id)
   }
+
+  def getWorkerExecutions: Map[ActorVirtualIdentity, WorkerExecution] =
+    workerExecutions
+      .keys()
+      .asScala
+      .map(workerId => workerId -> workerExecutions.get(workerId))
+      .toMap
 
   def getWorkerWorkloadInfo(id: ActorVirtualIdentity): WorkerWorkloadInfo = {
     if (!workerToWorkloadInfo.contains(id)) {
