@@ -330,13 +330,9 @@ class ExpansionGreedyRegionPlanGenerator(
       physicalLink: PhysicalLink,
       writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
   ): PhysicalPlan = {
-    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
-    // are different due to partial rewrite
     val fromOp = physicalPlan.getOperator(physicalLink.fromOpId)
     val fromPortId = physicalLink.fromPortId
 
-    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
-    // are different due to partial rewrite
     val toOp = physicalPlan.getOperator(physicalLink.toOpId)
     val toPortId = physicalLink.toPortId
 
