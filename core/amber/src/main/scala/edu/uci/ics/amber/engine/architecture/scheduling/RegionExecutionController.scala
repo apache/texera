@@ -127,8 +127,8 @@ class RegionExecutionController(
       actorService,
       opExecution,
       operatorConfig,
-      controllerConfig.workerRestoreConfMapping,
-      controllerConfig.workerLoggingConfMapping
+      controllerConfig.workerRestoreConf,
+      controllerConfig.workerLoggingConf
     )
   }
   private def initExecutors(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {

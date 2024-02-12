@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
-import edu.uci.ics.amber.engine.architecture.worker.ChannelMarkerManager.MarkerContext
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelMarkerPayload,
@@ -45,8 +44,8 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     markerReceived.update(markerId, markerReceived(markerId) + from)
     // check if the epoch marker is completed
     val markerReceivedFromAllChannels =
-      getChannelsWithinScope.subsetOf(markerReceived(markerId))
-    val epochMarkerCompleted = markerContext.marker.markerType match {
+      getChannelsWithinScope(marker).subsetOf(markerReceived(markerId))
+    val epochMarkerCompleted = marker.markerType match {
       case RequireAlignment => markerReceivedFromAllChannels
       case NoAlignment      => markerReceived(markerId).size == 1 // only the first marker triggers
     }
@@ -56,9 +55,8 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     epochMarkerCompleted
   }
 
-  private def getChannelsWithinScope: Set[ChannelIdentity] = {
-    assert(markerContext != null)
-    val upstreams = markerContext.marker.scope.filter(_.toWorkerId == actorId)
+  private def getChannelsWithinScope(marker:ChannelMarkerPayload): Set[ChannelIdentity] = {
+    val upstreams = marker.scope.filter(_.toWorkerId == actorId)
     inputGateway.getAllChannels
       .map(_.channelId)
       .filter { id =>

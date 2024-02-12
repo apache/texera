@@ -68,7 +68,7 @@ class AsyncReplayLogWriter(
     }
 
     val (replayLogRecords, workflowFIFOMessages) =
-      drainedScala.foldLeft((ListBuffer[ReplayLogRecord](), ListBuffer[WorkflowFIFOMessage]())) {
+      drainedScala.foldLeft((ListBuffer[ReplayLogRecord](), ListBuffer[Either[MainThreadDelegate, WorkflowFIFOMessage]]())) {
         case ((accLogs, accMsgs), Left(logRecord))    => (accLogs += logRecord, accMsgs)
         case ((accLogs, accMsgs), Right(fifoMessage)) => (accLogs, accMsgs += fifoMessage)
       }
