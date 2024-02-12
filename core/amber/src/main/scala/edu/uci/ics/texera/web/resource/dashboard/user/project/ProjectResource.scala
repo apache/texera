@@ -4,7 +4,12 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.ProjectUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{FileOfProjectDao, ProjectDao, ProjectUserAccessDao, WorkflowOfProjectDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  FileOfProjectDao,
+  ProjectDao,
+  ProjectUserAccessDao,
+  WorkflowOfProjectDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
@@ -158,9 +163,10 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
   ): List[DashboardWorkflow] = {
-    val result = DashboardResource.searchAllResources(user, SearchQueryParams(
-      resourceType = "workflow",
-      projectIds = util.Arrays.asList(pid)))
+    val result = DashboardResource.searchAllResources(
+      user,
+      SearchQueryParams(resourceType = "workflow", projectIds = util.Arrays.asList(pid))
+    )
     result.results.map(_.workflow.get)
   }
 

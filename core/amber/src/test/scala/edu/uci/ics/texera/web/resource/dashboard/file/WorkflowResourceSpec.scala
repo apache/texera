@@ -326,7 +326,10 @@ class WorkflowResourceSpec
       // search with reserved characters in keywords
       val DashboardWorkflowEntryList =
         dashboardResource
-          .searchAllResourcesCall(user, SearchQueryParams(getKeywordsArray(workflow.getDescription)))
+          .searchAllResourcesCall(
+            user,
+            SearchQueryParams(getKeywordsArray(workflow.getDescription))
+          )
           .results
       assert(DashboardWorkflowEntryList.size == 1)
       assert(DashboardWorkflowEntryList.head.workflow.get.ownerName.equals(user.getName()))
@@ -343,7 +346,10 @@ class WorkflowResourceSpec
     workflowResource.persistWorkflow(testWorkflow3, sessionUser1)
     val DashboardWorkflowEntryList =
       dashboardResource
-        .searchAllResourcesCall(sessionUser1, SearchQueryParams(getKeywordsArray(exampleEmailAddress)))
+        .searchAllResourcesCall(
+          sessionUser1,
+          SearchQueryParams(getKeywordsArray(exampleEmailAddress))
+        )
         .results
     assert(DashboardWorkflowEntryList.size == 1)
     assertSameWorkflow(
@@ -355,21 +361,21 @@ class WorkflowResourceSpec
   it should "return a proper condition for a single owner" in {
     val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1"))
     val ownerFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(ownerList, List(USER.EMAIL))
+      FulltextSearchQueryUtils.getContainsFilter(ownerList, USER.EMAIL)
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").toString)
   }
 
   it should "return a proper condition for multiple owners" in {
     val ownerList = new java.util.ArrayList[String](util.Arrays.asList("owner1", "owner2"))
     val ownerFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(ownerList, List(USER.EMAIL))
+      FulltextSearchQueryUtils.getContainsFilter(ownerList, USER.EMAIL)
     assert(ownerFilter.toString == USER.EMAIL.eq("owner1").or(USER.EMAIL.eq("owner2")).toString)
   }
 
   it should "return a proper condition for a single projectId" in {
     val projectIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
     val projectFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(projectIdList, List(WORKFLOW_OF_PROJECT.PID))
+      FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(projectFilter.toString == WORKFLOW_OF_PROJECT.PID.eq(UInteger.valueOf(1)).toString)
   }
 
@@ -378,7 +384,7 @@ class WorkflowResourceSpec
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
     )
     val projectFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(projectIdList, List(WORKFLOW_OF_PROJECT.PID))
+      FulltextSearchQueryUtils.getContainsFilter(projectIdList, WORKFLOW_OF_PROJECT.PID)
     assert(
       projectFilter.toString == WORKFLOW_OF_PROJECT.PID
         .eq(UInteger.valueOf(1))
@@ -390,7 +396,7 @@ class WorkflowResourceSpec
   it should "return a proper condition for a single workflowID" in {
     val workflowIdList = new java.util.ArrayList[UInteger](util.Arrays.asList(UInteger.valueOf(1)))
     val workflowIdFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(workflowIdList, List(WORKFLOW.WID))
+      FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
     assert(workflowIdFilter.toString == WORKFLOW.WID.eq(UInteger.valueOf(1)).toString)
   }
 
@@ -399,7 +405,7 @@ class WorkflowResourceSpec
       util.Arrays.asList(UInteger.valueOf(1), UInteger.valueOf(2))
     )
     val workflowIdFilter: Condition =
-      FulltextSearchQueryUtils.getContainsFilter(workflowIdList, List(WORKFLOW.WID))
+      FulltextSearchQueryUtils.getContainsFilter(workflowIdList, WORKFLOW.WID)
     assert(
       workflowIdFilter.toString == WORKFLOW.WID
         .eq(UInteger.valueOf(1))
@@ -413,7 +419,7 @@ class WorkflowResourceSpec
       FulltextSearchQueryUtils.getDateFilter(
         "2023-01-01",
         "2023-12-31",
-        List(WORKFLOW.CREATION_TIME)
+        WORKFLOW.CREATION_TIME
       )
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
@@ -431,7 +437,7 @@ class WorkflowResourceSpec
       FulltextSearchQueryUtils.getDateFilter(
         "2023-01-01",
         "2023-12-31",
-        List(WORKFLOW.LAST_MODIFIED_TIME)
+        WORKFLOW.LAST_MODIFIED_TIME
       )
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
@@ -451,7 +457,7 @@ class WorkflowResourceSpec
       FulltextSearchQueryUtils.getDateFilter(
         "2023-01-01",
         "invalidDate",
-        List(WORKFLOW.CREATION_TIME)
+        WORKFLOW.CREATION_TIME
       )
     }
   }
@@ -460,7 +466,7 @@ class WorkflowResourceSpec
     val operatorsFilter: Condition =
       FulltextSearchQueryUtils.getOperatorsFilter(
         Collections.emptyList[String](),
-        List(WORKFLOW.CONTENT)
+        WORKFLOW.CONTENT
       )
     assert(operatorsFilter.toString == noCondition().toString)
   }
@@ -468,7 +474,7 @@ class WorkflowResourceSpec
   it should "return a proper condition for a single operator" in {
     val operatorsList = new java.util.ArrayList[String](util.Arrays.asList("operator1"))
     val operatorsFilter: Condition =
-      FulltextSearchQueryUtils.getOperatorsFilter(operatorsList, List(WORKFLOW.CONTENT))
+      FulltextSearchQueryUtils.getOperatorsFilter(operatorsList, WORKFLOW.CONTENT)
     val searchKey = "%\"operatorType\":\"operator1\"%"
     assert(operatorsFilter.toString == WORKFLOW.CONTENT.likeIgnoreCase(searchKey).toString)
   }
@@ -477,7 +483,7 @@ class WorkflowResourceSpec
     val operatorsList =
       new java.util.ArrayList[String](util.Arrays.asList("operator1", "operator2"))
     val operatorsFilter: Condition =
-      FulltextSearchQueryUtils.getOperatorsFilter(operatorsList, List(WORKFLOW.CONTENT))
+      FulltextSearchQueryUtils.getOperatorsFilter(operatorsList, WORKFLOW.CONTENT)
     val searchKey1 = "%\"operatorType\":\"operator1\"%"
     val searchKey2 = "%\"operatorType\":\"operator2\"%"
     assert(
@@ -516,7 +522,10 @@ class WorkflowResourceSpec
     projectResource.createProject(sessionUser1, "test project1")
     workflowResource.persistWorkflow(testWorkflow1, sessionUser1)
     val DashboardClickableFileEntryList =
-      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams(getKeywordsArray("")))
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(getKeywordsArray(""))
+      )
     assert(DashboardClickableFileEntryList.results.length == 2)
   }
 
@@ -703,7 +712,10 @@ class WorkflowResourceSpec
 
     // Request the second page of results
     val secondPage =
-      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams(count = 10, offset = 10))
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(count = 10, offset = 10)
+      )
 
     // Assert that the second page has 10 results
     assert(secondPage.results.length == 10)
@@ -711,7 +723,10 @@ class WorkflowResourceSpec
 
     // Request the third page of results
     val thirdPage =
-      dashboardResource.searchAllResourcesCall(sessionUser1, SearchQueryParams(count = 10, offset = 20))
+      dashboardResource.searchAllResourcesCall(
+        sessionUser1,
+        SearchQueryParams(count = 10, offset = 20)
+      )
 
     // Assert that the third page has 5 results (since we only have 25 resources)
     assert(thirdPage.results.length == 1)

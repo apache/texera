@@ -13,7 +13,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 object FulltextSearchQueryUtils {
 
   def getOrderFields(
-                      specificResourceType: String,
+      specificResourceType: String,
       searchQueryParams: SearchQueryParams
   ): List[OrderField[_]] = {
     // Regex pattern to extract column name and order direction
@@ -138,13 +138,13 @@ object FulltextSearchQueryUtils {
       field: Field[String]
   ): Condition = {
     val operatorSet = operators.asScala.toSet
-      var fieldFilter = noCondition()
-      for (operator <- operatorSet) {
-        val quotes = "\""
-        val searchKey =
-          "%" + quotes + "operatorType" + quotes + ":" + quotes + operator + quotes + "%"
-        fieldFilter = fieldFilter.or(field.likeIgnoreCase(searchKey))
-      }
+    var fieldFilter = noCondition()
+    for (operator <- operatorSet) {
+      val quotes = "\""
+      val searchKey =
+        "%" + quotes + "operatorType" + quotes + ":" + quotes + operator + quotes + "%"
+      fieldFilter = fieldFilter.or(field.likeIgnoreCase(searchKey))
+    }
     fieldFilter
   }
 

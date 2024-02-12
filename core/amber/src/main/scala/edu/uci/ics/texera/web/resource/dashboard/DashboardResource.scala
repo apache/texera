@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.ALL_RESOURCE_TYPE
@@ -44,19 +43,20 @@ object DashboardResource {
 
   // Construct query for workflows
 
-
   def searchAllResources(
-                          @Auth user: SessionUser,
-                          @BeanParam params: SearchQueryParams
-                        ): DashboardSearchResult = {
+      @Auth user: SessionUser,
+      @BeanParam params: SearchQueryParams
+  ): DashboardSearchResult = {
     val workflowSearchBuilder = new WorkflowSearchQueryBuilder()
     val fileSearchBuilder = new FileSearchQueryBuilder()
     val projectSearchBuilder = new ProjectSearchQueryBuilder()
 
     val query = params.resourceType match {
-      case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE => workflowSearchBuilder.constructQuery(user, params)
+      case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
+        workflowSearchBuilder.constructQuery(user, params)
       case SearchQueryBuilder.FILE_RESOURCE_TYPE => fileSearchBuilder.constructQuery(user, params)
-      case SearchQueryBuilder.PROJECT_RESOURCE_TYPE => projectSearchBuilder.constructQuery(user, params)
+      case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
+        projectSearchBuilder.constructQuery(user, params)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
         val q1 = workflowSearchBuilder.constructQuery(user, params)
         val q2 = fileSearchBuilder.constructQuery(user, params)
@@ -69,15 +69,15 @@ object DashboardResource {
     val entries = queryResult.asScala.toList.map(record => {
       val resourceType = record.get("resourceType", classOf[String])
       resourceType match {
-        case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE => workflowSearchBuilder.toEntry(user, record)
-        case SearchQueryBuilder.FILE_RESOURCE_TYPE => fileSearchBuilder.toEntry(user, record)
+        case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
+          workflowSearchBuilder.toEntry(user, record)
+        case SearchQueryBuilder.FILE_RESOURCE_TYPE    => fileSearchBuilder.toEntry(user, record)
         case SearchQueryBuilder.PROJECT_RESOURCE_TYPE => projectSearchBuilder.toEntry(user, record)
       }
     })
 
     DashboardSearchResult(results = entries, more = queryResult.size() > params.count)
   }
-
 
 }
 
