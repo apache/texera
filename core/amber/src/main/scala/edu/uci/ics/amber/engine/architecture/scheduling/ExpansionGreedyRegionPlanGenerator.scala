@@ -3,12 +3,9 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -60,11 +57,9 @@ object ExpansionGreedyRegionPlanGenerator {
 }
 
 class ExpansionGreedyRegionPlanGenerator(
-    logicalPlan: LogicalPlan,
     var physicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
 ) extends RegionPlanGenerator(
-      logicalPlan,
       physicalPlan,
       opResultStorage
     )
@@ -349,10 +344,9 @@ class ExpansionGreedyRegionPlanGenerator(
     val toOp = physicalPlan.getOperator(physicalLink.toOpId)
     val toPortId = physicalLink.toPortId
 
-    val (matWriterLogicalOp: ProgressiveSinkOpDesc, matWriterPhysicalOp: PhysicalOp) =
-      createMatWriter(fromOp, fromPortId, context)
-
-    val matReaderPhysicalOp: PhysicalOp = createMatReader(matWriterLogicalOp, context)
+    val outputSchema = fromOp.outputPorts(fromPortId)._3
+    val matWriterPhysicalOp: PhysicalOp =createMatWriter(outputSchema, fromOp.id.logicalOpId, context)
+    val matReaderPhysicalOp: PhysicalOp = createMatReader(outputSchema, matWriterPhysicalOp.id.logicalOpId, context)
 
     // create 2 links for materialization
     val readerToDestLink =
@@ -384,16 +378,18 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   private def createMatReader(
-      matWriterLogicalOp: ProgressiveSinkOpDesc,
-      context: WorkflowContext
+                               inputSchema: Schema,
+                               key: OperatorIdentity,
+
+                               context: WorkflowContext
   ): PhysicalOp = {
     val materializationReader = new CacheSourceOpDesc(
-      matWriterLogicalOp.operatorIdentifier,
+      key,
       opResultStorage: OpResultStorage
     )
     materializationReader.setContext(context)
-    materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
-    materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
+    materializationReader.setOperatorId("cacheSource_" + key.id)
+    materializationReader.schema = inputSchema
     val matReaderOutputSchema = materializationReader.getOutputSchemas(Array()).head
     materializationReader.outputPortToSchemaMapping(
       materializationReader.operatorInfo.outputPorts.head.id
@@ -410,26 +406,18 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   private def createMatWriter(
-      fromOp: PhysicalOp,
-      fromPortId: PortIdentity,
+      inputSchema: Schema,
+      key: OperatorIdentity,
       context: WorkflowContext
-  ): (ProgressiveSinkOpDesc, PhysicalOp) = {
+  ): PhysicalOp = {
     val matWriterLogicalOp = new ProgressiveSinkOpDesc()
     matWriterLogicalOp.setContext(context)
-    matWriterLogicalOp.setOperatorId("materialized_" + fromOp.id.logicalOpId.id)
-    val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
-    val fromOpInputSchema: Array[Schema] =
-      if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {
-        fromLogicalOp.inputPortToSchemaMapping.values.toArray
-      } else {
-        Array()
-      }
-    val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromPortId.id)
+    matWriterLogicalOp.setOperatorId("materialized_" + key.id)
     // we currently expect only one output schema
     val inputPort = matWriterLogicalOp.operatorInfo().inputPorts.head
     val outputPort = matWriterLogicalOp.operatorInfo().outputPorts.head
-    matWriterLogicalOp.inputPortToSchemaMapping(inputPort.id) = matWriterInputSchema
-    val matWriterOutputSchema = matWriterLogicalOp.getOutputSchema(Array(matWriterInputSchema))
+    matWriterLogicalOp.inputPortToSchemaMapping(inputPort.id) = inputSchema
+    val matWriterOutputSchema = matWriterLogicalOp.getOutputSchema(Array(inputSchema))
     matWriterLogicalOp.outputPortToSchemaMapping(outputPort.id) = matWriterOutputSchema
     val matWriterPhysicalOp = matWriterLogicalOp
       .getPhysicalOp(
@@ -444,7 +432,7 @@ class ExpansionGreedyRegionPlanGenerator(
         mode = OpResultStorage.defaultStorageMode
       )
     )
-    opResultStorage.get(matWriterLogicalOp.operatorIdentifier).setSchema(matWriterInputSchema)
-    (matWriterLogicalOp, matWriterPhysicalOp)
+    opResultStorage.get(matWriterLogicalOp.operatorIdentifier).setSchema(inputSchema)
+    matWriterPhysicalOp
   }
 }

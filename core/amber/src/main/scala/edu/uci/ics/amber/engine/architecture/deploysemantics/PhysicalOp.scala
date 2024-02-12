@@ -5,31 +5,19 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfo,
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
-  AddressInfo,
-  LocationPreference,
-  PreferController,
-  RoundRobinPreference
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayInitialization,
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{WorkerReplayInitialization, WorkerReplayLoggingConfig, WorkerStateRestoreConfig}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
+import edu.uci.ics.texera.workflow.operators.sink.storage.{SinkStorageReader, SinkStorageWriter}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -180,32 +168,34 @@ object PhysicalOp {
 }
 
 case class PhysicalOp(
-    // the identifier of this PhysicalOp
-    id: PhysicalOpIdentity,
-    // the workflow id number
-    workflowId: WorkflowIdentity,
-    // the execution id number
-    executionId: ExecutionIdentity,
-    // information regarding initializing an operator executor instance
-    opExecInitInfo: OpExecInitInfo,
-    // preference of parallelism
-    parallelizable: Boolean = true,
-    // preference of worker placement
-    locationPreference: Option[LocationPreference] = None,
-    // requirement of partition policy (hash/range/single/none) on inputs
-    partitionRequirement: List[Option[PartitionInfo]] = List(),
-    // derive the output partition info given the input partitions
-    // if not specified, by default the output partition is the same as input partition
-    derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
-    // input/output ports of the physical operator
-    // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Schema)] = Map.empty,
-    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Schema)] = Map.empty,
-    // input ports that are blocking
-    blockingInputs: List[PortIdentity] = List(),
-    isOneToManyOp: Boolean = false,
-    // hint for number of workers
-    suggestedWorkerNum: Option[Int] = None
+                       // the identifier of this PhysicalOp
+                       id: PhysicalOpIdentity,
+                       // the workflow id number
+                       workflowId: WorkflowIdentity,
+                       // the execution id number
+                       executionId: ExecutionIdentity,
+                       // information regarding initializing an operator executor instance
+                       opExecInitInfo: OpExecInitInfo,
+                       // preference of parallelism
+                       parallelizable: Boolean = true,
+                       // preference of worker placement
+                       locationPreference: Option[LocationPreference] = None,
+                       // requirement of partition policy (hash/range/single/none) on inputs
+                       partitionRequirement: List[Option[PartitionInfo]] = List(),
+                       // derive the output partition info given the input partitions
+                       // if not specified, by default the output partition is the same as input partition
+                       derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
+                       // input/output ports of the physical operator
+                       // for operators with multiple input/output ports: must set these variables properly
+                       inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Schema)] = Map.empty,
+                       outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Schema)] = Map.empty,
+                       // input ports that are blocking
+                       blockingInputs: List[PortIdentity] = List(),
+                       isOneToManyOp: Boolean = false,
+                       // hint for number of workers
+                       suggestedWorkerNum: Option[Int] = None,
+                       storageWriter: Option[SinkStorageWriter] = None
+
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking inputs
