@@ -18,7 +18,7 @@ class WorkflowExecution {
   private val channelExecutions: mutable.Map[ChannelIdentity, ChannelExecution] = mutable.HashMap()
 
 
-  def initOperatorState(
+  def initOperatorExecution(
       physicalOpId: PhysicalOpIdentity
   ): OperatorExecution = {
     assert(!operatorExecutions.contains(physicalOpId))

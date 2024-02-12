@@ -123,7 +123,7 @@ class RegionExecutionController(
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig
   ): Unit = {
-    val opExecution = executionState.initOperatorState(physicalOp.id)
+    val opExecution = executionState.initOperatorExecution(physicalOp.id)
     physicalOp.build(
       actorService,
       opExecution,
