@@ -62,10 +62,7 @@ object ExpansionGreedyRegionPlanGenerator {
 class ExpansionGreedyRegionPlanGenerator(
     var physicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
-) extends RegionPlanGenerator(
-      physicalPlan,
-      opResultStorage
-    )
+) extends RegionPlanGenerator(physicalPlan, opResultStorage)
     with LazyLogging {
 
   private val executionClusterInfo = new ExecutionClusterInfo()
