@@ -16,10 +16,10 @@ import java.net.URI
 
 object TakeGlobalCheckpointHandler {
   final case class TakeGlobalCheckpoint(
-                                         estimationOnly: Boolean,
-                                         checkpointId: ChannelMarkerIdentity,
-                                         destination: URI
-                                       ) extends ControlCommand[Long] // return the total size
+      estimationOnly: Boolean,
+      checkpointId: ChannelMarkerIdentity,
+      destination: URI
+  ) extends ControlCommand[Long] // return the total size
 }
 trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
@@ -43,11 +43,13 @@ trait TakeGlobalCheckpointHandler {
       Future
         .collect(ret.map {
           case (workerId, _) =>
-            send(FinalizeCheckpoint(msg.checkpointId, uri), workerId).onSuccess { size =>
-              totalSize += size
-            }.onFailure{
-              err => 
-            }
+            send(FinalizeCheckpoint(msg.checkpointId, uri), workerId)
+              .onSuccess { size =>
+                totalSize += size
+              }
+              .onFailure { err =>
+                throw err // TODO: handle failures.
+              }
         })
         .map { _ =>
           logger.info("Start to take checkpoint")
@@ -55,7 +57,9 @@ trait TakeGlobalCheckpointHandler {
           if (!estimationOnly) {
             // serialize CP state
             chkpt.save(SerializedState.CP_STATE_KEY, this.cp)
-            logger.info(s"Serialized CP state, current workflow state = ${cp.executionState.getState}")
+            logger.info(
+              s"Serialized CP state, current workflow state = ${cp.executionState.getState}"
+            )
             // get all output messages from cp.transferService
             chkpt.save(
               SerializedState.OUTPUT_MSG_KEY,
@@ -65,6 +69,7 @@ trait TakeGlobalCheckpointHandler {
             val writer = storage.getWriter(actorId.name)
             writer.writeRecord(chkpt)
             writer.flush()
+            writer.close()
           }
           totalSize += chkpt.size()
           logger.info(s"global checkpoint finalized, total size = $totalSize")

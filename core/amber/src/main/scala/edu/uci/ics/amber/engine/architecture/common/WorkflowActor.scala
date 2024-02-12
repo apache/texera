@@ -175,9 +175,9 @@ abstract class WorkflowActor(
   def initState(): Unit
 
   def setupReplay(
-                   amberProcessor: AmberProcessor,
-                   stateRestoreConf: StateRestoreConfig,
-                   onComplete: () => Unit
+      amberProcessor: AmberProcessor,
+      stateRestoreConf: StateRestoreConfig,
+      onComplete: () => Unit
   ): Unit = {
     val logStorageToRead =
       SequentialRecordStorage.getStorage[ReplayLogRecord](Some(stateRestoreConf.readFrom))

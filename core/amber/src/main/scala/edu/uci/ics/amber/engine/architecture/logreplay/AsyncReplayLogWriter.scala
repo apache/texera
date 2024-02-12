@@ -12,11 +12,13 @@ import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class AsyncReplayLogWriter(
-                            handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit,
-                            writer: SequentialRecordWriter[ReplayLogRecord]
+    handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit,
+    writer: SequentialRecordWriter[ReplayLogRecord]
 ) extends Thread {
   private val drained =
-    new util.ArrayList[Either[ReplayLogRecord, Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]]()
+    new util.ArrayList[
+      Either[ReplayLogRecord, Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]
+    ]()
   private val writerQueue =
     Queues.newLinkedBlockingQueue[
       Either[ReplayLogRecord, Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]
@@ -68,7 +70,12 @@ class AsyncReplayLogWriter(
     }
 
     val (replayLogRecords, workflowFIFOMessages) =
-      drainedScala.foldLeft((ListBuffer[ReplayLogRecord](), ListBuffer[Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]())) {
+      drainedScala.foldLeft(
+        (
+          ListBuffer[ReplayLogRecord](),
+          ListBuffer[Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]()
+        )
+      ) {
         case ((accLogs, accMsgs), Left(logRecord))    => (accLogs += logRecord, accMsgs)
         case ((accLogs, accMsgs), Right(fifoMessage)) => (accLogs, accMsgs += fifoMessage)
       }

@@ -38,11 +38,11 @@ object ControllerConfig {
 }
 
 final case class ControllerConfig(
-                                   monitoringIntervalMs: Option[Long],
-                                   skewDetectionIntervalMs: Option[Long],
-                                   statusUpdateIntervalMs: Option[Long],
-                                   stateRestoreConfOpt: Option[StateRestoreConfig],
-                                   faultToleranceConfOpt: Option[FaultToleranceConfig]
+    monitoringIntervalMs: Option[Long],
+    skewDetectionIntervalMs: Option[Long],
+    statusUpdateIntervalMs: Option[Long],
+    stateRestoreConfOpt: Option[StateRestoreConfig],
+    faultToleranceConfOpt: Option[FaultToleranceConfig]
 )
 
 object Controller {

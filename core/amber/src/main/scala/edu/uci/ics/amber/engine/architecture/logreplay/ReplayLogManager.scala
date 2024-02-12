@@ -62,8 +62,9 @@ trait ReplayLogManager {
 
 }
 
-class EmptyReplayLogManagerImpl(handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit)
-    extends ReplayLogManager {
+class EmptyReplayLogManagerImpl(
+    handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
+) extends ReplayLogManager {
   override def setupWriter(
       logWriter: SequentialRecordStorage.SequentialRecordWriter[ReplayLogRecord]
   ): Unit = {}

@@ -188,10 +188,17 @@ class DPThread(
           }
         }
       }
+      // As the computation is chopped into steps, the checkpoint
+      // serialization must happen after/before a step. Otherwise
+      // DP state will be restored in the middle of a step, which
+      // is often not what we want. Thus, we have this one-time
+      // additional serializationCall assigned inside the checkpoint
+      // handler.
       if (dp.serializationCall != null) {
         dp.serializationCall()
         dp.serializationCall = null
       }
+
       dp.totalExecutionTime = System.nanoTime() - dp.startTime
       // End of Main loop
     }

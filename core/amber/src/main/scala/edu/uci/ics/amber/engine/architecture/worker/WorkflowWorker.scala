@@ -62,7 +62,7 @@ object WorkflowWorker {
 
   final case class WorkerReplayInitialization(
       restoreConfOpt: Option[StateRestoreConfig] = None,
-      replayLogConfOpt: Option[FaultToleranceConfig] = None
+      faultToleranceConfOpt: Option[FaultToleranceConfig] = None
   )
   final case class StateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
 
@@ -74,7 +74,7 @@ class WorkflowWorker(
     physicalOp: PhysicalOp,
     operatorConfig: OperatorConfig,
     replayInitialization: WorkerReplayInitialization
-) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerConfig.workerId) {
+) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(
@@ -86,7 +86,7 @@ class WorkflowWorker(
   val dpThread =
     new DPThread(workerConfig.workerId, dp, logManager, inputQueue)
 
-  val inputRecordings =
+  val recordedInputs =
     new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
 
   override def initState(): Unit = {
@@ -142,7 +142,7 @@ class WorkflowWorker(
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     inputQueue.put(FIFOMessageElement(workflowMsg))
-    inputRecordings.values.foreach(_.append(workflowMsg))
+    recordedInputs.values.foreach(_.append(workflowMsg))
     sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 

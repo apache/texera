@@ -31,21 +31,24 @@ trait FinalizeCheckpointHandler {
         logger.info(s"Main thread: start to serialize recorded messages.")
         chkpt.save(
           SerializedState.IN_FLIGHT_MSG_KEY,
-          worker.inputRecordings.getOrElse(msg.checkpointId, new ArrayBuffer())
+          worker.recordedInputs.getOrElse(msg.checkpointId, new ArrayBuffer())
         )
-        worker.inputRecordings.remove(msg.checkpointId)
+        worker.recordedInputs.remove(msg.checkpointId)
         logger.info(s"Main thread: recorded messages serialized.")
         waitFuture.complete(())
         ()
       }
       // TODO: find a way to skip logging for the following output?
-      dp.outputHandler(Left(MainThreadDelegateMessage(closure)))  //this will create duplicate log records!
+      dp.outputHandler(
+        Left(MainThreadDelegateMessage(closure))
+      ) //this will create duplicate log records!
       waitFuture.get()
       logger.info(s"Start to write checkpoint to storage. Destination: ${msg.writeTo}")
       val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(msg.writeTo))
       val writer = storage.getWriter(actorId.name.replace("Worker:", ""))
       writer.writeRecord(chkpt)
       writer.flush()
+      writer.close()
       logger.info(s"Checkpoint finalized, total size = ${chkpt.size()} bytes")
       chkpt.size()
     } else {
