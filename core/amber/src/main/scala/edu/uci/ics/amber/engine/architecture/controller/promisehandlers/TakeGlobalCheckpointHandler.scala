@@ -16,15 +16,17 @@ import java.net.URI
 
 object TakeGlobalCheckpointHandler {
   final case class TakeGlobalCheckpoint(
-      estimationOnly: Boolean,
-      checkpointId: ChannelMarkerIdentity,
-      destination: URI
-  ) extends ControlCommand[Long] // return the total size
+                                         estimationOnly: Boolean,
+                                         checkpointId: ChannelMarkerIdentity,
+                                         destination: URI
+                                       ) extends ControlCommand[Long] // return the total size
 }
 trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: TakeGlobalCheckpoint, sender) =>
+    var estimationOnly = msg.estimationOnly
+    val uri = msg.destination.resolve(msg.checkpointId.toString)
     var totalSize = 0L
     val physicalOpToTakeCheckpoint = cp.workflow.physicalPlan.operators.map(_.id)
     execute(
@@ -34,14 +36,14 @@ trait TakeGlobalCheckpointHandler {
         NoAlignment,
         cp.workflow.physicalPlan,
         physicalOpToTakeCheckpoint,
-        PrepareCheckpoint(msg.estimationOnly)
+        PrepareCheckpoint(estimationOnly)
       ),
       sender
     ).flatMap { ret =>
       Future
         .collect(ret.map {
           case (workerId, _) =>
-            send(FinalizeCheckpoint(msg.checkpointId, msg.destination), workerId).map { size =>
+            send(FinalizeCheckpoint(msg.checkpointId, uri), workerId).map { size =>
               totalSize += size
             }
         })
@@ -49,24 +51,24 @@ trait TakeGlobalCheckpointHandler {
           logger.info("Start to take checkpoint")
           val chkpt = new CheckpointState()
           totalSize += chkpt.size()
-          if (!msg.estimationOnly) {
+          if (!estimationOnly) {
             // serialize CP state
             try {
               chkpt.save(SerializedState.CP_STATE_KEY, this.cp)
             } catch {
               case e: Throwable => logger.error("Failed to serialize controller state", e)
             }
-            logger.info("Serialized CP state")
+            logger.info(s"Serialized CP state, current workflow state = ${cp.executionState.getState}")
+            // get all output messages from cp.transferService
+            chkpt.save(
+              SerializedState.OUTPUT_MSG_KEY,
+              this.cp.transferService.getAllUnAckedMessages.toArray
+            )
+            val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(uri))
+            val writer = storage.getWriter(actorId.name)
+            writer.writeRecord(chkpt)
+            writer.flush()
           }
-          // get all output messages from cp.transferService
-          chkpt.save(
-            SerializedState.OUTPUT_MSG_KEY,
-            this.cp.transferService.getAllUnAckedMessages.toArray
-          )
-          val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(msg.destination))
-          val writer = storage.getWriter(actorId.name)
-          writer.writeRecord(chkpt)
-          writer.flush()
           logger.info(s"global checkpoint finalized, total size = $totalSize")
           totalSize
         }

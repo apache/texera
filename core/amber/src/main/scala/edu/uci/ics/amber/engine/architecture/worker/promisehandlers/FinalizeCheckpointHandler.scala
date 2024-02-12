@@ -38,7 +38,8 @@ trait FinalizeCheckpointHandler {
         waitFuture.complete(())
         ()
       }
-      dp.outputHandler(Left(MainThreadDelegate(closure)))
+      // TODO: find a way to skip logging for the following output?
+      dp.outputHandler(Left(MainThreadDelegate(closure)))  //this will create duplicate log records!
       waitFuture.get()
       logger.info(s"Start to write checkpoint to storage. Destination: ${msg.writeTo}")
       val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(msg.writeTo))
