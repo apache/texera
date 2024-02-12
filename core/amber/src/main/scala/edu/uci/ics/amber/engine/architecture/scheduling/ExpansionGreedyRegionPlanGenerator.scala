@@ -382,6 +382,8 @@ class ExpansionGreedyRegionPlanGenerator(
     matReader.setContext(workflowContext)
     matReader.setOperatorId("cacheSource_" + matWriterLogicalOpId.id)
     matReader.schema = inputSchema
+
+    // expect exactly one output port
     matReader.outputPortToSchemaMapping(matReader.operatorInfo.outputPorts.head.id) =
       matReader.getOutputSchema(Array())
 
@@ -398,7 +400,8 @@ class ExpansionGreedyRegionPlanGenerator(
     val matWriter = new ProgressiveSinkOpDesc()
     matWriter.setContext(workflowContext)
     matWriter.setOperatorId("materialized_" + fromLogicalOpId.id)
-    // we currently expect only one output schema
+
+    // expect exactly one input port and one output port
     val inputPort = matWriter.operatorInfo().inputPorts.head
     val outputPort = matWriter.operatorInfo().outputPorts.head
     matWriter.inputPortToSchemaMapping(inputPort.id) = inputSchema
