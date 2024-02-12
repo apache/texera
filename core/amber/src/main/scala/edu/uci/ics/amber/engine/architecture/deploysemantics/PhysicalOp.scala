@@ -30,7 +30,6 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, Physical
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow._
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
-import edu.uci.ics.texera.workflow.operators.sink.storage.{SinkStorageReader, SinkStorageWriter}
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 

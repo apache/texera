@@ -9,12 +9,11 @@ import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
 }
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc
 import org.jgrapht.alg.connectivity.BiconnectivityInspector

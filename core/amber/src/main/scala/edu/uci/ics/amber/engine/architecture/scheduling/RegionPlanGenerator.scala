@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 abstract class RegionPlanGenerator(
     physicalPlan: PhysicalPlan,
