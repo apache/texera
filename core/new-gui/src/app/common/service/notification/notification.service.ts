@@ -1,53 +1,32 @@
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
-import { NzMessageDataOptions } from "ng-zorro-antd/message";
-import { HttpErrorResponse } from "@angular/common/http";
-
-export interface Notification {
-  type: "success" | "info" | "error" | "warning" | "loading";
-  message: string;
-  options: NzMessageDataOptions;
-}
+import { NzMessageDataOptions, NzMessageService } from "ng-zorro-antd/message";
 
 /**
  * NotificationService is an entry service for sending notifications
- * to show on NotificationComponent.
  */
 @Injectable({
   providedIn: "root",
 })
 export class NotificationService {
-  private notificationStream = new Subject<Notification>();
-
-  getNotificationStream(): Observable<Notification> {
-    return this.notificationStream.asObservable();
-  }
-
-  sendNotification(notification: Notification) {
-    this.notificationStream.next(notification);
-  }
+  constructor(private message: NzMessageService) {}
 
   success(message: string, options: NzMessageDataOptions = {}) {
-    this.sendNotification({ type: "success", message, options });
+    this.message.success(message, options);
   }
 
   info(message: string, options: NzMessageDataOptions = {}) {
-    this.sendNotification({ type: "info", message, options });
+    this.message.info(message, options);
   }
 
-  error(cause: Error | any, options: NzMessageDataOptions = {}) {
-    this.sendNotification({
-      type: "error",
-      message: cause instanceof Error || cause.hasOwnProperty("message") ? cause.message : cause.toString(),
-      options,
-    });
+  error(message: string, options: NzMessageDataOptions = {}) {
+    this.message.error(message, options);
   }
 
   warning(message: string, options: NzMessageDataOptions = {}) {
-    this.sendNotification({ type: "warning", message, options });
+    this.message.warning(message, options);
   }
 
   loading(message: string, options: NzMessageDataOptions = {}) {
-    return this.sendNotification({ type: "loading", message, options });
+    return this.message.loading(message, options);
   }
 }

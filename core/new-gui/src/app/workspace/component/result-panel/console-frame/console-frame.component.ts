@@ -1,6 +1,6 @@
 import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { BreakpointTriggerInfo, ConsoleMessage } from "../../../types/workflow-common.interface";
+import { ConsoleMessage } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -157,7 +157,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     try {
       this.executeWorkflowService.skipTuples(this.workerIds);
     } catch (e) {
-      this.notificationService.error(e);
+      this.notificationService.error((e as Error).message);
     }
   }
 
@@ -165,7 +165,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     try {
       this.executeWorkflowService.retryExecution(this.workerIds);
     } catch (e) {
-      this.notificationService.error(e);
+      this.notificationService.error((e as Error).message);
     }
   }
 

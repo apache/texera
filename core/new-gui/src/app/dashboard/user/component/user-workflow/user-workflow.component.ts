@@ -354,7 +354,7 @@ export class UserWorkflowComponent implements AfterViewInit {
           }
         }
       } catch (e) {
-        this.notificationService.error(`Workflow download failed. ${e instanceof Error ? e.message : ""}`);
+        this.notificationService.error(`Workflow download failed. ${(e as Error).message}`);
       }
       let dateTime = new Date();
       let filename = "workflowExports-" + dateTime.toISOString() + ".zip";

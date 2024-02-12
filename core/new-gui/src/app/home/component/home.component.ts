@@ -4,7 +4,6 @@ import { UserService } from "../../common/service/user/user.service";
 import { ActivatedRoute, Router } from "@angular/router";
 import { catchError, mergeMap } from "rxjs/operators";
 import { throwError } from "rxjs";
-import { HttpErrorResponse } from "@angular/common/http";
 import { NotificationService } from "../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { GoogleAuthService } from "../../common/service/user/google-auth.service";
@@ -30,13 +29,9 @@ export class HomeComponent implements OnInit {
     this.googleAuthService.googleCredentialResponse
       .pipe(mergeMap(res => this.userService.googleLogin(res.credential)))
       .pipe(
-        catchError((err: unknown) => {
-          if (err instanceof HttpErrorResponse) {
-            this.notificationService.error(err.error.message, {
-              nzDuration: 10,
-            });
-          }
-          return throwError(() => err);
+        catchError((e: unknown) => {
+          this.notificationService.error((e as Error).message, { nzDuration: 10 });
+          return throwError(() => e);
         }),
         untilDestroyed(this)
       )
