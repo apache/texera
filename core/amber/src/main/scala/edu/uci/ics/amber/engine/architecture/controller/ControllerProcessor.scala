@@ -17,7 +17,7 @@ class ControllerProcessor(
     outputHandler: WorkflowFIFOMessage => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
-  val executionState = new ExecutionState()
+  val workflowExecution = new WorkflowExecution()
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
@@ -48,7 +48,7 @@ class ControllerProcessor(
   def initWorkflowExecutionController(): Unit = {
     this.workflowExecutionController = new WorkflowExecutionController(
       workflow.regionPlan,
-      executionState,
+      workflowExecution,
       actorService,
       controllerConfig,
       asyncRPCClient

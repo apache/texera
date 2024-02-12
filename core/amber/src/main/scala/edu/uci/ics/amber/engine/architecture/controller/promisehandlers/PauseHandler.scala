@@ -35,7 +35,7 @@ trait PauseHandler {
       cp.controllerTimerService.disableMonitoring()
       cp.controllerTimerService.disableSkewHandling()
       Future
-        .collect(cp.executionState.getAllOperatorExecutions.map {
+        .collect(cp.workflowExecution.getAllOperatorExecutions.map {
           case (physicalOpId, opExecution) =>
             // create a buffer for the current input tuple
             // since we need to show them on the frontend
@@ -70,7 +70,7 @@ trait PauseHandler {
         }.toSeq)
         .map { ret =>
           // update frontend workflow status
-          sendToClient(WorkflowStatsUpdate(cp.executionState.getStats))
+          sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getStats))
           sendToClient(WorkflowPaused())
           logger.info(s"workflow paused")
         }

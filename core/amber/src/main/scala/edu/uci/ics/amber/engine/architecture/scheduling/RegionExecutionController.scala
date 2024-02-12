@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, WorkflowExecution}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
@@ -24,8 +24,8 @@ import scala.collection.Seq
 
 case object RegionExecution {
   def isRegionCompleted(
-      executionState: ExecutionState,
-      region: Region
+                         executionState: WorkflowExecution,
+                         region: Region
   ): Boolean = {
     region.getPorts.forall(globalPortId => {
       val operatorExecution = executionState.getOperatorExecution(globalPortId.opId)
@@ -40,11 +40,11 @@ case class RegionExecution() {
 
 }
 class RegionExecutionController(
-    region: Region,
-    executionState: ExecutionState,
-    asyncRPCClient: AsyncRPCClient,
-    actorService: AkkaActorService,
-    controllerConfig: ControllerConfig
+                                 region: Region,
+                                 executionState: WorkflowExecution,
+                                 asyncRPCClient: AsyncRPCClient,
+                                 actorService: AkkaActorService,
+                                 controllerConfig: ControllerConfig
 ) {
   // TODO: for now we keep the state with the Executor.
   //   After refactoring the ExecutionState, we can move this into executionState

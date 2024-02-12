@@ -39,7 +39,7 @@ trait WorkerExecutionCompletedHandler {
         .collect(statsRequests)
         .flatMap(_ => {
           // if entire workflow is completed, clean up
-          if (cp.executionState.isCompleted) {
+          if (cp.workflowExecution.isCompleted) {
             // after query result come back: send completed event, cleanup ,and kill workflow
             sendToClient(WorkflowCompleted())
             cp.controllerTimerService.disableStatusUpdate()

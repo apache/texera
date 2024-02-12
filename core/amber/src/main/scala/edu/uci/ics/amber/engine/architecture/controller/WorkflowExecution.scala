@@ -10,7 +10,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, Workfl
 
 import scala.collection.mutable
 
-class ExecutionState {
+class WorkflowExecution {
 
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()

@@ -21,8 +21,8 @@ trait WorkerExecutionStartedHandler {
   registerHandler { (msg: WorkerStateUpdated, sender) =>
     {
       // set the state
-      cp.executionState.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender)).getWorkerExecution(sender).state = msg.state
-      sendToClient(WorkflowStatsUpdate(cp.executionState.getStats))
+      cp.workflowExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender)).getWorkerExecution(sender).state = msg.state
+      sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getStats))
     }
   }
 }

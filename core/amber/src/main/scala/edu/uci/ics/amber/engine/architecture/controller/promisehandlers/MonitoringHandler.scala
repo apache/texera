@@ -64,19 +64,19 @@ trait MonitoringHandler {
       previousCallFinished = false
       // send to specified workers (or all workers by default)
       val workers =
-        cp.executionState.getAllBuiltWorkers.filterNot(p => msg.filterByWorkers.contains(p)).toList
+        cp.workflowExecution.getAllBuiltWorkers.filterNot(p => msg.filterByWorkers.contains(p)).toList
 
       // send Monitoring message
       val requests = workers.map(workerId =>
         send(QuerySelfWorkloadMetrics(), workerId).map({
           case (metrics, samples) =>
             val physicalOpId = VirtualIdentityUtils.getPhysicalOpId(workerId)
-            cp.executionState
+            cp.workflowExecution
               .getOperatorExecution(physicalOpId)
               .getWorkerWorkloadInfo(workerId)
               .dataInputWorkload =
               metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
-            cp.executionState
+            cp.workflowExecution
               .getOperatorExecution(physicalOpId)
               .getWorkerWorkloadInfo(workerId)
               .controlInputWorkload =

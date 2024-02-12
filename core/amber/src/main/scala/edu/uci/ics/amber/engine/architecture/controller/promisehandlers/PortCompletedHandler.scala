@@ -31,7 +31,7 @@ trait PortCompletedHandler {
       )
 
       val operatorExecution =
-        cp.executionState.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
+        cp.workflowExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
       val workerExecution = operatorExecution.getWorkerExecution(sender)
 
       // set the port on this worker to be completed

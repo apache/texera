@@ -36,7 +36,7 @@ trait ChannelMarkerHandler {
     {
       // step1: create separate control commands for each target actor.
       val inputSet = msg.targetOps.flatMap { target =>
-        cp.executionState.getOperatorExecution(target).getWorkerIds.map { worker =>
+        cp.workflowExecution.getOperatorExecution(target).getWorkerIds.map { worker =>
           worker -> createInvocation(msg.markerCommand)
         }
       }
@@ -49,7 +49,7 @@ trait ChannelMarkerHandler {
       }
 
       // step 3: convert scope DAG to channels.
-      val channelScope = cp.executionState.builtChannels.filter(channelId => {
+      val channelScope = cp.workflowExecution.builtChannels.filter(channelId => {
         msg.scope.operators
           .map(_.id)
           .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
@@ -58,7 +58,7 @@ trait ChannelMarkerHandler {
             .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
       })
       val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
-        cp.executionState.getOperatorExecution(source).getWorkerIds.flatMap { worker =>
+        cp.workflowExecution.getOperatorExecution(source).getWorkerIds.flatMap { worker =>
           Seq(
             ChannelIdentity(CONTROLLER, worker, isControl = true),
             ChannelIdentity(worker, CONTROLLER, isControl = true)
@@ -70,7 +70,7 @@ trait ChannelMarkerHandler {
 
       // step 4: start prop, send marker through control channel with the compound command from sources.
       msg.sourceOpToStartProp.foreach { source =>
-        cp.executionState.getOperatorExecution(source).getWorkerIds.foreach { worker =>
+        cp.workflowExecution.getOperatorExecution(source).getWorkerIds.foreach { worker =>
           sendChannelMarker(
             msg.id,
             msg.markerType,

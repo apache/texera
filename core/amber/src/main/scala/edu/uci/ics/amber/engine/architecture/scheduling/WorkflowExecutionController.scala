@@ -3,18 +3,18 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
+import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, WorkflowExecution}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class WorkflowExecutionController(
-    regionPlan: RegionPlan,
-    executionState: ExecutionState,
-    actorService: AkkaActorService,
-    controllerConfig: ControllerConfig,
-    asyncRPCClient: AsyncRPCClient
+                                   regionPlan: RegionPlan,
+                                   executionState: WorkflowExecution,
+                                   actorService: AkkaActorService,
+                                   controllerConfig: ControllerConfig,
+                                   asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
   private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutionController] =
