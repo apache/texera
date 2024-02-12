@@ -2,14 +2,14 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowStatsUpdate
 }
+import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
@@ -18,38 +18,82 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
-import scala.collection.Seq
+import scala.collection.{Seq, mutable}
 
 case object RegionExecution {
   def isRegionCompleted(
-      executionState: WorkflowExecution,
+      regionExecution: RegionExecution,
       region: Region
   ): Boolean = {
     region.getPorts.forall(globalPortId => {
-      val operatorExecution = executionState.getOperatorExecution(globalPortId.opId)
+      val operatorExecution = regionExecution.getOperatorExecution(globalPortId.opId)
       if (globalPortId.input) operatorExecution.isInputPortCompleted(globalPortId.portId)
       else operatorExecution.isOutputPortCompleted(globalPortId.portId)
     })
   }
 }
-case class RegionExecution() {
+case class RegionExecution(region: Region) {
+
   var running: Boolean = false
   var completed: Boolean = false
+
+  private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
+    mutable.HashMap()
+
+  def initOperatorExecution(
+      physicalOpId: PhysicalOpIdentity
+  ): OperatorExecution = {
+    assert(!operatorExecutions.contains(physicalOpId))
+    operatorExecutions.getOrElseUpdate(physicalOpId, new OperatorExecution())
+  }
+
+  def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
+    operatorExecutions.values.flatMap(operator => operator.getWorkerIds)
+
+  def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = operatorExecutions(opId)
+
+  def hasOperatorExecution(opId: PhysicalOpIdentity): Boolean = operatorExecutions.contains(opId)
+
+  def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
+    operatorExecutions
+
+  def getStats: Map[String, OperatorRuntimeStats] = {
+    // TODO: fix the aggregation here. The stats should be on port level.
+    operatorExecutions.map {
+      case (physicalOpId, operatorExecution) =>
+        physicalOpId.logicalOpId.id -> operatorExecution.getStats
+    }.toMap
+  }
+
+  def isCompleted: Boolean =
+    region.getPorts.forall(globalPortId => {
+      val operatorExecution = this.getOperatorExecution(globalPortId.opId)
+      if (globalPortId.input) operatorExecution.isInputPortCompleted(globalPortId.portId)
+      else operatorExecution.isOutputPortCompleted(globalPortId.portId)
+
+    })
+
+  def getState: WorkflowAggregatedState = {
+    if(isCompleted){
+      WorkflowAggregatedState.COMPLETED
+    }else{
+      WorkflowAggregatedState.RUNNING
+    }
+  }
 
 }
 class RegionExecutionController(
     region: Region,
-    executionState: WorkflowExecution,
+    regionExecution: RegionExecution,
     asyncRPCClient: AsyncRPCClient,
     actorService: AkkaActorService,
     controllerConfig: ControllerConfig
 ) {
-  // TODO: for now we keep the state with the Executor.
-  //   After refactoring the ExecutionState, we can move this into executionState
-  val regionExecution: RegionExecution = RegionExecution()
 
   def getRegionExecution: RegionExecution = {
     regionExecution
@@ -61,31 +105,32 @@ class RegionExecutionController(
     // some operators may have already been built in previous regions.
     val operatorsToBuild = region
       .topologicalIterator()
-      .filter(opId => { !executionState.hasOperatorExecution(opId) })
+      .filter(opId => { !regionExecution.hasOperatorExecution(opId) })
       .map(opId => region.getOperator(opId))
 
     // fetch resource config
     val resourceConfig = region.resourceConfig.get
 
     // mark the region as running
-    regionExecution.running = true
+//    regionExecution.running = true
 
     // build operators, init workers
     operatorsToBuild.foreach(physicalOp =>
       buildOperator(
         physicalOp,
-        resourceConfig.operatorConfigs(physicalOp.id)
+        resourceConfig.operatorConfigs(physicalOp.id),
+        regionExecution
       )
     )
 
     // update UI
-    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getStats))
+    asyncRPCClient.sendToClient(WorkflowStatsUpdate(regionExecution.getStats))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         region.getOperators
           .map(_.id)
           .map(physicalOpId => {
-            physicalOpId.logicalOpId.id -> executionState
+            physicalOpId.logicalOpId.id -> regionExecution
               .getOperatorExecution(physicalOpId)
               .getWorkerIds
               .map(_.name)
@@ -97,7 +142,7 @@ class RegionExecutionController(
 
     // initialize the operators that are uninitialized
     val operatorsToInit = region.getOperators.filter(op =>
-      executionState.getAllOperatorExecutions
+      regionExecution.getAllOperatorExecutions
         .filter(a => a._2.getState == WorkflowAggregatedState.UNINITIALIZED)
         .map(_._1)
         .toSet
@@ -121,9 +166,10 @@ class RegionExecutionController(
   }
   private def buildOperator(
       physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig
+      operatorConfig: OperatorConfig,
+      regionExecution: RegionExecution
   ): Unit = {
-    val opExecution = executionState.initOperatorExecution(physicalOp.id)
+    val opExecution = regionExecution.initOperatorExecution(physicalOp.id)
     physicalOp.build(
       actorService,
       opExecution,
@@ -139,7 +185,7 @@ class RegionExecutionController(
         operators
           .filter(op => op.isPythonOperator)
           .flatMap(op => {
-            executionState
+            regionExecution
               .getOperatorExecution(op.id)
               .getWorkerIds
               .map(workerId => (workerId, op))
@@ -194,7 +240,7 @@ class RegionExecutionController(
       .collect(
         operators
           .map(_.id)
-          .flatMap(opId => executionState.getOperatorExecution(opId).getWorkerIds)
+          .flatMap(opId => regionExecution.getOperatorExecution(opId).getWorkerIds)
           .map { workerId =>
             asyncRPCClient.send(OpenOperator(), workerId)
           }
@@ -203,12 +249,12 @@ class RegionExecutionController(
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
-    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getStats))
+    asyncRPCClient.sendToClient(WorkflowStatsUpdate(regionExecution.getStats))
     Future.collect(
       region.getSourceOperators
         .map(_.id)
         .flatMap { opId =>
-          executionState
+          regionExecution
             .getOperatorExecution(opId)
             .getWorkerIds
             .map { workerId =>
@@ -216,7 +262,8 @@ class RegionExecutionController(
                 .send(StartWorker(), workerId)
                 .map(ret =>
                   // update worker state
-                  executionState.getOperatorExecution(opId).getWorkerExecution(workerId).state = ret
+                  regionExecution.getOperatorExecution(opId).getWorkerExecution(workerId).state =
+                    ret
                 )
             }
         }

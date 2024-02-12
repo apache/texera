@@ -49,9 +49,10 @@ class WorkflowExecutionController(
       .collect(
         getNextRegions
           .map(region => {
+            val regionExecution = executionState.initRegionExecution(region)
             regionExecutors(region.id) = new RegionExecutionController(
               region,
-              executionState,
+              regionExecution,
               asyncRPCClient,
               actorService,
               controllerConfig
@@ -64,36 +65,39 @@ class WorkflowExecutionController(
       .unit
   }
 
-  def markRegionCompletion(portId: GlobalPortIdentity): Unit = {
-    regionPlan.getRegionOfPortId(portId) match {
-      case Some(region) =>
-        if (RegionExecution.isRegionCompleted(executionState, region)) {
-          regionExecutors(region.id).regionExecution.running = false
-          regionExecutors(region.id).regionExecution.completed = true
-        }
-      case None => // do nothing. currently the source input ports and sink output ports are not captured.
-    }
-
-  }
+//  def markRegionCompletion(portId: GlobalPortIdentity): Unit = {
+//    regionPlan.getRegionOfPortId(portId) match {
+//      case Some(region) =>
+//
+//        if (RegionExecution.isRegionCompleted(executionState, region)) {
+//          regionExecutors(region.id).regionExecution.running = false
+//          regionExecutors(region.id).regionExecution.completed = true
+//        }
+//      case None => // do nothing. currently the source input ports and sink output ports are not captured.
+//    }
+//
+//  }
 
   /**
     * get the next batch of Regions to execute.
     */
   private def getNextRegions: Set[Region] = {
-    if (regionExecutors.values.map(_.getRegionExecution).exists(_.running)) {
+    if (regionExecutors.values.map(_.getRegionExecution).exists(!_.isCompleted)) {
       return Set.empty
     }
 
+
     val completedRegions: Set[RegionIdentity] = regionExecutors.collect {
-      case (regionId, executor) if executor.regionExecution.completed => regionId
+      case (regionId, executor) if executionState.getRegionExecution(regionId).isCompleted => regionId
     }.toSet
 
-    regionExecutionOrder
+    val ret = regionExecutionOrder
       .map(_ -- completedRegions)
       .find(_.nonEmpty)
       .getOrElse(Set.empty)
       .map(regionPlan.getRegion)
-
+    logger.warn("scheduling next region" + ret.map(_.id))
+    ret
   }
 
 }
