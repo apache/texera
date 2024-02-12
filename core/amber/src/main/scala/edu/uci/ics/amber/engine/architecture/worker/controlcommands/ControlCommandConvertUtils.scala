@@ -21,7 +21,6 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
@@ -45,8 +44,6 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
-      case SchedulerTimeSlotEvent(timeSlotExpired: Boolean) =>
-        SchedulerTimeSlotEventV2(timeSlotExpired)
       case OpenOperator() =>
         OpenOperatorV2()
       case AssignPort(portId, input) =>
