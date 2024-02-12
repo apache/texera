@@ -5,6 +5,7 @@ import { StubUserService } from "../../../../common/service/user/stub-user.servi
 import { AdminUserService } from "../../service/admin-user.service";
 import { HttpClientTestingModule, HttpTestingController } from "@angular/common/http/testing";
 import { NzDropDownModule } from "ng-zorro-antd/dropdown";
+import { NzModalModule } from "ng-zorro-antd/modal";
 
 describe("AdminUserComponent", () => {
   let component: AdminUserComponent;
@@ -14,7 +15,7 @@ describe("AdminUserComponent", () => {
     TestBed.configureTestingModule({
       declarations: [AdminUserComponent],
       providers: [{ provide: UserService, useClass: StubUserService }, AdminUserService],
-      imports: [HttpClientTestingModule, NzDropDownModule],
+      imports: [HttpClientTestingModule, NzDropDownModule, NzModalModule],
     }).compileComponents();
   }));
 

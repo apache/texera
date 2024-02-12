@@ -1,12 +1,10 @@
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { UniquePipe } from "ngx-pipes";
 import { UserWorkflowListItemComponent } from "./user-workflow-list-item.component";
 import { FileSaverService } from "../../../service/user-file/file-saver.service";
 import { testWorkflowEntries } from "../../user-dashboard-test-fixtures";
 import { By } from "@angular/platform-browser";
 import { StubWorkflowPersistService } from "src/app/common/service/workflow-persist/stub-workflow-persist.service";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { HttpClient, HttpHandler } from "@angular/common/http";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { StubUserProjectService } from "../../../service/user-project/stub-user-project.service";
@@ -19,11 +17,10 @@ describe("UserWorkflowListItemComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [NzModalModule],
-      declarations: [UserWorkflowListItemComponent, UniquePipe],
+      declarations: [UserWorkflowListItemComponent],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },
-        NgbActiveModal,
         { provide: FileSaverService, useValue: fileSaverServiceSpy },
         HttpClient,
         HttpHandler,

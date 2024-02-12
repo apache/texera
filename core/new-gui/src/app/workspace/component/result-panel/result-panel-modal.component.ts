@@ -7,7 +7,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  *
- * NgbModalComponent is the pop-up window that will be
+ * The pop-up window that will be
  *  displayed when the user clicks on a specific row
  *  to show the displays of that row.
  *
@@ -30,8 +30,7 @@ export class RowModalComponent implements OnChanges {
   @Input() rowIndex: number = 0;
 
   // when modal is opened, currentDisplayRow will be passed as
-  //  componentInstance to this NgbModalComponent to display
-  //  as data table.
+  //  componentInstance to display as data table.
   currentDisplayRowData: Record<string, unknown> = {};
 
   constructor(public modal: NzModalRef<any, number>, private workflowResultService: WorkflowResultService) {}

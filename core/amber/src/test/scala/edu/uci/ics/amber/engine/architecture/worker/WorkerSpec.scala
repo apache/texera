@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, 
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkerReplayInitialization
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -62,10 +62,9 @@ class WorkerSpec
         pauseManager: PauseManager,
         asyncRPCClient: AsyncRPCClient
     ): Iterator[(ITuple, Option[PortIdentity])] = {
-      if (tuple.isLeft) {
-        Iterator((tuple.left.get, None))
-      } else {
-        Iterator.empty
+      tuple match {
+        case Left(iTuple) => Iterator((iTuple, None))
+        case Right(_)     => Iterator.empty
       }
     }
   }
@@ -162,8 +161,14 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
+    sendControlToWorker(worker, Array(invocation, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -194,8 +199,14 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
+    sendControlToWorker(worker, Array(invocation, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -234,13 +245,19 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
     worker ! NetworkMessage(
       1,
       WorkflowFIFOMessage(
         ChannelIdentity(CONTROLLER, identifier1, isControl = true),
         1,
-        updateInputLinking
+        addInputChannel
       )
     )
     worker ! NetworkMessage(

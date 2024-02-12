@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { firstValueFrom } from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
@@ -88,7 +88,7 @@ export class UserWorkflowComponent implements AfterViewInit {
     private userService: UserService,
     private workflowPersistService: WorkflowPersistService,
     private notificationService: NotificationService,
-    private modalService: NgbModal,
+    private modalService: NzModalService,
     private router: Router,
     private fileSaverService: FileSaverService,
     private searchService: SearchService
@@ -113,32 +113,28 @@ export class UserWorkflowComponent implements AfterViewInit {
    * open the Modal to add workflow(s) to project
    */
   public onClickOpenAddWorkflow() {
-    const modalRef = this.modalService.open(NgbdModalAddProjectWorkflowComponent);
-    modalRef.componentInstance.projectId = this.pid;
-
-    // retrieve updated values from modal via promise
-    modalRef.result.then(result => {
-      if (result) {
-        // force the search to update the workflow list.
-        this.search(true);
-      }
+    const modalRef = this.modalService.create({
+      nzContent: NgbdModalAddProjectWorkflowComponent,
+      nzComponentParams: { projectId: this.pid },
+      nzFooter: null,
+      nzTitle: "Add Workflows To Project",
+      nzCentered: true,
     });
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
   }
 
   /**
    * open the Modal to remove workflow(s) from project
    */
   public onClickOpenRemoveWorkflow() {
-    const modalRef = this.modalService.open(NgbdModalRemoveProjectWorkflowComponent);
-    modalRef.componentInstance.projectId = this.pid;
-
-    // retrieve updated values from modal via promise
-    modalRef.result.then(result => {
-      if (result) {
-        // force the search to update the workflow list.
-        this.search(true);
-      }
+    const modalRef = this.modalService.create({
+      nzContent: NgbdModalRemoveProjectWorkflowComponent,
+      nzComponentParams: { projectId: this.pid },
+      nzFooter: null,
+      nzTitle: "Remove Workflows From Project",
+      nzCentered: true,
     });
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.search(true));
   }
 
   /**
@@ -358,7 +354,7 @@ export class UserWorkflowComponent implements AfterViewInit {
           }
         }
       } catch (e) {
-        this.notificationService.error(`Workflow download failed. ${e instanceof Error ? e.message : ""}`);
+        this.notificationService.error(`Workflow download failed. ${(e as Error).message}`);
       }
       let dateTime = new Date();
       let filename = "workflowExports-" + dateTime.toISOString() + ".zip";

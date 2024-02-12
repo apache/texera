@@ -71,11 +71,6 @@ object AmberConfig {
   val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
 
-  // Scheduling related configuration
-  val schedulingPolicyName: String = getConfSource.getString("scheduling.policy-name")
-  val timeSlotExpirationDurationInMs: Int =
-    getConfSource.getInt("scheduling.time-slot-expiration-duration-ms")
-
   // Network buffering configuration
   def defaultBatchSize: Int = getConfSource.getInt("network-buffering.default-batch-size")
   val enableAdaptiveNetworkBuffering: Boolean =
