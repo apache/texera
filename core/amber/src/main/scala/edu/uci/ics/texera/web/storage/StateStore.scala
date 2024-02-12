@@ -29,8 +29,10 @@ class StateStore[T](defaultState: T) {
   def getState: T = stateSubject.getValue
 
   def updateState(func: T => T): Unit = {
-    val newState = func(stateSubject.getValue)
-    serializedSubject.onNext(newState)
+    withLock {
+      val newState = func(stateSubject.getValue)
+      serializedSubject.onNext(newState)
+    }
   }
 
   def registerDiffHandler(handler: (T, T) => Iterable[TexeraWebSocketEvent]): Disposable = {
