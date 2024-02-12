@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHan
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryAndRemoveBreakpointsHandler.QueryAndRemoveBreakpoints
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -33,14 +34,14 @@ trait LocalBreakpointTriggeredHandler {
   registerHandler[LocalBreakpointTriggered, Unit] { (msg, sender) =>
     {
       // get the operator where the worker triggers breakpoint
-      val targetOp = cp.executionState.getOperatorExecution(sender)
-      val physicalOpId = cp.workflow.physicalPlan.getPhysicalOpByWorkerId(sender).id
+      val physicalOpId = VirtualIdentityUtils.getPhysicalOpId(sender)
+      val targetOpExecution = cp.executionState.getOperatorExecution(physicalOpId)
       // get global breakpoints given local breakpoints
       val unResolved = msg.localBreakpoints
         .filter {
           case (id, ver) =>
             // validate the version of the breakpoint
-            targetOp.attachedBreakpoints(id).hasSameVersion(ver)
+            targetOpExecution.attachedBreakpoints(id).hasSameVersion(ver)
         }
         .map(_._1)
 
@@ -51,12 +52,12 @@ trait LocalBreakpointTriggeredHandler {
         // we need to resolve global breakpoints
         // before query workers, increase the version number
         unResolved.foreach { bp =>
-          targetOp.attachedBreakpoints(bp).increaseVersion()
+          targetOpExecution.attachedBreakpoints(bp).increaseVersion()
         }
         // first pause the workers, then get their local breakpoints
         Future
           .collect(
-            targetOp.getWorkerIds.map { worker =>
+            targetOpExecution.getWorkerIds.map { worker =>
               send(PauseWorker(), worker).flatMap { ret =>
                 send(QueryAndRemoveBreakpoints(unResolved), worker)
               }
@@ -68,7 +69,7 @@ trait LocalBreakpointTriggeredHandler {
               .groupBy(_.id)
               .map {
                 case (id, lbps) =>
-                  val gbp = targetOp.attachedBreakpoints(id)
+                  val gbp = targetOpExecution.attachedBreakpoints(id)
                   val localbps: Seq[gbp.localBreakpointType] =
                     lbps.map(_.asInstanceOf[gbp.localBreakpointType])
                   gbp.collect(localbps)

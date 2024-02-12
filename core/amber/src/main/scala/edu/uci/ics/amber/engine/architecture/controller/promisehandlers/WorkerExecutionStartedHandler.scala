@@ -1,9 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
 object WorkerExecutionStartedHandler {
@@ -20,8 +21,8 @@ trait WorkerExecutionStartedHandler {
   registerHandler { (msg: WorkerStateUpdated, sender) =>
     {
       // set the state
-      cp.executionState.getOperatorExecution(sender).getWorkerExecution(sender).state = msg.state
-      sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus))
+      cp.executionState.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender)).getWorkerExecution(sender).state = msg.state
+      sendToClient(WorkflowStatsUpdate(cp.executionState.getWorkflowStatus))
     }
   }
 }

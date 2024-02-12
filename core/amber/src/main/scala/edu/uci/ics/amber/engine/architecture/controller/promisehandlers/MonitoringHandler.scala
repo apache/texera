@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.MonitoringHandler.ControllerInitiateMonitoring
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
-import edu.uci.ics.amber.engine.common.AmberConfig
+import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -67,21 +67,21 @@ trait MonitoringHandler {
         cp.executionState.getAllBuiltWorkers.filterNot(p => msg.filterByWorkers.contains(p)).toList
 
       // send Monitoring message
-      val requests = workers.map(worker =>
-        send(QuerySelfWorkloadMetrics(), worker).map({
-          case (metrics, samples) => {
+      val requests = workers.map(workerId =>
+        send(QuerySelfWorkloadMetrics(), workerId).map({
+          case (metrics, samples) =>
+            val physicalOpId = VirtualIdentityUtils.getPhysicalOpId(workerId)
             cp.executionState
-              .getOperatorExecution(worker)
-              .getWorkerWorkloadInfo(worker)
+              .getOperatorExecution(physicalOpId)
+              .getWorkerWorkloadInfo(workerId)
               .dataInputWorkload =
               metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
             cp.executionState
-              .getOperatorExecution(worker)
-              .getWorkerWorkloadInfo(worker)
+              .getOperatorExecution(physicalOpId)
+              .getWorkerWorkloadInfo(workerId)
               .controlInputWorkload =
               metrics.unprocessedControlInputQueueSize + metrics.stashedControlInputQueueSize
-            updateWorkloadSamples(worker, samples)
-          }
+            updateWorkloadSamples(workerId, samples)
         })
       )
 

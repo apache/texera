@@ -2,10 +2,10 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
-
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -29,11 +29,11 @@ trait QueryWorkerStatisticsHandler {
     val workers = msg.filterByWorkers.getOrElse(cp.executionState.getAllBuiltWorkers).toList
 
     // send QueryStatistics message
-    val requests = workers.map(worker =>
+    val requests = workers.map(workerId =>
       // must immediately update worker state and stats after reply
-      send(QueryStatistics(), worker).map(res => {
+      send(QueryStatistics(), workerId).map(res => {
         val workerExecution =
-          cp.executionState.getOperatorExecution(worker).getWorkerExecution(worker)
+          cp.executionState.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId)).getWorkerExecution(workerId)
         workerExecution.state = res.workerState
         workerExecution.stats = res
       })
@@ -42,6 +42,6 @@ trait QueryWorkerStatisticsHandler {
     // wait for all workers to reply before notifying frontend
     Future
       .collect(requests)
-      .map(_ => sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus)))
+      .map(_ => sendToClient(WorkflowStatsUpdate(cp.executionState.getWorkflowStatus)))
   })
 }

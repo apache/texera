@@ -4,7 +4,7 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
-  WorkflowStatusUpdate
+  WorkflowStatsUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
@@ -78,7 +78,7 @@ class RegionExecutionController(
     )
 
     // update UI
-    asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
+    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getWorkflowStatus))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         region.getOperators
@@ -202,7 +202,7 @@ class RegionExecutionController(
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
-    asyncRPCClient.sendToClient(WorkflowStatusUpdate(executionState.getWorkflowStatus))
+    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getWorkflowStatus))
     Future.collect(
       region.getSourceOperators
         .map(_.id)

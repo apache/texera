@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecov
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowCompleted,
-  WorkflowStatusUpdate
+  WorkflowStatsUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
@@ -146,7 +146,7 @@ class ExecutionStatsService(
   private[this] def registerCallbackOnWorkflowStatusUpdate(): Unit = {
     addSubscription(
       client
-        .registerCallback[WorkflowStatusUpdate]((evt: WorkflowStatusUpdate) => {
+        .registerCallback[WorkflowStatsUpdate]((evt: WorkflowStatsUpdate) => {
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorStatistics)
           }
