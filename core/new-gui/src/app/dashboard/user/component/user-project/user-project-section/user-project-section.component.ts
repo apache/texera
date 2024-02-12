@@ -1,7 +1,7 @@
 import { Component, OnInit } from "@angular/core";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { ActivatedRoute, Router } from "@angular/router";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { NgbdModalAddProjectFileComponent } from "./ngbd-modal-add-project-file/ngbd-modal-add-project-file.component";
 import { NgbdModalRemoveProjectFileComponent } from "./ngbd-modal-remove-project-file/ngbd-modal-remove-project-file.component";
 import { DashboardFile } from "../../../type/dashboard-file.interface";
@@ -10,6 +10,7 @@ import { UserFileService } from "../../../service/user-file/user-file.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { isDefined } from "../../../../../common/util/predicate";
+
 export const ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
 
 @UntilDestroy()
@@ -45,7 +46,7 @@ export class UserProjectSectionComponent implements OnInit {
     private userProjectService: UserProjectService,
     private activatedRoute: ActivatedRoute,
     private router: Router,
-    private modalService: NgbModal,
+    private modalService: NzModalService,
     private userFileService: UserFileService,
     private notificationService: NotificationService
   ) {}
@@ -65,15 +66,29 @@ export class UserProjectSectionComponent implements OnInit {
   }
 
   public onClickOpenAddFile() {
-    const modalRef = this.modalService.open(NgbdModalAddProjectFileComponent);
-    modalRef.componentInstance.addedFiles = this.getUserProjectFilesArray();
-    modalRef.componentInstance.projectId = this.pid;
+    this.modalService.create({
+      nzContent: NgbdModalAddProjectFileComponent,
+      nzComponentParams: {
+        addedFiles: this.getUserProjectFilesArray(),
+        projectId: this.pid,
+      },
+      nzFooter: null,
+      nzTitle: "Add Files To Project",
+      nzCentered: true,
+    });
   }
 
   public onClickOpenRemoveFile() {
-    const modalRef = this.modalService.open(NgbdModalRemoveProjectFileComponent);
-    modalRef.componentInstance.addedFiles = this.getUserProjectFilesArray();
-    modalRef.componentInstance.projectId = this.pid;
+    this.modalService.create({
+      nzContent: NgbdModalRemoveProjectFileComponent,
+      nzComponentParams: {
+        addedFiles: this.getUserProjectFilesArray(),
+        projectId: this.pid,
+      },
+      nzFooter: null,
+      nzTitle: "Remove Files From Project",
+      nzCentered: true,
+    });
   }
 
   public getUserProjectFilesArray(): ReadonlyArray<DashboardFile> {
@@ -114,10 +129,7 @@ export class UserProjectSectionComponent implements OnInit {
           this.colorIsBright = UserProjectService.isLightColor(this.color);
           this.updateProjectStatus = "updated project color"; // cause workflow / file components to update project filtering list
         },
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
 
@@ -166,9 +178,8 @@ export class UserProjectSectionComponent implements OnInit {
           }
           this.userProjectService.refreshFilesOfProject(this.pid); // -- perform appropriate call for project page
         },
-        (err: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
-          this.notificationService.error(err.error.message);
+        (e: unknown) => {
+          this.notificationService.error((e as Error).message);
           if (!isDefined(this.pid)) {
             return;
           }
@@ -197,10 +208,7 @@ export class UserProjectSectionComponent implements OnInit {
           downloadLink.click();
           URL.revokeObjectURL(downloadLink.href);
         },
-        error: (err: unknown) => {
-          // TODO: fix this with notification component
-          this.notificationService.error((err as any).error.message);
-        },
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       });
   }
 
