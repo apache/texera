@@ -13,11 +13,9 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, Workfl
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.{CollectionHasAsScala, EnumerationHasAsScala}
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class OperatorExecution(
-    numWorkers: Int
-) extends Serializable {
+class OperatorExecution extends Serializable {
 
   private val workerExecutions =
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
@@ -77,7 +75,7 @@ class OperatorExecution(
       getState,
       inputCount = workerExecutions.values.asScala.map(_.stats).map(_.inputTupleCount).sum,
       outputCount = workerExecutions.values.asScala.map(_.stats).map(_.outputTupleCount).sum,
-      numWorkers,
+      getWorkerIds.length,
       dataProcessingTime =
         workerExecutions.values.asScala.map(_.stats).map(_.dataProcessingTime).sum,
       controlProcessingTime =

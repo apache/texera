@@ -122,7 +122,7 @@ class RegionExecutionController(
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig
   ): Unit = {
-    val opExecution = executionState.initOperatorState(physicalOp.id, operatorConfig)
+    val opExecution = executionState.initOperatorState(physicalOp.id)
     physicalOp.build(
       actorService,
       opExecution,
@@ -210,14 +210,13 @@ class RegionExecutionController(
           executionState
             .getOperatorExecution(opId)
             .getWorkerIds
-            .map {
-              workerId =>
-                asyncRPCClient
-                  .send(StartWorker(), workerId)
-                  .map(ret =>
-                    // update worker state
-                    executionState.getOperatorExecution(opId).getWorkerExecution(workerId).state = ret
-                  )
+            .map { workerId =>
+              asyncRPCClient
+                .send(StartWorker(), workerId)
+                .map(ret =>
+                  // update worker state
+                  executionState.getOperatorExecution(opId).getWorkerExecution(workerId).state = ret
+                )
             }
         }
         .toSeq

@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -19,40 +16,24 @@ class ExecutionState {
   val builtChannels: mutable.Set[ChannelIdentity] = mutable.HashSet[ChannelIdentity]()
 
   def initOperatorState(
-      physicalOpId: PhysicalOpIdentity,
-      operatorConfig: OperatorConfig
+      physicalOpId: PhysicalOpIdentity
   ): OperatorExecution = {
-    operatorExecutions += physicalOpId -> new OperatorExecution(
-      operatorConfig.workerConfigs.length
-    )
-    operatorExecutions(physicalOpId)
+    assert(!operatorExecutions.contains(physicalOpId))
+    operatorExecutions.getOrElseUpdate(physicalOpId, new OperatorExecution())
   }
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values
-      .flatMap(operator =>
-        operator.getWorkerIds.map(worker => operator.getWorkerExecution(worker))
-      )
+      .flatMap(operator => operator.getWorkerIds.map(worker => operator.getWorkerExecution(worker)))
       .map(_.id)
 
-  def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = {
-    operatorExecutions(opId)
-  }
+  def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = operatorExecutions(opId)
 
-  def hasOperatorExecution(opId: PhysicalOpIdentity): Boolean = {
-    operatorExecutions.contains(opId)
+  def hasOperatorExecution(opId: PhysicalOpIdentity): Boolean = operatorExecutions.contains(opId)
+  def getOperatorExecution(workerId: ActorVirtualIdentity): OperatorExecution = {
+    operatorExecutions(VirtualIdentityUtils.getPhysicalOpId(workerId))
   }
-  def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
-    operatorExecutions.values.foreach { execution =>
-      val result = execution.getWorkerIds.find(x => x == worker)
-      if (result.isDefined) {
-        return execution
-      }
-    }
-    throw new NoSuchElementException(s"cannot find operator with worker = $worker")
-  }
-  def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
-    operatorExecutions
+  def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] = operatorExecutions
 
   def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
     operatorExecutions.map(op => (op._1.logicalOpId.id, op._2.getOperatorStatistics)).toMap
