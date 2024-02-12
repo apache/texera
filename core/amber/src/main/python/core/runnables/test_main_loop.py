@@ -412,7 +412,10 @@ class TestMainLoop:
 
         # can process QueryStatistics
         input_queue.put(mock_query_statistics)
-        assert output_queue.get() == ControlElement(
+        elem = output_queue.get()
+        stats_invocation = elem.payload.return_invocation
+        stats = stats_invocation.control_return.worker_statistics
+        assert elem == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
@@ -422,6 +425,9 @@ class TestMainLoop:
                             worker_state=WorkerState.RUNNING,
                             input_tuple_count=1,
                             output_tuple_count=1,
+                            data_processing_time=stats.data_processing_time,
+                            control_processing_time=stats.control_processing_time,
+                            idle_time=stats.idle_time,
                         )
                     ),
                 )
