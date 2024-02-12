@@ -64,7 +64,9 @@ trait MonitoringHandler {
       previousCallFinished = false
       // send to specified workers (or all workers by default)
       val workers =
-        cp.workflowExecution.getAllBuiltWorkers.filterNot(p => msg.filterByWorkers.contains(p)).toList
+        cp.workflowExecution.getAllBuiltWorkers
+          .filterNot(p => msg.filterByWorkers.contains(p))
+          .toList
 
       // send Monitoring message
       val requests = workers.map(workerId =>

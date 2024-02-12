@@ -25,8 +25,8 @@ import scala.collection.Seq
 
 case object RegionExecution {
   def isRegionCompleted(
-                         executionState: WorkflowExecution,
-                         region: Region
+      executionState: WorkflowExecution,
+      region: Region
   ): Boolean = {
     region.getPorts.forall(globalPortId => {
       val operatorExecution = executionState.getOperatorExecution(globalPortId.opId)
@@ -41,11 +41,11 @@ case class RegionExecution() {
 
 }
 class RegionExecutionController(
-                                 region: Region,
-                                 executionState: WorkflowExecution,
-                                 asyncRPCClient: AsyncRPCClient,
-                                 actorService: AkkaActorService,
-                                 controllerConfig: ControllerConfig
+    region: Region,
+    executionState: WorkflowExecution,
+    asyncRPCClient: AsyncRPCClient,
+    actorService: AkkaActorService,
+    controllerConfig: ControllerConfig
 ) {
   // TODO: for now we keep the state with the Executor.
   //   After refactoring the ExecutionState, we can move this into executionState

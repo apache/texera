@@ -33,7 +33,9 @@ trait QueryWorkerStatisticsHandler {
       // must immediately update worker state and stats after reply
       send(QueryStatistics(), workerId).map(res => {
         val workerExecution =
-          cp.workflowExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId)).getWorkerExecution(workerId)
+          cp.workflowExecution
+            .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+            .getWorkerExecution(workerId)
         workerExecution.state = res.workerState
         workerExecution.stats = res
       })

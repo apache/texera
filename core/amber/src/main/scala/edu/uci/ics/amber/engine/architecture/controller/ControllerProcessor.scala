@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, AmberProcessor}
+import edu.uci.ics.amber.engine.architecture.common.{
+  AkkaActorRefMappingService,
+  AkkaActorService,
+  AmberProcessor
+}
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionController

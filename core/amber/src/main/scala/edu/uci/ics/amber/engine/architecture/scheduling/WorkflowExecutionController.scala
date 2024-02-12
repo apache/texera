@@ -11,11 +11,11 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class WorkflowExecutionController(
-                                   regionPlan: RegionPlan,
-                                   executionState: WorkflowExecution,
-                                   actorService: AkkaActorService,
-                                   controllerConfig: ControllerConfig,
-                                   asyncRPCClient: AsyncRPCClient
+    regionPlan: RegionPlan,
+    executionState: WorkflowExecution,
+    actorService: AkkaActorService,
+    controllerConfig: ControllerConfig,
+    asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
   private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutionController] =

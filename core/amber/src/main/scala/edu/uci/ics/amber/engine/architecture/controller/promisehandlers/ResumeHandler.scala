@@ -27,7 +27,10 @@ trait ResumeHandler {
       Future
         .collect(cp.workflowExecution.getAllBuiltWorkers.map { workerId =>
           send(ResumeWorker(), workerId).map { ret =>
-            cp.workflowExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId)).getWorkerExecution(workerId).state = ret
+            cp.workflowExecution
+              .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+              .getWorkerExecution(workerId)
+              .state = ret
           }
         }.toSeq)
         .map { _ =>
