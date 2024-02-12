@@ -673,8 +673,6 @@ export class WorkflowActionService {
 
       operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
 
-      console.log("loaded", operatorsAndPositions);
-
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
       // restore the view point
