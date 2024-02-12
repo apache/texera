@@ -27,8 +27,8 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
-  override val mappedResourceSchema: ResourceFieldEntry = {
-    new ResourceFieldEntry(
+  override val mappedResourceSchema: UnifiedResourceSchema = {
+    new UnifiedResourceSchema(
       _resourceType = DSL.inline(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE),
       _name = WORKFLOW.NAME,
       _description = WORKFLOW.DESCRIPTION,

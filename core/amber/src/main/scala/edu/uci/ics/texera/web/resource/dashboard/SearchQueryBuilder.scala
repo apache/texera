@@ -19,7 +19,7 @@ object SearchQueryBuilder {
 
 trait SearchQueryBuilder {
 
-  protected val mappedResourceSchema: ResourceFieldEntry
+  protected val mappedResourceSchema: UnifiedResourceSchema
 
   protected def constructFromClause(user: SessionUser, params: SearchQueryParams): TableLike[_]
 

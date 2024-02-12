@@ -14,7 +14,7 @@ import org.jooq.impl.DSL
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 class ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
-  override val mappedResourceSchema: ResourceFieldEntry = new ResourceFieldEntry(
+  override val mappedResourceSchema: UnifiedResourceSchema = new UnifiedResourceSchema(
     _resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE),
     _name = PROJECT.NAME,
     _description = PROJECT.DESCRIPTION,

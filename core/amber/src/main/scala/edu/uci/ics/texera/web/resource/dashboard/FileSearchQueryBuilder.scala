@@ -16,7 +16,7 @@ import org.jooq.impl.DSL
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 class FileSearchQueryBuilder extends SearchQueryBuilder {
 
-  override val mappedResourceSchema: ResourceFieldEntry = new ResourceFieldEntry(
+  override val mappedResourceSchema: UnifiedResourceSchema = new UnifiedResourceSchema(
     _resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE),
     _name = FILE.NAME,
     _description = FILE.DESCRIPTION,

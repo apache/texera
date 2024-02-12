@@ -41,7 +41,7 @@ import java.sql.Timestamp
   * 19. `email`: Represents the email associated with the file owner (`String`).
   * 20. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
   */
-class ResourceFieldEntry(
+class UnifiedResourceSchema(
     _resourceType: Field[String] = DSL.inline(""),
     _name: Field[String] = DSL.inline(""),
     _description: Field[String] = DSL.inline(""),
