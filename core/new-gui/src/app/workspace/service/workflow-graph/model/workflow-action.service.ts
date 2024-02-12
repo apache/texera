@@ -81,7 +81,7 @@ export class WorkflowActionService {
     private operatorMetadataService: OperatorMetadataService,
     private jointUIService: JointUIService,
     private undoRedoService: UndoRedoService,
-    private workflowUtilService: WorkflowUtilService,
+    private workflowUtilService: WorkflowUtilService
   ) {
     this.texeraGraph = new WorkflowGraph();
     this.jointGraph = new joint.dia.Graph();
@@ -91,14 +91,14 @@ export class WorkflowActionService {
       this.jointGraph,
       this.jointGraphWrapper,
       this.workflowUtilService,
-      this.jointUIService,
+      this.jointUIService
     );
     this.syncTexeraModel = new SyncTexeraModel(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.sharedModelChangeHandler = new SharedModelChangeHandler(
       this.texeraGraph,
       this.jointGraph,
       this.jointGraphWrapper,
-      this.jointUIService,
+      this.jointUIService
     );
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
     this.workflowMetadata = DEFAULT_WORKFLOW;
@@ -294,7 +294,7 @@ export class WorkflowActionService {
     links?: readonly OperatorLink[],
     groups?: readonly Group[],
     breakpoints?: ReadonlyMap<string, Breakpoint>,
-    commentBoxes?: ReadonlyArray<CommentBox>,
+    commentBoxes?: ReadonlyArray<CommentBox>
   ): void {
     // remember currently highlighted operators and groups
     const currentHighlights = this.jointGraphWrapper.getCurrentHighlights();
@@ -337,7 +337,7 @@ export class WorkflowActionService {
   public deleteOperatorsAndLinks(
     operatorIDs: readonly string[],
     linkIDs: readonly string[],
-    groupIDs?: readonly string[],
+    groupIDs?: readonly string[]
   ): void {
     // combines operators in selected groups and operators explicitly
     const operatorIDsCopy = Array.from(
@@ -345,11 +345,11 @@ export class WorkflowActionService {
         operatorIDs.concat(
           (groupIDs ?? []).flatMap(groupID =>
             Array.from(this.operatorGroup.getGroup(groupID).operators.values()).map(
-              operatorInfo => operatorInfo.operator.operatorID,
-            ),
-          ),
-        ),
-      ),
+              operatorInfo => operatorInfo.operator.operatorID
+            )
+          )
+        )
+      )
     );
 
     // save links to be deleted, including links explicitly deleted and implicitly deleted with their operators
@@ -364,7 +364,7 @@ export class WorkflowActionService {
       this.getTexeraGraph()
         .getAllLinks()
         .filter(
-          link => operatorIDsCopy.includes(link.source.operatorID) || operatorIDsCopy.includes(link.target.operatorID),
+          link => operatorIDsCopy.includes(link.source.operatorID) || operatorIDsCopy.includes(link.target.operatorID)
         )
         .forEach(link => linksToDelete.set(link, this.getOperatorGroup().getLinkLayerByGroup(link.linkID)));
       linksToDelete.forEach((layer, link) => this.deleteLinkWithID(link.linkID));
@@ -494,7 +494,7 @@ export class WorkflowActionService {
     this.getJointGraphWrapper().highlightOperators(...ops);
     this.getTexeraGraph().updateSharedModelAwareness(
       "highlighted",
-      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs(),
+      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
     );
   }
 
@@ -502,7 +502,7 @@ export class WorkflowActionService {
     this.getJointGraphWrapper().unhighlightOperators(...ops);
     this.getTexeraGraph().updateSharedModelAwareness(
       "highlighted",
-      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs(),
+      this.jointGraphWrapper.getCurrentHighlightedOperatorIDs()
     );
   }
 
@@ -620,7 +620,7 @@ export class WorkflowActionService {
    */
   public reloadWorkflow(
     workflow: Readonly<Workflow> | undefined,
-    asyncRendering = environment.asyncRenderingEnabled,
+    asyncRendering = environment.asyncRenderingEnabled
   ): void {
     this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
@@ -631,7 +631,7 @@ export class WorkflowActionService {
         this.getTexeraGraph()
           .getAllOperators()
           .map(op => op.operatorID),
-        [],
+        []
       );
 
       this.getTexeraGraph()
@@ -714,7 +714,7 @@ export class WorkflowActionService {
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
-      this.getTexeraGraph().getPortPropertyChangedStream(),
+      this.getTexeraGraph().getPortPropertyChangedStream()
     );
   }
 
@@ -768,8 +768,8 @@ export class WorkflowActionService {
       .forEach(
         op =>
           (operatorPositions[op.operatorID] = this.texeraGraph.sharedModel.elementPositionMap?.get(
-            op.operatorID,
-          ) as Point),
+            op.operatorID
+          ) as Point)
       );
     return {
       operators,
@@ -856,8 +856,8 @@ export class WorkflowActionService {
           this.jointGraphWrapper
             .getCurrentHighlightedOperatorIDs()
             .concat(this.jointGraphWrapper.getCurrentHighlightedCommentBoxIDs())
-            .includes(movedElement.elementID),
-        ),
+            .includes(movedElement.elementID)
+        )
       )
       .subscribe(movedElement => {
         this.texeraGraph.bundleActions(() => {
@@ -880,7 +880,7 @@ export class WorkflowActionService {
                 this.jointGraphWrapper.setElementPosition(elementID, offsetX, offsetY);
                 this.texeraGraph.sharedModel.elementPositionMap.set(
                   elementID,
-                  this.jointGraphWrapper.getElementPosition(elementID),
+                  this.jointGraphWrapper.getElementPosition(elementID)
                 );
                 // The position of comment box is included in its object, so we only set it here for persistence.
                 if (elementID.includes("commentBox")) {

@@ -159,26 +159,24 @@ export class WorkflowUtilService {
     return workflow;
   }
 
-  private static inputPortToPortDescription(portID: string, inputPortInfo: InputPortInfo) : PortDescription  {
+  private static inputPortToPortDescription(portID: string, inputPortInfo: InputPortInfo): PortDescription {
     return {
       portID,
       displayName: inputPortInfo.displayName ?? "",
       allowMultiInputs: inputPortInfo.allowMultiLinks ?? false,
       isDynamicPort: false,
       dependencies: inputPortInfo.dependencies ?? [],
-    }
-}
+    };
+  }
 
-  private static outputPortToPortDescription(portID: string, outputPortInfo: OutputPortInfo) : PortDescription  {
+  private static outputPortToPortDescription(portID: string, outputPortInfo: OutputPortInfo): PortDescription {
     return {
       portID,
       displayName: outputPortInfo.displayName ?? "",
       allowMultiInputs: false,
       isDynamicPort: false,
-    }
+    };
   }
-
-
 
   public updateOperatorVersion(op: OperatorPredicate) {
     const operatorType = op.operatorType;
@@ -187,7 +185,7 @@ export class WorkflowUtilService {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
 
-    let inputPorts:PortDescription[] = [];
+    let inputPorts: PortDescription[] = [];
     if (op.inputPorts.length === 0) {
       // use the operatorSchema as a template to create ports
       for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
@@ -195,12 +193,11 @@ export class WorkflowUtilService {
         const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
         inputPorts.push(WorkflowUtilService.inputPortToPortDescription(portID, portInfo));
       }
-    }else{
+    } else {
       inputPorts = op.inputPorts;
     }
 
-
-    let outputPorts:PortDescription[] = [];
+    let outputPorts: PortDescription[] = [];
     if (op.outputPorts.length === 0) {
       // use the operatorSchema as a template to create ports
       for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
@@ -208,7 +205,7 @@ export class WorkflowUtilService {
         const portInfo = operatorSchema.additionalMetadata.outputPorts[i];
         outputPorts.push(WorkflowUtilService.outputPortToPortDescription(portID, portInfo));
       }
-    }else{
+    } else {
       outputPorts = op.outputPorts;
     }
 
