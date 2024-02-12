@@ -64,11 +64,15 @@ class WorkflowExecutionController(
   }
 
   def markRegionCompletion(portId: GlobalPortIdentity): Unit = {
-    val region = regionPlan.getRegionOfPortId(portId)
-    if (RegionExecution.isRegionCompleted(executionState, region)) {
-      regionExecutors(region.id).regionExecution.running = false
-      regionExecutors(region.id).regionExecution.completed = true
+    regionPlan.getRegionOfPortId(portId) match {
+      case Some(region) =>
+        if (RegionExecution.isRegionCompleted(executionState, region)) {
+          regionExecutors(region.id).regionExecution.running = false
+          regionExecutors(region.id).regionExecution.completed = true
+        }
+      case None => // do nothing. currently the source input ports and sink output ports are not captured.
     }
+
   }
 
   /**
