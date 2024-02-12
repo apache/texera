@@ -32,7 +32,7 @@ trait ResumeHandler {
         }.toSeq)
         .map { _ =>
           // update frontend status
-          sendToClient(WorkflowStatsUpdate(cp.executionState.getWorkflowStatus))
+          sendToClient(WorkflowStatsUpdate(cp.executionState.getStats))
           cp.controllerTimerService
             .enableStatusUpdate() //re-enabled it since it is disabled in pause
           cp.controllerTimerService.enableMonitoring()

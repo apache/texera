@@ -78,7 +78,7 @@ class RegionExecutionController(
     )
 
     // update UI
-    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getWorkflowStatus))
+    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getStats))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         region.getOperators
@@ -202,7 +202,7 @@ class RegionExecutionController(
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
-    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getWorkflowStatus))
+    asyncRPCClient.sendToClient(WorkflowStatsUpdate(executionState.getStats))
     Future.collect(
       region.getSourceOperators
         .map(_.id)

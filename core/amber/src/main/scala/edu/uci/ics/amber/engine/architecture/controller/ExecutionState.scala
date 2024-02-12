@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -29,10 +33,14 @@ class ExecutionState {
 
   def hasOperatorExecution(opId: PhysicalOpIdentity): Boolean = operatorExecutions.contains(opId)
 
-  def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] = operatorExecutions
+  def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
+    operatorExecutions
 
-  def getWorkflowStatus: Map[String, OperatorRuntimeStats] = {
-    operatorExecutions.map(op => (op._1.logicalOpId.id, op._2.getOperatorStatistics)).toMap
+  def getStats: Map[String, OperatorRuntimeStats] = {
+    operatorExecutions.map {
+      case (physicalOpId, operatorExecution) =>
+        physicalOpId.logicalOpId.id -> operatorExecution.getStats
+    }.toMap
   }
 
   def isCompleted: Boolean = getState == WorkflowAggregatedState.COMPLETED

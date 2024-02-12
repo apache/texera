@@ -70,7 +70,7 @@ class OperatorExecution extends Serializable {
     }
   }
 
-  def getOperatorStatistics: OperatorRuntimeStats =
+  def getStats: OperatorRuntimeStats =
     OperatorRuntimeStats(
       getState,
       inputCount = workerExecutions.values.asScala.map(_.stats).map(_.inputTupleCount).sum,

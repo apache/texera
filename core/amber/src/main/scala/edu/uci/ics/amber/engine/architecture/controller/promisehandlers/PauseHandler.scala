@@ -70,7 +70,7 @@ trait PauseHandler {
         }.toSeq)
         .map { ret =>
           // update frontend workflow status
-          sendToClient(WorkflowStatsUpdate(cp.executionState.getWorkflowStatus))
+          sendToClient(WorkflowStatsUpdate(cp.executionState.getStats))
           sendToClient(WorkflowPaused())
           logger.info(s"workflow paused")
         }
