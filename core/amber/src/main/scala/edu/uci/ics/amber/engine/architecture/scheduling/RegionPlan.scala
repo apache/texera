@@ -23,8 +23,8 @@ case class RegionPlan(
     regions.find(region => region.getLinks.contains(link)).get
   }
 
-  def getRegionOfPortId(portId: GlobalPortIdentity): Region = {
-    regions.find(region => region.getPorts.contains(portId)).get
+  def getRegionOfPortId(portId: GlobalPortIdentity): Option[Region] = {
+    regions.find(region => region.getPorts.contains(portId))
   }
 
   def topologicalIterator(): Iterator[RegionIdentity] = {
