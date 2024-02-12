@@ -3,7 +3,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
@@ -345,8 +348,10 @@ class ExpansionGreedyRegionPlanGenerator(
     val toPortId = physicalLink.toPortId
 
     val outputSchema = fromOp.outputPorts(fromPortId)._3
-    val matWriterPhysicalOp: PhysicalOp =createMatWriter(outputSchema, fromOp.id.logicalOpId, context)
-    val matReaderPhysicalOp: PhysicalOp = createMatReader(outputSchema, matWriterPhysicalOp.id.logicalOpId, context)
+    val matWriterPhysicalOp: PhysicalOp =
+      createMatWriter(outputSchema, fromOp.id.logicalOpId, context)
+    val matReaderPhysicalOp: PhysicalOp =
+      createMatReader(outputSchema, matWriterPhysicalOp.id.logicalOpId, context)
 
     // create 2 links for materialization
     val readerToDestLink =
@@ -378,10 +383,9 @@ class ExpansionGreedyRegionPlanGenerator(
   }
 
   private def createMatReader(
-                               inputSchema: Schema,
-                               key: OperatorIdentity,
-
-                               context: WorkflowContext
+      inputSchema: Schema,
+      key: OperatorIdentity,
+      context: WorkflowContext
   ): PhysicalOp = {
     val materializationReader = new CacheSourceOpDesc(
       key,
