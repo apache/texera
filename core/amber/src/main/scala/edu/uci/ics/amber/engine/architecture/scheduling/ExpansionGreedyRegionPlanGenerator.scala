@@ -384,59 +384,52 @@ class ExpansionGreedyRegionPlanGenerator(
 
   private def createMatReader(
       inputSchema: Schema,
-      key: OperatorIdentity,
+      matWriterLogicalOpId: OperatorIdentity,
       context: WorkflowContext
   ): PhysicalOp = {
-    val materializationReader = new CacheSourceOpDesc(
-      key,
+    // use a dummy Logical Operator
+    val matReader = new CacheSourceOpDesc(
+      matWriterLogicalOpId,
       opResultStorage: OpResultStorage
     )
-    materializationReader.setContext(context)
-    materializationReader.setOperatorId("cacheSource_" + key.id)
-    materializationReader.schema = inputSchema
-    val matReaderOutputSchema = materializationReader.getOutputSchemas(Array()).head
-    materializationReader.outputPortToSchemaMapping(
-      materializationReader.operatorInfo.outputPorts.head.id
-    ) = matReaderOutputSchema
+    matReader.setContext(context)
+    matReader.setOperatorId("cacheSource_" + matWriterLogicalOpId.id)
+    matReader.schema = inputSchema
+    matReader.outputPortToSchemaMapping(matReader.operatorInfo.outputPorts.head.id) =  matReader.getOutputSchemas(Array()).head
 
-    val matReaderOp = materializationReader
+    matReader
       .getPhysicalOp(
         context.workflowId,
         context.executionId
       )
-      .withOutputPorts(List(OutputPort()), materializationReader.outputPortToSchemaMapping)
-
-    matReaderOp
   }
 
   private def createMatWriter(
       inputSchema: Schema,
-      key: OperatorIdentity,
+      fromLogicalOpId: OperatorIdentity,
       context: WorkflowContext
   ): PhysicalOp = {
-    val matWriterLogicalOp = new ProgressiveSinkOpDesc()
-    matWriterLogicalOp.setContext(context)
-    matWriterLogicalOp.setOperatorId("materialized_" + key.id)
+    val matWriter = new ProgressiveSinkOpDesc()
+    matWriter.setContext(context)
+    matWriter.setOperatorId("materialized_" + fromLogicalOpId.id)
     // we currently expect only one output schema
-    val inputPort = matWriterLogicalOp.operatorInfo().inputPorts.head
-    val outputPort = matWriterLogicalOp.operatorInfo().outputPorts.head
-    matWriterLogicalOp.inputPortToSchemaMapping(inputPort.id) = inputSchema
-    val matWriterOutputSchema = matWriterLogicalOp.getOutputSchema(Array(inputSchema))
-    matWriterLogicalOp.outputPortToSchemaMapping(outputPort.id) = matWriterOutputSchema
-    val matWriterPhysicalOp = matWriterLogicalOp
+    val inputPort = matWriter.operatorInfo().inputPorts.head
+    val outputPort = matWriter.operatorInfo().outputPorts.head
+    matWriter.inputPortToSchemaMapping(inputPort.id) = inputSchema
+    matWriter.outputPortToSchemaMapping(outputPort.id) = matWriter.getOutputSchema(Array(inputSchema))
+    matWriter.setStorage(
+      opResultStorage.create(
+        key = matWriter.operatorIdentifier,
+        mode = OpResultStorage.defaultStorageMode
+      )
+    )
+    opResultStorage.get(matWriter.operatorIdentifier).setSchema(inputSchema)
+
+    matWriter
       .getPhysicalOp(
         context.workflowId,
         context.executionId
       )
-      .withInputPorts(List(inputPort), matWriterLogicalOp.inputPortToSchemaMapping)
-      .withOutputPorts(List(outputPort), matWriterLogicalOp.outputPortToSchemaMapping)
-    matWriterLogicalOp.setStorage(
-      opResultStorage.create(
-        key = matWriterLogicalOp.operatorIdentifier,
-        mode = OpResultStorage.defaultStorageMode
-      )
-    )
-    opResultStorage.get(matWriterLogicalOp.operatorIdentifier).setSchema(inputSchema)
-    matWriterPhysicalOp
+
   }
 }
