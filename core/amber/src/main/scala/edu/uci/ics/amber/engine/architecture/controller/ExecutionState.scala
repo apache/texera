@@ -31,7 +31,7 @@ class ExecutionState {
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
     operatorExecutions.values
       .flatMap(operator =>
-        operator.getBuiltWorkerIds.map(worker => operator.getWorkerExecution(worker))
+        operator.getWorkerIds.map(worker => operator.getWorkerExecution(worker))
       )
       .map(_.id)
 
@@ -44,7 +44,7 @@ class ExecutionState {
   }
   def getOperatorExecution(worker: ActorVirtualIdentity): OperatorExecution = {
     operatorExecutions.values.foreach { execution =>
-      val result = execution.getBuiltWorkerIds.find(x => x == worker)
+      val result = execution.getWorkerIds.find(x => x == worker)
       if (result.isDefined) {
         return execution
       }

@@ -86,7 +86,7 @@ class RegionExecutionController(
           .map(physicalOpId => {
             physicalOpId.logicalOpId.id -> executionState
               .getOperatorExecution(physicalOpId)
-              .getBuiltWorkerIds
+              .getWorkerIds
               .map(_.name)
               .toList
           })
@@ -140,7 +140,7 @@ class RegionExecutionController(
           .flatMap(op => {
             executionState
               .getOperatorExecution(op.id)
-              .getBuiltWorkerIds
+              .getWorkerIds
               .map(workerId => (workerId, op))
           })
           .map {
@@ -193,7 +193,7 @@ class RegionExecutionController(
       .collect(
         operators
           .map(_.id)
-          .flatMap(opId => executionState.getOperatorExecution(opId).getBuiltWorkerIds)
+          .flatMap(opId => executionState.getOperatorExecution(opId).getWorkerIds)
           .map { workerId =>
             asyncRPCClient.send(OpenOperator(), workerId)
           }
@@ -209,14 +209,14 @@ class RegionExecutionController(
         .flatMap { opId =>
           executionState
             .getOperatorExecution(opId)
-            .getWorkerExecutions
+            .getWorkerIds
             .map {
-              case (workerId, workerExecution) =>
+              workerId =>
                 asyncRPCClient
                   .send(StartWorker(), workerId)
                   .map(ret =>
                     // update worker state
-                    workerExecution.state = ret
+                    executionState.getOperatorExecution(opId).getWorkerExecution(workerId).state = ret
                   )
             }
         }

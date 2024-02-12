@@ -42,7 +42,7 @@ trait PauseHandler {
             val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
             Future
               .collect(
-                opExecution.getBuiltWorkerIds
+                opExecution.getWorkerIds
                   // send pause to all workers
                   // pause message has no effect on completed or paused workers
                   .map { worker =>
