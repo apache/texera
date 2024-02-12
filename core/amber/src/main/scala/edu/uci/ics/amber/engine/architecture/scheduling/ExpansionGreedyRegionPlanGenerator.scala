@@ -395,7 +395,8 @@ class ExpansionGreedyRegionPlanGenerator(
     matReader.setContext(context)
     matReader.setOperatorId("cacheSource_" + matWriterLogicalOpId.id)
     matReader.schema = inputSchema
-    matReader.outputPortToSchemaMapping(matReader.operatorInfo.outputPorts.head.id) =  matReader.getOutputSchemas(Array()).head
+    matReader.outputPortToSchemaMapping(matReader.operatorInfo.outputPorts.head.id) =
+      matReader.getOutputSchema(Array())
 
     matReader
       .getPhysicalOp(
@@ -416,7 +417,8 @@ class ExpansionGreedyRegionPlanGenerator(
     val inputPort = matWriter.operatorInfo().inputPorts.head
     val outputPort = matWriter.operatorInfo().outputPorts.head
     matWriter.inputPortToSchemaMapping(inputPort.id) = inputSchema
-    matWriter.outputPortToSchemaMapping(outputPort.id) = matWriter.getOutputSchema(Array(inputSchema))
+    matWriter.outputPortToSchemaMapping(outputPort.id) =
+      matWriter.getOutputSchema(Array(inputSchema))
     matWriter.setStorage(
       opResultStorage.create(
         key = matWriter.operatorIdentifier,
