@@ -25,9 +25,7 @@ class WorkflowExecution {
   }
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
-    operatorExecutions.values
-      .flatMap(operator => operator.getWorkerIds.map(worker => operator.getWorkerExecution(worker)))
-      .map(_.id)
+    operatorExecutions.values.flatMap(operator => operator.getWorkerIds)
 
   def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = operatorExecutions(opId)
 

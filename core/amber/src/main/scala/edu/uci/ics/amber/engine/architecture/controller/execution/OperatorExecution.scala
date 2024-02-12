@@ -6,14 +6,13 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   WorkerWorkloadInfo
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.jdk.CollectionConverters._
 
 class OperatorExecution extends Serializable {
 
@@ -23,29 +22,23 @@ class OperatorExecution extends Serializable {
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
 
-  def initWorkerExecution(id: ActorVirtualIdentity): Unit = {
-
-    workerExecutions.put(
-      id,
-      WorkerExecution(
-        id,
-        UNINITIALIZED,
-        WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0)
-      )
-    )
+  def initWorkerExecution(workerId: ActorVirtualIdentity): Unit = {
+    assert(!workerExecutions.contains(workerId))
+    workerExecutions.put(workerId, WorkerExecution())
   }
-  def getWorkerExecution(id: ActorVirtualIdentity): WorkerExecution = workerExecutions.get(id)
+  def getWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution =
+    workerExecutions.get(workerId)
 
-  def getWorkerWorkloadInfo(id: ActorVirtualIdentity): WorkerWorkloadInfo = {
-    if (!workerToWorkloadInfo.contains(id)) {
-      workerToWorkloadInfo(id) = WorkerWorkloadInfo(0L, 0L)
+  def getWorkerWorkloadInfo(workerId: ActorVirtualIdentity): WorkerWorkloadInfo = {
+    if (!workerToWorkloadInfo.contains(workerId)) {
+      workerToWorkloadInfo(workerId) = WorkerWorkloadInfo(0L, 0L)
     }
-    workerToWorkloadInfo(id)
+    workerToWorkloadInfo(workerId)
   }
 
-  def getWorkerIds: Array[ActorVirtualIdentity] = workerExecutions.values.asScala.map(_.id).toArray
+  def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys().asScala.toSet
 
-  def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Array[ActorVirtualIdentity] = getWorkerIds
+  def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Set[ActorVirtualIdentity] = getWorkerIds
 
   def getState: WorkflowAggregatedState = {
     val workerStates = workerExecutions.values.asScala.map(_.state).toArray
@@ -75,7 +68,7 @@ class OperatorExecution extends Serializable {
       getState,
       inputCount = workerExecutions.values.asScala.map(_.stats).map(_.inputTupleCount).sum,
       outputCount = workerExecutions.values.asScala.map(_.stats).map(_.outputTupleCount).sum,
-      getWorkerIds.length,
+      getWorkerIds.size,
       dataProcessingTime =
         workerExecutions.values.asScala.map(_.stats).map(_.dataProcessingTime).sum,
       controlProcessingTime =
