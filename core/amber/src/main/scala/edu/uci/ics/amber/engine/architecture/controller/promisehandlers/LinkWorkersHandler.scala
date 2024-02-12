@@ -25,7 +25,7 @@ trait LinkWorkersHandler {
   registerHandler[LinkWorkers, Unit] { (msg, sender) =>
     {
       val resourceConfig = cp.workflow.regionPlan
-        .getRegionOfPhysicalLink(msg.link)
+        .getRegionOfLink(msg.link)
         .resourceConfig
         .get
       val linkConfig = resourceConfig.linkConfigs(msg.link)
