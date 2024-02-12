@@ -1,19 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  WorkerExecution,
-  WorkerWorkloadInfo
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{WorkerExecution, WorkerWorkloadInfo}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -22,14 +13,8 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, EnumerationHasAsScala}
 
 class OperatorExecution(
-    workflowId: WorkflowIdentity,
-    val executionId: ExecutionIdentity,
-    physicalOpId: PhysicalOpIdentity,
     numWorkers: Int
 ) extends Serializable {
-  /*
-   * Variables related to runtime information
-   */
 
   private val workerExecutions =
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
@@ -37,9 +22,6 @@ class OperatorExecution(
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
   var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
 
-  def states: Array[WorkerState] = workerExecutions.values.asScala.map(_.state).toArray
-
-  def statistics: Array[WorkerStatistics] = workerExecutions.values.asScala.map(_.stats).toArray
 
   def initWorkerExecution(id: ActorVirtualIdentity): Unit = {
 
@@ -73,17 +55,6 @@ class OperatorExecution(
     workerToWorkloadInfo(id)
   }
 
-  def getAllWorkerStates: Iterable[WorkerState] = states
-
-  def getInputRowCount: Long = statistics.map(_.inputTupleCount).sum
-
-  def getOutputRowCount: Long = statistics.map(_.outputTupleCount).sum
-
-  def getDataProcessingTime: Long = statistics.map(_.dataProcessingTime).sum
-
-  def getControlProcessingTime: Long = statistics.map(_.controlProcessingTime).sum
-
-  def getIdleTime: Long = statistics.map(_.idleTime).sum
 
   def getBuiltWorkerIds: Array[ActorVirtualIdentity] =
     workerExecutions.values.asScala.map(_.id).toArray
@@ -92,23 +63,15 @@ class OperatorExecution(
     getBuiltWorkerIds
   }
 
-  def setAllWorkerState(state: WorkerState): Unit = {
-    (0 until numWorkers).foreach { i =>
-      getWorkerExecution(
-        VirtualIdentityUtils.createWorkerIdentity(workflowId, physicalOpId, i)
-      ).state = state
-    }
-  }
-
   def getState: WorkflowAggregatedState = {
-    val workerStates = getAllWorkerStates
+    val workerStates = workerExecutions.values.asScala.map(_.state).toArray
     if (workerStates.isEmpty) {
       return WorkflowAggregatedState.UNINITIALIZED
     }
     if (workerStates.forall(_ == COMPLETED)) {
       return WorkflowAggregatedState.COMPLETED
     }
-    if (workerStates.exists(_ == RUNNING)) {
+    if (workerStates.contains(RUNNING)) {
       return WorkflowAggregatedState.RUNNING
     }
     val unCompletedWorkerStates = workerStates.filter(_ != COMPLETED)
@@ -126,12 +89,12 @@ class OperatorExecution(
   def getOperatorStatistics: OperatorRuntimeStats =
     OperatorRuntimeStats(
       getState,
-      getInputRowCount,
-      getOutputRowCount,
+      inputCount = workerExecutions.values.asScala.map(_.stats).map(_.inputTupleCount).sum,
+      outputCount = workerExecutions.values.asScala.map(_.stats).map(_.outputTupleCount).sum,
       numWorkers,
-      getDataProcessingTime,
-      getControlProcessingTime,
-      getIdleTime
+      dataProcessingTime = workerExecutions.values.asScala.map(_.stats).map(_.dataProcessingTime).sum,
+      controlProcessingTime = workerExecutions.values.asScala.map(_.stats).map(_.controlProcessingTime).sum,
+      idleTime = workerExecutions.values.asScala.map(_.stats).map(_.idleTime).sum
     )
 
   def isInputPortCompleted(portId: PortIdentity): Boolean = {

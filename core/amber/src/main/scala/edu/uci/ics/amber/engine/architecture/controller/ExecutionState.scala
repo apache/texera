@@ -11,7 +11,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, Workfl
 
 import scala.collection.mutable
 
-class ExecutionState(workflow: Workflow) {
+class ExecutionState {
 
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
@@ -23,9 +23,6 @@ class ExecutionState(workflow: Workflow) {
       operatorConfig: OperatorConfig
   ): OperatorExecution = {
     operatorExecutions += physicalOpId -> new OperatorExecution(
-      workflow.context.workflowId,
-      workflow.context.executionId,
-      physicalOpId,
       operatorConfig.workerConfigs.length
     )
     operatorExecutions(physicalOpId)
