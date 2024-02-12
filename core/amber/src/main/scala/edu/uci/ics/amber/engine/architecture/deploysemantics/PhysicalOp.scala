@@ -193,8 +193,7 @@ case class PhysicalOp(
                        blockingInputs: List[PortIdentity] = List(),
                        isOneToManyOp: Boolean = false,
                        // hint for number of workers
-                       suggestedWorkerNum: Option[Int] = None,
-                       storageWriter: Option[SinkStorageWriter] = None
+                       suggestedWorkerNum: Option[Int] = None
 
 ) extends LazyLogging {
 
