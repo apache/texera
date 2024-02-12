@@ -387,7 +387,6 @@ class ExpansionGreedyRegionPlanGenerator(
       matWriterLogicalOpId: OperatorIdentity,
       context: WorkflowContext
   ): PhysicalOp = {
-    // use a dummy Logical Operator
     val matReader = new CacheSourceOpDesc(
       matWriterLogicalOpId,
       opResultStorage: OpResultStorage
@@ -398,11 +397,10 @@ class ExpansionGreedyRegionPlanGenerator(
     matReader.outputPortToSchemaMapping(matReader.operatorInfo.outputPorts.head.id) =
       matReader.getOutputSchema(Array())
 
-    matReader
-      .getPhysicalOp(
-        context.workflowId,
-        context.executionId
-      )
+    matReader.getPhysicalOp(
+      context.workflowId,
+      context.executionId
+    )
   }
 
   private def createMatWriter(
@@ -427,11 +425,10 @@ class ExpansionGreedyRegionPlanGenerator(
     )
     opResultStorage.get(matWriter.operatorIdentifier).setSchema(inputSchema)
 
-    matWriter
-      .getPhysicalOp(
-        context.workflowId,
-        context.executionId
-      )
+    matWriter.getPhysicalOp(
+      context.workflowId,
+      context.executionId
+    )
 
   }
 }
