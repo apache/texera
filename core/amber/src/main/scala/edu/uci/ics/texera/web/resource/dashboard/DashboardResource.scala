@@ -66,15 +66,18 @@ object DashboardResource {
     }
     val queryResult = query.offset(params.offset).limit(params.count + 1).fetch()
 
-    val entries = queryResult.asScala.toList.map(record => {
-      val resourceType = record.get("resourceType", classOf[String])
-      resourceType match {
-        case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
-          workflowSearchBuilder.toEntry(user, record)
-        case SearchQueryBuilder.FILE_RESOURCE_TYPE    => fileSearchBuilder.toEntry(user, record)
-        case SearchQueryBuilder.PROJECT_RESOURCE_TYPE => projectSearchBuilder.toEntry(user, record)
-      }
-    })
+    val entries = queryResult.asScala.toList
+      .take(params.count)
+      .map(record => {
+        val resourceType = record.get("resourceType", classOf[String])
+        resourceType match {
+          case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
+            workflowSearchBuilder.toEntry(user, record)
+          case SearchQueryBuilder.FILE_RESOURCE_TYPE => fileSearchBuilder.toEntry(user, record)
+          case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
+            projectSearchBuilder.toEntry(user, record)
+        }
+      })
 
     DashboardSearchResult(results = entries, more = queryResult.size() > params.count)
   }
