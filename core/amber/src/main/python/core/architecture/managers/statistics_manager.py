@@ -8,6 +8,7 @@ class StatisticsManager:
         self._data_processing_time = 0
         self._control_processing_time = 0
         self._total_execution_time = 0
+        self._worker_start_time = 0
 
     def get_statistics(self) -> typing.Tuple[int, int]:
         return (

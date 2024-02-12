@@ -61,8 +61,6 @@ class MainLoop(StoppableQueueBlockingRunnable):
             target=self.data_processor.run, daemon=True, name="data_processor_thread"
         ).start()
 
-        self.worker_start_time = 0
-
     def complete(self) -> None:
         """
         Complete the DataProcessor, marking state to COMPLETED, and notify the
@@ -75,7 +73,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
         self.context.statistics_manager.update_total_execution_time(
-            time.time_ns() - self.worker_start_time
+            time.time_ns() - self.context.statistics_manager.worker_start_time
         )
         control_command = set_one_of(ControlCommandV2, WorkerExecutionCompletedV2())
         self._async_rpc_client.send(
@@ -104,7 +102,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def pre_start(self) -> None:
         self.context.state_manager.assert_state(WorkerState.UNINITIALIZED)
         self.context.state_manager.transit_to(WorkerState.READY)
-        self.worker_start_time = time.time_ns()
+        self.context.statistics_manager.worker_start_time = time.time_ns()
 
     @overrides
     def receive(self, next_entry: QueueElement) -> None:
@@ -146,7 +144,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             end_time - start_time
         )
         self.context.statistics_manager.update_total_execution_time(
-            end_time - self.worker_start_time
+            end_time - self.context.statistics_manager.worker_start_time
         )
 
     def process_input_tuple(self) -> None:
@@ -337,7 +335,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
             end_time - start_time
         )
         self.context.statistics_manager.update_total_execution_time(
-            end_time - self.worker_start_time
+            end_time - self.context.statistics_manager.worker_start_time
         )
 
     def _check_and_report_debug_event(self) -> None:
