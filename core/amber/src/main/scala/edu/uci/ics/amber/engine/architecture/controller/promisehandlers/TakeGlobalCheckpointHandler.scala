@@ -28,36 +28,33 @@ trait TakeGlobalCheckpointHandler {
     var estimationOnly = msg.estimationOnly
     val uri = msg.destination.resolve(msg.checkpointId.toString)
     var totalSize = 0L
-    val physicalOpToTakeCheckpoint = cp.workflow.physicalPlan.operators.map(_.id)
+    val physicalOpIdsToTakeCheckpoint = cp.workflow.physicalPlan.operators.map(_.id)
     execute(
       PropagateChannelMarker(
         cp.executionState.getAllOperatorExecutions.map(_._1).toSet,
         msg.checkpointId,
         NoAlignment,
         cp.workflow.physicalPlan,
-        physicalOpToTakeCheckpoint,
-        PrepareCheckpoint(estimationOnly)
+        physicalOpIdsToTakeCheckpoint,
+        PrepareCheckpoint(msg.checkpointId, estimationOnly)
       ),
       sender
     ).flatMap { ret =>
       Future
         .collect(ret.map {
           case (workerId, _) =>
-            send(FinalizeCheckpoint(msg.checkpointId, uri), workerId).map { size =>
+            send(FinalizeCheckpoint(msg.checkpointId, uri), workerId).onSuccess { size =>
               totalSize += size
+            }.onFailure{
+              err => 
             }
         })
         .map { _ =>
           logger.info("Start to take checkpoint")
           val chkpt = new CheckpointState()
-          totalSize += chkpt.size()
           if (!estimationOnly) {
             // serialize CP state
-            try {
-              chkpt.save(SerializedState.CP_STATE_KEY, this.cp)
-            } catch {
-              case e: Throwable => logger.error("Failed to serialize controller state", e)
-            }
+            chkpt.save(SerializedState.CP_STATE_KEY, this.cp)
             logger.info(s"Serialized CP state, current workflow state = ${cp.executionState.getState}")
             // get all output messages from cp.transferService
             chkpt.save(
@@ -69,6 +66,7 @@ trait TakeGlobalCheckpointHandler {
             writer.writeRecord(chkpt)
             writer.flush()
           }
+          totalSize += chkpt.size()
           logger.info(s"global checkpoint finalized, total size = $totalSize")
           totalSize
         }

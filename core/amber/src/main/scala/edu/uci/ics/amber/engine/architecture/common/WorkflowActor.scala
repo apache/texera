@@ -20,7 +20,7 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayOrderEnforcer
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegate,
+  MainThreadDelegateMessage,
   TriggerSend,
   FaultToleranceConfig,
   StateRestoreConfig
@@ -101,7 +101,7 @@ abstract class WorkflowActor(
   def getLogName: String = actorId.name.replace("Worker:", "")
 
   def sendMessageFromLogWriterToActor(
-      msg: Either[MainThreadDelegate, WorkflowFIFOMessage]
+      msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]
   ): Unit = {
     // limitation: TriggerSend will be processed after input messages before it.
     msg match {
@@ -175,18 +175,18 @@ abstract class WorkflowActor(
   def initState(): Unit
 
   def setupReplay(
-      amberProcessor: AmberProcessor,
-      replayConf: StateRestoreConfig,
-      onComplete: () => Unit
+                   amberProcessor: AmberProcessor,
+                   stateRestoreConf: StateRestoreConfig,
+                   onComplete: () => Unit
   ): Unit = {
     val logStorageToRead =
-      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(replayConf.readFrom))
-    val replayTo = replayConf.replayDestination
+      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(stateRestoreConf.readFrom))
+    val replayTo = stateRestoreConf.replayDestination
     val (processSteps, messages) =
       ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
     logger.info(
       s"setting up replay, " +
-        s"read from ${replayConf.readFrom} " +
+        s"read from ${stateRestoreConf.readFrom} " +
         s"current step = ${logManager.getStep} " +
         s"target step = $replayTo " +
         s"# of log record to replay = ${processSteps.size}"

@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegate,
+  MainThreadDelegateMessage,
   WorkerReplayInitialization
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
@@ -99,7 +99,7 @@ class WorkerSpec
     )
 
   private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
-  private val mockHandler = mock[Either[MainThreadDelegate, WorkflowFIFOMessage] => Unit]
+  private val mockHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val mockOutputManager = mock[OutputManager]
 
   def sendControlToWorker(

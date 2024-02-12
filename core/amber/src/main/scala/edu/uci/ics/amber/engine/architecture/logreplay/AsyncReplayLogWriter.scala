@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
 import com.google.common.collect.Queues
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegate
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
@@ -12,14 +12,14 @@ import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class AsyncReplayLogWriter(
-    handler: Either[MainThreadDelegate, WorkflowFIFOMessage] => Unit,
-    writer: SequentialRecordWriter[ReplayLogRecord]
+                            handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit,
+                            writer: SequentialRecordWriter[ReplayLogRecord]
 ) extends Thread {
   private val drained =
-    new util.ArrayList[Either[ReplayLogRecord, Either[MainThreadDelegate, WorkflowFIFOMessage]]]()
+    new util.ArrayList[Either[ReplayLogRecord, Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]]()
   private val writerQueue =
     Queues.newLinkedBlockingQueue[
-      Either[ReplayLogRecord, Either[MainThreadDelegate, WorkflowFIFOMessage]]
+      Either[ReplayLogRecord, Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]
     ]()
   private var stopped = false
   private val logInterval =
@@ -33,7 +33,7 @@ class AsyncReplayLogWriter(
     })
   }
 
-  def putOutput(output: Either[MainThreadDelegate, WorkflowFIFOMessage]): Unit = {
+  def putOutput(output: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]): Unit = {
     assert(!stopped)
     writerQueue.put(Right(output))
   }
@@ -68,7 +68,7 @@ class AsyncReplayLogWriter(
     }
 
     val (replayLogRecords, workflowFIFOMessages) =
-      drainedScala.foldLeft((ListBuffer[ReplayLogRecord](), ListBuffer[Either[MainThreadDelegate, WorkflowFIFOMessage]]())) {
+      drainedScala.foldLeft((ListBuffer[ReplayLogRecord](), ListBuffer[Either[MainThreadDelegateMessage, WorkflowFIFOMessage]]())) {
         case ((accLogs, accMsgs), Left(logRecord))    => (accLogs += logRecord, accMsgs)
         case ((accLogs, accMsgs), Right(fifoMessage)) => (accLogs, accMsgs += fifoMessage)
       }

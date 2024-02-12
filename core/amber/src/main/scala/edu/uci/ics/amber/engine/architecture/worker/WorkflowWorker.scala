@@ -14,7 +14,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
   DPInputQueueElement,
   FIFOMessageElement,
-  MainThreadDelegate,
+  MainThreadDelegateMessage,
   TimerBasedControlElement,
   WorkerReplayInitialization
 }
@@ -52,7 +52,7 @@ object WorkflowWorker {
 
   final case class TriggerSend(msg: WorkflowFIFOMessage)
 
-  final case class MainThreadDelegate(closure: WorkflowWorker => Unit)
+  final case class MainThreadDelegateMessage(closure: WorkflowWorker => Unit)
 
   sealed trait DPInputQueueElement
 
@@ -117,7 +117,7 @@ class WorkflowWorker(
   }
 
   def handleTriggerClosure: Receive = {
-    case t: MainThreadDelegate =>
+    case t: MainThreadDelegateMessage =>
       t.closure(this)
   }
 

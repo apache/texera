@@ -32,17 +32,17 @@ object ControllerConfig {
       monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
       skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
-      workerRestoreConf = None,
-      workerLoggingConf = None
+      stateRestoreConfOpt = None,
+      faultToleranceConfOpt = None
     )
 }
 
 final case class ControllerConfig(
-    monitoringIntervalMs: Option[Long],
-    skewDetectionIntervalMs: Option[Long],
-    statusUpdateIntervalMs: Option[Long],
-    workerRestoreConf: Option[StateRestoreConfig],
-    workerLoggingConf: Option[FaultToleranceConfig]
+                                   monitoringIntervalMs: Option[Long],
+                                   skewDetectionIntervalMs: Option[Long],
+                                   statusUpdateIntervalMs: Option[Long],
+                                   stateRestoreConfOpt: Option[StateRestoreConfig],
+                                   faultToleranceConfOpt: Option[FaultToleranceConfig]
 )
 
 object Controller {
@@ -66,7 +66,7 @@ class Controller(
     val workflow: Workflow,
     val controllerConfig: ControllerConfig
 ) extends WorkflowActor(
-      controllerConfig.workerLoggingConf,
+      controllerConfig.faultToleranceConfOpt,
       CONTROLLER
     ) {
 
@@ -100,7 +100,7 @@ class Controller(
     cp.setupActorRefService(actorRefMappingService)
     cp.setupLogManager(logManager)
     cp.setupTransferService(transferService)
-    val controllerRestoreConf = controllerConfig.workerRestoreConf
+    val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
       setupReplay(

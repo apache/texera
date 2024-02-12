@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.{DataProcessorRPCHandlerInitializer, WorkflowWorker}
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegate
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PrepareCheckpointHandler.PrepareCheckpoint
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
@@ -74,7 +74,7 @@ trait PrepareCheckpointHandler {
       waitFuture.complete(())
       ()
     }
-    dp.outputHandler(Left(MainThreadDelegate(closure)))
+    dp.outputHandler(Left(MainThreadDelegateMessage(closure)))
     waitFuture.get()
   }
 }

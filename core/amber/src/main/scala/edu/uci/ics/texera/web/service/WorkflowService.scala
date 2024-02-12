@@ -163,7 +163,7 @@ class WorkflowService(
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)
         }
-        controllerConf = controllerConf.copy(workerLoggingConf =
+        controllerConf = controllerConf.copy(faultToleranceConfOpt =
           Some(FaultToleranceConfig(writeTo = writeLocation))
         )
       }
@@ -173,7 +173,7 @@ class WorkflowService(
           .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
           .foreach { execution =>
             val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(workerRestoreConf =
+            controllerConf = controllerConf.copy(stateRestoreConfOpt =
               Some(
                 StateRestoreConfig(
                   readFrom = readLocation,

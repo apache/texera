@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.worker.{
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegate
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.FinalizeCheckpointHandler.FinalizeCheckpoint
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -39,7 +39,7 @@ trait FinalizeCheckpointHandler {
         ()
       }
       // TODO: find a way to skip logging for the following output?
-      dp.outputHandler(Left(MainThreadDelegate(closure)))  //this will create duplicate log records!
+      dp.outputHandler(Left(MainThreadDelegateMessage(closure)))  //this will create duplicate log records!
       waitFuture.get()
       logger.info(s"Start to write checkpoint to storage. Destination: ${msg.writeTo}")
       val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(msg.writeTo))
