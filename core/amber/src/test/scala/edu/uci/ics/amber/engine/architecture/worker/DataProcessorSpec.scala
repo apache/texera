@@ -52,7 +52,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     PhysicalOp(id = upstreamOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
   private val testOp =
     PhysicalOp(id = testOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
-  private val link = PhysicalLink(upstreamOp.id, PortIdentity(), testOp.id, PortIdentity())
+  private val inputPortId = PortIdentity()
+  private val link = PhysicalLink(upstreamOp.id, PortIdentity(), testOp.id, inputPortId)
   private val physicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
@@ -100,7 +101,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (dp.outputManager.emitEndOfUpstream _).expects().once()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (operator.close _).expects().once()
-    dp.registerInput(senderWorkerId, link)
+    dp.inputGateway.addPort(inputPortId)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(0, OpenOperator())
@@ -137,7 +141,10 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     )
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
-    dp.registerInput(senderWorkerId, link)
+    dp.inputGateway.addPort(inputPortId)
+    dp.inputGateway
+      .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
+      .setPortId(inputPortId)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(0, OpenOperator())

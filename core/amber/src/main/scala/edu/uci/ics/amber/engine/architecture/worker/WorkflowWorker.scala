@@ -143,7 +143,7 @@ class WorkflowWorker(
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     inputQueue.put(FIFOMessageElement(workflowMsg))
     inputRecordings.values.foreach(_.append(workflowMsg))
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
+    sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
   /** flow-control */

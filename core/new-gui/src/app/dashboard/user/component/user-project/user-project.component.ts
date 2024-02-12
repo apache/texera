@@ -4,8 +4,7 @@ import { DashboardProject } from "../../type/dashboard-project.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UserService } from "../../../../common/service/user/user.service";
-import { PublicProjectService } from "../../service/public-project/public-project.service";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { PublicProjectComponent } from "./public-project/public-project.component";
 
 @UntilDestroy()
@@ -25,8 +24,7 @@ export class UserProjectComponent implements OnInit {
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
     private userService: UserService,
-    private publicProjectService: PublicProjectService,
-    private modalService: NgbModal
+    private modalService: NzModalService
   ) {
     this.uid = this.userService.getCurrentUser()?.uid;
   }
@@ -96,10 +94,13 @@ export class UserProjectComponent implements OnInit {
   }
 
   public openPublicProject(): void {
-    const modalRef = this.modalService.open(PublicProjectComponent, { size: "lg" });
-    modalRef.componentInstance.disabledList = new Set(this.userProjectEntries.map(project => project.pid));
-    modalRef.closed.pipe(untilDestroyed(this)).subscribe(() => {
-      this.ngOnInit();
+    const modalRef = this.modalService.create({
+      nzContent: PublicProjectComponent,
+      nzComponentParams: { disabledList: new Set(this.userProjectEntries.map(project => project.pid)) },
+      nzFooter: null,
+      nzTitle: "Add Public Projects",
+      nzCentered: true,
     });
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.ngOnInit());
   }
 }

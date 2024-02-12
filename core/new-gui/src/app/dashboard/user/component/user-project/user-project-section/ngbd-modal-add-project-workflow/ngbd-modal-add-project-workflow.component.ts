@@ -1,5 +1,4 @@
 import { Component, Input, OnInit } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { forkJoin, Observable } from "rxjs";
 import { concatMap } from "rxjs/operators";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
@@ -21,11 +20,7 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   private addedWorkflowKeys: Set<number> = new Set<number>(); // tracks which workflows to NOT display,  the workflow IDs of the workflows (if any) already inside the project
   private addedWorkflows: DashboardWorkflow[] = []; // for passing back to update the frontend cache, stores the new workflow list including newly added workflows
 
-  constructor(
-    public activeModal: NgbActiveModal,
-    private workflowPersistService: WorkflowPersistService,
-    private userProjectService: UserProjectService
-  ) {}
+  constructor(private workflowPersistService: WorkflowPersistService, private userProjectService: UserProjectService) {}
 
   ngOnInit(): void {
     this.refreshProjectWorkflowEntries();
@@ -47,11 +42,7 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
     }
 
     // pass back data to update local cache after all changes propagated to backend
-    forkJoin(observables)
-      .pipe(untilDestroyed(this))
-      .subscribe(_ => {
-        this.activeModal.close(this.addedWorkflows);
-      });
+    forkJoin(observables).pipe(untilDestroyed(this)).subscribe();
   }
 
   public changeAll() {

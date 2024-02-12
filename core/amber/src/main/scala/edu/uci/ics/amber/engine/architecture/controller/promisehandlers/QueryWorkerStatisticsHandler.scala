@@ -24,7 +24,7 @@ object QueryWorkerStatisticsHandler {
 trait QueryWorkerStatisticsHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler((msg: ControllerInitiateQueryStatistics, sender) => {
+  registerHandler[ControllerInitiateQueryStatistics, Unit]((msg, sender) => {
     // send to specified workers (or all workers by default)
     val workers = msg.filterByWorkers.getOrElse(cp.executionState.getAllBuiltWorkers).toList
 
@@ -32,9 +32,10 @@ trait QueryWorkerStatisticsHandler {
     val requests = workers.map(worker =>
       // must immediately update worker state and stats after reply
       send(QueryStatistics(), worker).map(res => {
-        val workerInfo = cp.executionState.getOperatorExecution(worker).getWorkerInfo(worker)
-        workerInfo.state = res.workerState
-        workerInfo.stats = res
+        val workerExecution =
+          cp.executionState.getOperatorExecution(worker).getWorkerExecution(worker)
+        workerExecution.state = res.workerState
+        workerExecution.stats = res
       })
     )
 

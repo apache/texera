@@ -78,7 +78,7 @@ class ExecutionBreakpointService(
             }.toArray
             val newInfo = breakpointStore.operatorInfo
               .getOrElse(evt.operatorID, OperatorBreakpoints())
-              .withUnresolvedBreakpoints(breakpointEvts)
+              .withUnresolvedBreakpoints(breakpointEvts.toSeq)
             breakpointStore.addOperatorInfo((evt.operatorID, newInfo))
           }
         })

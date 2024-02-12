@@ -14,7 +14,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -45,10 +45,10 @@ class WorkerSpec
     with BeforeAndAfterAll
     with MockFactory {
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
@@ -65,10 +65,9 @@ class WorkerSpec
         pauseManager: PauseManager,
         asyncRPCClient: AsyncRPCClient
     ): Iterator[(ITuple, Option[PortIdentity])] = {
-      if (tuple.isLeft) {
-        Iterator((tuple.left.get, None))
-      } else {
-        Iterator.empty
+      tuple match {
+        case Left(iTuple) => Iterator((iTuple, None))
+        case Right(_)     => Iterator.empty
       }
     }
   }
@@ -99,7 +98,7 @@ class WorkerSpec
       outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
 
-  private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
+  private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
   private val mockHandler = mock[Either[MainThreadDelegate, WorkflowFIFOMessage] => Unit]
   private val mockOutputManager = mock[OutputManager]
 
@@ -165,8 +164,14 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
+    sendControlToWorker(worker, Array(invocation, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -197,8 +202,14 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
+    sendControlToWorker(worker, Array(invocation, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -237,13 +248,19 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
+    val addInputChannel = ControlInvocation(
+      1,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
     worker ! NetworkMessage(
       1,
       WorkflowFIFOMessage(
         ChannelIdentity(CONTROLLER, identifier1, isControl = true),
         1,
-        updateInputLinking
+        addInputChannel
       )
     )
     worker ! NetworkMessage(
