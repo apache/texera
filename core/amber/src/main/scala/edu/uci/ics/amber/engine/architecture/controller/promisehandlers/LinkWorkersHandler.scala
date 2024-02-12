@@ -33,12 +33,7 @@ trait LinkWorkersHandler {
       val futures = linkConfig.channelConfigs
         .map(_.channelId)
         .flatMap(channelId => {
-          cp.workflowExecution.builtChannels
-            .add(ChannelIdentity(CONTROLLER, channelId.fromWorkerId, isControl = true))
-          cp.workflowExecution.builtChannels
-            .add(ChannelIdentity(CONTROLLER, channelId.toWorkerId, isControl = true))
-          cp.workflowExecution.builtChannels
-            .add(channelId)
+          cp.workflowExecution.initChannelExecution(channelId)
           Seq(
             send(AddPartitioning(msg.link, linkConfig.partitioning), channelId.fromWorkerId),
             send(

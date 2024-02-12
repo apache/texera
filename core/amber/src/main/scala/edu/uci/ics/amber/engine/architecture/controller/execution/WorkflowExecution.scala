@@ -15,7 +15,8 @@ class WorkflowExecution {
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
 
-  val builtChannels: mutable.Set[ChannelIdentity] = mutable.HashSet[ChannelIdentity]()
+  private val channelExecutions: mutable.Map[ChannelIdentity, ChannelExecution] = mutable.HashMap()
+
 
   def initOperatorState(
       physicalOpId: PhysicalOpIdentity
@@ -34,6 +35,12 @@ class WorkflowExecution {
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions
 
+  def initChannelExecution(channelId: ChannelIdentity): ChannelExecution ={
+    assert(!channelExecutions.contains(channelId))
+    channelExecutions.getOrElseUpdate(channelId, ChannelExecution())
+  }
+
+  def getChannelExecutions: Iterable[(ChannelIdentity, ChannelExecution)] = channelExecutions
   def getStats: Map[String, OperatorRuntimeStats] = {
     // TODO: fix the aggregation here. The stats should be on port level.
     operatorExecutions.map {

@@ -15,6 +15,7 @@ case class WorkerExecution(
 ) extends Serializable {
 
   var state: WorkerState = UNINITIALIZED
+  // TODO: move stats onto ports, and make this as an aggregation func.
   var stats: WorkerStatistics = WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0)
 
   def getInputPortExecution(portId: PortIdentity): WorkerPortExecution = {
