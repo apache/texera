@@ -61,14 +61,14 @@ class AsyncRPCServer(
           returnResult(senderID, control.commandID, ret)
         }
         .onFailure { err =>
-          logger.error("Exception occurred", err)
+          logger.error("Exception occurred with ", control.command, err)
           returnResult(senderID, control.commandID, err)
         }
 
     } catch {
       case err: Throwable =>
         // if error occurs, return it to the sender.
-        logger.error("Exception occurred", err)
+        logger.error("2Exception occurred with ", control.command.toString, err)
         returnResult(senderID, control.commandID, err)
 
       // if throw this exception right now, the above message might not be able

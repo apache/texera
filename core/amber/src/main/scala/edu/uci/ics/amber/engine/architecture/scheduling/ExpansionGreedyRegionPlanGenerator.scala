@@ -327,7 +327,7 @@ class ExpansionGreedyRegionPlanGenerator(
 
     (
       RegionPlan(
-        regions = regionDAG.iterator().asScala.toList,
+        regions = regionDAG.vertexSet().asScala.toSet,
         regionLinks = regionDAG.edgeSet().asScala.toSet
       ),
       physicalPlan
