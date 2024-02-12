@@ -147,7 +147,7 @@ class DPThread(
           case None =>
             // continue processing
             if (!dp.pauseManager.isPaused && !backpressureStatus) {
-              channelId = dp.currentBatchChannel
+              channelId = dp.currentChannelId
             } else {
               waitingForInput = true
             }
