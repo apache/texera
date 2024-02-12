@@ -8,7 +8,8 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, WorkflowExecution}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
