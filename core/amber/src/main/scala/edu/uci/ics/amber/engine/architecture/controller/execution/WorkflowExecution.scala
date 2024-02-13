@@ -1,7 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionExecution, RegionIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
@@ -22,7 +26,8 @@ class WorkflowExecution {
 
   def getOperatorExecution(physicalOpId: PhysicalOpIdentity): Option[OperatorExecution] = {
     regionExecutions.values.toList
-      .findLast(regionExecution => regionExecution.hasOperatorExecution(physicalOpId)).map(_.getOperatorExecution(physicalOpId))
+      .findLast(regionExecution => regionExecution.hasOperatorExecution(physicalOpId))
+      .map(_.getOperatorExecution(physicalOpId))
   }
 
   def getAllOperatorExecutions: Iterator[(PhysicalOpIdentity, OperatorExecution)] = {
@@ -36,7 +41,8 @@ class WorkflowExecution {
     regionExecutions.values
       .flatMap(regionExecution => regionExecution.getAllOperatorExecutions)
       .map(_._2)
-      .flatMap(operatorExecution => operatorExecution.getWorkerIds).iterator
+      .flatMap(operatorExecution => operatorExecution.getWorkerIds)
+      .iterator
   }
   def initChannelExecution(channelId: ChannelIdentity): ChannelExecution = {
     assert(!channelExecutions.contains(channelId))

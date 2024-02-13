@@ -3,8 +3,14 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatsUpdate}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatsUpdate
+}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{
+  OperatorExecution,
+  WorkflowExecution
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp

@@ -29,15 +29,16 @@ trait PortCompletedHandler {
         msg.portId,
         input = msg.input
       )
-      cp.workflow.regionPlan.getRegionOfPortId(globalPortId) match{
+      cp.workflow.regionPlan.getRegionOfPortId(globalPortId) match {
         case Some(region) =>
           val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
-          val operatorExecution = regionExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
+          val operatorExecution =
+            regionExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
           val workerExecution = operatorExecution.getWorkerExecution(sender)
 
           // set the port on this worker to be completed
           (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
-          else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
+           else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
 
           // check if the port on this operator is completed
           val isPortCompleted =
@@ -54,7 +55,6 @@ trait PortCompletedHandler {
           }
         case None => // do nothing.
       }
-
 
     }
   }

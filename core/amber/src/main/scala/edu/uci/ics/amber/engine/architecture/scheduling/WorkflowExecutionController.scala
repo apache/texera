@@ -12,7 +12,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class WorkflowExecutionController(
     regionPlan: RegionPlan,
-    executionState: WorkflowExecution,
+    workflowExecution: WorkflowExecution,
     actorService: AkkaActorService,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
@@ -49,10 +49,10 @@ class WorkflowExecutionController(
       .collect(
         getNextRegions
           .map(region => {
-            executionState.initRegionExecution(region)
+            workflowExecution.initRegionExecution(region)
             regionExecutors(region.id) = new RegionExecutionController(
               region,
-              executionState,
+              workflowExecution,
               asyncRPCClient,
               actorService,
               controllerConfig
@@ -73,9 +73,9 @@ class WorkflowExecutionController(
       return Set.empty
     }
 
-
     val completedRegions: Set[RegionIdentity] = regionExecutors.collect {
-      case (regionId, executor) if executionState.getRegionExecution(regionId).isCompleted => regionId
+      case (regionId, executor) if workflowExecution.getRegionExecution(regionId).isCompleted =>
+        regionId
     }.toSet
 
     val ret = regionExecutionOrder

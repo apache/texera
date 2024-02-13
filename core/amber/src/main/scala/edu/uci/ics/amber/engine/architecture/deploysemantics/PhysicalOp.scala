@@ -447,11 +447,11 @@ case class PhysicalOp(
   }
 
   def build(
-             controllerActorService: AkkaActorService,
-             operatorExecution: OperatorExecution,
-             operatorConfig: OperatorConfig,
-             stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
-             replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
+      controllerActorService: AkkaActorService,
+      operatorExecution: OperatorExecution,
+      operatorConfig: OperatorConfig,
+      stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
+      replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,

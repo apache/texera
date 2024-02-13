@@ -49,14 +49,16 @@ trait ChannelMarkerHandler {
       }
 
       // step 3: convert scope DAG to channels.
-      val channelScope = cp.workflowExecution.getChannelExecutions.map(_._1).filter(channelId => {
-        msg.scope.operators
-          .map(_.id)
-          .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
+      val channelScope = cp.workflowExecution.getChannelExecutions
+        .map(_._1)
+        .filter(channelId => {
           msg.scope.operators
             .map(_.id)
-            .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
-      })
+            .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
+            msg.scope.operators
+              .map(_.id)
+              .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
+        })
       val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
         cp.workflowExecution.getOperatorExecution(source).get.getWorkerIds.flatMap { worker =>
           Seq(
