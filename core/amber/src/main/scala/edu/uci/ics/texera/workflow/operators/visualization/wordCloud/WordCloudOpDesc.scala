@@ -34,7 +34,7 @@ class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescripto
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Word Cloud V2",
+      "Word Cloud",
       "Generate word cloud for result texts",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
