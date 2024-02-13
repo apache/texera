@@ -4,25 +4,15 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.JGitVersionControl;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.charset.Charset;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
-import java.util.StringTokenizer;
 
 /**
  * Git-based implementation of the VersionControlFileStorageService, using local file storage.
@@ -31,6 +21,7 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Writes content from the InputStream to a file at the given path.
+   * This function WILL create the missing parent directory along the path
    *
    * @param filePath The path within the repository to write the file.
    * @param inputStream The InputStream from which to read the content.
@@ -71,11 +62,12 @@ public class GitVersionControlLocalFileStorageService {
    * Initializes a new repository for version control at the specified path.
    *
    * @param baseRepoPath Path to initialize the repository at.
+   * @return The branch identifier
    * @throws IOException If an I/O error occurs.
    * @throws GitAPIException If the JGit operation is interrupted.
    */
-  public static void initRepo(Path baseRepoPath) throws IOException, GitAPIException {
-    JGitVersionControl.initRepo(baseRepoPath);
+  public static String initRepo(Path baseRepoPath) throws IOException, GitAPIException {
+    return JGitVersionControl.initRepo(baseRepoPath);
   }
 
   /**
@@ -118,13 +110,24 @@ public class GitVersionControlLocalFileStorageService {
   }
 
   /**
-   * Recovers the repository to its latest version, discarding any uncommitted changes.
+   * Check if there is any uncommitted change in the given repo
+   * @param repoPath The repository path
+   * @return True if there are uncommitted changes.
+   * @throws GitAPIException
+   * @throws IOException
+   */
+  public static boolean hasUncommittedChanges(Path repoPath) throws GitAPIException, IOException {
+    return JGitVersionControl.hasUncommittedChanges(repoPath);
+  }
+
+  /**
+   * Recovers the repository to its latest version, discarding any uncommitted changes if any.
    *
    * @param baseRepoPath The repository path.
    * @throws IOException If an I/O error occurs.
    * @throws GitAPIException If the operation is interrupted.
    */
-  public static void recoverToLatestVersion(Path baseRepoPath) throws IOException, GitAPIException {
-    JGitVersionControl.rollbackToLatestCommit(baseRepoPath);
+  public static void discardUncommittedChanges(Path baseRepoPath) throws IOException, GitAPIException {
+    JGitVersionControl.discardUncommittedChanges(baseRepoPath);
   }
 }
