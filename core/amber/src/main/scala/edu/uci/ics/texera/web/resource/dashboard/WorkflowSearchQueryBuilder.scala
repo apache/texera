@@ -29,7 +29,7 @@ class WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = {
     UnifiedResourceSchema(
-      resourceType = DSL.inline(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE),
+      resourceType = DSL.inline(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE).as("resourceType"),
       name = WORKFLOW.NAME,
       description = WORKFLOW.DESCRIPTION,
       creationTime = WORKFLOW.CREATION_TIME,

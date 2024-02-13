@@ -15,7 +15,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
-    resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE),
+    resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE).as("resourceType"),
     name = PROJECT.NAME,
     description = PROJECT.DESCRIPTION,
     creationTime = PROJECT.CREATION_TIME,

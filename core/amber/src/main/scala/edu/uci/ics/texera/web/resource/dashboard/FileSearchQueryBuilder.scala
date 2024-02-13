@@ -17,7 +17,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class FileSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
-    resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE),
+    resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE).as("resourceType"),
     name = FILE.NAME,
     description = FILE.DESCRIPTION,
     creationTime = FILE.UPLOAD_TIME,
