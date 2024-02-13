@@ -15,7 +15,6 @@ import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
@@ -26,11 +25,9 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChan
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.immutable.ListMap
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object ControlCommandConvertUtils {
@@ -72,8 +69,6 @@ object ControlCommandConvertUtils {
         EvaluateExpressionV2(expression)
       case WorkerDebugCommand(cmd) =>
         WorkerDebugCommandV2(cmd)
-      case QuerySelfWorkloadMetrics() =>
-        QuerySelfWorkloadMetricsV2()
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"
@@ -102,17 +97,10 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty                                                        => ()
-      case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
-      case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
-        // TODO: convert real samples back from PythonUDF.
-        //  this is left hardcoded now since sampling is not currently enabled for PythonUDF.
-        (
-          selfWorkloadReturn.value.metrics,
-          List[mutable.HashMap[ActorVirtualIdentity, List[Long]]]()
-        )
-      case exp: ControlReturnV2.Value.ControlException => ControlException(exp.value.msg)
-      case _                                           => controlReturnV2.value.value
+      case Empty                                          => ()
+      case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
+      case exp: ControlReturnV2.Value.ControlException    => ControlException(exp.value.msg)
+      case _                                              => controlReturnV2.value.value
     }
   }
 
