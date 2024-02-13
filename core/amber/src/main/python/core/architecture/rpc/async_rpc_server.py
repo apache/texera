@@ -17,7 +17,6 @@ from core.architecture.handlers.control.initialize_operator_logic_handler import
 from core.architecture.handlers.control.modify_operator_logic_handler import (
     ModifyOperatorLogicHandler,
 )
-from core.architecture.handlers.control.monitoring_handler import MonitoringHandler
 from core.architecture.handlers.control.no_op_handler import NoOpHandler
 from core.architecture.handlers.control.open_operator_handler import OpenOperatorHandler
 from core.architecture.handlers.control.pause_worker_handler import PauseWorkerHandler
@@ -73,7 +72,6 @@ class AsyncRPCServer:
         self.register(ModifyOperatorLogicHandler())
         self.register(ReplayCurrentTupleHandler())
         self.register(EvaluateExpressionHandler())
-        self.register(MonitoringHandler())
         self.register(SchedulerTimeSlotEventHandler())
         self.register(WorkerDebugCommandHandler())
 

@@ -27,7 +27,6 @@ import { OperatorMenuService } from "../../service/operator-menu/operator-menu.s
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { Subscription, timer } from "rxjs";
 import { isDefined } from "../../../common/util/predicate";
-import { HttpErrorResponse } from "@angular/common/http";
 
 /**
  * MenuComponent is the top level menu bar that shows
@@ -106,7 +105,7 @@ export class MenuComponent implements OnInit {
         if (event.isRunning) {
           this.durationUpdateSubscription = timer(1000, 1000)
             .pipe(untilDestroyed(this))
-            .subscribe(e => {
+            .subscribe(() => {
               this.executionDuration += 1000;
             });
         }
@@ -419,7 +418,7 @@ export class MenuComponent implements OnInit {
         untilDestroyed(this)
       )
       .subscribe({
-        error: (response: unknown) => this.notificationService.error((response as HttpErrorResponse).error),
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       })
       .add(() => (this.isSaving = false));
   }
