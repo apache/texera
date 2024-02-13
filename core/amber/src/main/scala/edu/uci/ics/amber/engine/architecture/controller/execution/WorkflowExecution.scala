@@ -24,10 +24,15 @@ class WorkflowExecution {
   }
   def getRegionExecution(regionId: RegionIdentity): RegionExecution = regionExecutions(regionId)
 
-  def getOperatorExecution(physicalOpId: PhysicalOpIdentity): Option[OperatorExecution] = {
+  def getOperatorExecution(physicalOpId: PhysicalOpIdentity): OperatorExecution = {
     regionExecutions.values.toList
       .findLast(regionExecution => regionExecution.hasOperatorExecution(physicalOpId))
-      .map(_.getOperatorExecution(physicalOpId))
+      .get
+      .getOperatorExecution(physicalOpId)
+  }
+
+  def hasOperatorExecution(physicalOpId:PhysicalOpIdentity) : Boolean = {
+    regionExecutions.values.toList.exists(regionExecution => regionExecution.hasOperatorExecution(physicalOpId))
   }
 
   def getAllOperatorExecutions: Iterator[(PhysicalOpIdentity, OperatorExecution)] = {

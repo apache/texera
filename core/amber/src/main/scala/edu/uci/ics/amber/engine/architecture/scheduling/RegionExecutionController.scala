@@ -103,15 +103,18 @@ class RegionExecutionController(
     val regionExecution = getRegionExecution
 
     region.getOperators.foreach(physicalOp => {
-      val existingOpExecution = workflowExecution.getOperatorExecution(physicalOp.id)
-      val operatorExecution =
-        regionExecution.initOperatorExecution(physicalOp.id, existingOpExecution)
-      if (existingOpExecution.isEmpty) {
-        buildOperator(
-          physicalOp,
-          resourceConfig.operatorConfigs(physicalOp.id),
-          operatorExecution
-        )
+      // Check for existing execution for this operator
+      val existOpExecution = workflowExecution.hasOperatorExecution(physicalOp.id)
+
+      // Initialize operator execution, reusing existing execution if available
+      val operatorExecution = regionExecution.initOperatorExecution(
+        physicalOp.id,
+        if (existOpExecution) Some(workflowExecution.getOperatorExecution(physicalOp.id)) else None
+      )
+
+      // If no existing execution, build the operator with specified config
+      if (!existOpExecution) {
+        buildOperator(physicalOp, resourceConfig.operatorConfigs(physicalOp.id), operatorExecution)
       }
     })
 

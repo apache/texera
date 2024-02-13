@@ -41,7 +41,7 @@ trait LocalBreakpointTriggeredHandler {
         .filter {
           case (id, ver) =>
             // validate the version of the breakpoint
-            targetOpExecution.get.attachedBreakpoints(id).hasSameVersion(ver)
+            targetOpExecution.attachedBreakpoints(id).hasSameVersion(ver)
         }
         .map(_._1)
 
@@ -52,12 +52,12 @@ trait LocalBreakpointTriggeredHandler {
         // we need to resolve global breakpoints
         // before query workers, increase the version number
         unResolved.foreach { bp =>
-          targetOpExecution.get.attachedBreakpoints(bp).increaseVersion()
+          targetOpExecution.attachedBreakpoints(bp).increaseVersion()
         }
         // first pause the workers, then get their local breakpoints
         Future
           .collect(
-            targetOpExecution.get.getWorkerIds.map { worker =>
+            targetOpExecution.getWorkerIds.map { worker =>
               send(PauseWorker(), worker).flatMap { ret =>
                 send(QueryAndRemoveBreakpoints(unResolved), worker)
               }
@@ -69,7 +69,7 @@ trait LocalBreakpointTriggeredHandler {
               .groupBy(_.id)
               .map {
                 case (id, lbps) =>
-                  val gbp = targetOpExecution.get.attachedBreakpoints(id)
+                  val gbp = targetOpExecution.attachedBreakpoints(id)
                   val localbps: Seq[gbp.localBreakpointType] =
                     lbps.map(_.asInstanceOf[gbp.localBreakpointType])
                   gbp.collect(localbps)

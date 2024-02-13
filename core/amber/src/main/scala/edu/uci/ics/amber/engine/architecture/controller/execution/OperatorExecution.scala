@@ -1,10 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  WorkerExecution,
-  WorkerWorkloadInfo
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
@@ -20,7 +17,6 @@ class OperatorExecution extends Serializable {
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
-  var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
 
   def initWorkerExecution(workerId: ActorVirtualIdentity): Unit = {
     assert(!workerExecutions.contains(workerId))
@@ -29,12 +25,6 @@ class OperatorExecution extends Serializable {
   def getWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution =
     workerExecutions.get(workerId)
 
-  def getWorkerWorkloadInfo(workerId: ActorVirtualIdentity): WorkerWorkloadInfo = {
-    if (!workerToWorkloadInfo.contains(workerId)) {
-      workerToWorkloadInfo(workerId) = WorkerWorkloadInfo(0L, 0L)
-    }
-    workerToWorkloadInfo(workerId)
-  }
 
   def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys().asScala.toSet
 
