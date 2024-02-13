@@ -1,22 +1,39 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISinkOperatorExecutor}
+
 class StatisticsManager {
+  // Data Processor
   private var inputTupleCount: Long = 0
   private var outputTupleCount: Long = 0
   private var dataProcessingTime: Long = 0
-  private var controlProcessingTime: Long = 0
   private var totalExecutionTime: Long = 0
   private var workerStartTime: Long = 0
 
-  def getStatistics: (Long, Long, Long, Long, Long) = {
-    (
+  // Amber Processor
+  private var controlProcessingTime: Long = 0
+
+  def getStatistics(workerState: WorkerState, operator: IOperatorExecutor): WorkerStatistics = {
+    // sink operator doesn't output to downstream so internal count is 0
+    // but for user-friendliness we show its input count as output count
+    val displayOut = operator match {
+      case sink: ISinkOperatorExecutor =>
+        inputTupleCount
+      case _ =>
+        outputTupleCount
+    }
+    WorkerStatistics(
+      workerState,
       inputTupleCount,
-      outputTupleCount,
+      displayOut,
       dataProcessingTime,
       controlProcessingTime,
-      totalExecutionTime - dataProcessingTime - controlProcessingTime // Idle Time
+      totalExecutionTime - dataProcessingTime - controlProcessingTime
     )
   }
+
+  def getOutputTupleCount: Long = outputTupleCount
 
   def increaseInputTupleCount(): Unit = {
     inputTupleCount += 1
@@ -35,7 +52,7 @@ class StatisticsManager {
   }
 
   def updateTotalExecutionTime(time: Long): Unit = {
-    totalExecutionTime = time
+    totalExecutionTime = time - workerStartTime
   }
 
   def initializeWorkerStartTime(time: Long): Unit = {
