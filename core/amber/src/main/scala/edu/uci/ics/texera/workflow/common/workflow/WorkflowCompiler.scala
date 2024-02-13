@@ -90,10 +90,10 @@ class WorkflowCompiler(
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
-      rewrittenLogicalPlan,
+      context,
       physicalPlan,
       opResultStorage
-    ).generate(context)
+    ).generate()
 
     // validate the plan
     // TODO: generalize validation to each plan
