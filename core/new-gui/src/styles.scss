@@ -32,3 +32,10 @@ blockquote {
 .mat-expansion-panel-body {
   padding: 0 !important;
 }
+
+.dynamic-fields .ant-form-item {
+  display: inline-block;
+  width: 50%;
+  padding-right: 4px;
+  margin: 0;
+}
