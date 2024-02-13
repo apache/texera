@@ -24,13 +24,9 @@ class ControllerAsyncRPCHandlerInitializer(
     with RetryWorkflowHandler
     with ModifyLogicHandler
     with EvaluatePythonExpressionHandler
-    with MonitoringHandler
-    with SkewDetectionHandler
     with DebugCommandHandler
     with ChannelMarkerHandler
     with RetrieveWorkflowStateHandler {
   val actorId: ActorVirtualIdentity = cp.actorId
-
-  var workflowReshapeState: WorkflowReshapeState = new WorkflowReshapeState()
 
 }

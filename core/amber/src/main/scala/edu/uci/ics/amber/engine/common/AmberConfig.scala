@@ -35,34 +35,6 @@ object AmberConfig {
   val numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
   val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
 
-  // Monitoring and reshape related configuration
-  val monitoringEnabled: Boolean =
-    getConfSource.getBoolean("monitoring.monitoring-enabled")
-  val monitoringIntervalInMs: Int =
-    getConfSource.getInt("monitoring.monitoring-interval-ms")
-  val reshapeSkewHandlingEnabled: Boolean =
-    getConfSource.getBoolean("reshape.skew-handling-enabled")
-  val reshapeSkewDetectionInitialDelayInMs: Int =
-    getConfSource.getInt("reshape.skew-detection-initial-delay-ms")
-  val reshapeSkewDetectionIntervalInMs: Int =
-    getConfSource.getInt("reshape.skew-detection-interval-ms")
-  val reshapeEtaThreshold: Int =
-    getConfSource.getInt("reshape.eta-threshold")
-  val reshapeTauThreshold: Int =
-    getConfSource.getInt("reshape.tau-threshold")
-  val reshapeHelperOverloadThreshold: Int =
-    getConfSource.getInt("reshape.helper-overload-threshold")
-  val reshapeMaxWorkloadSamplesInController: Int =
-    getConfSource.getInt("reshape.max-workload-samples-controller")
-  val reshapeMaxWorkloadSamplesInWorker: Int =
-    getConfSource.getInt("reshape.max-workload-samples-worker")
-  val reshapeWorkloadSampleSize: Int =
-    getConfSource.getInt("reshape.workload-sample-size")
-  val reshapeFirstPhaseSharingNumerator: Int =
-    getConfSource.getInt("reshape.first-phase-sharing-numerator")
-  val reshapeFirstPhaseSharingDenominator: Int =
-    getConfSource.getInt("reshape.first-phase-sharing-denominator")
-
   // Flow control related configuration
   def maxCreditAllowedInBytesPerChannel: Long = {
     val maxCredit = getConfSource.getLong("flow-control.max-credit-allowed-in-bytes-per-channel")

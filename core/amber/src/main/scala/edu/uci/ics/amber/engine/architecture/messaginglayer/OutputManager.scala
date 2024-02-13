@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -33,18 +32,7 @@ object OutputManager {
         BroadcastPartitioner(broadcastPartitioning)
       case _ => throw new RuntimeException(s"partitioning $partitioning not supported")
     }
-
-    // if reshape is enabled, wrap the original partitioner in a reshape partitioner
-    if (AmberConfig.reshapeSkewHandlingEnabled) {
-      partitioner match {
-        case p @ (_: RoundRobinPartitioner | _: HashBasedShufflePartitioner |
-            _: RangeBasedShufflePartitioner) =>
-          new ReshapePartitioner(p)
-        case other => other
-      }
-    } else {
-      partitioner
-    }
+    partitioner
   }
 
   def getBatchSize(partitioning: Partitioning): Int = {

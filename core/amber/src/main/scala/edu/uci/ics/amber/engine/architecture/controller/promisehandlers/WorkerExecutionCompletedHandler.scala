@@ -43,8 +43,6 @@ trait WorkerExecutionCompletedHandler {
             // after query result come back: send completed event, cleanup ,and kill workflow
             sendToClient(WorkflowCompleted())
             cp.controllerTimerService.disableStatusUpdate()
-            cp.controllerTimerService.disableMonitoring()
-            cp.controllerTimerService.disableSkewHandling()
           }
         })
     }

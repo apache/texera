@@ -1,10 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.breakpoint.globalbreakpoint.GlobalBreakpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  WorkerExecution,
-  WorkerWorkloadInfo
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -35,7 +32,6 @@ class OperatorExecution(
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
-  var workerToWorkloadInfo = new mutable.HashMap[ActorVirtualIdentity, WorkerWorkloadInfo]()
 
   def states: Array[WorkerState] = workerExecutions.values.asScala.map(_.state).toArray
 
@@ -65,13 +61,6 @@ class OperatorExecution(
       .asScala
       .map(workerId => workerId -> workerExecutions.get(workerId))
       .toMap
-
-  def getWorkerWorkloadInfo(id: ActorVirtualIdentity): WorkerWorkloadInfo = {
-    if (!workerToWorkloadInfo.contains(id)) {
-      workerToWorkloadInfo(id) = WorkerWorkloadInfo(0L, 0L)
-    }
-    workerToWorkloadInfo(id)
-  }
 
   def getAllWorkerStates: Iterable[WorkerState] = states
 
