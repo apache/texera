@@ -25,11 +25,9 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChan
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.immutable.ListMap
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object ControlCommandConvertUtils {
@@ -99,10 +97,10 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty                                                        => ()
-      case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
-      case exp: ControlReturnV2.Value.ControlException => ControlException(exp.value.msg)
-      case _                                           => controlReturnV2.value.value
+      case Empty                                          => ()
+      case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
+      case exp: ControlReturnV2.Value.ControlException    => ControlException(exp.value.msg)
+      case _                                              => controlReturnV2.value.value
     }
   }
 
