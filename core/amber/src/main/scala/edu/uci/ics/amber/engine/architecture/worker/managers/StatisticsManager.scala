@@ -4,14 +4,14 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, Wor
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISinkOperatorExecutor}
 
 class StatisticsManager {
-  // Data Processor
+  // DataProcessor
   private var inputTupleCount: Long = 0
   private var outputTupleCount: Long = 0
   private var dataProcessingTime: Long = 0
   private var totalExecutionTime: Long = 0
   private var workerStartTime: Long = 0
 
-  // Amber Processor
+  // AmberProcessor
   private var controlProcessingTime: Long = 0
 
   def getStatistics(workerState: WorkerState, operator: IOperatorExecutor): WorkerStatistics = {

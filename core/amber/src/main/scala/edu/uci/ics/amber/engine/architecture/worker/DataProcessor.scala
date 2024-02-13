@@ -37,11 +37,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.{
-  IOperatorExecutor,
-  InputExhausted,
-  VirtualIdentityUtils
-}
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
 import scala.collection.mutable
@@ -161,7 +157,8 @@ class DataProcessor(
     *
     * @return (input tuple count, output tuple count)
     */
-  def collectStatistics(): WorkerStatistics = statisticsManager.getStatistics(stateManager.getCurrentState, operator)
+  def collectStatistics(): WorkerStatistics =
+    statisticsManager.getStatistics(stateManager.getCurrentState, operator)
 
   /** process currentInputTuple through operator logic.
     * this function is only called by the DP thread

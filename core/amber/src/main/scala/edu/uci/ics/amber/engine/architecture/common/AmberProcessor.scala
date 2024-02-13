@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputGateway, NetworkInputGateway, NetworkOutputGateway}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{
+  InputGateway,
+  NetworkInputGateway,
+  NetworkOutputGateway
+}
 import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
