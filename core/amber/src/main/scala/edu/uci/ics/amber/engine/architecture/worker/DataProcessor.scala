@@ -44,6 +44,7 @@ import edu.uci.ics.amber.engine.common.{
   VirtualIdentityUtils
 }
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
 
 import scala.collection.mutable
 
@@ -146,6 +147,8 @@ class DataProcessor(
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   // 5. epoch manager
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
+  // 6. statistics manager
+  val statisticsManager: StatisticsManager = new StatisticsManager()
 
   // dp thread stats:
   protected var inputTupleCount = 0L
