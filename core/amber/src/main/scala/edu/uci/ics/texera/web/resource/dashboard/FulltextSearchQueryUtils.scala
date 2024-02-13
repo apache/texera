@@ -65,9 +65,9 @@ object FulltextSearchQueryUtils {
     for (key: String <- keywords) {
       if (key != "") {
         val words = key.split("\\s+")
-        val subStringSearchEnabled = if (words.length == 1) "*" else ""
         var conditionForKeyword = condition(
-          s"MATCH($indexedCompoundFields) AGAINST('+$key$subStringSearchEnabled' IN BOOLEAN MODE)"
+          s"MATCH($indexedCompoundFields) AGAINST('${words.mkString("+", " +", "")}' IN BOOLEAN MODE)",
+          key
         )
         // perform exact "contains" to improve the quality of search results
         // if the following has a huge performance overhead, consider removing the LIKE part.

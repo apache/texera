@@ -64,7 +64,10 @@ object DashboardResource {
         q1.unionAll(q2).unionAll(q3)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
-    val queryResult = query.offset(params.offset).limit(params.count + 1).fetch()
+
+    val finalQuery = query.offset(params.offset).limit(params.count + 1)
+    println(finalQuery)
+    val queryResult = finalQuery.fetch()
 
     val entries = queryResult.asScala.toList
       .take(params.count)
