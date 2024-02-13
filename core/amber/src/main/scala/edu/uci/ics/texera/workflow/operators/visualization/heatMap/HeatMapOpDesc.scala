@@ -13,19 +13,19 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(value = "title", required = true)
+  @JsonProperty(defaultValue = "HeatMap", required = true)
   @JsonSchemaTitle("Title")
   @JsonPropertyDescription("Add a title to your visualization")
   var title: String = ""
 
   @JsonProperty(value = "x", required = true)
-  @JsonSchemaTitle("Value X")
+  @JsonSchemaTitle("Value X Column")
   @JsonPropertyDescription("the values along the x-axis")
   @AutofillAttributeName
   var x: String = ""
 
   @JsonProperty(value = "y", required = true)
-  @JsonSchemaTitle("Value Y")
+  @JsonSchemaTitle("Value Y Column")
   @JsonPropertyDescription("the values along the y-axis")
   @AutofillAttributeName
   var y: String = ""
@@ -34,7 +34,7 @@ class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   @JsonSchemaTitle("Values")
   @JsonPropertyDescription("the values of the heatmap")
   @AutofillAttributeName
-  var z: String = ""
+  var value: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -42,7 +42,7 @@ class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "HeatMap",
+      "HeatMap Chart",
       "Visualize data in a HeatMap Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -52,9 +52,9 @@ class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
   private def createHeatMap(): String = {
     assert(x.nonEmpty)
     assert(y.nonEmpty)
-    assert(z.nonEmpty)
+    assert(value.nonEmpty)
     s"""
-       |        heatmap = go.Heatmap(z=table["$z"],x=table["$x"],y=table["$y"])
+       |        heatmap = go.Heatmap(z=table["$value"],x=table["$x"],y=table["$y"])
        |        layout = go.Layout(title='$title')
        |        fig = go.Figure(data=[heatmap], layout=layout)
        |""".stripMargin
