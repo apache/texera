@@ -28,17 +28,17 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = {
-    new UnifiedResourceSchema(
-      _resourceType = DSL.inline(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE),
-      _name = WORKFLOW.NAME,
-      _description = WORKFLOW.DESCRIPTION,
-      _creationTime = WORKFLOW.CREATION_TIME,
-      _wid = WORKFLOW.WID,
-      _workflowLastModifiedTime = WORKFLOW.LAST_MODIFIED_TIME,
-      _workflowUserAccess = WORKFLOW_USER_ACCESS.PRIVILEGE,
-      _uid = WORKFLOW_OF_USER.UID,
-      _userName = USER.NAME,
-      _projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
+    UnifiedResourceSchema(
+      resourceType = DSL.inline(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE),
+      name = WORKFLOW.NAME,
+      description = WORKFLOW.DESCRIPTION,
+      creationTime = WORKFLOW.CREATION_TIME,
+      wid = WORKFLOW.WID,
+      workflowLastModifiedTime = WORKFLOW.LAST_MODIFIED_TIME,
+      workflowUserAccess = WORKFLOW_USER_ACCESS.PRIVILEGE,
+      uid = WORKFLOW_OF_USER.UID,
+      userName = USER.NAME,
+      projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
     )
   }
 

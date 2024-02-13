@@ -14,14 +14,14 @@ import org.jooq.impl.DSL
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 class ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
-  override val mappedResourceSchema: UnifiedResourceSchema = new UnifiedResourceSchema(
-    _resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE),
-    _name = PROJECT.NAME,
-    _description = PROJECT.DESCRIPTION,
-    _creationTime = PROJECT.CREATION_TIME,
-    _pid = PROJECT.PID,
-    _projectOwnerId = PROJECT.OWNER_ID,
-    _projectColor = PROJECT.COLOR
+  override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
+    resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE),
+    name = PROJECT.NAME,
+    description = PROJECT.DESCRIPTION,
+    creationTime = PROJECT.CREATION_TIME,
+    pid = PROJECT.PID,
+    projectOwnerId = PROJECT.OWNER_ID,
+    projectColor = PROJECT.COLOR
   )
 
   override protected def constructFromClause(

@@ -41,50 +41,31 @@ import java.sql.Timestamp
   * 19. `email`: Represents the email associated with the file owner (`String`).
   * 20. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
   */
-class UnifiedResourceSchema(
-    _resourceType: Field[String] = DSL.inline(""),
-    _name: Field[String] = DSL.inline(""),
-    _description: Field[String] = DSL.inline(""),
-    _creationTime: Field[Timestamp] = DSL.inline(null),
-    _wid: Field[UInteger] = DSL.inline(null),
-    _workflowLastModifiedTime: Field[Timestamp] = DSL.inline(null),
-    _workflowUserAccess: Field[WorkflowUserAccessPrivilege] = DSL.inline(null),
-    _projectsOfWorkflow: Field[String] = DSL.inline(""),
-    _uid: Field[UInteger] = DSL.inline(null),
-    _userName: Field[String] = DSL.inline(""),
-    _userEmail: Field[String] = DSL.inline(""),
-    _pid: Field[UInteger] = DSL.inline(null),
-    _projectOwnerId: Field[UInteger] = DSL.inline(null),
-    _projectColor: Field[String] = DSL.inline(""),
-    _fid: Field[UInteger] = DSL.inline(null),
-    _fileOwnerId: Field[UInteger] = DSL.inline(null),
-    _fileUploadTime: Field[Timestamp] = DSL.inline(null),
-    _filePath: Field[String] = DSL.inline(""),
-    _fileSize: Field[UInteger] = DSL.inline(null),
-    _fileUserAccess: Field[UserFileAccessPrivilege] = DSL.inline(null)
+case class UnifiedResourceSchema(
+    resourceType: Field[String] = DSL.inline("").as("resourceType"),
+    name: Field[String] = DSL.inline("").as("name"),
+    description: Field[String] = DSL.inline("").as("description"),
+    creationTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]).as("creation_time"),
+    wid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("wid"),
+    workflowLastModifiedTime: Field[Timestamp] =
+      DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
+    workflowUserAccess: Field[WorkflowUserAccessPrivilege] =
+      DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
+    projectsOfWorkflow: Field[String] = DSL.inline("").as("projects"),
+    uid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("uid"),
+    userName: Field[String] = DSL.inline("").as("userName"),
+    userEmail: Field[String] = DSL.inline("").as("email"),
+    pid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("pid"),
+    projectOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("owner_uid"),
+    projectColor: Field[String] = DSL.inline("").as("color"),
+    fid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("fid"),
+    fileOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("owner_id"),
+    fileUploadTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]).as("upload_time"),
+    filePath: Field[String] = DSL.inline("").as("path"),
+    fileSize: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("size"),
+    fileUserAccess: Field[UserFileAccessPrivilege] =
+      DSL.inline(null, classOf[UserFileAccessPrivilege]).as("user_file_access")
 ) {
-
-  val resourceType: Field[String] = _resourceType.as("resourceType")
-  val name: Field[String] = _name
-  val description: Field[String] = _description
-  val creationTime: Field[Timestamp] = _creationTime
-  val wid: Field[UInteger] = _wid.as("wid")
-  val workflowLastModifiedTime: Field[Timestamp] =
-    _workflowLastModifiedTime.as("last_modified_time")
-  val workflowUserAccess: Field[WorkflowUserAccessPrivilege] = _workflowUserAccess.as("privilege")
-  val projectsOfWorkflow: Field[String] = _projectsOfWorkflow.as("projects")
-  val uid: Field[UInteger] = _uid.as("uid")
-  val userName: Field[String] = _userName.as("userName")
-  val userEmail: Field[String] = _userEmail.as("email")
-  val pid: Field[UInteger] = _pid.as("pid")
-  val projectOwnerId: Field[UInteger] = _projectOwnerId.as("owner_uid")
-  val projectColor: Field[String] = _projectColor.as("color")
-  val fid: Field[UInteger] = _fid.as("fid")
-  val fileOwnerId: Field[UInteger] = _fileOwnerId.as("owner_id")
-  val fileUploadTime: Field[Timestamp] = _fileUploadTime.as("upload_time")
-  val filePath: Field[String] = _filePath.as("path")
-  val fileSize: Field[UInteger] = _fileSize.as("size")
-  val fileUserAccess: Field[UserFileAccessPrivilege] = _fileUserAccess.as("user_file_access")
 
   def getAllFields: Seq[Field[_]] = {
     Seq(

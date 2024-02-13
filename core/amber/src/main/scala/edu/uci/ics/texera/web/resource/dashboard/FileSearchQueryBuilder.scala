@@ -16,18 +16,18 @@ import org.jooq.impl.DSL
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 class FileSearchQueryBuilder extends SearchQueryBuilder {
 
-  override val mappedResourceSchema: UnifiedResourceSchema = new UnifiedResourceSchema(
-    _resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE),
-    _name = FILE.NAME,
-    _description = FILE.DESCRIPTION,
-    _creationTime = FILE.UPLOAD_TIME,
-    _fid = FILE.FID,
-    _fileOwnerId = FILE.OWNER_UID,
-    _fileUploadTime = FILE.UPLOAD_TIME,
-    _filePath = FILE.PATH,
-    _fileSize = FILE.SIZE,
-    _userEmail = USER.EMAIL,
-    _fileUserAccess = USER_FILE_ACCESS.PRIVILEGE
+  override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
+    resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE),
+    name = FILE.NAME,
+    description = FILE.DESCRIPTION,
+    creationTime = FILE.UPLOAD_TIME,
+    fid = FILE.FID,
+    fileOwnerId = FILE.OWNER_UID,
+    fileUploadTime = FILE.UPLOAD_TIME,
+    filePath = FILE.PATH,
+    fileSize = FILE.SIZE,
+    userEmail = USER.EMAIL,
+    fileUserAccess = USER_FILE_ACCESS.PRIVILEGE
   )
 
   override protected def constructFromClause(
