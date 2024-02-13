@@ -32,13 +32,15 @@ class CostBasedRegionPlanGenerator(
 
   private val executionClusterInfo = new ExecutionClusterInfo()
 
+  private val candidateNBEdges = mutable.Set.empty[PhysicalLink]
+
   override def generate(context: WorkflowContext): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG(context)
 
     (
       RegionPlan(
-        regions = regionDAG.iterator().asScala.toList,
+        regions = regionDAG.iterator().asScala.toSet,
         regionLinks = regionDAG.edgeSet().asScala.toSet
       ),
       physicalPlan
@@ -75,16 +77,18 @@ class CostBasedRegionPlanGenerator(
       region.getOperators.foreach(op=>opToRegionMap(op.id) = region)
       regionGraph.addVertex(region)
     })
-    try {
-      matEdges.foreach(e => {
-        val fromRegion = opToRegionMap(e.fromOpId)
-        val toRegion = opToRegionMap(e.toOpId)
+    matEdges.foreach(blockingEdge => {
+      val fromRegion = opToRegionMap(blockingEdge.fromOpId)
+      val toRegion = opToRegionMap(blockingEdge.toOpId)
+      try {
         regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
-      })
-      Option(regionGraph)
-    } catch {
-      case _: IllegalArgumentException => None
-    }
+      } catch {
+        case _: IllegalArgumentException =>
+          candidateEdges ++= (physicalPlan.getUpstreamPhysicalLinks(blockingEdge.toOpId).filter(nbEdge => nbEdge != blockingEdge))
+          None
+      }
+    })
+    Option(regionGraph)
   }
 
   private def createRegionDAG(context: WorkflowContext): DirectedAcyclicGraph[Region, RegionLink] = {
@@ -157,7 +161,9 @@ class CostBasedRegionPlanGenerator(
   private def cost(state: Set[PhysicalLink]): Double = {
     // Using number of materialization (region) edges as a cost.
 //    regionDAG.edgeSet().size().toDouble
-    state.size
+    if (state.intersect(candidateEdges).nonEmpty) 0
+    else Double.PositiveInfinity
+//    state.size
   }
 
   private def replaceLinkWithMaterialization(
