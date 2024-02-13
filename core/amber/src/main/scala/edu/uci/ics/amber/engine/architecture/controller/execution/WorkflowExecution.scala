@@ -18,6 +18,10 @@ class WorkflowExecution {
 
   private val channelExecutions: mutable.Map[ChannelIdentity, ChannelExecution] = mutable.HashMap()
 
+  /**
+    * Initialize an empty RegionExecution with the given region.
+    * @return
+    */
   def initRegionExecution(region: Region): RegionExecution = {
     assert(!regionExecutions.contains(region.id))
     regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
@@ -31,8 +35,10 @@ class WorkflowExecution {
       .getOperatorExecution(physicalOpId)
   }
 
-  def hasOperatorExecution(physicalOpId:PhysicalOpIdentity) : Boolean = {
-    regionExecutions.values.toList.exists(regionExecution => regionExecution.hasOperatorExecution(physicalOpId))
+  def hasOperatorExecution(physicalOpId: PhysicalOpIdentity): Boolean = {
+    regionExecutions.values.toList.exists(regionExecution =>
+      regionExecution.hasOperatorExecution(physicalOpId)
+    )
   }
 
   def getAllOperatorExecutions: Iterator[(PhysicalOpIdentity, OperatorExecution)] = {
@@ -44,8 +50,7 @@ class WorkflowExecution {
 
   def getAllBuiltWorkers: Iterator[ActorVirtualIdentity] = {
     regionExecutions.values
-      .flatMap(regionExecution => regionExecution.getAllOperatorExecutions)
-      .map(_._2)
+      .flatMap(regionExecution => regionExecution.getAllOperatorExecutions.map(_._2))
       .flatMap(operatorExecution => operatorExecution.getWorkerIds)
       .iterator
   }
@@ -56,10 +61,7 @@ class WorkflowExecution {
 
   def getChannelExecutions: Iterable[(ChannelIdentity, ChannelExecution)] = channelExecutions
   def getStats: Map[String, OperatorRuntimeStats] = {
-    val activeRegionExecutions = regionExecutions.values.filterNot(_.isCompleted)
-
-//
-//    // TODO: fix the aggregation here. The stats should be on port level.
+    // TODO: fix the aggregation here. The stats should be on port level.
     getAllOperatorExecutions.map {
       case (physicalOpId, operatorExecution) =>
         physicalOpId.logicalOpId.id -> operatorExecution.getStats
@@ -93,6 +95,10 @@ class WorkflowExecution {
     } else {
       WorkflowAggregatedState.UNKNOWN
     }
+  }
+
+  def getRunningRegionExecutions : Iterable[RegionExecution] = {
+    regionExecutions.values.filter(regionExecution => !regionExecution.isCompleted)
   }
 
 }

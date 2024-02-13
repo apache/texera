@@ -30,9 +30,6 @@ import scala.collection.{Seq, mutable}
 case object RegionExecution {}
 case class RegionExecution(region: Region) {
 
-  var running: Boolean = false
-  var completed: Boolean = false
-
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
 
@@ -100,7 +97,7 @@ class RegionExecutionController(
     // fetch resource config
     val resourceConfig = region.resourceConfig.get
 
-    val regionExecution = getRegionExecution
+    val regionExecution = workflowExecution.getRegionExecution(region.id)
 
     region.getOperators.foreach(physicalOp => {
       // Check for existing execution for this operator

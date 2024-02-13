@@ -18,7 +18,7 @@ class WorkflowExecutionController(
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutionController] =
+  private val regionExecutionControllers: mutable.HashMap[RegionIdentity, RegionExecutionController] =
     mutable.HashMap()
 
   private val regionExecutionOrder: List[Set[RegionIdentity]] = {
@@ -50,16 +50,16 @@ class WorkflowExecutionController(
         getNextRegions
           .map(region => {
             workflowExecution.initRegionExecution(region)
-            regionExecutors(region.id) = new RegionExecutionController(
+            regionExecutionControllers(region.id) = new RegionExecutionController(
               region,
               workflowExecution,
               asyncRPCClient,
               actorService,
               controllerConfig
             )
-            regionExecutors(region.id)
+            regionExecutionControllers(region.id)
           })
-          .map(regionExecutor => regionExecutor.execute)
+          .map(regionExecutionController => regionExecutionController.execute)
           .toSeq
       )
       .unit
@@ -69,22 +69,20 @@ class WorkflowExecutionController(
     * get the next batch of Regions to execute.
     */
   private def getNextRegions: Set[Region] = {
-    if (regionExecutors.values.map(_.getRegionExecution).exists(!_.isCompleted)) {
+    if (regionExecutionControllers.values.map(_.getRegionExecution).exists(!_.isCompleted)) {
       return Set.empty
     }
 
-    val completedRegions: Set[RegionIdentity] = regionExecutors.collect {
-      case (regionId, executor) if workflowExecution.getRegionExecution(regionId).isCompleted =>
+    val completedRegions: Set[RegionIdentity] = regionExecutionControllers.collect {
+      case (regionId, _) if workflowExecution.getRegionExecution(regionId).isCompleted =>
         regionId
     }.toSet
 
-    val ret = regionExecutionOrder
+    regionExecutionOrder
       .map(_ -- completedRegions)
       .find(_.nonEmpty)
       .getOrElse(Set.empty)
       .map(regionPlan.getRegion)
-    logger.warn("scheduling next region" + ret.map(_.id))
-    ret
   }
 
 }

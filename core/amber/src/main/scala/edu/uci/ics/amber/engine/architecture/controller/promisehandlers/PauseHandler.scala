@@ -33,7 +33,7 @@ trait PauseHandler {
     {
       cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
       Future
-        .collect(cp.workflowExecution.getAllOperatorExecutions.map {
+        .collect(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getAllOperatorExecutions).map {
           case (physicalOpId, opExecution) =>
             // create a buffer for the current input tuple
             // since we need to show them on the frontend
@@ -59,14 +59,14 @@ trait PauseHandler {
                     }
                   }.toSeq
               )
-              .map { ret =>
+              .map { _ =>
                 // for each paused operator, send the input tuple
                 sendToClient(
                   ReportCurrentProcessingTuple(physicalOpId.logicalOpId.id, buffer.toArray)
                 )
               }
         }.toSeq)
-        .map { ret =>
+        .map { _ =>
           // update frontend workflow status
           sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getStats))
           sendToClient(WorkflowPaused())
