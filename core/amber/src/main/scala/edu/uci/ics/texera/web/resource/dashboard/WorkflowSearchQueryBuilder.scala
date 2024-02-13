@@ -37,6 +37,7 @@ class WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       _workflowLastModifiedTime = WORKFLOW.LAST_MODIFIED_TIME,
       _workflowUserAccess = WORKFLOW_USER_ACCESS.PRIVILEGE,
       _uid = WORKFLOW_OF_USER.UID,
+      _userName = USER.NAME,
       _projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
     )
   }

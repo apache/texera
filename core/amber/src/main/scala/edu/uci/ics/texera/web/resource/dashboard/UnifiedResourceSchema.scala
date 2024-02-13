@@ -51,6 +51,7 @@ class UnifiedResourceSchema(
     _workflowUserAccess: Field[WorkflowUserAccessPrivilege] = DSL.inline(null),
     _projectsOfWorkflow: Field[String] = DSL.inline(""),
     _uid: Field[UInteger] = DSL.inline(null),
+    _userName: Field[String] = DSL.inline(""),
     _userEmail: Field[String] = DSL.inline(""),
     _pid: Field[UInteger] = DSL.inline(null),
     _projectOwnerId: Field[UInteger] = DSL.inline(null),
@@ -73,6 +74,7 @@ class UnifiedResourceSchema(
   val workflowUserAccess: Field[WorkflowUserAccessPrivilege] = _workflowUserAccess.as("privilege")
   val projectsOfWorkflow: Field[String] = _projectsOfWorkflow.as("projects")
   val uid: Field[UInteger] = _uid.as("uid")
+  val userName: Field[String] = _userName.as("userName")
   val userEmail: Field[String] = _userEmail.as("email")
   val pid: Field[UInteger] = _pid.as("pid")
   val projectOwnerId: Field[UInteger] = _projectOwnerId.as("owner_uid")
@@ -95,6 +97,7 @@ class UnifiedResourceSchema(
       workflowUserAccess,
       projectsOfWorkflow,
       uid,
+      userName,
       userEmail,
       pid,
       projectOwnerId,

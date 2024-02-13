@@ -66,7 +66,6 @@ object DashboardResource {
     }
 
     val finalQuery = query.offset(params.offset).limit(params.count + 1)
-    println(finalQuery)
     val queryResult = finalQuery.fetch()
 
     val entries = queryResult.asScala.toList
