@@ -99,9 +99,6 @@ message WorkerDebugCommandV2 {
     string cmd = 1;
 }
 
-message QuerySelfWorkloadMetricsV2{
-}
-
 message PortCompletedV2 {
     common.PortIdentity port_id = 1 [(scalapb.field).no_box = true];
     bool input = 2;
@@ -131,8 +128,6 @@ message ControlCommandV2 {
         PythonConsoleMessageV2 python_console_message = 23;
         ReplayCurrentTupleV2 replay_current_tuple = 24;
         EvaluateExpressionV2 evaluate_expression = 25;
-
-        QuerySelfWorkloadMetricsV2 query_self_workload_metrics = 41;
 
         WorkerDebugCommandV2 worker_debug_command = 81;
 

@@ -101,13 +101,6 @@ object ControlCommandConvertUtils {
     controlReturnV2.value match {
       case Empty                                                        => ()
       case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
-      case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
-        // TODO: convert real samples back from PythonUDF.
-        //  this is left hardcoded now since sampling is not currently enabled for PythonUDF.
-        (
-          selfWorkloadReturn.value.metrics,
-          List[mutable.HashMap[ActorVirtualIdentity, List[Long]]]()
-        )
       case exp: ControlReturnV2.Value.ControlException => ControlException(exp.value.msg)
       case _                                           => controlReturnV2.value.value
     }
