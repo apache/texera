@@ -18,7 +18,8 @@ class WorkflowExecutionController(
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private val regionExecutionControllers: mutable.HashMap[RegionIdentity, RegionExecutionController] =
+  private val regionExecutionControllers
+      : mutable.HashMap[RegionIdentity, RegionExecutionController] =
     mutable.HashMap()
 
   private val regionExecutionOrder: List[Set[RegionIdentity]] = {
@@ -69,14 +70,11 @@ class WorkflowExecutionController(
     * get the next batch of Regions to execute.
     */
   private def getNextRegions: Set[Region] = {
-    if (regionExecutionControllers.values.map(_.getRegionExecution).exists(!_.isCompleted)) {
+    if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
       return Set.empty
     }
 
-    val completedRegions: Set[RegionIdentity] = regionExecutionControllers.collect {
-      case (regionId, _) if workflowExecution.getRegionExecution(regionId).isCompleted =>
-        regionId
-    }.toSet
+    val completedRegions: Set[RegionIdentity] = regionExecutionControllers.keys.filter(regionId=> workflowExecution.getRegionExecution(regionId).isCompleted).toSet
 
     regionExecutionOrder
       .map(_ -- completedRegions)

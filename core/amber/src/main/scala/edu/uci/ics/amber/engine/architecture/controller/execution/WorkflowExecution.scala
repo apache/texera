@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
-import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionExecution, RegionIdentity}
+import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
