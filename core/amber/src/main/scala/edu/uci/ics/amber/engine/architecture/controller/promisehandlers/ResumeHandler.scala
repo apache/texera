@@ -26,7 +26,7 @@ trait ResumeHandler {
       Future
         .collect(cp.executionState.getAllBuiltWorkers.map { worker =>
           send(ResumeWorker(), worker).map { ret =>
-            cp.executionState.getOperatorExecution(worker).getWorkerInfo(worker).state = ret
+            cp.executionState.getOperatorExecution(worker).getWorkerExecution(worker).state = ret
           }
         }.toSeq)
         .map { _ =>
@@ -34,8 +34,6 @@ trait ResumeHandler {
           sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus))
           cp.controllerTimerService
             .enableStatusUpdate() //re-enabled it since it is disabled in pause
-          cp.controllerTimerService.enableMonitoring()
-          cp.controllerTimerService.enableSkewHandling()
         }
     }
   }
