@@ -50,7 +50,7 @@ case class UnifiedResourceSchema(
     workflowLastModifiedTime: Field[Timestamp] =
       DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
     workflowUserAccess: Field[WorkflowUserAccessPrivilege] =
-      DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
+      DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("workflow_privilege"),
     projectsOfWorkflow: Field[String] = DSL.inline("").as("projects"),
     uid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("uid"),
     userName: Field[String] = DSL.inline("").as("userName"),
