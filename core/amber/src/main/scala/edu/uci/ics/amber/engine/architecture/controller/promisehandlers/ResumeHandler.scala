@@ -29,6 +29,7 @@ trait ResumeHandler {
           send(ResumeWorker(), workerId).map { ret =>
             cp.workflowExecution
               .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+              .get
               .getWorkerExecution(workerId)
               .state = ret
           }

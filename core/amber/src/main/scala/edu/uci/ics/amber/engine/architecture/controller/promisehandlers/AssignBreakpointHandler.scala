@@ -31,14 +31,14 @@ trait AssignBreakpointHandler {
 
       // get the last operator (output of the operator)
       val operator = operators.last
-      val opExecution = cp.workflowExecution.getOperatorExecution(operator.id)
+      val opExecution = cp.workflowExecution.getOperatorExecution(operator.id).get
       // attach the breakpoint
       opExecution.attachedBreakpoints(msg.breakpoint.id) = msg.breakpoint
       // get target workers from the operator given a breakpoint
       val targetWorkers = opExecution.assignBreakpoint(msg.breakpoint)
 
       val workersTobeAssigned: List[(ActorVirtualIdentity, LocalBreakpoint)] =
-        msg.breakpoint.partition(targetWorkers).toList
+        msg.breakpoint.partition(targetWorkers.toArray).toList
 
       // send AssignLocalBreakpoint message to each worker
       Future

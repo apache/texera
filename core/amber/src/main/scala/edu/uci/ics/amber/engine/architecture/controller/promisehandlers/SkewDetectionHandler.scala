@@ -286,6 +286,7 @@ trait SkewDetectionHandler {
     val futures = new ArrayBuffer[Future[Boolean]]()
     cp.workflowExecution
       .getOperatorExecution(prevPhysicalOp.id)
+      .get
       .getWorkerIds
       .foreach(id => {
         futures.append(
@@ -312,6 +313,7 @@ trait SkewDetectionHandler {
     val futures = new ArrayBuffer[Future[Boolean]]()
     cp.workflowExecution
       .getOperatorExecution(prevPhysicalOp.id)
+      .get
       .getWorkerIds
       .foreach(id => {
         if (
@@ -360,6 +362,7 @@ trait SkewDetectionHandler {
     val futuresArr = new ArrayBuffer[Future[Boolean]]()
     cp.workflowExecution
       .getOperatorExecution(prevPhysicalOp.id)
+      .get
       .getWorkerIds
       .foreach(id => {
         futuresArr.append(send(PauseSkewMitigation(skewedWorker, helperWorker), id))
@@ -382,7 +385,7 @@ trait SkewDetectionHandler {
           // 1: Find the skewed and helper worker that need first phase.
           val skewedAndHelperPairsForFirstPhase =
             getSkewedAndHelperWorkersEligibleForFirstPhase(
-              cp.workflowExecution.getOperatorExecution(physicalOp.id).workerToWorkloadInfo,
+              cp.workflowExecution.getOperatorExecution(physicalOp.id).get.workerToWorkloadInfo,
               workflowReshapeState.skewedToHelperMappingHistory,
               workflowReshapeState.skewedToStateTransferOrIntimationDone,
               workflowReshapeState.skewedAndHelperInFirstPhase
@@ -480,7 +483,7 @@ trait SkewDetectionHandler {
           workflowReshapeState.secondPhaseRequestsFinished = false
           val skewedAndHelperPairsForSecondPhase =
             getSkewedAndFreeWorkersEligibleForSecondPhase(
-              cp.workflowExecution.getOperatorExecution(physicalOp.id).workerToWorkloadInfo,
+              cp.workflowExecution.getOperatorExecution(physicalOp.id).get.workerToWorkloadInfo,
               workflowReshapeState.skewedAndHelperInFirstPhase
             )
           skewedAndHelperPairsForSecondPhase.foreach(skewedAndHelper =>
@@ -522,7 +525,7 @@ trait SkewDetectionHandler {
           workflowReshapeState.pauseMitigationRequestsFinished = false
           val skewedAndHelperPairsForPauseMitigationPhase =
             getSkewedAndFreeWorkersEligibleForPauseMitigationPhase(
-              cp.workflowExecution.getOperatorExecution(physicalOp.id).workerToWorkloadInfo,
+              cp.workflowExecution.getOperatorExecution(physicalOp.id).get.workerToWorkloadInfo,
               workflowReshapeState.skewedAndHelperInFirstPhase,
               workflowReshapeState.skewedAndHelperInSecondPhase,
               workflowReshapeState.skewedAndHelperInPauseMitigationPhase

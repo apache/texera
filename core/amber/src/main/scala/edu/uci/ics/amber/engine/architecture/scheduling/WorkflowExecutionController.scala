@@ -49,10 +49,10 @@ class WorkflowExecutionController(
       .collect(
         getNextRegions
           .map(region => {
-            val regionExecution = executionState.initRegionExecution(region)
+            executionState.initRegionExecution(region)
             regionExecutors(region.id) = new RegionExecutionController(
               region,
-              regionExecution,
+              executionState,
               asyncRPCClient,
               actorService,
               controllerConfig
@@ -64,19 +64,6 @@ class WorkflowExecutionController(
       )
       .unit
   }
-
-//  def markRegionCompletion(portId: GlobalPortIdentity): Unit = {
-//    regionPlan.getRegionOfPortId(portId) match {
-//      case Some(region) =>
-//
-//        if (RegionExecution.isRegionCompleted(executionState, region)) {
-//          regionExecutors(region.id).regionExecution.running = false
-//          regionExecutors(region.id).regionExecution.completed = true
-//        }
-//      case None => // do nothing. currently the source input ports and sink output ports are not captured.
-//    }
-//
-//  }
 
   /**
     * get the next batch of Regions to execute.

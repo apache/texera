@@ -75,11 +75,13 @@ trait MonitoringHandler {
             val physicalOpId = VirtualIdentityUtils.getPhysicalOpId(workerId)
             cp.workflowExecution
               .getOperatorExecution(physicalOpId)
+              .get
               .getWorkerWorkloadInfo(workerId)
               .dataInputWorkload =
               metrics.unprocessedDataInputQueueSize + metrics.stashedDataInputQueueSize
             cp.workflowExecution
               .getOperatorExecution(physicalOpId)
+              .get
               .getWorkerWorkloadInfo(workerId)
               .controlInputWorkload =
               metrics.unprocessedControlInputQueueSize + metrics.stashedControlInputQueueSize

@@ -35,6 +35,7 @@ trait QueryWorkerStatisticsHandler {
         val workerExecution =
           cp.workflowExecution
             .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+            .get
             .getWorkerExecution(workerId)
         workerExecution.state = res.workerState
         workerExecution.stats = res

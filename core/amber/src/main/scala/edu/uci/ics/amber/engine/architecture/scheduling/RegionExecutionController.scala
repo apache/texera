@@ -3,11 +3,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatsUpdate
-}
-import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatsUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
@@ -20,23 +17,11 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import scala.collection.{Seq, mutable}
 
-case object RegionExecution {
-  def isRegionCompleted(
-      regionExecution: RegionExecution,
-      region: Region
-  ): Boolean = {
-    region.getPorts.forall(globalPortId => {
-      val operatorExecution = regionExecution.getOperatorExecution(globalPortId.opId)
-      if (globalPortId.input) operatorExecution.isInputPortCompleted(globalPortId.portId)
-      else operatorExecution.isOutputPortCompleted(globalPortId.portId)
-    })
-  }
-}
+case object RegionExecution {}
 case class RegionExecution(region: Region) {
 
   var running: Boolean = false
@@ -46,10 +31,15 @@ case class RegionExecution(region: Region) {
     mutable.HashMap()
 
   def initOperatorExecution(
-      physicalOpId: PhysicalOpIdentity
+      physicalOpId: PhysicalOpIdentity,
+      existingOpExecution: Option[OperatorExecution] = None
   ): OperatorExecution = {
     assert(!operatorExecutions.contains(physicalOpId))
-    operatorExecutions.getOrElseUpdate(physicalOpId, new OperatorExecution())
+
+    operatorExecutions.getOrElseUpdate(
+      physicalOpId,
+      existingOpExecution.getOrElse(new OperatorExecution())
+    )
   }
 
   def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
@@ -70,18 +60,18 @@ case class RegionExecution(region: Region) {
     }.toMap
   }
 
-  def isCompleted: Boolean =
-    region.getPorts.forall(globalPortId => {
-      val operatorExecution = this.getOperatorExecution(globalPortId.opId)
-      if (globalPortId.input) operatorExecution.isInputPortCompleted(globalPortId.portId)
-      else operatorExecution.isOutputPortCompleted(globalPortId.portId)
-
-    })
+  def isCompleted: Boolean = getState == WorkflowAggregatedState.COMPLETED
 
   def getState: WorkflowAggregatedState = {
-    if(isCompleted){
+    if (
+      region.getPorts.forall(globalPortId => {
+        val operatorExecution = this.getOperatorExecution(globalPortId.opId)
+        if (globalPortId.input) operatorExecution.isInputPortCompleted(globalPortId.portId)
+        else operatorExecution.isOutputPortCompleted(globalPortId.portId)
+      })
+    ) {
       WorkflowAggregatedState.COMPLETED
-    }else{
+    } else {
       WorkflowAggregatedState.RUNNING
     }
   }
@@ -89,39 +79,35 @@ case class RegionExecution(region: Region) {
 }
 class RegionExecutionController(
     region: Region,
-    regionExecution: RegionExecution,
+    workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
     actorService: AkkaActorService,
     controllerConfig: ControllerConfig
 ) {
 
   def getRegionExecution: RegionExecution = {
-    regionExecution
+    workflowExecution.getRegionExecution(region.id)
   }
 
   def execute: Future[Unit] = {
 
-    // find out the operators needs to be built.
-    // some operators may have already been built in previous regions.
-    val operatorsToBuild = region
-      .topologicalIterator()
-      .filter(opId => { !regionExecution.hasOperatorExecution(opId) })
-      .map(opId => region.getOperator(opId))
-
     // fetch resource config
     val resourceConfig = region.resourceConfig.get
 
-    // mark the region as running
-//    regionExecution.running = true
+    val regionExecution = getRegionExecution
 
-    // build operators, init workers
-    operatorsToBuild.foreach(physicalOp =>
-      buildOperator(
-        physicalOp,
-        resourceConfig.operatorConfigs(physicalOp.id),
-        regionExecution
-      )
-    )
+    region.getOperators.foreach(physicalOp => {
+      val existingOpExecution = workflowExecution.getOperatorExecution(physicalOp.id)
+      val operatorExecution =
+        regionExecution.initOperatorExecution(physicalOp.id, existingOpExecution)
+      if (existingOpExecution.isEmpty) {
+        buildOperator(
+          physicalOp,
+          resourceConfig.operatorConfigs(physicalOp.id),
+          operatorExecution
+        )
+      }
+    })
 
     // update UI
     asyncRPCClient.sendToClient(WorkflowStatsUpdate(regionExecution.getStats))
@@ -167,12 +153,11 @@ class RegionExecutionController(
   private def buildOperator(
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
-      regionExecution: RegionExecution
+      operatorExecution: OperatorExecution
   ): Unit = {
-    val opExecution = regionExecution.initOperatorExecution(physicalOp.id)
     physicalOp.build(
       actorService,
-      opExecution,
+      operatorExecution,
       operatorConfig,
       controllerConfig.workerRestoreConfMapping,
       controllerConfig.workerLoggingConfMapping
@@ -185,7 +170,7 @@ class RegionExecutionController(
         operators
           .filter(op => op.isPythonOperator)
           .flatMap(op => {
-            regionExecution
+            getRegionExecution
               .getOperatorExecution(op.id)
               .getWorkerIds
               .map(workerId => (workerId, op))
@@ -240,7 +225,7 @@ class RegionExecutionController(
       .collect(
         operators
           .map(_.id)
-          .flatMap(opId => regionExecution.getOperatorExecution(opId).getWorkerIds)
+          .flatMap(opId => getRegionExecution.getOperatorExecution(opId).getWorkerIds)
           .map { workerId =>
             asyncRPCClient.send(OpenOperator(), workerId)
           }
@@ -249,12 +234,12 @@ class RegionExecutionController(
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
-    asyncRPCClient.sendToClient(WorkflowStatsUpdate(regionExecution.getStats))
+    asyncRPCClient.sendToClient(WorkflowStatsUpdate(getRegionExecution.getStats))
     Future.collect(
       region.getSourceOperators
         .map(_.id)
         .flatMap { opId =>
-          regionExecution
+          getRegionExecution
             .getOperatorExecution(opId)
             .getWorkerIds
             .map { workerId =>
@@ -262,7 +247,7 @@ class RegionExecutionController(
                 .send(StartWorker(), workerId)
                 .map(ret =>
                   // update worker state
-                  regionExecution.getOperatorExecution(opId).getWorkerExecution(workerId).state =
+                  getRegionExecution.getOperatorExecution(opId).getWorkerExecution(workerId).state =
                     ret
                 )
             }

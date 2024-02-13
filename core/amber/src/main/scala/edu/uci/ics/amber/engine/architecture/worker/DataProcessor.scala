@@ -241,7 +241,7 @@ class DataProcessor(
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
         logger.info(
-          s"$operator completed, outputted = $outputTupleCount"
+          s"$operator completed, # of input ports = ${inputGateway.getAllPorts().size}, inputted = $inputTupleCount, outputted = $outputTupleCount"
         )
         operator.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -330,7 +330,6 @@ class DataProcessor(
             .foreach(outputPortId =>
               outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
             )
-
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }

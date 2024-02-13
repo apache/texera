@@ -20,11 +20,9 @@ class WorkflowExecution {
   }
   def getRegionExecution(regionId: RegionIdentity): RegionExecution = regionExecutions(regionId)
 
-  def getOperatorExecution(physicalOpId: PhysicalOpIdentity): OperatorExecution = {
+  def getOperatorExecution(physicalOpId: PhysicalOpIdentity): Option[OperatorExecution] = {
     regionExecutions.values.toList
-      .findLast(regionExecution => regionExecution.hasOperatorExecution(physicalOpId))
-      .get
-      .getOperatorExecution(physicalOpId)
+      .findLast(regionExecution => regionExecution.hasOperatorExecution(physicalOpId)).map(_.getOperatorExecution(physicalOpId))
   }
 
   def getAllOperatorExecutions: Iterator[(PhysicalOpIdentity, OperatorExecution)] = {
