@@ -32,7 +32,7 @@ object ChannelMarkerHandler {
 trait ChannelMarkerHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: PropagateChannelMarker, sender) =>
+  registerHandler[PropagateChannelMarker, Seq[(ActorVirtualIdentity, _)]] { (msg, sender) =>
     {
       // step1: create separate control commands for each target actor.
       val inputSet = msg.targetOps.flatMap { target =>
@@ -59,7 +59,7 @@ trait ChannelMarkerHandler {
       })
       val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
         cp.executionState.getOperatorExecution(source).getBuiltWorkerIds.flatMap { worker =>
-          Array(
+          Seq(
             ChannelIdentity(CONTROLLER, worker, isControl = true),
             ChannelIdentity(worker, CONTROLLER, isControl = true)
           )

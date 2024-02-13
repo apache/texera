@@ -14,7 +14,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
   DPInputQueueElement,
   FIFOMessageElement,
-  MainThreadDelegate,
+  MainThreadDelegateMessage,
   TimerBasedControlElement,
   WorkerReplayInitialization
 }
@@ -52,7 +52,7 @@ object WorkflowWorker {
 
   final case class TriggerSend(msg: WorkflowFIFOMessage)
 
-  final case class MainThreadDelegate(closure: WorkflowWorker => Unit)
+  final case class MainThreadDelegateMessage(closure: WorkflowWorker => Unit)
 
   sealed trait DPInputQueueElement
 
@@ -62,7 +62,7 @@ object WorkflowWorker {
 
   final case class WorkerReplayInitialization(
       restoreConfOpt: Option[StateRestoreConfig] = None,
-      replayLogConfOpt: Option[FaultToleranceConfig] = None
+      faultToleranceConfOpt: Option[FaultToleranceConfig] = None
   )
   final case class StateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
 
@@ -74,7 +74,7 @@ class WorkflowWorker(
     physicalOp: PhysicalOp,
     operatorConfig: OperatorConfig,
     replayInitialization: WorkerReplayInitialization
-) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerConfig.workerId) {
+) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(
@@ -85,7 +85,7 @@ class WorkflowWorker(
 
   var dpThread: DPThread = _
 
-  val inputRecordings =
+  val recordedInputs =
     new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
 
   override def initState(): Unit = {
@@ -118,7 +118,7 @@ class WorkflowWorker(
   }
 
   def handleTriggerClosure: Receive = {
-    case t: MainThreadDelegate =>
+    case t: MainThreadDelegateMessage =>
       t.closure(this)
   }
 
@@ -143,8 +143,8 @@ class WorkflowWorker(
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     inputQueue.put(FIFOMessageElement(workflowMsg))
-    inputRecordings.values.foreach(_.append(workflowMsg))
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
+    recordedInputs.values.foreach(_.append(workflowMsg))
+    sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
   /** flow-control */

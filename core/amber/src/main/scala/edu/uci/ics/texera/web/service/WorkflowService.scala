@@ -27,8 +27,8 @@ import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
 import java.util.concurrent.ConcurrentHashMap
-import scala.collection.JavaConverters._
 import java.net.URI
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -158,12 +158,12 @@ class WorkflowService(
       // enable only if we have mysql
       if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
         val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-          workflowContext.workflowId + "/" + workflowContext.executionId + "/"
+          s"${workflowContext.workflowId}/${workflowContext.executionId}/"
         )
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)
         }
-        controllerConf = controllerConf.copy(workerLoggingConf =
+        controllerConf = controllerConf.copy(faultToleranceConfOpt =
           Some(FaultToleranceConfig(writeTo = writeLocation))
         )
       }
@@ -173,7 +173,7 @@ class WorkflowService(
           .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
           .foreach { execution =>
             val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(workerRestoreConf =
+            controllerConf = controllerConf.copy(stateRestoreConfOpt =
               Some(
                 StateRestoreConfig(
                   readFrom = readLocation,

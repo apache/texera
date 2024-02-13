@@ -29,7 +29,7 @@ object PauseHandler {
 trait PauseHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: PauseWorkflow, sender) =>
+  registerHandler[PauseWorkflow, Unit] { (msg, sender) =>
     {
       cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
       cp.controllerTimerService.disableMonitoring()
@@ -46,16 +46,16 @@ trait PauseHandler {
                   // send pause to all workers
                   // pause message has no effect on completed or paused workers
                   .map { worker =>
-                    val info = opExecution.getWorkerInfo(worker)
+                    val workerExecution = opExecution.getWorkerExecution(worker)
                     // send a pause message
                     send(PauseWorker(), worker).flatMap { ret =>
-                      info.state = ret
+                      workerExecution.state = ret
                       send(QueryStatistics(), worker)
                         .join(send(QueryCurrentInputTuple(), worker))
                         // get the stats and current input tuple from the worker
                         .map {
                           case (stats, tuple) =>
-                            info.stats = stats
+                            workerExecution.stats = stats
                             buffer.append((tuple, worker))
                         }
                     }

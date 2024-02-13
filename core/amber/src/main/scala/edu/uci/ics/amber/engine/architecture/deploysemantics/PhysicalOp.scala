@@ -482,7 +482,7 @@ case class PhysicalOp(
       controllerActorService.actorOf(
         workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
       )
-      opExecution.initializeWorkerInfo(workerId)
+      opExecution.initWorkerExecution(workerId)
     })
   }
 }

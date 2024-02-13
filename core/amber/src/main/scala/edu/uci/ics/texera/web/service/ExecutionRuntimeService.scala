@@ -79,15 +79,13 @@ class ExecutionRuntimeService(
 
   // Receive Interaction
   addSubscription(wsInput.subscribe((req: WorkflowInteractionRequest, uidOpt) => {
-    if (logConf.isEmpty) {
-      logger.info(
-        "Fault tolerance log folder is not established. Unable to take a global checkpoint."
-      )
-    } else {
-      val checkpointId = ChannelMarkerIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
-      val uri = logConf.get.writeTo.resolve(checkpointId.toString)
-      client.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri))
-    }
+    assert(
+      logConf.nonEmpty,
+      "Fault tolerance log folder is not established. Unable to take a global checkpoint."
+    )
+    val checkpointId = ChannelMarkerIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
+    val uri = logConf.get.writeTo.resolve(checkpointId.toString)
+    client.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri))
   }))
 
 }

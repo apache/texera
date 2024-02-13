@@ -7,7 +7,7 @@ import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamF
 import org.apache.commons.io.IOUtils.toByteArray
 
 import java.io._
-import scala.jdk.CollectionConverters.asScalaIteratorConverter
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
     extends SourceOperatorExecutor {

@@ -16,13 +16,15 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
 import scala.Tuple3;
-import scala.collection.immutable.List;
+import scala.collection.immutable.Seq;
 
 
+import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
 import static scala.collection.JavaConverters.*;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
@@ -51,8 +53,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Filter",
                 "Performs a filter operation",
                 OperatorGroupConstants.SEARCH_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 true,

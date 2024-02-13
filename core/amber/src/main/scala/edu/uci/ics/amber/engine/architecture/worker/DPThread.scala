@@ -75,7 +75,8 @@ class DPThread(
         def run(): Unit = {
           Thread.currentThread().setName(getThreadName)
           logger.info("DP thread started")
-          startFuture.complete(Unit)
+          startFuture.complete(())
+          dp.startTime = System.nanoTime()
           try {
             runDPThreadMainLogic()
           } catch safely {
@@ -89,7 +90,8 @@ class DPThread(
                 CONTROLLER
               )
           }
-          endFuture.complete(Unit)
+          dp.totalExecutionTime = (System.nanoTime() - dp.startTime)
+          endFuture.complete(())
         }
       })
       startFuture.get()
@@ -145,7 +147,7 @@ class DPThread(
           case None =>
             // continue processing
             if (!dp.pauseManager.isPaused && !backpressureStatus) {
-              channelId = dp.currentBatchChannel
+              channelId = dp.currentChannelId
             } else {
               waitingForInput = true
             }
@@ -186,10 +188,18 @@ class DPThread(
           }
         }
       }
+      // As the computation is chopped into steps, the checkpoint
+      // serialization must happen after/before a step. Otherwise
+      // DP state will be restored in the middle of a step, which
+      // is often not what we want. Thus, we have this one-time
+      // additional serializationCall assigned inside the checkpoint
+      // handler.
       if (dp.serializationCall != null) {
         dp.serializationCall()
         dp.serializationCall = null
       }
+
+      dp.totalExecutionTime = System.nanoTime() - dp.startTime
       // End of Main loop
     }
   }

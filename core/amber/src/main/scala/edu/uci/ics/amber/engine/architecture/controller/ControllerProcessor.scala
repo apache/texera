@@ -7,8 +7,8 @@ import edu.uci.ics.amber.engine.architecture.common.{
   AmberProcessor
 }
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowScheduler
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegate
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionController
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -16,17 +16,10 @@ class ControllerProcessor(
     val workflow: Workflow,
     val controllerConfig: ControllerConfig,
     actorId: ActorVirtualIdentity,
-    outputHandler: Either[MainThreadDelegate, WorkflowFIFOMessage] => Unit
+    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
   val executionState = new ExecutionState(workflow)
-  val workflowScheduler =
-    new WorkflowScheduler(
-      workflow.regionPlan.regions.toBuffer,
-      executionState,
-      controllerConfig,
-      asyncRPCClient
-    )
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
@@ -41,6 +34,9 @@ class ControllerProcessor(
   }
 
   @transient var actorService: AkkaActorService = _
+
+  var workflowExecutionController: WorkflowExecutionController = _
+
   def setupActorService(akkaActorService: AkkaActorService): Unit = {
     this.actorService = akkaActorService
   }
@@ -55,4 +51,15 @@ class ControllerProcessor(
   def setupLogManager(logManager: ReplayLogManager): Unit = {
     this.logManager = logManager
   }
+
+  def initWorkflowExecutionController(): Unit = {
+    this.workflowExecutionController = new WorkflowExecutionController(
+      workflow.regionPlan,
+      executionState,
+      actorService,
+      controllerConfig,
+      asyncRPCClient
+    )
+  }
+
 }

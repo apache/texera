@@ -41,8 +41,8 @@ object ControllerConfig {
       monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
       skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
-      workerRestoreConf = None,
-      workerLoggingConf = None
+      stateRestoreConfOpt = None,
+      faultToleranceConfOpt = None
     )
 }
 
@@ -50,8 +50,8 @@ final case class ControllerConfig(
     monitoringIntervalMs: Option[Long],
     skewDetectionIntervalMs: Option[Long],
     statusUpdateIntervalMs: Option[Long],
-    workerRestoreConf: Option[StateRestoreConfig],
-    workerLoggingConf: Option[FaultToleranceConfig]
+    stateRestoreConfOpt: Option[StateRestoreConfig],
+    faultToleranceConfOpt: Option[FaultToleranceConfig]
 )
 
 object Controller {
@@ -75,7 +75,7 @@ class Controller(
     val workflow: Workflow,
     val controllerConfig: ControllerConfig
 ) extends WorkflowActor(
-      controllerConfig.workerLoggingConf,
+      controllerConfig.faultToleranceConfOpt,
       CONTROLLER
     ) {
 
@@ -104,7 +104,7 @@ class Controller(
 
   override def initState(): Unit = {
     initControllerProcessor()
-    val controllerRestoreConf = controllerConfig.workerRestoreConf
+    val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
       setupReplay(
@@ -121,7 +121,7 @@ class Controller(
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     val channel = cp.inputGateway.getChannel(workflowMsg.channelId)
     channel.acceptMessage(workflowMsg)
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
+    sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
     processMessages()
   }
 
@@ -148,7 +148,7 @@ class Controller(
   def handleDirectInvocation: Receive = {
     case c: ControlInvocation =>
       // only client and self can send direction invocations
-      val source = if (sender == self) {
+      val source = if (sender() == self) {
         SELF
       } else {
         CLIENT
@@ -180,7 +180,7 @@ class Controller(
   override val supervisorStrategy: SupervisorStrategy =
     AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
       case e: Throwable =>
-        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender)
+        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender())
         logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
         cp.asyncRPCServer.execute(FatalError(e, failedWorker), actorId)
         Stop
@@ -188,6 +188,7 @@ class Controller(
 
   private def initControllerProcessor(): Unit = {
     cp.setupActorService(actorService)
+    cp.initWorkflowExecutionController()
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
     cp.setupLogManager(logManager)

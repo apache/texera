@@ -1,18 +1,13 @@
 package edu.uci.ics.amber.engine.common
 
-import akka.serialization.Serialization
-
 import scala.collection.mutable
 
 class CheckpointState {
 
   private val states = new mutable.HashMap[String, SerializedState]()
 
-  // it will be recomputed after deserialization
-  @transient private lazy val serde: Serialization = AmberUtils.serde
-
   def save[T <: Any](key: String, state: T): Unit = {
-    states(key) = SerializedState.fromObject(state.asInstanceOf[AnyRef], serde)
+    states(key) = SerializedState.fromObject(state.asInstanceOf[AnyRef], AmberUtils.serde)
   }
 
   def has(key: String): Boolean = {
@@ -21,7 +16,7 @@ class CheckpointState {
 
   def load[T <: Any](key: String): T = {
     if (states.contains(key)) {
-      states(key).toObject(serde).asInstanceOf[T]
+      states(key).toObject(AmberUtils.serde).asInstanceOf[T]
     } else {
       throw new RuntimeException(s"no state saved for key = $key")
     }

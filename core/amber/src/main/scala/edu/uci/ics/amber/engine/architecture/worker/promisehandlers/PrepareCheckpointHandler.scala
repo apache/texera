@@ -4,17 +4,19 @@ import edu.uci.ics.amber.engine.architecture.worker.{
   DataProcessorRPCHandlerInitializer,
   WorkflowWorker
 }
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegate
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PrepareCheckpointHandler.PrepareCheckpoint
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport, SerializedState}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 
 object PrepareCheckpointHandler {
-  final case class PrepareCheckpoint(estimationOnly: Boolean) extends ControlCommand[Unit]
+  final case class PrepareCheckpoint(checkpointId: ChannelMarkerIdentity, estimationOnly: Boolean)
+      extends ControlCommand[Unit]
 }
 
 trait PrepareCheckpointHandler {
@@ -24,33 +26,29 @@ trait PrepareCheckpointHandler {
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
       dp.serializationCall = () => {
-        serializeWorkerState()
+        serializeWorkerState(msg.checkpointId)
       }
     } else {
       logger.info(s"Checkpoint is estimation-only. do nothing.")
     }
   }
 
-  private def serializeWorkerState(): Unit = {
+  private def serializeWorkerState(checkpointId: ChannelMarkerIdentity): Unit = {
     val chkpt = new CheckpointState()
     // 1. serialize DP state
     chkpt.save(SerializedState.DP_STATE_KEY, this.dp)
     // checkpoint itself should not be serialized, thus we register it after serialization
-    dp.channelMarkerManager.checkpoints(dp.channelMarkerManager.getContext.marker.id) = chkpt
+    dp.channelMarkerManager.checkpoints(checkpointId) = chkpt
     logger.info("Serialized DP state")
     // 2. serialize operator state
-    if (dp.operatorOpened) {
-      dp.operator match {
-        case support: CheckpointSupport =>
-          dp.outputIterator.setTupleOutput(
-            support.serializeState(dp.outputIterator.outputIter, chkpt)
-          )
-          logger.info("Serialized operator state")
-        case _ =>
-          logger.info("Operator does not support checkpoint, skip")
-      }
-    } else {
-      logger.info("Operator does not open, nothing to serialize")
+    dp.operator match {
+      case support: CheckpointSupport =>
+        dp.outputIterator.setTupleOutput(
+          support.serializeState(dp.outputIterator.outputIter, chkpt)
+        )
+        logger.info("Serialized operator state")
+      case _ =>
+        logger.info("Operator does not support checkpoint, skip")
     }
     // 3. record inflight messages
     logger.info("Begin collecting inflight messages")
@@ -70,13 +68,12 @@ trait PrepareCheckpointHandler {
       )
       logger.info("Main thread: serialized queued and output messages.")
       // start to record input messages on main thread
-      worker.inputRecordings(dp.channelMarkerManager.getContext.marker.id) =
-        new mutable.ArrayBuffer[WorkflowFIFOMessage]()
+      worker.recordedInputs(checkpointId) = new mutable.ArrayBuffer[WorkflowFIFOMessage]()
       logger.info("Main thread: start recording for input messages from now on.")
       waitFuture.complete(())
       ()
     }
-    dp.outputHandler(Left(MainThreadDelegate(closure)))
+    dp.outputHandler(Left(MainThreadDelegateMessage(closure)))
     waitFuture.get()
   }
 }

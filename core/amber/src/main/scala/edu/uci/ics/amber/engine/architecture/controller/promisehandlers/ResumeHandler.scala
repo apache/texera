@@ -18,7 +18,7 @@ object ResumeHandler {
 trait ResumeHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: ResumeWorkflow, sender) =>
+  registerHandler[ResumeWorkflow, Unit] { (msg, sender) =>
     {
 
       // send all workers resume
@@ -26,7 +26,7 @@ trait ResumeHandler {
       Future
         .collect(cp.executionState.getAllBuiltWorkers.map { worker =>
           send(ResumeWorker(), worker).map { ret =>
-            cp.executionState.getOperatorExecution(worker).getWorkerInfo(worker).state = ret
+            cp.executionState.getOperatorExecution(worker).getWorkerExecution(worker).state = ret
           }
         }.toSeq)
         .map { _ =>

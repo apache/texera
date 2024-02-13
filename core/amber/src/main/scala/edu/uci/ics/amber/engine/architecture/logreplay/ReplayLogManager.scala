@@ -1,11 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegate
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage.SequentialRecordWriter
 import edu.uci.ics.amber.engine.common.storage.{EmptyRecordStorage, SequentialRecordStorage}
-import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 //In-mem formats:
@@ -20,7 +19,7 @@ object ReplayLogManager {
   def createLogManager(
       logStorage: SequentialRecordStorage[ReplayLogRecord],
       logFileName: String,
-      handler: Either[MainThreadDelegate, WorkflowFIFOMessage] => Unit
+      handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
   ): ReplayLogManager = {
     logStorage match {
       case _: EmptyRecordStorage[ReplayLogRecord] =>
@@ -39,7 +38,7 @@ trait ReplayLogManager {
 
   def setupWriter(logWriter: SequentialRecordWriter[ReplayLogRecord]): Unit
 
-  def sendCommitted(msg: Either[MainThreadDelegate, WorkflowFIFOMessage]): Unit
+  def sendCommitted(msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]): Unit
 
   def terminate(): Unit
 
@@ -63,13 +62,14 @@ trait ReplayLogManager {
 
 }
 
-class EmptyReplayLogManagerImpl(handler: Either[MainThreadDelegate, WorkflowFIFOMessage] => Unit)
-    extends ReplayLogManager {
+class EmptyReplayLogManagerImpl(
+    handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
+) extends ReplayLogManager {
   override def setupWriter(
       logWriter: SequentialRecordStorage.SequentialRecordWriter[ReplayLogRecord]
   ): Unit = {}
 
-  override def sendCommitted(msg: Either[MainThreadDelegate, WorkflowFIFOMessage]): Unit = {
+  override def sendCommitted(msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]): Unit = {
     handler(msg)
   }
 
@@ -78,7 +78,7 @@ class EmptyReplayLogManagerImpl(handler: Either[MainThreadDelegate, WorkflowFIFO
   override def markAsReplayDestination(id: ChannelMarkerIdentity): Unit = {}
 }
 
-class ReplayLogManagerImpl(handler: Either[MainThreadDelegate, WorkflowFIFOMessage] => Unit)
+class ReplayLogManagerImpl(handler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit)
     extends ReplayLogManager {
 
   private val replayLogger = new ReplayLoggerImpl()
@@ -102,7 +102,7 @@ class ReplayLogManagerImpl(handler: Either[MainThreadDelegate, WorkflowFIFOMessa
     writer.start()
   }
 
-  override def sendCommitted(msg: Either[MainThreadDelegate, WorkflowFIFOMessage]): Unit = {
+  override def sendCommitted(msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]): Unit = {
     writer.putLogRecords(replayLogger.drainCurrentLogRecords(cursor.getStep))
     writer.putOutput(msg)
   }

@@ -58,6 +58,7 @@ class PythonWorkflowWorker(
   private val networkInputGateway = new NetworkInputGateway(workerConfig.workerId)
   private val networkOutputGateway = new NetworkOutputGateway(
     workerConfig.workerId,
+    // handler for output messages
     msg => {
       logManager.sendCommitted(Right(msg))
     }
@@ -76,7 +77,7 @@ class PythonWorkflowWorker(
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
-    sender ! NetworkAck(
+    sender() ! NetworkAck(
       messageId,
       getInMemSize(workflowMsg),
       getQueuedCredit(workflowMsg.channelId)
@@ -86,7 +87,7 @@ class PythonWorkflowWorker(
   override def receiveCreditMessages: Receive = {
     case WorkflowActor.CreditRequest(channel) =>
       pythonProxyClient.enqueueActorCommand(CreditUpdate())
-      sender ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
+      sender() ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
     case WorkflowActor.CreditResponse(channel, credit) =>
       transferService.updateChannelCreditFromReceiver(channel, credit)
   }
