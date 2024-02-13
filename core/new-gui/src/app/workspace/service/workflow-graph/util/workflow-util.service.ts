@@ -6,7 +6,7 @@ import {
   PortDescription,
 } from "../../../types/workflow-common.interface";
 import { OperatorMetadataService } from "../../operator-metadata/operator-metadata.service";
-import { OperatorSchema } from "../../../types/operator-schema.interface";
+import { InputPortInfo, OperatorSchema, OutputPortInfo } from "../../../types/operator-schema.interface";
 import { Injectable } from "@angular/core";
 import { v4 as uuid } from "uuid";
 import Ajv from "ajv";
@@ -93,14 +93,14 @@ export class WorkflowUtilService {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
 
-    const operatorID = operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
+    const operatorId = operatorSchema.operatorType + "-" + this.getOperatorRandomUUID();
     const operatorProperties = {};
 
     // Remove the ID field for the schema to prevent warning messages from Ajv
-    const { ...schemaWithoutID } = operatorSchema.jsonSchema;
+    const { ...schemaWithoutId } = operatorSchema.jsonSchema;
 
     // value inserted in the data will be the deep clone of the default in the schema
-    const validate = this.ajv.compile(schemaWithoutID);
+    const validate = this.ajv.compile(schemaWithoutId);
     validate(operatorProperties);
 
     const inputPorts: PortDescription[] = [];
@@ -121,30 +121,19 @@ export class WorkflowUtilService {
     for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
       const portID = "input-" + i.toString();
       const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
-      inputPorts.push({
-        portID,
-        displayName: portInfo.displayName ?? "",
-        allowMultiInputs: portInfo.allowMultiLinks ?? false,
-        isDynamicPort: false,
-        dependencies: portInfo.dependencies ?? [],
-      });
+      inputPorts.push(WorkflowUtilService.inputPortToPortDescription(portID, portInfo));
     }
 
     for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
       const portID = "output-" + i.toString();
       const portInfo = operatorSchema.additionalMetadata.outputPorts[i];
-      outputPorts.push({
-        portID,
-        displayName: portInfo.displayName ?? "",
-        allowMultiInputs: false,
-        isDynamicPort: false,
-      });
+      outputPorts.push(WorkflowUtilService.outputPortToPortDescription(portID, portInfo));
     }
 
     const operatorVersion = operatorSchema.operatorVersion;
 
     return {
-      operatorID,
+      operatorID: operatorId,
       operatorType,
       operatorVersion,
       operatorProperties,
@@ -159,8 +148,8 @@ export class WorkflowUtilService {
   }
 
   /**
-   * helper function to parse WorkflowInfo from a JSON string. In some case, for example reading from backend, the content would returned
-   * as a JSON string.
+   * helper function to parse WorkflowInfo from a JSON string. In some case, for example reading from backend,
+   * the content would return as a JSON string.
    * @param workflow
    */
   public static parseWorkflowInfo(workflow: Workflow): Workflow {
@@ -170,29 +159,61 @@ export class WorkflowUtilService {
     return workflow;
   }
 
+  private static inputPortToPortDescription(portID: string, inputPortInfo: InputPortInfo): PortDescription {
+    return {
+      portID,
+      displayName: inputPortInfo.displayName ?? "",
+      allowMultiInputs: inputPortInfo.allowMultiLinks ?? false,
+      isDynamicPort: false,
+      dependencies: inputPortInfo.dependencies ?? [],
+    };
+  }
+
+  private static outputPortToPortDescription(portID: string, outputPortInfo: OutputPortInfo): PortDescription {
+    return {
+      portID,
+      displayName: outputPortInfo.displayName ?? "",
+      allowMultiInputs: false,
+      isDynamicPort: false,
+    };
+  }
+
   public updateOperatorVersion(op: OperatorPredicate) {
     const operatorType = op.operatorType;
     const operatorSchema = this.operatorSchemaList.find(schema => schema.operatorType === operatorType);
     if (operatorSchema === undefined) {
       throw new Error(`operatorType ${operatorType} doesn't exist in operator metadata`);
     }
-    // if (operatorSchema.operatorVersion!== op.operatorVersion) {
-    const inputPorts = [];
-    for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
-      const portID = "input-" + i.toString();
-      const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
-      inputPorts.push({
-        portID,
-        displayName: portInfo.displayName ?? "",
-        allowMultiInputs: portInfo.allowMultiLinks ?? false,
-        isDynamicPort: false,
-        dependencies: portInfo.dependencies ?? [],
-      });
+
+    let inputPorts: PortDescription[] = [];
+    if (op.inputPorts.length === 0) {
+      // use the operatorSchema as a template to create ports
+      for (let i = 0; i < operatorSchema.additionalMetadata.inputPorts.length; i++) {
+        const portID = "input-" + i.toString();
+        const portInfo = operatorSchema.additionalMetadata.inputPorts[i];
+        inputPorts.push(WorkflowUtilService.inputPortToPortDescription(portID, portInfo));
+      }
+    } else {
+      inputPorts = op.inputPorts;
     }
+
+    let outputPorts: PortDescription[] = [];
+    if (op.outputPorts.length === 0) {
+      // use the operatorSchema as a template to create ports
+      for (let i = 0; i < operatorSchema.additionalMetadata.outputPorts.length; i++) {
+        const portID = "output-" + i.toString();
+        const portInfo = operatorSchema.additionalMetadata.outputPorts[i];
+        outputPorts.push(WorkflowUtilService.outputPortToPortDescription(portID, portInfo));
+      }
+    } else {
+      outputPorts = op.outputPorts;
+    }
+
     return {
       ...op,
       operatorVersion: operatorSchema.operatorVersion,
       inputPorts,
+      outputPorts,
     };
   }
 }
