@@ -57,13 +57,8 @@ export class UserFileListItemComponent {
       .changeFileName(this.entry.file.fid, name)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => {
-          this.entry.file.name = name;
-        },
-        error: (err: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
-          this.notificationService.error(err.error.message);
-        },
+        next: () => (this.entry.file.name = name),
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       })
       .add(() => (this.editingName = false));
   }
@@ -74,10 +69,7 @@ export class UserFileListItemComponent {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => (this.entry.file.description = description),
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       })
       .add(() => (this.editingDescription = false));
   }
