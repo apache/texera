@@ -48,24 +48,43 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     testRepoPath = Files.createTempDirectory("testRepo");
     testRepoMainBranchId = GitVersionControlLocalFileStorageService.initRepo(testRepoPath);
 
-    // Version 1
     Path file1Path = testRepoPath.resolve(testFile1Name);
-    writeFileToRepo(file1Path, testFile1ContentV1);
-    String v1Commit = GitVersionControlLocalFileStorageService.createVersion(testRepoPath, "v1");
+    // Version 1
+    String v1Hash = GitVersionControlLocalFileStorageService.withCreateVersion(
+        testRepoPath,
+        "v1",
+        () -> {
+          try {
+            writeFileToRepo(file1Path, testFile1ContentV1);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }});
 
-    // Version 2
-    writeFileToRepo(file1Path, testFile1ContentV2);
-    String v2Commit = GitVersionControlLocalFileStorageService.createVersion(testRepoPath, "v2");
+    String v2Hash = GitVersionControlLocalFileStorageService.withCreateVersion(
+        testRepoPath,
+        "v2",
+        () -> {
+          try {
+            writeFileToRepo(file1Path, testFile1ContentV2);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }});
 
     // Version 3
-    writeFileToRepo(file1Path, testFile1ContentV3);
-    String v3Commit = GitVersionControlLocalFileStorageService.createVersion(testRepoPath, "v3");
+    String v3Hash = GitVersionControlLocalFileStorageService.withCreateVersion(
+        testRepoPath,
+        "v3",
+        () -> {
+          try {
+            writeFileToRepo(file1Path, testFile1ContentV3);
+          } catch (IOException e) {
+            throw new RuntimeException(e);
+          }});
 
-    // Retrieve all commit hashes after creating versions
     testRepoMasterCommitHashes = new ArrayList<>() {{
-      add(v1Commit);
-      add(v2Commit);
-      add(v3Commit);
+      add(v1Hash);
+      add(v2Hash);
+      add(v3Hash);
     }};
   }
 
@@ -126,9 +145,14 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     // now we add a new file testDir/testFile2.txt
     Path testDirPath = testRepoPath.resolve(testDirectoryName);
     Path file2Path = testDirPath.resolve(testFile2Name);
-    writeFileToRepo(file2Path, testFile2Content);
 
-    String v4Hash = GitVersionControlLocalFileStorageService.createVersion(testRepoPath, "v4");
+    String v4Hash = GitVersionControlLocalFileStorageService.withCreateVersion(testRepoPath, "v4", () -> {
+      try {
+        writeFileToRepo(file2Path, testFile2Content);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
     testRepoMasterCommitHashes.add(v4Hash);
 
     FileNode dirNode = new FileNode(testDirPath);
@@ -143,12 +167,15 @@ public class GitVersionControlLocalFileStorageServiceSpec {
         GitVersionControlLocalFileStorageService.retrieveFileTreeOfVersion(testRepoPath, v4Hash));
 
     // now we delete the file1, check the filetree
-    GitVersionControlLocalFileStorageService.deleteFile(testRepoPath, file1Path);
+    String v5Hash = GitVersionControlLocalFileStorageService.withCreateVersion(testRepoPath, "v5", () -> {
+      try {
+        GitVersionControlLocalFileStorageService.deleteFile(testRepoPath, file1Path);
+      } catch (IOException | GitAPIException e) {
+        throw new RuntimeException(e);
+      }
+    });
+
     fileNodes.remove(file1Node);
-    String v5Hash = GitVersionControlLocalFileStorageService.createVersion(testRepoPath, "v5");
-
-    ByteArrayOutputStream output = new ByteArrayOutputStream();
-
     Assert.assertEquals(
         "File1 should be gone",
         fileNodes,

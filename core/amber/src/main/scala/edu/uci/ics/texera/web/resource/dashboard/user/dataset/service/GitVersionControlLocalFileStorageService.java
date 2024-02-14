@@ -77,19 +77,6 @@ public class GitVersionControlLocalFileStorageService {
   }
 
   /**
-   * Creates a new version in the repository with the given version name.
-   *
-   * @param baseRepoPath The repository path.
-   * @param versionName The name or message associated with the version.
-   * @return The commit hash of the created version.
-   * @throws IOException If an I/O error occurs.
-   * @throws GitAPIException If the JGit operation is interrupted.
-   */
-  public static String createVersion(Path baseRepoPath, String versionName) throws IOException, GitAPIException {
-    return JGitVersionControl.addAndCommit(baseRepoPath, versionName);
-  }
-
-  /**
    * Executes a group of file operations as a single versioned transaction. The version is bumped after the operations finish.
    *
    * @param baseRepoPath The repository path.
@@ -98,15 +85,13 @@ public class GitVersionControlLocalFileStorageService {
    * @throws IOException If an I/O error occurs.
    * @throws GitAPIException If a Git operation fails.
    */
-  public static void withCreateVersion(Path baseRepoPath, String versionName, Runnable operations) throws IOException, GitAPIException {
+  public static String withCreateVersion(Path baseRepoPath, String versionName, Runnable operations) throws IOException, GitAPIException {
     try {
       // Execute the provided file operations
       operations.run();
-
       // After successful execution, create a new version with the specified name
-      JGitVersionControl.addAndCommit(baseRepoPath, versionName);
+      return JGitVersionControl.addAndCommit(baseRepoPath, versionName);
     } catch (Exception e) {
-      // Handle possible exceptions (you might want to log or rethrow depending on your use case)
       throw e;
     }
   }
