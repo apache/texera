@@ -47,20 +47,16 @@ object DashboardResource {
       @Auth user: SessionUser,
       @BeanParam params: SearchQueryParams
   ): DashboardSearchResult = {
-    val workflowSearchBuilder = new WorkflowSearchQueryBuilder()
-    val fileSearchBuilder = new FileSearchQueryBuilder()
-    val projectSearchBuilder = new ProjectSearchQueryBuilder()
-
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
-        workflowSearchBuilder.constructQuery(user, params)
-      case SearchQueryBuilder.FILE_RESOURCE_TYPE => fileSearchBuilder.constructQuery(user, params)
+        WorkflowSearchQueryBuilder.constructQuery(user, params)
+      case SearchQueryBuilder.FILE_RESOURCE_TYPE => FileSearchQueryBuilder.constructQuery(user, params)
       case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
-        projectSearchBuilder.constructQuery(user, params)
+        ProjectSearchQueryBuilder.constructQuery(user, params)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
-        val q1 = workflowSearchBuilder.constructQuery(user, params)
-        val q2 = fileSearchBuilder.constructQuery(user, params)
-        val q3 = projectSearchBuilder.constructQuery(user, params)
+        val q1 = WorkflowSearchQueryBuilder.constructQuery(user, params)
+        val q2 = FileSearchQueryBuilder.constructQuery(user, params)
+        val q3 = ProjectSearchQueryBuilder.constructQuery(user, params)
         q1.unionAll(q2).unionAll(q3)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
@@ -74,10 +70,10 @@ object DashboardResource {
         val resourceType = record.get("resourceType", classOf[String])
         resourceType match {
           case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
-            workflowSearchBuilder.toEntry(user, record)
-          case SearchQueryBuilder.FILE_RESOURCE_TYPE => fileSearchBuilder.toEntry(user, record)
+            WorkflowSearchQueryBuilder.toEntry(user, record)
+          case SearchQueryBuilder.FILE_RESOURCE_TYPE => FileSearchQueryBuilder.toEntry(user, record)
           case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
-            projectSearchBuilder.toEntry(user, record)
+            ProjectSearchQueryBuilder.toEntry(user, record)
         }
       })
 

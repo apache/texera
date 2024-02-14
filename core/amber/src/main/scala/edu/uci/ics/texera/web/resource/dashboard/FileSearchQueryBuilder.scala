@@ -14,7 +14,7 @@ import org.jooq.{Condition, GroupField, OrderField, Record, TableLike}
 import org.jooq.impl.DSL
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-class FileSearchQueryBuilder extends SearchQueryBuilder {
+object FileSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
     resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE).as("resourceType"),
@@ -53,7 +53,7 @@ class FileSearchQueryBuilder extends SearchQueryBuilder {
 
     getFulltextSearchConditions(
       splitKeywords,
-      List(mappedResourceSchema.name, mappedResourceSchema.description)
+      List(translate(FILE.NAME), translate(FILE.DESCRIPTION))
     )
       .and(
         getDateFilter(
@@ -68,7 +68,7 @@ class FileSearchQueryBuilder extends SearchQueryBuilder {
   override protected def constructGroupByClause(
       user: SessionUser,
       params: DashboardResource.SearchQueryParams
-  ): Seq[GroupField] = Seq(FILE.FID)
+  ): Seq[GroupField] = Seq.empty
 
   override protected def getOrderFields(
       user: SessionUser,

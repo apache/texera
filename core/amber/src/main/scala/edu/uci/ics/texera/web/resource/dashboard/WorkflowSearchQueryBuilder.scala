@@ -25,7 +25,7 @@ import org.jooq.types.UInteger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class WorkflowSearchQueryBuilder extends SearchQueryBuilder {
+object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = {
     UnifiedResourceSchema(
@@ -73,24 +73,24 @@ class WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     getDateFilter(
       params.creationStartDate,
       params.creationEndDate,
-      mappedResourceSchema.creationTime
+      translate(WORKFLOW.CREATION_TIME)
     )
       // Apply lastModified_time date filter
       .and(
         getDateFilter(
           params.modifiedStartDate,
           params.modifiedEndDate,
-          mappedResourceSchema.workflowLastModifiedTime
+          translate(WORKFLOW.LAST_MODIFIED_TIME)
         )
       )
       // Apply workflowID filter
-      .and(getContainsFilter(params.workflowIDs, mappedResourceSchema.wid))
+      .and(getContainsFilter(params.workflowIDs, translate(WORKFLOW.WID)))
       // Apply owner filter
       .and(getContainsFilter(params.owners, USER.EMAIL))
       // Apply operators filter
       .and(getOperatorsFilter(params.operators, WORKFLOW.CONTENT))
       // Apply projectId filter
-      .and(getContainsFilter(params.projectIds, mappedResourceSchema.pid))
+      .and(getContainsFilter(params.projectIds, translate(WORKFLOW_OF_PROJECT.PID)))
       // Apply fulltext search filter
       .and(
         getFulltextSearchConditions(

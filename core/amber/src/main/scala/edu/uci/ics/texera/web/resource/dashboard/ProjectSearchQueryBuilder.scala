@@ -12,7 +12,7 @@ import org.jooq.{Condition, GroupField, OrderField, Record, TableLike}
 import org.jooq.impl.DSL
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-class ProjectSearchQueryBuilder extends SearchQueryBuilder {
+object ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
     resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE).as("resourceType"),
@@ -60,7 +60,7 @@ class ProjectSearchQueryBuilder extends SearchQueryBuilder {
   override protected def constructGroupByClause(
       user: SessionUser,
       params: DashboardResource.SearchQueryParams
-  ): Seq[GroupField] = Seq(PROJECT.PID)
+  ): Seq[GroupField] = Seq.empty
 
   override protected def getOrderFields(
       user: SessionUser,

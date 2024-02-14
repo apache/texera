@@ -1,14 +1,63 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  UserFileAccessPrivilege,
-  WorkflowUserAccessPrivilege
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{UserFileAccessPrivilege, WorkflowUserAccessPrivilege}
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
-import org.jooq.Field
+import org.jooq.{Field, Table}
 
 import java.sql.Timestamp
+import scala.collection.mutable
+
+
+object UnifiedResourceSchema{
+  def apply(resourceType: Field[String] = DSL.inline(""),
+            name: Field[String] = DSL.inline(""),
+            description: Field[String] = DSL.inline(""),
+            creationTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
+            wid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+            workflowLastModifiedTime: Field[Timestamp] =
+            DSL.inline(null, classOf[Timestamp]),
+            workflowUserAccess: Field[WorkflowUserAccessPrivilege] =
+            DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
+            projectsOfWorkflow: Field[String] = DSL.inline(""),
+            uid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+            userName: Field[String] = DSL.inline(""),
+            userEmail: Field[String] = DSL.inline(""),
+            pid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+            projectOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+            projectColor: Field[String] = DSL.inline(""),
+            fid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+            fileOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+            fileUploadTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
+            filePath: Field[String] = DSL.inline(""),
+            fileSize: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+            fileUserAccess: Field[UserFileAccessPrivilege] =
+            DSL.inline(null, classOf[UserFileAccessPrivilege])
+           ):UnifiedResourceSchema = {
+    new UnifiedResourceSchema(Map(
+      resourceType -> resourceType.as("resourceType"),
+      name -> name.as("resource_name"),
+      description -> description.as("resource_description"),
+      creationTime -> creationTime.as("creation_time"),
+      wid -> wid.as("wid"),
+      workflowLastModifiedTime -> workflowLastModifiedTime.as("last_modified_time"),
+      workflowUserAccess -> workflowUserAccess.as("workflow_privilege"),
+      projectsOfWorkflow -> projectsOfWorkflow.as("projects"),
+      uid -> uid.as("uid"),
+      userName -> userName.as("userName"),
+      userEmail -> userEmail.as("email"),
+      pid -> pid.as("pid"),
+      projectOwnerId -> projectOwnerId.as("owner_uid"),
+      projectColor -> projectColor.as("color"),
+      fid -> fid.as("fid"),
+      fileOwnerId -> fileOwnerId.as("owner_id"),
+      fileUploadTime -> fileUploadTime.as("upload_time"),
+      filePath -> filePath.as("path"),
+      fileSize -> fileSize.as("size"),
+      fileUserAccess -> fileUserAccess.as("user_file_access"))
+  }
+}
+
 
 /**
   * Refer to texera/core/scripts/sql/texera_ddl.sql to understand what each attribute is
@@ -41,55 +90,26 @@ import java.sql.Timestamp
   * 19. `email`: Represents the email associated with the file owner (`String`).
   * 20. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
   */
-case class UnifiedResourceSchema(
-    resourceType: Field[String] = DSL.inline("").as("resourceType"),
-    name: Field[String] = DSL.inline("").as("name"),
-    description: Field[String] = DSL.inline("").as("description"),
-    creationTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]).as("creation_time"),
-    wid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("wid"),
-    workflowLastModifiedTime: Field[Timestamp] =
-      DSL.inline(null, classOf[Timestamp]).as("last_modified_time"),
-    workflowUserAccess: Field[WorkflowUserAccessPrivilege] =
-      DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("workflow_privilege"),
-    projectsOfWorkflow: Field[String] = DSL.inline("").as("projects"),
-    uid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("uid"),
-    userName: Field[String] = DSL.inline("").as("userName"),
-    userEmail: Field[String] = DSL.inline("").as("email"),
-    pid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("pid"),
-    projectOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("owner_uid"),
-    projectColor: Field[String] = DSL.inline("").as("color"),
-    fid: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("fid"),
-    fileOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("owner_id"),
-    fileUploadTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]).as("upload_time"),
-    filePath: Field[String] = DSL.inline("").as("path"),
-    fileSize: Field[UInteger] = DSL.inline(null, classOf[UInteger]).as("size"),
-    fileUserAccess: Field[UserFileAccessPrivilege] =
-      DSL.inline(null, classOf[UserFileAccessPrivilege]).as("user_file_access")
+class UnifiedResourceSchema private(
+   fieldMappings:Map[Field[_],Field[_]]
 ) {
 
-  def getAllFields: Seq[Field[_]] = {
-    Seq(
-      resourceType,
-      name,
-      description,
-      creationTime,
-      wid,
-      workflowLastModifiedTime,
-      workflowUserAccess,
-      projectsOfWorkflow,
-      uid,
-      userName,
-      userEmail,
-      pid,
-      projectOwnerId,
-      projectColor,
-      fid,
-      fileOwnerId,
-      fileUploadTime,
-      filePath,
-      fileSize,
-      fileUserAccess
-    )
+  private val translatedTables = new mutable.HashMap[Table[_], Seq[Field[_]]]()
+
+  val allFields: Iterable[Field[_]] = fieldMappings.keys
+
+  def translate[T](field:Field[T]):Field[T] = {
+    fieldMappings.getOrElse(field, field).asInstanceOf[Field[T]]
+  }
+
+  def translate(table:Table[_]):Seq[Field[_]] = {
+    if(!translatedTables.contains(table)){
+      translatedTables(table) = table.fields().map {
+        field =>
+          translate(field)
+      }
+    }
+    translatedTables(table)
   }
 
 }
