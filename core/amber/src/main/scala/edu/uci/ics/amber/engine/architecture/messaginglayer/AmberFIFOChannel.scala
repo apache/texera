@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import java.util.concurrent.atomic.AtomicLong
 import scala.collection.mutable
@@ -18,6 +19,7 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   private var enabled = true
   private val fifoQueue = new mutable.Queue[WorkflowFIFOMessage]
   private val holdCredit = new AtomicLong()
+  private var portId: Option[PortIdentity] = None
 
   def acceptMessage(msg: WorkflowFIFOMessage): Unit = {
     val seq = msg.sequenceNumber
@@ -89,5 +91,13 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
 
   def getQueuedCredit: Long = {
     holdCredit.get()
+  }
+
+  def setPortId(portId: PortIdentity): Unit = {
+    this.portId = Some(portId)
+  }
+
+  def getPortId: PortIdentity = {
+    this.portId.get
   }
 }

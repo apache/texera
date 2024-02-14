@@ -20,12 +20,10 @@ trait StartWorkflowHandler {
   registerHandler { (msg: StartWorkflow, sender) =>
     {
       if (cp.executionState.getState.isUninitialized) {
-        cp.workflowScheduler
-          .startWorkflow(cp.workflow, cp.actorRefService, cp.actorService)
+        cp.workflowExecutionController
+          .executeNextRegions()
           .map(_ => {
             cp.controllerTimerService.enableStatusUpdate()
-            cp.controllerTimerService.enableMonitoring()
-            cp.controllerTimerService.enableSkewHandling()
           })
       } else {
         Future.Unit
