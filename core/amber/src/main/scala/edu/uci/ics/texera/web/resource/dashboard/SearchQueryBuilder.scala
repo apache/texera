@@ -2,9 +2,12 @@ package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{DashboardClickableFileEntry, SearchQueryParams}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
+  DashboardClickableFileEntry,
+  SearchQueryParams
+}
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.context
-import org.jooq.{Condition, Field, GroupField, OrderField, Record, SelectLimitStep, Table, TableLike}
+import org.jooq.{Condition, GroupField, OrderField, Record, SelectLimitStep, TableLike}
 object SearchQueryBuilder {
 
   final lazy val context = SqlServer.createDSLContext()
@@ -29,12 +32,13 @@ trait SearchQueryBuilder {
 
   protected def getOrderFields(user: SessionUser, params: SearchQueryParams): Seq[OrderField[_]]
 
-  protected def translate[T](field:Field[T]):Field[T] = mappedResourceSchema.translate(field)
+  protected def toEntryImpl(user: SessionUser, record: Record): DashboardClickableFileEntry
 
-  protected def translate(table:Table[_]):Seq[Field[_]] = mappedResourceSchema.translate(table)
+  private def translateRecord(record: Record): Record = mappedResourceSchema.translateRecord(record)
 
-
-  def toEntry(user: SessionUser, record: Record): DashboardClickableFileEntry
+  def toEntry(user: SessionUser, record: Record): DashboardClickableFileEntry = {
+    toEntryImpl(user, translateRecord(record))
+  }
 
   final def constructQuery(
       user: SessionUser,

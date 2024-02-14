@@ -29,7 +29,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = {
     UnifiedResourceSchema(
-      resourceType = DSL.inline(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE).as("resourceType"),
+      resourceType = DSL.inline(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE),
       name = WORKFLOW.NAME,
       description = WORKFLOW.DESCRIPTION,
       creationTime = WORKFLOW.CREATION_TIME,
@@ -73,29 +73,29 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     getDateFilter(
       params.creationStartDate,
       params.creationEndDate,
-      translate(WORKFLOW.CREATION_TIME)
+      WORKFLOW.CREATION_TIME
     )
       // Apply lastModified_time date filter
       .and(
         getDateFilter(
           params.modifiedStartDate,
           params.modifiedEndDate,
-          translate(WORKFLOW.LAST_MODIFIED_TIME)
+          WORKFLOW.LAST_MODIFIED_TIME
         )
       )
       // Apply workflowID filter
-      .and(getContainsFilter(params.workflowIDs, translate(WORKFLOW.WID)))
+      .and(getContainsFilter(params.workflowIDs, WORKFLOW.WID))
       // Apply owner filter
       .and(getContainsFilter(params.owners, USER.EMAIL))
       // Apply operators filter
       .and(getOperatorsFilter(params.operators, WORKFLOW.CONTENT))
       // Apply projectId filter
-      .and(getContainsFilter(params.projectIds, translate(WORKFLOW_OF_PROJECT.PID)))
+      .and(getContainsFilter(params.projectIds, WORKFLOW_OF_PROJECT.PID))
       // Apply fulltext search filter
       .and(
         getFulltextSearchConditions(
           splitKeywords,
-          List(mappedResourceSchema.name, mappedResourceSchema.description, WORKFLOW.CONTENT)
+          List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
         )
       )
   }
@@ -114,22 +114,23 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
     FulltextSearchQueryUtils.getOrderFields(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, params)
   }
 
-  override def toEntry(
+  override def toEntryImpl(
       user: SessionUser,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
+    val pidField = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
     val dw = DashboardWorkflow(
       record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
       record
-        .get(mappedResourceSchema.workflowUserAccess)
+        .get(WORKFLOW_USER_ACCESS.PRIVILEGE)
         .toString,
       record.into(USER).getName,
       record.into(WORKFLOW).into(classOf[Workflow]),
-      if (record.get(mappedResourceSchema.projectsOfWorkflow) == null) {
+      if (record.get(pidField) == null) {
         List[UInteger]()
       } else {
         record
-          .get(mappedResourceSchema.projectsOfWorkflow)
+          .get(pidField)
           .asInstanceOf[String]
           .split(',')
           .map(number => UInteger.valueOf(number))

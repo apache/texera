@@ -50,7 +50,8 @@ object DashboardResource {
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
         WorkflowSearchQueryBuilder.constructQuery(user, params)
-      case SearchQueryBuilder.FILE_RESOURCE_TYPE => FileSearchQueryBuilder.constructQuery(user, params)
+      case SearchQueryBuilder.FILE_RESOURCE_TYPE =>
+        FileSearchQueryBuilder.constructQuery(user, params)
       case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
         ProjectSearchQueryBuilder.constructQuery(user, params)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>

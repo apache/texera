@@ -17,7 +17,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 object FileSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
-    resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE).as("resourceType"),
+    resourceType = DSL.inline(SearchQueryBuilder.FILE_RESOURCE_TYPE),
     name = FILE.NAME,
     description = FILE.DESCRIPTION,
     creationTime = FILE.UPLOAD_TIME,
@@ -53,13 +53,13 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
 
     getFulltextSearchConditions(
       splitKeywords,
-      List(translate(FILE.NAME), translate(FILE.DESCRIPTION))
+      List(FILE.NAME, FILE.DESCRIPTION)
     )
       .and(
         getDateFilter(
           params.creationStartDate,
           params.creationEndDate,
-          mappedResourceSchema.creationTime
+          FILE.UPLOAD_TIME
         )
       )
       .and(getContainsFilter(params.owners, USER.EMAIL))
@@ -76,7 +76,7 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
   ): Seq[OrderField[_]] =
     FulltextSearchQueryUtils.getOrderFields(SearchQueryBuilder.FILE_RESOURCE_TYPE, params)
 
-  override def toEntry(
+  override def toEntryImpl(
       user: SessionUser,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
@@ -84,7 +84,7 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
       record.into(USER).getEmail,
       record
         .get(
-          mappedResourceSchema.fileUserAccess,
+          USER_FILE_ACCESS.PRIVILEGE,
           classOf[UserFileAccessPrivilege]
         )
         .toString,

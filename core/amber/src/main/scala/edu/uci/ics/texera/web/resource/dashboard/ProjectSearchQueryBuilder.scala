@@ -15,7 +15,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 object ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
   override val mappedResourceSchema: UnifiedResourceSchema = UnifiedResourceSchema(
-    resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE).as("resourceType"),
+    resourceType = DSL.inline(SearchQueryBuilder.PROJECT_RESOURCE_TYPE),
     name = PROJECT.NAME,
     description = PROJECT.DESCRIPTION,
     creationTime = PROJECT.CREATION_TIME,
@@ -45,16 +45,16 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
 
     getFulltextSearchConditions(
       splitKeywords,
-      List(mappedResourceSchema.name, mappedResourceSchema.description)
+      List(PROJECT.NAME, PROJECT.DESCRIPTION)
     )
       .and(
         getDateFilter(
           params.creationStartDate,
           params.creationEndDate,
-          mappedResourceSchema.creationTime
+          PROJECT.CREATION_TIME
         )
       )
-      .and(getContainsFilter(params.projectIds, mappedResourceSchema.pid))
+      .and(getContainsFilter(params.projectIds, PROJECT.PID))
   }
 
   override protected def constructGroupByClause(
@@ -68,7 +68,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   ): Seq[OrderField[_]] =
     FulltextSearchQueryUtils.getOrderFields(SearchQueryBuilder.PROJECT_RESOURCE_TYPE, params)
 
-  override def toEntry(
+  override def toEntryImpl(
       user: SessionUser,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
