@@ -17,7 +17,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Text column")
   @AutofillAttributeName
@@ -34,7 +34,7 @@ class WordCloudV2OpDesc extends VisualizationOperator with PythonOperatorDescrip
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Word Cloud V2",
+      "Word Cloud",
       "Generate word cloud for result texts",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
