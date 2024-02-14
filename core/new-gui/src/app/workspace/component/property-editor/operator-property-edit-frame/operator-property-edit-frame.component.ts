@@ -183,7 +183,8 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     // when the operator's property is updated via program instead of user updating the json schema form,
     //  this observable will be responsible in handling these events.
-    this.registerOperatorPropertyChangeHandler();
+    // TOFIX: we temporarily disable this due to Yjs update will cause issues in Formly.
+    // this.registerOperatorPropertyChangeHandler();
 
     // handle the form change event on the user interface to actually set the operator property
     this.registerOnFormChangeHandler();
