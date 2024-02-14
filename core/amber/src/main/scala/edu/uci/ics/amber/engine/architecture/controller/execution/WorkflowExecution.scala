@@ -97,7 +97,7 @@ class WorkflowExecution {
     }
   }
 
-  def getRunningRegionExecutions : Iterable[RegionExecution] = {
+  def getRunningRegionExecutions: Iterable[RegionExecution] = {
     regionExecutions.values.filter(regionExecution => !regionExecution.isCompleted)
   }
 

@@ -74,7 +74,9 @@ class WorkflowExecutionController(
       return Set.empty
     }
 
-    val completedRegions: Set[RegionIdentity] = regionExecutionControllers.keys.filter(regionId=> workflowExecution.getRegionExecution(regionId).isCompleted).toSet
+    val completedRegions: Set[RegionIdentity] = regionExecutionControllers.keys
+      .filter(regionId => workflowExecution.getRegionExecution(regionId).isCompleted)
+      .toSet
 
     regionExecutionOrder
       .map(_ -- completedRegions)

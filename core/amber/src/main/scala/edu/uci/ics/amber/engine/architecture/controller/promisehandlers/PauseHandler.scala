@@ -33,39 +33,44 @@ trait PauseHandler {
     {
       cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
       Future
-        .collect(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getAllOperatorExecutions).map {
-          case (physicalOpId, opExecution) =>
-            // create a buffer for the current input tuple
-            // since we need to show them on the frontend
-            val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
-            Future
-              .collect(
-                opExecution.getWorkerIds
-                  // send pause to all workers
-                  // pause message has no effect on completed or paused workers
-                  .map { worker =>
-                    val workerExecution = opExecution.getWorkerExecution(worker)
-                    // send a pause message
-                    send(PauseWorker(), worker).flatMap { ret =>
-                      workerExecution.state = ret
-                      send(QueryStatistics(), worker)
-                        .join(send(QueryCurrentInputTuple(), worker))
-                        // get the stats and current input tuple from the worker
-                        .map {
-                          case (stats, tuple) =>
-                            workerExecution.stats = stats
-                            buffer.append((tuple, worker))
+        .collect(
+          cp.workflowExecution.getRunningRegionExecutions
+            .flatMap(_.getAllOperatorExecutions)
+            .map {
+              case (physicalOpId, opExecution) =>
+                // create a buffer for the current input tuple
+                // since we need to show them on the frontend
+                val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
+                Future
+                  .collect(
+                    opExecution.getWorkerIds
+                      // send pause to all workers
+                      // pause message has no effect on completed or paused workers
+                      .map { worker =>
+                        val workerExecution = opExecution.getWorkerExecution(worker)
+                        // send a pause message
+                        send(PauseWorker(), worker).flatMap { ret =>
+                          workerExecution.state = ret
+                          send(QueryStatistics(), worker)
+                            .join(send(QueryCurrentInputTuple(), worker))
+                            // get the stats and current input tuple from the worker
+                            .map {
+                              case (stats, tuple) =>
+                                workerExecution.stats = stats
+                                buffer.append((tuple, worker))
+                            }
                         }
-                    }
-                  }.toSeq
-              )
-              .map { _ =>
-                // for each paused operator, send the input tuple
-                sendToClient(
-                  ReportCurrentProcessingTuple(physicalOpId.logicalOpId.id, buffer.toArray)
-                )
-              }
-        }.toSeq)
+                      }.toSeq
+                  )
+                  .map { _ =>
+                    // for each paused operator, send the input tuple
+                    sendToClient(
+                      ReportCurrentProcessingTuple(physicalOpId.logicalOpId.id, buffer.toArray)
+                    )
+                  }
+            }
+            .toSeq
+        )
         .map { _ =>
           // update frontend workflow status
           sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getStats))

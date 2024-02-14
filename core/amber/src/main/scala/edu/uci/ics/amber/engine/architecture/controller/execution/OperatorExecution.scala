@@ -25,7 +25,6 @@ class OperatorExecution extends Serializable {
   def getWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution =
     workerExecutions.get(workerId)
 
-
   def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys().asScala.toSet
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Set[ActorVirtualIdentity] = getWorkerIds

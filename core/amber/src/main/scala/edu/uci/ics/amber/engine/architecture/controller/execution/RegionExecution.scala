@@ -12,9 +12,9 @@ case class RegionExecution(region: Region) {
     mutable.HashMap()
 
   def initOperatorExecution(
-                             physicalOpId: PhysicalOpIdentity,
-                             existingOpExecution: Option[OperatorExecution] = None
-                           ): OperatorExecution = {
+      physicalOpId: PhysicalOpIdentity,
+      existingOpExecution: Option[OperatorExecution] = None
+  ): OperatorExecution = {
     assert(!operatorExecutions.contains(physicalOpId))
 
     operatorExecutions.getOrElseUpdate(

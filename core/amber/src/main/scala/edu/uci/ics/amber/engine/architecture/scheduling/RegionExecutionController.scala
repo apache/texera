@@ -3,8 +3,14 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatsUpdate}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, RegionExecution, WorkflowExecution}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
+  WorkerAssignmentUpdate,
+  WorkflowStatsUpdate
+}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{
+  OperatorExecution,
+  WorkflowExecution
+}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
@@ -110,7 +116,8 @@ class RegionExecutionController(
         operators
           .filter(op => op.isPythonOperator)
           .flatMap(op => {
-            workflowExecution.getRegionExecution(region.id)
+            workflowExecution
+              .getRegionExecution(region.id)
               .getOperatorExecution(op.id)
               .getWorkerIds
               .map(workerId => (workerId, op))
@@ -165,7 +172,9 @@ class RegionExecutionController(
       .collect(
         operators
           .map(_.id)
-          .flatMap(opId => workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds)
+          .flatMap(opId =>
+            workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds
+          )
           .map { workerId =>
             asyncRPCClient.send(OpenOperator(), workerId)
           }
@@ -174,12 +183,15 @@ class RegionExecutionController(
   }
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
-    asyncRPCClient.sendToClient(WorkflowStatsUpdate(workflowExecution.getRegionExecution(region.id).getStats))
+    asyncRPCClient.sendToClient(
+      WorkflowStatsUpdate(workflowExecution.getRegionExecution(region.id).getStats)
+    )
     Future.collect(
       region.getSourceOperators
         .map(_.id)
         .flatMap { opId =>
-          workflowExecution.getRegionExecution(region.id)
+          workflowExecution
+            .getRegionExecution(region.id)
             .getOperatorExecution(opId)
             .getWorkerIds
             .map { workerId =>
@@ -187,8 +199,11 @@ class RegionExecutionController(
                 .send(StartWorker(), workerId)
                 .map(ret =>
                   // update worker state
-                  workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerExecution(workerId).state =
-                    ret
+                  workflowExecution
+                    .getRegionExecution(region.id)
+                    .getOperatorExecution(opId)
+                    .getWorkerExecution(workerId)
+                    .state = ret
                 )
             }
         }
