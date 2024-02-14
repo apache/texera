@@ -17,7 +17,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowExecution
 import edu.uci.ics.texera.web.service.ExecutionsMetadataPersistService
 import io.dropwizard.auth.Auth
 import org.jooq.impl.DSL._
-import org.jooq.types.UInteger
+import org.jooq.types.{UInteger, ULong}
 
 import java.net.URI
 import java.sql.Timestamp
@@ -25,8 +25,8 @@ import java.util.concurrent.TimeUnit
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.{MediaType, Response}
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 object WorkflowExecutionsResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -37,7 +37,9 @@ object WorkflowExecutionsResource {
   }
 
   def getExpiredExecutionsWithResultOrLog(timeToLive: Int): List[WorkflowExecutions] = {
-    val deadline = new Timestamp(System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive))
+    val deadline = new Timestamp(
+      System.currentTimeMillis() - TimeUnit.SECONDS.toMillis(timeToLive)
+    )
     context
       .selectFrom(WORKFLOW_EXECUTIONS)
       .where(
@@ -49,6 +51,7 @@ object WorkflowExecutionsResource {
         WORKFLOW_EXECUTIONS.RESULT.ne("").or(WORKFLOW_EXECUTIONS.LOG_LOCATION.ne(""))
       )
       .fetchInto(classOf[WorkflowExecutions])
+      .asScala
       .toList
   }
 
@@ -62,6 +65,7 @@ object WorkflowExecutionsResource {
       .select(WORKFLOW_EXECUTIONS.EID)
       .from(WORKFLOW_EXECUTIONS)
       .fetchInto(classOf[UInteger])
+      .asScala
       .toList
     if (executions.isEmpty) {
       None
@@ -92,7 +96,11 @@ object WorkflowExecutionsResource {
       operatorId: String,
       inputTupleCount: UInteger,
       outputTupleCount: UInteger,
-      timestamp: Timestamp
+      timestamp: Timestamp,
+      dataProcessingTime: ULong,
+      controlProcessingTime: ULong,
+      idleTime: ULong,
+      numWorkers: UInteger
   )
 }
 
@@ -184,6 +192,7 @@ class WorkflowExecutionsResource {
         .on(WORKFLOW_VERSION.VID.eq(WORKFLOW_EXECUTIONS.VID))
         .where(WORKFLOW_VERSION.WID.eq(wid))
         .fetchInto(classOf[WorkflowExecutionEntry])
+        .asScala
         .toList
         .reverse
     }
@@ -201,7 +210,11 @@ class WorkflowExecutionsResource {
         WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID,
         WORKFLOW_RUNTIME_STATISTICS.INPUT_TUPLE_CNT,
         WORKFLOW_RUNTIME_STATISTICS.OUTPUT_TUPLE_CNT,
-        WORKFLOW_RUNTIME_STATISTICS.TIME
+        WORKFLOW_RUNTIME_STATISTICS.TIME,
+        WORKFLOW_RUNTIME_STATISTICS.DATA_PROCESSING_TIME,
+        WORKFLOW_RUNTIME_STATISTICS.CONTROL_PROCESSING_TIME,
+        WORKFLOW_RUNTIME_STATISTICS.IDLE_TIME,
+        WORKFLOW_RUNTIME_STATISTICS.NUM_WORKERS
       )
       .from(WORKFLOW_RUNTIME_STATISTICS)
       .where(
@@ -211,6 +224,7 @@ class WorkflowExecutionsResource {
       )
       .orderBy(WORKFLOW_RUNTIME_STATISTICS.TIME, WORKFLOW_RUNTIME_STATISTICS.OPERATOR_ID)
       .fetchInto(classOf[WorkflowRuntimeStatistics])
+      .asScala
       .toList
   }
 

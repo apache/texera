@@ -8,7 +8,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.nio.charset.StandardCharsets
 import java.nio.file.{Files, Path, Paths}
-import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 
 class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   val TestTextFilePath: String = "src/test/resources/line_numbers.txt"
@@ -23,7 +22,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.length == 1)
+    assert(inferredSchema.getAttributes.size() == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -31,7 +30,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.length == 1)
+    assert(inferredSchema.getAttributes.size() == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -41,7 +40,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textInputSourceOpDesc.attributeName = customOutputAttributeName
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.length == 1)
+    assert(inferredSchema.getAttributes.size() == 1)
     assert(inferredSchema.getAttribute("testing").getType == AttributeType.STRING)
   }
 
@@ -49,7 +48,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.length == 1)
+    assert(inferredSchema.getAttributes.size() == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.INTEGER)
   }
 
@@ -120,11 +119,11 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
 
-    assert(processedTuple.next().getField("line").equals(1))
-    assert(processedTuple.next().getField("line").equals(2))
-    assert(processedTuple.next().getField("line").equals(3))
-    assert(processedTuple.next().getField("line").equals(4))
-    assert(processedTuple.next().getField("line").equals(5))
+    assert(processedTuple.next().getField[Int]("line") == 1)
+    assert(processedTuple.next().getField[Int]("line") == 2)
+    assert(processedTuple.next().getField[Int]("line") == 3)
+    assert(processedTuple.next().getField[Int]("line") == 4)
+    assert(processedTuple.next().getField[Int]("line") == 5)
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
     textScanSourceOpExec.close()
   }

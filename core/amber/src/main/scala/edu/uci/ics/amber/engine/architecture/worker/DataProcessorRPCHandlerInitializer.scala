@@ -16,18 +16,12 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with QueryStatisticsHandler
     with ResumeHandler
     with StartHandler
-    with UpdateInputLinkingHandler
+    with AssignPortHandler
+    with AddInputChannelHandler
     with AssignLocalBreakpointHandler
     with ShutdownDPThreadHandler
-    with MonitoringHandler
-    with SendImmutableStateHandler
-    with AcceptImmutableStateHandler
-    with SharePartitionHandler
-    with PauseSkewMitigationHandler
-    with SchedulerTimeSlotEventHandler
     with FlushNetworkBufferHandler
     with ModifyOperatorLogicHandler
     with RetrieveStateHandler {
   val actorId: ActorVirtualIdentity = dp.actorId
-  var lastReportTime = 0L
 }
