@@ -27,14 +27,14 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty("Selected Attributes")
-  @JsonSchemaTitle("The variables represented on the axes of each scatterplot in the matrix. ")
-  @JsonPropertyDescription("Selected Attributes")
+  @JsonSchemaTitle("Selected Attributes")
+  @JsonPropertyDescription("the axes of each scatter plot in the matrix.")
   @AutofillAttributeNameList
   var selectedAttributes: List[String] = _
 
   @JsonProperty(value = "name", required = true)
-  @JsonSchemaTitle("Name Column")
-  @JsonPropertyDescription("the name of the classification label")
+  @JsonSchemaTitle("Label Column")
+  @JsonPropertyDescription("the attribute name of the classification label")
   @AutofillAttributeName
   var name: String = ""
 
