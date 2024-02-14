@@ -7,7 +7,16 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
   SearchQueryParams
 }
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.context
-import org.jooq.{Condition, GroupField, OrderField, Record, SelectLimitStep, TableLike}
+import org.jooq.{
+  Condition,
+  GroupField,
+  OrderField,
+  Record,
+  SelectGroupByStep,
+  SelectHavingStep,
+  SelectLimitStep,
+  TableLike
+}
 object SearchQueryBuilder {
 
   final lazy val context = SqlServer.createDSLContext()
@@ -44,12 +53,16 @@ trait SearchQueryBuilder {
       user: SessionUser,
       params: SearchQueryParams
   ): SelectLimitStep[Record] = {
-    context
+    val query: SelectGroupByStep[Record] = context
       .select(mappedResourceSchema.allFields: _*)
       .from(constructFromClause(user, params))
       .where(constructWhereClause(user, params))
-      .groupBy(constructGroupByClause(user, params): _*)
-      .orderBy(getOrderFields(user, params): _*)
+    var query2: SelectHavingStep[Record] = query
+    val groupByFields = constructGroupByClause(user, params)
+    if (groupByFields.nonEmpty) {
+      query2 = query.groupBy(groupByFields: _*)
+    }
+    query2.orderBy(getOrderFields(user, params): _*)
   }
 
 }
