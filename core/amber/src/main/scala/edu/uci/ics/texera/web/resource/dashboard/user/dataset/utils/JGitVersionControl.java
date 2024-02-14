@@ -129,7 +129,6 @@ public class JGitVersionControl {
   }
 
   public static void add(Path repoPath, Path filePath) throws IOException, GitAPIException {
-    // Open the Git repository
     try (Git git = Git.open(repoPath.toFile())) {
       // Calculate the file's path relative to the repository root
       String relativePath = repoPath.relativize(filePath).normalize().toString().replace("\\", "/");
@@ -187,29 +186,6 @@ public class JGitVersionControl {
       Status status = git.status().call();
       return !status.isClean();
     }
-  }
-
-  public static List<String> getAllCommitHashes(Path repoPath, String branchName) throws IOException, GitAPIException {
-    List<String> commitHashes = new ArrayList<>();
-
-    try (Repository repository = new FileRepositoryBuilder()
-        .setGitDir(repoPath.resolve(".git").toFile())
-        .build();
-         RevWalk revWalk = new RevWalk(repository)) {
-
-      Ref branchRef = repository.exactRef("refs/heads/" + branchName);
-      if (branchRef == null) {
-        throw new IllegalArgumentException("Branch not found: " + branchName);
-      }
-      RevCommit startCommit = revWalk.parseCommit(branchRef.getObjectId());
-      revWalk.markStart(startCommit);
-
-      for (RevCommit commit : revWalk) {
-        commitHashes.add(commit.getId().getName());
-      }
-    }
-
-    return commitHashes;
   }
 
   public JGitVersionControl() {
