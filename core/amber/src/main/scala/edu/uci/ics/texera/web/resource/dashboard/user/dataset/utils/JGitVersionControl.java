@@ -130,7 +130,24 @@ public class JGitVersionControl {
     return rootNodes;
   }
 
-  public static String addAndCommit(Path repoPath, String commitMessage) throws IOException, GitAPIException {
+  public static void add(Path repoPath, Path filePath) throws IOException, GitAPIException {
+    // Open the Git repository
+    try (Git git = Git.open(repoPath.toFile())) {
+      // Calculate the file's path relative to the repository root
+      String relativePath = repoPath.relativize(filePath).normalize().toString().replace("\\", "/");
+      // Stage the file addition/modification
+      git.add().addFilepattern(relativePath).call();
+    }
+  }
+
+  public static void rm(Path repoPath, Path filePath) throws IOException, GitAPIException {
+    try (Git git = Git.open(repoPath.toFile())) {
+      String relativePath = repoPath.relativize(filePath).toString();
+      git.rm().addFilepattern(relativePath).call(); // Stages the file deletion
+    }
+  }
+
+  public static String commit(Path repoPath, String commitMessage) throws IOException, GitAPIException {
     FileRepositoryBuilder builder = new FileRepositoryBuilder();
     try (Repository repository = builder.setGitDir(repoPath.resolve(".git").toFile())
         .readEnvironment() // scan environment GIT_* variables
@@ -138,10 +155,7 @@ public class JGitVersionControl {
         .build()) {
 
       try (Git git = new Git(repository)) {
-        // Add all files to the staging area
-        git.add().addFilepattern(".").call();
-
-        // Commit the changes
+        // Commit the changes that have been staged
         RevCommit commit = git.commit().setMessage(commitMessage).call();
 
         // Return the commit hash

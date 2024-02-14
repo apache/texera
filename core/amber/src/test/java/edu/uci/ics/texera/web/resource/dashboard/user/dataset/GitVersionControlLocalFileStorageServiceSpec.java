@@ -36,9 +36,9 @@ public class GitVersionControlLocalFileStorageServiceSpec {
 
   private final String testFile2Content = "This is a test file2 in the testDir";
 
-  private void writeFileToRepo(Path filePath, String fileContent) throws IOException {
+  private void writeFileToRepo(Path filePath, String fileContent) throws IOException, GitAPIException {
     try (ByteArrayInputStream input = new ByteArrayInputStream(fileContent.getBytes())) {
-      GitVersionControlLocalFileStorageService.writeFile(filePath, input);
+      GitVersionControlLocalFileStorageService.writeFileToRepo(testRepoPath, filePath, input);
     }
   }
 
@@ -56,7 +56,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
         () -> {
           try {
             writeFileToRepo(file1Path, testFile1ContentV1);
-          } catch (IOException e) {
+          } catch (IOException | GitAPIException e) {
             throw new RuntimeException(e);
           }});
 
@@ -66,7 +66,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
         () -> {
           try {
             writeFileToRepo(file1Path, testFile1ContentV2);
-          } catch (IOException e) {
+          } catch (IOException | GitAPIException e) {
             throw new RuntimeException(e);
           }});
 
@@ -77,7 +77,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
         () -> {
           try {
             writeFileToRepo(file1Path, testFile1ContentV3);
-          } catch (IOException e) {
+          } catch (IOException | GitAPIException e) {
             throw new RuntimeException(e);
           }});
 
@@ -149,7 +149,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     String v4Hash = GitVersionControlLocalFileStorageService.withCreateVersion(testRepoPath, "v4", () -> {
       try {
         writeFileToRepo(file2Path, testFile2Content);
-      } catch (IOException e) {
+      } catch (IOException | GitAPIException e) {
         throw new RuntimeException(e);
       }
     });
@@ -169,7 +169,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     // now we delete the file1, check the filetree
     String v5Hash = GitVersionControlLocalFileStorageService.withCreateVersion(testRepoPath, "v5", () -> {
       try {
-        GitVersionControlLocalFileStorageService.deleteFile(testRepoPath, file1Path);
+        GitVersionControlLocalFileStorageService.removeFileFromRepo(testRepoPath, file1Path);
       } catch (IOException | GitAPIException e) {
         throw new RuntimeException(e);
       }

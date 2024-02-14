@@ -10,7 +10,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
-import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
@@ -22,37 +21,38 @@ import java.util.Set;
 public class GitVersionControlLocalFileStorageService {
 
   /**
-   * Writes content from the InputStream to a file at the given path.
+   * Writes content from the InputStream to a file at the given path. And stage the file addition/modification to git
    * This function WILL create the missing parent directory along the path
    *
    * @param filePath The path within the repository to write the file.
    * @param inputStream The InputStream from which to read the content.
    * @throws IOException If an I/O error occurs.
    */
-  public static void writeFile(Path filePath, InputStream inputStream) throws IOException {
+  public static void writeFileToRepo(Path repoPath, Path filePath, InputStream inputStream) throws IOException, GitAPIException {
     Files.createDirectories(filePath.getParent());
     Files.copy(inputStream, filePath, StandardCopyOption.REPLACE_EXISTING);
+    // stage the addition/modification
+    JGitVersionControl.add(repoPath, filePath);
   }
 
   /**
-   * Deletes a file at the given path.
+   * Deletes a file at the given path. If file does not exist, error will be thrown
    *
    * @param filePath The path of the file to delete.
    * @throws IOException If an I/O error occurs.
    */
-  public static void deleteFile(Path repoPath, Path filePath) throws IOException, GitAPIException {
+  public static void removeFileFromRepo(Path repoPath, Path filePath) throws IOException, GitAPIException {
     if (Files.isDirectory(filePath)) {
       throw new IllegalArgumentException("Provided path is a directory, not a file: " + filePath);
     }
     Files.delete(filePath);
-    try (Git git = Git.open(repoPath.toFile())) {
-      String relativePath = repoPath.relativize(filePath).toString();
-      git.rm().addFilepattern(relativePath).call(); // Stages the file deletion
-    }
+
+    // stage the deletion
+    JGitVersionControl.rm(repoPath, filePath);
   }
 
   /**
-   * Deletes the entire directory specified by the path.
+   * Deletes the entire repository specified by the path.
    *
    * @param directoryPath The path of the directory to delete.
    * @throws IOException If an I/O error occurs.
@@ -90,7 +90,7 @@ public class GitVersionControlLocalFileStorageService {
       // Execute the provided file operations
       operations.run();
       // After successful execution, create a new version with the specified name
-      return JGitVersionControl.addAndCommit(baseRepoPath, versionName);
+      return JGitVersionControl.commit(baseRepoPath, versionName);
     } catch (Exception e) {
       throw e;
     }
