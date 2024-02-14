@@ -7,7 +7,10 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(required = false, defaultValue = "Histogram Graph Visual")
@@ -39,13 +42,14 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
     * @return a String representation of the executable Python source code.
     */
 
-  override def operatorInfo: OperatorInfo = OperatorInfo(
-    "Histogram",
-    "Visualize data in a Histogram",
-    OperatorGroupConstants.VISUALIZATION_GROUP,
-    inputPorts = List(InputPort()),
-    outputPorts = List(OutputPort())
-  )
+  override def operatorInfo: OperatorInfo =
+    OperatorInfo(
+      "Histogram",
+      "Visualize data in a Histogram",
+      OperatorGroupConstants.VISUALIZATION_GROUP,
+      inputPorts = List(InputPort()),
+      outputPorts = List(OutputPort())
+    )
 
   def createPlotlyFigure(): String = {
     assert(value.nonEmpty)
@@ -59,7 +63,6 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
        |            fig = px.histogram(table, x = '$value', title = '$title', color = '$category', text_auto = True)
        |""".stripMargin
   }
-
 
   override def generatePythonCode(): String = {
     val finalCode =
