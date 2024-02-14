@@ -183,8 +183,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     // when the operator's property is updated via program instead of user updating the json schema form,
     //  this observable will be responsible in handling these events.
-    // TOFIX: we temporarily disable this due to Yjs update will cause issues in Formly.
-    // this.registerOperatorPropertyChangeHandler();
+    this.registerOperatorPropertyChangeHandler();
 
     // handle the form change event on the user interface to actually set the operator property
     this.registerOnFormChangeHandler();
@@ -444,18 +443,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
-      if (
-        this.currentOperatorId !== undefined &&
-        ["string", "textarea"].includes(mappedField.type as string) &&
-        (mappedField.key as string) !== "password"
-      ) {
-        CollabWrapperComponent.setupFieldConfig(
-          mappedField,
-          this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
-          this.currentOperatorId,
-          mappedField.wrappers?.includes("preset-wrapper")
-        );
-      }
+      // TODO: we temporarily disable this due to Yjs update causing issues in Formly.
+
+      // if (
+      //   this.currentOperatorId !== undefined &&
+      //   ["string", "textarea"].includes(mappedField.type as string) &&
+      //   (mappedField.key as string) !== "password"
+      // ) {
+      //   CollabWrapperComponent.setupFieldConfig(
+      //     mappedField,
+      //     this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
+      //     this.currentOperatorId,
+      //     mappedField.wrappers?.includes("preset-wrapper")
+      //   );
+      // }
 
       if (mappedField.validators === undefined) {
         mappedField.validators = {};
