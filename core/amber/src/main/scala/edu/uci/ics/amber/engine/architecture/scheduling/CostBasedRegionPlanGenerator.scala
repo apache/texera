@@ -4,7 +4,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
 import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -21,11 +21,11 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 class CostBasedRegionPlanGenerator(
-    logicalPlan: LogicalPlan,
+    workflowContext: WorkflowContext,
     var physicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
 ) extends RegionPlanGenerator(
-      logicalPlan,
+      workflowContext,
       physicalPlan,
       opResultStorage
     ) with LazyLogging {
@@ -34,9 +34,9 @@ class CostBasedRegionPlanGenerator(
 
   private val candidateNBEdges = mutable.Set.empty[PhysicalLink]
 
-  override def generate(context: WorkflowContext): (RegionPlan, PhysicalPlan) = {
+  override def generate(): (RegionPlan, PhysicalPlan) = {
 
-    val regionDAG = createRegionDAG(context)
+    val regionDAG = createRegionDAG(workflowContext)
 
     (
       RegionPlan(
@@ -84,7 +84,7 @@ class CostBasedRegionPlanGenerator(
         regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       } catch {
         case _: IllegalArgumentException =>
-          candidateEdges ++= (physicalPlan.getUpstreamPhysicalLinks(blockingEdge.toOpId).filter(nbEdge => nbEdge != blockingEdge))
+          candidateNBEdges ++= (physicalPlan.getUpstreamPhysicalLinks(blockingEdge.toOpId).filter(nbEdge => nbEdge != blockingEdge))
           None
       }
     })
@@ -98,7 +98,6 @@ class CostBasedRegionPlanGenerator(
       val matReaderWriterPairs = new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
       linksToMaterialize.foreach(link=>physicalPlan = replaceLinkWithMaterialization(
         link,
-        context,
         matReaderWriterPairs
       ))
     }
@@ -161,30 +160,26 @@ class CostBasedRegionPlanGenerator(
   private def cost(state: Set[PhysicalLink]): Double = {
     // Using number of materialization (region) edges as a cost.
 //    regionDAG.edgeSet().size().toDouble
-    if (state.intersect(candidateEdges).nonEmpty) 0
+    if (state.intersect(candidateNBEdges).nonEmpty) 0
     else Double.PositiveInfinity
 //    state.size
   }
 
   private def replaceLinkWithMaterialization(
                                               physicalLink: PhysicalLink,
-                                              context: WorkflowContext,
                                               writerReaderPairs: mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]
                                             ): PhysicalPlan = {
-    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
-    // are different due to partial rewrite
     val fromOp = physicalPlan.getOperator(physicalLink.fromOpId)
     val fromPortId = physicalLink.fromPortId
 
-    // get the actual Op from the physical plan. the operators on the link and that on the physical plan
-    // are different due to partial rewrite
     val toOp = physicalPlan.getOperator(physicalLink.toOpId)
     val toPortId = physicalLink.toPortId
 
-    val (matWriterLogicalOp: ProgressiveSinkOpDesc, matWriterPhysicalOp: PhysicalOp) =
-      createMatWriter(fromOp, fromPortId, context)
-
-    val matReaderPhysicalOp: PhysicalOp = createMatReader(matWriterLogicalOp, context)
+    val outputSchema = fromOp.outputPorts(fromPortId)._3
+    val matWriterPhysicalOp: PhysicalOp =
+      createMatWriter(outputSchema, fromOp.id.logicalOpId)
+    val matReaderPhysicalOp: PhysicalOp =
+      createMatReader(outputSchema, matWriterPhysicalOp.id.logicalOpId)
 
     // create 2 links for materialization
     val readerToDestLink =
@@ -216,68 +211,54 @@ class CostBasedRegionPlanGenerator(
   }
 
   private def createMatReader(
-                               matWriterLogicalOp: ProgressiveSinkOpDesc,
-                               context: WorkflowContext
+                               inputSchema: Schema,
+                               matWriterLogicalOpId: OperatorIdentity
                              ): PhysicalOp = {
-    val materializationReader = new CacheSourceOpDesc(
-      matWriterLogicalOp.operatorIdentifier,
+    val matReader = new CacheSourceOpDesc(
+      matWriterLogicalOpId,
       opResultStorage: OpResultStorage
     )
-    materializationReader.setContext(context)
-    materializationReader.setOperatorId("cacheSource_" + matWriterLogicalOp.operatorIdentifier.id)
-    materializationReader.schema = matWriterLogicalOp.getStorage.getSchema
-    val matReaderOutputSchema = materializationReader.getOutputSchemas(Array()).head
-    materializationReader.outputPortToSchemaMapping(
-      materializationReader.operatorInfo.outputPorts.head.id
-    ) = matReaderOutputSchema
+    matReader.setContext(workflowContext)
+    matReader.setOperatorId("cacheSource_" + matWriterLogicalOpId.id)
+    matReader.schema = inputSchema
 
-    val matReaderOp = materializationReader
-      .getPhysicalOp(
-        context.workflowId,
-        context.executionId
-      )
-      .withOutputPorts(List(OutputPort()), materializationReader.outputPortToSchemaMapping)
+    // expect exactly one output port
+    matReader.outputPortToSchemaMapping(matReader.operatorInfo.outputPorts.head.id) =
+      matReader.getOutputSchema(Array())
 
-    matReaderOp
+    matReader.getPhysicalOp(
+      workflowContext.workflowId,
+      workflowContext.executionId
+    )
   }
 
   private def createMatWriter(
-                               fromOp: PhysicalOp,
-                               fromPortId: PortIdentity,
-                               context: WorkflowContext
-                             ): (ProgressiveSinkOpDesc, PhysicalOp) = {
-    val matWriterLogicalOp = new ProgressiveSinkOpDesc()
-    matWriterLogicalOp.setContext(context)
-    matWriterLogicalOp.setOperatorId("materialized_" + fromOp.id.logicalOpId.id)
-    val fromLogicalOp = logicalPlan.getOperator(fromOp.id.logicalOpId)
-    val fromOpInputSchema: Array[Schema] =
-      if (!fromLogicalOp.isInstanceOf[SourceOperatorDescriptor]) {
-        fromLogicalOp.inputPortToSchemaMapping.values.toArray
-      } else {
-        Array()
-      }
-    val matWriterInputSchema = fromLogicalOp.getOutputSchemas(fromOpInputSchema)(fromPortId.id)
-    // we currently expect only one output schema
-    val inputPort = matWriterLogicalOp.operatorInfo().inputPorts.head
-    val outputPort = matWriterLogicalOp.operatorInfo().outputPorts.head
-    matWriterLogicalOp.inputPortToSchemaMapping(inputPort.id) = matWriterInputSchema
-    val matWriterOutputSchema = matWriterLogicalOp.getOutputSchema(Array(matWriterInputSchema))
-    matWriterLogicalOp.outputPortToSchemaMapping(outputPort.id) = matWriterOutputSchema
-    val matWriterPhysicalOp = matWriterLogicalOp
-      .getPhysicalOp(
-        context.workflowId,
-        context.executionId
-      )
-      .withInputPorts(List(inputPort), matWriterLogicalOp.inputPortToSchemaMapping)
-      .withOutputPorts(List(outputPort), matWriterLogicalOp.outputPortToSchemaMapping)
-    matWriterLogicalOp.setStorage(
+                               inputSchema: Schema,
+                               fromLogicalOpId: OperatorIdentity
+                             ): PhysicalOp = {
+    val matWriter = new ProgressiveSinkOpDesc()
+    matWriter.setContext(workflowContext)
+    matWriter.setOperatorId("materialized_" + fromLogicalOpId.id)
+
+    // expect exactly one input port and one output port
+    val inputPort = matWriter.operatorInfo().inputPorts.head
+    val outputPort = matWriter.operatorInfo().outputPorts.head
+    matWriter.inputPortToSchemaMapping(inputPort.id) = inputSchema
+    matWriter.outputPortToSchemaMapping(outputPort.id) =
+      matWriter.getOutputSchema(Array(inputSchema))
+    matWriter.setStorage(
       opResultStorage.create(
-        key = matWriterLogicalOp.operatorIdentifier,
+        key = matWriter.operatorIdentifier,
         mode = OpResultStorage.defaultStorageMode
       )
     )
-    opResultStorage.get(matWriterLogicalOp.operatorIdentifier).setSchema(matWriterInputSchema)
-    (matWriterLogicalOp, matWriterPhysicalOp)
+    opResultStorage.get(matWriter.operatorIdentifier).setSchema(inputSchema)
+
+    matWriter.getPhysicalOp(
+      workflowContext.workflowId,
+      workflowContext.executionId
+    )
+
   }
 
   private def populateDownstreamLinks(
