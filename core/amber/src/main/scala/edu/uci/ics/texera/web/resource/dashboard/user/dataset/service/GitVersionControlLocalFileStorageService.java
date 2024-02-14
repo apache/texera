@@ -5,6 +5,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.JGitVersionC
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
+import javax.annotation.concurrent.NotThreadSafe;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -23,7 +24,8 @@ public class GitVersionControlLocalFileStorageService {
   /**
    * Writes content from the InputStream to a file at the given path. And stage the file addition/modification to git
    * This function WILL create the missing parent directory along the path
-   *
+
+   * This method is NOT THREAD SAFE, as it did the file I/O and the git add operation
    * @param filePath The path within the repository to write the file.
    * @param inputStream The InputStream from which to read the content.
    * @throws IOException If an I/O error occurs.
@@ -37,7 +39,8 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Deletes a file at the given path. If file does not exist, error will be thrown
-   *
+
+   * This method is NOT THREAD SAFE, as it did the file I/O and the git rm operation
    * @param filePath The path of the file to delete.
    * @throws IOException If an I/O error occurs.
    */
@@ -53,7 +56,8 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Deletes the entire repository specified by the path.
-   *
+
+   * This method is NOT THREAD SAFE, as it did the file I/O recursively
    * @param directoryPath The path of the directory to delete.
    * @throws IOException If an I/O error occurs.
    */
@@ -66,7 +70,8 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Initializes a new repository for version control at the specified path.
-   *
+
+   * This method is THREAD SAFE
    * @param baseRepoPath Path to initialize the repository at.
    * @return The branch identifier
    * @throws IOException If an I/O error occurs.
@@ -78,7 +83,8 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Executes a group of file operations as a single versioned transaction. The version is bumped after the operations finish.
-   *
+
+   * This method is NOT THREAD SAFE as it potentially does lots of file I/O along with git operations
    * @param baseRepoPath The repository path.
    * @param versionName The name or message associated with the version.
    * @param operations The file operations to be executed within this versioned transaction.
@@ -98,7 +104,8 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Retrieves the file tree hierarchy of a specific version identified by its commit hash.
-   *
+
+   * This method is THREAD SAFE
    * @param baseRepoPath The repository path.
    * @param versionCommitHashVal The commit hash of the version.
    * @return A set of file nodes at the root level of the given repo at given version
@@ -110,7 +117,8 @@ public class GitVersionControlLocalFileStorageService {
   /**
    * Retrieves the content of a specific file from a specific version identified by its commit hash.
    * Writes the file content to the provided OutputStream.
-   *
+
+   * This method is THREAD SAFE
    * @param baseRepoPath The repository path.
    * @param commitHash The commit hash of the version from which the file content is retrieved.
    * @param filePath The path of the file within the repository.
@@ -124,6 +132,8 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Check if there is any uncommitted change in the given repo
+
+   * This method is THREAD SAFE
    * @param repoPath The repository path
    * @return True if there are uncommitted changes.
    * @throws GitAPIException
@@ -135,7 +145,8 @@ public class GitVersionControlLocalFileStorageService {
 
   /**
    * Recovers the repository to its latest version, discarding any uncommitted changes if any.
-   *
+
+   * This method is NOT THREAD SAFE
    * @param baseRepoPath The repository path.
    * @throws IOException If an I/O error occurs.
    * @throws GitAPIException If the operation is interrupted.

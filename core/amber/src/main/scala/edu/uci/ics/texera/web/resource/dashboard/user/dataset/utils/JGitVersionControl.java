@@ -34,8 +34,6 @@ public class JGitVersionControl {
       throw new IOException("Repository already exists at " + path);
     } else {
       try (Git git = Git.init().setDirectory(path.toFile()).call()) {
-        // Repository initialization logic remains the same
-
         // Retrieve the default branch name
         Ref head = git.getRepository().exactRef("HEAD");
         if (head != null && head.getTarget() != null) {
@@ -47,7 +45,7 @@ public class JGitVersionControl {
         }
       }
     }
-    return null; // or throw an exception if preferred
+    return null;
   }
 
   public static void showFileContentOfCommit(Path repoPath, String commitHash, Path filePath, OutputStream outputStream) throws IOException, GitAPIException {
