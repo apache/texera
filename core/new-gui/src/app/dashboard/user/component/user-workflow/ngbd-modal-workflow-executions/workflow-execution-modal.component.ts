@@ -24,8 +24,8 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
-  public static readonly WIDTH = 300;
-  public static readonly HEIGHT = 300;
+  public static readonly WIDTH = 450;
+  public static readonly HEIGHT = 450;
   public static readonly BARCHARTSIZE = 600;
 
   // Instance properties referencing the static ones
