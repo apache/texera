@@ -79,12 +79,8 @@ class HeatMapOpDesc extends VisualizationOperator with PythonOperatorDescriptor 
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        original_table = table
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
-         |           return
-         |        if table.empty:
-         |           yield {'html-content': self.render_error("value column contains only non-positive numbers.")}
          |           return
          |        ${createHeatMap()}
          |        # convert fig to html content
