@@ -2,12 +2,18 @@ package edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrix
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{
+  AutofillAttributeName,
+  AutofillAttributeNameList
+}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 @JsonSchemaInject(json = """
 {
@@ -19,8 +25,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
 }
 """)
 class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-
-
 
   @JsonProperty("Selected Attributes")
   @JsonSchemaTitle("The variables represented on the axes of each scatterplot in the matrix. ")
@@ -51,7 +55,6 @@ class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescr
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
-
 
   def createPlotlyFigure(): String = {
     assert(selectedAttributes.nonEmpty)
