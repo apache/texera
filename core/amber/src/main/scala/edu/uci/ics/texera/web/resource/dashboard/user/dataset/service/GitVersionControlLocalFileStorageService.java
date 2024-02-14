@@ -2,6 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.service;
 
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.JGitVersionControl;
+import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
 import java.io.File;
@@ -9,6 +10,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
+import java.nio.file.NoSuchFileException;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.Comparator;
@@ -38,11 +40,15 @@ public class GitVersionControlLocalFileStorageService {
    * @param filePath The path of the file to delete.
    * @throws IOException If an I/O error occurs.
    */
-  public static void deleteFile(Path filePath) throws IOException {
+  public static void deleteFile(Path repoPath, Path filePath) throws IOException, GitAPIException {
     if (Files.isDirectory(filePath)) {
       throw new IllegalArgumentException("Provided path is a directory, not a file: " + filePath);
     }
-    Files.deleteIfExists(filePath);
+    Files.delete(filePath);
+    try (Git git = Git.open(repoPath.toFile())) {
+      String relativePath = repoPath.relativize(filePath).toString();
+      git.rm().addFilepattern(relativePath).call(); // Stages the file deletion
+    }
   }
 
   /**
@@ -51,7 +57,7 @@ public class GitVersionControlLocalFileStorageService {
    * @param directoryPath The path of the directory to delete.
    * @throws IOException If an I/O error occurs.
    */
-  public static void deleteDirectory(Path directoryPath) throws IOException {
+  public static void deleteRepo(Path directoryPath) throws IOException {
     Files.walk(directoryPath)
         .sorted(Comparator.reverseOrder())
         .map(Path::toFile)
@@ -81,6 +87,28 @@ public class GitVersionControlLocalFileStorageService {
    */
   public static String createVersion(Path baseRepoPath, String versionName) throws IOException, GitAPIException {
     return JGitVersionControl.addAndCommit(baseRepoPath, versionName);
+  }
+
+  /**
+   * Executes a group of file operations as a single versioned transaction. The version is bumped after the operations finish.
+   *
+   * @param baseRepoPath The repository path.
+   * @param versionName The name or message associated with the version.
+   * @param operations The file operations to be executed within this versioned transaction.
+   * @throws IOException If an I/O error occurs.
+   * @throws GitAPIException If a Git operation fails.
+   */
+  public static void withCreateVersion(Path baseRepoPath, String versionName, Runnable operations) throws IOException, GitAPIException {
+    try {
+      // Execute the provided file operations
+      operations.run();
+
+      // After successful execution, create a new version with the specified name
+      JGitVersionControl.addAndCommit(baseRepoPath, versionName);
+    } catch (Exception e) {
+      // Handle possible exceptions (you might want to log or rethrow depending on your use case)
+      throw e;
+    }
   }
 
   /**

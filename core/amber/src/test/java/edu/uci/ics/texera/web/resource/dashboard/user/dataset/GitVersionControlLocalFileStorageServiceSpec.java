@@ -72,7 +72,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
   @After
   public void tearDown() throws IOException {
     // Clean up the test repository directory
-    GitVersionControlLocalFileStorageService.deleteDirectory(testRepoPath);
+    GitVersionControlLocalFileStorageService.deleteRepo(testRepoPath);
   }
 
   @Test
@@ -113,9 +113,9 @@ public class GitVersionControlLocalFileStorageServiceSpec {
   public void testFileTreeRetrieval() throws Exception {
     // File path for the test file
     Path file1Path = testRepoPath.resolve(testFile1Name);
-
+    FileNode file1Node = new FileNode(file1Path);
     Set<FileNode> fileNodes = new HashSet<>() {{
-      add(new FileNode(file1Path));
+      add(file1Node);
     }};
 
     // first retrieve the latest version's file tree
@@ -141,6 +141,20 @@ public class GitVersionControlLocalFileStorageServiceSpec {
         "File Tree should match",
         fileNodes,
         GitVersionControlLocalFileStorageService.retrieveFileTreeOfVersion(testRepoPath, v4Hash));
+
+    // now we delete the file1, check the filetree
+    GitVersionControlLocalFileStorageService.deleteFile(testRepoPath, file1Path);
+    fileNodes.remove(file1Node);
+    String v5Hash = GitVersionControlLocalFileStorageService.createVersion(testRepoPath, "v5");
+
+    ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+    Assert.assertEquals(
+        "File1 should be gone",
+        fileNodes,
+        GitVersionControlLocalFileStorageService.retrieveFileTreeOfVersion(testRepoPath, v5Hash)
+    );
+
   }
 
   @Test
