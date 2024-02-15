@@ -278,11 +278,6 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with the new id
-    */
-  def withId(id: PhysicalOpIdentity): PhysicalOp = this.copy(id = id)
-
-  /**
     * creates a copy with the partition requirements
     */
   def withPartitionRequirement(partitionRequirements: List[Option[PartitionInfo]]): PhysicalOp = {
