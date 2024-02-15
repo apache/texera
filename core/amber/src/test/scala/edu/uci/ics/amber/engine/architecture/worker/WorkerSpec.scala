@@ -9,7 +9,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkerReplayInitialization
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  MainThreadDelegateMessage,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
@@ -96,7 +99,7 @@ class WorkerSpec
     )
 
   private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
-  private val mockHandler = mock[WorkflowFIFOMessage => Unit]
+  private val mockHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val mockOutputManager = mock[OutputManager]
 
   def sendControlToWorker(
@@ -120,7 +123,7 @@ class WorkerSpec
         WorkerConfig(identifier1),
         physicalOp,
         OperatorConfig(List(WorkerConfig(identifier1))),
-        WorkerReplayInitialization(restoreConfOpt = None, replayLogConfOpt = None)
+        WorkerReplayInitialization(restoreConfOpt = None, faultToleranceConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
           override val outputManager: OutputManager = mockOutputManager

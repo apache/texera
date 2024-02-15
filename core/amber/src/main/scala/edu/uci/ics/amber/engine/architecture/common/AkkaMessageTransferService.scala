@@ -114,6 +114,16 @@ class AkkaMessageTransferService(
     }
   }
 
+  def getAllUnAckedMessages: Iterable[WorkflowFIFOMessage] = {
+    val fcMessages = channelToFC.values.flatMap { fc =>
+      fc.getMessagesToSend.map(_.internalMessage)
+    }
+    val ccMessages = channelToCC.values.flatMap { cc =>
+      cc.getAllMessages.map(_.internalMessage)
+    }
+    fcMessages ++ ccMessages
+  }
+
   def updateChannelCreditFromReceiver(channelId: ChannelIdentity, queuedCredit: Long): Unit = {
     val flowControl = channelToFC.getOrElseUpdate(channelId, new FlowControl())
     flowControl.updateQueuedCredit(queuedCredit)

@@ -20,8 +20,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization,
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
@@ -440,8 +440,8 @@ case class PhysicalOp(
       controllerActorService: AkkaActorService,
       opExecution: OperatorExecution,
       operatorConfig: OperatorConfig,
-      stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
-      replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
+      stateRestoreConfig: Option[StateRestoreConfig],
+      replayLoggingConfig: Option[FaultToleranceConfig]
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,
@@ -462,8 +462,8 @@ case class PhysicalOp(
           physicalOp = this,
           operatorConfig,
           WorkerReplayInitialization(
-            stateRestoreConfigGen(workerId),
-            replayLoggingConfigGen(workerId)
+            stateRestoreConfig,
+            replayLoggingConfig
           )
         )
       }

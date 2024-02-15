@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import edu.uci.ics.amber.engine.architecture.messaginglayer.InputGateway
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ChannelMarkerPayload,
   NoAlignment,
@@ -15,27 +15,26 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 
 import scala.collection.mutable
 
+object ChannelMarkerManager {
+  final case class MarkerContext(marker: ChannelMarkerPayload, fromChannel: ChannelIdentity)
+}
+
 class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: InputGateway)
     extends AmberLogging {
 
   private val markerReceived =
     new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelIdentity]]().withDefaultValue(Set())
 
+  val checkpoints = new mutable.HashMap[ChannelMarkerIdentity, CheckpointState]()
+
   /**
-    * Checks if a channel marker is aligned, indicating if an epoch marker has been completely received
-    * from all relevant senders within its scope.
+    * Determines if an epoch marker is fully received from all relevant senders within its scope.
+    * This method checks if the epoch marker, based on its type, has been received from all necessary channels.
+    * For markers requiring alignment, it verifies receipt from all senders in the scope. For non-aligned markers,
+    * it checks if it's the first received marker. Post verification, it cleans up the markers.
     *
-    * This method marks the arrival of a channel marker and determines if the epoch marker
-    * is completely received. The check is based on the upstream link status and the received marker.
-    * If the marker type requires alignment, it verifies that markers have been received from all
-    * senders within the scope. For markers that do not require alignment, it checks if the marker is
-    * the first one received. The method also handles the cleanup of received markers once they are
-    * aligned.
-    *
-    * @param from               The channel ID from which the current marker has arrived.
-    * @param marker             The payload of the channel marker being checked for alignment.
     * @return Boolean indicating if the epoch marker is completely received from all senders
-    *         within the scope. Returns true if the marker is aligned, otherwise false.
+    *          within the scope. Returns true if the marker is aligned, otherwise false.
     */
   def isMarkerAligned(
       from: ChannelIdentity,
@@ -44,22 +43,26 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     val markerId = marker.id
     markerReceived.update(markerId, markerReceived(markerId) + from)
     // check if the epoch marker is completed
-    val upstreams = marker.scope.filter(_.toWorkerId == actorId)
-    val sendersWithinScope = inputGateway.getAllChannels
-      .map(_.channelId)
-      .filter { id =>
-        upstreams.contains(id)
-      }
-      .toSet
-    val markerReceivedFromAllChannels = sendersWithinScope.subsetOf(markerReceived(markerId))
-    val markerCompleted = marker.markerType match {
+    val markerReceivedFromAllChannels =
+      getChannelsWithinScope(marker).subsetOf(markerReceived(markerId))
+    val epochMarkerCompleted = marker.markerType match {
       case RequireAlignment => markerReceivedFromAllChannels
       case NoAlignment      => markerReceived(markerId).size == 1 // only the first marker triggers
     }
     if (markerReceivedFromAllChannels) {
       markerReceived.remove(markerId) // clean up if all markers are received
     }
-    markerCompleted
+    epochMarkerCompleted
+  }
+
+  private def getChannelsWithinScope(marker: ChannelMarkerPayload): Set[ChannelIdentity] = {
+    val upstreams = marker.scope.filter(_.toWorkerId == actorId)
+    inputGateway.getAllChannels
+      .map(_.channelId)
+      .filter { id =>
+        upstreams.contains(id)
+      }
+      .toSet
   }
 
 }
