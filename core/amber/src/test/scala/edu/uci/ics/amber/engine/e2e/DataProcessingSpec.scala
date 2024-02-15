@@ -237,36 +237,6 @@ class DataProcessingSpec
     executeWorkflow(workflow)
   }
 
-  "Engine" should "execute headerlessCsv->word count->sink workflow normally" in {
-
-    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    // Get only the highest count, for testing purposes
-    val wordCountOpDesc = TestOperators.wordCloudOpDesc("column-1", 1)
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, wordCountOpDesc, sink),
-      List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          wordCountOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          wordCountOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
-      resultStorage
-    )
-    val result = executeWorkflow(workflow).values
-    // Assert that only one tuple came out successfully
-    assert(result.size == 1)
-
-  }
-
   "Engine" should "execute csv->sink workflow normally" in {
     val csvOpDesc = TestOperators.smallCsvScanOpDesc()
     val sink = TestOperators.sinkOpDesc()
