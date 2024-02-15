@@ -12,8 +12,8 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Function1;
-import scala.Serializable;
 
+import java.io.Serializable;
 import java.util.Properties;
 
 public class SentimentAnalysisOpExec extends MapOpExec {

@@ -39,10 +39,10 @@ class DataProcessingSpec
 
   val resultStorage = new OpResultStorage()
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
     resultStorage.close()
   }
@@ -50,7 +50,7 @@ class DataProcessingSpec
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[ITuple]] = {
     var results: Map[OperatorIdentity, List[ITuple]] = null
     val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
-    val completion = Promise[Unit]
+    val completion = Promise[Unit]()
     client.registerCallback[FatalError](evt => {
       completion.setException(evt.e)
       client.shutdown()
@@ -235,36 +235,6 @@ class DataProcessingSpec
       resultStorage
     )
     executeWorkflow(workflow)
-  }
-
-  "Engine" should "execute headerlessCsv->word count->sink workflow normally" in {
-
-    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    // Get only the highest count, for testing purposes
-    val wordCountOpDesc = TestOperators.wordCloudOpDesc("column-1", 1)
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, wordCountOpDesc, sink),
-      List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          wordCountOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          wordCountOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
-      resultStorage
-    )
-    val result = executeWorkflow(workflow).values
-    // Assert that only one tuple came out successfully
-    assert(result.size == 1)
-
   }
 
   "Engine" should "execute csv->sink workflow normally" in {

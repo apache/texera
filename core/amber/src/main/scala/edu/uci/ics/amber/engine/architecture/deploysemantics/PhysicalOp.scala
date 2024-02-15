@@ -7,8 +7,7 @@ import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
+  OpExecInitInfoWithCode
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
   AddressInfo,
@@ -29,7 +28,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow._
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
@@ -230,14 +228,6 @@ case class PhysicalOp(
 
   def isPythonOperator: Boolean = {
     isInitWithCode // currently, only Python operators are initialized with code
-  }
-
-  def isHashJoinOperator: Boolean = {
-    opExecInitInfo match {
-      case OpExecInitInfoWithCode(codeGen) => false
-      case OpExecInitInfoWithFunc(opGen) =>
-        opGen(0, this, OperatorConfig.empty).isInstanceOf[HashJoinOpExec[_]]
-    }
   }
 
   def getPythonCode: String = {
@@ -482,7 +472,7 @@ case class PhysicalOp(
       controllerActorService.actorOf(
         workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
       )
-      opExecution.initializeWorkerInfo(workerId)
+      opExecution.initWorkerExecution(workerId)
     })
   }
 }

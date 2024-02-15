@@ -1,13 +1,12 @@
 import { Component } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
 import { FileUploader } from "ng2-file-upload";
 import { UserFileUploadService } from "../../../service/user-file/user-file-upload.service";
 import { FileUploadItem } from "../../../type/dashboard-file.interface";
 
 @Component({
   selector: "texera-ngbd-modal-file-add",
-  templateUrl: "./ngbd-modal-file-add.component.html",
-  styleUrls: ["./ngbd-modal-file-add.component.scss"],
+  templateUrl: "ngbd-modal-file-add.component.html",
+  styleUrls: ["ngbd-modal-file-add.component.scss"],
 })
 export class NgbdModalFileAddComponent {
   // This checks whether the user has hover a file over the file upload area
@@ -17,7 +16,7 @@ export class NgbdModalFileAddComponent {
   //  inside the uploader queue.
   public uploader: FileUploader = new FileUploader({ url: "" });
 
-  constructor(public activeModal: NgbActiveModal, private userFileUploadService: UserFileUploadService) {}
+  constructor(private userFileUploadService: UserFileUploadService) {}
 
   public getFileArray(): ReadonlyArray<Readonly<FileUploadItem>> {
     return this.userFileUploadService.getFilesToBeUploaded();

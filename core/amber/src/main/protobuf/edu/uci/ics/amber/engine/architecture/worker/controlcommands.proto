@@ -28,9 +28,14 @@ message SchedulerTimeSlotEventV2 {
 
 message OpenOperatorV2 {}
 
-message UpdateInputLinkingV2 {
-    common.ActorVirtualIdentity identifier = 1 [(scalapb.field).no_box = true];
-    common.PhysicalLink input_link = 2 [(scalapb.field).no_box = true];
+message AssignPortV2 {
+    common.PortIdentity portId = 1 [(scalapb.field).no_box = true];
+    bool input = 2;
+}
+
+message AddInputChannelV2 {
+    common.ChannelIdentity channelId = 1 [(scalapb.field).no_box = true];
+    common.PortIdentity portId = 2 [(scalapb.field).no_box = true];
 }
 
 message AddPartitioningV2 {
@@ -55,9 +60,7 @@ message LinkOrdinal {
 message InitializeOperatorLogicV2 {
     string code = 1;
     bool is_source = 2;
-    repeated LinkOrdinal input_ordinal_mapping = 3;
-    repeated LinkOrdinal output_ordinal_mapping = 4;
-    map<string, string> output_schema = 5;
+    map<string, string> output_schema = 3;
 }
 
 message ModifyOperatorLogicV2 {
@@ -96,11 +99,9 @@ message WorkerDebugCommandV2 {
     string cmd = 1;
 }
 
-message QuerySelfWorkloadMetricsV2{
-}
-
-message LinkCompletedV2 {
-    common.PhysicalLink link = 1 [(scalapb.field).no_box = true];
+message PortCompletedV2 {
+    common.PortIdentity port_id = 1 [(scalapb.field).no_box = true];
+    bool input = 2;
 }
 
 
@@ -110,14 +111,15 @@ message ControlCommandV2 {
         PauseWorkerV2 pause_worker = 2;
         ResumeWorkerV2 resume_worker = 3;
 
-        AddPartitioningV2 add_partitioning = 4;
-        UpdateInputLinkingV2 update_input_linking = 5;
+        AssignPortV2 assign_port = 4;
+        AddPartitioningV2 add_partitioning = 5;
+        AddInputChannelV2 add_input_channel = 6;
 
-        QueryStatisticsV2 query_statistics = 6;
-        QueryCurrentInputTupleV2 query_current_input_tuple = 7;
+        QueryStatisticsV2 query_statistics = 7;
+        QueryCurrentInputTupleV2 query_current_input_tuple = 8;
 
         OpenOperatorV2 open_operator = 9;
-        LinkCompletedV2 link_completed = 10;
+        PortCompletedV2 port_completed = 10;
 
         SchedulerTimeSlotEventV2 scheduler_time_slot_event = 11;
 
@@ -126,8 +128,6 @@ message ControlCommandV2 {
         PythonConsoleMessageV2 python_console_message = 23;
         ReplayCurrentTupleV2 replay_current_tuple = 24;
         EvaluateExpressionV2 evaluate_expression = 25;
-
-        QuerySelfWorkloadMetricsV2 query_self_workload_metrics = 41;
 
         WorkerDebugCommandV2 worker_debug_command = 81;
 
