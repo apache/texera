@@ -31,7 +31,7 @@ trait TakeGlobalCheckpointHandler {
     val physicalOpIdsToTakeCheckpoint = cp.workflow.physicalPlan.operators.map(_.id)
     execute(
       PropagateChannelMarker(
-        cp.executionState.getAllOperatorExecutions.map(_._1).toSet,
+        cp.workflowExecution.getAllRegionExecutions.flatMap(_.getAllOperatorExecutions.map(_._1)).toSet,
         msg.checkpointId,
         NoAlignment,
         cp.workflow.physicalPlan,
@@ -58,7 +58,7 @@ trait TakeGlobalCheckpointHandler {
             // serialize CP state
             chkpt.save(SerializedState.CP_STATE_KEY, this.cp)
             logger.info(
-              s"Serialized CP state, current workflow state = ${cp.executionState.getState}"
+              s"Serialized CP state, current workflow state = ${cp.workflowExecution.getState}"
             )
             // get all output messages from cp.transferService
             chkpt.save(
