@@ -433,7 +433,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
       }
 
       // if the title is Dummy, then make this field read-only 
-      if (mappedField.key == "Dummy") {
+      if (mappedField.key == "dummyProperties" || mappedField.key == "dummyProperty" || mappedField.key == "dummyValue") {
         mappedField.templateOptions = {
           ...mappedField.templateOptions, // Spread operator to preserve existing options
           readonly: true, // This makes the field read-only
