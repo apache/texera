@@ -14,7 +14,7 @@ class DummyOpExec() extends OperatorExecutor {
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
   ): Iterator[Tuple] = {
-    Iterator()
+    throw new UnsupportedOperationException("Dummy Operator does not support execution.")
   }
 
   override def open(): Unit = {}
