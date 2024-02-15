@@ -11,21 +11,41 @@ import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
-class OperatorExecution extends Serializable {
+case class OperatorExecution() extends Serializable {
 
   private val workerExecutions =
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()
 
   var attachedBreakpoints = new mutable.HashMap[String, GlobalBreakpoint[_]]()
 
-  def initWorkerExecution(workerId: ActorVirtualIdentity): Unit = {
-    assert(!workerExecutions.contains(workerId))
+  /**
+    * Initializes a `WorkerExecution` for the specified workerId and adds it to the workerExecutions map.
+    * If a `WorkerExecution` for the given workerId already exists, an AssertionError is thrown.
+    * After successfully adding the new `WorkerExecution`, it retrieves and returns the newly added instance.
+    *
+    * @param workerId The `ActorVirtualIdentity` representing the unique identity of the worker.
+    * @return The `WorkerExecution` instance associated with the specified workerId.
+    * @throws AssertionError if a `WorkerExecution` already exists for the given workerId.
+    */
+  def initWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution = {
+    assert(
+      !workerExecutions.contains(workerId),
+      s"WorkerExecution already exists for workerId: $workerId"
+    )
     workerExecutions.put(workerId, WorkerExecution())
+    getWorkerExecution(workerId)
   }
+
+  /**
+    * Retrieves the `WorkerExecution` instance associated with the specified workerId.
+    */
   def getWorkerExecution(workerId: ActorVirtualIdentity): WorkerExecution =
     workerExecutions.get(workerId)
 
-  def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys().asScala.toSet
+  /**
+    * Retrieves the set of all workerIds for which `WorkerExecution` instances have been initialized.
+    */
+  def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys.asScala.toSet
 
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Set[ActorVirtualIdentity] = getWorkerIds
 

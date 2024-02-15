@@ -26,7 +26,8 @@ trait LinkWorkersHandler {
         .getRegionOfLink(msg.link)
       val resourceConfig = region.resourceConfig.get
       val linkConfig = resourceConfig.linkConfigs(msg.link)
-      val linkExecution = cp.workflowExecution.getRegionExecution(region.id).initLinkExecution(msg.link)
+      val linkExecution =
+        cp.workflowExecution.getRegionExecution(region.id).initLinkExecution(msg.link)
       val futures = linkConfig.channelConfigs
         .map(_.channelId)
         .flatMap(channelId => {

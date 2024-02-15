@@ -25,17 +25,27 @@ trait ResumeHandler {
       // send all workers resume
       // resume message has no effect on non-paused workers
       Future
-        .collect(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getAllOperatorExecutions.map(_._2)).flatMap(_.getWorkerIds).map { workerId =>
-          send(ResumeWorker(), workerId).map { ret =>
-            cp.workflowExecution
-              .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
-              .getWorkerExecution(workerId)
-              .state = ret
-          }
-        }.toSeq)
+        .collect(
+          cp.workflowExecution.getRunningRegionExecutions
+            .flatMap(_.getAllOperatorExecutions.map(_._2))
+            .flatMap(_.getWorkerIds)
+            .map { workerId =>
+              send(ResumeWorker(), workerId).map { ret =>
+                cp.workflowExecution
+                  .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+                  .getWorkerExecution(workerId)
+                  .state = ret
+              }
+            }
+            .toSeq
+        )
         .map { _ =>
           // update frontend status
-          sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap))
+          sendToClient(
+            WorkflowStatsUpdate(
+              cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+            )
+          )
           cp.controllerTimerService
             .enableStatusUpdate() //re-enabled it since it is disabled in pause
         }

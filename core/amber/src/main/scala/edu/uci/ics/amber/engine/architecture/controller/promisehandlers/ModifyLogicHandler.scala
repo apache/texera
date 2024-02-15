@@ -27,7 +27,9 @@ trait ModifyLogicHandler {
   registerHandler[ModifyLogic, Unit] { (msg, sender) =>
     {
       val operator = cp.workflow.physicalPlan.getOperator(msg.newOp.id)
-      val opExecution = cp.workflowExecution.getRunningRegionExecutions.map(_.getOperatorExecution(msg.newOp.id)).head
+      val opExecution = cp.workflowExecution.getRunningRegionExecutions
+        .map(_.getOperatorExecution(msg.newOp.id))
+        .head
       val workerCommand = if (operator.isPythonOperator) {
         ModifyPythonOperatorLogic(
           msg.newOp.getPythonCode,

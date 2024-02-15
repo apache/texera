@@ -21,10 +21,16 @@ trait WorkerStateUpdatedHandler {
   registerHandler { (msg: WorkerStateUpdated, sender) =>
     {
       // set the state
-      cp.workflowExecution
-        .getRunningRegionExecutions.map(_.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender)))
-        .foreach(operatorExecution => operatorExecution.getWorkerExecution(sender).state = msg.state)
-      sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap))
+      cp.workflowExecution.getRunningRegionExecutions
+        .map(_.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender)))
+        .foreach(operatorExecution =>
+          operatorExecution.getWorkerExecution(sender).state = msg.state
+        )
+      sendToClient(
+        WorkflowStatsUpdate(
+          cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+        )
+      )
     }
   }
 }

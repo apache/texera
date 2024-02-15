@@ -36,9 +36,11 @@ trait ChannelMarkerHandler {
     {
       // step1: create separate control commands for each target actor.
       val inputSet = msg.targetOps.flatMap { target =>
-        cp.workflowExecution.getRunningRegionExecutions.map(_.getOperatorExecution(target)).flatMap(_.getWorkerIds.map { worker =>
-          worker -> createInvocation(msg.markerCommand)
-        })
+        cp.workflowExecution.getRunningRegionExecutions
+          .map(_.getOperatorExecution(target))
+          .flatMap(_.getWorkerIds.map { worker =>
+            worker -> createInvocation(msg.markerCommand)
+          })
       }
       // step 2: packing all control commands into one compound command.
       val cmdMapping: Map[ActorVirtualIdentity, ControlInvocation] = inputSet.map {
@@ -49,11 +51,11 @@ trait ChannelMarkerHandler {
       }
 
       // step 3: convert scope DAG to channels.
-      val channelScope = cp.workflowExecution.getRunningRegionExecutions.flatMap(regionExecution =>
-        regionExecution
-          .getAllLinkExecutions
-          .map(_._2)
-          .flatMap(linkExecution => linkExecution.getAllChannelExecutions.map(_._1))
+      val channelScope = cp.workflowExecution.getRunningRegionExecutions
+        .flatMap(regionExecution =>
+          regionExecution.getAllLinkExecutions
+            .map(_._2)
+            .flatMap(linkExecution => linkExecution.getAllChannelExecutions.map(_._1))
         )
         .filter(channelId => {
           msg.scope.operators
