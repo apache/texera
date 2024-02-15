@@ -39,3 +39,31 @@ blockquote {
   padding-right: 4px;
   margin: 0;
 }
+
+.ant-form-item {
+  font-size: 12px;
+}
+
+.ant-form-item-extra {
+  font-size: 11px;
+  line-height: 11px;
+}
+
+.ant-input {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ant-select-selector {
+  height: 24px!important;
+}
+
+.ant-select-selection-item {
+  line-height: 24px!important;
+}
+
+.ant-form-item-label {
+  padding-bottom: 0!important;
+}
+
+hr { background-color: #D3D3D3; height: 1px; border: 0; }
