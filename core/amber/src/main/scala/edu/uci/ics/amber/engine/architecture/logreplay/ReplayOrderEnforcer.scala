@@ -41,8 +41,8 @@ class ReplayOrderEnforcer(
   def canProceed(channelId: ChannelIdentity): Boolean = {
     val step = logManager.getStep
     // release the next log record if the step matches
-    // Note: since checkpoints will push out a special message which causes
-    // duplicated step order may exist, we use a while loop to de-dup here.
+    // Note: To remove duplicate step orders caused by checkpoints
+    // sending out a MainThreadDelegateMessage, we use a while loop.
     while (channelStepOrder.nonEmpty && channelStepOrder.head.step == step) {
       forwardNext()
     }
