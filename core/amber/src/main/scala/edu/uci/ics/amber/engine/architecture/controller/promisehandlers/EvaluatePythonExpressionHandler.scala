@@ -26,7 +26,7 @@ trait EvaluatePythonExpressionHandler {
       }
 
       val physicalOp = physicalOps.head
-      val opExecution = cp.workflowExecution.getOperatorExecution(physicalOp.id)
+      val opExecution = cp.workflowExecution.getLatestOperatorExecution(physicalOp.id)
 
       Future
         .collect(

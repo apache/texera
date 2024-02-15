@@ -1,13 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, PhysicalOpIdentity}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import scala.collection.mutable
 
@@ -16,19 +12,13 @@ class WorkflowExecution {
   private val regionExecutions: mutable.LinkedHashMap[RegionIdentity, RegionExecution] =
     mutable.LinkedHashMap()
 
-  private val channelExecutions: mutable.Map[ChannelIdentity, ChannelExecution] = mutable.HashMap()
-
-  /**
-    * Initialize an empty RegionExecution with the given region.
-    * @return
-    */
   def initRegionExecution(region: Region): RegionExecution = {
     assert(!regionExecutions.contains(region.id))
     regionExecutions.getOrElseUpdate(region.id, RegionExecution(region))
   }
   def getRegionExecution(regionId: RegionIdentity): RegionExecution = regionExecutions(regionId)
 
-  def getOperatorExecution(physicalOpId: PhysicalOpIdentity): OperatorExecution = {
+  def getLatestOperatorExecution(physicalOpId: PhysicalOpIdentity): OperatorExecution = {
     regionExecutions.values.toList
       .findLast(regionExecution => regionExecution.hasOperatorExecution(physicalOpId))
       .get
@@ -40,39 +30,10 @@ class WorkflowExecution {
       regionExecution.hasOperatorExecution(physicalOpId)
     )
   }
-
-  def getAllOperatorExecutions: Iterator[(PhysicalOpIdentity, OperatorExecution)] = {
-    regionExecutions.values
-      .flatMap(regionExecution => regionExecution.getAllOperatorExecutions)
-      .toMap
-      .iterator
-  }
-
-  def getAllBuiltWorkers: Iterator[ActorVirtualIdentity] = {
-    regionExecutions.values
-      .flatMap(regionExecution => regionExecution.getAllOperatorExecutions.map(_._2))
-      .flatMap(operatorExecution => operatorExecution.getWorkerIds)
-      .iterator
-  }
-  def initChannelExecution(channelId: ChannelIdentity): ChannelExecution = {
-    assert(!channelExecutions.contains(channelId))
-    channelExecutions.getOrElseUpdate(channelId, ChannelExecution())
-  }
-
-  def getChannelExecutions: Iterable[(ChannelIdentity, ChannelExecution)] = channelExecutions
-  def getStats: Map[String, OperatorRuntimeStats] = {
-    // TODO: fix the aggregation here. The stats should be on port level.
-    getAllOperatorExecutions.map {
-      case (physicalOpId, operatorExecution) =>
-        physicalOpId.logicalOpId.id -> operatorExecution.getStats
-    }.toMap
-  }
-
   def isCompleted: Boolean = getState == WorkflowAggregatedState.COMPLETED
 
   def getState: WorkflowAggregatedState = {
-    val activeRegionExecutions = regionExecutions.values
-    val regionStates = activeRegionExecutions.map(_.getState)
+    val regionStates = regionExecutions.values.map(_.getState)
     println(regionStates)
     if (regionStates.isEmpty) {
       return WorkflowAggregatedState.UNINITIALIZED

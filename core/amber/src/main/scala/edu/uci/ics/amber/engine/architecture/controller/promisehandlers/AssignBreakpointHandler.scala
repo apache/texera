@@ -31,7 +31,7 @@ trait AssignBreakpointHandler {
 
       // get the last operator (output of the operator)
       val operator = operators.last
-      val opExecution = cp.workflowExecution.getOperatorExecution(operator.id)
+      val opExecution = cp.workflowExecution.getLatestOperatorExecution(operator.id)
       // attach the breakpoint
       opExecution.attachedBreakpoints(msg.breakpoint.id) = msg.breakpoint
       // get target workers from the operator given a breakpoint

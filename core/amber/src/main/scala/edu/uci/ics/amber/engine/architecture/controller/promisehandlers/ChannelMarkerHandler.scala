@@ -36,9 +36,9 @@ trait ChannelMarkerHandler {
     {
       // step1: create separate control commands for each target actor.
       val inputSet = msg.targetOps.flatMap { target =>
-        cp.workflowExecution.getOperatorExecution(target).getWorkerIds.map { worker =>
+        cp.workflowExecution.getRunningRegionExecutions.map(_.getOperatorExecution(target)).flatMap(_.getWorkerIds.map { worker =>
           worker -> createInvocation(msg.markerCommand)
-        }
+        })
       }
       // step 2: packing all control commands into one compound command.
       val cmdMapping: Map[ActorVirtualIdentity, ControlInvocation] = inputSet.map {
@@ -49,8 +49,12 @@ trait ChannelMarkerHandler {
       }
 
       // step 3: convert scope DAG to channels.
-      val channelScope = cp.workflowExecution.getChannelExecutions
-        .map(_._1)
+      val channelScope = cp.workflowExecution.getRunningRegionExecutions.flatMap(regionExecution =>
+        regionExecution
+          .getAllLinkExecutions
+          .map(_._2)
+          .flatMap(linkExecution => linkExecution.getAllChannelExecutions.map(_._1))
+        )
         .filter(channelId => {
           msg.scope.operators
             .map(_.id)
@@ -60,7 +64,7 @@ trait ChannelMarkerHandler {
               .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
         })
       val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
-        cp.workflowExecution.getOperatorExecution(source).getWorkerIds.flatMap { worker =>
+        cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.flatMap { worker =>
           Seq(
             ChannelIdentity(CONTROLLER, worker, isControl = true),
             ChannelIdentity(worker, CONTROLLER, isControl = true)
@@ -72,7 +76,7 @@ trait ChannelMarkerHandler {
 
       // step 4: start prop, send marker through control channel with the compound command from sources.
       msg.sourceOpToStartProp.foreach { source =>
-        cp.workflowExecution.getOperatorExecution(source).getWorkerIds.foreach { worker =>
+        cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.foreach { worker =>
           sendChannelMarker(
             msg.id,
             msg.markerType,

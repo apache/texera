@@ -22,16 +22,15 @@ trait LinkWorkersHandler {
 
   registerHandler[LinkWorkers, Unit] { (msg, sender) =>
     {
-      val resourceConfig = cp.workflow.regionPlan
+      val region = cp.workflow.regionPlan
         .getRegionOfLink(msg.link)
-        .resourceConfig
-        .get
+      val resourceConfig = region.resourceConfig.get
       val linkConfig = resourceConfig.linkConfigs(msg.link)
-
+      val linkExecution = cp.workflowExecution.getRegionExecution(region.id).initLinkExecution(msg.link)
       val futures = linkConfig.channelConfigs
         .map(_.channelId)
         .flatMap(channelId => {
-          cp.workflowExecution.initChannelExecution(channelId)
+          linkExecution.initChannelExecution(channelId)
           Seq(
             send(AddPartitioning(msg.link, linkConfig.partitioning), channelId.fromWorkerId),
             send(

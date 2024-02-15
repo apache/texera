@@ -12,7 +12,7 @@ class ControllerAsyncRPCHandlerInitializer(
     with LinkWorkersHandler
     with AssignBreakpointHandler
     with WorkerExecutionCompletedHandler
-    with WorkerExecutionStartedHandler
+    with WorkerStateUpdatedHandler
     with LocalBreakpointTriggeredHandler
     with PauseHandler
     with QueryWorkerStatisticsHandler

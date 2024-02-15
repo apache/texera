@@ -26,7 +26,7 @@ trait QueryWorkerStatisticsHandler {
 
   registerHandler[ControllerInitiateQueryStatistics, Unit]((msg, sender) => {
     // send to specified workers (or all workers by default)
-    val workers = msg.filterByWorkers.getOrElse(cp.workflowExecution.getAllBuiltWorkers).toList
+    val workers = msg.filterByWorkers.getOrElse(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getAllOperatorExecutions.map(_._2)).flatMap(_.getWorkerIds))
 
     // send QueryStatistics message
     val requests = workers.map(workerId =>
@@ -34,16 +34,16 @@ trait QueryWorkerStatisticsHandler {
       send(QueryStatistics(), workerId).map(res => {
         val workerExecution =
           cp.workflowExecution
-            .getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+            .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
             .getWorkerExecution(workerId)
         workerExecution.state = res.workerState
         workerExecution.stats = res
       })
-    )
+    ).toSeq
 
     // wait for all workers to reply before notifying frontend
     Future
       .collect(requests)
-      .map(_ => sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getStats)))
+      .map(_ => sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap)))
   })
 }

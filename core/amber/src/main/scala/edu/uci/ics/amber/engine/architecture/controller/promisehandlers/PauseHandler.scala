@@ -73,7 +73,7 @@ trait PauseHandler {
         )
         .map { _ =>
           // update frontend workflow status
-          sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getStats))
+          sendToClient(WorkflowStatsUpdate(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap))
           sendToClient(WorkflowPaused())
           logger.info(s"workflow paused")
         }

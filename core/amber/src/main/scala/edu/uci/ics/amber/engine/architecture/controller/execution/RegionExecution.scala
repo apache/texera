@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 import scala.collection.mutable
@@ -10,6 +11,8 @@ case class RegionExecution(region: Region) {
 
   private val operatorExecutions: mutable.Map[PhysicalOpIdentity, OperatorExecution] =
     mutable.HashMap()
+
+  private val linkExecutions: mutable.Map[PhysicalLink, LinkExecution ] = mutable.HashMap()
 
   def initOperatorExecution(
       physicalOpId: PhysicalOpIdentity,
@@ -23,15 +26,20 @@ case class RegionExecution(region: Region) {
     )
   }
 
-  def getAllBuiltWorkers: Iterable[ActorVirtualIdentity] =
-    operatorExecutions.values.flatMap(operator => operator.getWorkerIds)
-
   def getOperatorExecution(opId: PhysicalOpIdentity): OperatorExecution = operatorExecutions(opId)
 
   def hasOperatorExecution(opId: PhysicalOpIdentity): Boolean = operatorExecutions.contains(opId)
 
   def getAllOperatorExecutions: Iterable[(PhysicalOpIdentity, OperatorExecution)] =
     operatorExecutions
+
+  def initLinkExecution(link: PhysicalLink) :LinkExecution = {
+    assert(!linkExecutions.contains(link))
+    linkExecutions.getOrElseUpdate(link, LinkExecution())
+  }
+
+  def getAllLinkExecutions: Iterable[(PhysicalLink, LinkExecution)] = linkExecutions
+
 
   def getStats: Map[String, OperatorRuntimeStats] = {
     // TODO: fix the aggregation here. The stats should be on port level.
