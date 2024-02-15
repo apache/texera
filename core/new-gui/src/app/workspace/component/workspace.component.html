@@ -13,29 +13,27 @@
   cdkDrag
   id="property-editor-container"
   nz-resizable
-  [nzMinWidth]="397"
+  [nzMinWidth]="400"
   [nzMaxWidth]="800"
-  [style.width.px]="rightPanelWidth"
-  (nzResize)="onResize($event)">
+  [style.width.px]="propertyWidth"
+  (nzResize)="onResize_property($event)">
     <div
-      *ngIf="currentRightPanelComponent"
-      id="right-panel-content">
+      id="right-panel-content"
+      *ngIf="this.propertyDisplay">
       <h6
         id="title"
         cdkDragHandle>
-        {{currentRightPanelTitle}}
+        Property
       </h6>
-      <div [class]="getCurrentComponent()">
-        <ng-container *ngComponentOutlet="currentRightPanelComponent"></ng-container>
-      </div>
+      <texera-property-editor></texera-property-editor>
     </div>
     <ul
       nz-menu
       id="dock">
       <li
         nz-menu-item
-        (click)="onClose()"
-        *ngIf="this.display">
+        (click)="onClose_property()"
+        *ngIf="this.propertyDisplay">
         <span
           nz-icon
           nzType="minus"></span>
@@ -44,28 +42,72 @@
         nz-menu-item
         nzSelected
         cdkDragHandle
-        *ngIf="!this.display">
+        *ngIf="!this.propertyDisplay">
         <span
           nz-icon
           nzType="drag"
-          *ngIf="!this.display"></span>
+          *ngIf="!this.propertyDisplay"></span>
       </li>
-      <div cdkDropList class="drag-list" (cdkDropListDropped)="drop($event)">
-        <ng-container *ngFor="let item of rightPanelItems; let i = index">
-          <li
-            nz-menu-item
-            *ngIf="item.enabled"
-            (click)="item.title !== 'Property' || isAnyElementSelected() ? openRightPanelFrame(i) : null"
-            nz-tooltip="{{item.title}}"
-            [class.disabled]="item.title === 'Property' && !isAnyElementSelected()"
-            nzSelected="{{currentIndex === i}}"
-            cdkDrag>
-            <span nz-icon [nzType]="item.icon" nzTheme="outline" class="icon-right"></span>
-          </li>
-        </ng-container>
-      </div>
+      <li
+        nz-menu-item
+        nzSelected
+        (click)="openPropertyPanel()">
+        <span
+          nz-icon
+          nzType="form"
+          nzTheme="outline" 
+          class="icon-right"></span>
+      </li>
     </ul>
     <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
+</div>
+
+<div
+  cdkDrag
+  id="mini-map-container"
+  [style.width.px]="miniMapWidth">
+    <div
+      id="mini-map-content"
+      *ngIf="this.minimapDisplay">
+      <h6
+        id="title"
+        cdkDragHandle>
+        Mini Map
+      </h6>
+      <texera-mini-map></texera-mini-map>
+    </div>
+    <ul
+      nz-menu
+      id="dock">
+      <li
+        nz-menu-item
+        (click)="onClose_minimap()"
+        *ngIf="this.minimapDisplay">
+        <span
+          nz-icon
+          nzType="minus"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzSelected
+        cdkDragHandle
+        *ngIf="!this.minimapDisplay">
+        <span
+          nz-icon
+          nzType="drag"
+          *ngIf="!this.minimapDisplay"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzSelected
+        (click)="openMiniMapPanel()">
+        <span
+          nz-icon
+          nzType="compass"
+          nzTheme="outline" 
+          class="icon-right"></span>
+      </li>
+    </ul>
 </div>
 <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"></texera-workflow-editor>
 <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"></texera-result-panel-toggle>

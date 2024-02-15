@@ -100,10 +100,28 @@ texera-menu {
   border-radius: 3px;
 }
 
+#mini-map-container {
+  position: fixed;
+  bottom: 30px;
+  right: 0px;
+  width: 50%;
+  z-index: 3;
+  user-select: none;
+  background: white;
+  border-radius: 3px;
+}
+
 #right-panel-content {
   min-height: 100%;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
+  display: inline-block;
+  width: calc(100% - 47px);
+}
+
+#mini-map-content {
+  min-height: 100%;
+  max-height: calc(100vh - 200px);
   display: inline-block;
   width: calc(100% - 47px);
 }
@@ -118,7 +136,7 @@ texera-menu {
   padding-bottom: 10px;
 }
 
-.MiniMap {
+texera-mini-map {
   position: relative;
 }
 

@@ -44,75 +44,46 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
-  timer = setInterval(() => {
-    if (this.isAnyElementSelected() === false && this.display) {
-      let minimapIndex = this.rightPanelItems.findIndex(item => item.title === "MiniMap");
-      this.currentIndex = minimapIndex;
-      this.currentRightPanelComponent = this.rightPanelItems[minimapIndex].component;
-    }
-  }, 500);
-
-  //changed
-  currentRightPanelComponent: Type<any> = null as any;
-  currentRightPanelTitle: string = "Property";
-  currentIndex = 0;
-  rightPanelItems = [
-    { component: PropertyEditorComponent, title: "Property", icon: "form", enabled: true },
-    { component: MiniMapComponent, title: "MiniMap", icon: "compass", enabled: true },
-  ];
-  display = true;
-  //changed
+  propertyDisplay = true;
+  minimapDisplay = true;
 
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
 
-  //changed
   screenWidth = window.innerWidth;
-  rightPanelWidth = 397;
+  propertyWidth = 400;
+  miniMapWidth = 400;
 
-  openRightPanelFrame(index: number) {
-    this.currentRightPanelComponent = this.rightPanelItems[index].component;
-    this.currentRightPanelTitle = this.rightPanelItems[index].title;
-    this.currentIndex = index;
-    if (this.display == false) {
-      this.rightPanelWidth = 397;
+  openPropertyPanel() {
+    if (this.propertyDisplay == false) {
+      this.propertyWidth = 400;
     }
-    this.display = true;
+    this.propertyDisplay = true;
   }
 
-  public isAnyElementSelected(): boolean {
-    // operator ID
-    const highlightedOperators = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
-    // Link ID
-    const highlightedLinks = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
-    // Comment Box ID
-    const highlightedCommentBoxes = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedCommentBoxIDs();
-  
-    // If a list is not empty, means there is element been slected
-    return highlightedOperators.length > 0 || highlightedLinks.length > 0 || highlightedCommentBoxes.length > 0;
+  openMiniMapPanel() {
+    if (this.minimapDisplay == false) {
+      this.miniMapWidth = 400;
+    }
+    this.minimapDisplay = true;
   }
   
-  onResize(event: NzResizeEvent): void {
+  onResize_property(event: NzResizeEvent): void {
     if (event.width) {
-      this.rightPanelWidth = event.width;
+      this.propertyWidth = event.width;
     }
   }
-
-  onClose(): void {
-    this.display = false;
-    this.currentRightPanelComponent = null as any;
-    this.rightPanelWidth = 47;
+  
+  onClose_property(): void {
+    this.propertyDisplay = false;
+    this.propertyWidth = 47;
   }
 
-  getCurrentComponent(): string {
-    return this.rightPanelItems[this.currentIndex].title
-  }
-
-  drop(event: CdkDragDrop<string[]>): void {
-    moveItemInArray(this.rightPanelItems, event.previousIndex, event.currentIndex);
-    this.currentIndex = event.currentIndex;
+  onClose_minimap(): void {
+    this.minimapDisplay = false;
+    this.miniMapWidth = 47;
   }
   //changed
 
@@ -153,7 +124,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
      *    - NaN || undefined will result in undefined.
      */
     this.pid = parseInt(this.route.snapshot.queryParams.pid) || undefined;
-    this.openRightPanelFrame(1); // initialize the right panel
   }
 
   ngAfterViewInit(): void {
