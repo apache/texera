@@ -4,6 +4,9 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
@@ -27,6 +30,21 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
+
+    /**
+     * The table <code>texera_db.dataset</code>.
+     */
+    public static final Dataset DATASET = Dataset.DATASET;
+
+    /**
+     * The table <code>texera_db.dataset_user_access</code>.
+     */
+    public static final DatasetUserAccess DATASET_USER_ACCESS = DatasetUserAccess.DATASET_USER_ACCESS;
+
+    /**
+     * The table <code>texera_db.dataset_version</code>.
+     */
+    public static final DatasetVersion DATASET_VERSION = DatasetVersion.DATASET_VERSION;
 
     /**
      * The table <code>texera_db.file</code>.

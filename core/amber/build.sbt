@@ -186,6 +186,9 @@ libraryDependencies += "org.scalamock" %% "scalamock" % "5.2.0" % Test
 libraryDependencies += "ch.vorburger.mariaDB4j" % "mariaDB4j" % "2.4.0" % Test
 // https://www.scalatest.org/getting_started_with_fun_suite
 libraryDependencies += "org.scalatest" %% "scalatest" % "3.2.15" % Test
+// JUnit related dependencies
+libraryDependencies += "junit" % "junit" % "4.13.2" % Test // JUnit dependency for Java tests
+libraryDependencies += "com.novocode" % "junit-interface" % "0.11" % Test // SBT interface for JUnit
 
 /////////////////////////////////////////////////////////////////////////////
 // Workflow version control related
