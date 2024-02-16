@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
-class WorkerPortExecution extends Serializable {
+case class WorkerPortExecution() {
   var completed: Boolean = false
 
   def setCompleted(): Unit = {

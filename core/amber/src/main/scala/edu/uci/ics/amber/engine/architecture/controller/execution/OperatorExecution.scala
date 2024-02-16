@@ -11,7 +11,7 @@ import java.util
 import scala.collection.mutable
 import scala.jdk.CollectionConverters._
 
-case class OperatorExecution() extends Serializable {
+case class OperatorExecution() {
 
   private val workerExecutions =
     new util.concurrent.ConcurrentHashMap[ActorVirtualIdentity, WorkerExecution]()

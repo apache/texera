@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
 
-class WorkflowExecution {
+case class WorkflowExecution() {
 
   // region executions are stored with LinkedHashMap to maintain their creation order.
   private val regionExecutions: mutable.LinkedHashMap[RegionIdentity, RegionExecution] =

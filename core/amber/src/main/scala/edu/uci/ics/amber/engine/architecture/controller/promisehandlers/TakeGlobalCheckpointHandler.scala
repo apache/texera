@@ -25,13 +25,15 @@ trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: TakeGlobalCheckpoint, sender) =>
-    var estimationOnly = msg.estimationOnly
+    val estimationOnly = msg.estimationOnly
     val uri = msg.destination.resolve(msg.checkpointId.toString)
     var totalSize = 0L
     val physicalOpIdsToTakeCheckpoint = cp.workflow.physicalPlan.operators.map(_.id)
     execute(
       PropagateChannelMarker(
-        cp.workflowExecution.getAllRegionExecutions.flatMap(_.getAllOperatorExecutions.map(_._1)).toSet,
+        cp.workflowExecution.getAllRegionExecutions
+          .flatMap(_.getAllOperatorExecutions.map(_._1))
+          .toSet,
         msg.checkpointId,
         NoAlignment,
         cp.workflow.physicalPlan,

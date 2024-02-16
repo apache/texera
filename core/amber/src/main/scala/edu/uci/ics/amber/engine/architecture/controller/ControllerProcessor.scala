@@ -20,7 +20,7 @@ class ControllerProcessor(
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
-  val workflowExecution = new WorkflowExecution()
+  val workflowExecution: WorkflowExecution = WorkflowExecution()
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
