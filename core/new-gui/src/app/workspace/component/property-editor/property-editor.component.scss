@@ -5,6 +5,10 @@
 // !important is used to override Angular's default styles
 
 // the following styles are for dropdown menu
+
+
+
+
 ::ng-deep .mat-select-panel mat-option.mat-option {
   height: unset !important;
   padding-top: 0.5em !important;
@@ -24,6 +28,36 @@
 ::ng-deep .mat-select-value-text {
   white-space: normal !important;
   line-height: 1.4em !important;
+}
+
+//加
+#property-editor-container {
+  position: fixed;
+  top: 90px;
+  right: 0px;
+  width: 50%;
+  z-index: 3;
+  user-select: none;
+  background: white;
+  border-radius: 3px;
+}
+
+#right-panel-content {
+  min-height: 100%;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  display: inline-block;
+  width: calc(100% - 47px);
+}
+
+#title {
+  padding: 10px 0 4px 15px;
+}
+
+#dock {
+  display: inline-block;
+  vertical-align: top;
+  padding-bottom: 10px;
 }
 
 .texera-workspace-property-editor-body {

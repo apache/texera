@@ -8,6 +8,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
+
 export type PropertyEditFrameComponent =
   | OperatorPropertyEditFrameComponent
   | BreakpointPropertyEditFrameComponent
@@ -29,6 +31,11 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 })
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
+
+  //加
+  propertyDisplay = true;
+  screenWidth = window.innerWidth;
+  propertyWidth = 400;
 
   constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {}
 
@@ -106,5 +113,24 @@ export class PropertyEditorComponent implements OnInit {
         }
         this.changeDetectorRef.detectChanges();
       });
+  }
+
+  //加
+  openPropertyPanel() {
+    if (this.propertyDisplay == false) {
+      this.propertyWidth = 400;
+    }
+    this.propertyDisplay = true;
+  }
+
+  onResize_property(event: NzResizeEvent): void {
+    if (event.width) {
+      this.propertyWidth = event.width;
+    }
+  }
+
+  onClose_property(): void {
+    this.propertyDisplay = false;
+    this.propertyWidth = 47;
   }
 }

@@ -1,8 +1,63 @@
-<div id="mini-map"></div>
+<!-- <div id="mini-map"></div>
 <div
   id="mini-map-navigator"
   cdkDrag
   cdkDragBoundary="texera-mini-map"
   (cdkDragMoved)="onDrag($event)"
   (cdkDragStarted)="dragging=true"
-  (cdkDragEnded)="dragging=false"></div>
+  (cdkDragEnded)="dragging=false"></div> -->
+
+<div
+  cdkDrag
+  id="mini-map-container"
+  [style.width.px]="miniMapWidth">
+    <div
+      id="mini-map-content"
+      *ngIf="this.minimapDisplay">
+      <h6
+        id="title"
+        cdkDragHandle>
+        Mini Map
+      </h6>
+      <div id="mini-map"></div>
+        <div
+         id="mini-map-navigator"
+         cdkDrag
+         cdkDragBoundary="texera-mini-map"
+         (cdkDragMoved)="onDrag($event)"
+         (cdkDragStarted)="dragging=true"
+         (cdkDragEnded)="dragging=false"></div>
+    </div>
+    <ul
+      nz-menu
+      id="dock">
+      <li
+        nz-menu-item
+        (click)="onClose_minimap()"
+        *ngIf="this.minimapDisplay">
+        <span
+          nz-icon
+          nzType="minus"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzSelected
+        cdkDragHandle
+        *ngIf="!this.minimapDisplay">
+        <span
+          nz-icon
+          nzType="drag"
+          *ngIf="!this.minimapDisplay"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzSelected
+        (click)="openMiniMapPanel()">
+        <span
+          nz-icon
+          nzType="compass"
+          nzTheme="outline"
+          class="icon-right"></span>
+      </li>
+    </ul>
+</div>

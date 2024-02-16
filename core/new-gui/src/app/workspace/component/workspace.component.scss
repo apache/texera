@@ -89,42 +89,44 @@ texera-menu {
 
 /** floating right panel**/
 
-#property-editor-container {
-  position: fixed;
-  top: 90px;
-  right: 0px;
-  width: 50%;
-  z-index: 3;
-  user-select: none;
-  background: white;
-  border-radius: 3px;
-}
+// #property-editor-container {
+//   position: fixed;
+//   top: 90px;
+//   right: 0px;
+//   width: 50%;
+//   z-index: 3;
+//   user-select: none;
+//   background: white;
+//   border-radius: 3px;
+// }
 
-#mini-map-container {
-  position: fixed;
-  top: 200px;
-  right: 0px;
-  width: 50%;
-  z-index: 3;
-  user-select: none;
-  background: white;
-  border-radius: 3px;
-}
+// //删
+// #mini-map-container {
+//   position: fixed;
+//   top: 200px;
+//   right: 0px;
+//   width: 50%;
+//   z-index: 3;
+//   user-select: none;
+//   background: white;
+//   border-radius: 3px;
+// }
 
-#right-panel-content {
-  min-height: 100%;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
-  display: inline-block;
-  width: calc(100% - 47px);
-}
+// #right-panel-content {
+//   min-height: 100%;
+//   max-height: calc(100vh - 200px);
+//   overflow-y: auto;
+//   display: inline-block;
+//   width: calc(100% - 47px);
+// }
 
-#mini-map-content {
-  min-height: 100%;
-  max-height: calc(100vh - 200px);
-  display: inline-block;
-  width: calc(100% - 47px);
-}
+// //删
+// #mini-map-content {
+//   min-height: 100%;
+//   max-height: calc(100vh - 200px);
+//   display: inline-block;
+//   width: calc(100% - 47px);
+// }
 
 #title {
   padding: 10px 0 4px 15px;

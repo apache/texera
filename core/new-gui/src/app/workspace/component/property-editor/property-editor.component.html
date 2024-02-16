@@ -1,5 +1,63 @@
-<div class="texera-workspace-property-editor-body texera-workflow-component-body">
+<!-- <div class="texera-workspace-property-editor-body texera-workflow-component-body">
   <ndc-dynamic
     [ndcDynamicComponent]="frameComponentConfig?.component"
     [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
+</div> -->
+
+
+<div
+  cdkDrag
+  id="property-editor-container"
+  nz-resizable
+  [nzMinWidth]="400"
+  [nzMaxWidth]="800"
+  [style.width.px]="propertyWidth"
+  (nzResize)="onResize_property($event)">
+    <div
+      id="right-panel-content"
+      *ngIf="this.propertyDisplay">
+      <h6
+        id="title"
+        cdkDragHandle>
+        Property
+      </h6>
+      <div class="texera-workspace-property-editor-body texera-workflow-component-body">
+        <ndc-dynamic
+          [ndcDynamicComponent]="frameComponentConfig?.component"
+          [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
+      </div>
+    </div>
+    <ul
+      nz-menu
+      id="dock">
+      <li
+        nz-menu-item
+        (click)="onClose_property()"
+        *ngIf="this.propertyDisplay">
+        <span
+          nz-icon
+          nzType="minus"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzSelected
+        cdkDragHandle
+        *ngIf="!this.propertyDisplay">
+        <span
+          nz-icon
+          nzType="drag"
+          *ngIf="!this.propertyDisplay"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzSelected
+        (click)="openPropertyPanel()">
+        <span
+          nz-icon
+          nzType="form"
+          nzTheme="outline"
+          class="icon-right"></span>
+      </li>
+    </ul>
+    <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
 </div>
