@@ -9,6 +9,7 @@ import { HttpClient, HttpHandler } from "@angular/common/http";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { StubUserProjectService } from "../../../service/user-project/stub-user-project.service";
 import { NzModalModule } from "ng-zorro-antd/modal";
+import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
 
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
@@ -17,7 +18,7 @@ describe("UserWorkflowListItemComponent", () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [NzModalModule],
-      declarations: [UserWorkflowListItemComponent],
+      declarations: [UserWorkflowListItemComponent, HighlightSearchTermsPipe],
       providers: [
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },
         { provide: UserProjectService, useValue: new StubUserProjectService() },

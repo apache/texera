@@ -123,6 +123,7 @@ import { NzModalModule } from "ng-zorro-antd/modal";
 import { OverlayModule } from "@angular/cdk/overlay";
 import { MatInputModule } from "@angular/material/input";
 import { MatTabsModule } from "@angular/material/tabs";
+import { HighlightSearchTermsPipe } from "./dashboard/user/component/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
 
 registerLocaleData(en);
 
@@ -199,6 +200,7 @@ registerLocaleData(en);
     PortPropertyEditFrameComponent,
     WorkflowRuntimeStatisticsComponent,
     FlarumComponent,
+    HighlightSearchTermsPipe,
   ],
   imports: [
     BrowserModule,

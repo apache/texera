@@ -17,12 +17,11 @@
     <!-- editable name of saved workflow -->
     <nz-list-item-meta-title class="meta-title-container">
       <div class="workflow-item-meta-title">
-        <a
+        <div
           *ngIf="!editingName; else customWorkflowTitle "
           [routerLink]="ROUTER_WORKFLOW_BASE_URL + '/' + workflow.wid"
-          class="workflow-name"
-          >{{ workflow.name }}</a
-        >
+          [innerHTML]="workflow.name | highlightSearchTerms : keywords"
+          class="workflow-name"></div>
         <ng-template #customWorkflowTitle>
           <input
             #customName
@@ -84,8 +83,8 @@
         <label
           *ngIf="!editingDescription; else customWorkflowDescription "
           (click)="editingDescription = editable"
+          [innerHTML]="workflow.description | highlightSearchTerms : keywords"
           class="workflow-description">
-          {{ workflow.description }}
         </label>
         <ng-template #customWorkflowDescription>
           <input
@@ -121,7 +120,7 @@
         [ngClass]="{'color-tag' : true, 'light-color' : isLightColor(userProjectsMap.get(projectID)!.color!), 'dark-color' : !isLightColor(userProjectsMap.get(projectID)!.color!)}"
         [ngStyle]="{'color' : isLightColor(userProjectsMap.get(projectID)!.color!) ? 'black' : 'white', 'background-color' : '#' + userProjectsMap.get(projectID)!.color}"
         [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + userProjectsMap.get(projectID)!.pid">
-        {{userProjectsMap.get(projectID)!.name }}
+        {{userProjectsMap.get(projectID)!.name}}
       </a>
       <div
         *ngIf="editable && userProjectsMap && userProjectsMap.has(projectID) && userProjectsMap.get(projectID)!.color !== null && projectID !== pid"

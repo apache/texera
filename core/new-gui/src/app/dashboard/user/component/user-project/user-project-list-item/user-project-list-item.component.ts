@@ -18,6 +18,7 @@ export class UserProjectListItemComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
   private _entry?: DashboardProject;
+  @Input() public keywords: string[] = [];
   @Input()
   get entry(): DashboardProject {
     if (!this._entry) {
