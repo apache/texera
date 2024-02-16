@@ -44,48 +44,12 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
-  // propertyDisplay = true;
-  // minimapDisplay = true;
-
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
 
   screenWidth = window.innerWidth;
-  // propertyWidth = 400;
-  // miniMapWidth = 400;
-
-  // openPropertyPanel() {
-  //   if (this.propertyDisplay == false) {
-  //     this.propertyWidth = 400;
-  //   }
-  //   this.propertyDisplay = true;
-  // }
-
-  // openMiniMapPanel() {
-  //   if (this.minimapDisplay == false) {
-  //     this.miniMapWidth = 400;
-  //   }
-  //   this.minimapDisplay = true;
-  // }
-
-  // onResize_property(event: NzResizeEvent): void {
-  //   if (event.width) {
-  //     this.propertyWidth = event.width;
-  //   }
-  // }
-
-  // onClose_property(): void {
-  //   this.propertyDisplay = false;
-  //   this.propertyWidth = 47;
-  // }
-
-  // onClose_minimap(): void {
-  //   this.minimapDisplay = false;
-  //   this.miniMapWidth = 47;
-  // }
-  //changed
 
   @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
   constructor(

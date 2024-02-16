@@ -87,61 +87,6 @@ texera-menu {
   left: 0;
 }
 
-/** floating right panel**/
-
-// #property-editor-container {
-//   position: fixed;
-//   top: 90px;
-//   right: 0px;
-//   width: 50%;
-//   z-index: 3;
-//   user-select: none;
-//   background: white;
-//   border-radius: 3px;
-// }
-
-// //删
-// #mini-map-container {
-//   position: fixed;
-//   top: 200px;
-//   right: 0px;
-//   width: 50%;
-//   z-index: 3;
-//   user-select: none;
-//   background: white;
-//   border-radius: 3px;
-// }
-
-// #right-panel-content {
-//   min-height: 100%;
-//   max-height: calc(100vh - 200px);
-//   overflow-y: auto;
-//   display: inline-block;
-//   width: calc(100% - 47px);
-// }
-
-// //删
-// #mini-map-content {
-//   min-height: 100%;
-//   max-height: calc(100vh - 200px);
-//   display: inline-block;
-//   width: calc(100% - 47px);
-// }
-
-#title {
-  padding: 10px 0 4px 15px;
-}
-
-#dock {
-  display: inline-block;
-  vertical-align: top;
-  padding-bottom: 10px;
-}
-
-texera-mini-map {
-  position: relative;
-}
-
 /**
   * this style specifies that the property editor for the operators
   * on the right will occupy the 3rd (last) column and use second and third

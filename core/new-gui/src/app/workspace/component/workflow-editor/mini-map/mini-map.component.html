@@ -1,12 +1,3 @@
-<!-- <div id="mini-map"></div>
-<div
-  id="mini-map-navigator"
-  cdkDrag
-  cdkDragBoundary="texera-mini-map"
-  (cdkDragMoved)="onDrag($event)"
-  (cdkDragStarted)="dragging=true"
-  (cdkDragEnded)="dragging=false"></div> -->
-
 <div
   cdkDrag
   id="mini-map-container"
@@ -19,14 +10,16 @@
         cdkDragHandle>
         Mini Map
       </h6>
-      <div id="mini-map"></div>
+      <div style="position: relative">
+        <div id="mini-map"></div>
         <div
-         id="mini-map-navigator"
-         cdkDrag
-         cdkDragBoundary="texera-mini-map"
-         (cdkDragMoved)="onDrag($event)"
-         (cdkDragStarted)="dragging=true"
-         (cdkDragEnded)="dragging=false"></div>
+          id="mini-map-navigator"
+          cdkDrag
+          cdkDragBoundary="texera-mini-map"
+          (cdkDragMoved)="onDrag($event)"
+          (cdkDragStarted)="dragging=true"
+          (cdkDragEnded)="dragging=false"></div>
+      </div>
     </div>
     <ul
       nz-menu
