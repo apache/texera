@@ -23,6 +23,7 @@ export class MiniMapComponent implements AfterViewInit {
   constructor(private workflowActionService: WorkflowActionService) {}
 
   ngAfterViewInit() {
+    console.log(1111)
     const map = document.getElementById("mini-map")!;
     this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
     new joint.dia.Paper({
@@ -73,6 +74,10 @@ export class MiniMapComponent implements AfterViewInit {
       this.miniMapWidth = 400;
     }
     this.minimapDisplay = true;
+    
+    setTimeout(() => {
+      this.ngAfterViewInit();
+    })
   }
 
   onClose_minimap(): void {
