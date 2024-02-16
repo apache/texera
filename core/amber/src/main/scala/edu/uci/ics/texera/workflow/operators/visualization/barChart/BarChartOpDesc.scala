@@ -21,7 +21,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
- //type constraint: value can only be numeric
+//type constraint: value can only be numeric
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -50,21 +50,16 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var fields: String = ""
 
-  @JsonProperty(defaultValue = "false", required = false)
-  @JsonSchemaTitle("Long Input Form")
-  @JsonPropertyDescription("Check if Using Long Input Form")
-  var isLongInputForm: Boolean = _
-
-  @JsonProperty(defaultValue = "", required = false)
-  @JsonSchemaTitle("Long Input Form Column")
-  @JsonPropertyDescription("Select a column for long input form")
+  @JsonProperty(defaultValue = "No Selection", required = false)
+  @JsonSchemaTitle("Category Column")
+  @JsonPropertyDescription("Optional - Select a column to Color Code the Categories")
   @AutofillAttributeName
-  var colLongInputForm: String = ""
+  var categoryColumn: String = ""
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
   @JsonPropertyDescription("Orientation Style")
-  var orientation: Boolean = _
+  var horizontalOrientation: Boolean = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -88,17 +83,15 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   }
 
   override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    var truthy = ""
-    if (orientation)
-      truthy = "True"
-    else
-      truthy = "False"
 
-    var colorCode = ""
-    if (isLongInputForm && colLongInputForm != "")
-      colorCode = "True"
-    else
-      colorCode = "False"
+    var isHorizontalOrientation = "False"
+    if (horizontalOrientation)
+      isHorizontalOrientation = "True"
+
+    var isCategoryColumn = "False"
+    if (categoryColumn != "No Selection")
+      isCategoryColumn = "True"
+
     val finalCode = s"""
                         |from pytexera import *
                         |
@@ -122,14 +115,10 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
                         |        ${manipulateTable()}
                         |        if not table.empty and '$fields' != '$value':
-                        |           if $truthy and $colorCode:
-                        |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$colLongInputForm", orientation = 'h', title='$title'))
-                        |           elif not $truthy and not $colorCode:
-                        |               fig = go.Figure(px.bar(table, y='$value', x='$fields', title='$title'))
-                        |           elif $truthy and not $colorCode:
-                        |               fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h', title='$title'))
-                        |           elif  not $truthy and $colorCode:
-                        |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$colLongInputForm", title='$title'))
+                        |           if $isHorizontalOrientation:
+                        |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, orientation = 'h', title='$title'))
+                        |           else:
+                        |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None, title='$title'))
                         |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
                         |           # use latest plotly lib in html
                         |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')
