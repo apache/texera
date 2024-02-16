@@ -15,15 +15,16 @@ export class SearchResultsComponent {
   more = false;
   entries: ReadonlyArray<DashboardEntry> = [];
   private resetCounter = 0;
-  public uid: number | undefined = undefined;
   @Input() showResourceTypes = false;
   @Input() public pid: number = 0;
   @Input() editable = false;
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
 
-  constructor(private userService: UserService) {
-    this.uid = this.userService.getCurrentUser()?.uid;
+  constructor(private userService: UserService) {}
+
+  getUid(): number | undefined {
+    return this.userService.getCurrentUser()?.uid;
   }
 
   reset(loadMoreFunction: LoadMoreFunction): void {
