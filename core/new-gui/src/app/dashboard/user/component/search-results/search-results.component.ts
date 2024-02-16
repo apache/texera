@@ -1,5 +1,6 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
 import { DashboardEntry } from "../../type/dashboard-entry";
+import { UserService } from "../../../../common/service/user/user.service";
 
 export type LoadMoreFunction = (start: number, count: number) => Promise<{ entries: DashboardEntry[]; more: boolean }>;
 
@@ -14,11 +15,16 @@ export class SearchResultsComponent {
   more = false;
   entries: ReadonlyArray<DashboardEntry> = [];
   private resetCounter = 0;
+  public uid: number | undefined = undefined;
   @Input() showResourceTypes = false;
   @Input() public pid: number = 0;
   @Input() editable = false;
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
+
+  constructor(private userService: UserService) {
+    this.uid = this.userService.getCurrentUser()?.uid;
+  }
 
   reset(loadMoreFunction: LoadMoreFunction): void {
     this.entries = [];
