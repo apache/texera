@@ -22,8 +22,6 @@ public class GitVersionControlLocalFileStorageSpec {
 
   private Path testRepoPath;
 
-  private String testRepoMainBranchId;
-
   private List<String> testRepoMasterCommitHashes;
   private final String testFile1Name = "testFile1.txt";
 
@@ -46,7 +44,7 @@ public class GitVersionControlLocalFileStorageSpec {
   public void setUp() throws IOException, GitAPIException {
     // Create a temporary directory for the repository
     testRepoPath = Files.createTempDirectory("testRepo");
-    testRepoMainBranchId = GitVersionControlLocalFileStorage.initRepo(testRepoPath);
+    GitVersionControlLocalFileStorage.initRepo(testRepoPath);
 
     Path file1Path = testRepoPath.resolve(testFile1Name);
     // Version 1
@@ -58,7 +56,8 @@ public class GitVersionControlLocalFileStorageSpec {
             writeFileToRepo(file1Path, testFile1ContentV1);
           } catch (IOException | GitAPIException e) {
             throw new RuntimeException(e);
-          }});
+          }
+        });
 
     String v2Hash = GitVersionControlLocalFileStorage.withCreateVersion(
         testRepoPath,
