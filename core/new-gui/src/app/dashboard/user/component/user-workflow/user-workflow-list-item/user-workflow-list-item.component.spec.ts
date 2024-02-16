@@ -9,7 +9,7 @@ import { HttpClient, HttpHandler } from "@angular/common/http";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { StubUserProjectService } from "../../../service/user-project/stub-user-project.service";
 import { NzModalModule } from "ng-zorro-antd/modal";
-import {HighlightSearchTermsPipe} from "./highlight-search-terms.pipe";
+import { HighlightSearchTermsPipe } from "./highlight-search-terms.pipe";
 
 describe("UserWorkflowListItemComponent", () => {
   let component: UserWorkflowListItemComponent;
