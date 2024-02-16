@@ -2,10 +2,8 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.service;
 
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.JGitVersionControl;
-import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 
-import javax.annotation.concurrent.NotThreadSafe;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -19,7 +17,7 @@ import java.util.Set;
 /**
  * Git-based implementation of the VersionControlFileStorageService, using local file storage.
  */
-public class GitVersionControlLocalFileStorageService {
+public class GitVersionControlLocalFileStorage {
 
   /**
    * Writes content from the InputStream to a file at the given path. And stage the file addition/modification to git
@@ -38,7 +36,8 @@ public class GitVersionControlLocalFileStorageService {
   }
 
   /**
-   * Deletes a file at the given path. If file does not exist, error will be thrown
+   * Deletes a file at the given path.
+   * If the file path is pointing to a directory, or if file does not exist, error will be thrown
 
    * This method is NOT THREAD SAFE, as it did the file I/O and the git rm operation
    * @param filePath The path of the file to delete.
@@ -48,8 +47,8 @@ public class GitVersionControlLocalFileStorageService {
     if (Files.isDirectory(filePath)) {
       throw new IllegalArgumentException("Provided path is a directory, not a file: " + filePath);
     }
-    Files.delete(filePath);
 
+    Files.delete(filePath);
     // stage the deletion
     JGitVersionControl.rm(repoPath, filePath);
   }
@@ -92,26 +91,22 @@ public class GitVersionControlLocalFileStorageService {
    * @throws GitAPIException If a Git operation fails.
    */
   public static String withCreateVersion(Path baseRepoPath, String versionName, Runnable operations) throws IOException, GitAPIException {
-    try {
-      // Execute the provided file operations
-      operations.run();
-      // After successful execution, create a new version with the specified name
-      return JGitVersionControl.commit(baseRepoPath, versionName);
-    } catch (Exception e) {
-      throw e;
-    }
+    // Execute the provided file operations
+    operations.run();
+    // After successful execution, create a new version with the specified name
+    return JGitVersionControl.commit(baseRepoPath, versionName);
   }
 
   /**
-   * Retrieves the file tree hierarchy of a specific version identified by its commit hash.
+   * Retrieves the set of file nodes at the root level, identified by its commit hash.
 
    * This method is THREAD SAFE
    * @param baseRepoPath The repository path.
    * @param versionCommitHashVal The commit hash of the version.
    * @return A set of file nodes at the root level of the given repo at given version
    */
-  public static Set<FileNode> retrieveFileTreeOfVersion(Path baseRepoPath, String versionCommitHashVal) throws Exception {
-    return JGitVersionControl.getFileTreeOfCommit(baseRepoPath, versionCommitHashVal);
+  public static Set<FileNode> retrieveRootFileNodesOfVersion(Path baseRepoPath, String versionCommitHashVal) throws Exception {
+    return JGitVersionControl.getRootFileNodeOfCommit(baseRepoPath, versionCommitHashVal);
   }
 
   /**
@@ -127,7 +122,7 @@ public class GitVersionControlLocalFileStorageService {
    * @throws GitAPIException If the operation is interrupted.
    */
   public static void retrieveFileContentOfVersion(Path baseRepoPath, String commitHash, Path filePath, OutputStream outputStream) throws IOException, GitAPIException {
-    JGitVersionControl.showFileContentOfCommit(baseRepoPath, commitHash, filePath, outputStream);
+    JGitVersionControl.readFileContentOfCommit(baseRepoPath, commitHash, filePath, outputStream);
   }
 
   /**

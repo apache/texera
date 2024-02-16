@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.dataset;
 
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorageService;
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage;
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.junit.After;
@@ -18,7 +18,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-public class GitVersionControlLocalFileStorageServiceSpec {
+public class GitVersionControlLocalFileStorageSpec {
 
   private Path testRepoPath;
 
@@ -38,7 +38,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
 
   private void writeFileToRepo(Path filePath, String fileContent) throws IOException, GitAPIException {
     try (ByteArrayInputStream input = new ByteArrayInputStream(fileContent.getBytes())) {
-      GitVersionControlLocalFileStorageService.writeFileToRepo(testRepoPath, filePath, input);
+      GitVersionControlLocalFileStorage.writeFileToRepo(testRepoPath, filePath, input);
     }
   }
 
@@ -46,11 +46,11 @@ public class GitVersionControlLocalFileStorageServiceSpec {
   public void setUp() throws IOException, GitAPIException {
     // Create a temporary directory for the repository
     testRepoPath = Files.createTempDirectory("testRepo");
-    testRepoMainBranchId = GitVersionControlLocalFileStorageService.initRepo(testRepoPath);
+    testRepoMainBranchId = GitVersionControlLocalFileStorage.initRepo(testRepoPath);
 
     Path file1Path = testRepoPath.resolve(testFile1Name);
     // Version 1
-    String v1Hash = GitVersionControlLocalFileStorageService.withCreateVersion(
+    String v1Hash = GitVersionControlLocalFileStorage.withCreateVersion(
         testRepoPath,
         "v1",
         () -> {
@@ -60,7 +60,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
             throw new RuntimeException(e);
           }});
 
-    String v2Hash = GitVersionControlLocalFileStorageService.withCreateVersion(
+    String v2Hash = GitVersionControlLocalFileStorage.withCreateVersion(
         testRepoPath,
         "v2",
         () -> {
@@ -71,7 +71,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
           }});
 
     // Version 3
-    String v3Hash = GitVersionControlLocalFileStorageService.withCreateVersion(
+    String v3Hash = GitVersionControlLocalFileStorage.withCreateVersion(
         testRepoPath,
         "v3",
         () -> {
@@ -91,7 +91,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
   @After
   public void tearDown() throws IOException {
     // Clean up the test repository directory
-    GitVersionControlLocalFileStorageService.deleteRepo(testRepoPath);
+    GitVersionControlLocalFileStorage.deleteRepo(testRepoPath);
   }
 
   @Test
@@ -102,7 +102,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     // testRepoMasterCommitHashes is populated in chronological order: v1, v2, v3
     // Retrieve and compare file content for version 1
     ByteArrayOutputStream outputV1 = new ByteArrayOutputStream();
-    GitVersionControlLocalFileStorageService.retrieveFileContentOfVersion(testRepoPath, testRepoMasterCommitHashes.get(0), filePath, outputV1);
+    GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(testRepoPath, testRepoMasterCommitHashes.get(0), filePath, outputV1);
     String retrievedContentV1 = outputV1.toString();
     Assert.assertEquals(
         "Content for version 1 does not match",
@@ -111,7 +111,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
 
     // Retrieve and compare file content for version 2
     ByteArrayOutputStream outputV2 = new ByteArrayOutputStream();
-    GitVersionControlLocalFileStorageService.retrieveFileContentOfVersion(testRepoPath, testRepoMasterCommitHashes.get(1), filePath, outputV2);
+    GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(testRepoPath, testRepoMasterCommitHashes.get(1), filePath, outputV2);
     String retrievedContentV2 = outputV2.toString();
     Assert.assertEquals(
         "Content for version 2 does not match",
@@ -120,7 +120,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
 
     // Retrieve and compare file content for version 3
     ByteArrayOutputStream outputV3 = new ByteArrayOutputStream();
-    GitVersionControlLocalFileStorageService.retrieveFileContentOfVersion(testRepoPath, testRepoMasterCommitHashes.get(2), filePath, outputV3);
+    GitVersionControlLocalFileStorage.retrieveFileContentOfVersion(testRepoPath, testRepoMasterCommitHashes.get(2), filePath, outputV3);
     String retrievedContentV3 = outputV3.toString();
     Assert.assertEquals(
         "Content for version 3 does not match",
@@ -140,13 +140,13 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     // first retrieve the latest version's file tree
     Assert.assertEquals("File Tree should match",
         fileNodes,
-        GitVersionControlLocalFileStorageService.retrieveFileTreeOfVersion(testRepoPath, testRepoMasterCommitHashes.get(testRepoMasterCommitHashes.size() - 1)));
+        GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(testRepoPath, testRepoMasterCommitHashes.get(testRepoMasterCommitHashes.size() - 1)));
 
     // now we add a new file testDir/testFile2.txt
     Path testDirPath = testRepoPath.resolve(testDirectoryName);
     Path file2Path = testDirPath.resolve(testFile2Name);
 
-    String v4Hash = GitVersionControlLocalFileStorageService.withCreateVersion(testRepoPath, "v4", () -> {
+    String v4Hash = GitVersionControlLocalFileStorage.withCreateVersion(testRepoPath, "v4", () -> {
       try {
         writeFileToRepo(file2Path, testFile2Content);
       } catch (IOException | GitAPIException e) {
@@ -164,12 +164,12 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     Assert.assertEquals(
         "File Tree should match",
         fileNodes,
-        GitVersionControlLocalFileStorageService.retrieveFileTreeOfVersion(testRepoPath, v4Hash));
+        GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(testRepoPath, v4Hash));
 
     // now we delete the file1, check the filetree
-    String v5Hash = GitVersionControlLocalFileStorageService.withCreateVersion(testRepoPath, "v5", () -> {
+    String v5Hash = GitVersionControlLocalFileStorage.withCreateVersion(testRepoPath, "v5", () -> {
       try {
-        GitVersionControlLocalFileStorageService.removeFileFromRepo(testRepoPath, file1Path);
+        GitVersionControlLocalFileStorage.removeFileFromRepo(testRepoPath, file1Path);
       } catch (IOException | GitAPIException e) {
         throw new RuntimeException(e);
       }
@@ -179,7 +179,7 @@ public class GitVersionControlLocalFileStorageServiceSpec {
     Assert.assertEquals(
         "File1 should be gone",
         fileNodes,
-        GitVersionControlLocalFileStorageService.retrieveFileTreeOfVersion(testRepoPath, v5Hash)
+        GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(testRepoPath, v5Hash)
     );
 
   }
@@ -192,11 +192,11 @@ public class GitVersionControlLocalFileStorageServiceSpec {
 
     Assert.assertTrue(
         "There should be some uncommitted changes",
-        GitVersionControlLocalFileStorageService.hasUncommittedChanges(testRepoPath));
+        GitVersionControlLocalFileStorage.hasUncommittedChanges(testRepoPath));
 
-    GitVersionControlLocalFileStorageService.discardUncommittedChanges(testRepoPath);
+    GitVersionControlLocalFileStorage.discardUncommittedChanges(testRepoPath);
 
     Assert.assertFalse("There should be no uncommitted changes",
-        GitVersionControlLocalFileStorageService.hasUncommittedChanges(testRepoPath));
+        GitVersionControlLocalFileStorage.hasUncommittedChanges(testRepoPath));
   }
 }
