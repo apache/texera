@@ -19,6 +19,7 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
   FinalizeOperator,
   FinalizePort
 }
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -27,7 +28,14 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   RUNNING
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelMarkerPayload,
+  DataFrame,
+  DataPayload,
+  EndOfUpstream,
+  RequireAlignment,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
@@ -87,7 +95,7 @@ object DataProcessor {
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
-    outputHandler: WorkflowFIFOMessage => Unit
+    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
@@ -95,6 +103,7 @@ class DataProcessor(
   @transient var physicalOp: PhysicalOp = _
   @transient var operatorConfig: OperatorConfig = _
   @transient var operator: IOperatorExecutor = _
+  @transient var serializationCall: () => Unit = _
 
   def initOperator(
       workerIdx: Int,
