@@ -23,7 +23,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage,
   TriggerSend,
   FaultToleranceConfig,
-  StateRestoreConfig,
+  StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
@@ -187,7 +187,7 @@ abstract class WorkflowActor(
     if (logStorageToRead.containsFolder(replayTo.toString)) {
       // checkpoint found
       val chkptStorage = SequentialRecordStorage.getStorage[CheckpointState](
-        Some(replayConf.readFrom.resolve(replayTo.toString))
+        Some(stateRestoreConf.readFrom.resolve(replayTo.toString))
       )
       val chkpt = chkptStorage.getReader(getLogName).mkRecordIterator().next()
       initFromCheckpoint(chkpt)

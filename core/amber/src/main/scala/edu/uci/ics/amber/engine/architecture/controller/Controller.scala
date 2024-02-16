@@ -38,8 +38,6 @@ import scala.concurrent.duration.DurationInt
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
-      skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
       stateRestoreConfOpt = None,
       faultToleranceConfOpt = None
@@ -47,8 +45,6 @@ object ControllerConfig {
 }
 
 final case class ControllerConfig(
-    monitoringIntervalMs: Option[Long],
-    skewDetectionIntervalMs: Option[Long],
     statusUpdateIntervalMs: Option[Long],
     stateRestoreConfOpt: Option[StateRestoreConfig],
     faultToleranceConfOpt: Option[FaultToleranceConfig]
@@ -104,6 +100,7 @@ class Controller(
 
   override def initState(): Unit = {
     initControllerProcessor()
+    cp.setupTransferService(transferService)
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)

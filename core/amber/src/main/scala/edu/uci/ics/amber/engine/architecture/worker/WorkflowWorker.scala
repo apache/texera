@@ -88,6 +88,9 @@ class WorkflowWorker(
   val recordedInputs =
     new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
 
+  val recordedInputs =
+    new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
+
   override def initState(): Unit = {
     dp.initTimerService(timerService)
     dp.initOperator(

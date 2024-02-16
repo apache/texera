@@ -27,8 +27,6 @@ trait StartWorkflowHandler {
           )
           .map(_ => {
             cp.controllerTimerService.enableStatusUpdate()
-            cp.controllerTimerService.enableMonitoring()
-            cp.controllerTimerService.enableSkewHandling()
             RUNNING
           })
       } else {
