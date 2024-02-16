@@ -142,7 +142,8 @@ class WorkflowExecutionService(
       executionStateStore,
       wsInput,
       executionBreakpointService,
-      executionReconfigurationService
+      executionReconfigurationService,
+      controllerConfig.faultToleranceConfOpt
     )
     executionConsoleService =
       new ExecutionConsoleService(client, executionStateStore, wsInput, executionBreakpointService)
