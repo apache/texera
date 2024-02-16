@@ -27,7 +27,7 @@ trait QueryWorkerStatisticsHandler {
   registerHandler[ControllerInitiateQueryStatistics, Unit]((msg, sender) => {
     // send to specified workers (or all workers by default)
     val workers = msg.filterByWorkers.getOrElse(
-      cp.workflowExecution.getRunningRegionExecutions
+      cp.workflowExecution.getAllRegionExecutions
         .flatMap(_.getAllOperatorExecutions.map(_._2))
         .flatMap(_.getWorkerIds)
     )

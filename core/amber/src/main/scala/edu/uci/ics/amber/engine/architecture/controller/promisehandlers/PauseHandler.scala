@@ -34,7 +34,7 @@ trait PauseHandler {
       cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
       Future
         .collect(
-          cp.workflowExecution.getRunningRegionExecutions
+          cp.workflowExecution.getAllRegionExecutions
             .flatMap(_.getAllOperatorExecutions)
             .map {
               case (physicalOpId, opExecution) =>

@@ -136,14 +136,14 @@ class ExecutionStatsService(
   )
 
   private[this] def registerCallbacks(): Unit = {
-    registerCallbackOnWorkflowStatusUpdate()
+    registerCallbackOnWorkflowStatsUpdate()
     registerCallbackOnWorkerAssignedUpdate()
     registerCallbackOnWorkflowRecoveryUpdate()
     registerCallbackOnWorkflowComplete()
     registerCallbackOnFatalError()
   }
 
-  private[this] def registerCallbackOnWorkflowStatusUpdate(): Unit = {
+  private[this] def registerCallbackOnWorkflowStatsUpdate(): Unit = {
     addSubscription(
       client
         .registerCallback[WorkflowStatsUpdate]((evt: WorkflowStatsUpdate) => {

@@ -26,7 +26,7 @@ trait ResumeHandler {
       // resume message has no effect on non-paused workers
       Future
         .collect(
-          cp.workflowExecution.getRunningRegionExecutions
+          cp.workflowExecution.getAllRegionExecutions
             .flatMap(_.getAllOperatorExecutions.map(_._2))
             .flatMap(_.getWorkerIds)
             .map { workerId =>
