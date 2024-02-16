@@ -181,7 +181,4 @@ public class JGitVersionControl {
       return !status.isClean();
     }
   }
-
-  public JGitVersionControl() {
-  }
 }

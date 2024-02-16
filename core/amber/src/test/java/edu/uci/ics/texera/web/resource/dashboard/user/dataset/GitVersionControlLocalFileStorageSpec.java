@@ -132,7 +132,7 @@ public class GitVersionControlLocalFileStorageSpec {
     // File path for the test file
     Path file1Path = testRepoPath.resolve(testFile1Name);
     FileNode file1Node = new FileNode(file1Path);
-    Set<FileNode> fileNodes = new HashSet<>() {{
+    Set<FileNode> fileNodes = new HashSet<FileNode>() {{
       add(file1Node);
     }};
 
