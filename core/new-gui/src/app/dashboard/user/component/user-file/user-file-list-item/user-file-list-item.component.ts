@@ -1,7 +1,7 @@
 import { Component, EventEmitter, Input, Output } from "@angular/core";
 import { DashboardFile } from "../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { UserFileService } from "../../../service/user-file/user-file.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
@@ -44,7 +44,7 @@ export class UserFileListItemComponent {
   @Output() refresh = new EventEmitter<void>();
 
   constructor(
-    private modalService: NgbModal,
+    private modalService: NzModalService,
     private userFileService: UserFileService,
     private notificationService: NotificationService
   ) {}
@@ -57,13 +57,8 @@ export class UserFileListItemComponent {
       .changeFileName(this.entry.file.fid, name)
       .pipe(untilDestroyed(this))
       .subscribe({
-        next: () => {
-          this.entry.file.name = name;
-        },
-        error: (err: unknown) => {
-          // @ts-ignore // TODO: fix this with notification component
-          this.notificationService.error(err.error.message);
-        },
+        next: () => (this.entry.file.name = name),
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       })
       .add(() => (this.editingName = false));
   }
@@ -74,10 +69,7 @@ export class UserFileListItemComponent {
       .pipe(untilDestroyed(this))
       .subscribe({
         next: () => (this.entry.file.description = description),
-        error: (err: unknown) => {
-          // @ts-ignore
-          this.notificationService.error(err.error.message);
-        },
+        error: (e: unknown) => this.notificationService.error((e as Error).message),
       })
       .add(() => (this.editingDescription = false));
   }
@@ -87,13 +79,18 @@ export class UserFileListItemComponent {
   }
 
   public onClickOpenShareAccess(): void {
-    const modalRef = this.modalService.open(ShareAccessComponent);
-    modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";
-    modalRef.componentInstance.type = "file";
-    modalRef.componentInstance.id = this.entry.file.fid;
-    modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
-      this.refresh.emit();
+    const modalRef = this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzComponentParams: {
+        writeAccess: this.entry.accessLevel === "WRITE",
+        type: "file",
+        id: this.entry.file.fid,
+      },
+      nzFooter: null,
+      nzTitle: "Share this file with others",
+      nzCentered: true,
     });
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refresh.emit());
   }
 
   public downloadFile(): void {

@@ -1,18 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  OperatorIdentity,
-  PhysicalLinkIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -27,8 +19,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: IntervalJoinOpDesc = _
   var counter: Int = 0
 
-  def physicalLinkId(): PhysicalLinkIdentity =
-    PhysicalLinkIdentity(physicalOpId(), fromPort = 0, physicalOpId(), toPort = 0)
+  def physicalLink(): PhysicalLink =
+    PhysicalLink(
+      physicalOpId(),
+      fromPortId = PortIdentity(),
+      physicalOpId(),
+      toPortId = PortIdentity()
+    )
 
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1
@@ -223,15 +220,17 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
-      opDesc
+      opDesc,
+      inputSchemas(0),
+      inputSchemas(1),
+      outputSchema
     )
     opExec.open()
     counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
-    val leftOrder = Stream.continually(nextInt(10)).take(leftInput.length).toList
-    val rightOrder = Stream.continually(nextInt(10)).take(rightInput.length).toList
+    val leftOrder = LazyList.continually(nextInt(10)).take(leftInput.length).toList
+    val rightOrder = LazyList.continually(nextInt(10)).take(rightInput.length).toList
     val outputTuples: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]
 
     while (leftIndex < leftOrder.size || rightIndex < rightOrder.size) {
@@ -418,8 +417,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      OperatorSchemaInfo(inputSchemas, Array(outputSchema)),
-      opDesc
+      opDesc,
+      inputSchemas(0),
+      inputSchemas(1),
+      outputSchema
     )
 
     opExec.open()
@@ -492,8 +493,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "test larger dataset(1k)" in {
-    val pointList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
-    val rangeList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
+    val pointList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
+    val rangeList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
     testJoin[Long](
       "point",
       "range",

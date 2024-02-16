@@ -40,7 +40,7 @@ class WorkflowCompiler(
       logicalPlan
     )
 
-    logicalPlan = logicalPlan.propagateWorkflowSchema(context, Some(errorList))
+    logicalPlan.propagateWorkflowSchema(context, Some(errorList))
 
     // report compilation errors
     if (errorList.nonEmpty) {
@@ -56,7 +56,7 @@ class WorkflowCompiler(
           )
       }
       executionStateStore.metadataStore.updateState(metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors: _*)
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors.toSeq: _*)
       )
     }
     logicalPlan
@@ -90,10 +90,10 @@ class WorkflowCompiler(
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
-      rewrittenLogicalPlan,
+      context,
       physicalPlan,
       opResultStorage
-    ).generate(context)
+    ).generate()
 
     // validate the plan
     // TODO: generalize validation to each plan
@@ -101,9 +101,9 @@ class WorkflowCompiler(
     updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
       assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
     }
-    // the updated physical plan's all sink operators should have 0 output ports
+    // the updated physical plan's all sink operators should have 1 output ports
     updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.isEmpty)
+      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.size == 1)
     }
 
     Workflow(

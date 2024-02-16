@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -21,15 +22,14 @@ class SplitOpExec(
       input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[Int])] = {
-
-    if (tuple.isLeft) {
-      val isTraining = random.nextInt(100) < opDesc.k
-      // training output port: 0, testing output port: 1
-      val port = if (isTraining) 0 else 1
-      Iterator.single((tuple.left.get, Some(port)))
-    } else {
-      Iterator.empty
+  ): Iterator[(ITuple, Option[PortIdentity])] = {
+    tuple match {
+      case Left(iTuple) =>
+        val isTraining = random.nextInt(100) < opDesc.k
+        // training output port: 0, testing output port: 1
+        val port = if (isTraining) PortIdentity(0) else PortIdentity(1)
+        Iterator.single((iTuple, Some(port)))
+      case Right(_) => Iterator.empty
     }
   }
 

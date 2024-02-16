@@ -7,14 +7,13 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
-import scala.collection.JavaConverters._
-import scala.collection.convert.ImplicitConversions.`iterator asScala`
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.{IterableHasAsJava, IteratorHasAsScala}
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -27,8 +26,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     filePath match {
       case Some(path) =>
@@ -37,7 +35,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
           new InputStreamReader(new FileInputStream(path), fileEncoding.getCharset)
         )
         val offsetValue = offset.getOrElse(0)
-        var lines = reader.lines().iterator().drop(offsetValue)
+        var lines = reader.lines().iterator().asScala.drop(offsetValue)
         if (limit.isDefined) lines = lines.take(limit.get)
         val count: Int = lines.map(_ => 1).sum
         reader.close()
@@ -47,15 +45,17 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo(p => {
-              val i = p._1
-              val workerCount = p._2.getWorkerIds.length
-              val startOffset: Int = offsetValue + count / workerCount * i
+            OpExecInitInfo((idx, physicalOp, operatorConfig) => {
+              val workerCount = operatorConfig.workerConfigs.length
+              val startOffset: Int = offsetValue + count / workerCount * idx
               val endOffset: Int =
-                offsetValue + (if (i != workerCount - 1) count / workerCount * (i + 1) else count)
+                offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
+                               else count)
               new JSONLScanSourceOpExec(this, startOffset, endOffset)
             })
           )
+          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
           .withParallelizable(true)
 
       case None =>

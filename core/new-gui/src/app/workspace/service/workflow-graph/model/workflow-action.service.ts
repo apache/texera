@@ -233,7 +233,13 @@ export class WorkflowActionService {
       portID = prefix + suffix;
     }
 
-    const port: PortDescription = { portID, displayName: portID, allowMultiInputs, isDynamicPort: true };
+    const port: PortDescription = {
+      portID,
+      displayName: portID,
+      allowMultiInputs,
+      isDynamicPort: true,
+      dependencies: [],
+    };
 
     if (!operator.dynamicInputPorts && isInput) {
       throw new Error(`operator ${operatorID} does not have dynamic input ports`);
@@ -639,7 +645,7 @@ export class WorkflowActionService {
 
       const workflowContent: WorkflowContent = workflow.content;
 
-      const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+      let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
         const opPosition = workflowContent.operatorPositions[op.operatorID];
         if (!opPosition) {
@@ -664,6 +670,8 @@ export class WorkflowActionService {
       const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
 
       const commentBoxes = workflowContent.commentBoxes;
+
+      operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
 
       this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
 
@@ -884,5 +892,16 @@ export class WorkflowActionService {
           }
         });
       });
+  }
+
+  private updateOperatorVersions(operatorsAndPositions: { op: OperatorPredicate; pos: Point }[]) {
+    const updatedOperators: { op: OperatorPredicate; pos: Point }[] = [];
+    for (const operatorsAndPosition of operatorsAndPositions) {
+      updatedOperators.push({
+        op: this.workflowUtilService.updateOperatorVersion(operatorsAndPosition.op),
+        pos: operatorsAndPosition.pos,
+      });
+    }
+    return updatedOperators;
   }
 }

@@ -6,9 +6,9 @@ import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.logreplay.storage.URILogStorage
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.Utils.{maptoStatusCode, objectMapper}
@@ -93,7 +93,7 @@ object TexeraWebApplication {
       list match {
         case Nil => map
         case "--cluster" :: value :: tail =>
-          nextOption(map ++ Map('cluster -> value.toBoolean), tail)
+          nextOption(map ++ Map(Symbol("cluster") -> value.toBoolean), tail)
         case option :: tail =>
           throw new InvalidArgumentException("unknown command-line arg")
       }
@@ -105,7 +105,7 @@ object TexeraWebApplication {
   def main(args: Array[String]): Unit = {
     val argMap = parseArgs(args)
 
-    val clusterMode = argMap.get('cluster).asInstanceOf[Option[Boolean]].getOrElse(false)
+    val clusterMode = argMap.get(Symbol("cluster")).asInstanceOf[Option[Boolean]].getOrElse(false)
 
     // start actor system master node
     actorSystem = AmberUtils.startActorMaster(clusterMode)
@@ -289,8 +289,13 @@ class TexeraWebApplication
       return
     }
     val uri = new URI(logLocation)
-    val storage = new URILogStorage(uri)
-    storage.deleteStorage()
+    try {
+      val storage = SequentialRecordStorage.getStorage(Some(uri))
+      storage.deleteStorage()
+    } catch {
+      case throwable: Throwable =>
+        logger.warn(s"failed to delete log at $logLocation", throwable)
+    }
   }
 
   /**

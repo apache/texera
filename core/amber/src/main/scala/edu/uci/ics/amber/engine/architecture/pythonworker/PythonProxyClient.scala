@@ -87,11 +87,11 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     while (running) {
       getElement match {
         case DataElement(dataPayload, channel) =>
-          sendData(dataPayload, channel.from)
+          sendData(dataPayload, channel.fromWorkerId)
         case ControlElement(cmd, channel) =>
-          sendControlV1(channel.from, cmd)
+          sendControlV1(channel.fromWorkerId, cmd)
         case ControlElementV2(cmd, channel) =>
-          sendControlV2(channel.from, cmd)
+          sendControlV2(channel.fromWorkerId, cmd)
         case ActorCommandElement(cmd) =>
           sendActorCommand(cmd)
 
@@ -103,7 +103,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     dataPayload match {
       case DataFrame(frame) =>
         val tuples: mutable.Queue[Tuple] =
-          mutable.Queue(frame.map(_.asInstanceOf[Tuple]): _*)
+          mutable.Queue(frame.map(_.asInstanceOf[Tuple]).toSeq: _*)
         writeArrowStream(tuples, from, isEnd = false)
       case EndOfUpstream() =>
         writeArrowStream(mutable.Queue(), from, isEnd = true)

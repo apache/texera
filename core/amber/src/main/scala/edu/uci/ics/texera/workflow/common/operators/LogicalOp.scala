@@ -9,9 +9,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.OPversion
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameConstants}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
@@ -68,20 +69,20 @@ import edu.uci.ics.texera.workflow.operators.visualization.scatterplot.Scatterpl
 import edu.uci.ics.texera.workflow.operators.visualization.ganttChart.GanttChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.urlviz.UrlVizOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.DotPlot.DotPlotOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.{
-  WordCloudOpDesc,
-  WordCloudV2OpDesc
-}
+import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.filledAreaPlot.FilledAreaPlotOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.HierarchyChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.DumbbellPlotOpDesc
-import edu.uci.ics.texera.workflow.operators.visualization.linechart.LineChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.heatMap.HeatMapOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart.Scatter3dChartOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
 
 import java.util.UUID
+import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
@@ -123,7 +124,6 @@ trait StateTransferFunc
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
     new Type(value = classOf[WordCloudOpDesc], name = "WordCloud"),
-    new Type(value = classOf[WordCloudV2OpDesc], name = "WordCloudV2"),
     new Type(value = classOf[HtmlVizOpDesc], name = "HTMLVisualizer"),
     new Type(value = classOf[UrlVizOpDesc], name = "URLVisualizer"),
     new Type(value = classOf[ScatterplotOpDesc], name = "Scatterplot"),
@@ -160,7 +160,9 @@ trait StateTransferFunc
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
-    new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot")
+    new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
+    new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
+    new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart")
   )
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {
@@ -173,12 +175,16 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
 
   @JsonProperty(PropertyNameConstants.OPERATOR_VERSION)
   var operatorVersion: String = getOperatorVersion()
+
+  @JsonIgnore
+  val inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
+  @JsonIgnore
+  val outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema] = mutable.HashMap()
   def operatorIdentifier: OperatorIdentity = OperatorIdentity(operatorId)
 
   def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     throw new UnimplementedException()
   }
@@ -186,11 +192,10 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   // a logical operator corresponds multiple physical operators (a small DAG)
   def getPhysicalPlan(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalPlan = {
     new PhysicalPlan(
-      operators = Set(getPhysicalOp(workflowId, executionId, operatorSchemaInfo)),
+      operators = Set(getPhysicalOp(workflowId, executionId)),
       links = Set.empty
     )
   }
@@ -228,8 +233,8 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   def runtimeReconfiguration(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
-      newOpDesc: LogicalOp,
-      operatorSchemaInfo: OperatorSchemaInfo
+      oldOpDesc: LogicalOp,
+      newOpDesc: LogicalOp
   ): Try[(PhysicalOp, Option[StateTransferFunc])] = {
     throw new UnsupportedOperationException(
       "operator " + getClass.getSimpleName + " does not support reconfiguration"

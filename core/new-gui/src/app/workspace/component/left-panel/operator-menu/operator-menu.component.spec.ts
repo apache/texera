@@ -145,7 +145,7 @@ describe("OperatorPanelComponent", () => {
     dragDropService.operatorDroppedSubject.next({
       operatorType: "ScanSource",
       offset: { x: 1, y: 1 },
-      dragElementID: OperatorLabelComponent.operatorLabelSearchBoxPrefix + "ScanSource",
+      dragElementID: "operator-label-ScanSource",
     });
 
     fixture.detectChanges();

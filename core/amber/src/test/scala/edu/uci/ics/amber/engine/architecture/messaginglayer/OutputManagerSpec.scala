@@ -2,20 +2,15 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelID,
-  DataFrame,
-  DataPayload,
-  EndOfUpstream,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   OperatorIdentity,
-  PhysicalLinkIdentity,
   PhysicalOpIdentity
 }
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -38,7 +33,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       seq: Long,
       payload: DataPayload
   ): WorkflowFIFOMessage = {
-    WorkflowFIFOMessage(ChannelID(from, to, false), seq, payload)
+    WorkflowFIFOMessage(ChannelIdentity(from, to, isControl = false), seq, payload)
   }
 
   "OutputManager" should "aggregate tuples and output" in {
@@ -57,11 +52,13 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       )
       (mockHandler.apply _).expects(mkDataMessage(fakeID, identifier, 3, EndOfUpstream()))
     }
-    val fakeLink =
-      PhysicalLinkIdentity(physicalOpId(), 0, physicalOpId(), 0)
+    val fakeLink = PhysicalLink(physicalOpId(), PortIdentity(), physicalOpId(), PortIdentity())
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
-    outputManager.addPartitionerWithPartitioning(fakeLink, OneToOnePartitioning(10, fakeReceiver))
+    outputManager.addPartitionerWithPartitioning(
+      fakeLink,
+      OneToOnePartitioning(10, fakeReceiver.toSeq)
+    )
     tuples.foreach { t =>
       outputManager.passTupleToDownstream(t, fakeLink)
     }
@@ -72,7 +69,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     val outputManager = wire[OutputManager]
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     (mockHandler.apply _).expects(*).never()
-    val fakeLink = PhysicalLinkIdentity(physicalOpId(), 0, physicalOpId(), 0)
+    val fakeLink = PhysicalLink(physicalOpId(), PortIdentity(), physicalOpId(), PortIdentity())
     assertThrows[Exception] {
       tuples.foreach { t =>
         outputManager.passTupleToDownstream(t, fakeLink)

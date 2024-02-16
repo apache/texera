@@ -18,18 +18,16 @@ class ControllerAsyncRPCHandlerInitializer(
     with QueryWorkerStatisticsHandler
     with ResumeHandler
     with StartWorkflowHandler
-    with LinkCompletedHandler
+    with PortCompletedHandler
     with FatalErrorHandler
     with ConsoleMessageHandler
     with RetryWorkflowHandler
     with ModifyLogicHandler
     with EvaluatePythonExpressionHandler
-    with MonitoringHandler
-    with SkewDetectionHandler
-    with RegionsTimeSlotExpiredHandler
     with DebugCommandHandler
-    with EpochMarkerHandler {
+    with TakeGlobalCheckpointHandler
+    with ChannelMarkerHandler
+    with RetrieveWorkflowStateHandler {
   val actorId: ActorVirtualIdentity = cp.actorId
 
-  var workflowReshapeState: WorkflowReshapeState = new WorkflowReshapeState()
 }

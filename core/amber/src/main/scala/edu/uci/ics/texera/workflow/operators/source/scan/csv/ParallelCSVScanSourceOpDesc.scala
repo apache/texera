@@ -8,16 +8,11 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, IOException}
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -37,8 +32,7 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
@@ -53,14 +47,13 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo(p => {
-              val i = p._1
-              val workerCount = p._2.getWorkerIds.length
+            OpExecInitInfo((idx, _, operatorConfig) => {
+              val workerCount = operatorConfig.workerConfigs.length
               // TODO: add support for limit
               // TODO: add support for offset
-              val startOffset: Long = totalBytes / workerCount * i
+              val startOffset: Long = totalBytes / workerCount * idx
               val endOffset: Long =
-                if (i != workerCount - 1) totalBytes / workerCount * (i + 1) else totalBytes
+                if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
               new ParallelCSVScanSourceOpExec(
                 this,
                 startOffset,
@@ -68,6 +61,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               )
             })
           )
+          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
           .withParallelizable(true)
 
       case None =>

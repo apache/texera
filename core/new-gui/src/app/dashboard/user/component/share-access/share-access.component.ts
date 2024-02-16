@@ -1,6 +1,5 @@
 import { Component, Input, OnInit } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
-import { FormBuilder, Validators } from "@angular/forms";
+import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -17,23 +16,22 @@ export class ShareAccessComponent implements OnInit {
   @Input() id!: number;
   @Input() allOwners!: string[];
 
-  validateForm = this.formBuilder.group({
-    email: [null, [Validators.email, Validators.required]],
-    accessLevel: ["READ"],
-  });
-
+  public validateForm: FormGroup;
   public accessList: ReadonlyArray<ShareAccess> = [];
   public owner: string = "";
   public filteredOwners: Array<string> = [];
   public ownerSearchValue?: string;
   currentEmail: string | undefined = "";
   constructor(
-    public activeModal: NgbActiveModal,
     private accessService: ShareAccessService,
     private formBuilder: FormBuilder,
     private userService: UserService,
     private gmailService: GmailService
   ) {
+    this.validateForm = this.formBuilder.group({
+      email: [null, [Validators.email, Validators.required]],
+      accessLevel: ["READ"],
+    });
     this.currentEmail = this.userService.getCurrentUser()?.email;
   }
 
@@ -61,12 +59,7 @@ export class ShareAccessComponent implements OnInit {
   public grantAccess(): void {
     if (this.validateForm.valid) {
       this.accessService
-        .grantAccess(
-          this.type,
-          this.id,
-          this.validateForm.get("email")?.value,
-          this.validateForm.get("accessLevel")?.value
-        )
+        .grantAccess(this.type, this.id, this.validateForm.value.email, this.validateForm.value.accessLevel)
         .pipe(untilDestroyed(this))
         .subscribe(() => {
           this.ngOnInit();
@@ -79,7 +72,7 @@ export class ShareAccessComponent implements OnInit {
               location.origin +
               "/workflow/" +
               this.id,
-            this.validateForm.get("email")?.value
+            this.validateForm.value.email
           );
         });
     }
@@ -89,11 +82,6 @@ export class ShareAccessComponent implements OnInit {
     this.accessService
       .revokeAccess(this.type, this.id, userToRemove)
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        if (this.currentEmail === userToRemove) {
-          this.activeModal.close();
-        }
-        this.ngOnInit();
-      });
+      .subscribe(() => this.ngOnInit());
   }
 }

@@ -1,17 +1,5 @@
-// needed by bootstrap and font-awesome
-@import "variables";
-
-// import font awesome library
-$fa-font-path: "~font-awesome/fonts";
-@import "~font-awesome/scss/font-awesome";
-
 @import "~c3/c3.min.css";
-@import "~bootstrap/scss/bootstrap";
-// a theme is required by angular material
 @import "material-custom-theme.scss";
-
-@import "~ng-zorro-antd/ng-zorro-antd.min.css";
-@import "~ng-zorro-antd/resizable/style/index.min.css";
 
 // make the UI takes full screen
 html,

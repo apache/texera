@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.e2e
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregationFunction,
   AggregationOperation,
@@ -13,7 +14,6 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONLScanSourceOpD
 import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.PythonUDFOpDescV2
-import edu.uci.ics.texera.workflow.operators.visualization.wordCloud.WordCloudOpDesc
 
 object TestOperators {
 
@@ -49,7 +49,10 @@ object TestOperators {
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
+    csvHeaderlessOp.outputPortToSchemaMapping(PortIdentity()) =
+      csvHeaderlessOp.getOutputSchema(Array())
     csvHeaderlessOp
+
   }
 
   def getJSONLScanOpDesc(fileName: String, flatten: Boolean = false): JSONLScanSourceOpDesc = {
@@ -124,13 +127,6 @@ object TestOperators {
 
   def sinkOpDesc(): ProgressiveSinkOpDesc = {
     new ProgressiveSinkOpDesc()
-  }
-
-  def wordCloudOpDesc(textColumn: String, topN: Integer = null): WordCloudOpDesc = {
-    val wordCountOpDesc = new WordCloudOpDesc()
-    wordCountOpDesc.textColumn = textColumn
-    wordCountOpDesc.topN = topN
-    wordCountOpDesc
   }
 
   def pythonOpDesc(): PythonUDFOpDescV2 = {

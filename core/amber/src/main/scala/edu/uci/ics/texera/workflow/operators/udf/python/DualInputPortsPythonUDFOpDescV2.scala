@@ -6,17 +6,15 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
+import edu.uci.ics.amber.engine.common.workflow.InputPort
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
@@ -68,29 +66,27 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
-    if (workers > 1)
+    if (workers > 1) {
       PhysicalOp
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
-        .withBlockingInputs(List(0))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withDependencies(Map(1 -> 0))
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
         .withSuggestedWorkerNum(workers)
-    else
+    } else {
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
-        .withBlockingInputs(List(0))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOperatorSchemaInfo(schemaInfo = operatorSchemaInfo)
-        .withDependencies(Map(1 -> 0))
+        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+    }
   }
 
   override def operatorInfo: OperatorInfo =
@@ -98,11 +94,16 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
       "2-in Python UDF",
       "User-defined function operator in Python script",
       OperatorGroupConstants.UDF_GROUP,
-      List(
-        InputPort("model", allowMultiInputs = true),
-        InputPort("tuples", allowMultiInputs = true)
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "model", allowMultiLinks = true),
+        InputPort(
+          PortIdentity(1),
+          displayName = "tuples",
+          allowMultiLinks = true,
+          dependencies = List(PortIdentity(0))
+        )
       ),
-      List(OutputPort(""))
+      outputPorts = List(OutputPort())
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

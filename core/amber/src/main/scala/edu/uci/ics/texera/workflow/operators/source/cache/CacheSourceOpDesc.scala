@@ -7,17 +7,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   WorkflowIdentity
 }
-import edu.uci.ics.texera.workflow.common.metadata.{
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.common.workflow.OutputPort
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
-
-import java.util.Collections.singletonList
-import scala.collection.JavaConverters.asScalaBuffer
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStorage: OpResultStorage)
     extends SourceOperatorDescriptor {
@@ -30,15 +24,17 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp.sourcePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo(_ => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))
-    )
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new CacheSourceOpExec(opResultStorage.get(targetSinkStorageId)))
+      )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
   }
 
   override def operatorInfo: OperatorInfo =
@@ -46,7 +42,7 @@ class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStora
       "Cache Source Operator",
       "Retrieve the cached output to src",
       OperatorGroupConstants.UTILITY_GROUP,
-      List.empty,
-      asScalaBuffer(singletonList(OutputPort(""))).toList
+      inputPorts = List.empty,
+      outputPorts = List(OutputPort())
     )
 }

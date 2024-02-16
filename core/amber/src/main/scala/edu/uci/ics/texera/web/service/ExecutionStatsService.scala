@@ -35,7 +35,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMP
 
 import java.time.Instant
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import org.jooq.types.UInteger
+import org.jooq.types.{UInteger, ULong}
 
 import java.util
 
@@ -53,15 +53,24 @@ class ExecutionStatsService(
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       if (AmberConfig.isUserSystemEnabled) {
-        storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
-          case ((newId, newStats), (oldId, oldStats)) =>
-            val res = OperatorRuntimeStats(
-              newStats.state,
-              newStats.inputCount - oldStats.inputCount,
-              newStats.outputCount - oldStats.outputCount
-            )
-            (newId, res)
-        })
+        storeRuntimeStatistics(
+          newState.operatorInfo
+            .zip(oldState.operatorInfo)
+            .collect {
+              case ((newId, newStats), (oldId, oldStats)) =>
+                val res = OperatorRuntimeStats(
+                  newStats.state,
+                  newStats.inputCount - oldStats.inputCount,
+                  newStats.outputCount - oldStats.outputCount,
+                  newStats.numWorkers,
+                  newStats.dataProcessingTime - oldStats.dataProcessingTime,
+                  newStats.controlProcessingTime - oldStats.controlProcessingTime,
+                  newStats.idleTime - oldStats.idleTime
+                )
+                (newId, res)
+            }
+            .toMap
+        )
       }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
@@ -72,7 +81,11 @@ class ExecutionStatsService(
               val res = OperatorStatistics(
                 Utils.aggregatedStateToString(stats.state),
                 stats.inputCount,
-                stats.outputCount
+                stats.outputCount,
+                stats.numWorkers,
+                stats.dataProcessingTime,
+                stats.controlProcessingTime,
+                stats.idleTime
               )
               (x._1, res)
           })
@@ -156,6 +169,10 @@ class ExecutionStatsService(
         execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
         execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
         execution.setStatus(maptoStatusCode(stat.state))
+        execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
+        execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
+        execution.setIdleTime(ULong.valueOf(stat.idleTime))
+        execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
         list.add(execution)
       }
       workflowRuntimeStatisticsDao.insert(list)
@@ -172,7 +189,7 @@ class ExecutionStatsService(
             statsStore.withOperatorWorkerMapping(
               evt.workerMapping
                 .map({
-                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds)
+                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds.toSeq)
                 })
                 .toSeq
             )

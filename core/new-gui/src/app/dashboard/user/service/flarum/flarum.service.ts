@@ -15,7 +15,7 @@ export class FlarumService {
   auth() {
     const currentUser = this.userService.getCurrentUser();
     return this.http.post(
-      "http://localhost:8888/api/token",
+      "forum/api/token",
       { identification: currentUser!.email, password: currentUser!.googleId, remember: "1" },
       { headers: { "Content-Type": "application/json" }, withCredentials: true }
     );

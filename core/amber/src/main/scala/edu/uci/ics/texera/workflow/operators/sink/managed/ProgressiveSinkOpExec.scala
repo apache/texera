@@ -4,14 +4,14 @@ import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.{ISinkOperatorExecutor, InputExhausted}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode._
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageWriter
 
 class ProgressiveSinkOpExec(
-    val operatorSchemaInfo: OperatorSchemaInfo,
     val outputMode: IncrementalOutputMode,
-    val storage: SinkStorageWriter
+    val storage: SinkStorageWriter,
+    val inputSchema: Schema
 ) extends ISinkOperatorExecutor {
 
   override def open(): Unit = storage.open()
@@ -36,7 +36,7 @@ class ProgressiveSinkOpExec(
 
   private def updateSetSnapshot(deltaUpdate: Tuple): Unit = {
     val (isInsertion, tupleValue) =
-      ProgressiveUtils.getTupleFlagAndValue(deltaUpdate, operatorSchemaInfo)
+      ProgressiveUtils.getTupleFlagAndValue(deltaUpdate, inputSchema)
     if (isInsertion) {
       storage.putOne(tupleValue)
     } else {

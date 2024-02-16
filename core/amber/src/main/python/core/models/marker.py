@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
-from proto.edu.uci.ics.amber.engine.common import PhysicalLinkIdentity
+
+from proto.edu.uci.ics.amber.engine.common import ChannelIdentity
 
 
 @dataclass
@@ -15,7 +16,7 @@ class Marker:
 
 @dataclass
 class SenderChangeMarker(Marker):
-    link: PhysicalLinkIdentity
+    channel_id: ChannelIdentity
 
 
 @dataclass

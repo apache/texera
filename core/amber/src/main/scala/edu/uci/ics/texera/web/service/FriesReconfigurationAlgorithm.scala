@@ -1,20 +1,21 @@
 package edu.uci.ics.texera.web.service
 
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlan
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
   WorkerModifyLogic,
   WorkerModifyLogicMultiple
 }
-import edu.uci.ics.amber.engine.common.ambermessage.EpochMarker
-import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import org.jgrapht.alg.connectivity.ConnectivityInspector
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.asScalaSet
+import scala.jdk.CollectionConverters.SetHasAsScala
 
 object FriesReconfigurationAlgorithm {
 
@@ -27,10 +28,10 @@ object FriesReconfigurationAlgorithm {
       regionPlan: RegionPlan,
       reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
       epochMarkerId: String
-  ): Set[(PhysicalOpIdentity, EpochMarker)] = {
+  ): Set[PropagateChannelMarker] = {
     // independently schedule reconfigurations for each region:
     regionPlan.regions
-      .map(region => physicalPlan.getSubPlan(region.physicalOpIds))
+      .map(region => physicalPlan.getSubPlan(region.getOperators.map(_.id)))
       .flatMap(regionSubPlan => computeMCS(regionSubPlan, reconfigurations, epochMarkerId))
       .toSet
   }
@@ -39,7 +40,7 @@ object FriesReconfigurationAlgorithm {
       physicalPlan: PhysicalPlan,
       reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
       epochMarkerId: String
-  ): List[(PhysicalOpIdentity, EpochMarker)] = {
+  ): List[PropagateChannelMarker] = {
 
     // add all reconfiguration operators to M
     val reconfigOps = reconfigurations.map(reconfigOp => reconfigOp._1.id).toSet
@@ -49,7 +50,7 @@ object FriesReconfigurationAlgorithm {
     val oneToManyOperators = getOneToManyOperators(physicalPlan)
     oneToManyOperators.foreach(oneToManyOp => {
       val intersection =
-        physicalPlan.getDescendantPhysicalOpIds(oneToManyOp).toSet.intersect(reconfigOps)
+        physicalPlan.getDescendantPhysicalOpIds(oneToManyOp).intersect(reconfigOps)
       if (intersection.nonEmpty) {
         M += oneToManyOp
       }
@@ -83,11 +84,11 @@ object FriesReconfigurationAlgorithm {
 
     // find the MCS components,
     // for each component, send an epoch marker to each of its source operators
-    val epochMarkers = new ArrayBuffer[(PhysicalOpIdentity, EpochMarker)]()
+    val epochMarkers = new ArrayBuffer[PropagateChannelMarker]()
 
     val connectedSets = new ConnectivityInspector(mcsPlan.dag).connectedSets()
     connectedSets.forEach(component => {
-      val componentSet = asScalaSet(component).toSet
+      val componentSet = component.asScala.toSet
       val componentPlan = mcsPlan.getSubPlan(componentSet)
 
       // generate the reconfiguration command for this component
@@ -99,9 +100,14 @@ object FriesReconfigurationAlgorithm {
 
       // find the source operators of the component
       val sources = componentSet.intersect(mcsPlan.getSourceOperatorIds)
-      sources.foreach(source => {
-        epochMarkers += ((source, EpochMarker(epochMarkerId, componentPlan, Some(reconfigCommand))))
-      })
+      epochMarkers += PropagateChannelMarker(
+        sources,
+        ChannelMarkerIdentity(epochMarkerId),
+        RequireAlignment,
+        componentPlan,
+        reconfigurations.map(_._1.id).toSet,
+        reconfigCommand
+      )
     })
 
     epochMarkers.toList
