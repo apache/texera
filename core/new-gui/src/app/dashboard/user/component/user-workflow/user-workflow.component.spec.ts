@@ -40,6 +40,7 @@ import { StubSearchService } from "../../service/stub-search.service";
 import { SearchResultsComponent } from "../search-results/search-results.component";
 import { delay } from "rxjs";
 import { NzModalService } from "ng-zorro-antd/modal";
+import { HighlightSearchTermsPipe } from "./user-workflow-list-item/highlight-search-terms.pipe";
 
 describe("SavedWorkflowSectionComponent", () => {
   let component: UserWorkflowComponent;
@@ -56,6 +57,7 @@ describe("SavedWorkflowSectionComponent", () => {
         FiltersComponent,
         UserWorkflowListItemComponent,
         SearchResultsComponent,
+        HighlightSearchTermsPipe,
       ],
       providers: [
         NzModalService,
