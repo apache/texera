@@ -5,6 +5,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
   NetworkOutputGateway
 }
+import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
@@ -36,8 +37,8 @@ class AmberProcessor(
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
 
-  // Measuring Time
-  var controlProcessingTime = 0L;
+  // statistics manager
+  val statisticsManager: StatisticsManager = new StatisticsManager()
 
   def processControlPayload(
       channelId: ChannelIdentity,
@@ -51,7 +52,7 @@ class AmberProcessor(
         asyncRPCClient.logControlReply(ret, channelId)
         asyncRPCClient.fulfillPromise(ret)
     }
-    controlProcessingTime += (System.nanoTime() - controlProcessingStartTime);
+    statisticsManager.increaseControlProcessingTime(System.nanoTime() - controlProcessingStartTime)
   }
 
 }

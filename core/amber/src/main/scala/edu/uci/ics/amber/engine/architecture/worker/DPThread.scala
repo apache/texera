@@ -76,7 +76,7 @@ class DPThread(
           Thread.currentThread().setName(getThreadName)
           logger.info("DP thread started")
           startFuture.complete(())
-          dp.startTime = System.nanoTime()
+          dp.statisticsManager.initializeWorkerStartTime(System.nanoTime())
           try {
             runDPThreadMainLogic()
           } catch safely {
@@ -90,7 +90,7 @@ class DPThread(
                 CONTROLLER
               )
           }
-          dp.totalExecutionTime = (System.nanoTime() - dp.startTime)
+          dp.statisticsManager.updateTotalExecutionTime(System.nanoTime())
           endFuture.complete(())
         }
       })
@@ -199,7 +199,7 @@ class DPThread(
         dp.serializationCall = null
       }
 
-      dp.totalExecutionTime = System.nanoTime() - dp.startTime
+      dp.statisticsManager.updateTotalExecutionTime(System.nanoTime())
       // End of Main loop
     }
   }
