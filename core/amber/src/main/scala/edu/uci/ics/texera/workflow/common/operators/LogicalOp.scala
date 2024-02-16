@@ -247,6 +247,6 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
   @JsonProperty
   @JsonSchemaTitle("Dummy Property List")
   @JsonPropertyDescription("Add dummy property if needed")
-  var dummyProperties: List[DummyProperties] = List()
+  var dummyPropertyList: List[DummyProperties] = List()
 
 }

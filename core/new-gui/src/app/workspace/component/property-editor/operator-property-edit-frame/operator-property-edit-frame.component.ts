@@ -432,11 +432,30 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
-      // if the title is Dummy, then make this field read-only 
-      if (mappedField.key == "dummyProperties" || mappedField.key == "dummyProperty" || mappedField.key == "dummyValue") {
-        mappedField.templateOptions = {
-          ...mappedField.templateOptions, // Spread operator to preserve existing options
-          readonly: true, // This makes the field read-only
+      // Disable dummy operator for user
+      if (mappedField.key === "dummyOperator") {
+        mappedField.expressionProperties = {
+          "templateOptions.disabled": () => true,
+          "templateOptions.readonly": () => true,
+        };
+      }
+
+      // Disable dummy property and value fields for user
+      if (mappedField.key === "dummyProperty" || mappedField.key === "dummyValue") {
+        mappedField.expressionProperties = {
+          "templateOptions.readonly": () => true,
+          "templateOptions.disabled": () => true,
+        };
+      }
+
+      // Disable dummy property list for all operators
+      if (mappedField.key === "dummyPropertyList") {
+        mappedField.hide = true;
+        mappedField.expressionProperties = {
+          "templateOptions.disabled": () => true,
+          "templateOptions.readonly": () => true,
+          "templateOptions.canRemove": () => false,
+          "templateOptions.canAdd": () => false,
         };
       }
 

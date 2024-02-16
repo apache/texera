@@ -13,7 +13,7 @@ class DummyOpDesc extends LogicalOp with PortDescriptor {
   @JsonProperty
   @JsonSchemaTitle("Description")
   @JsonPropertyDescription("The description of this dummy operator")
-  var desc: String = ""
+  var dummyOperator: String = ""
 
   override def operatorInfo: OperatorInfo = {
     val inputPortInfo = if (inputPorts != null) {
