@@ -29,6 +29,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAIL
 import edu.uci.ics.texera.web.workflowruntimestate.{
   OperatorRuntimeStats,
   OperatorWorkerMapping,
+  WorkflowAggregatedState,
   WorkflowFatalError
 }
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
@@ -53,24 +54,41 @@ class ExecutionStatsService(
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       if (AmberConfig.isUserSystemEnabled) {
-        storeRuntimeStatistics(
-          newState.operatorInfo
-            .zip(oldState.operatorInfo)
-            .collect {
-              case ((newId, newStats), (oldId, oldStats)) =>
-                val res = OperatorRuntimeStats(
-                  newStats.state,
-                  newStats.inputCount - oldStats.inputCount,
-                  newStats.outputCount - oldStats.outputCount,
-                  newStats.numWorkers,
-                  newStats.dataProcessingTime - oldStats.dataProcessingTime,
-                  newStats.controlProcessingTime - oldStats.controlProcessingTime,
-                  newStats.idleTime - oldStats.idleTime
-                )
-                (newId, res)
-            }
-            .toMap
-        )
+        val defaultStats =
+          OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
+
+        // Create a copy of oldState.operatorInfo and newState.operatorInfo
+        var oldStateInfo = oldState.operatorInfo
+        var newStateInfo = newState.operatorInfo
+
+        // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
+        val newKeys = newState.operatorInfo.keys.toSet diff oldState.operatorInfo.keys.toSet
+        for (key <- newKeys) {
+          oldStateInfo = oldStateInfo + (key -> defaultStats)
+        }
+
+        // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
+        val oldKeys = oldState.operatorInfo.keys.toSet diff newState.operatorInfo.keys.toSet
+        for (key <- oldKeys) {
+          newStateInfo = newStateInfo + (key -> oldState.operatorInfo(key))
+        }
+
+        val result = newStateInfo.keys.map { key =>
+          val newStats = newStateInfo(key)
+          val oldStats = oldStateInfo(key)
+          val res = OperatorRuntimeStats(
+            newStats.state,
+            newStats.inputCount - oldStats.inputCount,
+            newStats.outputCount - oldStats.outputCount,
+            newStats.numWorkers,
+            newStats.dataProcessingTime - oldStats.dataProcessingTime,
+            newStats.controlProcessingTime - oldStats.controlProcessingTime,
+            newStats.idleTime - oldStats.idleTime
+          )
+          (key, res)
+        }.toMap
+
+        storeRuntimeStatistics(result)
       }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
