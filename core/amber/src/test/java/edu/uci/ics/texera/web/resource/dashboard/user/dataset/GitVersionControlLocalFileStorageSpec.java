@@ -80,7 +80,7 @@ public class GitVersionControlLocalFileStorageSpec {
             throw new RuntimeException(e);
           }});
 
-    testRepoMasterCommitHashes = new ArrayList<>() {{
+    testRepoMasterCommitHashes = new ArrayList<String>() {{
       add(v1Hash);
       add(v2Hash);
       add(v3Hash);
