@@ -19,6 +19,7 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
   FinalizeOperator,
   FinalizePort
 }
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -27,7 +28,14 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   RUNNING
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.ambermessage._
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelMarkerPayload,
+  DataFrame,
+  DataPayload,
+  EndOfUpstream,
+  RequireAlignment,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
@@ -37,12 +45,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.{
-  IOperatorExecutor,
-  ISinkOperatorExecutor,
-  InputExhausted,
-  VirtualIdentityUtils
-}
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 
 import scala.collection.mutable
@@ -92,7 +95,7 @@ object DataProcessor {
 
 class DataProcessor(
     actorId: ActorVirtualIdentity,
-    outputHandler: WorkflowFIFOMessage => Unit
+    outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
@@ -100,6 +103,7 @@ class DataProcessor(
   @transient var physicalOp: PhysicalOp = _
   @transient var operatorConfig: OperatorConfig = _
   @transient var operator: IOperatorExecutor = _
+  @transient var serializationCall: () => Unit = _
 
   def initOperator(
       workerIdx: Int,
@@ -147,13 +151,6 @@ class DataProcessor(
   // 5. epoch manager
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
 
-  // dp thread stats:
-  protected var inputTupleCount = 0L
-  protected var outputTupleCount = 0L
-  var startTime = 0L
-  var totalExecutionTime = 0L
-  var dataProcessingTime = 0L
-
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
   }
@@ -169,24 +166,8 @@ class DataProcessor(
     *
     * @return (input tuple count, output tuple count)
     */
-  def collectStatistics(): WorkerStatistics = {
-    // sink operator doesn't output to downstream so internal count is 0
-    // but for user-friendliness we show its input count as output count
-    val displayOut = operator match {
-      case sink: ISinkOperatorExecutor =>
-        inputTupleCount
-      case _ =>
-        outputTupleCount
-    }
-    WorkerStatistics(
-      stateManager.getCurrentState,
-      inputTupleCount,
-      displayOut,
-      dataProcessingTime,
-      controlProcessingTime,
-      totalExecutionTime - dataProcessingTime - controlProcessingTime
-    )
-  }
+  def collectStatistics(): WorkerStatistics =
+    statisticsManager.getStatistics(stateManager.getCurrentState, operator)
 
   /** process currentInputTuple through operator logic.
     * this function is only called by the DP thread
@@ -204,7 +185,7 @@ class DataProcessor(
         )
       )
       if (tuple.isLeft) {
-        inputTupleCount += 1
+        statisticsManager.increaseInputTupleCount()
       }
     } catch safely {
       case e =>
@@ -241,7 +222,7 @@ class DataProcessor(
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
         logger.info(
-          s"$operator completed, outputted = $outputTupleCount"
+          s"$operator completed, outputted = ${statisticsManager.getOutputTupleCount}"
         )
         operator.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
@@ -255,7 +236,7 @@ class DataProcessor(
           adaptiveBatchingMonitor.pauseAdaptiveBatching()
           stateManager.transitTo(PAUSED)
         } else {
-          outputTupleCount += 1
+          statisticsManager.increaseOutputTupleCount()
           val outLinks = physicalOp.getOutputLinks(outputPortOpt)
           outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
         }
@@ -274,7 +255,7 @@ class DataProcessor(
       currentInputIdx += 1
       processInputTuple(Left(inputBatch(currentInputIdx)))
     }
-    dataProcessingTime += (System.nanoTime() - dataProcessingStartTime)
+    statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
   private[this] def initBatch(channelId: ChannelIdentity, batch: Array[ITuple]): Unit = {
@@ -334,7 +315,7 @@ class DataProcessor(
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }
-    dataProcessingTime += (System.nanoTime() - dataProcessingStartTime)
+    statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
   def processChannelMarker(

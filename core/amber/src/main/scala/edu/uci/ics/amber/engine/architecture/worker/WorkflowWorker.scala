@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   ActorCommandElement,
   DPInputQueueElement,
   FIFOMessageElement,
+  MainThreadDelegateMessage,
   TimerBasedControlElement,
   WorkerReplayInitialization
 }
@@ -29,6 +30,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
+import scala.collection.mutable
 
 object WorkflowWorker {
   def props(
@@ -50,6 +52,8 @@ object WorkflowWorker {
 
   final case class TriggerSend(msg: WorkflowFIFOMessage)
 
+  final case class MainThreadDelegateMessage(closure: WorkflowWorker => Unit)
+
   sealed trait DPInputQueueElement
 
   final case class FIFOMessageElement(msg: WorkflowFIFOMessage) extends DPInputQueueElement
@@ -57,12 +61,12 @@ object WorkflowWorker {
   final case class ActorCommandElement(cmd: ActorCommand) extends DPInputQueueElement
 
   final case class WorkerReplayInitialization(
-      restoreConfOpt: Option[WorkerStateRestoreConfig] = None,
-      replayLogConfOpt: Option[WorkerReplayLoggingConfig] = None
+      restoreConfOpt: Option[StateRestoreConfig] = None,
+      faultToleranceConfOpt: Option[FaultToleranceConfig] = None
   )
-  final case class WorkerStateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
+  final case class StateRestoreConfig(readFrom: URI, replayDestination: ChannelMarkerIdentity)
 
-  final case class WorkerReplayLoggingConfig(writeTo: URI)
+  final case class FaultToleranceConfig(writeTo: URI)
 }
 
 class WorkflowWorker(
@@ -70,7 +74,7 @@ class WorkflowWorker(
     physicalOp: PhysicalOp,
     operatorConfig: OperatorConfig,
     replayInitialization: WorkerReplayInitialization
-) extends WorkflowActor(replayInitialization.replayLogConfOpt, workerConfig.workerId) {
+) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
   var dp = new DataProcessor(
@@ -81,6 +85,9 @@ class WorkflowWorker(
 
   val dpThread =
     new DPThread(workerConfig.workerId, dp, logManager, inputQueue)
+
+  val recordedInputs =
+    new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)
@@ -109,6 +116,16 @@ class WorkflowWorker(
       inputQueue.put(TimerBasedControlElement(c))
   }
 
+  def handleTriggerClosure: Receive = {
+    case t: MainThreadDelegateMessage =>
+      t.closure(this)
+  }
+
+  def handleActorCommand: Receive = {
+    case c: ActorCommand =>
+      println(c)
+  }
+
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
     super.preRestart(reason, message)
     logger.error(s"Encountered fatal error, worker is shutting done.", reason)
@@ -120,11 +137,12 @@ class WorkflowWorker(
   }
 
   override def receive: Receive = {
-    super.receive orElse handleDirectInvocation
+    super.receive orElse handleDirectInvocation orElse handleTriggerClosure
   }
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
     inputQueue.put(FIFOMessageElement(workflowMsg))
+    recordedInputs.values.foreach(_.append(workflowMsg))
     sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
