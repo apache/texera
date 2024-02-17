@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web
 
 import akka.actor.{ActorSystem, Cancellable}
+import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
@@ -26,6 +27,7 @@ import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{FileNode, FileNodeSerializer}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.{
   UserFileAccessResource,
   UserFileResource
@@ -135,6 +137,13 @@ class TexeraWebApplication
     bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+
+    // register a new custom module and add the custom serializer in
+    // Create a new Jackson module for your custom serializers
+    val customSerializerModule = new SimpleModule("CustomSerializers")
+    customSerializerModule.addSerializer(classOf[FileNode], new FileNodeSerializer())
+    bootstrap.getObjectMapper.registerModule(customSerializerModule)
+
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
       // do one time cleanup of collections that were not closed gracefully before restart/crash

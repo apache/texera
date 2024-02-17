@@ -131,7 +131,7 @@ public class GitVersionControlLocalFileStorageSpec {
   public void testFileTreeRetrieval() throws Exception {
     // File path for the test file
     Path file1Path = testRepoPath.resolve(testFile1Name);
-    FileNode file1Node = new FileNode(file1Path);
+    FileNode file1Node = new FileNode(testRepoPath, file1Path);
     Set<FileNode> fileNodes = new HashSet<FileNode>() {{
       add(file1Node);
     }};
@@ -154,8 +154,8 @@ public class GitVersionControlLocalFileStorageSpec {
     });
     testRepoMasterCommitHashes.add(v4Hash);
 
-    FileNode dirNode = new FileNode(testDirPath);
-    dirNode.addChildNode(new FileNode(file2Path));
+    FileNode dirNode = new FileNode(testRepoPath, testDirPath);
+    dirNode.addChildNode(new FileNode(testRepoPath, file2Path));
     // update the expected fileNodes
     fileNodes.add(dirNode);
 
