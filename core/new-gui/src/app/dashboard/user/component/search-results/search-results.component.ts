@@ -18,6 +18,7 @@ export class SearchResultsComponent {
   @Input() showResourceTypes = false;
   @Input() public pid: number = 0;
   @Input() editable = false;
+  @Input() searchKeywords: string[] = [];
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
 
