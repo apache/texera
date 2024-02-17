@@ -33,3 +33,8 @@ blockquote {
 .mat-expansion-panel-body {
   padding: 0 !important;
 }
+
+// due to innerHTML, this rule has to be global
+.highlight-search-terms {
+  color: blue;
+}
