@@ -56,7 +56,7 @@ class ExecutionStatsService(
       if (AmberConfig.isUserSystemEnabled) {
         val defaultStats =
           OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
-        
+
         var oldStateInfo = oldState.operatorInfo
         var newStateInfo = newState.operatorInfo
 
