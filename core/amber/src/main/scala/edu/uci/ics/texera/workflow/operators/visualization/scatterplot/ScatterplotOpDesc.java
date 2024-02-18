@@ -25,6 +25,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.VisualizationOperator
 import org.apache.commons.collections.ListUtils;
 import scala.Tuple3;
 import scala.collection.Iterator;
+import scala.collection.immutable.HashMap;
 
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
@@ -100,8 +101,8 @@ public class ScatterplotOpDesc extends VisualizationOperator {
                                     worker -> new ScatterplotOpExec(this)
                     )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
-                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>())
                 .withIsOneToManyOp(true)
                 .withParallelizable(!isGeometric);
     }

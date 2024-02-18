@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -10,10 +11,15 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.mutable
+import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, SetHasAsScala}
+import scala.util.{Failure, Success, Try}
 
 object PhysicalPlan {
 
@@ -26,6 +32,7 @@ object PhysicalPlan {
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
     logicalPlan.operators.foreach(op => {
+      op.setContext(context)
       val subPlan =
         op.getPhysicalPlan(
           context.workflowId,
@@ -42,7 +49,7 @@ object PhysicalPlan {
         physicalPlan.addLink(PhysicalLink(fromOp.id, link.fromPortId, toOp.id, link.toPortId))
     })
 
-    physicalPlan
+    physicalPlan.propagateWorkflowSchema()
   }
 
 }
@@ -266,5 +273,46 @@ case class PhysicalPlan(
       getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
     }
   }
+
+  def propagateWorkflowSchema(): PhysicalPlan = {
+
+    // propagate output schema following topological order
+    val allSchemas: mutable.HashMap[GlobalPortIdentity, Schema] = mutable.HashMap()
+    val newOps = topologicalIterator().map(opId => {
+      val op = getOperator(opId)
+
+      val inputSchemas = mutable.Map(
+        op.inputPorts.keys
+        .map(portId => GlobalPortIdentity(op.id, portId, input = true))
+        .map(globalPortId => globalPortId.portId -> allSchemas(globalPortId))
+        .toMap
+          .toSeq: _*)
+      val outputSchemas = mutable.Map(op.propagateSchemas.func(inputSchemas.toMap).toSeq: _*)
+
+      // reassign
+      val newOp = op.copy()
+        .withInputPorts(op.inputPorts.values.map(_._1).toList, inputSchemas, op.inputPorts.map({
+          case (portId, (port, links, schema)) => portId->links
+        }))
+        .withOutputPorts(op.outputPorts.values.map(_._1).toList, outputSchemas,op.outputPorts.map({
+          case (portId, (port, links, schema)) => portId->links
+        }))
+      op.outputPorts.foreach {
+        case (_, (_, links, schema)) =>
+          links.foreach(link =>
+            allSchemas(GlobalPortIdentity(link.toOpId, link.toPortId, input = true)) = schema.get
+          )
+      }
+      newOp
+    })
+    PhysicalPlan(newOps.toSet, this.links)
+  }
+
+
+
+
+
+
+
 
 }

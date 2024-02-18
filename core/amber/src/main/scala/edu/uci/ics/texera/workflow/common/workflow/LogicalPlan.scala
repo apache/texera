@@ -41,6 +41,7 @@ object LogicalPlan {
       pojo: LogicalPlanPojo
   ): LogicalPlan = {
     LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints)
+
   }
 
 }

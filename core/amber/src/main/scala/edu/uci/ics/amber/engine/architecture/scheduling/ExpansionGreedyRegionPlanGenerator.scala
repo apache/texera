@@ -336,7 +336,7 @@ class ExpansionGreedyRegionPlanGenerator(
     val toOp = physicalPlan.getOperator(physicalLink.toOpId)
     val toPortId = physicalLink.toPortId
 
-    val outputSchema = fromOp.outputPorts(fromPortId)._3
+    val outputSchema = fromOp.outputPorts(fromPortId)._3.get
     val matWriterPhysicalOp: PhysicalOp =
       createMatWriter(outputSchema, fromOp.id.logicalOpId)
     val matReaderPhysicalOp: PhysicalOp =

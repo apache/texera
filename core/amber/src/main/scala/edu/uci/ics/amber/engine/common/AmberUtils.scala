@@ -11,13 +11,10 @@ import java.net.URL
 
 object AmberUtils {
 
-  def reverseMultimap[T1, T2](map: Map[T1, Set[T2]]): Map[T2, Set[T1]] =
-    map.toSeq
-      .flatMap { case (k, vs) => vs.map((_, k)) }
-      .groupBy(_._1)
-      .view
-      .mapValues(_.map(_._2).toSet)
-      .toMap
+  def convertToImmutableMap[K, V](javaMap: java.util.Map[K, V]): scala.collection.immutable.Map[K, V] = {
+    import scala.jdk.CollectionConverters._
+    javaMap.asScala.toMap
+  }
 
   def startActorMaster(clusterMode: Boolean): ActorSystem = {
     var localIpAddress = "localhost"

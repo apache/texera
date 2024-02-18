@@ -5,6 +5,7 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
+
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
   OpExecInitInfoWithCode
@@ -23,7 +24,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayLoggingConfig,
   WorkerStateRestoreConfig
 }
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
@@ -33,6 +34,22 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
+
+case object SchemaPropagation {
+
+  type ScalaSchemaPropagationFunc = Map[PortIdentity, Schema] => Map[PortIdentity, Schema]
+  type JavaSchemaPropagationFunc =
+    java.util.function.Function[Map[PortIdentity, Schema], Map[PortIdentity, Schema]]
+      with java.io.Serializable
+
+  def apply(scalaFunc: ScalaSchemaPropagationFunc): SchemaPropagationFunc =
+    SchemaPropagationFunc(scalaFunc)
+  def apply(javaFunc: JavaSchemaPropagationFunc): SchemaPropagationFunc =
+    SchemaPropagationFunc(inputSchemas => javaFunc.apply(inputSchemas))
+
+}
+
+case class SchemaPropagationFunc(func: Map[PortIdentity, Schema] => Map[PortIdentity, Schema])
 
 object PhysicalOp {
 
@@ -197,10 +214,12 @@ case class PhysicalOp(
     derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Schema)] = Map.empty,
-    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Schema)] = Map.empty,
+    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Option[Schema])] = Map.empty,
+    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Option[Schema])] = Map.empty,
     // input ports that are blocking
     blockingInputs: List[PortIdentity] = List(),
+    // schema propagation function
+    propagateSchemas: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None
@@ -249,10 +268,16 @@ case class PhysicalOp(
     */
   def withInputPorts(
       inputs: List[InputPort],
-      inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema]
+      inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema],
+      links: Map[PortIdentity, List[PhysicalLink]] = Map()
   ): PhysicalOp = {
     this.copy(inputPorts =
-      inputs.map(input => input.id -> (input, List(), inputPortToSchemaMapping(input.id))).toMap
+      inputs
+        .map(input =>
+          input.id -> (input, links.getOrElse(input.id, List()), inputPortToSchemaMapping
+            .get(input.id))
+        )
+        .toMap
     )
   }
 
@@ -261,11 +286,15 @@ case class PhysicalOp(
     */
   def withOutputPorts(
       outputs: List[OutputPort],
-      outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema]
+      outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema],
+      links: Map[PortIdentity, List[PhysicalLink]] = Map()
   ): PhysicalOp = {
     this.copy(outputPorts =
       outputs
-        .map(output => output.id -> (output, List(), outputPortToSchemaMapping(output.id)))
+        .map(output =>
+          output.id -> (output, links.getOrElse(output.id, List()), outputPortToSchemaMapping
+            .get(output.id))
+        )
         .toMap
     )
   }
@@ -308,6 +337,10 @@ case class PhysicalOp(
     */
   def withBlockingInputs(blockingInputs: List[PortIdentity]): PhysicalOp = {
     this.copy(blockingInputs = blockingInputs)
+  }
+
+  def withPropagateSchema(func: SchemaPropagationFunc): PhysicalOp = {
+    this.copy(propagateSchemas = func)
   }
 
   /**

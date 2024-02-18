@@ -6,7 +6,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan, WorkflowCompiler}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 
@@ -36,10 +36,21 @@ class SchemaPropagationResource extends LazyLogging {
     )
 
     val logicalPlan = LogicalPlan(logicalPlanPojo)
+    // the PhysicalPlan with topology expanded.
+    val physicalPlan = PhysicalPlan(context, logicalPlan)
+
 
     // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
-    logicalPlan.propagateWorkflowSchema(context, errorList = None)
-    val responseContent = logicalPlan.getInputSchemaMap
+//    logicalPlan.propagateWorkflowSchema(context, errorList = None)
+
+    val physicalInputSchemas = physicalPlan.operators.map(physicalOp => {
+      physicalOp.id -> physicalOp.inputPorts.filterNot(port => port._1.internal).values.map(_._3).toList
+    })
+    val logicalInputSchemas = physicalInputSchemas.groupBy(_._1.logicalOpId).map({
+      case(logicalOpId, schemas )=> logicalOpId -> schemas.flatMap(_._2).toList
+    })
+
+    val responseContent = logicalInputSchemas
       .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributesScala))))
     SchemaPropagationResponse(0, responseContent, null)
 

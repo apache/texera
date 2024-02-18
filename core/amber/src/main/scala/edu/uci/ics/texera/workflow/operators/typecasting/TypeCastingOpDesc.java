@@ -20,6 +20,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import scala.Tuple3;
+import scala.collection.immutable.HashMap;
 import scala.collection.immutable.List;
 
 import java.util.ArrayList;
@@ -49,8 +50,8 @@ public class TypeCastingOpDesc extends MapOpDesc {
                                         worker -> new TypeCastingOpExec(outputSchema)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
-                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
+                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>());
     }
 
     @Override

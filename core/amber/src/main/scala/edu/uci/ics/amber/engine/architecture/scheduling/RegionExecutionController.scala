@@ -150,7 +150,7 @@ class RegionExecutionController(
                   InitializeOperatorLogic(
                     pythonUDFPhysicalOp.getPythonCode,
                     pythonUDFPhysicalOp.isSourceOperator,
-                    pythonUDFPhysicalOp.outputPorts.values.head._3
+                    pythonUDFPhysicalOp.outputPorts.values.head._3.get
                   ),
                   workerId
                 )

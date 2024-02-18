@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -9,14 +9,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{
-  BroadcastPartition,
-  HashPartition,
-  PartitionInfo,
-  RangePartition,
-  SinglePartition,
-  UnknownPartition
-}
+import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
 
 import scala.jdk.CollectionConverters.IterableHasAsJava
 
@@ -38,6 +31,24 @@ class ProjectionOpDesc extends MapOpDesc {
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withDerivePartition(derivePartition())
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
+        Preconditions.checkArgument(inputSchemas.size == 1)
+        Preconditions.checkArgument(attributes.nonEmpty)
+        val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+        val outputSchema = Schema.newBuilder
+          .add(
+            attributes
+              .map(attribute =>
+                new Attribute(
+                  attribute.getAlias,
+                  inputSchema.getAttribute(attribute.getOriginalAttribute).getType
+                )
+              )
+              .asJava
+          )
+          .build()
+        Map(operatorInfo.outputPorts.head.id -> outputSchema)
+      }))
   }
 
   def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
