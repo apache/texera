@@ -3,7 +3,6 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.type;
 import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.type.FileNode;
 
 import java.io.IOException;
 
@@ -21,15 +20,16 @@ public class FileNodeSerializer extends StdSerializer<FileNode> {
   @Override
   public void serialize(FileNode value, JsonGenerator gen, SerializerProvider provider) throws IOException {
     gen.writeStartObject();
-    gen.writeStringField("path", value.getPath().toString());
+    gen.writeStringField("path", value.getRelativePath().toString());
     gen.writeBooleanField("isFile", value.isFile());
-    gen.writeBooleanField("isDirectory", value.isDirectory());
-    gen.writeFieldName("children");
-    gen.writeStartArray();
-    for (FileNode child : value.getChildren()) {
-      serialize(child, gen, provider); // Recursively serialize children
+    if (value.isDirectory()) {
+      gen.writeFieldName("children");
+      gen.writeStartArray();
+      for (FileNode child : value.getChildren()) {
+        serialize(child, gen, provider); // Recursively serialize children
+      }
+      gen.writeEndArray();
     }
-    gen.writeEndArray();
     gen.writeEndObject();
   }
 }

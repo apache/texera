@@ -26,12 +26,16 @@ public class FileNode {
     return Files.isDirectory(absoluteFilePath);
   }
 
-  public Path getPath() {
+  public Path getAbsolutePath() {
     return absoluteFilePath;
   }
 
+  public Path getRelativePath() {
+    return relativeFilePath;
+  }
+
   public void addChildNode(FileNode child) {
-    if (!child.getPath().getParent().equals(this.absoluteFilePath)) {
+    if (!child.getAbsolutePath().getParent().equals(this.absoluteFilePath)) {
       throw new IllegalArgumentException("Child node is not a direct subpath of the parent node");
     }
     this.children.add(child);
