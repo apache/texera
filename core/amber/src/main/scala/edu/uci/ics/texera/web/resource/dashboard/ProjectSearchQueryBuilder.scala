@@ -2,8 +2,12 @@ package edu.uci.ics.texera.web.resource.dashboard
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PROJECT_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Project
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFulltextSearchConditions}
-import org.jooq.{Condition, GroupField, OrderField, Record, TableLike}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
+  getContainsFilter,
+  getDateFilter,
+  getMySQLKeywordSearchConditions
+}
+import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 
@@ -22,8 +26,8 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   )
 
   override protected def constructFromClause(
-                                              uid:UInteger,
-                                              params: DashboardResource.SearchQueryParams
+      uid: UInteger,
+      params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     PROJECT
       .leftJoin(PROJECT_USER_ACCESS)
@@ -32,7 +36,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-                                               uid:UInteger,
+      uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -40,7 +44,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
       .filter(_.nonEmpty)
       .toSeq
 
-    getFulltextSearchConditions(
+    getMySQLKeywordSearchConditions(
       splitKeywords,
       List(PROJECT.NAME, PROJECT.DESCRIPTION)
     )
@@ -57,7 +61,7 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
   override protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
   override def toEntryImpl(
-                            uid:UInteger,
+      uid: UInteger,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val dp = record.into(PROJECT).into(classOf[Project])

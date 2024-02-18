@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.model.jooq.generated.Tables._
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
-import org.jooq.{Condition, Field, OrderField}
+import org.jooq.{Condition, Field}
 import org.jooq.impl.DSL.{condition, noCondition}
 
 import java.sql.Timestamp
@@ -12,7 +10,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
 
-  def getFulltextSearchConditions(
+  def getMySQLKeywordSearchConditions(
       keywords: Seq[String],
       fields: List[Field[String]]
   ): Condition = {

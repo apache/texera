@@ -1,12 +1,15 @@
 package edu.uci.ics.texera.web.resource.dashboard
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFulltextSearchConditions}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
+  getContainsFilter,
+  getDateFilter,
+  getMySQLKeywordSearchConditions
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
-import org.jooq.{Condition, GroupField, OrderField, Record, TableLike}
+import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 
@@ -28,7 +31,7 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
   )
 
   override protected def constructFromClause(
-                                              uid: UInteger,
+      uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     FILE
@@ -40,7 +43,7 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-                                               uid: UInteger,
+      uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -48,7 +51,7 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
       .filter(_.nonEmpty)
       .toSeq
 
-    getFulltextSearchConditions(
+    getMySQLKeywordSearchConditions(
       splitKeywords,
       List(FILE.NAME, FILE.DESCRIPTION)
     )
@@ -64,14 +67,8 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
 
   override protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
-  override protected def getOrderFields(
-                                         uid: UInteger,
-      params: DashboardResource.SearchQueryParams
-  ): Seq[OrderField[_]] =
-    FulltextSearchQueryUtils.getOrderFields(SearchQueryBuilder.FILE_RESOURCE_TYPE, params)
-
   override def toEntryImpl(
-                            uid: UInteger,
+      uid: UInteger,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val df = DashboardFile(

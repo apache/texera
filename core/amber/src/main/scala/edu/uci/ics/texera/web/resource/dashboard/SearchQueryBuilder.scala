@@ -1,11 +1,13 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{DashboardClickableFileEntry, SearchQueryParams}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.{
+  DashboardClickableFileEntry,
+  SearchQueryParams
+}
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.context
 import org.jooq.types.UInteger
-import org.jooq.{Condition, GroupField, OrderField, Record, SelectGroupByStep, SelectHavingStep, SelectLimitStep, TableLike}
+import org.jooq.{Condition, GroupField, Record, SelectGroupByStep, SelectHavingStep, TableLike}
 object SearchQueryBuilder {
 
   final lazy val context = SqlServer.createDSLContext()
@@ -34,8 +36,8 @@ trait SearchQueryBuilder {
   }
 
   final def constructQuery(
-                            uid: UInteger,
-                            params: SearchQueryParams
+      uid: UInteger,
+      params: SearchQueryParams
   ): SelectHavingStep[Record] = {
     val query: SelectGroupByStep[Record] = context
       .select(mappedResourceSchema.allFields: _*)

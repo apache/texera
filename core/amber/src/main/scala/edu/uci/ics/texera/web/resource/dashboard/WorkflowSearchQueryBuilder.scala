@@ -13,11 +13,11 @@ import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClic
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,
   getDateFilter,
-  getFulltextSearchConditions,
+  getMySQLKeywordSearchConditions,
   getOperatorsFilter
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-import org.jooq.{Condition, GroupField, OrderField, Record, TableLike}
+import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.impl.DSL
 import org.jooq.impl.DSL.groupConcatDistinct
 import org.jooq.types.UInteger
@@ -43,7 +43,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructFromClause(
-                                              uid:UInteger,
+      uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     WORKFLOW
@@ -63,7 +63,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override protected def constructWhereClause(
-                                               uid:UInteger,
+      uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -93,7 +93,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.projectIds, WORKFLOW_OF_PROJECT.PID))
       // Apply fulltext search filter
       .and(
-        getFulltextSearchConditions(
+        getMySQLKeywordSearchConditions(
           splitKeywords,
           List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
         )
@@ -105,7 +105,7 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
   }
 
   override def toEntryImpl(
-                            uid:UInteger,
+      uid: UInteger,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val pidField = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)

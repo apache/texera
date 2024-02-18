@@ -36,8 +36,9 @@ object UnifiedResourceSchema {
       name: Field[String] = DSL.inline(""),
       description: Field[String] = DSL.inline(""),
       creationTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
+      lastModifiedTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
+      ownerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       wid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      workflowLastModifiedTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
       workflowUserAccess: Field[WorkflowUserAccessPrivilege] =
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]),
       projectsOfWorkflow: Field[String] = DSL.inline(""),
@@ -48,7 +49,6 @@ object UnifiedResourceSchema {
       projectOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       projectColor: Field[String] = DSL.inline(""),
       fid: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-      fileOwnerId: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       fileUploadTime: Field[Timestamp] = DSL.inline(null, classOf[Timestamp]),
       filePath: Field[String] = DSL.inline(""),
       fileSize: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
@@ -57,12 +57,13 @@ object UnifiedResourceSchema {
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
-        resourceType -> resourceType.as("resourceType"),
-        name -> name.as("resource_name"),
-        description -> description.as("resource_description"),
-        creationTime -> creationTime.as("creation_time"),
+        resourceType -> resourceType.as(resourceTypeAlias),
+        name -> name.as(resourceNameAlias),
+        description -> description.as(resourceDescriptionAlias),
+        creationTime -> creationTime.as(resourceCreationTimeAlias),
+        lastModifiedTime -> lastModifiedTime.as(resourceLastModifiedTimeAlias),
+        ownerId -> ownerId.as(resourceOwnerIdAlias),
         wid -> wid.as("wid"),
-        workflowLastModifiedTime -> workflowLastModifiedTime.as("last_modified_time"),
         workflowUserAccess -> workflowUserAccess.as("workflow_privilege"),
         projectsOfWorkflow -> projectsOfWorkflow.as("projects"),
         uid -> uid.as("uid"),
@@ -72,7 +73,6 @@ object UnifiedResourceSchema {
         projectOwnerId -> projectOwnerId.as("owner_uid"),
         projectColor -> projectColor.as("color"),
         fid -> fid.as("fid"),
-        fileOwnerId -> fileOwnerId.as("owner_id"),
         fileUploadTime -> fileUploadTime.as("upload_time"),
         filePath -> filePath.as("path"),
         fileSize -> fileSize.as("size"),
@@ -85,33 +85,33 @@ object UnifiedResourceSchema {
 /**
   * Refer to texera/core/scripts/sql/texera_ddl.sql to understand what each attribute is
   *
-  * Common Attributes (4 columns): All types of resources have these 4 attributes
-  * 1. `resourceType`: Represents the type of resource (`String`). Allowed value: project, workflow, file
-  * 2. `name`: Specifies the name of the resource (`String`).
-  * 3. `description`: Provides a description of the resource (`String`).
-  * 4. `creation_time`: Indicates the timestamp of when the resource was created (`Timestamp`). It represents upload_time if the resourceType is `file`
+  * Attributes common across all resource types:
+  * - `resourceType`: The type of the resource (e.g., project, workflow, file) as a `String`.
+  * - `name`: The name of the resource as a `String`.
+  * - `description`: A textual description of the resource as a `String`.
+  * - `creationTime`: The timestamp when the resource was created, as a `Timestamp`.
+  * - `lastModifiedTime`: The timestamp of the last modification to the resource, as a `Timestamp` (applicable to workflows).
+  * - `ownerId`: The identifier of the resource's owner, as a `UInteger`.
   *
-  * Workflow Attributes (6 columns): Only workflow will have these 6 attributes.
-  * 5. `WID`: Represents the Workflow ID (`UInteger`).
-  * 6. `lastModifiedTime`: Indicates the timestamp of the last modification made to the workflow (`Timestamp`).
-  * 7. `privilege`: Specifies the privilege associated with the workflow (`Privilege`).
-  * 8. `UID`: Represents the User ID associated with the workflow (`UInteger`).
-  * 9. `userName`: Provides the name of the user associated with the workflow (`String`).
-  * 10. `projects`: The project IDs for the workflow, concatenated as a string (`String`).
+  * Attributes specific to workflows:
+  * - `wid`: Workflow ID, as a `UInteger`.
+  * - `workflowUserAccess`: Access privileges associated with the workflow, as a `WorkflowUserAccessPrivilege`.
+  * - `projectsOfWorkflow`: IDs of projects associated with the workflow, concatenated as a `String`.
+  * - `uid`: User ID associated with the workflow, as a `UInteger`.
+  * - `userName`: Name of the user associated with the workflow, as a `String`.
+  * - `userEmail`: Email of the user associated with the workflow, as a `String`.
   *
-  * Project Attributes (3 columns): Only project will have these 3 attributes.
-  * 11. `pid`: Represents the Project ID (`UInteger`).
-  * 12. `ownerId`: Indicates the ID of the project owner (`UInteger`).
-  * 13. `color`: Specifies the color associated with the project (`String`).
+  * Attributes specific to projects:
+  * - `pid`: Project ID, as a `UInteger`.
+  * - `projectOwnerId`: ID of the project owner, as a `UInteger`.
+  * - `projectColor`: Color associated with the project, as a `String`.
   *
-  * File Attributes (7 columns): Only files will have these 7 attributes.
-  * 14. `ownerUID`: Represents the User ID of the file owner (`UInteger`).
-  * 15. `fid`: Indicates the File ID (`UInteger`).
-  * 16. `uploadTime`: Indicates the timestamp when the file was uploaded (`Timestamp`).
-  * 17. `path`: Specifies the path of the file (`String`).
-  * 18. `size`: Represents the size of the file (`UInteger`).
-  * 19. `email`: Represents the email associated with the file owner (`String`).
-  * 20. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
+  * Attributes specific to files:
+  * - `fid`: File ID, as a `UInteger`.
+  * - `fileUploadTime`: Timestamp when the file was uploaded, as a `Timestamp`.
+  * - `filePath`: Path of the file, as a `String`.
+  * - `fileSize`: Size of the file, as a `UInteger`.
+  * - `fileUserAccess`: Access privileges for the file, as a `UserFileAccessPrivilege`.
   */
 class UnifiedResourceSchema private (
     fieldMappingSeq: Seq[(Field[_], Field[_])]

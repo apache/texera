@@ -64,7 +64,8 @@ object DashboardResource {
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 
-    val finalQuery = query.offset(params.offset).limit(params.count + 1)
+    val finalQuery =
+      query.orderBy(getOrderFields(params): _*).offset(params.offset).limit(params.count + 1)
     val queryResult = finalQuery.fetch()
 
     val entries = queryResult.asScala.toList
@@ -85,8 +86,8 @@ object DashboardResource {
   }
 
   def getOrderFields(
-                      searchQueryParams: SearchQueryParams
-                    ): List[OrderField[_]] = {
+      searchQueryParams: SearchQueryParams
+  ): List[OrderField[_]] = {
     // Regex pattern to extract column name and order direction
     val pattern = "(Name|CreateTime|EditTime)(Asc|Desc)".r
 
@@ -96,7 +97,7 @@ object DashboardResource {
         field match {
           case Some(value) =>
             List(order match {
-              case "Asc" => value.asc()
+              case "Asc"  => value.asc()
               case "Desc" => value.desc()
             })
           case None => List()
@@ -108,10 +109,10 @@ object DashboardResource {
   // Helper method to map column names to actual database fields based on resource type
   private def getColumnField(columnName: String): Option[Field[_]] = {
     Option(columnName match {
-      case "Name" => UnifiedResourceSchema.resourceNameField
+      case "Name"       => UnifiedResourceSchema.resourceNameField
       case "CreateTime" => UnifiedResourceSchema.resourceCreationTimeField
-      case "EditTime" => UnifiedResourceSchema.resourceLastModifiedTimeField
-      case _ => null // Default case for unmatched resource types or column names
+      case "EditTime"   => UnifiedResourceSchema.resourceLastModifiedTimeField
+      case _            => null // Default case for unmatched resource types or column names
     })
   }
 
