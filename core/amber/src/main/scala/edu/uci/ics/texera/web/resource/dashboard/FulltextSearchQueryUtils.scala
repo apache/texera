@@ -12,46 +12,6 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
 
-  def getOrderFields(
-      specificResourceType: String,
-      searchQueryParams: SearchQueryParams
-  ): List[OrderField[_]] = {
-    // Regex pattern to extract column name and order direction
-    val pattern = "(Name|CreateTime|EditTime)(Asc|Desc)".r
-
-    searchQueryParams.orderBy match {
-      case pattern(column, order) =>
-        val field = getColumnField(specificResourceType, column)
-        field match {
-          case Some(value) =>
-            List(order match {
-              case "Asc"  => value.asc()
-              case "Desc" => value.desc()
-            })
-          case None => List()
-        }
-      case _ => List() // Default case if the orderBy string doesn't match the pattern
-    }
-  }
-
-  // Helper method to map column names to actual database fields based on resource type
-  private def getColumnField(resourceType: String, columnName: String): Option[Field[_]] = {
-    Option((resourceType, columnName) match {
-      case ("workflow", "Name")       => WORKFLOW.NAME
-      case ("workflow", "CreateTime") => WORKFLOW.CREATION_TIME
-      case ("workflow", "EditTime")   => WORKFLOW.LAST_MODIFIED_TIME
-      case ("project", "Name")        => PROJECT.NAME
-      case ("project", "CreateTime")  => PROJECT.CREATION_TIME
-      // Assuming PROJECT does not have a separate LAST_MODIFIED_TIME and uses CREATION_TIME for edits
-      case ("project", "EditTime") => PROJECT.CREATION_TIME
-      case ("file", "Name")        => FILE.NAME
-      case ("file", "CreateTime")  => FILE.UPLOAD_TIME
-      // Assuming FILE uses UPLOAD_TIME for edit time as well
-      case ("file", "EditTime") => FILE.UPLOAD_TIME
-      case _                    => null // Default case for unmatched resource types or column names
-    })
-  }
-
   def getFulltextSearchConditions(
       keywords: Seq[String],
       fields: List[Field[String]]

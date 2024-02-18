@@ -7,6 +7,7 @@ import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.ALL_RESOURCE
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
+import org.jooq.{Field, OrderField}
 
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
@@ -47,17 +48,18 @@ object DashboardResource {
       @Auth user: SessionUser,
       @BeanParam params: SearchQueryParams
   ): DashboardSearchResult = {
+    val uid = user.getUid
     val query = params.resourceType match {
       case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
-        WorkflowSearchQueryBuilder.constructQuery(user, params)
+        WorkflowSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.FILE_RESOURCE_TYPE =>
-        FileSearchQueryBuilder.constructQuery(user, params)
+        FileSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
-        ProjectSearchQueryBuilder.constructQuery(user, params)
+        ProjectSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
-        val q1 = WorkflowSearchQueryBuilder.constructQuery(user, params)
-        val q2 = FileSearchQueryBuilder.constructQuery(user, params)
-        val q3 = ProjectSearchQueryBuilder.constructQuery(user, params)
+        val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params)
+        val q2 = FileSearchQueryBuilder.constructQuery(uid, params)
+        val q3 = ProjectSearchQueryBuilder.constructQuery(uid, params)
         q1.unionAll(q2).unionAll(q3)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
@@ -71,14 +73,46 @@ object DashboardResource {
         val resourceType = record.get("resourceType", classOf[String])
         resourceType match {
           case SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE =>
-            WorkflowSearchQueryBuilder.toEntry(user, record)
-          case SearchQueryBuilder.FILE_RESOURCE_TYPE => FileSearchQueryBuilder.toEntry(user, record)
+            WorkflowSearchQueryBuilder.toEntry(uid, record)
+          case SearchQueryBuilder.FILE_RESOURCE_TYPE =>
+            FileSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
-            ProjectSearchQueryBuilder.toEntry(user, record)
+            ProjectSearchQueryBuilder.toEntry(uid, record)
         }
       })
 
     DashboardSearchResult(results = entries, more = queryResult.size() > params.count)
+  }
+
+  def getOrderFields(
+                      searchQueryParams: SearchQueryParams
+                    ): List[OrderField[_]] = {
+    // Regex pattern to extract column name and order direction
+    val pattern = "(Name|CreateTime|EditTime)(Asc|Desc)".r
+
+    searchQueryParams.orderBy match {
+      case pattern(column, order) =>
+        val field = getColumnField(column)
+        field match {
+          case Some(value) =>
+            List(order match {
+              case "Asc" => value.asc()
+              case "Desc" => value.desc()
+            })
+          case None => List()
+        }
+      case _ => List() // Default case if the orderBy string doesn't match the pattern
+    }
+  }
+
+  // Helper method to map column names to actual database fields based on resource type
+  private def getColumnField(columnName: String): Option[Field[_]] = {
+    Option(columnName match {
+      case "Name" => UnifiedResourceSchema.resourceNameField
+      case "CreateTime" => UnifiedResourceSchema.resourceCreationTimeField
+      case "EditTime" => UnifiedResourceSchema.resourceLastModifiedTimeField
+      case _ => null // Default case for unmatched resource types or column names
+    })
   }
 
 }

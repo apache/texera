@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   PROJECT_USER_ACCESS,
   USER,
@@ -34,16 +33,17 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       description = WORKFLOW.DESCRIPTION,
       creationTime = WORKFLOW.CREATION_TIME,
       wid = WORKFLOW.WID,
-      workflowLastModifiedTime = WORKFLOW.LAST_MODIFIED_TIME,
+      lastModifiedTime = WORKFLOW.LAST_MODIFIED_TIME,
       workflowUserAccess = WORKFLOW_USER_ACCESS.PRIVILEGE,
       uid = WORKFLOW_OF_USER.UID,
+      ownerId = WORKFLOW_OF_USER.UID,
       userName = USER.NAME,
       projectsOfWorkflow = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
     )
   }
 
   override protected def constructFromClause(
-      user: SessionUser,
+                                              uid:UInteger,
       params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     WORKFLOW
@@ -58,12 +58,12 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(WORKFLOW_OF_PROJECT.PID))
       .where(
-        WORKFLOW_USER_ACCESS.UID.eq(user.getUid).or(PROJECT_USER_ACCESS.UID.eq(user.getUid))
+        WORKFLOW_USER_ACCESS.UID.eq(uid).or(PROJECT_USER_ACCESS.UID.eq(uid))
       )
   }
 
   override protected def constructWhereClause(
-      user: SessionUser,
+                                               uid:UInteger,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -100,27 +100,17 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       )
   }
 
-  override protected def constructGroupByClause(
-      user: SessionUser,
-      params: DashboardResource.SearchQueryParams
-  ): Seq[GroupField] = {
+  override protected def getGroupByFields: Seq[GroupField] = {
     Seq(WORKFLOW.WID)
   }
 
-  override protected def getOrderFields(
-      user: SessionUser,
-      params: DashboardResource.SearchQueryParams
-  ): Seq[OrderField[_]] = {
-    FulltextSearchQueryUtils.getOrderFields(SearchQueryBuilder.WORKFLOW_RESOURCE_TYPE, params)
-  }
-
   override def toEntryImpl(
-      user: SessionUser,
+                            uid:UInteger,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val pidField = groupConcatDistinct(WORKFLOW_OF_PROJECT.PID)
     val dw = DashboardWorkflow(
-      record.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
+      record.into(WORKFLOW_OF_USER).getUid.eq(uid),
       record
         .get(WORKFLOW_USER_ACCESS.PRIVILEGE)
         .toString,

@@ -14,6 +14,22 @@ import java.sql.Timestamp
 
 object UnifiedResourceSchema {
 
+  // Define alias strings
+  private val resourceTypeAlias = "resourceType"
+  private val resourceNameAlias = "resourceName"
+  private val resourceDescriptionAlias = "resourceDescription"
+  private val resourceCreationTimeAlias = "resourceCreationTime"
+  private val resourceOwnerIdAlias = "resourceOwnerId"
+  private val resourceLastModifiedTimeAlias = "resourceLastModifiedTime"
+
+  // Use the alias variables to create fields
+  val resourceTypeField: Field[_] = DSL.field(DSL.name(resourceTypeAlias))
+  val resourceNameField: Field[_] = DSL.field(DSL.name(resourceNameAlias))
+  val resourceDescriptionField: Field[_] = DSL.field(DSL.name(resourceDescriptionAlias))
+  val resourceCreationTimeField: Field[_] = DSL.field(DSL.name(resourceCreationTimeAlias))
+  val resourceOwnerIdField: Field[_] = DSL.field(DSL.name(resourceOwnerIdAlias))
+  val resourceLastModifiedTimeField: Field[_] = DSL.field(DSL.name(resourceLastModifiedTimeAlias))
+
   final lazy val context = SqlServer.createDSLContext()
   def apply(
       resourceType: Field[String] = DSL.inline(""),

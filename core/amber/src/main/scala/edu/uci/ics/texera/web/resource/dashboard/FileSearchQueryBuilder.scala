@@ -4,14 +4,11 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{FILE, USER, USER_FILE
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getContainsFilter,
-  getDateFilter,
-  getFulltextSearchConditions
-}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFulltextSearchConditions}
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import org.jooq.{Condition, GroupField, OrderField, Record, TableLike}
 import org.jooq.impl.DSL
+import org.jooq.types.UInteger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 object FileSearchQueryBuilder extends SearchQueryBuilder {
@@ -22,8 +19,8 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
     description = FILE.DESCRIPTION,
     creationTime = FILE.UPLOAD_TIME,
     fid = FILE.FID,
-    fileOwnerId = FILE.OWNER_UID,
-    fileUploadTime = FILE.UPLOAD_TIME,
+    ownerId = FILE.OWNER_UID,
+    lastModifiedTime = FILE.UPLOAD_TIME,
     filePath = FILE.PATH,
     fileSize = FILE.SIZE,
     userEmail = USER.EMAIL,
@@ -31,7 +28,7 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
   )
 
   override protected def constructFromClause(
-      user: SessionUser,
+                                              uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     FILE
@@ -39,11 +36,11 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
       .on(USER_FILE_ACCESS.FID.eq(FILE.FID))
       .leftJoin(USER)
       .on(FILE.OWNER_UID.eq(USER.UID))
-      .where(USER_FILE_ACCESS.UID.eq(user.getUid))
+      .where(USER_FILE_ACCESS.UID.eq(uid))
   }
 
   override protected def constructWhereClause(
-      user: SessionUser,
+                                               uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -65,19 +62,16 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.owners, USER.EMAIL))
   }
 
-  override protected def constructGroupByClause(
-      user: SessionUser,
-      params: DashboardResource.SearchQueryParams
-  ): Seq[GroupField] = Seq.empty
+  override protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
   override protected def getOrderFields(
-      user: SessionUser,
+                                         uid: UInteger,
       params: DashboardResource.SearchQueryParams
   ): Seq[OrderField[_]] =
     FulltextSearchQueryUtils.getOrderFields(SearchQueryBuilder.FILE_RESOURCE_TYPE, params)
 
   override def toEntryImpl(
-      user: SessionUser,
+                            uid: UInteger,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val df = DashboardFile(

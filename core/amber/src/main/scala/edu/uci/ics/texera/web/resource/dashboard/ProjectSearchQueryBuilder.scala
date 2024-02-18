@@ -1,15 +1,11 @@
 package edu.uci.ics.texera.web.resource.dashboard
-import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PROJECT_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Project
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  getContainsFilter,
-  getDateFilter,
-  getFulltextSearchConditions
-}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFulltextSearchConditions}
 import org.jooq.{Condition, GroupField, OrderField, Record, TableLike}
 import org.jooq.impl.DSL
+import org.jooq.types.UInteger
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 object ProjectSearchQueryBuilder extends SearchQueryBuilder {
@@ -19,23 +15,24 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
     name = PROJECT.NAME,
     description = PROJECT.DESCRIPTION,
     creationTime = PROJECT.CREATION_TIME,
+    lastModifiedTime = PROJECT.CREATION_TIME,
     pid = PROJECT.PID,
-    projectOwnerId = PROJECT.OWNER_ID,
+    ownerId = PROJECT.OWNER_ID,
     projectColor = PROJECT.COLOR
   )
 
   override protected def constructFromClause(
-      user: SessionUser,
-      params: DashboardResource.SearchQueryParams
+                                              uid:UInteger,
+                                              params: DashboardResource.SearchQueryParams
   ): TableLike[_] = {
     PROJECT
       .leftJoin(PROJECT_USER_ACCESS)
       .on(PROJECT_USER_ACCESS.PID.eq(PROJECT.PID))
-      .where(PROJECT_USER_ACCESS.UID.eq(user.getUid))
+      .where(PROJECT_USER_ACCESS.UID.eq(uid))
   }
 
   override protected def constructWhereClause(
-      user: SessionUser,
+                                               uid:UInteger,
       params: DashboardResource.SearchQueryParams
   ): Condition = {
     val splitKeywords = params.keywords.asScala
@@ -57,19 +54,10 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.projectIds, PROJECT.PID))
   }
 
-  override protected def constructGroupByClause(
-      user: SessionUser,
-      params: DashboardResource.SearchQueryParams
-  ): Seq[GroupField] = Seq.empty
-
-  override protected def getOrderFields(
-      user: SessionUser,
-      params: DashboardResource.SearchQueryParams
-  ): Seq[OrderField[_]] =
-    FulltextSearchQueryUtils.getOrderFields(SearchQueryBuilder.PROJECT_RESOURCE_TYPE, params)
+  override protected def getGroupByFields: Seq[GroupField] = Seq.empty
 
   override def toEntryImpl(
-      user: SessionUser,
+                            uid:UInteger,
       record: Record
   ): DashboardResource.DashboardClickableFileEntry = {
     val dp = record.into(PROJECT).into(classOf[Project])
