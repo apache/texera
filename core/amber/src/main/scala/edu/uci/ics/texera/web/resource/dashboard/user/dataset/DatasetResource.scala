@@ -39,7 +39,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   getDatasetByID,
   getDatasetLatestVersion,
   getDatasetVersionHashByID,
-  persistNewVersion
+  createNewDatasetVersion
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.FileNode
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
@@ -90,6 +90,8 @@ object DatasetResource {
   val ERR_DATASET_CREATION_FAILED_MESSAGE =
     "Dataset creation is failed. Please make sure to upload files in order to create the initial version of dataset"
 
+  // this function get the dataset from DB identified by did,
+  // read access will be checked
   private def getDatasetByID(ctx: DSLContext, did: UInteger, uid: UInteger): Dataset = {
     if (!userHasReadAccess(ctx, did, uid)) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
@@ -102,6 +104,8 @@ object DatasetResource {
     dataset
   }
 
+  // this function retrieve the version hash identified by dvid and did
+  // read access will be checked
   private def getDatasetVersionHashByID(
       ctx: DSLContext,
       did: UInteger,
@@ -119,6 +123,8 @@ object DatasetResource {
     version.getVersionHash
   }
 
+  // this function retrieve the DashboardDataset(Dataset from DB+more information) identified by did
+  // read access will be checked
   def getDashboardDataset(ctx: DSLContext, did: UInteger, uid: UInteger): DashboardDataset = {
     if (!userHasReadAccess(ctx, did, uid)) {
       throw new ForbiddenException()
@@ -134,6 +140,9 @@ object DatasetResource {
     )
   }
 
+  // this function retrieve the latest DatasetVersion from DB
+  // the latest here means the one with latest creation time
+  // read access will be checked
   def getDatasetLatestVersion(ctx: DSLContext, did: UInteger, uid: UInteger): DatasetVersion = {
     if (!userHasReadAccess(ctx, did, uid)) {
       throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
@@ -155,7 +164,11 @@ object DatasetResource {
     latestVersion
   }
 
-  private def persistNewVersion(
+  // this function create a new dataset version
+  // the dataset is identified by did, the file changes/removals are contained in multiPart form
+  // it returns the created dataset version if creation succeed, else return None
+  // concurrency control is performed here: the thread has to have the lock in order to create the new version
+  private def createNewDatasetVersion(
       ctx: DSLContext,
       did: UInteger,
       uid: UInteger,
@@ -163,7 +176,7 @@ object DatasetResource {
       multiPart: FormDataMultiPart
   ): Option[DashboardDatasetVersion] = {
 
-    // Acquire the lock
+    // Acquire or Create the lock for dataset of {did}
     val lock = DatasetResource.datasetLocks.getOrElseUpdate(did, new ReentrantLock())
 
     if (lock.isLocked) {
@@ -313,7 +326,7 @@ class DatasetResource {
       GitVersionControlLocalFileStorage.initRepo(datasetPath)
 
       // create the initial version of the dataset
-      val createdVersion = persistNewVersion(ctx, did, uid, initialVersionName, files)
+      val createdVersion = createNewDatasetVersion(ctx, did, uid, initialVersionName, files)
 
       createdVersion match {
         case Some(_) =>
@@ -426,7 +439,7 @@ class DatasetResource {
         throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
       }
       // create the version
-      val createdVersion = persistNewVersion(ctx, did, uid, versionName, multiPart)
+      val createdVersion = createNewDatasetVersion(ctx, did, uid, versionName, multiPart)
 
       createdVersion match {
         case None =>

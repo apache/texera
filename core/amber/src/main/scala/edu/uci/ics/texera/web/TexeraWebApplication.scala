@@ -122,8 +122,7 @@ class TexeraWebApplication
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
 
-    // register a new custom module and add the custom serializer in
-    // Create a new Jackson module for your custom serializers
+    // register a new custom module and add the custom serializer into it
     val customSerializerModule = new SimpleModule("CustomSerializers")
     customSerializerModule.addSerializer(classOf[FileNode], new FileNodeSerializer())
     bootstrap.getObjectMapper.registerModule(customSerializerModule)
