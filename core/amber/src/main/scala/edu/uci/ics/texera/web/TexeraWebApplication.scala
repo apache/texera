@@ -24,6 +24,8 @@ import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionR
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{DatasetAccessResource, DatasetResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{FileNode, FileNodeSerializer}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.getAllDatasetDirectories
 import edu.uci.ics.texera.web.resource.dashboard.user.file.{UserFileAccessResource, UserFileResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.project.{ProjectAccessResource, ProjectResource, PublicProjectResource}
 import edu.uci.ics.texera.web.resource.dashboard.user.quota.UserQuotaResource
@@ -51,6 +53,15 @@ import java.net.URI
 import scala.annotation.tailrec
 
 object TexeraWebApplication {
+
+  // this method is used to abort uncommitted changes for every dataset
+  def discardUncommittedChangesOfAllDatasets(): Unit = {
+    val datasetPaths = getAllDatasetDirectories()
+
+    datasetPaths.foreach(path => {
+      GitVersionControlLocalFileStorage.discardUncommittedChanges(path)
+    })
+  }
 
   def createAmberRuntime(
       workflow: Workflow,
@@ -92,6 +103,9 @@ object TexeraWebApplication {
     val argMap = parseArgs(args)
 
     val clusterMode = argMap.get(Symbol("cluster")).asInstanceOf[Option[Boolean]].getOrElse(false)
+
+    // Do the uncommitted changes cleanup of datasets
+    discardUncommittedChangesOfAllDatasets()
 
     // start actor system master node
     actorSystem = AmberUtils.startActorMaster(clusterMode)

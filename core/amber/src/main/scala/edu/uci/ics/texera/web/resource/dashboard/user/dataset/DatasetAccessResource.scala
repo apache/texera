@@ -24,17 +24,14 @@ import org.jooq.types.UInteger
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs.{
-  BadRequestException,
   DELETE,
   GET,
-  InternalServerErrorException,
   PUT,
   Path,
   PathParam,
   Produces
 }
 import javax.ws.rs.core.{MediaType, Response}
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 
 object DatasetAccessResource {
   final private lazy val context = SqlServer.createDSLContext()
@@ -57,7 +54,7 @@ object DatasetAccessResource {
       )
       .fetchInto(classOf[Dataset])
 
-    userAccessible.nonEmpty
+    userAccessible.size() != 0
   }
 
   def userOwnDataset(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
