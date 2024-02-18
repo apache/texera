@@ -23,14 +23,7 @@ import org.jooq.types.UInteger
 
 import java.util
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{
-  DELETE,
-  GET,
-  PUT,
-  Path,
-  PathParam,
-  Produces
-}
+import javax.ws.rs.{DELETE, GET, PUT, Path, PathParam, Produces}
 import javax.ws.rs.core.{MediaType, Response}
 
 object DatasetAccessResource {
