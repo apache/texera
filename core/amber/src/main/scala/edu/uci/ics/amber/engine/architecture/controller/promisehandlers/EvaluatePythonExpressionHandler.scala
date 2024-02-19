@@ -26,11 +26,11 @@ trait EvaluatePythonExpressionHandler {
       }
 
       val physicalOp = physicalOps.head
-      val opExecution = cp.executionState.getOperatorExecution(physicalOp.id)
+      val opExecution = cp.workflowExecution.getLatestOperatorExecution(physicalOp.id)
 
       Future
         .collect(
-          opExecution.getBuiltWorkerIds
+          opExecution.getWorkerIds
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList
         )

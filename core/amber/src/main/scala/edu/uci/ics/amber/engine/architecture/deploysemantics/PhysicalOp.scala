@@ -4,7 +4,7 @@ import akka.actor.Deploy
 import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
+import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
   OpExecInitInfoWithCode
@@ -438,7 +438,7 @@ case class PhysicalOp(
 
   def build(
       controllerActorService: AkkaActorService,
-      opExecution: OperatorExecution,
+      operatorExecution: OperatorExecution,
       operatorConfig: OperatorConfig,
       stateRestoreConfig: Option[StateRestoreConfig],
       replayLoggingConfig: Option[FaultToleranceConfig]
@@ -472,7 +472,7 @@ case class PhysicalOp(
       controllerActorService.actorOf(
         workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
       )
-      opExecution.initWorkerExecution(workerId)
+      operatorExecution.initWorkerExecution(workerId)
     })
   }
 }

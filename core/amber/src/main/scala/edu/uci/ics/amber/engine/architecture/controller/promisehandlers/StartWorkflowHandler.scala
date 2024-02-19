@@ -19,7 +19,7 @@ trait StartWorkflowHandler {
 
   registerHandler { (msg: StartWorkflow, sender) =>
     {
-      if (cp.executionState.getState.isUninitialized) {
+      if (cp.workflowExecution.getState.isUninitialized) {
         cp.workflowExecutionController
           .executeNextRegions(cp.actorService)
           .map(_ => {

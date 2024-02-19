@@ -14,7 +14,7 @@ object ControllerEvent {
 
   case class WorkflowPaused() extends ControlCommand[Unit]
 
-  case class WorkflowStatusUpdate(
+  case class WorkflowStatsUpdate(
       operatorStatistics: Map[String, OperatorRuntimeStats]
   ) extends ControlCommand[Unit]
 

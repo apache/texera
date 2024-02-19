@@ -282,4 +282,8 @@ libraryDependencies += "org.apache.commons" % "commons-vfs2" % "2.9.0"
 // https://mvnrepository.com/artifact/org.scala-lang.modules/scala-collection-contrib
 libraryDependencies += "org.scala-lang.modules" %% "scala-collection-contrib" % "0.3.0"
 
+// For supporting deepcopy
+// https://mvnrepository.com/artifact/io.github.kostaskougios/cloning
+libraryDependencies += "io.github.kostaskougios" % "cloning" % "1.10.3"
+
 

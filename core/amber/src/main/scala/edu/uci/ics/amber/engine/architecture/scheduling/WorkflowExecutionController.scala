@@ -3,7 +3,8 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ExecutionState}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
+import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
 import scala.collection.mutable
@@ -11,12 +12,13 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class WorkflowExecutionController(
     regionPlan: RegionPlan,
-    executionState: ExecutionState,
+    workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private val regionExecutors: mutable.HashMap[RegionIdentity, RegionExecutionController] =
+  private val regionExecutionControllers
+      : mutable.HashMap[RegionIdentity, RegionExecutionController] =
     mutable.HashMap()
 
   private val regionExecutionOrder: List[Set[RegionIdentity]] = {
@@ -47,50 +49,38 @@ class WorkflowExecutionController(
       .collect(
         getNextRegions
           .map(region => {
-            regionExecutors(region.id) = new RegionExecutionController(
+            workflowExecution.initRegionExecution(region)
+            regionExecutionControllers(region.id) = new RegionExecutionController(
               region,
-              executionState,
+              workflowExecution,
               asyncRPCClient,
               controllerConfig
             )
-            regionExecutors(region.id)
+            regionExecutionControllers(region.id)
           })
-          .map(regionExecutor => regionExecutor.execute(actorService))
+          .map(regionExecutionController => regionExecutionController.execute(actorService))
           .toSeq
       )
       .unit
-  }
-
-  def markRegionCompletion(portId: GlobalPortIdentity): Unit = {
-    regionPlan.getRegionOfPortId(portId) match {
-      case Some(region) =>
-        if (RegionExecution.isRegionCompleted(executionState, region)) {
-          regionExecutors(region.id).regionExecution.running = false
-          regionExecutors(region.id).regionExecution.completed = true
-        }
-      case None => // do nothing. currently the source input ports and sink output ports are not captured.
-    }
-
   }
 
   /**
     * get the next batch of Regions to execute.
     */
   private def getNextRegions: Set[Region] = {
-    if (regionExecutors.values.map(_.getRegionExecution).exists(_.running)) {
+    if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
       return Set.empty
     }
 
-    val completedRegions: Set[RegionIdentity] = regionExecutors.collect {
-      case (regionId, executor) if executor.regionExecution.completed => regionId
-    }.toSet
+    val completedRegions: Set[RegionIdentity] = regionExecutionControllers.keys
+      .filter(regionId => workflowExecution.getRegionExecution(regionId).isCompleted)
+      .toSet
 
     regionExecutionOrder
       .map(_ -- completedRegions)
       .find(_.nonEmpty)
       .getOrElse(Set.empty)
       .map(regionPlan.getRegion)
-
   }
 
 }

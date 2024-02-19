@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.common.AmberProcessor
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortCompletedHandler.PortCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionStartedHandler.WorkerStateUpdated
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerStateUpdatedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfoWithCode,
@@ -221,12 +221,14 @@ class DataProcessor(
       case FinalizeOperator() =>
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
-        logger.info(
-          s"$operator completed, outputted = ${statisticsManager.getOutputTupleCount}"
-        )
         operator.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
+        logger.info(
+          s"$operator completed, # of input ports = ${inputGateway.getAllPorts.size}, " +
+            s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
+            s"output tuple count = ${statisticsManager.getOutputTupleCount}"
+        )
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizePort(portId, input) =>
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
@@ -304,14 +306,13 @@ class DataProcessor(
           processInputTuple(Right(InputExhausted()))
           outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
-        if (inputGateway.getAllPorts().forall(portId => inputGateway.isPortCompleted(portId))) {
+        if (inputGateway.getAllPorts.forall(portId => inputGateway.isPortCompleted(portId))) {
           // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
           outputGateway
             .getPortIds()
             .foreach(outputPortId =>
               outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
             )
-
           outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
         }
     }
