@@ -224,6 +224,11 @@ class DataProcessor(
         operator.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
+        logger.info(
+          s"$operator completed, # of input ports = ${inputGateway.getAllPorts().size}, " +
+            s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
+            s"output tuple count = ${statisticsManager.getOutputTupleCount}"
+        )
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizePort(portId, input) =>
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
