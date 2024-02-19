@@ -43,7 +43,6 @@ class RegionExecutionController(
     region: Region,
     executionState: ExecutionState,
     asyncRPCClient: AsyncRPCClient,
-    actorService: AkkaActorService,
     controllerConfig: ControllerConfig
 ) {
   // TODO: for now we keep the state with the Executor.
@@ -54,7 +53,7 @@ class RegionExecutionController(
     regionExecution
   }
 
-  def execute: Future[Unit] = {
+  def execute(actorService: AkkaActorService): Future[Unit] = {
 
     // find out the operators needs to be built.
     // some operators may have already been built in previous regions.
@@ -72,6 +71,7 @@ class RegionExecutionController(
     // build operators, init workers
     operatorsToBuild.foreach(physicalOp =>
       buildOperator(
+        actorService,
         physicalOp,
         resourceConfig.operatorConfigs(physicalOp.id)
       )
@@ -119,6 +119,7 @@ class RegionExecutionController(
       .unit
   }
   private def buildOperator(
+      actorService: AkkaActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig
   ): Unit = {

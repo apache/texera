@@ -12,7 +12,6 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class WorkflowExecutionController(
     regionPlan: RegionPlan,
     executionState: ExecutionState,
-    actorService: AkkaActorService,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
@@ -43,7 +42,7 @@ class WorkflowExecutionController(
     * The entry function for WorkflowExecutor.
     * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
     */
-  def executeNextRegions(): Future[Unit] = {
+  def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
     Future
       .collect(
         getNextRegions
@@ -52,12 +51,11 @@ class WorkflowExecutionController(
               region,
               executionState,
               asyncRPCClient,
-              actorService,
               controllerConfig
             )
             regionExecutors(region.id)
           })
-          .map(regionExecutor => regionExecutor.execute)
+          .map(regionExecutor => regionExecutor.execute(actorService))
           .toSeq
       )
       .unit
