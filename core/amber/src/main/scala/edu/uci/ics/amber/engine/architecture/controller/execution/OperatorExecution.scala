@@ -50,7 +50,7 @@ case class OperatorExecution() {
   def assignBreakpoint(breakpoint: GlobalBreakpoint[_]): Set[ActorVirtualIdentity] = getWorkerIds
 
   def getState: WorkflowAggregatedState = {
-    val workerStates = workerExecutions.values.asScala.map(_.state).toArray
+    val workerStates = workerExecutions.values.asScala.map(_.getState).toArray
     if (workerStates.isEmpty) {
       return WorkflowAggregatedState.UNINITIALIZED
     }
@@ -75,14 +75,14 @@ case class OperatorExecution() {
   def getStats: OperatorRuntimeStats =
     OperatorRuntimeStats(
       getState,
-      inputCount = workerExecutions.values.asScala.map(_.stats).map(_.inputTupleCount).sum,
-      outputCount = workerExecutions.values.asScala.map(_.stats).map(_.outputTupleCount).sum,
+      inputCount = workerExecutions.values.asScala.map(_.getStats).map(_.inputTupleCount).sum,
+      outputCount = workerExecutions.values.asScala.map(_.getStats).map(_.outputTupleCount).sum,
       getWorkerIds.size,
       dataProcessingTime =
-        workerExecutions.values.asScala.map(_.stats).map(_.dataProcessingTime).sum,
+        workerExecutions.values.asScala.map(_.getStats).map(_.dataProcessingTime).sum,
       controlProcessingTime =
-        workerExecutions.values.asScala.map(_.stats).map(_.controlProcessingTime).sum,
-      idleTime = workerExecutions.values.asScala.map(_.stats).map(_.idleTime).sum
+        workerExecutions.values.asScala.map(_.getStats).map(_.controlProcessingTime).sum,
+      idleTime = workerExecutions.values.asScala.map(_.getStats).map(_.idleTime).sum
     )
 
   def isInputPortCompleted(portId: PortIdentity): Boolean = {

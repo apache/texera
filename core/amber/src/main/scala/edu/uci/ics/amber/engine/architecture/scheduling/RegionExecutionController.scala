@@ -45,7 +45,6 @@ class RegionExecutionController(
 
       // Initialize operator execution, reusing existing execution if available
       val operatorExecution = regionExecution.initOperatorExecution(
-        actorService,
         physicalOp.id,
         if (existOpExecution) Some(workflowExecution.getLatestOperatorExecution(physicalOp.id))
         else None
@@ -53,7 +52,12 @@ class RegionExecutionController(
 
       // If no existing execution, build the operator with specified config
       if (!existOpExecution) {
-        buildOperator(physicalOp, resourceConfig.operatorConfigs(physicalOp.id), operatorExecution)
+        buildOperator(
+          actorService,
+          physicalOp,
+          resourceConfig.operatorConfigs(physicalOp.id),
+          operatorExecution
+        )
       }
     })
 
@@ -200,13 +204,13 @@ class RegionExecutionController(
             .map { workerId =>
               asyncRPCClient
                 .send(StartWorker(), workerId)
-                .map(ret =>
+                .map(state =>
                   // update worker state
                   workflowExecution
                     .getRegionExecution(region.id)
                     .getOperatorExecution(opId)
                     .getWorkerExecution(workerId)
-                    .state = ret
+                    .setState(state)
                 )
             }
         }

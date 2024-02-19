@@ -34,7 +34,7 @@ trait PauseHandler {
       cp.controllerTimerService.disableStatusUpdate() // to be enabled in resume
       Future
         .collect(
-          cp.workflowExecution.getAllRegionExecutions
+          cp.workflowExecution.getRunningRegionExecutions
             .flatMap(_.getAllOperatorExecutions)
             .map {
               case (physicalOpId, opExecution) =>
@@ -49,14 +49,14 @@ trait PauseHandler {
                       .map { worker =>
                         val workerExecution = opExecution.getWorkerExecution(worker)
                         // send a pause message
-                        send(PauseWorker(), worker).flatMap { ret =>
-                          workerExecution.state = ret
+                        send(PauseWorker(), worker).flatMap { state =>
+                          workerExecution.setState(state)
                           send(QueryStatistics(), worker)
                             .join(send(QueryCurrentInputTuple(), worker))
                             // get the stats and current input tuple from the worker
                             .map {
                               case (stats, tuple) =>
-                                workerExecution.stats = stats
+                                workerExecution.setStats(stats)
                                 buffer.append((tuple, worker))
                             }
                         }
@@ -75,7 +75,7 @@ trait PauseHandler {
           // update frontend workflow status
           sendToClient(
             WorkflowStatsUpdate(
-              cp.workflowExecution.getAllRegionExecutions.flatMap(_.getStats).toMap
+              cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
             )
           )
           sendToClient(WorkflowPaused())

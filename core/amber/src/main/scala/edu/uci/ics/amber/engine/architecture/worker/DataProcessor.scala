@@ -221,9 +221,6 @@ class DataProcessor(
       case FinalizeOperator() =>
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
-        logger.info(
-          s"$operator completed, # of input ports = ${inputGateway.getAllPorts().size}, inputted = $inputTupleCount, outputted = ${statisticsManager.getOutputTupleCount}"
-        )
         operator.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)

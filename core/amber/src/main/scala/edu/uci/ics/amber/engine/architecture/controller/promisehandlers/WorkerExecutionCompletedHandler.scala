@@ -9,8 +9,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
-import scala.collection.mutable
-
 object WorkerExecutionCompletedHandler {
   final case class WorkerExecutionCompleted() extends ControlCommand[Unit]
 }

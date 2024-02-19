@@ -46,8 +46,6 @@ trait PortCompletedHandler {
             else operatorExecution.isOutputPortCompleted(msg.portId)
 
           if (isPortCompleted) {
-            //        cp.workflowExecutionController.markRegionCompletion(globalPortId)
-            logger.info("port is completed, tying to execute next regions")
             cp.workflowExecutionController.executeNextRegions(cp.actorService)
           } else {
             // if the port is not completed yet, do nothing

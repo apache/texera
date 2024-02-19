@@ -20,11 +20,13 @@ trait WorkerStateUpdatedHandler {
 
   registerHandler { (msg: WorkerStateUpdated, sender) =>
     {
+      val physicalOpId = VirtualIdentityUtils.getPhysicalOpId(sender)
       // set the state
-      cp.workflowExecution.getAllRegionExecutions
-        .map(_.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender)))
+      cp.workflowExecution.getRunningRegionExecutions
+        .find(_.hasOperatorExecution(physicalOpId))
+        .map(_.getOperatorExecution(physicalOpId))
         .foreach(operatorExecution =>
-          operatorExecution.getWorkerExecution(sender).state = msg.state
+          operatorExecution.getWorkerExecution(sender).setState(msg.state)
         )
       sendToClient(
         WorkflowStatsUpdate(
