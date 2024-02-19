@@ -225,7 +225,7 @@ class DataProcessor(
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         logger.info(
-          s"$operator completed, # of input ports = ${inputGateway.getAllPorts().size}, " +
+          s"$operator completed, # of input ports = ${inputGateway.getAllPorts.size}, " +
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
@@ -306,7 +306,7 @@ class DataProcessor(
           processInputTuple(Right(InputExhausted()))
           outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
-        if (inputGateway.getAllPorts().forall(portId => inputGateway.isPortCompleted(portId))) {
+        if (inputGateway.getAllPorts.forall(portId => inputGateway.isPortCompleted(portId))) {
           // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
           outputGateway
             .getPortIds()
