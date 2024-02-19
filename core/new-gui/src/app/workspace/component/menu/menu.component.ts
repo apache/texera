@@ -196,7 +196,6 @@ export class MenuComponent implements OnInit {
           onClick: () => this.executeWorkflowService.pauseWorkflow(),
         };
       case ExecutionState.Paused:
-      case ExecutionState.BreakpointTriggered:
         return {
           text: "Resume",
           icon: "pause-circle",

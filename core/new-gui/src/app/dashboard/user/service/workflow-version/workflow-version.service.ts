@@ -5,7 +5,7 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { UndoRedoService } from "../../../../workspace/service/undo-redo/undo-redo.service";
 import { isEqual } from "lodash";
-import { Breakpoint, OperatorLink, OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
+import { OperatorLink, OperatorPredicate, Point } from "src/app/workspace/types/workflow-common.interface";
 import { WorkflowVersionEntry } from "../../type/workflow-version-entry";
 import { AppSettings } from "../../../../common/app-setting";
 import { filter, map } from "rxjs/operators";
@@ -16,7 +16,7 @@ import { HttpClient } from "@angular/common/http";
 export const WORKFLOW_VERSIONS_API_BASE_URL = "version";
 
 type WorkflowContentKeys = keyof WorkflowContent;
-type Element = Breakpoint | OperatorLink | OperatorPredicate | Point;
+type Element = OperatorLink | OperatorPredicate | Point;
 type DifferentOpIDsList = {
   [key in "modified" | "added" | "deleted"]: string[];
 };

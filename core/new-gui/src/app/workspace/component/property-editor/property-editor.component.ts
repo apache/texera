@@ -2,16 +2,12 @@ import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
-import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 
-export type PropertyEditFrameComponent =
-  | OperatorPropertyEditFrameComponent
-  | BreakpointPropertyEditFrameComponent
-  | PortPropertyEditFrameComponent;
+export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | PortPropertyEditFrameComponent;
 
 export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
 
@@ -89,11 +85,6 @@ export class PropertyEditorComponent implements OnInit {
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] },
-          });
-        } else if (highlightLinks.length === 1 && highlightedGroups.length === 0 && highlightedOperators.length === 0) {
-          this.switchFrameComponent({
-            component: BreakpointPropertyEditFrameComponent,
-            componentInputs: { currentLinkId: highlightLinks[0] },
           });
         } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.switchFrameComponent({

@@ -1,6 +1,5 @@
 import { Observable, Subject } from "rxjs";
 import {
-  Breakpoint,
   Comment,
   CommentBox,
   LogicalPort,
@@ -693,8 +692,6 @@ export class WorkflowGraph {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(linkID);
   }
 
   /**
@@ -710,8 +707,6 @@ export class WorkflowGraph {
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(link.linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(link.linkID);
   }
 
   /**
@@ -839,52 +834,6 @@ export class WorkflowGraph {
         (newProperty as PortProperty).dependencies
       ) as unknown as Y.Array<number>
     );
-  }
-
-  /**
-   * set the breakpoint property of a link to be newBreakpoint
-   * Throws an error if link doesn't exist
-   *
-   * @param linkID linkID
-   * @param breakpoint
-   */
-  public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint | undefined): void {
-    this.assertLinkWithIDExists(linkID);
-    if (breakpoint === undefined || Object.keys(breakpoint).length === 0) {
-      this.sharedModel.linkBreakpointMap.delete(linkID);
-    } else {
-      this.sharedModel.linkBreakpointMap.set(linkID, breakpoint);
-    }
-  }
-
-  /**
-   * get the breakpoint property of a link
-   * returns an empty object if the link has no property
-   *
-   * @param linkID
-   */
-  public getLinkBreakpoint(linkID: string): Breakpoint | undefined {
-    return this.sharedModel.linkBreakpointMap.get(linkID);
-  }
-
-  /**
-   * Returns all link breakpoints as a readonly map. This returns the internal YMap directly.
-   */
-  public getAllLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    return this.sharedModel.linkBreakpointMap;
-  }
-
-  /**
-   * Returns breakpoints filtered by enabled status. This returns a new map from the internal YMap.
-   */
-  public getAllEnabledLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    const enabledBreakpoints = new Map();
-    this.sharedModel.linkBreakpointMap.forEach((breakpoint, linkID) => {
-      if (this.isLinkEnabled(linkID)) {
-        enabledBreakpoints.set(linkID, breakpoint);
-      }
-    });
-    return enabledBreakpoints;
   }
 
   /**

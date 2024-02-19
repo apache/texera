@@ -3,8 +3,6 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { BreakpointSchema } from "../../types/workflow-common.interface";
-import { mockBreakpointSchema } from "./mock-operator-metadata.data";
 import { shareReplay } from "rxjs/operators";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
@@ -34,7 +32,6 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
 export class OperatorMetadataService {
   // holds the current version of operator metadata
   private currentOperatorMetadata: OperatorMetadata | undefined;
-  private readonly currentBreakpointSchema: BreakpointSchema | undefined;
 
   private operatorMetadataObservable = this.httpClient
     .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
@@ -44,8 +41,6 @@ export class OperatorMetadataService {
     this.getOperatorMetadata().subscribe(data => {
       this.currentOperatorMetadata = data;
     });
-    // At current design, all the links have one fixed breakpoint schema stored in the frontend
-    this.currentBreakpointSchema = mockBreakpointSchema;
   }
 
   /**
@@ -104,15 +99,5 @@ export class OperatorMetadataService {
       return false;
     }
     return true;
-  }
-
-  /**
-   * At current design, this function returns the fixed schema
-   */
-  public getBreakpointSchema(): BreakpointSchema {
-    if (!this.currentBreakpointSchema) {
-      throw new Error("breakpoint schema is undefined");
-    }
-    return this.currentBreakpointSchema;
   }
 }

@@ -26,7 +26,6 @@ class ExecutionRuntimeService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
-    breakpointService: ExecutionBreakpointService,
     reconfigurationService: ExecutionReconfigurationService,
     logConf: Option[FaultToleranceConfig]
 ) extends SubscriptionManager
@@ -54,7 +53,6 @@ class ExecutionRuntimeService(
 
   // Receive Resume
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
-    breakpointService.clearTriggeredBreakpoints()
     reconfigurationService.performReconfigurationOnResume()
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(RESUMING, metadataStore)

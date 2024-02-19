@@ -80,43 +80,6 @@ export interface OperatorLink
     target: LogicalPort;
   }> {}
 
-export interface BreakpointSchema
-  extends Readonly<{
-    jsonSchema: Readonly<JSONSchema7>;
-  }> {}
-
-type ConditionBreakpoint = Readonly<{
-  column: number;
-  condition: "=" | ">" | ">=" | "<" | "<=" | "!=" | "contains" | "does not contain";
-  value: string;
-}>;
-
-type CountBreakpoint = Readonly<{
-  count: number;
-}>;
-
-export type Breakpoint = ConditionBreakpoint | CountBreakpoint;
-
-export type BreakpointRequest =
-  | Readonly<{ type: "ConditionBreakpoint" } & ConditionBreakpoint>
-  | Readonly<{ type: "CountBreakpoint" } & CountBreakpoint>;
-
-export type BreakpointFaultedTuple = Readonly<{
-  tuple: ReadonlyArray<string>;
-  id: number;
-  isInput: boolean;
-}>;
-
-export type BreakpointFault = Readonly<{
-  workerName: string;
-  faultedTuple: BreakpointFaultedTuple;
-}>;
-
-export type BreakpointTriggerInfo = Readonly<{
-  report: ReadonlyArray<BreakpointFault>;
-  operatorID: string;
-}>;
-
 /**
  * refer to src/main/scalapb/edu/uci/ics/texera/web/workflowruntimestate/ConsoleMessage.scala
  */

@@ -16,8 +16,6 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.SetHasAsScala
 import scala.util.{Failure, Success, Try}
 
-case class BreakpointInfo(operatorID: String, breakpoint: Breakpoint)
-
 object LogicalPlan {
 
   private def toJgraphtDAG(
@@ -40,15 +38,14 @@ object LogicalPlan {
   def apply(
       pojo: LogicalPlanPojo
   ): LogicalPlan = {
-    LogicalPlan(pojo.operators, pojo.links, pojo.breakpoints)
+    LogicalPlan(pojo.operators, pojo.links)
   }
 
 }
 
 case class LogicalPlan(
     operators: List[LogicalOp],
-    links: List[LogicalLink],
-    breakpoints: List[BreakpointInfo]
+    links: List[LogicalLink]
 ) extends LazyLogging {
 
   private lazy val operatorMap: Map[OperatorIdentity, LogicalOp] =
@@ -85,14 +82,13 @@ case class LogicalPlan(
 
   def addOperator(op: LogicalOp): LogicalPlan = {
     // TODO: fix schema for the new operator
-    this.copy(operators :+ op, links, breakpoints)
+    this.copy(operators :+ op, links)
   }
 
   def removeOperator(opId: OperatorIdentity): LogicalPlan = {
     this.copy(
       operators.filter(o => o.operatorIdentifier != opId),
-      links.filter(l => l.fromOpId != opId && l.toOpId != opId),
-      breakpoints.filter(b => OperatorIdentity(b.operatorID) != opId)
+      links.filter(l => l.fromOpId != opId && l.toOpId != opId)
     )
   }
 
@@ -109,11 +105,11 @@ case class LogicalPlan(
       toPortId
     )
     val newLinks = links :+ newLink
-    this.copy(operators, newLinks, breakpoints)
+    this.copy(operators, newLinks)
   }
 
   def removeLink(linkToRemove: LogicalLink): LogicalPlan = {
-    this.copy(operators, links.filter(l => l != linkToRemove), breakpoints)
+    this.copy(operators, links.filter(l => l != linkToRemove))
   }
 
   def getDownstreamOps(opId: OperatorIdentity): List[LogicalOp] = {

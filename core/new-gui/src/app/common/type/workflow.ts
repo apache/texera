@@ -1,12 +1,6 @@
 import { WorkflowMetadata } from "../../dashboard/user/type/workflow-metadata.interface";
 import { PlainGroup } from "../../workspace/service/workflow-graph/model/operator-group";
-import {
-  Breakpoint,
-  OperatorLink,
-  OperatorPredicate,
-  Point,
-  CommentBox,
-} from "../../workspace/types/workflow-common.interface";
+import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../workspace/types/workflow-common.interface";
 
 /**
  * WorkflowContent is used to store the information of the workflow
@@ -26,7 +20,6 @@ export interface WorkflowContent
     operatorPositions: { [key: string]: Point };
     links: OperatorLink[];
     groups: PlainGroup[];
-    breakpoints: Record<string, Breakpoint>;
     commentBoxes: CommentBox[];
   }> {}
 

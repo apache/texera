@@ -23,7 +23,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
-  PAUSED,
   READY,
   RUNNING
 }
@@ -140,26 +139,13 @@ class DataProcessor(
 
   // inner dependencies
   private val initializer = new DataProcessorRPCHandlerInitializer(this)
-  // 1. pause manager
   val pauseManager: PauseManager = wire[PauseManager]
-  // 2. breakpoint manager
-  val breakpointManager: BreakpointManager = new BreakpointManager(asyncRPCClient)
-  // 3. state manager
   val stateManager: WorkerStateManager = new WorkerStateManager()
-  // 4. batch producer
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
-  // 5. epoch manager
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
 
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
-  }
-  def onInterrupt(): Unit = {
-    adaptiveBatchingMonitor.pauseAdaptiveBatching()
-  }
-
-  def onContinue(): Unit = {
-    adaptiveBatchingMonitor.resumeAdaptiveBatching()
   }
 
   /** provide API for actor to get stats of this operator
@@ -233,15 +219,9 @@ class DataProcessor(
       case FinalizePort(portId, input) =>
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case _ =>
-        if (breakpointManager.evaluateTuple(outputTuple)) {
-          pauseManager.pause(UserPause)
-          adaptiveBatchingMonitor.pauseAdaptiveBatching()
-          stateManager.transitTo(PAUSED)
-        } else {
-          statisticsManager.increaseOutputTupleCount()
-          val outLinks = physicalOp.getOutputLinks(outputPortOpt)
-          outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
-        }
+        statisticsManager.increaseOutputTupleCount()
+        val outLinks = physicalOp.getOutputLinks(outputPortOpt)
+        outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
     }
   }
 

@@ -11,11 +11,9 @@ import edu.uci.ics.texera.web.model.websocket.request.python.{
 @JsonSubTypes(
   Array(
     new Type(value = classOf[RegisterWorkflowIdRequest]),
-    new Type(value = classOf[AddBreakpointRequest]),
     new Type(value = classOf[EditingTimeCompilationRequest]),
     new Type(value = classOf[HeartBeatRequest]),
     new Type(value = classOf[ModifyLogicRequest]),
-    new Type(value = classOf[RemoveBreakpointRequest]),
     new Type(value = classOf[ResultExportRequest]),
     new Type(value = classOf[ResultPaginationRequest]),
     new Type(value = classOf[RetryRequest]),

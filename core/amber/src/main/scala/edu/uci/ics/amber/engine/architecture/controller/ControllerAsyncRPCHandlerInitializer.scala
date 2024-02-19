@@ -10,10 +10,8 @@ class ControllerAsyncRPCHandlerInitializer(
 ) extends AsyncRPCHandlerInitializer(cp.asyncRPCClient, cp.asyncRPCServer)
     with AmberLogging
     with LinkWorkersHandler
-    with AssignBreakpointHandler
     with WorkerExecutionCompletedHandler
     with WorkerStateUpdatedHandler
-    with LocalBreakpointTriggeredHandler
     with PauseHandler
     with QueryWorkerStatisticsHandler
     with ResumeHandler

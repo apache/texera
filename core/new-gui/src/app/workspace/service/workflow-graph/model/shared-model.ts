@@ -1,13 +1,7 @@
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { Awareness } from "y-protocols/awareness";
-import {
-  Breakpoint,
-  CommentBox,
-  OperatorLink,
-  OperatorPredicate,
-  Point,
-} from "../../../types/workflow-common.interface";
+import { CommentBox, OperatorLink, OperatorPredicate, Point } from "../../../types/workflow-common.interface";
 import { User, CoeditorState } from "../../../../common/type/user";
 import { getWebsocketUrl } from "../../../../common/util/url";
 import { v4 as uuid } from "uuid";
@@ -26,7 +20,6 @@ export class SharedModel {
   public commentBoxMap: Y.Map<YType<CommentBox>>;
   public operatorLinkMap: Y.Map<OperatorLink>;
   public elementPositionMap: Y.Map<Point>;
-  public linkBreakpointMap: Y.Map<Breakpoint>;
   public undoManager: Y.UndoManager;
   public clientId: string;
 
@@ -44,11 +37,10 @@ export class SharedModel {
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");
     this.operatorLinkMap = this.yDoc.getMap("operatorLinkMap");
     this.elementPositionMap = this.yDoc.getMap("elementPositionMap");
-    this.linkBreakpointMap = this.yDoc.getMap("linkBreakPointMap");
 
     // Initialize Y-undo manager by aggregating intended  Y-structures. Only structures included here will be undoable.
     this.undoManager = new Y.UndoManager(
-      [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap, this.linkBreakpointMap],
+      [this.operatorIDMap, this.elementPositionMap, this.operatorLinkMap, this.commentBoxMap],
       {
         captureTimeout: 100,
       }
