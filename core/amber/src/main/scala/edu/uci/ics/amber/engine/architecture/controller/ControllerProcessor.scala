@@ -56,7 +56,6 @@ class ControllerProcessor(
     this.workflowExecutionController = new WorkflowExecutionController(
       workflow.regionPlan,
       executionState,
-      actorService,
       controllerConfig,
       asyncRPCClient
     )
