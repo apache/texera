@@ -25,6 +25,7 @@ export class UserWorkflowListItemComponent {
   ROUTER_WORKFLOW_BASE_URL = "/workflow";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   private _entry?: DashboardEntry;
+  @Input() public keywords: string[] = [];
 
   @Input()
   get entry(): DashboardEntry {

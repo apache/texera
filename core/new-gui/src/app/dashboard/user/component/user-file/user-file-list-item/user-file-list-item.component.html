@@ -4,9 +4,8 @@
       <div class="file-item-meta-title">
         <h4
           *ngIf="!editingName; else customeFileName"
-          class="file-name">
-          {{ entry.ownerEmail + "/" + entry.file.name }}
-        </h4>
+          class="file-name"
+          [innerHTML]="entry.ownerEmail + '/' + entry.file.name | highlightSearchTerms: keywords"></h4>
         <ng-template #customeFileName>
           <input
             #customeFileName

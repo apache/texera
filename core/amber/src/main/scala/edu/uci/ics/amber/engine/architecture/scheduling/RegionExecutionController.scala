@@ -29,10 +29,9 @@ class RegionExecutionController(
     region: Region,
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,
-    actorService: AkkaActorService,
     controllerConfig: ControllerConfig
 ) {
-  def execute: Future[Unit] = {
+  def execute(actorService: AkkaActorService): Future[Unit] = {
 
     // fetch resource config
     val resourceConfig = region.resourceConfig.get
@@ -46,6 +45,7 @@ class RegionExecutionController(
 
       // Initialize operator execution, reusing existing execution if available
       val operatorExecution = regionExecution.initOperatorExecution(
+        actorService,
         physicalOp.id,
         if (existOpExecution) Some(workflowExecution.getLatestOperatorExecution(physicalOp.id))
         else None
@@ -99,6 +99,7 @@ class RegionExecutionController(
       .unit
   }
   private def buildOperator(
+      actorService: AkkaActorService,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
       operatorExecution: OperatorExecution
