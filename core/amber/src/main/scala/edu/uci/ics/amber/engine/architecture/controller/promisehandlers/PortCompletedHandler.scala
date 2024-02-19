@@ -51,7 +51,8 @@ trait PortCompletedHandler {
             // if the port is not completed yet, do nothing
             Future(())
           }
-        case None => // do nothing.
+        case None => // currently "start" and "end" ports are not part of a region, thus no region can be found.
+        // do nothing.
       }
 
     }
