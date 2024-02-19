@@ -8,7 +8,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   DatasetDao,
   DatasetUserAccessDao,
   DatasetVersionDao,
-  UserDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   Dataset,
@@ -19,7 +18,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   getDatasetUserAccessPrivilege,
-  getOwner,
   userHasReadAccess,
   userHasWriteAccess,
   userOwnDataset
@@ -50,7 +48,7 @@ import org.jooq.{DSLContext, EnumType}
 import org.jooq.types.UInteger
 
 import java.io.{InputStream, OutputStream}
-import java.net.{URLDecoder, URLEncoder}
+import java.net.URLDecoder
 import java.nio.charset.StandardCharsets
 import java.nio.file.Paths
 import java.util
@@ -61,7 +59,6 @@ import javax.ws.rs.{
   Consumes,
   ForbiddenException,
   GET,
-  InternalServerErrorException,
   NotFoundException,
   POST,
   Path,
