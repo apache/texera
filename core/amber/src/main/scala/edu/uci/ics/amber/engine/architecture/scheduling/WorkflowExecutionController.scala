@@ -9,9 +9,10 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.util.{Failure, Success, Try}
 
 class WorkflowExecutionController(
-    val regionPlan: RegionPlan,
+    getNextRegionBatch: ()=> Set[Region],
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
@@ -21,24 +22,7 @@ class WorkflowExecutionController(
       : mutable.HashMap[RegionIdentity, RegionExecutionController] =
     mutable.HashMap()
 
-  private val regionExecutionOrder: List[Set[RegionIdentity]] = {
-    val levels = mutable.Map.empty[RegionIdentity, Int]
-    val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
 
-    regionPlan.topologicalIterator().foreach { currentVertex =>
-      val currentLevel = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
-        (maxLevel, incomingEdge) =>
-          val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
-          math.max(maxLevel, levels.getOrElse(sourceVertex, 0) + 1)
-      }
-
-      levels(currentVertex) = currentLevel
-      levelSets.getOrElseUpdate(currentLevel, mutable.Set.empty).add(currentVertex)
-    }
-
-    val maxLevel = levels.values.maxOption.getOrElse(0)
-    (0 to maxLevel).toList.map(level => levelSets.getOrElse(level, mutable.Set.empty).toSet)
-  }
 
   /**
     * The entry function for WorkflowExecutor.
@@ -72,15 +56,10 @@ class WorkflowExecutionController(
       return Set.empty
     }
 
-    val completedRegions: Set[RegionIdentity] = regionExecutionControllers.keys
-      .filter(regionId => workflowExecution.getRegionExecution(regionId).isCompleted)
-      .toSet
-
-    regionExecutionOrder
-      .map(_ -- completedRegions)
-      .find(_.nonEmpty)
-      .getOrElse(Set.empty)
-      .map(regionPlan.getRegion)
+    Try(getNextRegionBatch()) match {
+      case Success(regions) => regions
+      case Failure(exception) => Set.empty // surpass exception
+    }
   }
 
 }

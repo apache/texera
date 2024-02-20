@@ -1,23 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.common.{
-  AkkaActorRefMappingService,
-  AkkaActorService,
-  AkkaMessageTransferService,
-  AmberProcessor
-}
+import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, AkkaMessageTransferService, AmberProcessor}
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.scheduling.{
-  ExpansionGreedyRegionPlanGenerator,
-  WorkflowExecutionController
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.{ExpansionGreedyRegionPlanGenerator, Region, RegionIdentity, RegionPlan, WorkflowExecutionController}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ControllerProcessor(
     val workflowContext: WorkflowContext,
@@ -29,6 +24,7 @@ class ControllerProcessor(
 ) extends AmberProcessor(actorId, outputHandler) {
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
+  var regionPlan : RegionPlan = _
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
@@ -71,8 +67,30 @@ class ControllerProcessor(
     ).generate()
     this.physicalPlan = updatedPhysicalPlan
 
+    this.regionPlan = regionPlan
+
+    val regionExecutionOrder: Iterator[Set[Region]] = {
+      val levels = mutable.Map.empty[RegionIdentity, Int]
+      val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
+
+      regionPlan.topologicalIterator().foreach { currentVertex =>
+        val currentLevel = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
+          (maxLevel, incomingEdge) =>
+            val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
+            math.max(maxLevel, levels.getOrElse(sourceVertex, 0) + 1)
+        }
+
+        levels(currentVertex) = currentLevel
+        levelSets.getOrElseUpdate(currentLevel, mutable.Set.empty).add(currentVertex)
+      }
+
+      val maxLevel = levels.values.maxOption.getOrElse(0)
+      (0 to maxLevel).iterator.map(level => levelSets.getOrElse(level, mutable.Set.empty).toSet)
+    }.map(regionIds => regionIds.map(regionId=> regionPlan.getRegion(regionId)))
+
+
     this.workflowExecutionController = new WorkflowExecutionController(
-      regionPlan,
+      regionExecutionOrder.next,
       workflowExecution,
       controllerConfig,
       asyncRPCClient

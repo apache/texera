@@ -29,7 +29,7 @@ trait PortCompletedHandler {
         msg.portId,
         input = msg.input
       )
-      cp.workflowExecutionController.regionPlan.getRegionOfPortId(globalPortId) match {
+      cp.regionPlan.getRegionOfPortId(globalPortId) match {
         case Some(region) =>
           val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
           val operatorExecution =
