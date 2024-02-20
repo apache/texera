@@ -7,7 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivil
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   DatasetDao,
   DatasetUserAccessDao,
-  DatasetVersionDao,
+  DatasetVersionDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   Dataset,
