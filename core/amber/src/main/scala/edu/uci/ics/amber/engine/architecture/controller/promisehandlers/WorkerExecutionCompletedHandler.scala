@@ -9,8 +9,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
-import scala.collection.mutable
-
 object WorkerExecutionCompletedHandler {
   final case class WorkerExecutionCompleted() extends ControlCommand[Unit]
 }
@@ -32,14 +30,14 @@ trait WorkerExecutionCompletedHandler {
       // after worker execution is completed, query statistics immediately one last time
       // because the worker might be killed before the next query statistics interval
       // and the user sees the last update before completion
-      val statsRequests = new mutable.ArrayBuffer[Future[Unit]]()
-      statsRequests += execute(ControllerInitiateQueryStatistics(Option(List(sender))), CONTROLLER)
+      val statsRequest =
+        execute(ControllerInitiateQueryStatistics(Option(List(sender))), CONTROLLER)
 
       Future
-        .collect(statsRequests)
+        .collect(Seq(statsRequest))
         .flatMap(_ => {
           // if entire workflow is completed, clean up
-          if (cp.executionState.isCompleted) {
+          if (cp.workflowExecution.isCompleted) {
             // after query result come back: send completed event, cleanup ,and kill workflow
             sendToClient(WorkflowCompleted())
             cp.controllerTimerService.disableStatusUpdate()
