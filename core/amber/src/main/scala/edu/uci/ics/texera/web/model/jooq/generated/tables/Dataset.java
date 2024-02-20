@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Dataset extends TableImpl<DatasetRecord> {
 
-    private static final long serialVersionUID = 578477320;
+    private static final long serialVersionUID = 526156655;
 
     /**
      * The reference instance of <code>texera_db.dataset</code>
@@ -73,7 +73,7 @@ public class Dataset extends TableImpl<DatasetRecord> {
     /**
      * The column <code>texera_db.dataset.storage_path</code>.
      */
-    public final TableField<DatasetRecord, String> STORAGE_PATH = createField(DSL.name("storage_path"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false), this, "");
+    public final TableField<DatasetRecord, String> STORAGE_PATH = createField(DSL.name("storage_path"), org.jooq.impl.SQLDataType.VARCHAR(512).nullable(false).defaultValue(org.jooq.impl.DSL.inline("", org.jooq.impl.SQLDataType.VARCHAR)), this, "");
 
     /**
      * The column <code>texera_db.dataset.description</code>.

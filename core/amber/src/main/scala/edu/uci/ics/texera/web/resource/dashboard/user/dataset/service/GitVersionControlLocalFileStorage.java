@@ -70,13 +70,18 @@ public class GitVersionControlLocalFileStorage {
   /**
    * Initializes a new repository for version control at the specified path.
 
-   * This method is THREAD SAFE
+   * This method is NOT THREAD SAFE
    * @param baseRepoPath Path to initialize the repository at.
    * @return The branch identifier
    * @throws IOException If an I/O error occurs.
    * @throws GitAPIException If the JGit operation is interrupted.
    */
   public static String initRepo(Path baseRepoPath) throws IOException, GitAPIException {
+    // Check if the directory exists, if not, create it
+    if (Files.notExists(baseRepoPath)) {
+      Files.createDirectories(baseRepoPath);
+    }
+
     return JGitVersionControl.initRepo(baseRepoPath);
   }
 
