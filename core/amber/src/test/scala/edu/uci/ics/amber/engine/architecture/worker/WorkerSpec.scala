@@ -267,9 +267,11 @@ class WorkerSpec
       0,
       WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, isControl = true), 0, invocation)
     )
+    for (i <- 0 until 100) {
+      (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+    }
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
@@ -285,7 +287,6 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
