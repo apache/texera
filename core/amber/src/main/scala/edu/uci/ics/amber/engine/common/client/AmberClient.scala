@@ -15,6 +15,8 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
@@ -27,7 +29,9 @@ import scala.reflect.ClassTag
 
 class AmberClient(
     system: ActorSystem,
-    workflow: Workflow,
+    workflowContext: WorkflowContext,
+    physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage,
     controllerConfig: ControllerConfig,
     errorHandler: Throwable => Unit
 ) {
@@ -37,7 +41,15 @@ class AmberClient(
   private val registeredObservables = new mutable.HashMap[Class[_], Observable[_]]()
   @volatile private var isActive = true
 
-  Await.result(clientActor ? InitializeRequest(workflow, controllerConfig), 10.seconds)
+  Await.result(
+    clientActor ? InitializeRequest(
+      workflowContext,
+      physicalPlan,
+      opResultStorage,
+      controllerConfig
+    ),
+    10.seconds
+  )
 
   def shutdown(): Unit = {
     if (isActive) {

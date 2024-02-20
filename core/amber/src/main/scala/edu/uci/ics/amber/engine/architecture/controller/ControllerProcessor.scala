@@ -9,13 +9,21 @@ import edu.uci.ics.amber.engine.architecture.common.{
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionController
+import edu.uci.ics.amber.engine.architecture.scheduling.{
+  ExpansionGreedyRegionPlanGenerator,
+  WorkflowExecutionController
+}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 class ControllerProcessor(
-    val workflow: Workflow,
-    val controllerConfig: ControllerConfig,
+    val workflowContext: WorkflowContext,
+    var physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig,
     actorId: ActorVirtualIdentity,
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
@@ -54,8 +62,17 @@ class ControllerProcessor(
   }
 
   def initWorkflowExecutionController(): Unit = {
+    // generate an RegionPlan with regions.
+    //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflowContext,
+      physicalPlan,
+      opResultStorage
+    ).generate()
+    this.physicalPlan = updatedPhysicalPlan
+
     this.workflowExecutionController = new WorkflowExecutionController(
-      workflow.regionPlan,
+      regionPlan,
       workflowExecution,
       controllerConfig,
       asyncRPCClient

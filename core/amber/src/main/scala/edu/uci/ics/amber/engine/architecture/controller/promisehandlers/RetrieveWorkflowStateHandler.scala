@@ -24,8 +24,8 @@ trait RetrieveWorkflowStateHandler {
           .toSet,
         ChannelMarkerIdentity("RetrieveWorkflowState_" + Instant.now().toString),
         NoAlignment,
-        cp.workflow.physicalPlan,
-        cp.workflow.physicalPlan.operators.map(_.id),
+        cp.physicalPlan,
+        cp.physicalPlan.operators.map(_.id),
         RetrieveState()
       ),
       sender

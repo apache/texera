@@ -11,7 +11,7 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class WorkflowExecutionController(
-    regionPlan: RegionPlan,
+    val regionPlan: RegionPlan,
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
