@@ -82,7 +82,6 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        original_table = table
          |        if table.empty:
          |           yield {'html-content': self.render_error("input table is empty.")}
          |           return
