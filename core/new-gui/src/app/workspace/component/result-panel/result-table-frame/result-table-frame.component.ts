@@ -117,10 +117,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Opens the ng-bootstrap model to display the row details in
+   * Opens the model to display the row details in
    *  pretty json format when clicked. User can view the details
    *  in a larger, expanded format.
-   *
    */
   open(indexInPage: number, rowData: IndexableObject): void {
     const currentRowIndex = indexInPage + (this.currentPageIndex - 1) * this.pageSize;

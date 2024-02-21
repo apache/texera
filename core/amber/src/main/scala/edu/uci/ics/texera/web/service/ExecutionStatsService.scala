@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecov
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
   WorkflowCompleted,
-  WorkflowStatusUpdate
+  WorkflowStatsUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
@@ -29,13 +29,14 @@ import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAIL
 import edu.uci.ics.texera.web.workflowruntimestate.{
   OperatorRuntimeStats,
   OperatorWorkerMapping,
+  WorkflowAggregatedState,
   WorkflowFatalError
 }
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 
 import java.time.Instant
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import org.jooq.types.UInteger
+import org.jooq.types.{UInteger, ULong}
 
 import java.util
 
@@ -53,15 +54,40 @@ class ExecutionStatsService(
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
       if (AmberConfig.isUserSystemEnabled) {
-        storeRuntimeStatistics(newState.operatorInfo.zip(oldState.operatorInfo).collect {
-          case ((newId, newStats), (oldId, oldStats)) =>
-            val res = OperatorRuntimeStats(
-              newStats.state,
-              newStats.inputCount - oldStats.inputCount,
-              newStats.outputCount - oldStats.outputCount
-            )
-            (newId, res)
-        })
+        val defaultStats =
+          OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
+
+        var oldStateInfo = oldState.operatorInfo
+        var newStateInfo = newState.operatorInfo
+
+        // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
+        val newKeys = newState.operatorInfo.keys.toSet diff oldState.operatorInfo.keys.toSet
+        for (key <- newKeys) {
+          oldStateInfo = oldStateInfo + (key -> defaultStats)
+        }
+
+        // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
+        val oldKeys = oldState.operatorInfo.keys.toSet diff newState.operatorInfo.keys.toSet
+        for (key <- oldKeys) {
+          newStateInfo = newStateInfo + (key -> oldState.operatorInfo(key))
+        }
+
+        val result = newStateInfo.keys.map { key =>
+          val newStats = newStateInfo(key)
+          val oldStats = oldStateInfo(key)
+          val res = OperatorRuntimeStats(
+            newStats.state,
+            newStats.inputCount - oldStats.inputCount,
+            newStats.outputCount - oldStats.outputCount,
+            newStats.numWorkers,
+            newStats.dataProcessingTime - oldStats.dataProcessingTime,
+            newStats.controlProcessingTime - oldStats.controlProcessingTime,
+            newStats.idleTime - oldStats.idleTime
+          )
+          (key, res)
+        }.toMap
+
+        storeRuntimeStatistics(result)
       }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
@@ -72,7 +98,11 @@ class ExecutionStatsService(
               val res = OperatorStatistics(
                 Utils.aggregatedStateToString(stats.state),
                 stats.inputCount,
-                stats.outputCount
+                stats.outputCount,
+                stats.numWorkers,
+                stats.dataProcessingTime,
+                stats.controlProcessingTime,
+                stats.idleTime
               )
               (x._1, res)
           })
@@ -123,17 +153,17 @@ class ExecutionStatsService(
   )
 
   private[this] def registerCallbacks(): Unit = {
-    registerCallbackOnWorkflowStatusUpdate()
+    registerCallbackOnWorkflowStatsUpdate()
     registerCallbackOnWorkerAssignedUpdate()
     registerCallbackOnWorkflowRecoveryUpdate()
     registerCallbackOnWorkflowComplete()
     registerCallbackOnFatalError()
   }
 
-  private[this] def registerCallbackOnWorkflowStatusUpdate(): Unit = {
+  private[this] def registerCallbackOnWorkflowStatsUpdate(): Unit = {
     addSubscription(
       client
-        .registerCallback[WorkflowStatusUpdate]((evt: WorkflowStatusUpdate) => {
+        .registerCallback[WorkflowStatsUpdate]((evt: WorkflowStatsUpdate) => {
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorStatistics)
           }
@@ -156,6 +186,10 @@ class ExecutionStatsService(
         execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
         execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
         execution.setStatus(maptoStatusCode(stat.state))
+        execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
+        execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
+        execution.setIdleTime(ULong.valueOf(stat.idleTime))
+        execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
         list.add(execution)
       }
       workflowRuntimeStatisticsDao.insert(list)
@@ -172,7 +206,7 @@ class ExecutionStatsService(
             statsStore.withOperatorWorkerMapping(
               evt.workerMapping
                 .map({
-                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds)
+                  case (opId, workerIds) => OperatorWorkerMapping(opId, workerIds.toSeq)
                 })
                 .toSeq
             )

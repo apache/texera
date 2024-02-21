@@ -37,9 +37,8 @@
       <ng-container *ngIf="!editingName; else editingProject">
         <a
           [routerLink]="ROUTER_USER_PROJECT_BASE_URL + '/' + entry.pid"
-          class="project-name">
-          {{entry.name}}</a
-        >
+          [innerHTML]="entry.name | highlightSearchTerms: keywords"
+          class="project-name"></a>
         <button
           *ngIf="editable"
           (click)="editingName = true"

@@ -5,6 +5,8 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   NetworkInputGateway,
   NetworkOutputGateway
 }
+import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
@@ -13,7 +15,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Ch
 
 class AmberProcessor(
     val actorId: ActorVirtualIdentity,
-    @transient var outputHandler: WorkflowFIFOMessage => Unit
+    @transient var outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberLogging
     with Serializable {
 
@@ -26,7 +28,7 @@ class AmberProcessor(
       this.actorId,
       msg => {
         // done by the same thread
-        outputHandler(msg)
+        outputHandler(Right(msg))
       }
     )
   // 2. RPC Layer
@@ -35,10 +37,14 @@ class AmberProcessor(
   val asyncRPCServer: AsyncRPCServer =
     new AsyncRPCServer(outputGateway, actorId)
 
+  // statistics manager
+  val statisticsManager: StatisticsManager = new StatisticsManager()
+
   def processControlPayload(
       channelId: ChannelIdentity,
       payload: ControlPayload
   ): Unit = {
+    val controlProcessingStartTime = System.nanoTime();
     payload match {
       case invocation: ControlInvocation =>
         asyncRPCServer.receive(invocation, channelId.fromWorkerId)
@@ -46,6 +52,7 @@ class AmberProcessor(
         asyncRPCClient.logControlReply(ret, channelId)
         asyncRPCClient.fulfillPromise(ret)
     }
+    statisticsManager.increaseControlProcessingTime(System.nanoTime() - controlProcessingStartTime)
   }
 
 }

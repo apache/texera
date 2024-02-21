@@ -12,9 +12,8 @@ import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
-import scala.collection.JavaConverters._
-import scala.collection.convert.ImplicitConversions.`iterator asScala`
 import scala.collection.mutable.ArrayBuffer
+import scala.jdk.CollectionConverters.{IterableHasAsJava, IteratorHasAsScala}
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -36,7 +35,7 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
           new InputStreamReader(new FileInputStream(path), fileEncoding.getCharset)
         )
         val offsetValue = offset.getOrElse(0)
-        var lines = reader.lines().iterator().drop(offsetValue)
+        var lines = reader.lines().iterator().asScala.drop(offsetValue)
         if (limit.isDefined) lines = lines.take(limit.get)
         val count: Int = lines.map(_ => 1).sum
         reader.close()

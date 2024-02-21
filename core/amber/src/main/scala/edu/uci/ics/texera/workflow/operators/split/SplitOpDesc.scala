@@ -21,7 +21,7 @@ class SplitOpDesc extends LogicalOp {
 
   // Store random seeds for each executor to satisfy the fault tolerance requirement.
   @JsonIgnore
-  val seeds: Array[Int] = Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
+  val seeds: Array[Int] = Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt())
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

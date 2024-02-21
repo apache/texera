@@ -15,7 +15,7 @@ object EvaluatePythonExpressionHandler {
 
 trait EvaluatePythonExpressionHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler { (msg: EvaluatePythonExpression, sender) =>
+  registerHandler[EvaluatePythonExpression, List[EvaluatedValue]] { (msg, sender) =>
     {
       val logicalOpId = new OperatorIdentity(msg.operatorId)
       val physicalOps = cp.workflow.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
@@ -26,11 +26,11 @@ trait EvaluatePythonExpressionHandler {
       }
 
       val physicalOp = physicalOps.head
-      val opExecution = cp.executionState.getOperatorExecution(physicalOp.id)
+      val opExecution = cp.workflowExecution.getLatestOperatorExecution(physicalOp.id)
 
       Future
         .collect(
-          opExecution.getBuiltWorkerIds
+          opExecution.getWorkerIds
             .map(worker => send(EvaluateExpression(msg.expression), worker))
             .toList
         )

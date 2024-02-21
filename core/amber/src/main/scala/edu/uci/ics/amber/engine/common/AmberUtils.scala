@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, DeadLetter, Props}
+import akka.serialization.{Serialization, SerializationExtension}
 import com.typesafe.config.ConfigFactory.defaultApplication
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
@@ -11,11 +12,15 @@ import java.net.URL
 
 object AmberUtils {
 
+  var serde: Serialization = _
+
   def reverseMultimap[T1, T2](map: Map[T1, Set[T2]]): Map[T2, Set[T1]] =
     map.toSeq
       .flatMap { case (k, vs) => vs.map((_, k)) }
       .groupBy(_._1)
+      .view
       .mapValues(_.map(_._2).toSet)
+      .toMap
 
   def startActorMaster(clusterMode: Boolean): ActorSystem = {
     var localIpAddress = "localhost"
@@ -69,10 +74,11 @@ object AmberUtils {
 
   def createAmberSystem(actorSystemConf: Config): ActorSystem = {
     val system = ActorSystem("Amber", actorSystemConf)
-    system.actorOf(Props[ClusterListener], "cluster-info")
+    system.actorOf(Props[ClusterListener](), "cluster-info")
     val deadLetterMonitorActor =
-      system.actorOf(Props[DeadLetterMonitorActor], name = "dead-letter-monitor-actor")
+      system.actorOf(Props[DeadLetterMonitorActor](), name = "dead-letter-monitor-actor")
     system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
+    serde = SerializationExtension(system)
     system
   }
 }

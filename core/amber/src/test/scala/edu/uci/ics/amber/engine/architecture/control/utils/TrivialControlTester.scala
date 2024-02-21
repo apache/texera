@@ -13,7 +13,13 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, Ch
 class TrivialControlTester(
     id: ActorVirtualIdentity
 ) extends WorkflowActor(replayLogConfOpt = None, actorId = id) {
-  val ap = new AmberProcessor(id, transferService.send)
+  val ap = new AmberProcessor(
+    id,
+    {
+      case Left(value)  => ???
+      case Right(value) => transferService.send(value)
+    }
+  )
   val initializer =
     new TesterAsyncRPCHandlerInitializer(ap.actorId, ap.asyncRPCClient, ap.asyncRPCServer)
 
@@ -28,7 +34,7 @@ class TrivialControlTester(
         case _                       => ???
       }
     }
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
+    sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
   }
 
   /** flow-control */

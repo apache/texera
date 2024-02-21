@@ -34,6 +34,7 @@ blockquote {
   padding: 0 !important;
 }
 
-.custom-ngbd-modal-class .modal-dialog {
-  max-width: 50%;
+// due to innerHTML, this rule has to be global
+.highlight-search-terms {
+  color: blue;
 }
