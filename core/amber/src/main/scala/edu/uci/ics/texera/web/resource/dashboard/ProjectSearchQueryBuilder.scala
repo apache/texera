@@ -3,9 +3,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PROJECT_USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Project
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
+  generateFullTextSearchCondition,
+  generateSubstringSearchCondition,
   getContainsFilter,
-  getDateFilter,
-  getMySQLKeywordSearchConditions
+  getDateFilter
 }
 import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.impl.DSL
@@ -44,18 +45,21 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
       .filter(_.nonEmpty)
       .toSeq
 
-    getMySQLKeywordSearchConditions(
-      splitKeywords,
-      List(PROJECT.NAME, PROJECT.DESCRIPTION)
+    getDateFilter(
+      params.creationStartDate,
+      params.creationEndDate,
+      PROJECT.CREATION_TIME
     )
-      .and(
-        getDateFilter(
-          params.creationStartDate,
-          params.creationEndDate,
-          PROJECT.CREATION_TIME
-        )
-      )
       .and(getContainsFilter(params.projectIds, PROJECT.PID))
+      .and(
+        generateFullTextSearchCondition(splitKeywords, List(PROJECT.NAME, PROJECT.DESCRIPTION))
+          .or(
+            generateSubstringSearchCondition(
+              splitKeywords,
+              List(PROJECT.NAME, PROJECT.DESCRIPTION)
+            )
+          )
+      )
   }
 
   override protected def getGroupByFields: Seq[GroupField] = Seq.empty

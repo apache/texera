@@ -10,32 +10,37 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
 
-  def getMySQLKeywordSearchConditions(
+  def generateFullTextSearchCondition(
       keywords: Seq[String],
       fields: List[Field[String]]
   ): Condition = {
-    if (keywords.nonEmpty && fields.isEmpty) {
-      return noCondition()
-    }
-    var result = noCondition()
+    if (fields.isEmpty) return noCondition()
+    val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
     val fullFieldNames = fields.map(_.toString.replace("\"", ""))
     val indexedCompoundFields = fullFieldNames.mkString(",")
-    for (key: String <- keywords) {
-      if (key != "") {
-        val words = key.split("\\s+")
-        var conditionForKeyword = condition(
+    trimmedKeywords.foldLeft(noCondition()) { (acc, key) =>
+      val words = key.split("\\s+")
+      acc.and(
+        condition(
           s"MATCH($indexedCompoundFields) AGAINST('${words.mkString("+", " +", "")}' IN BOOLEAN MODE)",
           key
         )
-        // perform exact "contains" to improve the quality of search results
-        // if the following has a huge performance overhead, consider removing the LIKE part.
-        for (fieldName <- fullFieldNames) {
-          conditionForKeyword = conditionForKeyword.or(s"$fieldName LIKE '%$key%'")
-        }
-        result = result.and(conditionForKeyword)
+      )
+    }
+  }
+
+  def generateSubstringSearchCondition(
+      keywords: Seq[String],
+      fields: List[Field[String]]
+  ): Condition = {
+    if (fields.isEmpty) return noCondition()
+    val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
+    val fullFieldNames = fields.map(_.toString.replace("\"", ""))
+    trimmedKeywords.foldLeft(noCondition()) { (acc, key) =>
+      fullFieldNames.foldLeft(acc) { (accInner, fieldName) =>
+        accInner.or(s"$fieldName LIKE '%$key%'")
       }
     }
-    result
   }
 
   def getContainsFilter[T](values: java.util.List[T], field: Field[T]): Condition = {

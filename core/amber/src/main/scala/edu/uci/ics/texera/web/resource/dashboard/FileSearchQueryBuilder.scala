@@ -4,9 +4,10 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
+  generateFullTextSearchCondition,
+  generateSubstringSearchCondition,
   getContainsFilter,
-  getDateFilter,
-  getMySQLKeywordSearchConditions
+  getDateFilter
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import org.jooq.{Condition, GroupField, Record, TableLike}
@@ -51,18 +52,18 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
       .filter(_.nonEmpty)
       .toSeq
 
-    getMySQLKeywordSearchConditions(
-      splitKeywords,
-      List(FILE.NAME, FILE.DESCRIPTION)
+    getDateFilter(
+      params.creationStartDate,
+      params.creationEndDate,
+      FILE.UPLOAD_TIME
     )
-      .and(
-        getDateFilter(
-          params.creationStartDate,
-          params.creationEndDate,
-          FILE.UPLOAD_TIME
-        )
-      )
       .and(getContainsFilter(params.owners, USER.EMAIL))
+      .and(
+        generateFullTextSearchCondition(
+          splitKeywords,
+          List(FILE.NAME, FILE.DESCRIPTION)
+        ).or(generateSubstringSearchCondition(splitKeywords, List(FILE.NAME, FILE.DESCRIPTION)))
+      )
   }
 
   override protected def getGroupByFields: Seq[GroupField] = Seq.empty
