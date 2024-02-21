@@ -13,12 +13,17 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpResultStorage) {
+class WorkflowScheduler(workflowContext: WorkflowContext) {
   var physicalPlan: PhysicalPlan = _
   var regionPlan: RegionPlan = _
   var regionExecutionOrder: Iterator[Set[Region]] = _
+  var opResultStorage: OpResultStorage = _
   def addPhysicalPlan(physicalPlan: PhysicalPlan): Unit = {
     this.physicalPlan = physicalPlan
+  }
+
+  def setStorage(opResultStorage: OpResultStorage): Unit = {
+    this.opResultStorage = opResultStorage
   }
 
   def updateSchedule(): Unit = {

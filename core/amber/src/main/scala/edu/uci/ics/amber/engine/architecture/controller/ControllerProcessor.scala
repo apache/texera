@@ -8,21 +8,23 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDel
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 
 class ControllerProcessor(
-    val workflowContext: WorkflowContext,
-    var physicalPlan: PhysicalPlan,
-    opResultStorage: OpResultStorage,
+    workflowContext: WorkflowContext,
     controllerConfig: ControllerConfig,
     actorId: ActorVirtualIdentity,
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
-  var workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext, opResultStorage)
+  val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext)
+  val workflowExecutionController: WorkflowExecutionController = new WorkflowExecutionController(
+    ()=> this.workflowScheduler.getNextRegions,
+    workflowExecution,
+    controllerConfig,
+    asyncRPCClient
+  )
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
@@ -38,8 +40,6 @@ class ControllerProcessor(
 
   @transient var actorService: AkkaActorService = _
 
-  var workflowExecutionController: WorkflowExecutionController = _
-
   def setupActorService(akkaActorService: AkkaActorService): Unit = {
     this.actorService = akkaActorService
   }
@@ -53,15 +53,6 @@ class ControllerProcessor(
 
   def setupLogManager(logManager: ReplayLogManager): Unit = {
     this.logManager = logManager
-  }
-
-  def initWorkflowExecutionController(): Unit = {
-    this.workflowExecutionController = new WorkflowExecutionController(
-      ()=> this.workflowScheduler.getNextRegions,
-      workflowExecution,
-      controllerConfig,
-      asyncRPCClient
-    )
   }
 
 }

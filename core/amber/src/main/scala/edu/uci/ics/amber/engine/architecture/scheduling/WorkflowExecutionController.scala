@@ -11,10 +11,10 @@ import scala.collection.mutable
 import scala.util.{Failure, Success, Try}
 
 class WorkflowExecutionController(
-    getNextRegionBatch: ()=> Set[Region],
-    workflowExecution: WorkflowExecution,
-    controllerConfig: ControllerConfig,
-    asyncRPCClient: AsyncRPCClient
+                                   getNextRegions: ()=> Set[Region],
+                                   workflowExecution: WorkflowExecution,
+                                   controllerConfig: ControllerConfig,
+                                   asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
   private val regionExecutionControllers
@@ -55,7 +55,7 @@ class WorkflowExecutionController(
       return Set.empty
     }
 
-    Try(getNextRegionBatch()) match {
+    Try(getNextRegions()) match {
       case Success(regions) => regions
       case Failure(exception) => Set.empty // surpass exception
     }

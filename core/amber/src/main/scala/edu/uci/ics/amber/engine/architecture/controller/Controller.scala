@@ -79,8 +79,6 @@ class Controller(
   val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
   val cp = new ControllerProcessor(
     workflowContext,
-    physicalPlan,
-    opResultStorage,
     controllerConfig,
     actorId,
     logManager.sendCommitted
@@ -103,8 +101,8 @@ class Controller(
   override def initState(): Unit = {
     cp.setupActorService(actorService)
     cp.workflowScheduler.addPhysicalPlan(physicalPlan)
+    cp.workflowScheduler.setStorage(opResultStorage)
     cp.workflowScheduler.updateSchedule()
-    cp.initWorkflowExecutionController()
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
     cp.setupLogManager(logManager)
