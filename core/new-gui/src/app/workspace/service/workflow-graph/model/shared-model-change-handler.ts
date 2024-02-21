@@ -2,7 +2,6 @@ import { WorkflowGraph } from "./workflow-graph";
 import { JointGraphWrapper } from "./joint-graph-wrapper";
 import * as Y from "yjs";
 import {
-  Breakpoint,
   CommentBox,
   OperatorLink,
   OperatorPredicate,
@@ -35,7 +34,6 @@ export class SharedModelChangeHandler {
     this.handleLinkAddAndDelete();
     this.handleElementPositionChange();
     this.handleCommentBoxAddAndDelete();
-    this.handleBreakpointAddAndDelete();
     this.handleOperatorDeep();
     this.handleCommentBoxDeep();
     this.texeraGraph.newYDocLoadedSubject.subscribe(_ => {
@@ -43,7 +41,6 @@ export class SharedModelChangeHandler {
       this.handleLinkAddAndDelete();
       this.handleElementPositionChange();
       this.handleCommentBoxAddAndDelete();
-      this.handleBreakpointAddAndDelete();
       this.handleOperatorDeep();
       this.handleCommentBoxDeep();
     });
@@ -215,28 +212,6 @@ export class SharedModelChangeHandler {
         }
         if (change.action === "delete") {
           this.jointGraph.getCell(key).remove();
-        }
-      });
-    });
-  }
-
-  /**
-   * Syncs the addition and deletion of breakpoints.
-   * @private
-   */
-  private handleBreakpointAddAndDelete(): void {
-    this.texeraGraph.sharedModel.linkBreakpointMap.observe((event: Y.YMapEvent<Breakpoint>) => {
-      event.changes.keys.forEach((change, key) => {
-        const oldBreakpoint = change.oldValue as Breakpoint | undefined;
-        if (change.action === "add") {
-          this.jointGraphWrapper.showLinkBreakpoint(key);
-          this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
-        }
-        if (change.action === "delete") {
-          if (this.texeraGraph.sharedModel.operatorLinkMap.has(key)) {
-            this.jointGraphWrapper.hideLinkBreakpoint(key);
-            this.texeraGraph.breakpointChangeStream.next({ oldBreakpoint, linkID: key });
-          }
         }
       });
     });
