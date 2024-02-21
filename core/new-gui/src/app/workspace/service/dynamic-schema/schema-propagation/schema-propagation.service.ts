@@ -139,7 +139,6 @@ export class SchemaPropagationService {
     const body2 = {
       operators: body.operators,
       links: body.links,
-      breakpoints: [],
       opsToReuseResult: [],
       opsToViewResult: [],
     };
