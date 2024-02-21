@@ -12,7 +12,7 @@ describe("InputAutoCompleteComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [InputAutoCompleteComponent],
-      imports: [ReactiveFormsModule, HttpClientTestingModule, HttpClientModule],
+      imports: [ReactiveFormsModule, HttpClientTestingModule],
     }).compileComponents();
   }));
 
