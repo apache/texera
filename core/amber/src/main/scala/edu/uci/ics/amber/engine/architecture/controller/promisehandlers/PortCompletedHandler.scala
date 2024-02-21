@@ -29,27 +29,32 @@ trait PortCompletedHandler {
         msg.portId,
         input = msg.input
       )
+      cp.workflow.regionPlan.getRegionOfPortId(globalPortId) match {
+        case Some(region) =>
+          val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
+          val operatorExecution =
+            regionExecution.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
+          val workerExecution = operatorExecution.getWorkerExecution(sender)
 
-      val operatorExecution =
-        cp.executionState.getOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(sender))
-      val workerExecution = operatorExecution.getWorkerExecution(sender)
+          // set the port on this worker to be completed
+          (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
+           else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
 
-      // set the port on this worker to be completed
-      (if (msg.input) workerExecution.getInputPortExecution(msg.portId)
-       else workerExecution.getOutputPortExecution(msg.portId)).setCompleted()
+          // check if the port on this operator is completed
+          val isPortCompleted =
+            if (msg.input) operatorExecution.isInputPortCompleted(msg.portId)
+            else operatorExecution.isOutputPortCompleted(msg.portId)
 
-      // check if the port on this operator is completed
-      val isPortCompleted =
-        if (msg.input) operatorExecution.isInputPortCompleted(msg.portId)
-        else operatorExecution.isOutputPortCompleted(msg.portId)
-
-      if (isPortCompleted) {
-        cp.workflowExecutionController.markRegionCompletion(globalPortId)
-        cp.workflowExecutionController.executeNextRegions()
-      } else {
-        // if the port is not completed yet, do nothing
-        Future(())
+          if (isPortCompleted) {
+            cp.workflowExecutionController.executeNextRegions(cp.actorService)
+          } else {
+            // if the port is not completed yet, do nothing
+            Future(())
+          }
+        case None => // currently "start" and "end" ports are not part of a region, thus no region can be found.
+        // do nothing.
       }
+
     }
   }
 

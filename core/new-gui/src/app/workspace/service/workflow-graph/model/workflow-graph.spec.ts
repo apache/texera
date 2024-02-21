@@ -242,23 +242,4 @@ describe("WorkflowGraph", () => {
     expect(workflowGraph.isViewingResult(mockResultPredicate.operatorID)).toBeFalse();
     expect(workflowGraph.getOperatorsToViewResult().size).toEqual(0);
   });
-
-  describe("when linkBreakpoint is enabled", () => {
-    beforeAll(() => {
-      environment.linkBreakpointEnabled = true;
-    });
-
-    afterAll(() => {
-      environment.linkBreakpointEnabled = false;
-    });
-
-    it("should set/remove link breakpoint correctly", () => {
-      workflowGraph.addOperator(mockScanPredicate);
-      workflowGraph.addOperator(mockResultPredicate);
-      workflowGraph.addLink(mockScanResultLink);
-      const mockBreakpoint = { count: 100 };
-      workflowGraph.setLinkBreakpoint(mockScanResultLink.linkID, mockBreakpoint);
-      expect(workflowGraph.getLinkBreakpoint(mockScanResultLink.linkID)).toEqual(mockBreakpoint);
-    });
-  });
 });

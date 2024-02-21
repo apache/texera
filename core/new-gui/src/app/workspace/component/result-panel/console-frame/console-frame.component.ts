@@ -65,16 +65,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        if (
-          event.previous.state === ExecutionState.BreakpointTriggered &&
-          event.current.state === ExecutionState.Completed
-        ) {
-          // intentionally do nothing to leave the information displayed as it is
-          // when kill a workflow after hitting breakpoint
-        } else if (
-          event.previous.state === ExecutionState.Initializing &&
-          event.current.state === ExecutionState.Running
-        ) {
+        if (event.previous.state === ExecutionState.Initializing && event.current.state === ExecutionState.Running) {
           // clear the console for the next execution
           this.clearConsole();
         } else {
