@@ -1,0 +1,38 @@
+<div>
+  <div class="texera-user-dataset-creator-form">
+    <formly-form
+      [form]="form"
+      [fields]="fields"
+      [model]="model">
+    </formly-form>
+    <nz-switch
+      *ngIf="!isCreatingVersion"
+      [ngModel]="isDatasetPublic"
+      (ngModelChange)="onPublicStatusChange($event)"
+      nzCheckedChildren="public"
+      nzUnCheckedChildren="private"></nz-switch>
+  </div>
+  <div class="file-uploader">
+<!--    <texera-user-files-uploader-->
+<!--      (uploadedFiles)="onNewUploadFilesChanged($event)"-->
+<!--      (removingFilePaths)="onRemovingFilePathsChanged($event)"-->
+<!--      [previouslyUploadFiles]="baseVersion?.versionFileTreeNodes"></texera-user-files-uploader>-->
+  </div>
+
+  <button
+    mat-stroked-button
+    color="primary"
+    (click)="onClickCreate()"
+    [disabled]="isCreateButtonDisabled"
+    class="create-btn">
+    Create
+  </button>
+
+  <button
+    mat-stroked-button
+    color="primary"
+    (click)="onClickCancel()"
+    class="cancel-btn">
+    Cancel
+  </button>
+</div>
