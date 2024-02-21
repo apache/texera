@@ -102,6 +102,8 @@ class Controller(
 
   override def initState(): Unit = {
     cp.setupActorService(actorService)
+    cp.workflowScheduler.addPhysicalPlan(physicalPlan)
+    cp.workflowScheduler.updateSchedule()
     cp.initWorkflowExecutionController()
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)

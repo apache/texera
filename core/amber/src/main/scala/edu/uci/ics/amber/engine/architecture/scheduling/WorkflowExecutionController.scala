@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecut
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.util.{Failure, Success, Try}
 
 class WorkflowExecutionController(
