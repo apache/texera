@@ -4,12 +4,12 @@
   nz-input
   required
   [nzAutocomplete]="auto"
-  [formControl]="props.formControl"
-  [formlyAttributes]="props.field" />
+  [formControl]="formControl"
+  [formlyAttributes]="field" />
 <div
   class="alert alert-danger"
   role="alert"
-  *ngIf="showError && formControl.errors">
+  *ngIf="props.showError && formControl.errors">
   <formly-validation-message [field]="field"></formly-validation-message>
 </div>
 <nz-autocomplete
