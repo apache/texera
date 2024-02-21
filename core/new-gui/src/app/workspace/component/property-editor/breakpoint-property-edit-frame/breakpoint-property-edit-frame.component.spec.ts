@@ -22,8 +22,8 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
-import { FormlyMaterialModule } from "@ngx-formly/material";
 import { SimpleChange } from "@angular/core";
+import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 
 describe("BreakpointPropertyEditFrameComponent", () => {
   let component: BreakpointPropertyEditFrameComponent;
@@ -48,10 +48,7 @@ describe("BreakpointPropertyEditFrameComponent", () => {
         BrowserAnimationsModule,
         FormsModule,
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-        // formly ng zorro module has a bug that doesn't display field description,
-        // FormlyNgZorroAntdModule,
-        // use formly material module instead
-        FormlyMaterialModule,
+        FormlyNgZorroAntdModule,
         ReactiveFormsModule,
         HttpClientTestingModule,
       ],
