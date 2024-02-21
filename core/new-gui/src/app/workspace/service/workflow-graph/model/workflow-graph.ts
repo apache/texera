@@ -1,19 +1,18 @@
 import { Observable, Subject } from "rxjs";
 import {
-  Breakpoint,
   Comment,
-  PortDescription,
   CommentBox,
+  LogicalPort,
   OperatorLink,
-  OperatorPort,
   OperatorPredicate,
   PartitionInfo,
+  PortDescription,
   PortProperty,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
-import { User, CoeditorState } from "../../../../common/type/user";
-import { createYTypeFromObject, YType, updateYTypeFromObject } from "../../../types/shared-editing.interface";
+import { CoeditorState, User } from "../../../../common/type/user";
+import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
@@ -32,7 +31,6 @@ type restrictedMethods =
   | "setLinkBreakpoint"
   | "operatorAddSubject"
   | "operatorDeleteSubject"
-  | "cachedOperatorChangedSubject"
   | "operatorDisplayNameChangedSubject"
   | "linkAddSubject"
   | "linkDeleteSubject"
@@ -88,9 +86,13 @@ export class WorkflowGraph {
     newDisabled: string[];
     newEnabled: string[];
   }>();
-  public readonly cachedOperatorChangedSubject = new Subject<{
-    newCached: string[];
-    newUnCached: string[];
+  public readonly viewResultOperatorChangedSubject = new Subject<{
+    newViewResultOps: string[];
+    newUnviewResultOps: string[];
+  }>();
+  public readonly reuseOperatorChangedSubject = new Subject<{
+    newReuseCacheOps: string[];
+    newUnreuseCacheOps: string[];
   }>();
   public readonly operatorDisplayNameChangedSubject = new Subject<{
     operatorID: string;
@@ -127,7 +129,7 @@ export class WorkflowGraph {
   }>();
 
   public readonly portPropertyChangedSubject = new Subject<{
-    operatorPortID: OperatorPort;
+    operatorPortID: LogicalPort;
     newProperty: PortProperty;
   }>();
 
@@ -180,7 +182,7 @@ export class WorkflowGraph {
     return this.getSharedOperatorType(operatorID).get("operatorProperties") as YType<OperatorPropertiesType>;
   }
 
-  public getSharedPortDescriptionType(operatorPortID: OperatorPort): YType<PortDescription> | undefined {
+  public getSharedPortDescriptionType(operatorPortID: LogicalPort): YType<PortDescription> | undefined {
     const isInput = operatorPortID?.portID.includes("input");
     const portListObject = isInput
       ? this.getOperator(operatorPortID.operatorID).inputPorts
@@ -427,10 +429,10 @@ export class WorkflowGraph {
   }
 
   /**
-   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
    * @param operatorID
    */
-  public cacheOperator(operatorID: string): void {
+  public setViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
@@ -438,43 +440,97 @@ export class WorkflowGraph {
     if (isSink(operator)) {
       return;
     }
-    if (this.isOperatorCached(operatorID)) {
+    if (this.isViewingResult(operatorID)) {
       return;
     }
-    this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", true);
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", true);
   }
 
   /**
-   * Changes <code>isCached</code> status which is an atomic boolean value as opposed to y-type data.
+   * Changes <code>isViewingResult</code> status which is an atomic boolean value as opposed to y-type data.
    * @param operatorID
    */
-  public unCacheOperator(operatorID: string): void {
+  public unsetViewOperatorResult(operatorID: string): void {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    if (!this.isOperatorCached(operatorID)) {
+    if (!this.isViewingResult(operatorID)) {
       return;
     }
-    this.sharedModel.operatorIDMap.get(operatorID)?.set("isCached", false);
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("viewResult", false);
   }
 
   /**
    * This method gets this status from readonly object version of the operator data as opposed to y-type data.
    * @param operatorID
    */
-  public isOperatorCached(operatorID: string): boolean {
+  public isViewingResult(operatorID: string): boolean {
     const operator = this.getOperator(operatorID);
     if (!operator) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    return operator.isCached ?? false;
+    return operator.viewResult ?? false;
   }
 
-  public getCachedOperators(): ReadonlySet<string> {
+  public getOperatorsToViewResult(): ReadonlySet<string> {
     return new Set(
       Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
-        this.isOperatorCached(op)
+        this.isViewingResult(op)
+      )
+    );
+  }
+
+  /**
+   * Changes <code>markedForReuse</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public markReuseResult(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (isSink(operator)) {
+      return;
+    }
+    if (this.isMarkedForReuseResult(operatorID)) {
+      return;
+    }
+    console.log("seeting marked for reuse in shared model");
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", true);
+  }
+
+  /**
+   * Changes <code>markedForReuse</code> status which is an atomic boolean value as opposed to y-type data.
+   * @param operatorID
+   */
+  public removeMarkReuseResult(operatorID: string): void {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    if (!this.isMarkedForReuseResult(operatorID)) {
+      return;
+    }
+    this.sharedModel.operatorIDMap.get(operatorID)?.set("markedForReuse", false);
+  }
+
+  /**
+   * This method gets this status from readonly object version of the operator data as opposed to y-type data.
+   * @param operatorID
+   */
+  public isMarkedForReuseResult(operatorID: string): boolean {
+    const operator = this.getOperator(operatorID);
+    if (!operator) {
+      throw new Error(`operator with ID ${operatorID} doesn't exist`);
+    }
+    return operator.markedForReuse ?? false;
+  }
+
+  public getOperatorsMarkedForReuseResult(): ReadonlySet<string> {
+    return new Set(
+      Array.from(this.sharedModel.operatorIDMap.keys() as IterableIterator<string>).filter(op =>
+        this.isMarkedForReuseResult(op)
       )
     );
   }
@@ -514,8 +570,7 @@ export class WorkflowGraph {
       throw new Error(`operator ${operatorID} does not exist`);
     }
     const yoperator = this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
-    const operator = yoperator.toJSON();
-    return operator;
+    return yoperator.toJSON();
   }
 
   /**
@@ -588,7 +643,7 @@ export class WorkflowGraph {
     }
   }
 
-  public hasPort(operatorPortID: OperatorPort): boolean {
+  public hasPort(operatorPortID: LogicalPort): boolean {
     if (!this.hasOperator(operatorPortID.operatorID)) return false;
     const operator = this.getOperator(operatorPortID.operatorID);
     if (operatorPortID.portID.includes("input")) {
@@ -602,7 +657,7 @@ export class WorkflowGraph {
     } else return false;
   }
 
-  public getPortDescription(operatorPortID: OperatorPort): PortDescription | undefined {
+  public getPortDescription(operatorPortID: LogicalPort): PortDescription | undefined {
     if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
     const operator = this.getOperator(operatorPortID.operatorID);
@@ -637,8 +692,6 @@ export class WorkflowGraph {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(linkID);
   }
 
   /**
@@ -647,15 +700,13 @@ export class WorkflowGraph {
    * @param source source port
    * @param target target port
    */
-  public deleteLink(source: OperatorPort, target: OperatorPort): void {
+  public deleteLink(source: LogicalPort, target: LogicalPort): void {
     const link = this.getLink(source, target);
     if (!link) {
       throw new Error(`link from ${source.operatorID}.${source.portID}
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(link.linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(link.linkID);
   }
 
   /**
@@ -671,7 +722,7 @@ export class WorkflowGraph {
    * @param source source operator and port of the link
    * @param target target operator and port of the link
    */
-  public hasLink(source: OperatorPort, target: OperatorPort): boolean {
+  public hasLink(source: LogicalPort, target: LogicalPort): boolean {
     try {
       const link = this.getLink(source, target);
       return true;
@@ -704,7 +755,7 @@ export class WorkflowGraph {
    * @param source source operator and port of the link
    * @param target target operator and port of the link
    */
-  public getLink(source: OperatorPort, target: OperatorPort): OperatorLink {
+  public getLink(source: LogicalPort, target: LogicalPort): OperatorLink {
     const links = this.getAllLinks().filter(value => isEqual(value.source, source) && isEqual(value.target, target));
     if (links.length === 0) {
       throw new Error(`link with source ${source} and target ${target} does not exist`);
@@ -767,7 +818,7 @@ export class WorkflowGraph {
     updateYTypeFromObject(previousProperty, newProperty);
   }
 
-  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+  public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
     newProperty = newProperty as PortProperty;
     if (!this.hasPort(operatorPortID))
       throw new Error(`operator port ${(operatorPortID.operatorID, operatorPortID.portID)} does not exist`);
@@ -779,54 +830,10 @@ export class WorkflowGraph {
     );
     portDescriptionSharedType.set(
       "dependencies",
-      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
+      createYTypeFromObject<Array<{ id: number; internal: boolean }>>(
+        (newProperty as PortProperty).dependencies
+      ) as unknown as Y.Array<number>
     );
-  }
-
-  /**
-   * set the breakpoint property of a link to be newBreakpoint
-   * Throws an error if link doesn't exist
-   *
-   * @param linkID linkID
-   * @param breakpoint
-   */
-  public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint | undefined): void {
-    this.assertLinkWithIDExists(linkID);
-    if (breakpoint === undefined || Object.keys(breakpoint).length === 0) {
-      this.sharedModel.linkBreakpointMap.delete(linkID);
-    } else {
-      this.sharedModel.linkBreakpointMap.set(linkID, breakpoint);
-    }
-  }
-
-  /**
-   * get the breakpoint property of a link
-   * returns an empty object if the link has no property
-   *
-   * @param linkID
-   */
-  public getLinkBreakpoint(linkID: string): Breakpoint | undefined {
-    return this.sharedModel.linkBreakpointMap.get(linkID);
-  }
-
-  /**
-   * Returns all link breakpoints as a readonly map. This returns the internal YMap directly.
-   */
-  public getAllLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    return this.sharedModel.linkBreakpointMap;
-  }
-
-  /**
-   * Returns breakpoints filtered by enabled status. This returns a new map from the internal YMap.
-   */
-  public getAllEnabledLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    const enabledBreakpoints = new Map();
-    this.sharedModel.linkBreakpointMap.forEach((breakpoint, linkID) => {
-      if (this.isLinkEnabled(linkID)) {
-        enabledBreakpoints.set(linkID, breakpoint);
-      }
-    });
-    return enabledBreakpoints;
   }
 
   /**
@@ -874,11 +881,18 @@ export class WorkflowGraph {
     return this.commentBoxEditCommentSubject.asObservable();
   }
 
-  public getCachedOperatorsChangedStream(): Observable<{
-    newCached: ReadonlyArray<string>;
-    newUnCached: ReadonlyArray<string>;
+  public getViewResultOperatorsChangedStream(): Observable<{
+    newViewResultOps: ReadonlyArray<string>;
+    newUnviewResultOps: ReadonlyArray<string>;
   }> {
-    return this.cachedOperatorChangedSubject.asObservable();
+    return this.viewResultOperatorChangedSubject.asObservable();
+  }
+
+  public getReuseCacheOperatorsChangedStream(): Observable<{
+    newReuseCacheOps: ReadonlyArray<string>;
+    newUnreuseCacheOps: ReadonlyArray<string>;
+  }> {
+    return this.reuseOperatorChangedSubject.asObservable();
   }
 
   public getOperatorDisplayNameChangedStream(): Observable<{
@@ -945,7 +959,7 @@ export class WorkflowGraph {
   }
 
   public getPortPropertyChangedStream(): Observable<{
-    operatorPortID: OperatorPort;
+    operatorPortID: LogicalPort;
     newProperty: PortProperty;
   }> {
     return this.portPropertyChangedSubject.asObservable();
@@ -1011,7 +1025,7 @@ export class WorkflowGraph {
     }
   }
 
-  public assertLinkExists(source: OperatorPort, target: OperatorPort): void {
+  public assertLinkExists(source: LogicalPort, target: LogicalPort): void {
     if (!this.hasLink(source, target)) {
       throw new Error(`link from ${source.operatorID}.${source.portID}
         to ${target.operatorID}.${target.portID} already exists`);

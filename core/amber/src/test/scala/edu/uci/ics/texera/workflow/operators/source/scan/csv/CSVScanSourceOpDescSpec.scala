@@ -1,11 +1,15 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val workflowContext = new WorkflowContext()
@@ -13,7 +17,11 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   var parallelCsvScanSourceOpDesc: ParallelCSVScanSourceOpDesc = _
   before {
     csvScanSourceOpDesc = new CSVScanSourceOpDesc()
+    csvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
+      csvScanSourceOpDesc.getOutputSchema(Array())
     parallelCsvScanSourceOpDesc = new ParallelCSVScanSourceOpDesc()
+    parallelCsvScanSourceOpDesc.outputPortToSchemaMapping(PortIdentity()) =
+      parallelCsvScanSourceOpDesc.getOutputSchema(Array())
   }
 
   it should "infer schema from single-line-data csv" in {
@@ -24,7 +32,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     parallelCsvScanSourceOpDesc.setContext(workflowContext)
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.length == 14)
+    assert(inferredSchema.getAttributes.size() == 14)
     assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
     assert(inferredSchema.getAttribute("Unit Price").getType == AttributeType.DOUBLE)
 
@@ -40,7 +48,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = parallelCsvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.length == 14)
+    assert(inferredSchema.getAttributes.size() == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
     assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
   }
@@ -54,7 +62,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.length == 14)
+    assert(inferredSchema.getAttributes.size() == 14)
     assert(inferredSchema.getAttribute("Order ID").getType == AttributeType.INTEGER)
     assert(inferredSchema.getAttribute("Unit Price").getType == AttributeType.DOUBLE)
   }
@@ -68,7 +76,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.length == 14)
+    assert(inferredSchema.getAttributes.size() == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
     assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
   }
@@ -83,7 +91,7 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val inferredSchema: Schema = csvScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.length == 14)
+    assert(inferredSchema.getAttributes.size() == 14)
     assert(inferredSchema.getAttribute("column-10").getType == AttributeType.DOUBLE)
     assert(inferredSchema.getAttribute("column-7").getType == AttributeType.INTEGER)
   }
@@ -96,12 +104,10 @@ class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     csvScanSourceOpDesc.hasHeader = false
     csvScanSourceOpDesc.setContext(workflowContext)
 
-    val emptySchema = Schema.newBuilder().build()
-    val operatorSchemaInfo = OperatorSchemaInfo(Array(emptySchema), Array(emptySchema))
     assert(
-      csvScanSourceOpDesc
-        .operatorExecutor(operatorSchemaInfo)
-        .numWorkers == 1
+      !csvScanSourceOpDesc
+        .getPhysicalOp(DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID)
+        .parallelizable
     )
   }
 

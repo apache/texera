@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.common.tuple
 import edu.uci.ics.amber.engine.common.amberfield.FieldType
 import edu.uci.ics.amber.engine.common.tuple.amber.AmberTuple
 
-import scala.collection.JavaConverters._
+import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.hashing.MurmurHash3
 
 object ITuple {
@@ -22,6 +22,7 @@ object ITuple {
 }
 
 trait ITuple extends Serializable {
+  def inMemSize: Long
   def size: Int = length
   def length: Int
   def apply(i: Int): Any = get(i)

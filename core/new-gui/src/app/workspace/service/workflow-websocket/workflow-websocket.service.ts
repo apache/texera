@@ -24,6 +24,7 @@ export class WorkflowWebsocketService {
   private static readonly TEXERA_WEBSOCKET_ENDPOINT = "wsapi/workflow-websocket";
 
   public isConnected: boolean = false;
+  public numWorkers: number = -1;
 
   private websocket?: WebSocketSubject<TexeraWebsocketEvent | TexeraWebsocketRequest>;
   private wsWithReconnectSubscription?: Subscription;
@@ -80,7 +81,7 @@ export class WorkflowWebsocketService {
           ),
           delayWhen(_ => timer(WS_RECONNECT_INTERVAL_MS)), // reconnect after delay
           tap(_ => {
-            this.send("RegisterWIdRequest", { wId }); // re-register wid
+            this.send("RegisterWorkflowIdRequest", { workflowId: wId }); // re-register wid
             this.send("HeartBeatRequest", {}); // try to send heartbeat immediately after reconnect
           })
         )
@@ -92,10 +93,15 @@ export class WorkflowWebsocketService {
     );
 
     // send wid registration and recover frontend state
-    this.send("RegisterWIdRequest", { wId });
+    this.send("RegisterWorkflowIdRequest", { workflowId: wId });
 
     // refresh connection status
-    this.websocketEvent().subscribe(_ => (this.isConnected = true));
+    this.websocketEvent().subscribe(evt => {
+      if (evt.type === "ClusterStatusUpdateEvent") {
+        this.numWorkers = evt.numWorkers;
+      }
+      this.isConnected = true;
+    });
   }
 
   public reopenWebsocket(wId: number) {

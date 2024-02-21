@@ -3,16 +3,9 @@ import { Injectable } from "@angular/core";
 import { Observable } from "rxjs";
 import { AppSettings } from "../../../common/app-setting";
 import { OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { BreakpointSchema } from "../../types/workflow-common.interface";
-import { mockBreakpointSchema } from "./mock-operator-metadata.data";
-import { shareReplay, startWith } from "rxjs/operators";
+import { shareReplay } from "rxjs/operators";
 
 export const OPERATOR_METADATA_ENDPOINT = "resources/operator-metadata";
-
-export const EMPTY_OPERATOR_METADATA: OperatorMetadata = {
-  operators: [],
-  groups: [],
-};
 
 const addDictionaryAPIAddress = "/api/resources/dictionary/";
 const getDictionaryAPIAddress = "/api/upload/dictionary/";
@@ -21,18 +14,15 @@ const getDictionaryAPIAddress = "/api/upload/dictionary/";
 export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof OperatorMetadataService>;
 
 /**
- * OperatorMetadataService talks to the backend to fetch the operator metadata,
- *  which contains a list of operator schemas.
- * Each operator schema contains all the information related to an operator,
- *  for example, operatorType, userFriendlyName, and the jsonSchema of its properties.
+ * OperatorMetadataService talks to the backend to fetch the operator metadata, which contains a list of operator schemas.
+ * Each operator schema contains all the information related to an operator, for example, operatorType, userFriendlyName,
+ *  and the jsonSchema of its properties.
  *
+ * Components and Services should call getOperatorMetadata() and subscribe to the Observable to get the metadata,
+ *  after the metadata is fetched from the backend, it will be broadcast through the observable.
  *
- * Components and Services should call getOperatorMetadata() and subscribe to the Observable in order to to get the metadata,
- *  an empty operator metadata will be broadcasted before the metadata is fetched,
- *  after the metadata is fetched from the backend, it will be broadcasted through the observable.
- *
- * The mock operator metadata is also available in mock-operator-metadata.ts for testing. It contains schema for 3 single operators.
- *
+ * The mock operator metadata is also available in mock-operator-metadata.ts for testing.
+ * It contains the schemas for 3 operators.
  * @author Zuozhi Wang
  *
  */
@@ -42,26 +32,20 @@ export type IOperatorMetadataService = Pick<OperatorMetadataService, keyof Opera
 export class OperatorMetadataService {
   // holds the current version of operator metadata
   private currentOperatorMetadata: OperatorMetadata | undefined;
-  private readonly currentBreakpointSchema: BreakpointSchema | undefined;
 
   private operatorMetadataObservable = this.httpClient
     .get<OperatorMetadata>(`${AppSettings.getApiEndpoint()}/${OPERATOR_METADATA_ENDPOINT}`)
-    .pipe(startWith(EMPTY_OPERATOR_METADATA), shareReplay(1));
+    .pipe(shareReplay(1));
 
   constructor(private httpClient: HttpClient) {
     this.getOperatorMetadata().subscribe(data => {
       this.currentOperatorMetadata = data;
     });
-    // At current design, all the links have one fixed breakpoint schema stored in the frontend
-    this.currentBreakpointSchema = mockBreakpointSchema;
   }
 
   /**
    * Gets an Observable for operator metadata.
    * This observable will emit OperatorMetadataValue after the data is fetched from the backend.
-   *
-   * Upon subscription of this observable, if the data hasn't arrived from the backend,
-   *   you will receive an empty OperatorMetadata.
    *
    * // TODO: refactor this to 2 functions: getOperatorMetadataStream() and getOperatorMetadata()
    */
@@ -115,15 +99,5 @@ export class OperatorMetadataService {
       return false;
     }
     return true;
-  }
-
-  /**
-   * At current design, this function returns the fixed schema
-   */
-  public getBreakpointSchema(): BreakpointSchema {
-    if (!this.currentBreakpointSchema) {
-      throw new Error("breakpoint schema is undefined");
-    }
-    return this.currentBreakpointSchema;
   }
 }

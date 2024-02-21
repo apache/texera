@@ -6,11 +6,10 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { mapToRecord, recordToMap } from "../../../../common/util/map";
 import { WorkflowMetadata } from "../../../../dashboard/user/type/workflow-metadata.interface";
 import {
-  Breakpoint,
   Comment,
   CommentBox,
   OperatorLink,
-  OperatorPort,
+  LogicalPort,
   OperatorPredicate,
   Point,
   PortDescription,
@@ -29,6 +28,16 @@ import { isDefined } from "../../../../common/util/predicate";
 import { environment } from "../../../../../environments/environment";
 import { User } from "../../../../common/type/user";
 import { SharedModelChangeHandler } from "./shared-model-change-handler";
+
+export const DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
+export const DEFAULT_WORKFLOW = {
+  name: DEFAULT_WORKFLOW_NAME,
+  description: undefined,
+  wid: 0,
+  creationTime: undefined,
+  lastModifiedTime: undefined,
+  readonly: false,
+};
 
 /**
  *
@@ -52,16 +61,6 @@ import { SharedModelChangeHandler } from "./shared-model-change-handler";
   providedIn: "root",
 })
 export class WorkflowActionService {
-  public static readonly DEFAULT_WORKFLOW_NAME = "Untitled Workflow";
-  private static readonly DEFAULT_WORKFLOW = {
-    name: WorkflowActionService.DEFAULT_WORKFLOW_NAME,
-    description: undefined,
-    wid: undefined,
-    creationTime: undefined,
-    lastModifiedTime: undefined,
-    readonly: false,
-  };
-
   private readonly texeraGraph: WorkflowGraph;
   private readonly jointGraph: joint.dia.Graph;
   private readonly jointGraphWrapper: JointGraphWrapper;
@@ -101,7 +100,7 @@ export class WorkflowActionService {
       this.jointUIService
     );
     this.syncOperatorGroup = new SyncOperatorGroup(this.texeraGraph, this.jointGraphWrapper, this.operatorGroup);
-    this.workflowMetadata = WorkflowActionService.DEFAULT_WORKFLOW;
+    this.workflowMetadata = DEFAULT_WORKFLOW;
     this.undoRedoService.setUndoManager(this.texeraGraph.sharedModel.undoManager);
 
     this.handleJointElementDrag();
@@ -233,7 +232,13 @@ export class WorkflowActionService {
       portID = prefix + suffix;
     }
 
-    const port: PortDescription = { portID, displayName: portID, allowMultiInputs, isDynamicPort: true };
+    const port: PortDescription = {
+      portID,
+      displayName: portID,
+      allowMultiInputs,
+      isDynamicPort: true,
+      dependencies: [],
+    };
 
     if (!operator.dynamicInputPorts && isInput) {
       throw new Error(`operator ${operatorID} does not have dynamic input ports`);
@@ -287,7 +292,6 @@ export class WorkflowActionService {
     operatorsAndPositions: readonly { op: OperatorPredicate; pos: Point }[],
     links?: readonly OperatorLink[],
     groups?: readonly Group[],
-    breakpoints?: ReadonlyMap<string, Breakpoint>,
     commentBoxes?: ReadonlyArray<CommentBox>
   ): void {
     // remember currently highlighted operators and groups
@@ -302,9 +306,6 @@ export class WorkflowActionService {
       if (links) {
         for (let i = 0; i < links.length; i++) {
           this.addLink(links[i]);
-        }
-        if (breakpoints !== undefined) {
-          breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpoint(linkID, breakpoint));
         }
       }
       if (isDefined(commentBoxes)) {
@@ -423,7 +424,7 @@ export class WorkflowActionService {
    * @param source
    * @param target
    */
-  public deleteLink(source: OperatorPort, target: OperatorPort): void {
+  public deleteLink(source: LogicalPort, target: LogicalPort): void {
     const link = this.getTexeraGraph().getLink(source, target);
     this.deleteLinkWithID(link.linkID);
   }
@@ -439,29 +440,9 @@ export class WorkflowActionService {
     });
   }
 
-  public setPortProperty(operatorPortID: OperatorPort, newProperty: object) {
+  public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
     this.texeraGraph.bundleActions(() => {
       this.texeraGraph.setPortProperty(operatorPortID, newProperty);
-    });
-  }
-
-  /**
-   * set a given link's breakpoint properties to specific values
-   */
-  public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
-    this.texeraGraph.bundleActions(() => {
-      this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
-    });
-  }
-
-  /**
-   * Set the link's breakpoint property to empty to remove the breakpoint
-   *
-   * @param linkID
-   */
-  public removeLinkBreakpoint(linkID: string): void {
-    this.texeraGraph.bundleActions(() => {
-      this.setLinkBreakpoint(linkID, undefined);
     });
   }
 
@@ -521,12 +502,12 @@ export class WorkflowActionService {
     this.highlightCommentBoxes(multiSelect, ...elementIDs.filter(id => this.texeraGraph.hasCommentBox(id)));
   }
 
-  public highlightPorts(multiSelect: boolean, ...ports: OperatorPort[]): void {
+  public highlightPorts(multiSelect: boolean, ...ports: LogicalPort[]): void {
     this.getJointGraphWrapper().setMultiSelectMode(multiSelect);
     this.getJointGraphWrapper().highlightPorts(...ports);
   }
 
-  public unhighlightPorts(...ports: OperatorPort[]): void {
+  public unhighlightPorts(...ports: LogicalPort[]): void {
     this.getJointGraphWrapper().unhighlightPorts(...ports);
   }
 
@@ -546,18 +527,34 @@ export class WorkflowActionService {
     });
   }
 
-  public cacheOperators(ops: readonly string[]): void {
+  public markReuseResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().cacheOperator(op);
+        this.getTexeraGraph().markReuseResult(op);
       });
     });
   }
 
-  public unCacheOperators(ops: readonly string[]): void {
+  public removeMarkReuseResults(ops: readonly string[]): void {
     this.texeraGraph.bundleActions(() => {
       ops.forEach(op => {
-        this.getTexeraGraph().unCacheOperator(op);
+        this.getTexeraGraph().removeMarkReuseResult(op);
+      });
+    });
+  }
+
+  public setViewOperatorResults(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().setViewOperatorResult(op);
+      });
+    });
+  }
+
+  public unsetViewOperatorResults(ops: readonly string[]): void {
+    this.texeraGraph.bundleActions(() => {
+      ops.forEach(op => {
+        this.getTexeraGraph().unsetViewOperatorResult(op);
       });
     });
   }
@@ -596,7 +593,11 @@ export class WorkflowActionService {
    * <b>Warning: this resets the workflow but not the SharedModel, so make sure to quit the shared-editing session
    * (<code>{@link destroySharedModel}</code>) before using this method.</b>
    */
-  public reloadWorkflow(workflow: Workflow | undefined, asyncRendering = environment.asyncRenderingEnabled): void {
+  public reloadWorkflow(
+    workflow: Readonly<Workflow> | undefined,
+    asyncRendering = environment.asyncRenderingEnabled
+  ): void {
+    this.jointGraphWrapper.setReloadingWorkflow(true);
     this.jointGraphWrapper.jointGraphContext.withContext({ async: asyncRendering }, () => {
       this.setWorkflowMetadata(workflow);
       // remove the existing operators on the paper currently
@@ -619,7 +620,7 @@ export class WorkflowActionService {
 
       const workflowContent: WorkflowContent = workflow.content;
 
-      const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+      let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
         const opPosition = workflowContent.operatorPositions[op.operatorID];
         if (!opPosition) {
@@ -641,20 +642,16 @@ export class WorkflowActionService {
         };
       });
 
-      const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
-
       const commentBoxes = workflowContent.commentBoxes;
 
-      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
+      operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
 
-      // operators and links shouldn't be highlighted during page reload
-      const jointGraphWrapper = this.getJointGraphWrapper();
-      jointGraphWrapper.unhighlightOperators(...jointGraphWrapper.getCurrentHighlightedOperatorIDs());
-      jointGraphWrapper.unhighlightLinks(...jointGraphWrapper.getCurrentHighlightedLinkIDs());
+      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, commentBoxes);
 
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
     });
+    this.jointGraphWrapper.setReloadingWorkflow(false);
 
     // After reloading a workflow, need to clear undo/redo stacks because some of the actions involved in reloading
     // may remain in the undo manager.
@@ -683,7 +680,8 @@ export class WorkflowActionService {
       this.getTexeraGraph().getCommentBoxAddCommentStream(),
       this.getTexeraGraph().getCommentBoxDeleteCommentStream(),
       this.getTexeraGraph().getCommentBoxEditCommentStream(),
-      this.getTexeraGraph().getCachedOperatorsChangedStream(),
+      this.getTexeraGraph().getViewResultOperatorsChangedStream(),
+      this.getTexeraGraph().getReuseCacheOperatorsChangedStream(),
       this.getTexeraGraph().getOperatorDisplayNameChangedStream(),
       this.getTexeraGraph().getOperatorVersionChangedStream(),
       this.getTexeraGraph().getPortDisplayNameChangedSubject(),
@@ -704,7 +702,7 @@ export class WorkflowActionService {
       return;
     }
 
-    const newMetadata = workflowMetaData === undefined ? WorkflowActionService.DEFAULT_WORKFLOW : workflowMetaData;
+    const newMetadata = workflowMetaData === undefined ? DEFAULT_WORKFLOW : workflowMetaData;
     this.workflowMetadata = newMetadata;
     this.workflowMetadataChangeSubject.next(newMetadata);
   }
@@ -733,9 +731,6 @@ export class WorkflowActionService {
           collapsed: group.collapsed,
         };
       });
-    const breakpointsMap = texeraGraph.getAllLinkBreakpoints();
-    const breakpoints: Record<string, Breakpoint> = {};
-    breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
     texeraGraph
       .getAllOperators()
       .forEach(
@@ -749,7 +744,6 @@ export class WorkflowActionService {
       operatorPositions,
       links,
       groups,
-      breakpoints,
       commentBoxes,
     };
   }
@@ -789,7 +783,7 @@ export class WorkflowActionService {
    * @param name
    */
   public setWorkflowName(name: string): void {
-    const newName = name.trim().length > 0 ? name : WorkflowActionService.DEFAULT_WORKFLOW_NAME;
+    const newName = name.trim().length > 0 ? name : DEFAULT_WORKFLOW_NAME;
     this.setWorkflowMetadata({ ...this.workflowMetadata, name: newName });
   }
 
@@ -867,5 +861,16 @@ export class WorkflowActionService {
           }
         });
       });
+  }
+
+  private updateOperatorVersions(operatorsAndPositions: { op: OperatorPredicate; pos: Point }[]) {
+    const updatedOperators: { op: OperatorPredicate; pos: Point }[] = [];
+    for (const operatorsAndPosition of operatorsAndPositions) {
+      updatedOperators.push({
+        op: this.workflowUtilService.updateOperatorVersion(operatorsAndPosition.op),
+        pos: operatorsAndPosition.pos,
+      });
+    }
+    return updatedOperators;
   }
 }

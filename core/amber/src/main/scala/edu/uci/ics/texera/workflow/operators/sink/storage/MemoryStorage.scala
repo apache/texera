@@ -5,7 +5,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable.ArrayBuffer
 
-class MemoryStorage(schema: Schema) extends SinkStorageReader with SinkStorageWriter {
+class MemoryStorage extends SinkStorageReader with SinkStorageWriter {
 
   private val results = new ArrayBuffer[Tuple]()
 
@@ -38,7 +38,7 @@ class MemoryStorage(schema: Schema) extends SinkStorageReader with SinkStorageWr
 
   override def close(): Unit = {}
 
-  override def getStorageWriter(): SinkStorageWriter = this
+  override def getStorageWriter: SinkStorageWriter = this
 
   override def getRange(from: Int, to: Int): Iterable[Tuple] =
     synchronized {
@@ -48,4 +48,8 @@ class MemoryStorage(schema: Schema) extends SinkStorageReader with SinkStorageWr
   override def getCount: Long = results.length
 
   override def getSchema: Schema = schema
+
+  override def setSchema(schema: Schema): Unit = {
+    this.schema = schema
+  }
 }

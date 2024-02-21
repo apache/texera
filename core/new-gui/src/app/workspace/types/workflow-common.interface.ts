@@ -11,7 +11,7 @@ export interface Point
     y: number;
   }> {}
 
-export interface OperatorPort
+export interface LogicalPort
   extends Readonly<{
     operatorID: string;
     portID: string;
@@ -29,7 +29,8 @@ export interface PortSchema
     jsonSchema: Readonly<JSONSchema7>;
   }> {}
 
-export interface PortProperty extends Readonly<{ partitionInfo: PartitionInfo; dependencies: number[] }> {}
+export interface PortProperty
+  extends Readonly<{ partitionInfo: PartitionInfo; dependencies: { id: number; internal: boolean }[] }> {}
 
 export interface PortDescription
   extends Readonly<{
@@ -38,7 +39,7 @@ export interface PortDescription
     allowMultiInputs?: boolean;
     isDynamicPort?: boolean;
     partitionRequirement?: PartitionInfo;
-    dependencies?: number[];
+    dependencies?: { id: number; internal: boolean }[];
   }> {}
 
 export interface OperatorPredicate
@@ -53,7 +54,8 @@ export interface OperatorPredicate
     dynamicOutputPorts?: boolean;
     showAdvanced: boolean;
     isDisabled?: boolean;
-    isCached?: boolean;
+    viewResult?: boolean;
+    markedForReuse?: boolean;
     customDisplayName?: string;
   }> {}
 
@@ -74,47 +76,9 @@ export interface CommentBox {
 export interface OperatorLink
   extends Readonly<{
     linkID: string;
-    source: OperatorPort;
-    target: OperatorPort;
+    source: LogicalPort;
+    target: LogicalPort;
   }> {}
-
-export interface BreakpointSchema
-  extends Readonly<{
-    jsonSchema: Readonly<JSONSchema7>;
-  }> {}
-
-type ConditionBreakpoint = Readonly<{
-  column: number;
-  condition: "=" | ">" | ">=" | "<" | "<=" | "!=" | "contains" | "does not contain";
-  value: string;
-}>;
-
-type CountBreakpoint = Readonly<{
-  count: number;
-}>;
-
-export type Breakpoint = ConditionBreakpoint | CountBreakpoint;
-
-export type BreakpointRequest =
-  | Readonly<{ type: "ConditionBreakpoint" } & ConditionBreakpoint>
-  | Readonly<{ type: "CountBreakpoint" } & CountBreakpoint>;
-
-export type BreakpointFaultedTuple = Readonly<{
-  tuple: ReadonlyArray<string>;
-  id: number;
-  isInput: boolean;
-}>;
-
-export type BreakpointFault = Readonly<{
-  actorPath: string;
-  faultedTuple: BreakpointFaultedTuple;
-  messages: ReadonlyArray<string>;
-}>;
-
-export type BreakpointTriggerInfo = Readonly<{
-  report: ReadonlyArray<BreakpointFault>;
-  operatorID: string;
-}>;
 
 /**
  * refer to src/main/scalapb/edu/uci/ics/texera/web/workflowruntimestate/ConsoleMessage.scala
@@ -125,8 +89,11 @@ export type ConsoleMessage = Readonly<{
     nanos: number;
     seconds: number;
   };
-  msgType: string;
+  msgType: {
+    name: string;
+  };
   source: string;
+  title: string;
   message: string;
 }>;
 

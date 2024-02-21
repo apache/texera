@@ -4,6 +4,9 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
@@ -17,6 +20,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.Workflow;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowExecutions;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowOfUser;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowRuntimeStatistics;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
 
@@ -26,6 +30,21 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.WorkflowVersion;
  */
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class Tables {
+
+    /**
+     * The table <code>texera_db.dataset</code>.
+     */
+    public static final Dataset DATASET = Dataset.DATASET;
+
+    /**
+     * The table <code>texera_db.dataset_user_access</code>.
+     */
+    public static final DatasetUserAccess DATASET_USER_ACCESS = DatasetUserAccess.DATASET_USER_ACCESS;
+
+    /**
+     * The table <code>texera_db.dataset_version</code>.
+     */
+    public static final DatasetVersion DATASET_VERSION = DatasetVersion.DATASET_VERSION;
 
     /**
      * The table <code>texera_db.file</code>.
@@ -91,6 +110,11 @@ public class Tables {
      * The table <code>texera_db.workflow_of_user</code>.
      */
     public static final WorkflowOfUser WORKFLOW_OF_USER = WorkflowOfUser.WORKFLOW_OF_USER;
+
+    /**
+     * The table <code>texera_db.workflow_runtime_statistics</code>.
+     */
+    public static final WorkflowRuntimeStatistics WORKFLOW_RUNTIME_STATISTICS = WorkflowRuntimeStatistics.WORKFLOW_RUNTIME_STATISTICS;
 
     /**
      * The table <code>texera_db.workflow_user_access</code>.

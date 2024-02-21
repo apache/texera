@@ -1,26 +1,18 @@
 package edu.uci.ics.texera.workflow.operators.download
 
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonPropertyDescription
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
-class BulkDownloaderOpDesc extends OperatorDescriptor {
+class BulkDownloaderOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("URL Attribute")
@@ -37,18 +29,29 @@ class BulkDownloaderOpDesc extends OperatorDescriptor {
   )
   var resultAttribute: String = _
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo): OpExecConfig = {
-    assert(context.userId.isDefined)
-    OpExecConfig.oneToOneLayer(
-      operatorIdentifier,
-      _ =>
-        new BulkDownloaderOpExec(
-          context,
-          urlAttribute,
-          resultAttribute,
-          operatorSchemaInfo
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
+    assert(getContext.userId.isDefined)
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) =>
+          new BulkDownloaderOpExec(
+            getContext,
+            urlAttribute,
+            resultAttribute,
+            outputSchema
+          )
         )
-    )
+      )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
   }
 
   override def operatorInfo: OperatorInfo =

@@ -7,21 +7,12 @@ import com.fasterxml.jackson.databind.node.{ArrayNode, ObjectNode}
 import com.kjetland.jackson.jsonSchema.JsonSchemaConfig.html5EnabledSchema
 import com.kjetland.jackson.jsonSchema.{JsonSchemaConfig, JsonSchemaDraft, JsonSchemaGenerator}
 import edu.uci.ics.texera.Utils.objectMapper
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.source.scan.csv.CSVScanSourceOpDesc
 
 import java.util
-import scala.collection.JavaConverters
-import scala.collection.JavaConverters.asScalaIterator
-
-case class InputPort(
-    displayName: String = null,
-    allowMultiInputs: Boolean = false
-)
-
-case class OutputPort(
-    displayName: String = null
-)
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala}
 
 case class OperatorInfo(
     userFriendlyName: String,
@@ -68,19 +59,18 @@ object OperatorMetadataGenerator {
   )
   val jsonSchemaGenerator = new JsonSchemaGenerator(objectMapper, texeraSchemaGeneratorConfig)
   // a map from a Texera Operator Descriptor's class to its operatorType string value
-  val operatorTypeMap: Map[Class[_ <: OperatorDescriptor], String] = {
+  val operatorTypeMap: Map[Class[_ <: LogicalOp], String] = {
     // find all the operator type declarations in PredicateBase annotation
     val types = objectMapper.getSubtypeResolver.collectAndResolveSubtypesByClass(
       objectMapper.getDeserializationConfig,
       AnnotatedClassResolver.resolveWithoutSuperTypes(
         objectMapper.getDeserializationConfig,
-        objectMapper.constructType(classOf[OperatorDescriptor]).getRawClass
+        objectMapper.constructType(classOf[LogicalOp]).getRawClass
       )
     )
-    JavaConverters
-      .asScalaBuffer(new util.ArrayList[NamedType](types))
+    new util.ArrayList[NamedType](types).asScala
       .filter(t => t.getType != null && t.getName != null)
-      .map(t => (t.getType.asInstanceOf[Class[_ <: OperatorDescriptor]], t.getName))
+      .map(t => (t.getType.asInstanceOf[Class[_ <: LogicalOp]], t.getName))
       .toMap
   }
   val allOperatorMetadata: AllOperatorMetadata = generateAllOperatorMetadata()
@@ -91,10 +81,12 @@ object OperatorMetadataGenerator {
     println(generateOperatorJsonSchema(classOf[CSVScanSourceOpDesc]).toPrettyString)
   }
 
-  def generateOperatorJsonSchema(opDescClass: Class[_ <: OperatorDescriptor]): JsonNode = {
+  def generateOperatorJsonSchema(opDescClass: Class[_ <: LogicalOp]): JsonNode = {
     val jsonSchema = jsonSchemaGenerator.generateJsonSchema(opDescClass).asInstanceOf[ObjectNode]
     // remove operatorID from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorID")
+    // remove operatorId from json schema
+    jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorId")
     // remove operatorType from json schema
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("operatorType")
     // remove operatorVersion from json schema
@@ -104,7 +96,11 @@ object OperatorMetadataGenerator {
     jsonSchema.get("properties").asInstanceOf[ObjectNode].remove("outputPorts")
     // remove operatorType from required list
     val operatorTypeIndex =
-      asScalaIterator(jsonSchema.get("required").asInstanceOf[ArrayNode].elements())
+      jsonSchema
+        .get("required")
+        .asInstanceOf[ArrayNode]
+        .elements()
+        .asScala
         .indexWhere(p => p.asText().equals("operatorType"))
     jsonSchema.get("required").asInstanceOf[ArrayNode].remove(operatorTypeIndex)
     // remove "title" for the operator - frontend uses userFriendlyName to show operator title
@@ -119,7 +115,7 @@ object OperatorMetadataGenerator {
     )
   }
 
-  def generateOperatorMetadata(opDescClass: Class[_ <: OperatorDescriptor]): OperatorMetadata = {
+  def generateOperatorMetadata(opDescClass: Class[_ <: LogicalOp]): OperatorMetadata = {
     if (!operatorTypeMap.contains(opDescClass))
       throw new RuntimeException(
         "Texera Operator Descriptor class " + opDescClass.toString + " is not registered in TexeraOperatorDescription class"

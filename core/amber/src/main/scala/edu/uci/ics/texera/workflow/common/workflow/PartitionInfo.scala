@@ -36,7 +36,7 @@ sealed abstract class PartitionInfo {
 }
 
 object HashPartition {
-  def apply(hashColumnIndices: Seq[Int]): PartitionInfo = {
+  def apply(hashColumnIndices: List[Int]): PartitionInfo = {
     if (hashColumnIndices.nonEmpty)
       new HashPartition(hashColumnIndices)
     else
@@ -48,11 +48,11 @@ object HashPartition {
   * Represents an input stream is partitioned on multiple nodes
   * according to a hash function on the specified column indices.
   */
-final case class HashPartition(hashColumnIndices: Seq[Int]) extends PartitionInfo
+final case class HashPartition(hashColumnIndices: List[Int]) extends PartitionInfo
 
 object RangePartition {
 
-  def apply(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax: Long): PartitionInfo = {
+  def apply(rangeColumnIndices: List[Int], rangeMin: Long, rangeMax: Long): PartitionInfo = {
     if (rangeColumnIndices.nonEmpty)
       new RangePartition(rangeColumnIndices, rangeMin, rangeMax)
     else
@@ -66,7 +66,7 @@ object RangePartition {
   * and each node contains data fit in a specific range.
   * The data within each node is also sorted.
   */
-final case class RangePartition(rangeColumnIndices: Seq[Int], rangeMin: Long, rangeMax: Long)
+final case class RangePartition(rangeColumnIndices: List[Int], rangeMin: Long, rangeMax: Long)
     extends PartitionInfo {
 
   // if two streams of input with the same range partition are merged (without another sort),

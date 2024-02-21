@@ -4,19 +4,15 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
-import edu.uci.ics.amber.engine.common.Constants
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, IOException}
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -34,7 +30,10 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
   fileTypeName = Option("CSV")
 
   @throws[IOException]
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
+  override def getPhysicalOp(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalOp = {
     // fill in default values
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
@@ -42,24 +41,29 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     filePath match {
       case Some(path) =>
         val totalBytes: Long = new File(path).length()
-        val numWorkers: Int = Constants.currentWorkerNum
 
-        OpExecConfig.oneToOneLayer(
-          operatorIdentifier,
-          p => {
-            val i = p._1
-            // TODO: add support for limit
-            // TODO: add support for offset
-            val startOffset: Long = totalBytes / numWorkers * i
-            val endOffset: Long =
-              if (i != numWorkers - 1) totalBytes / numWorkers * (i + 1) else totalBytes
-            new ParallelCSVScanSourceOpExec(
-              this,
-              startOffset,
-              endOffset
-            )
-          }
-        )
+        PhysicalOp
+          .sourcePhysicalOp(
+            workflowId,
+            executionId,
+            operatorIdentifier,
+            OpExecInitInfo((idx, _, operatorConfig) => {
+              val workerCount = operatorConfig.workerConfigs.length
+              // TODO: add support for limit
+              // TODO: add support for offset
+              val startOffset: Long = totalBytes / workerCount * idx
+              val endOffset: Long =
+                if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
+              new ParallelCSVScanSourceOpExec(
+                this,
+                startOffset,
+                endOffset
+              )
+            })
+          )
+          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+          .withParallelizable(true)
 
       case None =>
         throw new RuntimeException("File path is not provided.")

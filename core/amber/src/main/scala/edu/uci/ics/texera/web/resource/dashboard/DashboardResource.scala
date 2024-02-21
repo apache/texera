@@ -4,23 +4,27 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.{
+  DatasetUserAccessPrivilege,
   UserFileAccessPrivilege,
   WorkflowUserAccessPrivilege
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
+
+import javax.ws.rs._
+import javax.ws.rs.core.MediaType
 import org.jooq.Condition
 import org.jooq.impl.DSL
-import org.jooq.impl.DSL.{falseCondition, noCondition}
+import org.jooq.impl.DSL.{falseCondition, groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
 import java.sql.Timestamp
-import javax.ws.rs._
-import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /**
   * This file handles various requests that need to interact with multiple tables.
@@ -31,7 +35,8 @@ object DashboardResource {
       resourceType: String,
       workflow: DashboardWorkflow,
       project: Project,
-      file: DashboardFile
+      file: DashboardFile,
+      dataset: DashboardDataset
   )
 
   case class DashboardSearchResult(
@@ -90,10 +95,11 @@ class DashboardResource {
       @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
   ): DashboardSearchResult = {
     // make sure keywords don't contain "+-()<>~*\"", these are reserved for SQL full-text boolean operator
-    val splitKeywords = keywords.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
+    val splitKeywords = keywords.asScala.flatMap(word => word.split("[+\\-()<>~*@\"]+"))
     var workflowMatchQuery: Condition = noCondition()
     var projectMatchQuery: Condition = noCondition()
     var fileMatchQuery: Condition = noCondition()
+    var datasetMatchQuery: Condition = noCondition()
     for (key: String <- splitKeywords) {
       if (key != "") {
         val words = key.split("\\s+")
@@ -122,6 +128,13 @@ class DashboardResource {
           getSearchQuery(subStringSearchEnabled, "texera_db.file.name, texera_db.file.description"),
           key
         )
+        datasetMatchQuery = datasetMatchQuery.and(
+          getSearchQuery(
+            subStringSearchEnabled,
+            "texera_db.dataset.name, texera_db.dataset.description"
+          ),
+          key
+        )
       }
     }
 
@@ -146,7 +159,7 @@ class DashboardResource {
       .and(
         // these filters are not available in project. If any of them exists, the query should return 0 project
         if (
-          modifiedStartDate.nonEmpty || modifiedEndDate.nonEmpty || workflowIDs.nonEmpty || operators.nonEmpty
+          modifiedStartDate.nonEmpty || modifiedEndDate.nonEmpty || !workflowIDs.isEmpty || !operators.isEmpty
         ) falseCondition()
         else noCondition()
       )
@@ -158,7 +171,7 @@ class DashboardResource {
       .and(
         // these filters are not available in file. If any of them exists, the query should return 0 file
         if (
-          modifiedStartDate.nonEmpty || modifiedEndDate.nonEmpty || workflowIDs.nonEmpty || operators.nonEmpty || projectIds.nonEmpty
+          modifiedStartDate.nonEmpty || modifiedEndDate.nonEmpty || !workflowIDs.isEmpty || !operators.isEmpty || !projectIds.isEmpty
         ) falseCondition()
         else noCondition()
       )
@@ -172,26 +185,27 @@ class DashboardResource {
       * 3. `description`: Provides a description of the resource (`String`).
       * 4. `creation_time`: Indicates the timestamp of when the resource was created (`Timestamp`). It represents upload_time if the resourceType is `file`
       *
-      * Workflow Attributes (5 columns): Only workflow will have these 5 attributes.
+      * Workflow Attributes (6 columns): Only workflow will have these 6 attributes.
       * 5. `WID`: Represents the Workflow ID (`UInteger`).
       * 6. `lastModifiedTime`: Indicates the timestamp of the last modification made to the workflow (`Timestamp`).
       * 7. `privilege`: Specifies the privilege associated with the workflow (`Privilege`).
       * 8. `UID`: Represents the User ID associated with the workflow (`UInteger`).
       * 9. `userName`: Provides the name of the user associated with the workflow (`String`).
+      * 10. `projects`: The project IDs for the workflow, concatenated as a string (`String`).
       *
       * Project Attributes (3 columns): Only project will have these 3 attributes.
-      * 10. `pid`: Represents the Project ID (`UInteger`).
-      * 11. `ownerId`: Indicates the ID of the project owner (`UInteger`).
-      * 12. `color`: Specifies the color associated with the project (`String`).
+      * 11. `pid`: Represents the Project ID (`UInteger`).
+      * 12. `ownerId`: Indicates the ID of the project owner (`UInteger`).
+      * 13. `color`: Specifies the color associated with the project (`String`).
       *
       * File Attributes (7 columns): Only files will have these 7 attributes.
-      * 13. `ownerUID`: Represents the User ID of the file owner (`UInteger`).
-      * 14. `fid`: Indicates the File ID (`UInteger`).
-      * 15. `uploadTime`: Indicates the timestamp when the file was uploaded (`Timestamp`).
-      * 16. `path`: Specifies the path of the file (`String`).
-      * 17. `size`: Represents the size of the file (`UInteger`).
-      * 18. `email`: Represents the email associated with the file owner (`String`).
-      * 19. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
+      * 14. `ownerUID`: Represents the User ID of the file owner (`UInteger`).
+      * 15. `fid`: Indicates the File ID (`UInteger`).
+      * 16. `uploadTime`: Indicates the timestamp when the file was uploaded (`Timestamp`).
+      * 17. `path`: Specifies the path of the file (`String`).
+      * 18. `size`: Represents the size of the file (`UInteger`).
+      * 19. `email`: Represents the email associated with the file owner (`String`).
+      * 20. `userFileAccess`: Specifies the user file access privilege (`UserFileAccessPrivilege`).
       */
 
     // Retrieve workflow resource
@@ -203,12 +217,13 @@ class DashboardResource {
           WORKFLOW.NAME,
           WORKFLOW.DESCRIPTION,
           WORKFLOW.CREATION_TIME,
-          // workflow attributes: 5 columns
+          // workflow attributes: 6 columns
           WORKFLOW.WID,
           WORKFLOW.LAST_MODIFIED_TIME,
           WORKFLOW_USER_ACCESS.PRIVILEGE,
           WORKFLOW_OF_USER.UID,
           USER.NAME,
+          groupConcatDistinct(WORKFLOW_OF_PROJECT.PID).as("projects"),
           // project attributes: 3 columns
           DSL.inline(null, classOf[UInteger]).as("pid"),
           DSL.inline(null, classOf[UInteger]).as("owner_id"),
@@ -248,12 +263,13 @@ class DashboardResource {
         PROJECT.NAME.as("name"),
         PROJECT.DESCRIPTION.as("description"),
         PROJECT.CREATION_TIME.as("creation_time"),
-        // workflow attributes: 5 columns
+        // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
         DSL.inline(PROJECT.CREATION_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
+        DSL.inline(null, classOf[String]).as("projects"),
         // project attributes: 3 columns
         PROJECT.PID,
         PROJECT.OWNER_ID,
@@ -276,6 +292,33 @@ class DashboardResource {
       )
       .and(projectOptionalFilters)
 
+    val datasetQuery = context
+      .select(
+        DSL.inline("dataset").as("resourceType"),
+        DATASET.NAME,
+        DATASET.DESCRIPTION,
+        DATASET.DID,
+        DATASET.OWNER_UID,
+        DATASET.IS_PUBLIC,
+        DATASET.CREATION_TIME,
+        USER.NAME.as("userName"),
+        // use aggregation and groupby to remove duplicated item
+        DSL.max(DATASET_USER_ACCESS.PRIVILEGE).as("privilege"),
+        DSL.max(DATASET_USER_ACCESS.UID).as("uid")
+      )
+      .from(DATASET)
+      .leftJoin(DATASET_USER_ACCESS)
+      .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
+      .leftJoin(USER)
+      .on(USER.UID.eq(DATASET_USER_ACCESS.UID))
+      .where(
+        USER.UID
+          .eq(user.getUid)
+          .or(DATASET.IS_PUBLIC.eq(DatasetResource.DATASET_IS_PUBLIC))
+      )
+      .and(datasetMatchQuery)
+      .groupBy(DATASET.DID)
+
     // Retrieve file resource
     val fileQuery = context
       .select(
@@ -284,12 +327,13 @@ class DashboardResource {
         FILE.NAME,
         FILE.DESCRIPTION,
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
-        // workflow attributes: 5 columns
+        // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
+        DSL.inline(null, classOf[String]).as("projects"),
         // project attributes: 3 columns
         DSL.inline(null, classOf[UInteger]).as("pid"),
         DSL.inline(null, classOf[UInteger]).as("owner_id"),
@@ -322,12 +366,13 @@ class DashboardResource {
         FILE.NAME,
         FILE.DESCRIPTION,
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("creation_time"),
-        // workflow attributes: 5 columns
+        // workflow attributes: 6 columns
         DSL.inline(null, classOf[UInteger]).as("wid"),
         DSL.inline(FILE.UPLOAD_TIME, classOf[Timestamp]).as("last_modified_time"),
         DSL.inline(null, classOf[WorkflowUserAccessPrivilege]).as("privilege"),
         DSL.inline(null, classOf[UInteger]).as("uid"),
         DSL.inline(null, classOf[String]).as("userName"),
+        DSL.inline(null, classOf[String]).as("projects"),
         // project attributes: 3 columns
         DSL.inline(null, classOf[UInteger]).as("pid"),
         DSL.inline(null, classOf[UInteger]).as("owner_id"),
@@ -376,6 +421,7 @@ class DashboardResource {
       * WORKFLOW_USER_ACCESS.PRIVILEGE,
       * WORKFLOW_OF_USER.UID,
       * USER.NAME as "userName",
+      * group_concat(WORKFLOW_OF_PROJECT.PID) AS "projects",
       * null as pid,
       * null as owner_id,
       * null as color,
@@ -406,6 +452,7 @@ class DashboardResource {
       * null,
       * null,
       * null,
+      * null,
       * PROJECT.PID,
       * PROJECT.OWNER_ID,
       * PROJECT.COLOR,
@@ -428,7 +475,8 @@ class DashboardResource {
       * file.name,
       * file.description,
       * null,
-      * -- workflow attributes: 5 rows
+      * -- workflow attributes: 6 rows
+      * null,
       * null,
       * null,
       * null,
@@ -458,7 +506,8 @@ class DashboardResource {
       * file.name,
       * file.description,
       * null,
-      * -- workflow attributes: 5 rows
+      * -- workflow attributes: 6 rows
+      * null,
       * null,
       * null,
       * null,
@@ -520,6 +569,17 @@ class DashboardResource {
             case _ =>
               throw new BadRequestException(
                 "Unknown orderBy. Only 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc' are allowed"
+              )
+          }
+          orderedQuery.limit(count + 1).offset(offset).fetch()
+        case "dataset" =>
+          val orderedQuery = orderBy match {
+            case "NameAsc"  => datasetQuery.orderBy(DATASET.NAME.asc())
+            case "NameDesc" => datasetQuery.orderBy(DATASET.NAME.desc())
+            case _ =>
+              datasetQuery.orderBy(DATASET.NAME.asc())
+              throw new BadRequestException(
+                "Unknown orderBy. Only 'NameAsc', 'NameDesc' are allowed"
               )
           }
           orderedQuery.limit(count + 1).offset(offset).fetch()
@@ -591,7 +651,7 @@ class DashboardResource {
       }
     val moreRecords = clickableFileEntry.size() > count
     DashboardSearchResult(
-      results = clickableFileEntry
+      results = clickableFileEntry.asScala
         .take(count)
         .map(record => {
           val resourceType = record.get("resourceType", classOf[String])
@@ -607,7 +667,16 @@ class DashboardResource {
                   .toString,
                 record.into(USER).getName,
                 record.into(WORKFLOW).into(classOf[Workflow]),
-                List[UInteger]() // To do
+                if (record.get("projects") == null) {
+                  List[UInteger]()
+                } else {
+                  record
+                    .get("projects")
+                    .asInstanceOf[String]
+                    .split(',')
+                    .map(number => UInteger.valueOf(number))
+                    .toList
+                }
               )
             } else {
               null
@@ -627,6 +696,24 @@ class DashboardResource {
                   )
                   .toString,
                 record.into(FILE).into(classOf[File])
+              )
+            } else {
+              null
+            },
+            if (resourceType == "dataset") {
+              val dataset = record.into(DATASET).into(classOf[Dataset])
+              val datasetOfUserUid = record.into(DATASET_USER_ACCESS).getUid
+              var accessLevel = record.into(DATASET_USER_ACCESS).getPrivilege
+              if (datasetOfUserUid != user.getUid) {
+                accessLevel = DatasetUserAccessPrivilege.READ
+              }
+              if (dataset.getOwnerUid == user.getUid) {
+                accessLevel = DatasetUserAccessPrivilege.WRITE
+              }
+              DashboardDataset(
+                dataset,
+                accessLevel,
+                dataset.getOwnerUid == user.getUid
               )
             } else {
               null

@@ -1,9 +1,8 @@
 import { Injectable } from "@angular/core";
-import { Observable, Subject } from "rxjs";
+import { from, Observable, Subject } from "rxjs";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { WorkflowGraphReadonly } from "../workflow-graph/model/workflow-graph";
 import {
-  BreakpointInfo,
   ExecutionState,
   ExecutionStateInfo,
   LogicalLink,
@@ -12,13 +11,19 @@ import {
 } from "../../types/execute-workflow.interface";
 import { environment } from "../../../../environments/environment";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
-import { Breakpoint, BreakpointRequest, BreakpointTriggerInfo } from "../../types/workflow-common.interface";
-import { OperatorCurrentTuples, TexeraWebsocketEvent } from "../../types/workflow-websocket.interface";
+import {
+  WorkflowFatalError,
+  OperatorCurrentTuples,
+  TexeraWebsocketEvent,
+  ReplayExecutionInfo,
+} from "../../types/workflow-websocket.interface";
 import { isEqual } from "lodash-es";
 import { PAGINATION_INFO_STORAGE_KEY, ResultPaginationInfo } from "../../types/result-table.interface";
 import { sessionGetObject, sessionSetObject } from "../../../common/util/storage";
 import { Version as version } from "src/environments/version";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { exhaustiveGuard } from "../../../common/util/switch";
+import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -65,24 +70,23 @@ export class ExecuteWorkflowService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowWebsocketService: WorkflowWebsocketService,
+    private workflowStatusService: WorkflowStatusService,
     private notificationService: NotificationService
   ) {
-    if (environment.amberEngineEnabled) {
-      workflowWebsocketService.websocketEvent().subscribe(event => {
-        switch (event.type) {
-          case "WorkerAssignmentUpdateEvent":
-            this.assignedWorkerIds.set(event.operatorId, event.workerIds);
-            break;
-          default:
-            // workflow status related event
-            this.handleReconfigurationEvent(event);
-            const newState = this.handleExecutionEvent(event);
-            if (newState !== undefined) {
-              this.updateExecutionState(newState);
-            }
-        }
-      });
-    }
+    workflowWebsocketService.websocketEvent().subscribe(event => {
+      switch (event.type) {
+        case "WorkerAssignmentUpdateEvent":
+          this.assignedWorkerIds.set(event.operatorId, event.workerIds);
+          break;
+        default:
+          // workflow status related event
+          this.handleReconfigurationEvent(event);
+          const newState = this.handleExecutionEvent(event);
+          if (newState !== undefined) {
+            this.updateExecutionState(newState);
+          }
+      }
+    });
   }
 
   public handleReconfigurationEvent(event: TexeraWebsocketEvent) {
@@ -105,17 +109,13 @@ export class ExecuteWorkflowService {
         let newState = ExecutionState[event.state];
         switch (newState) {
           case ExecutionState.Paused:
-            if (
-              this.currentState.state === ExecutionState.BreakpointTriggered ||
-              this.currentState.state === ExecutionState.Paused
-            ) {
+            if (this.currentState.state === ExecutionState.Paused) {
               return this.currentState;
             } else {
               return { state: ExecutionState.Paused, currentTuples: {} };
             }
-          case ExecutionState.Aborted:
-          case ExecutionState.BreakpointTriggered:
-            // for these 2 states, backend will send an additional message after this status event.
+          case ExecutionState.Failed:
+            // for failed state, backend will send an additional message after this status event.
             return undefined;
           default:
             return { state: newState };
@@ -123,9 +123,6 @@ export class ExecuteWorkflowService {
       case "RecoveryStartedEvent":
         return { state: ExecutionState.Recovering };
       case "OperatorCurrentTuplesUpdateEvent":
-        if (this.currentState.state === ExecutionState.BreakpointTriggered) {
-          return this.currentState;
-        }
         let pausedCurrentTuples: Readonly<Record<string, OperatorCurrentTuples>>;
         if (this.currentState.state === ExecutionState.Paused) {
           pausedCurrentTuples = this.currentState.currentTuples;
@@ -142,22 +139,12 @@ export class ExecuteWorkflowService {
           state: ExecutionState.Paused,
           currentTuples: newCurrentTuples,
         };
-      case "BreakpointTriggeredEvent":
-        return { state: ExecutionState.BreakpointTriggered, breakpoint: event };
       case "WorkflowErrorEvent":
-        const errorMessages: Record<string, string> = {};
-        Object.entries(event.operatorErrors).forEach(entry => {
-          errorMessages[entry[0]] = `${entry[1].propertyPath}: ${entry[1].message}`;
-        });
-        Object.entries(event.generalErrors).forEach(entry => {
-          errorMessages[entry[0]] = entry[1];
-        });
-        return { state: ExecutionState.Aborted, errorMessages: errorMessages };
-      // TODO: Merge WorkflowErrorEvent and ErrorEvent
-      case "WorkflowExecutionErrorEvent":
         return {
-          state: ExecutionState.Aborted,
-          errorMessages: { WorkflowExecutionError: event.message },
+          state: ExecutionState.Failed,
+          errorMessages: event.fatalErrors.map(err => {
+            return { ...err, message: err.message.replace("\\n", "<br>") };
+          }),
         };
       default:
         return undefined;
@@ -168,40 +155,41 @@ export class ExecuteWorkflowService {
     return this.currentState;
   }
 
-  public getErrorMessages(): Readonly<Record<string, string>> | undefined {
-    if (this.currentState?.state === ExecutionState.Aborted) {
+  public getErrorMessages(): ReadonlyArray<WorkflowFatalError> {
+    if (this.currentState?.state === ExecutionState.Failed) {
       return this.currentState.errorMessages;
     }
-    return undefined;
-  }
-
-  public getBreakpointTriggerInfo(): BreakpointTriggerInfo | undefined {
-    if (this.currentState?.state === ExecutionState.BreakpointTriggered) {
-      return this.currentState.breakpoint;
-    }
-    return undefined;
+    return [];
   }
 
   public executeWorkflow(executionName: string): void {
-    if (environment.amberEngineEnabled) {
-      this.executeWorkflowAmberTexera(executionName);
-    } else {
-      throw new Error("old texera engine not supported");
-    }
-  }
-
-  public executeWorkflowAmberTexera(executionName: string): void {
-    // get the current workflow graph
     const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
-    console.log(logicalPlan);
+    this.resetExecutionState();
+    this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan);
   }
 
-  public sendExecutionRequest(executionName: string, logicalPlan: LogicalPlan): void {
+  public executeWorkflowWithReplay(replayExecutionInfo: ReplayExecutionInfo): void {
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+    this.resetExecutionState();
+    this.workflowStatusService.resetStatus();
+    this.sendExecutionRequest(
+      `Replay run of ${replayExecutionInfo.eid} to ${replayExecutionInfo.interaction}`,
+      logicalPlan,
+      replayExecutionInfo
+    );
+  }
+
+  public sendExecutionRequest(
+    executionName: string,
+    logicalPlan: LogicalPlan,
+    replayExecutionInfo: ReplayExecutionInfo | undefined = undefined
+  ): void {
     const workflowExecuteRequest = {
       executionName: executionName,
       engineVersion: version.hash,
       logicalPlan: logicalPlan,
+      replayFromExecution: replayExecutionInfo,
     };
     // wait for the form debounce to complete, then send
     window.setTimeout(() => {
@@ -221,9 +209,6 @@ export class ExecuteWorkflowService {
   }
 
   public pauseWorkflow(): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
     if (this.currentState === undefined || this.currentState.state !== ExecutionState.Running) {
       throw new Error("cannot pause workflow, the current execution state is " + this.currentState?.state);
     }
@@ -231,9 +216,6 @@ export class ExecuteWorkflowService {
   }
 
   public killWorkflow(): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
     if (
       this.currentState.state === ExecutionState.Uninitialized ||
       this.currentState.state === ExecutionState.Completed
@@ -243,72 +225,39 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send("WorkflowKillRequest", {});
   }
 
-  public resumeWorkflow(): void {
-    if (!environment.pauseResumeEnabled || !environment.amberEngineEnabled) {
-      return;
-    }
+  public addExecutionInteraction(): void {
     if (
-      !(
-        this.currentState.state === ExecutionState.Paused ||
-        this.currentState.state === ExecutionState.BreakpointTriggered
-      )
+      this.currentState.state === ExecutionState.Uninitialized ||
+      this.currentState.state === ExecutionState.Completed
     ) {
+      throw new Error("cannot add interaction to workflow, the current execution state is " + this.currentState.state);
+    }
+    this.workflowWebsocketService.send("WorkflowInteractionRequest", {});
+  }
+
+  public resumeWorkflow(): void {
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot resume workflow, the current execution state is " + this.currentState.state);
     }
     this.workflowWebsocketService.send("WorkflowResumeRequest", {});
   }
 
-  public addBreakpointRuntime(linkID: string, breakpointData: Breakpoint): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
-    if (
-      this.currentState.state !== ExecutionState.BreakpointTriggered &&
-      this.currentState.state !== ExecutionState.Paused
-    ) {
-      throw new Error("cannot add breakpoint at runtime, the current execution state is " + this.currentState.state);
-    }
-    console.log("sending add breakpoint request");
-    this.workflowWebsocketService.send(
-      "AddBreakpointRequest",
-      ExecuteWorkflowService.transformBreakpoint(this.workflowActionService.getTexeraGraph(), linkID, breakpointData)
-    );
-  }
-
-  public skipTuples(): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
-    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+  public skipTuples(workers: ReadonlyArray<string>): void {
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot skip tuples, the current execution state is " + this.currentState.state);
     }
-    this.currentState.breakpoint.report.forEach(fault => {
-      this.workflowWebsocketService.send("SkipTupleRequest", {
-        faultedTuple: fault.faultedTuple,
-        actorPath: fault.actorPath,
-      });
-    });
+    this.workflowWebsocketService.send("SkipTupleRequest", { workers });
   }
 
-  public retryExecution(): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
-    if (this.currentState.state !== ExecutionState.BreakpointTriggered) {
+  public retryExecution(workers: ReadonlyArray<string>): void {
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot retry the current tuple, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("RetryRequest", {});
+    this.workflowWebsocketService.send("RetryRequest", { workers });
   }
 
   public modifyOperatorLogic(operatorID: string): void {
-    if (!environment.amberEngineEnabled) {
-      return;
-    }
-    console.log("modifying operator logic " + operatorID);
-    if (
-      this.currentState.state !== ExecutionState.BreakpointTriggered &&
-      this.currentState.state !== ExecutionState.Paused
-    ) {
+    if (this.currentState.state !== ExecutionState.Paused) {
       throw new Error("cannot modify logic, the current execution state is " + this.currentState.state);
     }
     const op = this.workflowActionService.getTexeraGraph().getOperator(operatorID);
@@ -354,9 +303,9 @@ export class ExecuteWorkflowService {
   private updateWorkflowActionLock(stateInfo: ExecutionStateInfo): void {
     switch (stateInfo.state) {
       case ExecutionState.Completed:
-      case ExecutionState.Aborted:
+      case ExecutionState.Failed:
       case ExecutionState.Uninitialized:
-      case ExecutionState.BreakpointTriggered:
+      case ExecutionState.Killed:
         this.workflowActionService.enableWorkflowModification();
         return;
       case ExecutionState.Paused:
@@ -368,7 +317,7 @@ export class ExecuteWorkflowService {
         this.workflowActionService.disableWorkflowModification();
         return;
       default:
-        return;
+        return exhaustiveGuard(stateInfo);
     }
   }
 
@@ -388,19 +337,9 @@ export class ExecuteWorkflowService {
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
     };
-    const getInputPortName = (operatorID: string, inputPortID: string): string => {
-      return (
-        workflowGraph.getOperator(operatorID).inputPorts[getInputPortOrdinal(operatorID, inputPortID)].displayName ?? ""
-      );
-    };
+
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
-    };
-    const getOutputPortName = (operatorID: string, outputPortID: string): string => {
-      return (
-        workflowGraph.getOperator(operatorID).outputPorts[getOutputPortOrdinal(operatorID, outputPortID)].displayName ??
-        ""
-      );
     };
 
     const operators: LogicalOperator[] = workflowGraph.getAllEnabledOperators().map(op => {
@@ -409,56 +348,36 @@ export class ExecuteWorkflowService {
         operatorID: op.operatorID,
         operatorType: op.operatorType,
       };
-      if (op.inputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          inputPorts: op.inputPorts,
-        };
-      }
-      if (op.outputPorts.some(p => p.isDynamicPort)) {
-        logicalOp = {
-          ...logicalOp,
-          outputPorts: op.outputPorts,
-        };
-      }
+      logicalOp = {
+        ...logicalOp,
+        inputPorts: op.inputPorts,
+      };
+      logicalOp = {
+        ...logicalOp,
+        outputPorts: op.outputPorts,
+      };
       return logicalOp;
     });
 
-    const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => ({
-      origin: {
-        operatorID: link.source.operatorID,
-        portOrdinal: getOutputPortOrdinal(link.source.operatorID, link.source.portID),
-        portName: getOutputPortName(link.source.operatorID, link.source.portID),
-      },
-      destination: {
-        operatorID: link.target.operatorID,
-        portOrdinal: getInputPortOrdinal(link.target.operatorID, link.target.portID),
-        portName: getInputPortName(link.target.operatorID, link.target.portID),
-      },
-    }));
+    const links: LogicalLink[] = workflowGraph.getAllEnabledLinks().map(link => {
+      const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
+      const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
+      return {
+        fromOpId: link.source.operatorID,
+        fromPortId: { id: outputPortIdx, internal: false },
+        toOpId: link.target.operatorID,
+        toPortId: { id: inputPortIdx, internal: false },
+      };
+    });
 
-    const breakpoints: BreakpointInfo[] = Array.from(workflowGraph.getAllEnabledLinkBreakpoints().entries()).map(e =>
-      ExecuteWorkflowService.transformBreakpoint(workflowGraph, e[0], e[1])
+    const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(
+      op => !workflowGraph.isOperatorDisabled(op)
     );
 
-    return { operators, links, breakpoints };
-  }
-
-  public static transformBreakpoint(
-    workflowGraph: WorkflowGraphReadonly,
-    linkID: string,
-    breakpointData: Breakpoint
-  ): BreakpointInfo {
-    const operatorID = workflowGraph.getLinkWithID(linkID).source.operatorID;
-    let breakpoint: BreakpointRequest;
-    if ("condition" in breakpointData) {
-      breakpoint = { ...breakpointData, type: "ConditionBreakpoint" };
-    } else if ("count" in breakpointData) {
-      breakpoint = { ...breakpointData, type: "CountBreakpoint" };
-    } else {
-      throw new Error("unhandled breakpoint data " + breakpointData);
-    }
-    return { operatorID, breakpoint };
+    const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(
+      op => !workflowGraph.isOperatorDisabled(op)
+    );
+    return { operators, links, opsToViewResult, opsToReuseResult };
   }
 
   public getWorkerIds(operatorId: string): ReadonlyArray<string> {

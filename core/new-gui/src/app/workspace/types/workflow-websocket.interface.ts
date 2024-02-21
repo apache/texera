@@ -1,5 +1,4 @@
 import {
-  BreakpointInfo,
   ExecutionState,
   LogicalOperator,
   LogicalPlan,
@@ -8,7 +7,7 @@ import {
   OperatorStatsUpdate,
 } from "./execute-workflow.interface";
 import { IndexableObject } from "./result-table.interface";
-import { BreakpointFaultedTuple, BreakpointTriggerInfo, ConsoleUpdateEvent } from "./workflow-common.interface";
+import { ConsoleUpdateEvent } from "./workflow-common.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -23,9 +22,9 @@ import { BreakpointFaultedTuple, BreakpointTriggerInfo, ConsoleUpdateEvent } fro
  * 2. value is the payload this request/event needs
  */
 
-export interface RegisterWIdRequest
+export interface RegisterWorkflowIdRequest
   extends Readonly<{
-    wId: number;
+    workflowId: number;
   }> {}
 
 export interface WorkflowExecuteRequest
@@ -35,32 +34,39 @@ export interface WorkflowExecuteRequest
     logicalPlan: LogicalPlan;
   }> {}
 
-export interface RegisterWIdEvent extends Readonly<{ message: string }> {}
-
-export interface TexeraConstraintViolation
+export interface ReplayExecutionInfo
   extends Readonly<{
-    message: string;
-    propertyPath: string;
+    eid: number;
+    interaction: string;
   }> {}
 
-export interface WorkflowError
-  extends Readonly<{
-    operatorErrors: Record<string, TexeraConstraintViolation>;
-    generalErrors: Record<string, string>;
-  }> {}
-
-export interface WorkflowExecutionError
+export interface RegisterWIdEvent
   extends Readonly<{
     message: string;
+  }> {}
+
+export interface WorkflowFatalError
+  extends Readonly<{
+    message: string;
+    details: string;
+    operatorId: string;
+    workerId: string;
+    type: {
+      name: string;
+    };
+    timestamp: {
+      nanos: number;
+      seconds: number;
+    };
+  }> {}
+
+export interface WorkflowErrorEvent
+  extends Readonly<{
+    fatalErrors: ReadonlyArray<WorkflowFatalError>;
   }> {}
 
 export type ModifyOperatorLogic = Readonly<{
   operator: LogicalOperator;
-}>;
-
-export type SkipTuple = Readonly<{
-  actorPath: string;
-  faultedTuple: BreakpointFaultedTuple;
 }>;
 
 export type WorkerTuples = Readonly<{
@@ -95,8 +101,6 @@ export type ResultExportRequest = Readonly<{
   operatorName: string;
 }>;
 
-export type CacheStatusUpdateRequest = LogicalPlan;
-
 export type ResultExportResponse = Readonly<{
   status: "success" | "error";
   message: string;
@@ -112,7 +116,7 @@ export type WorkflowAvailableResultEvent = Readonly<{
   availableOperators: ReadonlyArray<OperatorAvailableResult>;
 }>;
 
-export type OperatorResultCacheStatus = "cache invalid" | "cache valid" | "cache not enabled";
+export type OperatorResultCacheStatus = "cache invalid" | "cache valid";
 
 export interface CacheStatusUpdateEvent
   extends Readonly<{
@@ -150,6 +154,10 @@ export type ExecutionDurationUpdateEvent = Readonly<{
   isRunning: boolean;
 }>;
 
+export type ClusterStatusUpdateEvent = Readonly<{
+  numWorkers: number;
+}>;
+
 export type ModifyLogicResponse = Readonly<{
   opId: string;
   isValid: boolean;
@@ -171,36 +179,34 @@ export type WorkflowStateInfo = Readonly<{
 }>;
 
 export type TexeraWebsocketRequestTypeMap = {
-  RegisterWIdRequest: RegisterWIdRequest;
-  AddBreakpointRequest: BreakpointInfo;
-  CacheStatusUpdateRequest: CacheStatusUpdateRequest;
+  RegisterWorkflowIdRequest: RegisterWorkflowIdRequest;
+  EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
   ResultExportRequest: ResultExportRequest;
   ResultPaginationRequest: PaginationRequest;
-  RetryRequest: {};
-  SkipTupleRequest: SkipTuple;
+  RetryRequest: { workers: ReadonlyArray<string> };
+  SkipTupleRequest: { workers: ReadonlyArray<string> };
   WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
+  WorkflowInteractionRequest: {};
   WorkflowResumeRequest: {};
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
   DebugCommandRequest: DebugCommandRequest;
 };
 
 export type TexeraWebsocketEventTypeMap = {
-  RegisterWIdResponse: RegisterWIdEvent;
+  RegisterWorkflowIdResponse: RegisterWIdEvent;
   HeartBeatResponse: {};
   WorkflowStateEvent: WorkflowStateInfo;
-  WorkflowErrorEvent: WorkflowError;
   OperatorStatisticsUpdateEvent: OperatorStatsUpdate;
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
   RecoveryStartedEvent: {};
-  BreakpointTriggeredEvent: BreakpointTriggerInfo;
+  WorkflowErrorEvent: WorkflowErrorEvent;
   ConsoleUpdateEvent: ConsoleUpdateEvent;
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;
-  WorkflowExecutionErrorEvent: WorkflowExecutionError;
   ResultExportResponse: ResultExportResponse;
   WorkflowAvailableResultEvent: WorkflowAvailableResultEvent;
   CacheStatusUpdateEvent: CacheStatusUpdateEvent;
@@ -209,6 +215,7 @@ export type TexeraWebsocketEventTypeMap = {
   ModifyLogicResponse: ModifyLogicResponse;
   ModifyLogicCompletedEvent: ModifyLogicCompletedEvent;
   ExecutionDurationUpdateEvent: ExecutionDurationUpdateEvent;
+  ClusterStatusUpdateEvent: ClusterStatusUpdateEvent;
 };
 
 // helper type definitions to generate the request and event types

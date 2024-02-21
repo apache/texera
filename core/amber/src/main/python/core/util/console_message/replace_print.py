@@ -7,7 +7,10 @@ from io import StringIO
 from typing import ContextManager
 
 from core.util.buffer.buffer_base import IBuffer
-from proto.edu.uci.ics.amber.engine.architecture.worker import PythonConsoleMessageV2
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    ConsoleMessage,
+    ConsoleMessageType,
+)
 
 
 class replace_print(ContextManager):
@@ -23,12 +26,12 @@ class replace_print(ContextManager):
     print function.
     """
 
-    def __init__(self, buf: IBuffer):
+    def __init__(self, worker_id: str, buf: IBuffer):
         # save a reference to the original builtin.print before we replace it.
         # it will always replace back when the context manager exits, with exception
         # or not.
         self.builtins_print = builtins.print
-
+        self.worker_id = worker_id
         self.buf = buf  # the provided buffer to write to
 
     def __enter__(self) -> None:
@@ -48,16 +51,17 @@ class replace_print(ContextManager):
             with StringIO() as tmp_buf, redirect_stdout(tmp_buf):
                 self.builtins_print(*args, **kwargs)
                 complete_str = tmp_buf.getvalue()
-                self.buf.put(
-                    PythonConsoleMessageV2(
-                        timestamp=datetime.datetime.now(),
-                        msg_type="PRINT",
-                        source=f"{inspect.currentframe().f_back.f_globals['__name__']}"
-                        f":{inspect.currentframe().f_back.f_code.co_name}"
-                        f":{inspect.currentframe().f_back.f_lineno}",
-                        message=complete_str,
-                    )
+                console_message = ConsoleMessage(
+                    worker_id=self.worker_id,
+                    timestamp=datetime.datetime.now(),
+                    msg_type=ConsoleMessageType.PRINT,
+                    source=f"{inspect.currentframe().f_back.f_globals['__name__']}"
+                    f":{inspect.currentframe().f_back.f_code.co_name}"
+                    f":{inspect.currentframe().f_back.f_lineno}",
+                    title=complete_str,
+                    message="",
                 )
+                self.buf.put(console_message)
 
         builtins.print = wrapped_print
 

@@ -1,6 +1,6 @@
 import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { BreakpointTriggerInfo, ConsoleMessage } from "../../../types/workflow-common.interface";
+import { ConsoleMessage } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -8,6 +8,7 @@ import { CdkVirtualScrollViewport } from "@angular/cdk/scrolling";
 import { presetPalettes } from "@ant-design/colors";
 import { isDefined } from "../../../../common/util/predicate";
 import { WorkflowWebsocketService } from "../../../service/workflow-websocket/workflow-websocket.service";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -17,11 +18,9 @@ import { WorkflowWebsocketService } from "../../../service/workflow-websocket/wo
 })
 export class ConsoleFrameComponent implements OnInit, OnChanges {
   @Input() operatorId?: string;
+  @Input() consoleInputEnabled?: boolean;
   @ViewChild(CdkVirtualScrollViewport) viewPort?: CdkVirtualScrollViewport;
   @ViewChild("consoleList", { read: ElementRef }) listElement?: ElementRef;
-
-  // display error message:
-  errorMessages?: Readonly<Record<string, string>>;
 
   // display print
   consoleMessages: ReadonlyArray<ConsoleMessage> = [];
@@ -41,12 +40,14 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     ["PRINT", "default"],
     ["COMMAND", "processing"],
     ["DEBUGGER", "warning"],
+    ["ERROR", "error"],
   ]);
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private workflowConsoleService: WorkflowConsoleService,
-    private workflowWebsocketService: WorkflowWebsocketService
+    private workflowWebsocketService: WorkflowWebsocketService,
+    private notificationService: NotificationService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -64,16 +65,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        if (
-          event.previous.state === ExecutionState.BreakpointTriggered &&
-          event.current.state === ExecutionState.Completed
-        ) {
-          // intentionally do nothing to leave the information displayed as it is
-          // when kill a workflow after hitting breakpoint
-        } else if (
-          event.previous.state === ExecutionState.Initializing &&
-          event.current.state === ExecutionState.Running
-        ) {
+        if (event.previous.state === ExecutionState.Initializing && event.current.state === ExecutionState.Running) {
           // clear the console for the next execution
           this.clearConsole();
         } else {
@@ -90,56 +82,26 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
 
   clearConsole(): void {
     this.consoleMessages = [];
-    this.errorMessages = undefined;
   }
 
   renderConsole(): void {
-    // try to fetch if we have breakpoint info
-    const breakpointTriggerInfo = this.executeWorkflowService.getBreakpointTriggerInfo();
-
     if (this.operatorId) {
       this.workerIds = this.executeWorkflowService.getWorkerIds(this.operatorId);
-
-      // first display error messages if applicable
-      if (this.operatorId === breakpointTriggerInfo?.operatorID) {
-        // if we hit a breakpoint
-        this.displayBreakpoint(breakpointTriggerInfo);
-      } else {
-        // otherwise we assume it's a fault
-        this.displayFault();
-      }
 
       // always display console messages
       this.displayConsoleMessages(this.operatorId);
     }
   }
 
-  displayBreakpoint(breakpointTriggerInfo: BreakpointTriggerInfo): void {
-    const errorsMessages: Record<string, string> = {};
-    breakpointTriggerInfo.report.forEach(r => {
-      const splitPath = r.actorPath.split("/");
-      const workerName = splitPath[splitPath.length - 1];
-      const workerText = "Worker " + workerName + ":                ";
-      if (r.messages.toString().toLowerCase().includes("exception")) {
-        errorsMessages[workerText] = r.messages.toString();
-      }
-    });
-    this.errorMessages = errorsMessages;
-  }
-
-  displayFault(): void {
-    this.errorMessages = this.executeWorkflowService.getErrorMessages();
-  }
-
   displayConsoleMessages(operatorId: string): void {
     this.consoleMessages = operatorId ? this.workflowConsoleService.getConsoleMessages(operatorId) || [] : [];
-
     setTimeout(() => {
       if (this.listElement) {
         this.listElement.nativeElement.scrollTop = this.listElement.nativeElement.scrollHeight;
       }
     }, 0);
   }
+
   submitDebugCommand(): void {
     if (!isDefined(this.operatorId)) {
       return;
@@ -180,5 +142,25 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
   getWorkerIndex(workerId: string): number {
     const tokens = workerId.split("-");
     return parseInt(tokens.at(tokens.length - 1) || "0");
+  }
+
+  onClickSkipTuples(): void {
+    try {
+      this.executeWorkflowService.skipTuples(this.workerIds);
+    } catch (e) {
+      this.notificationService.error((e as Error).message);
+    }
+  }
+
+  onClickRetryTuples() {
+    try {
+      this.executeWorkflowService.retryExecution(this.workerIds);
+    } catch (e) {
+      this.notificationService.error((e as Error).message);
+    }
+  }
+
+  getMessageLabel(message: ConsoleMessage): string {
+    return this.labelMapping.get(message.msgType.name) ?? "";
   }
 }

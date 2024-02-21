@@ -9,7 +9,10 @@ import org.jooq.types.UInteger
 import edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.UserDao
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.{
+  DashboardWorkflow,
+  WorkflowIDs
+}
 import org.jooq.Condition
 import org.jooq.impl.DSL.noCondition
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{USER, WORKFLOW, WORKFLOW_OF_PROJECT}
@@ -136,7 +139,6 @@ class WorkflowResourceSpec
   override protected def beforeEach(): Unit = {
     // Clean up environment before each test case
     // Delete all workflows, or reset the state of the `workflowResource` object
-
   }
 
   override protected def afterEach(): Unit = {
@@ -144,12 +146,18 @@ class WorkflowResourceSpec
     // delete all workflows in the database
     var workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser1)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser1)
+      workflowResource.deleteWorkflow(
+        WorkflowIDs(List(workflow.workflow.getWid), None),
+        sessionUser1
+      )
     )
 
     workflows = workflowResource.retrieveWorkflowsBySessionUser(sessionUser2)
     workflows.foreach(workflow =>
-      workflowResource.deleteWorkflow(workflow.workflow.getWid, sessionUser2)
+      workflowResource.deleteWorkflow(
+        WorkflowIDs(List(workflow.workflow.getWid), None),
+        sessionUser2
+      )
     )
 
     // delete all projects in the database
@@ -161,10 +169,10 @@ class WorkflowResourceSpec
 
     // delete all files in the database
     var files = fileResource.getFileList(sessionUser1)
-    files.forEach(file => fileResource.deleteFile(file.file.getFid, sessionUser1))
+    files.foreach(file => fileResource.deleteFile(file.file.getFid, sessionUser1))
 
     files = fileResource.getFileList(sessionUser2)
-    files.forEach(file => fileResource.deleteFile(file.file.getFid, sessionUser2))
+    files.foreach(file => fileResource.deleteFile(file.file.getFid, sessionUser2))
   }
 
   override protected def afterAll(): Unit = {
@@ -490,7 +498,9 @@ class WorkflowResourceSpec
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
-      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1)
+      new Timestamp(
+        dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1
+      )
     assert(
       dateFilter.toString == WORKFLOW.CREATION_TIME.between(startTimestamp, endTimestamp).toString
     )
@@ -502,7 +512,9 @@ class WorkflowResourceSpec
     val dateFormat = new SimpleDateFormat("yyyy-MM-dd")
     val startTimestamp = new Timestamp(dateFormat.parse("2023-01-01").getTime)
     val endTimestamp =
-      new Timestamp(dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1)
+      new Timestamp(
+        dateFormat.parse("2023-12-31").getTime + TimeUnit.DAYS.toMillis(1) - 1
+      )
     assert(
       dateFilter.toString == WORKFLOW.LAST_MODIFIED_TIME
         .between(startTimestamp, endTimestamp)

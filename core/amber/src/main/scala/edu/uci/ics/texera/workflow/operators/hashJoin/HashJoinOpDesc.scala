@@ -1,24 +1,26 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, PhysicalPlan}
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
+import scala.collection.mutable
 
 @JsonSchemaInject(json = """
 {
@@ -31,7 +33,7 @@ import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
   }
 }
 """)
-class HashJoinOpDesc[K] extends OperatorDescriptor {
+class HashJoinOpDesc[K] extends LogicalOp {
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Left Input Attribute")
@@ -50,24 +52,69 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
   @JsonPropertyDescription("select the join type to execute")
   var joinType: JoinType = JoinType.INNER
 
-  override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = {
-    val partitionRequirement = List(
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)))),
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName))))
+  override def getPhysicalPlan(
+      workflowId: WorkflowIdentity,
+      executionId: ExecutionIdentity
+  ): PhysicalPlan = {
+    val inputSchemas =
+      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
+    val outputSchema =
+      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
+    val buildSchema = inputSchemas.head
+    val probeSchema = inputSchemas(1)
+
+    val internalHashTableSchema =
+      Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
+
+    val buildInPartitionRequirement = List(
+      Option(HashPartition(List(buildSchema.getIndex(buildAttributeName))))
     )
 
-    val joinDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      val buildPartition = inputPartitions(0).asInstanceOf[HashPartition]
-      val probePartition = inputPartitions(1).asInstanceOf[HashPartition]
-
-      val buildAttrIndex = operatorSchemaInfo.inputSchemas(0).getIndex(buildAttributeName)
-      val probAttrIndex = operatorSchemaInfo.inputSchemas(1).getIndex(probeAttributeName)
-
+    val buildDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
+      val buildPartition = inputPartitions.head.asInstanceOf[HashPartition]
+      val buildAttrIndex = buildSchema.getIndex(buildAttributeName)
       assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
+      HashPartition(List(0))
+    }
+
+    val buildInputPort = operatorInfo.inputPorts.head
+    val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
+
+    val buildPhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(
+          PhysicalOpIdentity(operatorIdentifier, "build"),
+          workflowId,
+          executionId,
+          OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
+        )
+        .withInputPorts(List(buildInputPort), mutable.Map(buildInputPort.id -> buildSchema))
+        .withOutputPorts(
+          List(buildOutputPort),
+          mutable.Map(buildOutputPort.id -> internalHashTableSchema)
+        )
+        .withPartitionRequirement(buildInPartitionRequirement)
+        .withDerivePartition(buildDerivePartition)
+        .withParallelizable(true)
+
+    val probeInPartitionRequirement = List(
+      Option(HashPartition(List(0))),
+      Option(HashPartition(List(inputSchemas(1).getIndex(probeAttributeName))))
+    )
+
+    val probeDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
+
+      val buildPartition = HashPartition(
+        List(buildSchema.getIndex(buildAttributeName))
+      ).asInstanceOf[HashPartition]
+
+      val probePartition = inputPartitions(1).asInstanceOf[HashPartition]
+      val probAttrIndex = inputSchemas(1).getIndex(probeAttributeName)
+
       assert(probePartition.hashColumnIndices.contains(probAttrIndex))
 
       // mapping from build/probe schema index to the final output schema index
-      val schemaMappings = getOutputSchemaInternal(operatorSchemaInfo.inputSchemas)
+      val schemaMappings = getOutputSchemaInternal(buildSchema, probeSchema)
       val buildMapping = schemaMappings._2
       val probeMapping = schemaMappings._3
 
@@ -79,25 +126,54 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
       HashPartition(outputHashIndices)
     }
 
-    OpExecConfig
-      .oneToOneLayer(
-        operatorIdentifier,
-        _ =>
-          new HashJoinOpExec[K](
-            buildAttributeName,
-            probeAttributeName,
-            joinType,
-            operatorSchemaInfo
+    val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))
+    val probeDataInputPort =
+      InputPort(operatorInfo.inputPorts(1).id, dependencies = List(probeBuildInputPort.id))
+    val probeOutputPort = OutputPort(PortIdentity(0))
+
+    val probePhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(
+          PhysicalOpIdentity(operatorIdentifier, "probe"),
+          workflowId,
+          executionId,
+          OpExecInitInfo((_, _, _) =>
+            new HashJoinProbeOpExec[K](
+              buildAttributeName,
+              probeAttributeName,
+              joinType,
+              buildSchema,
+              probeSchema,
+              outputSchema
+            )
           )
+        )
+        .withInputPorts(
+          List(
+            probeBuildInputPort,
+            probeDataInputPort
+          ),
+          mutable.Map(
+            probeBuildInputPort.id -> internalHashTableSchema,
+            probeDataInputPort.id -> probeSchema
+          )
+        )
+        .withOutputPorts(List(probeOutputPort), mutable.Map(probeOutputPort.id -> outputSchema))
+        .withPartitionRequirement(probeInPartitionRequirement)
+        .withDerivePartition(probeDerivePartition)
+        .withParallelizable(true)
+
+    new PhysicalPlan(
+      operators = Set(buildPhysicalOp, probePhysicalOp),
+      links = Set(
+        PhysicalLink(
+          buildPhysicalOp.id,
+          buildOutputPort.id,
+          probePhysicalOp.id,
+          probeBuildInputPort.id
+        )
       )
-      .copy(
-        inputPorts = operatorInfo.inputPorts,
-        outputPorts = operatorInfo.outputPorts,
-        partitionRequirement = partitionRequirement,
-        derivePartition = joinDerivePartition,
-        blockingInputs = List(0),
-        dependency = Map(1 -> 0)
-      )
+    )
   }
 
   override def operatorInfo: OperatorInfo =
@@ -105,7 +181,10 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
       "Hash Join",
       "join two inputs",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("left"), InputPort("right")),
+      inputPorts = List(
+        InputPort(PortIdentity(0), displayName = "left"),
+        InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity(0)))
+      ),
       outputPorts = List(OutputPort())
     )
 
@@ -120,14 +199,14 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
     2. left  mapping: (0->0, 1->1, 2->2)
     3. right mapping: (0->0, 1->3, 1->4)
    */
-  def getOutputSchemaInternal(schemas: Array[Schema]): (Schema, Map[Int, Int], Map[Int, Int]) = {
-    Preconditions.checkArgument(schemas.length == 2)
+  def getOutputSchemaInternal(
+      buildSchema: Schema,
+      probeSchema: Schema
+  ): (Schema, Map[Int, Int], Map[Int, Int]) = {
     val builder = Schema.newBuilder()
-    val buildSchema = schemas(0)
-    val probeSchema = schemas(1)
     builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {
-      probeSchema.getAttributes.foreach(attr => {
+      probeSchema.getAttributes.asScala.foreach(attr => {
         val attributeName = attr.getName
         if (
           builder.build().containsAttribute(attributeName) && attributeName != probeAttributeName
@@ -192,6 +271,6 @@ class HashJoinOpDesc[K] extends OperatorDescriptor {
 
   // remove the probe attribute in the output
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    getOutputSchemaInternal(schemas)._1
+    getOutputSchemaInternal(schemas(0), schemas(1))._1
   }
 }

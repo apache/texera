@@ -3,11 +3,11 @@ import { NzModalRef } from "ng-zorro-antd/modal";
 import { trimDisplayJsonData } from "src/app/common/util/json";
 import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { PRETTY_JSON_TEXT_LIMIT } from "./result-table-frame/result-table-frame.component";
-import { untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 
 /**
  *
- * NgbModalComponent is the pop-up window that will be
+ * The pop-up window that will be
  *  displayed when the user clicks on a specific row
  *  to show the displays of that row.
  *
@@ -18,6 +18,7 @@ import { untilDestroyed } from "@ngneat/until-destroy";
  *  3. Clicking any shaded area that is not the pop-up window
  *  4. Pressing `Esc` button on the keyboard
  */
+@UntilDestroy()
 @Component({
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
@@ -29,8 +30,7 @@ export class RowModalComponent implements OnChanges {
   @Input() rowIndex: number = 0;
 
   // when modal is opened, currentDisplayRow will be passed as
-  //  componentInstance to this NgbModalComponent to display
-  //  as data table.
+  //  componentInstance to display as data table.
   currentDisplayRowData: Record<string, unknown> = {};
 
   constructor(public modal: NzModalRef<any, number>, private workflowResultService: WorkflowResultService) {}

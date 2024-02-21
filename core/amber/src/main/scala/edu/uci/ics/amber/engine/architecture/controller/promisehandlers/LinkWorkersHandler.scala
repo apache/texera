@@ -3,13 +3,13 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.LinkIdentity
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 object LinkWorkersHandler {
-  final case class LinkWorkers(link: LinkIdentity) extends ControlCommand[Unit]
+  final case class LinkWorkers(link: PhysicalLink) extends ControlCommand[Unit]
 }
 
 /** add a data transfer partitioning to the sender workers and update input linking
@@ -20,18 +20,28 @@ object LinkWorkersHandler {
 trait LinkWorkersHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: LinkWorkers, sender) =>
+  registerHandler[LinkWorkers, Unit] { (msg, sender) =>
     {
-      // get the list of (sender id, partitioning, set of receiver ids) from the link
-      val futures = workflow.getLink(msg.link).getPartitioning.flatMap {
-        case (from, link, partitioning, tos) =>
-          // send messages to sender worker and receiver workers
-          Seq(send(AddPartitioning(link, partitioning), from)) ++ tos.map(
-            send(UpdateInputLinking(from, msg.link), _)
+      val region = cp.workflow.regionPlan
+        .getRegionOfLink(msg.link)
+      val resourceConfig = region.resourceConfig.get
+      val linkConfig = resourceConfig.linkConfigs(msg.link)
+      val linkExecution =
+        cp.workflowExecution.getRegionExecution(region.id).initLinkExecution(msg.link)
+      val futures = linkConfig.channelConfigs
+        .map(_.channelId)
+        .flatMap(channelId => {
+          linkExecution.initChannelExecution(channelId)
+          Seq(
+            send(AddPartitioning(msg.link, linkConfig.partitioning), channelId.fromWorkerId),
+            send(
+              AddInputChannel(channelId, msg.link.toPortId),
+              channelId.toWorkerId
+            )
           )
-      }
+        })
 
-      Future.collect(futures.toSeq).map { _ =>
+      Future.collect(futures).map { _ =>
         // returns when all has completed
 
       }

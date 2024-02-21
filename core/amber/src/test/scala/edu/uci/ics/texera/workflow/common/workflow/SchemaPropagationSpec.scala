@@ -1,10 +1,17 @@
 package edu.uci.ics.texera.workflow.common.workflow
 
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  OperatorIdentity,
+  WorkflowIdentity
+}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.metadata.{InputPort, OperatorInfo, OutputPort}
-import edu.uci.ics.texera.workflow.common.operators.OperatorDescriptor
+import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
+import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc
 import org.apache.arrow.util.Preconditions
 import org.scalatest.BeforeAndAfter
@@ -13,12 +20,18 @@ import org.scalatest.flatspec.AnyFlatSpec
 class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
   private abstract class TempTestSourceOpDesc extends SourceOperatorDescriptor {
-    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+    override def getPhysicalOp(
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity
+    ): PhysicalOp = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
   }
   private class TempTestSinkOpDesc extends SinkOpDesc {
-    override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+    override def getPhysicalOp(
+        workflowId: WorkflowIdentity,
+        executionId: ExecutionIdentity
+    ): PhysicalOp = ???
     override def operatorInfo: OperatorInfo =
       OperatorInfo("", "", "", List(InputPort()), List(OutputPort()))
     override def getOutputSchema(schemas: Array[Schema]): Schema = {
@@ -35,33 +48,43 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val dataSchema = Schema.newBuilder().add("dataCol", AttributeType.INTEGER).build()
     val trainingScan = new TempTestSourceOpDesc() {
+      override def operatorIdentifier: OperatorIdentity = OperatorIdentity("trainingScan")
       override def sourceSchema(): Schema = dataSchema
     }
-    trainingScan.operatorID = "trainingScan"
 
     val testingScan = new TempTestSourceOpDesc() {
+      override def operatorIdentifier: OperatorIdentity = OperatorIdentity("testingScan")
       override def sourceSchema(): Schema = dataSchema
     }
-    testingScan.operatorID = "testingScan"
 
     val inferenceScan = new TempTestSourceOpDesc() {
+      override def operatorIdentifier: OperatorIdentity = OperatorIdentity("inferenceScan")
       override def sourceSchema(): Schema = dataSchema
     }
-    inferenceScan.operatorID = "inferenceScan"
 
     val mlModelSchema = Schema.newBuilder().add("model", AttributeType.STRING).build()
     val mlVizSchema = Schema.newBuilder().add("visualization", AttributeType.STRING).build()
 
-    val mlTrainingOp = new OperatorDescriptor() {
-      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+    val mlTrainingOp = new LogicalOp() {
+      override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlTrainingOp")
+      override def getPhysicalOp(
+          workflowId: WorkflowIdentity,
+          executionId: ExecutionIdentity
+      ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
           "",
           "",
           "",
-          List(InputPort("training"), InputPort("testing")),
-          List(OutputPort("visualization"), OutputPort("model"))
+          List(
+            InputPort(displayName = "training"),
+            InputPort(PortIdentity(0), displayName = "testing")
+          ),
+          List(
+            OutputPort(displayName = "visualization"),
+            OutputPort(PortIdentity(1), displayName = "model")
+          )
         )
 
       override def getOutputSchema(schemas: Array[Schema]): Schema = ???
@@ -72,18 +95,21 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
         Array(mlVizSchema, mlModelSchema)
       }
     }
-    mlTrainingOp.operatorID = "mlTrainingOp"
 
-    val mlInferOp = new OperatorDescriptor() {
-      override def operatorExecutor(operatorSchemaInfo: OperatorSchemaInfo) = ???
+    val mlInferOp = new LogicalOp() {
+      override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlInferOp")
+      override def getPhysicalOp(
+          workflowId: WorkflowIdentity,
+          executionId: ExecutionIdentity
+      ): PhysicalOp = ???
 
       override def operatorInfo: OperatorInfo =
         OperatorInfo(
           "",
           "",
           "",
-          List(InputPort("model"), InputPort("data")),
-          List(OutputPort("data"))
+          List(InputPort(displayName = "model"), InputPort(PortIdentity(1), displayName = "data")),
+          List(OutputPort(displayName = "data"))
         )
 
       override def getOutputSchema(schemas: Array[Schema]): Schema = ???
@@ -93,13 +119,14 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
         Array(schemas(1))
       }
     }
-    mlInferOp.operatorID = "mlInferOp"
 
-    val mlVizSink = new TempTestSinkOpDesc
-    mlVizSink.operatorID = "mlVizSink"
+    val mlVizSink = new TempTestSinkOpDesc {
+      override def operatorIdentifier: OperatorIdentity = OperatorIdentity("mlVizSink")
+    }
 
-    val inferenceSink = new TempTestSinkOpDesc
-    inferenceSink.operatorID = "inferenceSink"
+    val inferenceSink = new TempTestSinkOpDesc {
+      override def operatorIdentifier: OperatorIdentity = OperatorIdentity("inferenceSink")
+    }
 
     val operators = List(
       trainingScan,
@@ -112,36 +139,48 @@ class SchemaPropagationSpec extends AnyFlatSpec with BeforeAndAfter {
     )
 
     val links = List(
-      OperatorLink(
-        OperatorPort(trainingScan.operatorID),
-        OperatorPort(mlTrainingOp.operatorID, 0)
+      LogicalLink(
+        trainingScan.operatorIdentifier,
+        PortIdentity(),
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity()
       ),
-      OperatorLink(
-        OperatorPort(testingScan.operatorID),
-        OperatorPort(mlTrainingOp.operatorID, 1)
+      LogicalLink(
+        testingScan.operatorIdentifier,
+        PortIdentity(),
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity(1)
       ),
-      OperatorLink(
-        OperatorPort(inferenceScan.operatorID),
-        OperatorPort(mlInferOp.operatorID, 1)
+      LogicalLink(
+        inferenceScan.operatorIdentifier,
+        PortIdentity(),
+        mlInferOp.operatorIdentifier,
+        PortIdentity(1)
       ),
-      OperatorLink(
-        OperatorPort(mlTrainingOp.operatorID, 0),
-        OperatorPort(mlVizSink.operatorID)
+      LogicalLink(
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity(),
+        mlVizSink.operatorIdentifier,
+        PortIdentity(0)
       ),
-      OperatorLink(
-        OperatorPort(mlTrainingOp.operatorID, 1),
-        OperatorPort(mlInferOp.operatorID, 0)
+      LogicalLink(
+        mlTrainingOp.operatorIdentifier,
+        PortIdentity(1),
+        mlInferOp.operatorIdentifier,
+        PortIdentity()
       ),
-      OperatorLink(
-        OperatorPort(mlInferOp.operatorID, 0),
-        OperatorPort(inferenceSink.operatorID, 0)
+      LogicalLink(
+        mlInferOp.operatorIdentifier,
+        PortIdentity(),
+        inferenceSink.operatorIdentifier,
+        PortIdentity()
       )
     )
 
-    val logicalPlan = LogicalPlan(operators, links, List())
-    val workflowCompiler = new WorkflowCompiler(logicalPlan, new WorkflowContext())
-
-    val schemaResult = workflowCompiler.logicalPlan.propagateWorkflowSchema()._1
+    val ctx = new WorkflowContext()
+    val logicalPlan = LogicalPlan(operators, links)
+    logicalPlan.propagateWorkflowSchema(ctx, None)
+    val schemaResult = logicalPlan.getInputSchemaMap
 
     assert(schemaResult(mlTrainingOp.operatorIdentifier).head.get.equals(dataSchema))
     assert(schemaResult(mlTrainingOp.operatorIdentifier)(1).get.equals(dataSchema))

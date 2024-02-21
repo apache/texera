@@ -2,11 +2,13 @@ package edu.uci.ics.amber.engine.architecture.pythonworker
 
 import com.twitter.util.{Await, Promise}
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.{
+  ActorCommandElement,
   ControlElement,
   ControlElementV2,
   DataElement
 }
 import edu.uci.ics.amber.engine.common.{AmberLogging, State}
+import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, PythonActorMessage}
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.InvocationConvertUtils.{
   controlInvocationToV2,
@@ -18,10 +20,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.apache.arrow.flight._
-import org.apache.arrow.memory.{BufferAllocator, RootAllocator}
-import org.apache.arrow.vector.{FieldVector, VarBinaryVector, VectorSchemaRoot}
+import org.apache.arrow.memory.{ArrowBuf, BufferAllocator, RootAllocator}
 import org.apache.arrow.vector.types.pojo.{ArrowType, Field}
-
+import org.apache.arrow.vector.{FieldVector, VarBinaryVector, VectorSchemaRoot}
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 import java.util
 import scala.collection.mutable
 
@@ -44,12 +47,18 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   private var flightClient: FlightClient = _
   private var running: Boolean = true
 
+  private val pythonQueueInMemSize: AtomicLong = new AtomicLong(0)
+
+  def getQueuedCredit: Long = {
+    pythonQueueInMemSize.get()
+  }
+
   override def run(): Unit = {
     establishConnection()
     mainLoop()
   }
 
-  def establishConnection(): Unit = {
+  private def establishConnection(): Unit = {
     var connected = false
     var tryCount = 0
     while (!connected && tryCount <= MAX_TRY_COUNT) {
@@ -78,12 +87,15 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   def mainLoop(): Unit = {
     while (running) {
       getElement match {
-        case DataElement(dataPayload, from) =>
-          sendData(dataPayload, from)
-        case ControlElement(cmd, from) =>
-          sendControlV1(from, cmd)
-        case ControlElementV2(cmd, from) =>
-          sendControlV2(from, cmd)
+        case DataElement(dataPayload, channel) =>
+          sendData(dataPayload, channel.fromWorkerId)
+        case ControlElement(cmd, channel) =>
+          sendControlV1(channel.fromWorkerId, cmd)
+        case ControlElementV2(cmd, channel) =>
+          sendControlV2(channel.fromWorkerId, cmd)
+        case ActorCommandElement(cmd) =>
+          sendActorCommand(cmd)
+
       }
     }
   }
@@ -92,7 +104,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     dataPayload match {
       case DataFrame(frame) =>
         val tuples: mutable.Queue[Tuple] =
-          mutable.Queue(frame.map(_.asInstanceOf[Tuple]): _*)
+          mutable.Queue(frame.map(_.asInstanceOf[Tuple]).toSeq: _*)
         writeArrowStream(Left(tuples), from, isEnd = false)
       case StateFrame(state) =>
         writeArrowStream(Right(state), from, isEnd = false)
@@ -107,8 +119,18 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
   ): Result = {
     val controlMessage = PythonControlMessage(from, payload)
     val action: Action = new Action("control", controlMessage.toByteArray)
+    sendCreditedAction(action)
+  }
 
-    logger.debug(s"sending control $controlMessage")
+  def sendActorCommand(
+      command: ActorCommand
+  ): Result = {
+    val action: Action = new Action("actor", PythonActorMessage(command).toByteArray)
+    sendCreditedAction(action)
+  }
+
+  private def sendCreditedAction(action: Action) = {
+    logger.debug(s"sending ${action.getType} message")
     // Arrow allows multiple results from the Action call return as a stream (interator).
     // In Arrow 11, it alerts if the results are not consumed fully.
     val results = flightClient.doAction(action)
@@ -116,13 +138,17 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
     // In the future, this results can include credits for flow control purpose.
     val result = results.next()
 
+    // extract info needed to calculate sender credits from ack
+    // ackResult contains number of batches inside Python worker internal queue
+    pythonQueueInMemSize.set(new String(result.getBody).toLong)
+    logger.debug(s"action ${action.getType} updated queue size $pythonQueueInMemSize")
     // However, we will only expect exactly one result for now.
     assert(!results.hasNext)
 
     result
   }
 
-  def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
+  private def sendControlV1(from: ActorVirtualIdentity, payload: ControlPayload): Unit = {
     payload match {
       case controlInvocation: ControlInvocation =>
         val controlInvocationV2: ControlInvocationV2 = controlInvocationToV2(controlInvocation)
@@ -187,9 +213,7 @@ class PythonProxyClient(portNumberPromise: Promise[Int], val actorId: ActorVirtu
         writer.completed()
         flightListener.getResult()
         flightListener.close()
-
     }
-
   }
 
   override def close(): Unit = {

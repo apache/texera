@@ -1,15 +1,22 @@
+import os
 import sys
+import traceback
+from datetime import datetime
 from threading import Event
 
 from loguru import logger
 
 from core.architecture.managers import Context
-from core.models import Tuple
+from core.models import Tuple, ExceptionInfo
 from core.models.state import State
 from core.models.table import all_output_to_data
 from core.util import Stoppable
 from core.util.console_message.replace_print import replace_print
 from core.util.runnable.runnable import Runnable
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    ConsoleMessage,
+    ConsoleMessageType,
+)
 
 
 class DataProcessor(Runnable, Stoppable):
@@ -43,27 +50,23 @@ class DataProcessor(Runnable, Stoppable):
             try:
                 operator = self._context.operator_manager.operator
                 tuple_ = self._context.tuple_processing_manager.current_input_tuple
-                link = self._context.tuple_processing_manager.current_input_link
+                port_id = self._context.tuple_processing_manager.current_input_port_id
                 port: int
-                if link is None:
+                if port_id is None:
                     # no upstream, special case for source operator.
-                    port = -1
-
-                elif link in self._context.tuple_processing_manager.input_link_map:
-                    port = self._context.tuple_processing_manager.input_link_map[link]
-
+                    port = 0
                 else:
-                    raise Exception(
-                        f"Unexpected input link {link}, not in input mapping "
-                        f"{self._context.tuple_processing_manager.input_link_map}"
-                    )
+                    port = port_id.id
 
                 output_iterator = (
                     operator.process_tuple(tuple_, port)
                     if isinstance(tuple_, Tuple)
                     else operator.on_finish(port)
                 )
-                with replace_print(self._context.console_message_manager.print_buf):
+                with replace_print(
+                    self._context.worker_id,
+                    self._context.console_message_manager.print_buf,
+                ):
                     for output in output_iterator:
                         # output could be a None, a TupleLike, a TableLike, or a State.
                         for output_data in all_output_to_data(output):
@@ -82,7 +85,10 @@ class DataProcessor(Runnable, Stoppable):
 
             except Exception as err:
                 logger.exception(err)
-                self._context.exception_manager.set_exception_info(sys.exc_info())
+                exc_info = sys.exc_info()
+                self._context.exception_manager.set_exception_info(exc_info)
+                self._report_exception(exc_info)
+
             finally:
                 self._switch_context()
 
@@ -115,6 +121,26 @@ class DataProcessor(Runnable, Stoppable):
 
     def _post_switch_context_checks(self):
         self._check_and_process_debug_command()
+
+    def _report_exception(self, exc_info: ExceptionInfo):
+        tb = traceback.extract_tb(exc_info[2])
+        filename, line_number, func_name, text = tb[-1]
+        base_name = os.path.basename(filename)
+        module_name, _ = os.path.splitext(base_name)
+        formatted_exception = traceback.format_exception(*exc_info)
+        title: str = formatted_exception[-1].strip()
+        message: str = "\n".join(formatted_exception)
+
+        self._context.console_message_manager.put_message(
+            ConsoleMessage(
+                worker_id=self._context.worker_id,
+                timestamp=datetime.now(),
+                msg_type=ConsoleMessageType.ERROR,
+                source=f"{module_name}:{func_name}:{line_number}",
+                title=title,
+                message=message,
+            )
+        )
 
     def stop(self):
         self._running.clear()

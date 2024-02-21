@@ -11,6 +11,7 @@ import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.Utils.retry
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
 import edu.uci.ics.texera.web.model.websocket.response.ResultExportResponse
@@ -27,9 +28,8 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
-import scala.collection.JavaConverters._
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.{IterableHasAsScala, SeqHasAsJava}
 
 object ResultExportService {
   final val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -59,7 +59,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
     // By now the workflow should finish running
     val operatorWithResult: SinkStorageReader =
-      opResultStorage.get(request.operatorId)
+      opResultStorage.get(OperatorIdentity(request.operatorId))
     if (operatorWithResult == null) {
       return ResultExportResponse("error", "The workflow contains no results")
     }
@@ -89,7 +89,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
     results.foreach { tuple =>
-      writer.writeRow(tuple.getFields.toSeq)
+      writer.writeRow(tuple.getFields.asScala.toSeq)
     }
     writer.close()
     val latestVersion =

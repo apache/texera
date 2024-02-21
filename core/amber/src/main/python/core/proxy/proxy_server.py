@@ -6,16 +6,17 @@ from typing import Callable, Dict, Iterator, Optional, Tuple
 
 from loguru import logger
 from overrides import overrides
-from pyarrow import Table, py_buffer
+from pyarrow import Table, py_buffer, Buffer
 from pyarrow.flight import (
     Action,
     FlightDescriptor,
     FlightServerBase,
     MetadataRecordBatchReader,
+    FlightMetadataWriter,
     Result,
     ServerCallContext,
 )
-from pyarrow.ipc import RecordBatchStreamWriter
+
 import socket
 
 
@@ -120,14 +121,20 @@ class ProxyServer(FlightServerBase):
             description="Shut down this server.",
         )
 
-        # register control, this is the default action for the client to invoke
-        # after receiving control.
+        # register control, set default action for the client to invoke
+        # after receiving control.  it should invoke the control_handler defined
+        # in network_receiver and return number of batches in internal_queue to be
+        # used for credit calculation
         self.register(
             name="control",
-            action=ProxyServer.ack()(
-                lambda control_message: self.process_control(control_message)
-            ),
+            action=lambda control_message: self.process_control(control_message),
             description="Process the control message",
+        )
+
+        self.register(
+            name="actor",
+            action=lambda message: self.process_actor(message),
+            description="Process the actor message",
         )
 
         # the data message handler for each data message, needs to be
@@ -142,6 +149,12 @@ class ProxyServer(FlightServerBase):
             NotImplementedError
         )
 
+        # the actor command message handler for each actor message, needs to be
+        # implemented during runtime.
+        self.process_actor = lambda *args, **kwargs: (_ for _ in ()).throw(
+            NotImplementedError
+        )
+
     ###########################
     # Flights related methods #
     ###########################
@@ -151,11 +164,12 @@ class ProxyServer(FlightServerBase):
         context: ServerCallContext,
         descriptor: FlightDescriptor,
         reader: MetadataRecordBatchReader,
-        writer: RecordBatchStreamWriter,
+        writer: FlightMetadataWriter,
     ):
         """
         Put a data table into the server, the data will be handled by the
-        `self.process_data()` handler.
+        `self.process_data()` handler.  Also send back number of sender batches
+        currently in internal queue for credit calculations
 
         :param context: server context, containing information of middlewares.
         :param descriptor: the descriptor of this batch of data.
@@ -166,8 +180,14 @@ class ProxyServer(FlightServerBase):
 
         data: Table = reader.read_all()
         command: bytes = descriptor.command
-        logger.info(f"getting a data batch {data}")
-        self.process_data(command, data)
+        logger.debug(f"getting a data batch {data}")
+
+        sender_credits = self.process_data(command, data)
+        if isinstance(sender_credits, int):
+            sender_credits_buf: Buffer = py_buffer(
+                sender_credits.to_bytes(length=8, byteorder="little")
+            )
+            writer.write(sender_credits_buf)
 
     ###############################
     # Actions related methods #
@@ -267,6 +287,10 @@ class ProxyServer(FlightServerBase):
         # the handler should have at least 1 argument
         assert len(signature(handler).parameters) >= 1
         self.process_control = handler
+
+    @logger.catch(reraise=True)
+    def register_actor_message_handler(self, handler: Callable) -> None:
+        self.process_actor = handler
 
     ##################
     # helper methods #
