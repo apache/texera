@@ -91,9 +91,7 @@
   *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
-			ExecutionState.Paused ||
-			this.executeWorkflowService.getExecutionState().state ===
-				ExecutionState.BreakpointTriggered) &&
+			ExecutionState.Paused) &&
 		!this.interactive"
   nz-button
   nz-tooltip="Unlock the operator to change logic"
@@ -114,9 +112,7 @@
   *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
-			ExecutionState.Paused ||
-			this.executeWorkflowService.getExecutionState().state ===
-				ExecutionState.BreakpointTriggered) &&
+			ExecutionState.Paused) &&
 		this.interactive"
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"

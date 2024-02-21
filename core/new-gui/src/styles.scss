@@ -71,3 +71,8 @@ hr {
   height: 1px;
   border: 0;
 }
+
+// due to innerHTML, this rule has to be global
+.highlight-search-terms {
+  color: blue;
+}

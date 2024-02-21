@@ -24,5 +24,7 @@
     </nz-select>
   </div>
 
-  <texera-search-results [showResourceTypes]="true"></texera-search-results>
+  <texera-search-results
+    [showResourceTypes]="true"
+    [searchKeywords]="this.filters.getSearchKeywords()"></texera-search-results>
 </div>
