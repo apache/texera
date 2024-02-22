@@ -145,7 +145,7 @@ export class UserProjectListItemComponent implements OnInit {
   public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
-      nzData: {
+      nzComponentParams: {
         writeAccess: this.entry.accessLevel === "WRITE",
         type: "project",
         id: this.entry.pid,
