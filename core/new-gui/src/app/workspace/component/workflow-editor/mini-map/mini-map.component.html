@@ -26,6 +26,15 @@
       id="dock">
       <li
         nz-menu-item
+        (click)="openMiniMapPanel()">
+        <span
+          nz-icon
+          nzType="compass"
+          nzTheme="outline"
+          class="icon-right"></span>
+      </li>
+      <li
+        nz-menu-item
         (click)="onClose_minimap()"
         *ngIf="this.minimapDisplay">
         <span
@@ -41,15 +50,6 @@
           nz-icon
           nzType="drag"
           *ngIf="!this.minimapDisplay"></span>
-      </li>
-      <li
-        nz-menu-item
-        (click)="openMiniMapPanel()">
-        <span
-          nz-icon
-          nzType="compass"
-          nzTheme="outline"
-          class="icon-right"></span>
       </li>
     </ul>
 </div>

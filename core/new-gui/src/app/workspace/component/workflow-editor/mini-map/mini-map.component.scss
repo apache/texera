@@ -11,7 +11,7 @@
 
 #mini-map-container {
   position: fixed;
-  top: calc(70vh);
+  bottom: 0;
   right: 0px;
   width: 50%;
   z-index: 3;
@@ -33,6 +33,6 @@
 
 #dock {
   display: inline-block;
-  vertical-align: top;
+  vertical-align: bottom;
   padding-bottom: 10px;
 }
