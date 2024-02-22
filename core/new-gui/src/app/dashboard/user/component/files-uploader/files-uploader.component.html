@@ -1,50 +1,69 @@
 <div class="file-uploader">
-<!--  <nz-alert-->
-<!--    *ngIf="fileUploadingFinished"-->
-<!--    class="file-uploader-banner"-->
-<!--    [nzType]="fileUploadBannerType"-->
-<!--    nzMessage="{{fileUploadBannerMessage}}"-->
-<!--    nzShowIcon-->
-<!--    nzCloseable-->
-<!--    (nzOnClose)="hideBanner()">-->
-<!--  </nz-alert>-->
-<!--  <ngx-file-drop-->
-<!--    dropZoneLabel="Drop files here"-->
-<!--    (onFileDrop)="fileDropped($event)">-->
-<!--    <ng-template-->
-<!--      class="ngx-drop-box"-->
-<!--      ngx-file-drop-content-tmp-->
-<!--      let-openFileSelector="openFileSelector">-->
-<!--      <div class="file-drop-description">-->
-<!--        <p>Drag & drop file/folder to upload</p>-->
-<!--        &lt;!&ndash;                <p class="file-drop-hint">Consider zipping large directories for faster uploads</p>&ndash;&gt;-->
-<!--        <p>or</p>-->
-<!--        <button-->
-<!--          mat-stroked-button-->
-<!--          color="primary"-->
-<!--          class="upload-file-button"-->
-<!--          (click)="openFileSelector()">-->
-<!--          Browser & Upload Files-->
-<!--        </button>-->
-<!--      </div>-->
-<!--    </ng-template>-->
-<!--  </ngx-file-drop>-->
-<!--  <div-->
-<!--    *ngIf="previouslyUploadFiles && previouslyUploadFiles.length > 0"-->
-<!--    class="uploaded-files-list">-->
-<!--    <h6 class="new-upload-title">Previous Uploads</h6>-->
-<!--    <texera-user-dataset-version-filetree-->
-<!--      [fileTreeNodeList]="previouslyUploadFiles"-->
-<!--      [isFileTreeNodeDeletable]="true"-->
-<!--      (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"></texera-user-dataset-version-filetree>-->
-<!--  </div>-->
-<!--  <div-->
-<!--    *ngIf="newUploadNodeToFileItems && newUploadNodeToFileItems.size > 0"-->
-<!--    class="uploaded-files-list">-->
-<!--    <h6 class="new-upload-title">New Uploads</h6>-->
-<!--    <texera-user-dataset-version-filetree-->
-<!--      [fileTreeNodeList]="newUploadFileTreeNodes"-->
-<!--      [isFileTreeNodeDeletable]="true"-->
-<!--      (deletedTreeNode)="onNewUploadsFileDeleted($event)"></texera-user-dataset-version-filetree>-->
-<!--  </div>-->
+
+  <nz-alert
+    *ngIf="fileUploadingFinished"
+    class="file-uploader-banner"
+    [nzType]="fileUploadBannerType"
+    nzMessage="{{fileUploadBannerMessage}}"
+    nzShowIcon
+    nzCloseable
+    (nzOnClose)="hideBanner()">
+  </nz-alert>
+<!--  <nz-upload-->
+<!--    nzType="drag"-->
+<!--    [nzMultiple]="true"-->
+<!--    [nzDirectory]="true"-->
+<!--    [nzBeforeUpload]="handleBeforeFileUpload"-->
+<!--    [nzShowUploadList]="true"-->
+<!--    (nzChange)="handleFileUpload($event)"-->
+<!--  >-->
+<!--    <p class="ant-upload-drag-icon">-->
+<!--      <span nz-icon nzType="inbox"></span>-->
+<!--    </p>-->
+<!--    <p class="ant-upload-text">Click or drag file/directory to this area to upload</p>-->
+<!--    <p class="ant-upload-hint">-->
+<!--      Support Files and Directories Upload-->
+<!--    </p>-->
+<!--  </nz-upload>-->
+  <ngx-file-drop
+    dropZoneLabel="Drop files here"
+    (onFileDrop)="fileDropped($event)">
+    <ng-template
+      class="ngx-drop-box"
+      ngx-file-drop-content-tmp
+      let-openFileSelector="openFileSelector">
+      <div class="file-drop-description">
+        <p>Drag & drop file/folder to upload</p>
+        <!--                <p class="file-drop-hint">Consider zipping large directories for faster uploads</p>-->
+        <p>or</p>
+        <button
+          mat-stroked-button
+          color="primary"
+          class="upload-file-button"
+          (click)="openFileSelector()">
+          Browser & Upload Files
+        </button>
+      </div>
+    </ng-template>
+  </ngx-file-drop>
+  <div
+    *ngIf="previouslyUploadFiles && previouslyUploadFiles.length > 0"
+    class="uploaded-files-list">
+    <h6 class="new-upload-title">Previous Uploads</h6>
+    <texera-user-dataset-version-filetree
+      [fileTreeNodes]="previouslyUploadFiles"
+    ></texera-user-dataset-version-filetree>
+    <!--       [isFileTreeNodeDeletable]="true"-->
+    <!--      (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"-->
+  </div>
+  <div
+    *ngIf="newUploadNodeToFileItems && newUploadNodeToFileItems.size > 0"
+    class="uploaded-files-list">
+    <h6 class="new-upload-title">New Uploads</h6>
+    <texera-user-dataset-version-filetree
+      [fileTreeNodes]="newUploadFileTreeNodes"
+    ></texera-user-dataset-version-filetree>
+    <!--      [isFileTreeNodeDeletable]="true"-->
+    <!--      (deletedTreeNode)="onNewUploadsFileDeleted($event)">-->
+  </div>
 </div>

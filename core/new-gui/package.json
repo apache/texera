@@ -63,6 +63,7 @@
     "ngx-markdown": "16.0.0",
     "papaparse": "5.4.1",
     "ng2-pdf-viewer": "9.1.5",
+    "ngx-file-drop": "13.0.0",
     "ngx-image-viewer": "1.0.13",
     "read-excel-file": "5.7.1",
     "path-browserify": "^1.0.1",

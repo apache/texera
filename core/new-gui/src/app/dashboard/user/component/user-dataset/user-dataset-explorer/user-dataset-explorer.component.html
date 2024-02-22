@@ -134,11 +134,11 @@
             [nzLabel]="version.name"></nz-option>
         </nz-select>
       </div>
-<!--      <texera-user-dataset-version-filetree-->
-<!--        [fileTreeNodeList]="fileTreeNodeList"-->
-<!--        (selectedTreeNode)="onVersionFileTreeNodeSelected($event)">-->
-<!--        >-->
-<!--      </texera-user-dataset-version-filetree>-->
+      <texera-user-dataset-version-filetree
+        [fileTreeNodes]="fileTreeNodeList"
+        (selectedTreeNode)="onVersionFileTreeNodeSelected($event)">
+        >
+      </texera-user-dataset-version-filetree>
       <button
         *ngIf="userHasWriteAccess()"
         class="rounded-button"

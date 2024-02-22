@@ -12,8 +12,9 @@ import { UserFileUploadService } from "../user-file/user-file-upload.service";
 import {
   DatasetVersionFileTree,
   DatasetVersionFileTreeNode,
-  parseFileTreeToNodes,
+  parseFileNodesToTreeNodes,
 } from "../../../../common/type/datasetVersionFileTree";
+import {FileNode} from "../../../../common/type/fileNode";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -85,13 +86,13 @@ export class DatasetService {
     });
 
     return this.http
-      .post<{ datasetVersion: DatasetVersion; fileTree: DatasetVersionFileTree }>(
+      .post<{ datasetVersion: DatasetVersion; fileNodes: FileNode[] }>(
         `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`,
         formData
       )
       .pipe(
         map(response => {
-          response.datasetVersion.versionFileTreeNodes = parseFileTreeToNodes(response.fileTree);
+          response.datasetVersion.versionFileTreeNodes = parseFileNodesToTreeNodes(response.fileNodes);
           return response.datasetVersion;
         })
       );
@@ -115,12 +116,12 @@ export class DatasetService {
    */
   public retrieveDatasetLatestVersion(did: number): Observable<DatasetVersion> {
     return this.http
-      .get<{ datasetVersion: DatasetVersion; fileTree: DatasetVersionFileTree }>(
+      .get<{ datasetVersion: DatasetVersion; fileNodes: FileNode[] }>(
         `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_LATEST_URL}`
       )
       .pipe(
         map(response => {
-          response.datasetVersion.versionFileTreeNodes = parseFileTreeToNodes(response.fileTree);
+          response.datasetVersion.versionFileTreeNodes = parseFileNodesToTreeNodes(response.fileNodes);
           return response.datasetVersion;
         })
       );
@@ -133,10 +134,10 @@ export class DatasetService {
    */
   public retrieveDatasetVersionFileTree(did: number, dvid: number): Observable<DatasetVersionFileTreeNode[]> {
     return this.http
-      .get<{ fileTree: DatasetVersionFileTree }>(
+      .get<{ fileNodes: FileNode[] }>(
         `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/fileTree`
       )
-      .pipe(map(response => parseFileTreeToNodes(response.fileTree)));
+      .pipe(map(response => parseFileNodesToTreeNodes(response.fileNodes)));
   }
 
   public deleteDatasets(dids: number[]): Observable<Response> {

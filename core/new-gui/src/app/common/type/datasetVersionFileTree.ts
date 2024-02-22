@@ -1,4 +1,5 @@
 import {FileUploadItem} from "../../dashboard/user/type/dashboard-file.interface";
+import {FileNode} from "./fileNode";
 
 export interface DatasetVersionFileTree {
   [key: string]: DatasetVersionFileTree | string;
@@ -13,13 +14,14 @@ export interface DatasetVersionFileTreeNode {
 
 export function getFullPathFromFileTreeNode(node: DatasetVersionFileTreeNode): string {
   if (node.parentDir == "/") {
+    // make sure the files/directory located at the root layer has '/' as the prefix
     return node.parentDir + node.name;
   } else {
     return node.parentDir + "/" + node.name;
   }
 }
 
-export function getPathsFromNode(node: DatasetVersionFileTreeNode): string[] {
+export function getPathsFromTreeNode(node: DatasetVersionFileTreeNode): string[] {
   // Helper function to recursively gather paths
   const gatherPaths = (node: DatasetVersionFileTreeNode, currentPath: string): string[] => {
     // Base case: if the node is a file, return its path
@@ -175,7 +177,7 @@ export class DatasetVersionFileTreeManager {
     return this.root.children ?? [];
   }
 }
-export function parseFileUploadItemToVersionFileTreeNodes(
+export function parseFileUploadItemToTreeNodes(
   fileUploadItems: FileUploadItem[]
 ): DatasetVersionFileTreeNode[] {
   const root: DatasetVersionFileTreeNode = { name: "/", type: "directory", children: [], parentDir: "" };
@@ -208,39 +210,23 @@ export function parseFileUploadItemToVersionFileTreeNodes(
   return root.children ?? []; // Return the top-level nodes (excluding the root)
 }
 
-export function parseFileTreeToNodes(
-  hierarchy: DatasetVersionFileTree,
-  parentDir: string = "/"
-): DatasetVersionFileTreeNode[] {
-  const isDirectory = (node: DatasetVersionFileTree | string): node is DatasetVersionFileTree => {
-    return typeof node === "object" && node !== null && !(node instanceof Array);
-  };
+export function parseFileNodesToTreeNodes(fileNodes: FileNode[], parentPath: string = ''): DatasetVersionFileTreeNode[] {
+  return fileNodes.map(fileNode => {
+    const splitPath = fileNode.path.split('/');
+    const name = splitPath.pop() || ''; // Get the last segment as name
+    const parentDir = splitPath.length > 0 ? '/' + splitPath.join('/') : '/'; // Join the rest as parent directory
 
-  const parseHierarchyToNode = (
-    node: DatasetVersionFileTree | string,
-    nodeName: string,
-    currentDir: string
-  ): DatasetVersionFileTreeNode => {
-    if (isDirectory(node)) {
-      let dir = currentDir === "/" ? `/${nodeName}` : `${currentDir}/${nodeName}`;
-      return {
-        name: nodeName,
-        type: "directory",
-        children: Object.keys(node).map(key => parseHierarchyToNode(node[key], key, dir)),
-        parentDir: currentDir,
-      };
-    } else {
-      return {
-        name: nodeName,
-        type: "file",
-        parentDir: currentDir,
-      };
+    const treeNode: DatasetVersionFileTreeNode = {
+      name: name,
+      type: fileNode.isFile ? 'file' : 'directory',
+      parentDir: parentDir,
+    };
+
+    if (!fileNode.isFile && fileNode.children) {
+      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, fileNode.path);
     }
-  };
 
-  if (!isDirectory(hierarchy)) {
-    throw new Error("The provided hierarchy is not a valid directory structure.");
-  }
-
-  return Object.keys(hierarchy).map(key => parseHierarchyToNode(hierarchy[key], key, parentDir));
+    return treeNode;
+  });
 }
+
