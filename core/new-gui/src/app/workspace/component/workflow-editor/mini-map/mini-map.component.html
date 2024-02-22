@@ -26,6 +26,7 @@
       id="dock">
       <li
         nz-menu-item
+        nzSelected="{{this.minimapDisplay}}"
         (click)="openMiniMapPanel()">
         <span
           nz-icon
@@ -43,7 +44,7 @@
       </li>
       <li
         nz-menu-item
-        nzSelected
+        nzSelected="{{!this.minimapDisplay}}"
         cdkDragHandle
         *ngIf="!this.minimapDisplay">
         <span

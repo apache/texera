@@ -1,4 +1,4 @@
-import { AfterViewInit, Component } from "@angular/core";
+import { AfterViewInit, Component, HostListener, OnDestroy, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
@@ -10,7 +10,7 @@ import * as joint from "jointjs";
   templateUrl: "mini-map.component.html",
   styleUrls: ["mini-map.component.scss"],
 })
-export class MiniMapComponent implements AfterViewInit {
+export class MiniMapComponent implements AfterViewInit, OnDestroy, OnInit {
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
@@ -20,7 +20,18 @@ export class MiniMapComponent implements AfterViewInit {
   screenWidth = window.innerWidth;
   miniMapWidth = 47;
 
-  constructor(private workflowActionService: WorkflowActionService) {}
+  constructor(private workflowActionService: WorkflowActionService) {
+    const width = localStorage.getItem("mini-map-width");
+    if (width) this.miniMapWidth = Number(width);
+
+    const display = localStorage.getItem("mini-map-display");
+
+    if (display === "true") {
+      this.minimapDisplay = true;
+    } else { 
+      this.minimapDisplay = false;
+    }
+  }
 
   ngAfterViewInit() {
     const map = document.getElementById("mini-map")!;
@@ -46,6 +57,25 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("scale", () => this.updateNavigator());
         mainPaper.on("resize", () => this.updateNavigator());
       });
+  }
+
+  ngOnInit(): void {
+    const style = localStorage.getItem("mini-map-style");
+    if (style) document.getElementById("mini-map-container")!.style.cssText = style;
+  }
+
+  @HostListener("window:beforeunload")
+  ngOnDestroy(): void {
+    localStorage.setItem("mini-map-width", String(this.miniMapWidth));
+    console.log(this.minimapDisplay);
+
+    if (this.minimapDisplay) {
+      localStorage.setItem("mini-map-display", "true");
+    } else {
+      localStorage.setItem("mini-map-display", "false");
+    }
+
+    localStorage.setItem("mini-map-style", document.getElementById("mini-map-container")!.style.cssText);
   }
 
   onDrag(event: any) {
