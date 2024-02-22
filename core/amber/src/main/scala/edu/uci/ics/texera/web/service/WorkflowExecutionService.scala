@@ -70,16 +70,14 @@ class WorkflowExecutionService(
     })
   )
 
-  var workflow: Workflow = _
+  val workflow: Workflow = workflowCompilation()
 
-  workflowCompilation()
-
-  private def workflowCompilation(): Unit = {
+  private def workflowCompilation(): Workflow = {
     logger.info("Compiling the logical plan into a physical plan.")
 
     try {
       val workflowCompiler = new WorkflowCompiler(workflowContext)
-      workflow = workflowCompiler.compile(
+      workflowCompiler.compile(
         request.logicalPlan,
         resultService.opResultStorage,
         lastCompletedLogicalPlan,
@@ -100,6 +98,7 @@ class WorkflowExecutionService(
               )
             )
         }
+        throw e // re-throw because it cannot continue.
     }
   }
 
