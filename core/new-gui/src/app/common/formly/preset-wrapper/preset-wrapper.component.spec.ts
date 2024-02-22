@@ -6,7 +6,7 @@
 // import { BrowserModule, By } from "@angular/platform-browser";
 // import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 // import { FormlyFieldConfig, FormlyModule } from "@ngx-formly/core";
-// import { FormlyMaterialModule } from "@ngx-formly/material";
+// import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 // import { NzDropDownModule } from "ng-zorro-antd/dropdown";
 // import { NzMenuModule } from "ng-zorro-antd/menu";
 // import { NzMessageModule } from "ng-zorro-antd/message";
@@ -63,7 +63,7 @@
 //         BrowserModule,
 //         ReactiveFormsModule,
 //         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-//         FormlyMaterialModule,
+//         FormlyNgZorroAntdModule,
 //         CustomNgMaterialModule,
 //         BrowserAnimationsModule,
 //         HttpClientTestingModule,

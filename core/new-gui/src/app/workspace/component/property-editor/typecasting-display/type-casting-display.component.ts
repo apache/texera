@@ -70,12 +70,14 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
     this.schemaToDisplay = [];
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
 
-    const castTypeMap = op.operatorProperties["typeCastingUnits"].reduce(
-      (map_: { [x: string]: any }, castTo: { attribute: string; resultType: string }) => (
-        (map_[castTo.attribute] = castTo.resultType), map_
-      ),
-      {}
-    );
+    const castTypeMap =
+      op.operatorProperties["typeCastingUnits"] ??
+      [].reduce(
+        (map_: { [x: string]: any }, castTo: { attribute: string; resultType: string }) => (
+          (map_[castTo.attribute] = castTo.resultType), map_
+        ),
+        {}
+      );
 
     inputSchema?.forEach(schema =>
       schema?.forEach(attr => {

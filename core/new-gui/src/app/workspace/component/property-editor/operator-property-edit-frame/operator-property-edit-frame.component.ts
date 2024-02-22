@@ -417,21 +417,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         },
       };
 
-      // conditionally hide the field according to the schema
-      if (
-        isDefined(mapSource.hideExpectedValue) &&
-        isDefined(mapSource.hideTarget) &&
-        isDefined(mapSource.hideType) &&
-        hideTypes.includes(mapSource.hideType)
-      ) {
-        mappedField.hideExpression = createShouldHideFieldFunc(
-          mapSource.hideTarget,
-          mapSource.hideType,
-          mapSource.hideExpectedValue,
-          mapSource.hideOnNull
-        );
-      }
-
       // if the title is fileName, then change it to custom autocomplete input template
       if (mappedField.key == "fileName") {
         mappedField.type = "inputautocomplete";
@@ -458,18 +443,20 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         );
       }
 
-      if (
-        this.currentOperatorId !== undefined &&
-        ["string", "textarea"].includes(mappedField.type as string) &&
-        (mappedField.key as string) !== "password"
-      ) {
-        CollabWrapperComponent.setupFieldConfig(
-          mappedField,
-          this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
-          this.currentOperatorId,
-          mappedField.wrappers?.includes("preset-wrapper")
-        );
-      }
+      // TODO: we temporarily disable this due to Yjs update causing issues in Formly.
+
+      // if (
+      //   this.currentOperatorId !== undefined &&
+      //   ["string", "textarea"].includes(mappedField.type as string) &&
+      //   (mappedField.key as string) !== "password"
+      // ) {
+      //   CollabWrapperComponent.setupFieldConfig(
+      //     mappedField,
+      //     this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId).operatorType,
+      //     this.currentOperatorId,
+      //     mappedField.wrappers?.includes("preset-wrapper")
+      //   );
+      // }
 
       if (mappedField.validators === undefined) {
         mappedField.validators = {};
@@ -617,6 +604,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
                 );
                 // @ts-ignore
                 const message = err.message;
+                if (field.validators === undefined) {
+                  field.validators = {};
+                }
                 field.validators.checkAttributeType.message =
                   `Warning: The type of '${attributeName}' is ${inputAttributeType}, but ` + message;
                 return false;
@@ -666,7 +656,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         }
       });
     }
-
     // not return field.fieldGroup directly because
     // doing so the validator in the field will not be triggered
     this.formlyFields = [field];

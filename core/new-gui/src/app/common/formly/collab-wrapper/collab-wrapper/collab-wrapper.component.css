@@ -6,10 +6,12 @@
   outline: transparent;
   overflow: visible;
   position: relative;
+  : 1pt;
 }
 
 :host ::ng-deep .ql-editor > p {
   margin-bottom: 0;
+  box-sizing: border-box;
 }
 
 :host ::ng-deep .ql-container {

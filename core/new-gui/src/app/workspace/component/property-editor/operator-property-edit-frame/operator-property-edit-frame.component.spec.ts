@@ -11,7 +11,6 @@ import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
-import { FormlyMaterialModule } from "@ngx-formly/material";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import {
   mockPoint,
@@ -22,13 +21,13 @@ import {
   mockScanSourceSchema,
   mockViewResultsSchema,
 } from "../../../service/operator-metadata/mock-operator-metadata.data";
-import { JSONSchema7 } from "json-schema";
 import { configure } from "rxjs-marbles";
 import { SimpleChange } from "@angular/core";
 import { cloneDeep } from "lodash-es";
 
 import Ajv from "ajv";
 import { COLLAB_DEBOUNCE_TIME_MS } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
+import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 
 const { marbles } = configure({ run: false });
 describe("OperatorPropertyEditFrameComponent", () => {
@@ -51,10 +50,7 @@ describe("OperatorPropertyEditFrameComponent", () => {
         BrowserAnimationsModule,
         FormsModule,
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-        // formly ng zorro module has a bug that doesn't display field description,
-        // FormlyNgZorroAntdModule,
-        // use formly material module instead
-        FormlyMaterialModule,
+        FormlyNgZorroAntdModule,
         ReactiveFormsModule,
         HttpClientTestingModule,
       ],

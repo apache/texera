@@ -1,8 +1,7 @@
 import { Component } from "@angular/core";
-import { FieldType } from "@ngx-formly/core";
+import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserFileService } from "src/app/dashboard/user/service/user-file/user-file.service";
-import { FormControl } from "@angular/forms";
 import { debounceTime } from "rxjs/operators";
 import { map } from "rxjs";
 
@@ -12,13 +11,7 @@ import { map } from "rxjs";
   templateUrl: "./input-autocomplete.component.html",
   styleUrls: ["input-autocomplete.component.scss"],
 })
-
-/* *
- * The FieldType<any> is a workaround for the issue of not assignable FormControl.
- * details https://github.com/ngx-formly/ngx-formly/issues/2842#issuecomment-1066116865
- * need to upgrade formly to v6 to properly fix this issue.
- */
-export class InputAutoCompleteComponent extends FieldType<any> {
+export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   // the autocomplete selection list
   public suggestions: string[] = [];
 
@@ -26,16 +19,9 @@ export class InputAutoCompleteComponent extends FieldType<any> {
     super();
   }
 
-  // FormControl is a non-nullable and read-only field.
-  // This function is used to fit the test cases.
-  getControl() {
-    if (this.field == undefined) return new FormControl({});
-    return this.formControl;
-  }
-
   autocomplete(): void {
     if (this.field.formControl.value === null) {
-      this.field.formControl.value = "";
+      return;
     }
     // currently it's a hard-code UserFileService autocomplete
     // TODO: generalize this callback function with a formly hook.

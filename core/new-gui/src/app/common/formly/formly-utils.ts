@@ -17,7 +17,7 @@ export function setHideExpression(toggleHidden: string[], fields: FormlyFieldCon
   toggleHidden.forEach(hiddenFieldName => {
     const fieldToBeHidden = getFieldByName(hiddenFieldName, fields);
     if (isDefined(fieldToBeHidden)) {
-      fieldToBeHidden.hideExpression = "!field.parent.model." + hiddenBy;
+      fieldToBeHidden.expressions = { hide: "!field.parent.model." + hiddenBy };
     }
   });
 }
@@ -31,7 +31,8 @@ export function createShouldHideFieldFunc(
 ) {
   let shared_regex: RegExp | null = null;
 
-  const hideFunc = (model: any, formState: any, field?: FormlyFieldConfig | undefined) => {
+  const hideFunc = (field?: FormlyFieldConfig | undefined) => {
+    const model = field?.parent?.model;
     if (model === null || model === undefined) {
       console.debug("Formly main model not detected. Hiding will fail.");
       return false;
@@ -71,7 +72,7 @@ export function setChildTypeDependency(
   if (timestampFieldNames) {
     const childField = getFieldByName(childName, fields);
     if (isDefined(childField)) {
-      childField.expressionProperties = {
+      childField.expressions = {
         // 'type': 'string',
         // 'templateOptions.type': JSON.stringify(timestampFieldNames) + '.includes(model.' + parentName + ')? \'string\' : \'number\'',
 

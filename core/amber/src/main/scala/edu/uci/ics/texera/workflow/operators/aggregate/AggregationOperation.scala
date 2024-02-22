@@ -42,7 +42,7 @@ import java.sql.Timestamp
 """)
 class AggregationOperation() {
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Aggregation Function")
+  @JsonSchemaTitle("Aggregate Func")
   @JsonPropertyDescription("sum, count, average, min, max, or concat")
   var aggFunction: AggregationFunction = _
 
