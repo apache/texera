@@ -10,10 +10,8 @@ class ControllerAsyncRPCHandlerInitializer(
 ) extends AsyncRPCHandlerInitializer(cp.asyncRPCClient, cp.asyncRPCServer)
     with AmberLogging
     with LinkWorkersHandler
-    with AssignBreakpointHandler
     with WorkerExecutionCompletedHandler
-    with WorkerExecutionStartedHandler
-    with LocalBreakpointTriggeredHandler
+    with WorkerStateUpdatedHandler
     with PauseHandler
     with QueryWorkerStatisticsHandler
     with ResumeHandler
@@ -24,14 +22,10 @@ class ControllerAsyncRPCHandlerInitializer(
     with RetryWorkflowHandler
     with ModifyLogicHandler
     with EvaluatePythonExpressionHandler
-    with MonitoringHandler
-    with SkewDetectionHandler
-    with RegionsTimeSlotExpiredHandler
     with DebugCommandHandler
+    with TakeGlobalCheckpointHandler
     with ChannelMarkerHandler
     with RetrieveWorkflowStateHandler {
   val actorId: ActorVirtualIdentity = cp.actorId
-
-  var workflowReshapeState: WorkflowReshapeState = new WorkflowReshapeState()
 
 }

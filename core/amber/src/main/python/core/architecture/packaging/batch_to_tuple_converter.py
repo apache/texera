@@ -116,13 +116,6 @@ class BatchToTupleConverter:
                 map(lambda port: port.is_completed(), self._ports.values())
             )
 
-            from loguru import logger
-
-            logger.info("found " + str(len(self._ports)))
-            logger.info(
-                "ports "
-                + str(list(map(lambda port: port.is_completed(), self._ports.values())))
-            )
             if all_ports_completed:
                 yield EndOfAllMarker()
 

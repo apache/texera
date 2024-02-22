@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.model.websocket.request
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.workflow.{BreakpointInfo, LogicalLink}
+import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 
 case class ReplayExecutionInfo(
     @JsonDeserialize(contentAs = classOf[java.lang.Long])
@@ -20,7 +20,6 @@ case class WorkflowExecuteRequest(
 case class LogicalPlanPojo(
     operators: List[LogicalOp],
     links: List[LogicalLink],
-    breakpoints: List[BreakpointInfo],
     opsToViewResult: List[String],
     opsToReuseResult: List[String]
 )

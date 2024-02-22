@@ -5,7 +5,6 @@
  */
 
 import { ChartType } from "./visualization.interface";
-import { BreakpointRequest, BreakpointTriggerInfo } from "./workflow-common.interface";
 import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
 export interface PortIdentity
   extends Readonly<{
@@ -36,12 +35,6 @@ export interface LogicalOperator
     [uniqueAttributes: string]: any;
   }> {}
 
-export interface BreakpointInfo
-  extends Readonly<{
-    operatorID: string;
-    breakpoint: BreakpointRequest;
-  }> {}
-
 /**
  * LogicalPlan is the backend interface equivalent of frontend interface WorkflowGraph,
  *  they represent the same thing - the backend term currently used is LogicalPlan.
@@ -51,7 +44,6 @@ export interface LogicalPlan
   extends Readonly<{
     operators: LogicalOperator[];
     links: LogicalLink[];
-    breakpoints: BreakpointInfo[];
     opsToViewResult?: string[];
     opsToReuseResult?: string[];
   }> {}
@@ -72,7 +64,6 @@ export enum OperatorState {
   Ready = "Ready",
   Running = "Running",
   Pausing = "Pausing",
-  CollectingBreakpoints = "CollectingBreakpoints",
   Paused = "Paused",
   Resuming = "Resuming",
   Completed = "Completed",
@@ -147,7 +138,6 @@ export enum ExecutionState {
   Paused = "Paused",
   Resuming = "Resuming",
   Recovering = "Recovering",
-  BreakpointTriggered = "BreakpointTriggered",
   Completed = "Completed",
   Failed = "Failed",
   Killed = "Killed",
@@ -166,10 +156,6 @@ export type ExecutionStateInfo = Readonly<
   | {
       state: ExecutionState.Paused;
       currentTuples: Readonly<Record<string, OperatorCurrentTuples>>;
-    }
-  | {
-      state: ExecutionState.BreakpointTriggered;
-      breakpoint: BreakpointTriggerInfo;
     }
   | {
       state: ExecutionState.Completed | ExecutionState.Killed;
