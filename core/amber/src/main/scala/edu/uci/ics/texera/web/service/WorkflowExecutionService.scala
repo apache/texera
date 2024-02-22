@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.web.service
 
 import com.google.protobuf.timestamp.Timestamp
-import com.twitter.util.{Await, Duration}
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
@@ -120,7 +119,6 @@ class WorkflowExecutionService(
   // Runtime starts from here:
   logger.info("Initialing an AmberClient, runtime starting...")
   var client: AmberClient = _
-  var executionBreakpointService: ExecutionBreakpointService = _
   var executionReconfigurationService: ExecutionReconfigurationService = _
   var executionStatsService: ExecutionStatsService = _
   var executionRuntimeService: ExecutionRuntimeService = _
@@ -132,8 +130,6 @@ class WorkflowExecutionService(
       controllerConfig,
       errorHandler
     )
-
-    executionBreakpointService = new ExecutionBreakpointService(client, executionStateStore)
     executionReconfigurationService =
       new ExecutionReconfigurationService(client, executionStateStore, workflow)
     executionStatsService = new ExecutionStatsService(client, executionStateStore, workflowContext)
@@ -141,20 +137,12 @@ class WorkflowExecutionService(
       client,
       executionStateStore,
       wsInput,
-      executionBreakpointService,
       executionReconfigurationService,
       controllerConfig.faultToleranceConfOpt
     )
-    executionConsoleService =
-      new ExecutionConsoleService(client, executionStateStore, wsInput, executionBreakpointService)
+    executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 
     logger.info("Starting the workflow execution.")
-    for (pair <- request.logicalPlan.breakpoints) {
-      Await.result(
-        executionBreakpointService.addBreakpoint(pair.operatorID, pair.breakpoint),
-        Duration.fromSeconds(10)
-      )
-    }
     resultService.attachToExecution(executionStateStore, workflow.logicalPlan, client)
     executionStateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(READY, metadataStore.withExecutionId(workflowContext.executionId))
@@ -180,7 +168,6 @@ class WorkflowExecutionService(
     super.unsubscribeAll()
     if (client != null) {
       // runtime created
-      executionBreakpointService.unsubscribeAll()
       executionRuntimeService.unsubscribeAll()
       executionConsoleService.unsubscribeAll()
       executionStatsService.unsubscribeAll()

@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web
 
 import akka.actor.{ActorSystem, Cancellable}
+import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
@@ -26,6 +27,13 @@ import edu.uci.ics.texera.web.resource._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.execution.AdminExecutionResource
 import edu.uci.ics.texera.web.resource.dashboard.admin.user.AdminUserResource
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
+  DatasetAccessResource,
+  DatasetResource
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{FileNode, FileNodeSerializer}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils.getAllDatasetDirectories
 import edu.uci.ics.texera.web.resource.dashboard.user.file.{
   UserFileAccessResource,
   UserFileResource
@@ -65,6 +73,15 @@ import java.net.URI
 import scala.annotation.tailrec
 
 object TexeraWebApplication {
+
+  // this method is used to abort uncommitted changes for every dataset
+  def discardUncommittedChangesOfAllDatasets(): Unit = {
+    val datasetPaths = getAllDatasetDirectories()
+
+    datasetPaths.foreach(path => {
+      GitVersionControlLocalFileStorage.discardUncommittedChanges(path)
+    })
+  }
 
   def createAmberRuntime(
       workflow: Workflow,
@@ -107,6 +124,9 @@ object TexeraWebApplication {
 
     val clusterMode = argMap.get(Symbol("cluster")).asInstanceOf[Option[Boolean]].getOrElse(false)
 
+    // Do the uncommitted changes cleanup of datasets
+    discardUncommittedChangesOfAllDatasets()
+
     // start actor system master node
     actorSystem = AmberUtils.startActorMaster(clusterMode)
 
@@ -135,6 +155,12 @@ class TexeraWebApplication
     bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
     // register scala module to dropwizard default object mapper
     bootstrap.getObjectMapper.registerModule(DefaultScalaModule)
+
+    // register a new custom module and add the custom serializer into it
+    val customSerializerModule = new SimpleModule("CustomSerializers")
+    customSerializerModule.addSerializer(classOf[FileNode], new FileNodeSerializer())
+    bootstrap.getObjectMapper.registerModule(customSerializerModule)
+
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
       // do one time cleanup of collections that were not closed gracefully before restart/crash
@@ -225,6 +251,8 @@ class TexeraWebApplication
     environment.jersey.register(classOf[WorkflowAccessResource])
     environment.jersey.register(classOf[WorkflowResource])
     environment.jersey.register(classOf[WorkflowVersionResource])
+    environment.jersey.register(classOf[DatasetResource])
+    environment.jersey.register(classOf[DatasetAccessResource])
     environment.jersey.register(classOf[ProjectResource])
     environment.jersey.register(classOf[ProjectAccessResource])
     environment.jersey.register(classOf[WorkflowExecutionsResource])

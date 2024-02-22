@@ -28,7 +28,7 @@ describe("CodeareaCustomTemplateComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
     component = fixture.componentInstance;
-    component.field = { formControl: new FormControl() };
+    component.field = { props: {}, formControl: new FormControl() };
     fixture.detectChanges();
   });
 

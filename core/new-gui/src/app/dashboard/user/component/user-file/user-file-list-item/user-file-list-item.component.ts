@@ -27,6 +27,7 @@ export class UserFileListItemComponent {
     },
   };
 
+  @Input() public keywords: string[] = [];
   @Input() get entry(): DashboardFile {
     if (!this._entry) {
       throw new Error("entry property must be set in UserFileListItemComponent.");

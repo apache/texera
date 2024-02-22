@@ -33,6 +33,8 @@ class StatisticsManager {
     )
   }
 
+  def getInputTupleCount: Long = inputTupleCount
+
   def getOutputTupleCount: Long = outputTupleCount
 
   def increaseInputTupleCount(): Unit = {

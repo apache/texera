@@ -20,7 +20,7 @@ trait InputGateway {
 
   def addEnforcer(enforcer: OrderEnforcer): Unit
 
-  def getAllPorts(): Set[PortIdentity]
+  def getAllPorts: Set[PortIdentity]
 
   def addPort(portId: PortIdentity): Unit
 
