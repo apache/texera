@@ -47,23 +47,6 @@ class WorkflowExecutionService(
   val context: WorkflowContext = workflowContext
   logger.info("Creating a new execution.")
   val executionStateStore = new ExecutionStateStore()
-  // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
-  //  this plan will be compared in subsequent runs to check which operator can be replaced
-  //  by cache.
-  val originalLogicalPlan: LogicalPlan = new WorkflowCompiler(workflowContext)
-    .compileLogicalPlan(request.logicalPlan, executionStateStore)
-
-  // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
-  val rewrittenLogicalPlan: LogicalPlan = WorkflowCacheRewriter.transform(
-    workflowContext,
-    originalLogicalPlan,
-    lastCompletedLogicalPlan,
-    resultService.opResultStorage,
-    request.logicalPlan.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
-  )
-
-  // the PhysicalPlan with topology expanded.
-  val physicalPlan: PhysicalPlan = PhysicalPlan(workflowContext, rewrittenLogicalPlan)
 
   val wsInput = new WebsocketInput(errorHandler)
 
@@ -87,39 +70,38 @@ class WorkflowExecutionService(
     })
   )
 
-//  var workflow: Workflow = _
+  var workflow: Workflow = _
 
-//  workflowCompilation()
+  workflowCompilation()
 
-//  private def workflowCompilation(): Unit = {
-//    logger.info("Compiling the logical plan into a physical plan.")
-//
-//    try {
-//      val workflowCompiler = new WorkflowCompiler(workflowContext)
-//      workflow = workflowCompiler.compile(
-//        request.logicalPlan,
-//        resultService.opResultStorage,
-//        lastCompletedLogicalPlan,
-//        executionStateStore,
-//        controllerConfig
-//      )
-//    } catch {
-//      case e: Throwable =>
-//        logger.error("error occurred during physical plan compilation", e)
-//        executionStateStore.metadataStore.updateState { metadataStore =>
-//          updateWorkflowState(FAILED, metadataStore)
-//            .addFatalErrors(
-//              WorkflowFatalError(
-//                EXECUTION_FAILURE,
-//                Timestamp(Instant.now),
-//                e.toString,
-//                e.getStackTrace.mkString("\n"),
-//                "unknown operator"
-//              )
-//            )
-//        }
-//    }
-//  }
+  private def workflowCompilation(): Unit = {
+    logger.info("Compiling the logical plan into a physical plan.")
+
+    try {
+      val workflowCompiler = new WorkflowCompiler(workflowContext)
+      workflow = workflowCompiler.compile(
+        request.logicalPlan,
+        resultService.opResultStorage,
+        lastCompletedLogicalPlan,
+        executionStateStore
+      )
+    } catch {
+      case e: Throwable =>
+        logger.error("error occurred during physical plan compilation", e)
+        executionStateStore.metadataStore.updateState { metadataStore =>
+          updateWorkflowState(FAILED, metadataStore)
+            .addFatalErrors(
+              WorkflowFatalError(
+                EXECUTION_FAILURE,
+                Timestamp(Instant.now),
+                e.toString,
+                e.getStackTrace.mkString("\n"),
+                "unknown operator"
+              )
+            )
+        }
+    }
+  }
 
   // Runtime starts from here:
   logger.info("Initialing an AmberClient, runtime starting...")
@@ -132,13 +114,13 @@ class WorkflowExecutionService(
   def startWorkflow(): Unit = {
     client = TexeraWebApplication.createAmberRuntime(
       workflowContext,
-      physicalPlan,
+      workflow.physicalPlan,
       resultService.opResultStorage,
       controllerConfig,
       errorHandler
     )
-//    executionReconfigurationService =
-//      new ExecutionReconfigurationService(client, executionStateStore, workflow)
+    executionReconfigurationService =
+      new ExecutionReconfigurationService(client, executionStateStore, workflow)
     executionStatsService = new ExecutionStatsService(client, executionStateStore, workflowContext)
     executionRuntimeService = new ExecutionRuntimeService(
       client,
@@ -150,7 +132,7 @@ class WorkflowExecutionService(
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 
     logger.info("Starting the workflow execution.")
-    resultService.attachToExecution(executionStateStore, originalLogicalPlan, client)
+    resultService.attachToExecution(executionStateStore, workflow.originalLogicalPlan, client)
     executionStateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(READY, metadataStore.withExecutionId(workflowContext.executionId))
         .withFatalErrors(Seq.empty)

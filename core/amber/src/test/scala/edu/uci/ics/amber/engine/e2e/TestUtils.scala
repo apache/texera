@@ -23,8 +23,7 @@ object TestUtils {
       LogicalPlanPojo(operators, links, List(), List()),
       resultStorage,
       None,
-      new ExecutionStateStore(),
-      ControllerConfig.default
+      new ExecutionStateStore()
     )
   }
 

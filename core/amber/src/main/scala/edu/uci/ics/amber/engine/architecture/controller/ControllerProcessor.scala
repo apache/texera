@@ -1,6 +1,11 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.common.{AkkaActorRefMappingService, AkkaActorService, AkkaMessageTransferService, AmberProcessor}
+import edu.uci.ics.amber.engine.architecture.common.{
+  AkkaActorRefMappingService,
+  AkkaActorService,
+  AkkaMessageTransferService,
+  AmberProcessor
+}
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionController
@@ -8,7 +13,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDel
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-
 
 class ControllerProcessor(
     workflowContext: WorkflowContext,
@@ -20,7 +24,7 @@ class ControllerProcessor(
   val workflowExecution: WorkflowExecution = WorkflowExecution()
   val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext)
   val workflowExecutionController: WorkflowExecutionController = new WorkflowExecutionController(
-    ()=> this.workflowScheduler.getNextRegions,
+    () => this.workflowScheduler.getNextRegions,
     workflowExecution,
     controllerConfig,
     asyncRPCClient
