@@ -4628,11 +4628,6 @@
   dependencies:
     "@types/geojson" "*"
 
-"@types/marked@4.0.8":
-  version "4.0.8"
-  resolved "https://registry.yarnpkg.com/@types/marked/-/marked-4.0.8.tgz#b316887ab3499d0a8f4c70b7bd8508f92d477955"
-  integrity sha512-HVNzMT5QlWCOdeuBsgXP8EZzKUf0+AXzN+sLmjvaB3ZlLqO+e4u0uXrdw9ub69wBKFs+c6/pA4r9sy6cCDvImw==
-
 "@types/mime@*":
   version "3.0.4"
   resolved "https://registry.yarnpkg.com/@types/mime/-/mime-3.0.4.tgz#2198ac274de6017b44d941e00261d5bc6a0e0a45"
@@ -11441,10 +11436,10 @@ mapbox-gl@~2.15.0:
     tinyqueue "^2.0.3"
     vt-pbf "^3.1.3"
 
-marked@4.2.12:
-  version "4.2.12"
-  resolved "https://registry.yarnpkg.com/marked/-/marked-4.2.12.tgz#d69a64e21d71b06250da995dcd065c11083bebb5"
-  integrity sha512-yr8hSKa3Fv4D3jdZmtMMPghgVt6TWbk86WQaWhDloQjRSQhMMYCAro7jP7VDJrjjdV8pxVxMssXS8B8Y5DZ5aw==
+marked@9.0.0:
+  version "9.0.0"
+  resolved "https://registry.yarnpkg.com/marked/-/marked-9.0.0.tgz#d812a4a452d219330561f6e0e4b669b784889303"
+  integrity sha512-37yoTpjU+TSXb9OBYY5n78z/CqXh76KiQj9xsKxEdztzU9fRLmbWO5YqKxgCVGKlNdexppnbKTkwB3RipVri8w==
 
 math.gl@^3.6.2:
   version "3.6.3"
@@ -11712,10 +11707,10 @@ monaco-editor@0.36.1:
   resolved "https://registry.yarnpkg.com/monaco-editor/-/monaco-editor-0.36.1.tgz#aad528c815605307473a1634612946921d8079b5"
   integrity sha512-/CaclMHKQ3A6rnzBzOADfwdSJ25BFoFT0Emxsc4zYVyav5SkK9iA6lEtIeuN/oRYbwPgviJT+t3l+sjFa28jYg==
 
-monaco-languageclient@5.0.0:
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/monaco-languageclient/-/monaco-languageclient-5.0.0.tgz#ae9dc22d4cd6a3bfb63612a2d253b099ec261277"
-  integrity sha512-RHTw/00aIgfewry7pPYV03kwGCIOmg28Frry0+GvUjTjWbj3zdpnJ1NyMkDJFULv/3/ogKt6cA9/Z54ByzdQ+A==
+monaco-languageclient@5.0.1:
+  version "5.0.1"
+  resolved "https://registry.yarnpkg.com/monaco-languageclient/-/monaco-languageclient-5.0.1.tgz#af0c871a2b511fa92a291cc71914a0f8d7889752"
+  integrity sha512-zTEb8PQZpnYiKkJofdIArMikX7CyQ7205copJNWSCMlOK9eEsbCM8TYb+D7f+MNWt7aOBbustQuqhwjsI3ZYgw==
   dependencies:
     vscode-jsonrpc "~8.1.0"
     vscode-languageclient "~8.1.0"
