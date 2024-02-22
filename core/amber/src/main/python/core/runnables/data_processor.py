@@ -38,20 +38,13 @@ class DataProcessor(Runnable, Stoppable):
             try:
                 operator = self._context.operator_manager.operator
                 tuple_ = self._context.tuple_processing_manager.current_input_tuple
-                link = self._context.tuple_processing_manager.current_input_link
+                port_id = self._context.tuple_processing_manager.current_input_port_id
                 port: int
-                if link is None:
+                if port_id is None:
                     # no upstream, special case for source operator.
-                    port = -1
-
-                elif link in self._context.tuple_processing_manager.input_link_map:
-                    port = self._context.tuple_processing_manager.input_link_map[link]
-
+                    port = 0
                 else:
-                    raise Exception(
-                        f"Unexpected input link {link}, not in input mapping "
-                        f"{self._context.tuple_processing_manager.input_link_map}"
-                    )
+                    port = port_id.id
 
                 output_iterator = (
                     operator.process_tuple(tuple_, port)

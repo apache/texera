@@ -2791,19 +2791,19 @@
   resolved "https://registry.yarnpkg.com/@ngtools/webpack/-/webpack-14.2.13.tgz#859b38aaa57ffe1351d08f9166724936c9e6b365"
   integrity sha512-RQx/rGX7K/+R55x1R6Ax1JzyeHi8cW11dEXpzHWipyuSpusQLUN53F02eMB4VTakXsL3mFNWWy4bX3/LSq8/9w==
 
-"@ngx-formly/core@5.11.1":
-  version "5.11.1"
-  resolved "https://registry.yarnpkg.com/@ngx-formly/core/-/core-5.11.1.tgz#9a9e91235f8d2e5d1d90de6c55a7f69350d1da0f"
-  integrity sha512-3A2IT91Ti+tDv3wsH1olUls7qn9Yfv3ZqSmFKifwbVrLldd9r/8lgrqpdU/7sZFhOl9WHRLpcx/pElkYB/lICQ==
+"@ngx-formly/core@6.3.0":
+  version "6.3.0"
+  resolved "https://registry.yarnpkg.com/@ngx-formly/core/-/core-6.3.0.tgz#950461b48d2fbad58255e327c3609e9f8287bf06"
+  integrity sha512-9qCoPdLLVShoruzXeJUjMdIhfIlHCI+TggA3Wc01ISHTK2vXx1gNIFLuS+hez3JEzu8nIDRuA/nWqj4j8fJCNg==
   dependencies:
-    tslib "^1.7.1"
+    tslib "^2.0.0"
 
-"@ngx-formly/material@5.11.1":
-  version "5.11.1"
-  resolved "https://registry.yarnpkg.com/@ngx-formly/material/-/material-5.11.1.tgz#c5aa72b6f623c4091856c099127ff34cac13fe56"
-  integrity sha512-KewyHx4hrisqo/l9CAQKCAAXC8j9gCgKwhHewL2D7bfz5IutvZrpNb9F1SkBaaUq/DqF7GQUXeKy/WIX8XcG6w==
+"@ngx-formly/ng-zorro-antd@6.3.0":
+  version "6.3.0"
+  resolved "https://registry.yarnpkg.com/@ngx-formly/ng-zorro-antd/-/ng-zorro-antd-6.3.0.tgz#d69e922bb945551bf47f8857bf5210855e43c0fa"
+  integrity sha512-mh1mXMA0KC/xHyPCD6w/yf94kKKZZHfLu9S8ZcjHnFQsNatK5AHN89XKpzfqBq4QmL7QpKcIw3LFmSJSRPODbw==
   dependencies:
-    tslib "^1.9.0"
+    tslib "^2.0.0"
 
 "@nodelib/fs.scandir@2.1.5":
   version "2.1.5"
@@ -9150,10 +9150,11 @@ internmap@^1.0.0:
   resolved "https://registry.yarnpkg.com/internmap/-/internmap-1.0.1.tgz#0017cc8a3b99605f0302f2b198d272e015e5df95"
   integrity sha512-lDB5YccMydFBtasVtxnZ3MRBHuaoE8GKsppq+EchKL2U4nK/DmEpPHNH8MZe5HkMtpSiTSOZwfN0tzYjO/lJEw==
 
+
 ip@^2.0.0:
-  version "2.0.0"
-  resolved "https://registry.yarnpkg.com/ip/-/ip-2.0.0.tgz#4cf4ab182fee2314c75ede1276f8c80b479936da"
-  integrity sha512-WKa+XuLG1A1R0UWhl2+1XQSi+fZWMsYKffMZTTYsiZaUD8k2yDAj5atimTUD2TZkyCkNEeYE5NhFZmupOGtjYQ==
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/ip/-/ip-2.0.1.tgz#e8f3595d33a3ea66490204234b77636965307105"
+  integrity sha512-lJUL9imLTNi1ZfXT+DU6rBBdbiKGBuay9B6xGSPVjUeQwaH1RIGqef8RZkUtHioLmSNpPR5M4HVKJGm1j8FWVQ==
 
 ipaddr.js@1.9.1:
   version "1.9.1"
@@ -10942,12 +10943,12 @@ ng-zorro-antd@14.0.0:
     date-fns "^2.16.1"
     tslib "^2.3.0"
 
-ng2-file-upload@1.4.0:
-  version "1.4.0"
-  resolved "https://registry.yarnpkg.com/ng2-file-upload/-/ng2-file-upload-1.4.0.tgz#8dea28d573234c52af474ad2a4001b335271e5c4"
-  integrity sha512-3J/KPU/tyh/ad6TFeUbrxX+SihUj0iOEt2Zsg4EX7mB3GFiQscXOfcUOxCkBtPWWWaqt3azrYbVGzsYa3/7NzQ==
+ng2-file-upload@2.0.0-3:
+  version "2.0.0-3"
+  resolved "https://registry.yarnpkg.com/ng2-file-upload/-/ng2-file-upload-2.0.0-3.tgz#0d95df9e59579fc142f62ac020cf16367c811d09"
+  integrity sha512-x0BWVJVO3uyc7l/6BWkdvXuAcDv5Jfnf3AGaxIGYGMxNb+64wuVzIjrAhwsoYyIR7qV2Q0X98UGkArq3jpr/hA==
   dependencies:
-    tslib "^1.9.0"
+    tslib "^2.0.0"
 
 ngx-color-picker@12.0.1:
   version "12.0.1"

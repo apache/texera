@@ -2,10 +2,10 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatusUpdate
-
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 
@@ -26,21 +26,36 @@ trait QueryWorkerStatisticsHandler {
 
   registerHandler[ControllerInitiateQueryStatistics, Unit]((msg, sender) => {
     // send to specified workers (or all workers by default)
-    val workers = msg.filterByWorkers.getOrElse(cp.executionState.getAllBuiltWorkers).toList
+    val workers = msg.filterByWorkers.getOrElse(
+      cp.workflowExecution.getAllRegionExecutions
+        .flatMap(_.getAllOperatorExecutions.map(_._2))
+        .flatMap(_.getWorkerIds)
+    )
 
     // send QueryStatistics message
-    val requests = workers.map(worker =>
-      // must immediately update worker state and stats after reply
-      send(QueryStatistics(), worker).map(res => {
-        val workerInfo = cp.executionState.getOperatorExecution(worker).getWorkerInfo(worker)
-        workerInfo.state = res.workerState
-        workerInfo.stats = res
-      })
-    )
+    val requests = workers
+      .map(workerId =>
+        // must immediately update worker state and stats after reply
+        send(QueryStatistics(), workerId).map(stats => {
+          val workerExecution =
+            cp.workflowExecution
+              .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
+              .getWorkerExecution(workerId)
+          workerExecution.setState(stats.workerState)
+          workerExecution.setStats(stats)
+        })
+      )
+      .toSeq
 
     // wait for all workers to reply before notifying frontend
     Future
       .collect(requests)
-      .map(_ => sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus)))
+      .map(_ =>
+        sendToClient(
+          WorkflowStatsUpdate(
+            cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+          )
+        )
+      )
   })
 }

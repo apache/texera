@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.mutable
 
@@ -14,7 +15,9 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
   private val inputChannels =
     new mutable.HashMap[ChannelIdentity, AmberFIFOChannel]()
 
-  private val enforcers = mutable.ListBuffer[OrderEnforcer]()
+  private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
+
+  @transient lazy private val enforcers = mutable.ListBuffer[OrderEnforcer]()
 
   def tryPickControlChannel: Option[AmberFIFOChannel] = {
     val ret = inputChannels
@@ -65,5 +68,27 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
 
   override def addEnforcer(enforcer: OrderEnforcer): Unit = {
     enforcers += enforcer
+  }
+
+  override def getAllPorts: Set[PortIdentity] = {
+    this.ports.keys.toSet
+  }
+
+  def addPort(portId: PortIdentity): Unit = {
+    // each port can only be added and initialized once.
+    if (this.ports.contains(portId)) {
+      return
+    }
+    this.ports(portId) = WorkerPort()
+  }
+
+  def getPort(portId: PortIdentity): WorkerPort = ports(portId)
+
+  def isPortCompleted(portId: PortIdentity): Boolean = {
+    // a port without channels is not completed.
+    if (this.ports(portId).channels.isEmpty) {
+      return false
+    }
+    this.ports(portId).channels.values.forall(completed => completed)
   }
 }

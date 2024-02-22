@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.scheduling.config
 
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.workflow.{
   BroadcastPartition,
   HashPartition,
@@ -14,18 +15,23 @@ case object ChannelConfig {
   def generateChannelConfigs(
       fromWorkerIds: List[ActorVirtualIdentity],
       toWorkerIds: List[ActorVirtualIdentity],
+      toPortId: PortIdentity,
       partitionInfo: PartitionInfo
   ): List[ChannelConfig] = {
     partitionInfo match {
       case HashPartition(_) | RangePartition(_, _, _) | BroadcastPartition() | UnknownPartition() =>
         fromWorkerIds.flatMap(fromWorkerId =>
-          toWorkerIds.map(toWorkerId => ChannelConfig(fromWorkerId, toWorkerId))
+          toWorkerIds.map(toWorkerId =>
+            ChannelConfig(ChannelIdentity(fromWorkerId, toWorkerId, isControl = false), toPortId)
+          )
         )
 
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
         val toWorkerId = toWorkerIds.head
-        fromWorkerIds.map(fromWorkerId => ChannelConfig(fromWorkerId, toWorkerId))
+        fromWorkerIds.map(fromWorkerId =>
+          ChannelConfig(ChannelIdentity(fromWorkerId, toWorkerId, isControl = false), toPortId)
+        )
       case _ =>
         List()
 
@@ -33,6 +39,6 @@ case object ChannelConfig {
   }
 }
 case class ChannelConfig(
-    fromWorkerId: ActorVirtualIdentity,
-    toWorkerId: ActorVirtualIdentity
+    channelId: ChannelIdentity,
+    toPortId: PortIdentity
 )

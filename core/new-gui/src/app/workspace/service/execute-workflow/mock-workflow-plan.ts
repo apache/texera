@@ -39,7 +39,6 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
       toPortId: { id: 0, internal: false },
     },
   ],
-  breakpoints: [],
   opsToViewResult: [],
   opsToReuseResult: [],
 };
@@ -81,7 +80,6 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
       toPortId: { id: 0, internal: false },
     },
   ],
-  breakpoints: [],
   opsToViewResult: [],
   opsToReuseResult: [],
 };

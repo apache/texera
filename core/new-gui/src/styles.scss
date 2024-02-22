@@ -1,5 +1,4 @@
 @import "~c3/c3.min.css";
-@import "material-custom-theme.scss";
 
 // make the UI takes full screen
 html,
@@ -32,4 +31,48 @@ blockquote {
 
 .mat-expansion-panel-body {
   padding: 0 !important;
+}
+
+.dynamic-fields .ant-form-item {
+  display: inline-block;
+  width: 50%;
+  padding-right: 4px;
+  margin: 0;
+}
+
+.ant-form-item {
+  font-size: 12px;
+}
+
+.ant-form-item-extra {
+  font-size: 11px;
+  line-height: 11px;
+}
+
+.ant-input {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.ant-select-selector {
+  height: 24px !important;
+}
+
+.ant-select-selection-item {
+  line-height: 24px !important;
+}
+
+.ant-form-item-label {
+  padding-bottom: 0 !important;
+}
+
+hr {
+  background-color: #d3d3d3;
+  height: 1px;
+  border: 0;
+}
+
+// due to innerHTML, this rule has to be global
+.highlight-search-terms {
+  color: blue;
 }

@@ -1,6 +1,6 @@
 import { Component, ComponentRef } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { FieldType } from "@ngx-formly/core";
+import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { CodeEditorComponent } from "../code-editor-dialog/code-editor.component";
 import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
 import { CodeEditorService } from "../../service/code-editor/code-editor.service";
@@ -17,7 +17,7 @@ import { CodeEditorService } from "../../service/code-editor/code-editor.service
   templateUrl: "codearea-custom-template.component.html",
   styleUrls: ["codearea-custom-template.component.scss"],
 })
-export class CodeareaCustomTemplateComponent extends FieldType<any> {
+export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> {
   componentRef: ComponentRef<CodeEditorComponent> | undefined;
   constructor(private coeditorPresenceService: CoeditorPresenceService, private codeEditorService: CodeEditorService) {
     super();

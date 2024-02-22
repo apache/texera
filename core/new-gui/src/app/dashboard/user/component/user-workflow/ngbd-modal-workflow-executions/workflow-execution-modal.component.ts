@@ -1,15 +1,14 @@
 import { AfterViewInit, Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import * as c3 from "c3";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
-import { ChartType } from "src/app/workspace/types/visualization.interface";
 import { ceil } from "lodash";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
+import * as Plotly from "plotly.js-basic-dist-min";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -25,9 +24,14 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
-  public static readonly WIDTH = 300;
-  public static readonly HEIGHT = 300;
+  public static readonly WIDTH = 450;
+  public static readonly HEIGHT = 450;
   public static readonly BARCHARTSIZE = 600;
+
+  // Instance properties referencing the static ones
+  public usernamePieChartId = WorkflowExecutionModalComponent.USERNAME_PIE_CHART_ID;
+  public statusPieChartId = WorkflowExecutionModalComponent.STATUS_PIE_CHART_ID;
+  public processTimeBarChart = WorkflowExecutionModalComponent.PROCESS_TIME_BAR_CHART;
 
   @Input() wid!: number;
 
@@ -151,19 +155,17 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
 
         this.generatePieChart(
           Object.values(userNameData),
-          ["user name"],
           "Users who ran the execution",
           WorkflowExecutionModalComponent.USERNAME_PIE_CHART_ID
         );
 
         this.generatePieChart(
           Object.values(statusData),
-          ["status"],
           "Executions status",
           WorkflowExecutionModalComponent.STATUS_PIE_CHART_ID
         );
         // generate an average processing time bar chart
-        const processTimeData: Array<[string, ...c3.PrimitiveArray]> = [["processing time"]];
+        const processTimeData: Array<[string, ...number[]]> = [["processing time"]];
         const processTimeCategory: string[] = [];
         Object.entries(this.getBarChartProcessTimeData(workflowExecutions)).forEach(([eId, processTime]) => {
           processTimeData[0].push(processTime);
@@ -180,72 +182,56 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
       });
   }
 
-  generatePieChart(
-    dataToDisplay: Array<[string, ...c3.PrimitiveArray]>,
-    category: string[],
-    title: string,
-    chart: string
-  ) {
-    c3.generate({
-      size: {
-        height: WorkflowExecutionModalComponent.HEIGHT,
-        width: WorkflowExecutionModalComponent.WIDTH,
+  generatePieChart(dataToDisplay: Array<[string, ...number[]]>, title: string, chart: string) {
+    var data = [
+      {
+        values: dataToDisplay.map(d => d[1]),
+        labels: dataToDisplay.map(d => d[0]),
+        type: "pie" as const,
       },
-      data: {
-        columns: dataToDisplay,
-        type: ChartType.PIE,
-      },
-      axis: {
-        x: {
-          type: "category",
-          categories: category,
-        },
-      },
+    ];
+    var layout = {
+      height: WorkflowExecutionModalComponent.HEIGHT,
+      width: WorkflowExecutionModalComponent.WIDTH,
       title: {
         text: title,
       },
-      bindto: chart,
-    });
+    };
+    Plotly.newPlot(chart, data, layout);
   }
 
   generateBarChart(
-    dataToDisplay: Array<[string, ...c3.PrimitiveArray]>,
+    dataToDisplay: Array<[string, ...number[]]>,
     category: string[],
     x_label: string,
     y_label: string,
     title: string,
     chart: string
   ) {
-    c3.generate({
-      size: {
-        height: WorkflowExecutionModalComponent.BARCHARTSIZE,
-        width: WorkflowExecutionModalComponent.BARCHARTSIZE,
+    console.log(category);
+    console.log(dataToDisplay[0].slice(1));
+    var data = [
+      {
+        x: category.map(c => `${c}`),
+        y: dataToDisplay[0].slice(1),
+        type: "bar" as const,
       },
-      data: {
-        columns: dataToDisplay,
-        type: ChartType.BAR,
+    ];
+
+    var layout = {
+      title: title,
+      xaxis: {
+        title: x_label,
       },
-      axis: {
-        x: {
-          label: {
-            text: x_label,
-            position: "outer-right",
-          },
-          type: "category",
-          categories: category, // this categories contain the corresponding row eid
-        },
-        y: {
-          label: {
-            text: y_label,
-            position: "outer-top",
-          },
-        },
+      yaxis: {
+        title: y_label,
       },
-      title: {
-        text: title,
-      },
-      bindto: chart,
-    });
+      autosize: false,
+      width: WorkflowExecutionModalComponent.BARCHARTSIZE,
+      height: WorkflowExecutionModalComponent.BARCHARTSIZE,
+    };
+
+    Plotly.newPlot(chart, data, layout);
   }
 
   /**
@@ -683,7 +669,7 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
         category += String(eIdToNumber);
       }
       if (tracker === divider) {
-        category += "-" + String(eIdToNumber);
+        category += "~" + String(eIdToNumber);
         processTimeData[category] = totProcessTime / divider;
         tracker = 0;
         totProcessTime = 0;

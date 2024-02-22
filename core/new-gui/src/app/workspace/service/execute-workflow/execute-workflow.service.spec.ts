@@ -12,7 +12,6 @@ import { Observable, of } from "rxjs";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
-import { WorkflowGraph } from "../workflow-graph/model/workflow-graph";
 import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
@@ -49,7 +48,6 @@ describe("ExecuteWorkflowService", () => {
 
     service = TestBed.inject(ExecuteWorkflowService);
     mockWorkflowSnapshotService = TestBed.inject(WorkflowSnapshotService);
-    environment.pauseResumeEnabled = true;
   });
 
   it("should be created", inject([ExecuteWorkflowService], (injectedService: ExecuteWorkflowService) => {
@@ -62,16 +60,12 @@ describe("ExecuteWorkflowService", () => {
   });
 
   it("should msg backend when executing workflow", fakeAsync(() => {
-    if (environment.amberEngineEnabled) {
-      const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
-      const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
-      service.sendExecutionRequest("", logicalPlan);
-      tick(FORM_DEBOUNCE_TIME_MS + 1);
-      flush();
-      expect(wsSendSpy).toHaveBeenCalledTimes(1);
-    } else {
-      throw new Error("old texera engine not supported");
-    }
+    const logicalPlan: LogicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(mockWorkflowPlan_scan_result);
+    const wsSendSpy = spyOn((service as any).workflowWebsocketService, "send");
+    service.sendExecutionRequest("", logicalPlan);
+    tick(FORM_DEBOUNCE_TIME_MS + 1);
+    flush();
+    expect(wsSendSpy).toHaveBeenCalledTimes(1);
   }));
 
   it("it should raise an error when pauseWorkflow() is called without an execution state", () => {
