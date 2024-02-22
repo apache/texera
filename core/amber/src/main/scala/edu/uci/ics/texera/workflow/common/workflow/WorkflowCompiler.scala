@@ -84,6 +84,8 @@ class WorkflowCompiler(
       logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
     )
 
+    val startTime = System.nanoTime()
+
     // the PhysicalPlan with topology expanded.
     val physicalPlan = PhysicalPlan(context, rewrittenLogicalPlan)
 
@@ -94,6 +96,10 @@ class WorkflowCompiler(
       physicalPlan,
       opResultStorage
     ).generate()
+
+    val endTime = System.nanoTime()
+    val duration = (endTime - startTime) / 1e6d // Convert nanoseconds to milliseconds
+    println(s"Execution time: $duration ms")
 
     // validate the plan
     // TODO: generalize validation to each plan

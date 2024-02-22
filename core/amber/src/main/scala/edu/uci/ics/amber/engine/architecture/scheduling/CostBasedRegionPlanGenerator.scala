@@ -32,8 +32,6 @@ class CostBasedRegionPlanGenerator(
 
   private val executionClusterInfo = new ExecutionClusterInfo()
 
-  private val candidateNBEdges = mutable.Set.empty[PhysicalLink]
-
   override def generate(): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG(workflowContext)
@@ -84,15 +82,14 @@ class CostBasedRegionPlanGenerator(
         regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       } catch {
         case _: IllegalArgumentException =>
-          candidateNBEdges ++= (physicalPlan.getUpstreamPhysicalLinks(blockingEdge.toOpId).filter(nbEdge => nbEdge != blockingEdge))
-          None
+          return None
       }
     })
     Option(regionGraph)
   }
 
   private def createRegionDAG(context: WorkflowContext): DirectedAcyclicGraph[Region, RegionLink] = {
-    val searchResult = bfs()
+    val searchResult = search(true)
     val linksToMaterialize = searchResult.state
     if (linksToMaterialize.nonEmpty) {
       val matReaderWriterPairs = new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
@@ -101,7 +98,7 @@ class CostBasedRegionPlanGenerator(
         matReaderWriterPairs
       ))
     }
-    val updatedSearchResult = bfs()
+    val updatedSearchResult = search(true)
     val regionDAG = updatedSearchResult.regionDAG
     populateDownstreamLinks(regionDAG)
     allocateResource(regionDAG)
@@ -110,7 +107,7 @@ class CostBasedRegionPlanGenerator(
 
   private case class SearchResult(state: Set[PhysicalLink], regionDAG: DirectedAcyclicGraph[Region, RegionLink], cost: Double)
 
-  private def bfs(): SearchResult = {
+  private def search(greedy: Boolean = false): SearchResult = {
     val originalNonBlockingEdges = physicalPlan.getNonBridgeNonBlockingLinks
     // Queue to hold states to be explored, starting with the empty set
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
@@ -139,17 +136,20 @@ class CostBasedRegionPlanGenerator(
             val candidateEdges = originalNonBlockingEdges
               .diff(edgesInChainWithBlockingEdge)
               .diff(currentState)
-//            candidateEdges.foreach { link =>
-//                val nextState = currentState + link
-//                if (!visited.contains(nextState) && !queue.contains(nextState)) {
-//                  queue.enqueue(nextState)
-//                }
-//              }
-                  val nextLink = candidateEdges.head
-                  val nextState = currentState + nextLink
-                  if (!visited.contains(nextState) && !queue.contains(nextState)) {
-                    queue.enqueue(nextState)
-                  }
+            if (greedy) {
+              val nextLink = candidateEdges.minBy(e=>cost(currentState + e))
+              val nextState = currentState + nextLink
+              if (!visited.contains(nextState) && !queue.contains(nextState)) {
+                queue.enqueue(nextState)
+              }
+            } else {
+              candidateEdges.foreach { link =>
+                val nextState = currentState + link
+                if (!visited.contains(nextState) && !queue.contains(nextState)) {
+                  queue.enqueue(nextState)
+                }
+              }
+            }
           }
       }
     }
@@ -159,10 +159,7 @@ class CostBasedRegionPlanGenerator(
 
   private def cost(state: Set[PhysicalLink]): Double = {
     // Using number of materialization (region) edges as a cost.
-//    regionDAG.edgeSet().size().toDouble
-    if (state.intersect(candidateNBEdges).nonEmpty) 0
-    else Double.PositiveInfinity
-//    state.size
+    state.size
   }
 
   private def replaceLinkWithMaterialization(
