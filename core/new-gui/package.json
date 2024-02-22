@@ -88,7 +88,8 @@
     "y-quill": "0.1.5",
     "y-websocket": "1.4.0",
     "yjs": "13.5.41",
-    "zone.js": "0.13.0"
+    "zone.js": "0.13.0",
+
   },
   "devDependencies": {
     "@angular-builders/custom-webpack": "16.0.1",
