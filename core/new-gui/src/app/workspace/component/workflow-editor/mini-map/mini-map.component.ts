@@ -16,14 +16,13 @@ export class MiniMapComponent implements AfterViewInit {
   dragging = false;
 
   //加
-  minimapDisplay = true;
+  minimapDisplay = false;
   screenWidth = window.innerWidth;
-  miniMapWidth = 400;
+  miniMapWidth = 47;
 
   constructor(private workflowActionService: WorkflowActionService) {}
 
   ngAfterViewInit() {
-    console.log(1111)
     const map = document.getElementById("mini-map")!;
     this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
     new joint.dia.Paper({
