@@ -40,7 +40,7 @@
       </li>
       <li
         nz-menu-item
-        nzSelected
+        nzSelected="{{!this.propertyDisplay}}"
         cdkDragHandle
         *ngIf="!this.propertyDisplay">
         <span
@@ -50,7 +50,7 @@
       </li>
       <li
         nz-menu-item
-        nzSelected
+        nzSelected="{{this.propertyDisplay}}"
         (click)="openPropertyPanel()">
         <span
           nz-icon

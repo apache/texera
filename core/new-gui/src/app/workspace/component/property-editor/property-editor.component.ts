@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener } from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
@@ -24,7 +24,7 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
   templateUrl: "property-editor.component.html",
   styleUrls: ["property-editor.component.scss"],
 })
-export class PropertyEditorComponent implements OnInit {
+export class PropertyEditorComponent implements OnInit, OnDestroy {
   frameComponentConfig?: PropertyEditFrameConfig;
 
   //加
@@ -32,10 +32,23 @@ export class PropertyEditorComponent implements OnInit {
   screenWidth = window.innerWidth;
   propertyWidth = 400;
 
-  constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {}
+  constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {
+    const width = localStorage.getItem("property-panel-width");
+    if (width) this.propertyWidth = Number(width);
+
+    const display = localStorage.getItem("property-panel-display");
+
+    if (display === "true") {
+      this.propertyDisplay = true;
+    } else { 
+      this.propertyDisplay = false;
+    }
+  }
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
+    const style = localStorage.getItem("property-panel-style");
+    if (style) document.getElementById("property-editor-container")!.style.cssText = style;
   }
 
   switchFrameComponent(targetConfig?: PropertyEditFrameConfig) {
@@ -49,6 +62,18 @@ export class PropertyEditorComponent implements OnInit {
     this.frameComponentConfig = targetConfig;
   }
 
+  @HostListener("window:beforeunload")
+  ngOnDestroy(): void {
+    localStorage.setItem("property-panel-width", String(this.propertyWidth));
+
+    if (this.propertyDisplay) {
+      localStorage.setItem("property-panel-display", "true");
+    } else {
+      localStorage.setItem("property-panel-display", "false");
+    }
+
+    localStorage.setItem("property-panel-style", document.getElementById("property-editor-container")!.style.cssText);
+  }
   /**
    * This method changes the property editor according to how operators are highlighted on the workflow editor.
    *
