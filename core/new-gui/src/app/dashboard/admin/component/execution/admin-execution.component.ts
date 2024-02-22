@@ -249,7 +249,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
     this.modalService.create({
       nzContent: WorkflowExecutionModalComponent,
-      nzComponentParams: { wid: wid },
+      nzData: { wid: wid },
       nzTitle: "Execution results of Workflow: " + name,
       nzFooter: null,
       nzWidth: "80%",
