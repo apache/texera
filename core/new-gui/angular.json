@@ -93,8 +93,8 @@
               }
             ],
             "karmaConfig": "./karma.conf.js",
-            "polyfills": ["zone.js"],
-            "scripts": [],
+            "main": "src/test.ts",
+            "polyfills": ["zone.js", "zone.js/testing"],
             "styles": [
               "node_modules/jointjs/css/layout.css",
               "node_modules/jointjs/css/themes/material.css",
