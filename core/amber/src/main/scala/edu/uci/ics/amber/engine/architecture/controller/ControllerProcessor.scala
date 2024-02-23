@@ -6,6 +6,7 @@ import edu.uci.ics.amber.engine.architecture.common.{
   AkkaMessageTransferService,
   AmberProcessor
 }
+import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionController
@@ -19,7 +20,7 @@ class ControllerProcessor(
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
-  val executionState = new ExecutionState(workflow)
+  val workflowExecution: WorkflowExecution = WorkflowExecution()
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
@@ -55,8 +56,7 @@ class ControllerProcessor(
   def initWorkflowExecutionController(): Unit = {
     this.workflowExecutionController = new WorkflowExecutionController(
       workflow.regionPlan,
-      executionState,
-      actorService,
+      workflowExecution,
       controllerConfig,
       asyncRPCClient
     )

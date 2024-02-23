@@ -96,7 +96,7 @@ public class JGitVersionControl {
 
         // Determine if the current path is at the root level
         if (treeWalk.getDepth() == 0) {
-          FileNode rootNode = new FileNode(fullPath);
+          FileNode rootNode = new FileNode(repoPath, fullPath);
           rootNodes.add(rootNode);
           pathToFileNodeMap.put(pathStr, rootNode);
         } else {
@@ -106,7 +106,7 @@ public class JGitVersionControl {
           FileNode parentNode = pathToFileNodeMap.get(parentPathStr);
 
           if (parentNode == null) {
-            parentNode = new FileNode(parentPath);
+            parentNode = new FileNode(repoPath, parentPath);
             pathToFileNodeMap.put(parentPathStr, parentNode);
             // Determine if this parent should be added to rootNodes
             if (parentPath.getParent().equals(repoPath)) {
@@ -114,7 +114,7 @@ public class JGitVersionControl {
             }
           }
 
-          FileNode childNode = new FileNode(fullPath);
+          FileNode childNode = new FileNode(repoPath, fullPath);
           parentNode.addChildNode(childNode);
           // Map child node to its path for potential future children
           pathToFileNodeMap.put(pathStr, childNode);

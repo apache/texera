@@ -7,28 +7,35 @@ import java.util.Objects;
 import java.util.Set;
 
 public class FileNode {
-  private final Path path;
+  private final Path absoluteFilePath;
+
+  private final Path relativeFilePath;
   private final Set<FileNode> children;
 
-  public FileNode(Path path) {
-    this.path = path;
+  public FileNode(Path repoPath, Path path) {
+    this.absoluteFilePath = path;
+    this.relativeFilePath = repoPath.relativize(this.absoluteFilePath);
     this.children = new HashSet<>();
   }
 
   public boolean isFile() {
-    return Files.isRegularFile(path);
+    return Files.isRegularFile(absoluteFilePath);
   }
 
   public boolean isDirectory() {
-    return Files.isDirectory(path);
+    return Files.isDirectory(absoluteFilePath);
   }
 
-  public Path getPath() {
-    return path;
+  public Path getAbsolutePath() {
+    return absoluteFilePath;
+  }
+
+  public Path getRelativePath() {
+    return relativeFilePath;
   }
 
   public void addChildNode(FileNode child) {
-    if (!child.getPath().getParent().equals(this.path)) {
+    if (!child.getAbsolutePath().getParent().equals(this.absoluteFilePath)) {
       throw new IllegalArgumentException("Child node is not a direct subpath of the parent node");
     }
     this.children.add(child);
@@ -43,12 +50,12 @@ public class FileNode {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
     FileNode fileNode = (FileNode) o;
-    return Objects.equals(path, fileNode.path) &&
+    return Objects.equals(absoluteFilePath, fileNode.absoluteFilePath) &&
         Objects.equals(children, fileNode.children);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(path, children);
+    return Objects.hash(absoluteFilePath, children);
   }
 }
