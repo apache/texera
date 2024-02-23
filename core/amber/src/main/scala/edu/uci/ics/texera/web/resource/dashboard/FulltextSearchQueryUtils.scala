@@ -36,10 +36,10 @@ object FulltextSearchQueryUtils {
     if (fields.isEmpty) return noCondition()
     val trimmedKeywords = keywords.filter(_.nonEmpty).map(_.trim)
     val fullFieldNames = fields.map(_.toString.replace("\"", ""))
-    trimmedKeywords.foldLeft(noCondition()) { (acc, key) =>
-      fullFieldNames.foldLeft(acc) { (accInner, fieldName) =>
-        accInner.or(s"$fieldName LIKE '%$key%'")
-      }
+    fullFieldNames.foldLeft(noCondition()) { (acc, fieldName) =>
+      acc.or(trimmedKeywords.foldLeft(noCondition()) { (accInner, key) =>
+        accInner.and(s"$fieldName LIKE '%$key%'")
+      })
     }
   }
 
