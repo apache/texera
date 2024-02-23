@@ -120,12 +120,12 @@ class UnifiedResourceSchema private (
   val allFields: Seq[Field[_]] = fieldMappingSeq.map(_._2)
 
   private val translatedFieldSet: Seq[(Field[_], Field[_])] = {
-    val dedupTranslated = new mutable.HashSet[Field[_]]()
+    val addedFields = new mutable.HashSet[Field[_]]()
     val output = new mutable.ArrayBuffer[(Field[_], Field[_])]()
     fieldMappingSeq.foreach {
       case (original, translated) =>
-        if (!dedupTranslated.contains(translated)) {
-          dedupTranslated.add(translated)
+        if (!addedFields.contains(original)) {
+          addedFields.add(original)
           output.addOne((original, translated))
         }
     }
