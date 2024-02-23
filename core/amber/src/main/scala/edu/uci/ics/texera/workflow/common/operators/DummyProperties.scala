@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import com.fasterxml.jackson.annotation.JsonPropertyDescription
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import com.fasterxml.jackson.annotation.JsonProperty
 class DummyProperties {

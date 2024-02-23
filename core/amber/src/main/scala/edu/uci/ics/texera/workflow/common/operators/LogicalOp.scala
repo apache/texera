@@ -1,7 +1,13 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo, JsonPropertyDescription}
+import com.fasterxml.jackson.annotation.{
+  JsonIgnore,
+  JsonProperty,
+  JsonSubTypes,
+  JsonTypeInfo,
+  JsonPropertyDescription
+}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
