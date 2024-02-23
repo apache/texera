@@ -11,6 +11,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
@@ -161,34 +163,11 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
   ): List[DashboardWorkflow] = {
-    context
-      .select()
-      .from(WORKFLOW_OF_PROJECT)
-      .join(WORKFLOW)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .where(WORKFLOW_OF_PROJECT.PID.eq(pid))
-      .fetch()
-      .map(workflowRecord =>
-        DashboardWorkflow(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
-            .toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          List()
-        )
-      )
-      .asScala
-      .toList
+    val result = DashboardResource.searchAllResources(
+      user,
+      SearchQueryParams(resourceType = "workflow", projectIds = util.Arrays.asList(pid))
+    )
+    result.results.map(_.workflow.get)
   }
 
   /**
