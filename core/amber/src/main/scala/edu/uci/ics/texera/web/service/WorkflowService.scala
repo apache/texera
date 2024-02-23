@@ -217,6 +217,7 @@ class WorkflowService(
         workflowContext,
         resultService,
         req,
+        executionStateStore,
         errorHandler,
         lastCompletedLogicalPlan
       )

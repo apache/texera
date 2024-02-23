@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkMessage
 }
 import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{

@@ -5,7 +5,6 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.web.model.websocket.event.{
   TexeraWebSocketEvent,
@@ -27,8 +26,6 @@ import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, Websoc
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{
   LogicalPlan,
-  PhysicalPlan,
-  WorkflowCacheRewriter,
   WorkflowCompiler
 }
 
@@ -40,13 +37,13 @@ class WorkflowExecutionService(
     workflowContext: WorkflowContext,
     resultService: ExecutionResultService,
     request: WorkflowExecuteRequest,
+    val executionStateStore: ExecutionStateStore,
     errorHandler: Throwable => Unit,
     lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
   val context: WorkflowContext = workflowContext
   logger.info("Creating a new execution.")
-  val executionStateStore = new ExecutionStateStore()
 
   val wsInput = new WebsocketInput(errorHandler)
 
