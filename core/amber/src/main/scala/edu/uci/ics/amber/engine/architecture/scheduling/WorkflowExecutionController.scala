@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecut
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 
 import scala.collection.mutable
-import scala.util.{Failure, Success, Try}
 
 class WorkflowExecutionController(
     getNextRegions: () => Set[Region],
@@ -26,9 +25,12 @@ class WorkflowExecutionController(
     * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
     */
   def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
+    if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
+      return Future()
+    }
     Future
       .collect(
-        getNextRegions
+        getNextRegions()
           .map(region => {
             workflowExecution.initRegionExecution(region)
             regionExecutionControllers(region.id) = new RegionExecutionController(
@@ -43,20 +45,6 @@ class WorkflowExecutionController(
           .toSeq
       )
       .unit
-  }
-
-  /**
-    * get the next batch of Regions to execute.
-    */
-  private def getNextRegions: Set[Region] = {
-    if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
-      return Set.empty
-    }
-
-    Try(getNextRegions()) match {
-      case Success(regions)   => regions
-      case Failure(exception) => Set.empty // surpass exception
-    }
   }
 
 }

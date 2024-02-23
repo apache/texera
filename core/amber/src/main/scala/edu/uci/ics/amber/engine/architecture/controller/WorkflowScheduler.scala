@@ -26,6 +26,9 @@ class WorkflowScheduler(workflowContext: WorkflowContext) {
     this.opResultStorage = opResultStorage
   }
 
+  /**
+    * Update the total order of the regions to be executed, based on the current physicalPlan.
+    */
   def updateSchedule(): Unit = {
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
@@ -36,6 +39,8 @@ class WorkflowScheduler(workflowContext: WorkflowContext) {
     ).generate()
     this.regionPlan = regionPlan
     this.physicalPlan = updatedPhysicalPlan
+
+    // generate the total order of Regions to be executed.
     this.regionExecutionOrder = {
       val levels = mutable.Map.empty[RegionIdentity, Int]
       val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
