@@ -4,6 +4,17 @@ import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges
 import {DatasetVersionFileTreeNode, getFullPathFromFileTreeNode} from "../../../../../../common/type/datasetVersionFileTree";
 import {NzFormatEmitEvent, NzTreeNode} from "ng-zorro-antd/tree";
 import {NzContextMenuService, NzDropdownMenuComponent} from "ng-zorro-antd/dropdown";
+import {SelectionModel} from "@angular/cdk/collections";
+import {FlatTreeControl} from "@angular/cdk/tree";
+import {NzTreeFlatDataSource, NzTreeFlattener} from "ng-zorro-antd/tree-view";
+
+interface TreeFlatNode {
+  expandable: boolean;
+  name: string;
+  level: number;
+  disabled: boolean;
+  key: string;
+}
 
 @UntilDestroy()
 @Component({
@@ -14,6 +25,9 @@ import {NzContextMenuService, NzDropdownMenuComponent} from "ng-zorro-antd/dropd
 export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges{
 
   @Input()
+  isTreeNodeDeletable: boolean = true;
+
+  @Input()
   fileTreeNodes: DatasetVersionFileTreeNode[] = [];
 
   @Output()
@@ -22,60 +36,54 @@ export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges{
   @Output()
   public deletedTreeNode = new EventEmitter<DatasetVersionFileTreeNode>();
 
-  nodes: NzTreeNode[] = [];
 
   nodeLookup: { [key: string]: DatasetVersionFileTreeNode } = {};
 
-
-  constructor(private nzContextMenuService: NzContextMenuService) {}
-
-  onNodeSelected(data: NzFormatEmitEvent): void {
-    const treeNode = data.node!;
-    // look up for the DatasetVersionFileTreeNode
-    this.selectedTreeNode.emit(this.nodeLookup[treeNode.key])
-  }
-
-  contextMenu($event: MouseEvent, menu: NzDropdownMenuComponent): void {
-    this.nzContextMenuService.create($event, menu);
-  }
-
-  openFolder(data: NzTreeNode | NzFormatEmitEvent): void {
-    // do something if u want
-    if (data instanceof NzTreeNode) {
-      data.isExpanded = !data.isExpanded;
-    } else {
-      const node = data.node;
-      if (node) {
-        node.isExpanded = !node.isExpanded;
-      }
+  treeNodeTransformer = (node: DatasetVersionFileTreeNode, level: number): TreeFlatNode => {
+    const uniqueKey = getFullPathFromFileTreeNode(node); // Or any other unique identifier logic
+    this.nodeLookup[uniqueKey] = node; // Store the node in the lookup table
+    return {
+      expandable: !!node.children && node.children.length > 0 && node.type == "directory",
+      name: node.name,
+      level,
+      disabled: false,
+      key: uniqueKey
     }
   }
 
-  selectDropdown(): void {
-    // do something
-  }
+  selectListSelection = new SelectionModel<TreeFlatNode>();
+  treeControl = new FlatTreeControl<TreeFlatNode>(
+    node => node.level,
+    node => node.expandable
+  )
+  treeFlattener = new NzTreeFlattener(
+    this.treeNodeTransformer,
+    node => node.level,
+    node => node.expandable,
+    node => node.children
+  );
 
+  dataSource = new NzTreeFlatDataSource(this.treeControl, this.treeFlattener);
+  constructor(private nzContextMenuService: NzContextMenuService) {}
+
+  hasChild = (_: number, node: TreeFlatNode): boolean => node.expandable;
   ngOnInit(): void {
     this.nodeLookup = {};
-    this.nodes = this.parseTreeNodesToNzTreeNodes(this.fileTreeNodes);
+    this.dataSource.setData(this.fileTreeNodes);
   }
 
   ngOnChanges(changes: SimpleChanges): void {
     this.nodeLookup = {};
-    this.nodes = this.parseTreeNodesToNzTreeNodes(this.fileTreeNodes);
+    this.dataSource.setData(this.fileTreeNodes);
   }
 
-  parseTreeNodesToNzTreeNodes(nodes: DatasetVersionFileTreeNode[]): NzTreeNode[] {
-    return nodes.map(node => {
-      const uniqueKey = getFullPathFromFileTreeNode(node); // Or any other unique identifier logic
-      this.nodeLookup[uniqueKey] = node; // Store the node in the lookup table
-
-      return new NzTreeNode({
-        title: node.name,
-        key: uniqueKey, // key is the full path of the node
-        isLeaf: node.type === 'file',
-        children: node.children ? this.parseTreeNodesToNzTreeNodes(node.children) : [],
-      });
-    });
+  onNodeSelected(node: TreeFlatNode): void {
+    // look up for the DatasetVersionFileTreeNode
+    this.selectedTreeNode.emit(this.nodeLookup[node.key])
   }
+  onNodeDeleted(node: TreeFlatNode): void {
+    // look up for the DatasetVersionFileTreeNode
+    this.deletedTreeNode.emit(this.nodeLookup[node.key])
+  }
+
 }

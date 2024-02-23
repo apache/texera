@@ -132,6 +132,7 @@ import {NzSpinModule} from "ng-zorro-antd/spin";
 import {UserDatasetListItemComponent} from "./dashboard/user/component/user-dataset/user-dataset-list-item/user-dataset-list-item.component";
 import {NgxFileDropModule} from "ngx-file-drop";
 import {NzTreeModule} from "ng-zorro-antd/tree";
+import {NzTreeViewModule} from "ng-zorro-antd/tree-view";
 
 registerLocaleData(en);
 
@@ -271,6 +272,7 @@ registerLocaleData(en);
     NzSpinModule,
     NgxFileDropModule,
     NzTreeModule,
+    NzTreeViewModule,
   ],
   providers: [
     provideNzI18n(en_US),

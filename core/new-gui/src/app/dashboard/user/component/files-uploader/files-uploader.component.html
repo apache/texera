@@ -62,6 +62,8 @@
     <h6 class="new-upload-title">New Uploads</h6>
     <texera-user-dataset-version-filetree
       [fileTreeNodes]="newUploadFileTreeNodes"
+      [isTreeNodeDeletable]="true"
+      (deletedTreeNode)="onNewUploadsFileDeleted($event)"
     ></texera-user-dataset-version-filetree>
     <!--      [isFileTreeNodeDeletable]="true"-->
     <!--      (deletedTreeNode)="onNewUploadsFileDeleted($event)">-->
