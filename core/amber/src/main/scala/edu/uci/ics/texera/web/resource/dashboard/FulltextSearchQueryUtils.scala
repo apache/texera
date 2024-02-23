@@ -10,7 +10,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object FulltextSearchQueryUtils {
 
-  def generateFullTextSearchCondition(
+  def getFullTextSearchFilter(
       keywords: Seq[String],
       fields: List[Field[String]]
   ): Condition = {
@@ -29,7 +29,7 @@ object FulltextSearchQueryUtils {
     }
   }
 
-  def generateSubstringSearchCondition(
+  def getSubstringSearchFilter(
       keywords: Seq[String],
       fields: List[Field[String]]
   ): Condition = {
@@ -43,13 +43,26 @@ object FulltextSearchQueryUtils {
     }
   }
 
+  /**
+    * Generates a filter condition for querying based on whether a specified field contains any of the given values.
+    *
+    * This method converts a Java list of values into a Scala set to ensure uniqueness, and then iterates over each unique value,
+    * constructing a filter condition that checks if the specified field equals any of those values. The resulting condition
+    * is a disjunction (`OR`) of all these equality conditions, which can be used in database queries to find records where
+    * the field matches any of the provided values.
+    *
+    * @tparam T The type of the elements in the `values` list and the type of the field being compared.
+    * @param values A Java list of values to be checked against the field. The list is converted to a Scala set to remove duplicates.
+    * @param field  The field to be checked for containing any of the values in the `values` list. This is typically a field in a database table.
+    * @return A `Condition` that represents the disjunction of equality checks between the field and each unique value in the input list.
+    *         This condition can be used as part of a query to select records where the field matches any of the specified values.
+    */
   def getContainsFilter[T](values: java.util.List[T], field: Field[T]): Condition = {
     val valueSet = values.asScala.toSet
     var filterForOneField: Condition = noCondition()
     for (value <- valueSet) {
       filterForOneField = filterForOneField.or(field.eq(value))
     }
-    // make sure every field contains the value
     filterForOneField
   }
 

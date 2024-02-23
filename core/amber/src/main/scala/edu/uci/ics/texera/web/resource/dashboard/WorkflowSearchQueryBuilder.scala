@@ -11,8 +11,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Workflow
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  generateFullTextSearchCondition,
-  generateSubstringSearchCondition,
+  getFullTextSearchFilter,
+  getSubstringSearchFilter,
   getContainsFilter,
   getDateFilter,
   getOperatorsFilter
@@ -94,11 +94,11 @@ object WorkflowSearchQueryBuilder extends SearchQueryBuilder {
       .and(getContainsFilter(params.projectIds, WORKFLOW_OF_PROJECT.PID))
       // Apply fulltext search filter
       .and(
-        generateFullTextSearchCondition(
+        getFullTextSearchFilter(
           splitKeywords,
           List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
         ).or(
-          generateSubstringSearchCondition(
+          getSubstringSearchFilter(
             splitKeywords,
             List(WORKFLOW.NAME, WORKFLOW.DESCRIPTION, WORKFLOW.CONTENT)
           )

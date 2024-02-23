@@ -3,8 +3,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{PROJECT, PROJECT_USER
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Project
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  generateFullTextSearchCondition,
-  generateSubstringSearchCondition,
+  getFullTextSearchFilter,
+  getSubstringSearchFilter,
   getContainsFilter,
   getDateFilter
 }
@@ -52,9 +52,9 @@ object ProjectSearchQueryBuilder extends SearchQueryBuilder {
     )
       .and(getContainsFilter(params.projectIds, PROJECT.PID))
       .and(
-        generateFullTextSearchCondition(splitKeywords, List(PROJECT.NAME, PROJECT.DESCRIPTION))
+        getFullTextSearchFilter(splitKeywords, List(PROJECT.NAME, PROJECT.DESCRIPTION))
           .or(
-            generateSubstringSearchCondition(
+            getSubstringSearchFilter(
               splitKeywords,
               List(PROJECT.NAME, PROJECT.DESCRIPTION)
             )

@@ -43,12 +43,12 @@ trait SearchQueryBuilder {
       .select(mappedResourceSchema.allFields: _*)
       .from(constructFromClause(uid, params))
       .where(constructWhereClause(uid, params))
-    var query2: SelectHavingStep[Record] = query
     val groupByFields = getGroupByFields
     if (groupByFields.nonEmpty) {
-      query2 = query.groupBy(groupByFields: _*)
+      query.groupBy(groupByFields: _*)
+    } else {
+      query
     }
-    query2
   }
 
 }

@@ -4,8 +4,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.UserFileAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.File
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
-  generateFullTextSearchCondition,
-  generateSubstringSearchCondition,
+  getFullTextSearchFilter,
+  getSubstringSearchFilter,
   getContainsFilter,
   getDateFilter
 }
@@ -59,10 +59,10 @@ object FileSearchQueryBuilder extends SearchQueryBuilder {
     )
       .and(getContainsFilter(params.owners, USER.EMAIL))
       .and(
-        generateFullTextSearchCondition(
+        getFullTextSearchFilter(
           splitKeywords,
           List(FILE.NAME, FILE.DESCRIPTION)
-        ).or(generateSubstringSearchCondition(splitKeywords, List(FILE.NAME, FILE.DESCRIPTION)))
+        ).or(getSubstringSearchFilter(splitKeywords, List(FILE.NAME, FILE.DESCRIPTION)))
       )
   }
 

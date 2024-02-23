@@ -26,6 +26,23 @@ object DashboardResource {
 
   case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
 
+  /*
+   The following class describe the available params from the frontend for full text search.
+   * @param user       The authenticated user performing the search.
+   * @param keywords          A list of search keywords. The API will return resources that match any of these keywords.
+   * @param resourceType      The type of the resources to include in the search results. Acceptable values are "workflow", "project", "file" and "" (for all types).
+   * @param creationStartDate The start of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
+   * @param creationEndDate   The end of the date range for the creation time filter. It should be provided in 'yyyy-MM-dd' format.
+   * @param modifiedStartDate The start of the date range for the modification time filter. It should be provided in 'yyyy-MM-dd' format.
+   * @param modifiedEndDate   The end of the date range for the modification time filter. It should be provided in 'yyyy-MM-dd' format.
+   * @param owners            A list of owner names to include in the search results.
+   * @param workflowIDs       A list of workflow IDs to include in the search results.
+   * @param operators         A list of operators to include in the search results.
+   * @param projectIds        A list of project IDs to include in the search results.
+   * @param offset            The number of initial results to skip. This is useful for implementing pagination.
+   * @param count             The maximum number of results to return.
+   * @param orderBy           The order in which to sort the results. Acceptable values are 'NameAsc', 'NameDesc', 'CreateTimeDesc', and 'EditTimeDesc'.
+   */
   case class SearchQueryParams(
       @QueryParam("query") keywords: java.util.List[String] = new util.ArrayList[String](),
       @QueryParam("resourceType") @DefaultValue("") resourceType: String = ALL_RESOURCE_TYPE,
@@ -122,7 +139,17 @@ object DashboardResource {
 @Path("/dashboard")
 class DashboardResource {
 
-  // Refactored searchAllResources method to call specific methods for each resource type
+  /**
+    * This method performs a full-text search across all resources - workflows, projects, and files -
+    * that match the specified keywords.
+    * It supports advanced filters such as resource type, creation and modification dates, owner,
+    * workflow IDs, operators, project IDs and allows to specify the number of results and their ordering.
+    *
+    * This method utilizes MySQL Boolean Full-Text Searches
+    * reference: https://dev.mysql.com/doc/refman/8.0/en/fulltext-boolean.html
+    *
+    * @return A DashboardSearchResult object containing a list of DashboardClickableFileEntry objects that match the search criteria, and a boolean indicating whether more results are available.
+    */
   @GET
   @Path("/search")
   def searchAllResourcesCall(
