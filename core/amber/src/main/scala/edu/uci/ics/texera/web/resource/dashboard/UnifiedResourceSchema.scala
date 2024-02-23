@@ -11,6 +11,7 @@ import org.jooq.types.UInteger
 import org.jooq.{Field, Record}
 
 import java.sql.Timestamp
+import scala.collection.mutable
 
 object UnifiedResourceSchema {
 
@@ -118,9 +119,22 @@ class UnifiedResourceSchema private (
 ) {
   val allFields: Seq[Field[_]] = fieldMappingSeq.map(_._2)
 
-  def translateRecord(record: Record): Record = {
-    val ret = context.newRecord(fieldMappingSeq.map(_._1): _*)
+  private val translatedFieldSet: Seq[(Field[_], Field[_])] = {
+    val dedupTranslated = new mutable.HashSet[Field[_]]()
+    val output = new mutable.ArrayBuffer[(Field[_], Field[_])]()
     fieldMappingSeq.foreach {
+      case (original, translated) =>
+        if (!dedupTranslated.contains(translated)) {
+          dedupTranslated.add(translated)
+          output.addOne((original, translated))
+        }
+    }
+    output.toSeq
+  }
+
+  def translateRecord(record: Record): Record = {
+    val ret = context.newRecord(translatedFieldSet.map(_._1): _*)
+    translatedFieldSet.foreach {
       case (original, translated) =>
         ret.set(original.asInstanceOf[org.jooq.Field[Any]], record.get(translated))
     }
