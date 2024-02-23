@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrix
+package edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixPlot
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -24,7 +24,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   }
 }
 """)
-class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class ScatterMatrixPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
   @JsonProperty("Selected Attributes")
   @JsonSchemaTitle("Selected Attributes")
@@ -32,11 +32,11 @@ class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescr
   @AutofillAttributeNameList
   var selectedAttributes: List[String] = _
 
-  @JsonProperty(value = "name", required = true)
-  @JsonSchemaTitle("Label Column")
-  @JsonPropertyDescription("the attribute name of the classification label")
+  @JsonProperty(value = "Color", required = true)
+  @JsonSchemaTitle("Color Column")
+  @JsonPropertyDescription("column to color points")
   @AutofillAttributeName
-  var name: String = ""
+  var color: String = ""
 
   @JsonProperty(value = "title", required = false, defaultValue = "Scatter Matrix")
   @JsonSchemaTitle("Title")
@@ -49,7 +49,7 @@ class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescr
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "ScatterMatrix",
+      "ScatterMatrixPlot",
       "Visualize datasets in a Scatter Matrix",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -59,9 +59,9 @@ class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescr
   def createPlotlyFigure(): String = {
     assert(selectedAttributes.nonEmpty)
 
-    val list_words = selectedAttributes.map(word => s""""$word"""").mkString(",")
+    val list_Attributes = selectedAttributes.map(attribute => s""""$attribute"""").mkString(",")
     s"""
-       |        fig = px.scatter_matrix(table, dimensions=[$list_words], color='$name')
+       |        fig = px.scatter_matrix(table, dimensions=[$list_Attributes], color='$color')
        |        fig.update_layout(
        |        title='$title',
        |        width=800,
@@ -83,13 +83,12 @@ class ScatterMatrixOpDesc extends VisualizationOperator with PythonOperatorDescr
          |
          |class ProcessTableOperator(UDFTableOperator):
          |    def render_error(self, error_msg):
-         |        return '''<h1>PieChart is not available.</h1>
+         |        return '''<h1>ScatterMatrixPlot is not available.</h1>
          |                  <p>Reason is: {} </p>
          |               '''.format(error_msg)
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-         |        original_table = table
          |        ${createPlotlyFigure()}
          |        # convert fig to html content
          |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
