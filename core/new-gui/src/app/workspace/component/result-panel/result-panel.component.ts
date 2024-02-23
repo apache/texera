@@ -76,15 +76,6 @@ export class ResultPanelComponent implements OnInit {
         const currentlyHighlighted = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        // display panel on breakpoint hits and highlight breakpoint operator
-        if (event.current.state === ExecutionState.BreakpointTriggered) {
-          const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
-          if (breakpointOperator) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
-          }
-          this.resultPanelToggleService.openResultPanel();
-        }
         // display panel on abort (to show possible error messages)
         if (event.current.state === ExecutionState.Failed) {
           this.resultPanelToggleService.openResultPanel();
@@ -191,11 +182,6 @@ export class ResultPanelComponent implements OnInit {
     }
   }
 
-  hasErrorOrBreakpoint(): boolean {
-    const executionState = this.executeWorkflowService.getExecutionState();
-    return [ExecutionState.Paused, ExecutionState.BreakpointTriggered].includes(executionState.state);
-  }
-
   clearResultPanel(): void {
     this.frameComponentConfigs.clear();
   }
@@ -238,10 +224,6 @@ export class ResultPanelComponent implements OnInit {
   }): boolean {
     // transitioning from any state to failed state
     if (event.current.state === ExecutionState.Failed) {
-      return true;
-    }
-    // transitioning from any state to breakpoint triggered state
-    if (event.current.state === ExecutionState.BreakpointTriggered) {
       return true;
     }
 

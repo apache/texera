@@ -21,7 +21,8 @@
           <nz-content>
             <texera-user-project-list-item
               [editable]="editable"
-              [entry]="entry.project"></texera-user-project-list-item> </nz-content
+              [entry]="entry.project"
+              [keywords]="searchKeywords"></texera-user-project-list-item> </nz-content
         ></nz-layout>
         <nz-layout *ngIf="entry.type === 'workflow'">
           <nz-sider
@@ -39,7 +40,8 @@
               (duplicated)="duplicated.emit(entry)"
               [editable]="editable"
               [pid]="pid"
-              [entry]="entry"></texera-user-workflow-list-item> </nz-content
+              [entry]="entry"
+              [keywords]="searchKeywords"></texera-user-workflow-list-item> </nz-content
         ></nz-layout>
         <nz-layout *ngIf="entry.type === 'file'">
           <nz-sider
@@ -54,7 +56,9 @@
           <nz-content>
             <texera-user-file-list-item
               [editable]="editable"
-              [entry]="entry.file">
+              [entry]="entry.file"
+              [uid]="getUid()"
+              [keywords]="searchKeywords">
             </texera-user-file-list-item> </nz-content
         ></nz-layout>
       </ng-container>

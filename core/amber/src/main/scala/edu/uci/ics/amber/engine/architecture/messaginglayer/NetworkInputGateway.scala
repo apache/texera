@@ -70,7 +70,7 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
     enforcers += enforcer
   }
 
-  override def getAllPorts(): Set[PortIdentity] = {
+  override def getAllPorts: Set[PortIdentity] = {
     this.ports.keys.toSet
   }
 
