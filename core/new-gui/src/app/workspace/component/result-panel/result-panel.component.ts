@@ -209,7 +209,7 @@ export class ResultPanelComponent implements OnInit {
         component: ResultTableFrameComponent,
         componentInputs: { operatorId },
       });
-    } else if (resultService && resultService.getChartType()) {
+    } else if (resultService) {
       // display visualization result
       this.frameComponentConfigs.set("Result", {
         component: VisualizationFrameComponent,

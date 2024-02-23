@@ -35,7 +35,7 @@
             "scripts": [
               "./node_modules/marked/marked.min.js"
             ],
-            "allowedCommonJsDependencies": ["deep-map", "c3", "js-abbreviation-number", "dagre", "graphlib"],
+            "allowedCommonJsDependencies": ["deep-map", "js-abbreviation-number", "dagre", "graphlib"],
             "vendorChunk": true,
             "extractLicenses": false,
             "buildOptimizer": false,
