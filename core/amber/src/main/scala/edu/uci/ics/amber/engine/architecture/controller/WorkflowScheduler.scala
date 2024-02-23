@@ -56,6 +56,6 @@ class WorkflowScheduler(workflowContext: WorkflowContext) {
     }.map(regionIds => regionIds.map(regionId => regionPlan.getRegion(regionId)))
   }
 
-  def getNextRegions: Set[Region] = regionExecutionOrder.next
+  def getNextRegions: Set[Region] = regionExecutionOrder.next()
 
 }

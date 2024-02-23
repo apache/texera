@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.service
 
-import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
@@ -14,27 +13,21 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   READY,
   RUNNING
 }
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.{
-  LogicalPlan,
-  WorkflowCompiler
-}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 
-import java.time.Instant
 import scala.collection.mutable
 
 class WorkflowExecutionService(
     controllerConfig: ControllerConfig,
-    workflowContext: WorkflowContext,
+    val workflowContext: WorkflowContext,
     resultService: ExecutionResultService,
     request: WorkflowExecuteRequest,
     val executionStateStore: ExecutionStateStore,
@@ -42,7 +35,7 @@ class WorkflowExecutionService(
     lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
-  val context: WorkflowContext = workflowContext
+
   logger.info("Creating a new execution.")
 
   val wsInput = new WebsocketInput(errorHandler)
@@ -67,37 +60,12 @@ class WorkflowExecutionService(
     })
   )
 
-  val workflow: Workflow = workflowCompilation()
-
-  private def workflowCompilation(): Workflow = {
-    logger.info("Compiling the logical plan into a physical plan.")
-
-    try {
-      val workflowCompiler = new WorkflowCompiler(workflowContext)
-      workflowCompiler.compile(
-        request.logicalPlan,
-        resultService.opResultStorage,
-        lastCompletedLogicalPlan,
-        executionStateStore
-      )
-    } catch {
-      case e: Throwable =>
-        logger.error("error occurred during physical plan compilation", e)
-        executionStateStore.metadataStore.updateState { metadataStore =>
-          updateWorkflowState(FAILED, metadataStore)
-            .addFatalErrors(
-              WorkflowFatalError(
-                EXECUTION_FAILURE,
-                Timestamp(Instant.now),
-                e.toString,
-                e.getStackTrace.mkString("\n"),
-                "unknown operator"
-              )
-            )
-        }
-        throw e // re-throw because it cannot continue.
-    }
-  }
+  val workflow: Workflow = new WorkflowCompiler(workflowContext).compile(
+    request.logicalPlan,
+    resultService.opResultStorage,
+    lastCompletedLogicalPlan,
+    executionStateStore
+  )
 
   // Runtime starts from here:
   logger.info("Initialing an AmberClient, runtime starting...")

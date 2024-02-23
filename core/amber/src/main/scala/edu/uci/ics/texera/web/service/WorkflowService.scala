@@ -223,9 +223,7 @@ class WorkflowService(
       )
       lifeCycleManager.registerCleanUpOnStateChange(executionStateStore)
       executionService.onNext(execution)
-      if (executionStateStore.metadataStore.getState.fatalErrors.isEmpty) {
-        execution.startWorkflow()
-      }
+      execution.startWorkflow()
     } catch {
       case e: Throwable => errorHandler(e)
     }
