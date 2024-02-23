@@ -4,6 +4,9 @@
 package edu.uci.ics.texera.web.model.jooq.generated;
 
 
+import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.File;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfProject;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.FileOfWorkflow;
@@ -36,12 +39,27 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = 304546079;
+    private static final long serialVersionUID = -1679894118;
 
     /**
      * The reference instance of <code>texera_db</code>
      */
     public static final TexeraDb TEXERA_DB = new TexeraDb();
+
+    /**
+     * The table <code>texera_db.dataset</code>.
+     */
+    public final Dataset DATASET = edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET;
+
+    /**
+     * The table <code>texera_db.dataset_user_access</code>.
+     */
+    public final DatasetUserAccess DATASET_USER_ACCESS = edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess.DATASET_USER_ACCESS;
+
+    /**
+     * The table <code>texera_db.dataset_version</code>.
+     */
+    public final DatasetVersion DATASET_VERSION = edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION;
 
     /**
      * The table <code>texera_db.file</code>.
@@ -145,6 +163,9 @@ public class TexeraDb extends SchemaImpl {
 
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
+            Dataset.DATASET,
+            DatasetUserAccess.DATASET_USER_ACCESS,
+            DatasetVersion.DATASET_VERSION,
             File.FILE,
             FileOfProject.FILE_OF_PROJECT,
             FileOfWorkflow.FILE_OF_WORKFLOW,
