@@ -88,13 +88,6 @@ export const defaultEnvironment = {
   asyncRenderingEnabled: false,
 
   /**
-   * the access code for mapbox
-   */
-  mapbox: {
-    accessToken: "",
-  },
-
-  /**
    * Whether to connect to local or production shared editing server. Set to true if you have
    * reverse proxy set up for y-websocket.
    */
