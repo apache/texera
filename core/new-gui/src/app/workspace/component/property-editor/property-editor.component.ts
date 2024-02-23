@@ -31,6 +31,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   propertyDisplay = true;
   screenWidth = window.innerWidth;
   propertyWidth = 400;
+  isOperatorSelected: boolean = false;
 
   constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {
     const width = localStorage.getItem("property-panel-width");
@@ -40,7 +41,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
     if (display === "true") {
       this.propertyDisplay = true;
-    } else { 
+    } else {
       this.propertyDisplay = false;
     }
   }
@@ -113,16 +114,19 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
           highlightLinks.length === 0 &&
           highlightedPorts.length === 0
         ) {
+          this.isOperatorSelected = true;
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] },
           });
         } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
+          this.isOperatorSelected = true;
           this.switchFrameComponent({
             component: PortPropertyEditFrameComponent,
             componentInputs: { currentPortID: highlightedPorts[0] },
           });
         } else {
+          this.isOperatorSelected = false;
           this.switchFrameComponent(undefined);
           this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
