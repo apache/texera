@@ -132,6 +132,9 @@
     "typescript": "5.1.6",
     "webpack-bundle-analyzer": "4.5.0"
   },
+  "resolutions": {
+    "webpack": "5.76.1"
+  },
   "browserslist": [
     "defaults",
     "not ie <= 11"
