@@ -11,7 +11,10 @@ declare var window: any;
 export class GmailService {
   public client: any;
   private _googleCredentialResponse = new Subject<CredentialResponse>();
-  constructor(private http: HttpClient, private notificationService: NotificationService) {}
+  constructor(
+    private http: HttpClient,
+    private notificationService: NotificationService
+  ) {}
   public authSender() {
     this.http
       .get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" })

@@ -102,7 +102,7 @@ export class AdminUserComponent implements OnInit {
   clickToViewQuota(uid: number) {
     this.modalService.create({
       nzContent: UserQuotaComponent,
-      nzComponentParams: { userUid: uid },
+      nzData: { userUid: uid },
       nzFooter: null,
       nzWidth: "80%",
       nzBodyStyle: { padding: "0" },

@@ -1,10 +1,10 @@
 import { Component, OnDestroy, OnInit } from "@angular/core";
 import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
-import { isEqual, merge } from "lodash";
+import { merge } from "lodash";
 import { ReplaySubject } from "rxjs";
 import { takeUntil, debounceTime, filter, first } from "rxjs/operators";
 import { Preset, PresetService } from "src/app/workspace/service/preset/preset.service";
-import { asType, nonNull } from "../../util/assert";
+import { asType } from "../../util/assert";
 import { NzMessageService } from "ng-zorro-antd/message";
 
 /**
@@ -44,7 +44,10 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
   private basePreset: Preset = {};
   private teardownObservable: ReplaySubject<boolean> = new ReplaySubject(1); // observable used OnDestroy to tear down subscriptions that takeUntil(teardownObservable)
 
-  constructor(private presetService: PresetService, private messageService: NzMessageService) {
+  constructor(
+    private presetService: PresetService,
+    private messageService: NzMessageService
+  ) {
     super();
   }
 
@@ -199,8 +202,6 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
 
   /**
    * Filters formData to only include members that are in the preset schema of the given operatorType
-   * @param operatorType
-   * @param formData
    * @returns partially finished Preset. use PresetService.isValidOperatorPreset to verify all preset attributes exist
    */
   filterPresetFromForm(): Preset {
@@ -228,7 +229,7 @@ export class PresetWrapperComponent extends FieldWrapper implements OnInit, OnDe
     this.formControl.valueChanges.pipe(debounceTime(0), takeUntil(this.teardownObservable)).subscribe({
       next: (value: string | number | boolean) => {
         this.searchTerm = (value ?? "").toString();
-        if (this.presetMenuVisible == true) {
+        if (this.presetMenuVisible) {
           this.updateSearchResults(false);
         }
       },

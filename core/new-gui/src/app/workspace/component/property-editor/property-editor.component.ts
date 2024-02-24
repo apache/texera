@@ -26,7 +26,10 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 export class PropertyEditorComponent implements OnInit {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {}
+  constructor(
+    public workflowActionService: WorkflowActionService,
+    private changeDetectorRef: ChangeDetectorRef
+  ) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();

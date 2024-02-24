@@ -30,7 +30,10 @@ export class WorkflowPersistService {
   // flag to disable workflow persist when displaying the read only particular version
   private workflowPersistFlag = true;
 
-  constructor(private http: HttpClient, private notificationService: NotificationService) {}
+  constructor(
+    private http: HttpClient,
+    private notificationService: NotificationService
+  ) {}
 
   /**
    * persists a workflow to backend database and returns its updated information (e.g., new wid)
@@ -83,7 +86,7 @@ export class WorkflowPersistService {
 
   /**
    * retrieves a workflow from backend database given its id. The user in the session must have access to the workflow.
-   * @param wid, the workflow id.
+   * @param wid
    */
   public retrieveWorkflow(wid: number): Observable<Workflow> {
     return this.http.get<Workflow>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}`).pipe(

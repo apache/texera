@@ -1,6 +1,5 @@
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
-import { MatDialogModule } from "@angular/material/dialog";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { JointUIService } from "../../service/joint-ui/joint-ui.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
@@ -21,7 +20,7 @@ describe("VisualizationFrameContentComponent", () => {
 
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
-      imports: [MatDialogModule, HttpClientTestingModule],
+      imports: [HttpClientTestingModule],
       declarations: [VisualizationFrameContentComponent],
       providers: [
         JointUIService,

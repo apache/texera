@@ -39,20 +39,6 @@
             "accessibility": "explicit"
           }
         ],
-        "@typescript-eslint/no-inferrable-types": [
-          "error",
-          {
-            "ignoreParameters": true,
-            "ignoreProperties": true
-          }
-        ],
-        "@typescript-eslint/quotes": [
-          "error",
-          "double",
-          {
-            "allowTemplateLiterals": true
-          }
-        ],
         "brace-style": ["error", "1tbs"],
         "dot-notation": "off",
         "id-blacklist": "off",

@@ -9,7 +9,10 @@ import { environment } from "../../../../environments/environment";
  */
 @Injectable()
 export class AuthGuardService implements CanActivate {
-  constructor(private userService: UserService, private router: Router) {}
+  constructor(
+    private userService: UserService,
+    private router: Router
+  ) {}
   canActivate(route: ActivatedRouteSnapshot, state: RouterStateSnapshot): boolean {
     if (this.userService.isLogin() || !environment.userSystemEnabled) {
       return true;

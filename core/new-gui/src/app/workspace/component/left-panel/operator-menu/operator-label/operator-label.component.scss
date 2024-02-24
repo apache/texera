@@ -12,7 +12,9 @@
   align-content: center;
   border-radius: 3px;
   border: 1px solid rgba(0, 0, 0, 0);
-  transition: border-color 0.3s, color 0.3s;
+  transition:
+    border-color 0.3s,
+    color 0.3s;
   overflow: hidden;
   &:hover {
     border-color: rgba(64, 169, 255, 1);

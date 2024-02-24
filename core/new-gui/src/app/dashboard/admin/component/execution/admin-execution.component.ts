@@ -60,7 +60,10 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
       });
   }, 1000); // 1 second interval
 
-  constructor(private adminExecutionService: AdminExecutionService, private modalService: NzModalService) {}
+  constructor(
+    private adminExecutionService: AdminExecutionService,
+    private modalService: NzModalService
+  ) {}
 
   ngOnInit() {
     this.adminExecutionService
@@ -249,7 +252,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
 
     this.modalService.create({
       nzContent: WorkflowExecutionModalComponent,
-      nzComponentParams: { wid: wid },
+      nzData: { wid: wid },
       nzTitle: "Execution results of Workflow: " + name,
       nzFooter: null,
       nzWidth: "80%",

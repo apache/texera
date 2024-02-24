@@ -21,7 +21,10 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
   data: ReadonlyArray<object> = [];
   columns: string[] = [];
 
-  constructor(private workflowResultService: WorkflowResultService, private sanitizer: DomSanitizer) {}
+  constructor(
+    private workflowResultService: WorkflowResultService,
+    private sanitizer: DomSanitizer
+  ) {}
 
   ngAfterContentInit() {
     // attempt to draw chart immediately

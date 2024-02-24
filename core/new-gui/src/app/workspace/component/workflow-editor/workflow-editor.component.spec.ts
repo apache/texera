@@ -228,7 +228,7 @@ describe("WorkflowEditorComponent", () => {
       const modalRef: NzModalRef = nzModalService.create({
         nzTitle: "CommentBox",
         nzContent: NzModalCommentBoxComponent,
-        nzComponentParams: {
+        nzData: {
           commentBox: createYTypeFromObject(mockCommentBox),
         },
         nzAutofocus: null,

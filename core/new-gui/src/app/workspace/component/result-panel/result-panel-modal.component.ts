@@ -33,7 +33,10 @@ export class RowModalComponent implements OnChanges {
   //  componentInstance to display as data table.
   currentDisplayRowData: Record<string, unknown> = {};
 
-  constructor(public modal: NzModalRef<any, number>, private workflowResultService: WorkflowResultService) {}
+  constructor(
+    public modal: NzModalRef<any, number>,
+    private workflowResultService: WorkflowResultService
+  ) {}
 
   ngOnChanges(): void {
     if (this.operatorId !== undefined) {

@@ -691,7 +691,7 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
           nzFooter: null, // null indicates that the footer of the window would be hidden
           nzBodyStyle: { width: "98vw", height: "92vh" },
           nzContent: WorkflowRuntimeStatisticsComponent,
-          nzComponentParams: {
+          nzData: {
             workflowRuntimeStatistics: workflowRuntimeStatistics,
           },
         });
