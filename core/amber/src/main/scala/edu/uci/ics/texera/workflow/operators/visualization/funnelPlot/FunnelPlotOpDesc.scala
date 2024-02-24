@@ -7,7 +7,10 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 @JsonSchemaInject(json = """
 {
@@ -16,7 +19,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstan
   }
 }
 """)
-class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor{
+class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(value = "title", required = true, defaultValue = "Funnel Plot")
   @JsonSchemaTitle("Plot Title")
   @JsonPropertyDescription("The value for the plot title")
