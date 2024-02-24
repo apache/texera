@@ -12,7 +12,6 @@ import { WorkflowUtilService } from "../../../service/workflow-graph/util/workfl
 import { VisualizationFrameComponent } from "./visualization-frame.component";
 import { OperatorResultService, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { WebDataUpdate } from "../../../types/execute-workflow.interface";
-import { ChartType } from "../../../types/visualization.interface";
 
 describe("VisualizationFameComponent", () => {
   let component: VisualizationFrameComponent;
@@ -21,7 +20,6 @@ describe("VisualizationFameComponent", () => {
   const operatorID = "operator1";
   const testData: WebDataUpdate = {
     mode: { type: "SetSnapshotMode" },
-    chartType: ChartType.BAR,
     table: [],
   };
 

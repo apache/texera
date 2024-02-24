@@ -19,7 +19,10 @@ import { CodeEditorService } from "../../service/code-editor/code-editor.service
 })
 export class CodeareaCustomTemplateComponent extends FieldType<FieldTypeConfig> {
   componentRef: ComponentRef<CodeEditorComponent> | undefined;
-  constructor(private coeditorPresenceService: CoeditorPresenceService, private codeEditorService: CodeEditorService) {
+  constructor(
+    private coeditorPresenceService: CoeditorPresenceService,
+    private codeEditorService: CodeEditorService
+  ) {
     super();
     this.coeditorPresenceService
       .getCoeditorOpenedCodeEditorSubject()
