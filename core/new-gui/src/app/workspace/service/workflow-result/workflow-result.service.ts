@@ -175,7 +175,10 @@ class OperatorPaginationResultService {
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
 
-  constructor(public operatorID: string, private workflowWebsocketService: WorkflowWebsocketService) {
+  constructor(
+    public operatorID: string,
+    private workflowWebsocketService: WorkflowWebsocketService
+  ) {
     this.workflowWebsocketService
       .subscribeToEvent("PaginatedResultEvent")
       .subscribe(event => this.handlePaginationResult(event));
