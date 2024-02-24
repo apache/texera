@@ -103,7 +103,7 @@ export class UserDatasetListItemComponent {
   public onClickOpenShareAccess() {
     const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
-      nzComponentParams: {
+      nzData: {
         writeAccess: this.entry.dataset.accessPrivilege === "WRITE",
         type: "dataset",
         id: this.entry.dataset.dataset.did,
