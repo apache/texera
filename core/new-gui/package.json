@@ -130,7 +130,8 @@
     "sass": "1.71.1",
     "ts-node": "4.1.0",
     "typescript": "5.1.6",
-    "webpack-bundle-analyzer": "4.5.0"
+    "webpack-bundle-analyzer": "4.5.0",
+    "style-loader": "~3.3.3"
   },
   "browserslist": [
     "defaults",
