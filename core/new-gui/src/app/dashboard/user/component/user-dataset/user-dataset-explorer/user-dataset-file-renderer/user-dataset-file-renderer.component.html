@@ -2,6 +2,7 @@
   [ngStyle]="!isMaximized ? {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '80%', 'overflow-x': 'auto', 'overflow-y': 'auto'}:
                                 {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '100%', 'overflow-x': 'auto', 'overflow-y': 'auto'}">
   <div class="file-display-area">
+
     <div *ngIf="isLoading">
       <nz-spin nzTip="Loading...">
         <nz-alert
@@ -10,6 +11,26 @@
         ></nz-alert>
       </nz-spin>
     </div>
+    <div *ngIf="isFileLoadingError">
+      <nz-alert
+        nzType="error"
+        nzMessage="File loading encounter error."
+        nzDescription="Ops, There is something wrong when loading the file you are requesting."
+      ></nz-alert>
+    </div>
+    <div *ngIf="isFileSizeUnloadable">
+      <nz-alert
+        nzType="warning"
+        nzMessage="File is too large to preview"
+      ></nz-alert>
+    </div>
+    <div *ngIf="isFileTypePreviewUnsupported">
+      <nz-alert
+        nzType="warning"
+        nzMessage="Preview of the file type is currently not supported"
+      ></nz-alert>
+    </div>
+
     <nz-table
       *ngIf="displayCSV || displayXlsx"
       #basicTable
@@ -66,11 +87,5 @@
       </audio>
     </div>
     <div *ngIf="displayPlainText">{{ textContent }}</div>
-    <div *ngIf="isFileLoadingError">
-      <h3>File loading encounters error</h3>
-    </div>
-    <div *ngIf="!isFileSizeLoadable">
-      <h3>File is too large to be loaded</h3>
-    </div>
   </div>
 </div>

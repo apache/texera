@@ -24,17 +24,15 @@ export const MIME_TYPES = {
   OCTET_STREAM: "application/octet-stream", // Default binary format
 };
 
+// the size limits for all preview-supported types
 export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.JPEG]: 5 * 1024 * 1024, // 5 MB
   [MIME_TYPES.PNG]: 5 * 1024 * 1024, // 5 MB
   [MIME_TYPES.CSV]: 2 * 1024 * 1024, // 2 MB for text-based data files
   [MIME_TYPES.TXT]: 1 * 1024 * 1024, // 1 MB for plain text files
-  [MIME_TYPES.HTML]: 1 * 1024 * 1024, // 1 MB for HTML files
+  [MIME_TYPES.MD]: 1 * 1024 * 1024,  // 1 MB for MD files
   [MIME_TYPES.JSON]: 1 * 1024 * 1024, // 1 MB for JSON files
-  [MIME_TYPES.PDF]: 10 * 1024 * 1024, // 10 MB for PDF documents
-  [MIME_TYPES.MSWORD]: 10 * 1024 * 1024, // 10 MB for Word documents
   [MIME_TYPES.MSEXCEL]: 10 * 1024 * 1024, // 10 MB for Excel spreadsheets
-  [MIME_TYPES.MSPOWERPOINT]: 10 * 1024 * 1024, // 10 MB for PowerPoint presentations
   [MIME_TYPES.MP4]: 50 * 1024 * 1024, // 50 MB for MP4 videos
   [MIME_TYPES.MP3]: 10 * 1024 * 1024, // 10 MB for MP3 audio files
   [MIME_TYPES.OCTET_STREAM]: 5 * 1024 * 1024, // Default size for other binary formats
@@ -82,12 +80,13 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
   public displayPlainText: boolean = false;
   public textContent: string = "";
 
+  // control flags
   public isLoading: boolean = false;
-  public isFileSizeLoadable = true;
-  public currentFile: File | undefined = undefined;
-
+  public isFileSizeUnloadable = false;
   public isFileLoadingError: boolean = false;
+  public isFileTypePreviewUnsupported: boolean = false;
 
+  public currentFile: File | undefined = undefined;
   @Input()
   isMaximized: boolean = false;
 
@@ -141,7 +140,12 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
         .subscribe({
           next: blob => {
             this.isLoading = false;
-            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blob.type] || this.DEFAULT_MAX_SIZE;
+            const blobMimeType = blob.type;
+            if (!this.isPreviewSupported(blobMimeType)) {
+              this.onFileTypePreviewUnsupported();
+              return;
+            }
+            const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blobMimeType] || this.DEFAULT_MAX_SIZE;
             const fileSize = blob.size;
             if (fileSize > MaxSize) {
               this.onFileSizeNotLoadable();
@@ -150,7 +154,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
             }
             this.currentFile = new File([blob], this.filePath, { type: blob.type });
             // Handle different file types
-            switch (blob.type) {
+            switch (blobMimeType) {
               case MIME_TYPES.PNG:
               case MIME_TYPES.JPEG:
                 this.displayImage = true;
@@ -212,8 +216,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
               default:
                 this.displayPlainText = true;
                 this.readFileAsText(blob);
-                if (blob.type != MIME_TYPES.TXT)
-                  this.notificationService.warning("File Type is currently not supported in preview");
                 break;
             }
           },
@@ -236,7 +238,8 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
     this.displayMP3 = false;
     this.isLoading = false;
     this.isFileLoadingError = false;
-    this.isFileSizeLoadable = true;
+    this.isFileSizeUnloadable = false;
+    this.isFileTypePreviewUnsupported = false;
     // garbage collection
     if (this.fileURL) {
       URL.revokeObjectURL(this.fileURL);
@@ -253,7 +256,16 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
 
   onFileSizeNotLoadable() {
     this.turnOffAllDisplay();
-    this.isFileSizeLoadable = false;
+    this.isFileSizeUnloadable = true;
+  }
+
+  onFileTypePreviewUnsupported() {
+    this.turnOffAllDisplay();
+    this.isFileTypePreviewUnsupported = true;
+  }
+
+   isPreviewSupported(mimeType: string) {
+    return Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 
   private readFileAsText(blob: Blob) {
