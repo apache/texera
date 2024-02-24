@@ -13,7 +13,7 @@ object TestUtils {
   def buildWorkflow(
       operators: List[LogicalOp],
       links: List[LogicalLink],
-      resultStorage: OpResultStorage = new OpResultStorage()
+      resultStorage: OpResultStorage
   ): Workflow = {
     val context = new WorkflowContext()
     val workflowCompiler = new WorkflowCompiler(
