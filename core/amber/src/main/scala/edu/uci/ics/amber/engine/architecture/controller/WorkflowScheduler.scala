@@ -1,22 +1,15 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
-import edu.uci.ics.amber.engine.architecture.scheduling.{
-  ExpansionGreedyRegionPlanGenerator,
-  Region,
-  RegionIdentity,
-  RegionPlan
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.{ExpansionGreedyRegionPlanGenerator, Region, RegionPlan, Schedule}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
-import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 case class WorkflowScheduler(workflowContext: WorkflowContext) {
   var physicalPlan: PhysicalPlan = _
   var regionPlan: RegionPlan = _
-  private var regionExecutionOrder: Iterator[Set[Region]] = _
+  private var schedule: Schedule = _
   private var opResultStorage: OpResultStorage = _
   def addPhysicalPlan(physicalPlan: PhysicalPlan): Unit = {
     this.physicalPlan = physicalPlan
@@ -27,7 +20,7 @@ case class WorkflowScheduler(workflowContext: WorkflowContext) {
   }
 
   /**
-    * Update the total order of the regions to be executed, based on the current physicalPlan.
+    * Update the schedule to be executed, based on the current physicalPlan.
     */
   def updateSchedule(): Unit = {
     // generate an RegionPlan with regions.
@@ -39,28 +32,9 @@ case class WorkflowScheduler(workflowContext: WorkflowContext) {
     ).generate()
     this.regionPlan = regionPlan
     this.physicalPlan = updatedPhysicalPlan
-
-    // generate the total order of Regions to be executed.
-    this.regionExecutionOrder = {
-      val levels = mutable.Map.empty[RegionIdentity, Int]
-      val levelSets = mutable.Map.empty[Int, mutable.Set[RegionIdentity]]
-
-      regionPlan.topologicalIterator().foreach { currentVertex =>
-        val currentLevel = regionPlan.dag.incomingEdgesOf(currentVertex).asScala.foldLeft(0) {
-          (maxLevel, incomingEdge) =>
-            val sourceVertex = regionPlan.dag.getEdgeSource(incomingEdge)
-            math.max(maxLevel, levels.getOrElse(sourceVertex, 0) + 1)
-        }
-
-        levels(currentVertex) = currentLevel
-        levelSets.getOrElseUpdate(currentLevel, mutable.Set.empty).add(currentVertex)
-      }
-
-      val maxLevel = levels.values.maxOption.getOrElse(0)
-      (0 to maxLevel).iterator.map(level => levelSets.getOrElse(level, mutable.Set.empty).toSet)
-    }.map(regionIds => regionIds.map(regionId => regionPlan.getRegion(regionId)))
+    this.schedule = Schedule.apply(regionPlan)
   }
 
-  def getNextRegions: Set[Region] = regionExecutionOrder.next()
+  def getNextRegions: Set[Region] = schedule.next()
 
 }
