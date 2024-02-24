@@ -1,8 +1,11 @@
+
 .rounded-button {
-  background-color: black;
+  display: inline-flex; /* Use flexbox for alignment */
+  align-items: center; /* Center vertically */
+  justify-content: center; /* Center horizontally */
   color: white;
   border: none;
-  padding: 10px 20px;
+  padding: 10px 20px; /* Adjust padding as needed */
   border-radius: 25px;
   cursor: pointer;
   transition: background-color 0.3s;
@@ -10,15 +13,12 @@
   margin-left: 20px;
 }
 
-.rounded-button:hover {
-  background-color: gray;
-}
-
 .version-storage {
-  padding-left: 25px;
-  width: 90%; /* Set the width to 90% */
-  margin-left: auto; /* Center align the element by setting auto margins */
+  padding-left: 20px;
+  width: 90%;
+  margin-left: auto;
   margin-right: auto;
+  margin-bottom: 25px;
 }
 
 .version-storage nz-select {

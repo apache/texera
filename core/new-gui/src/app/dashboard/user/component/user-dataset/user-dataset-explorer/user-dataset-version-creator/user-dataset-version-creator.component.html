@@ -13,16 +13,16 @@
       nzUnCheckedChildren="private"></nz-switch>
   </div>
   <div class="file-uploader">
-<!--    <texera-user-files-uploader-->
-<!--      (uploadedFiles)="onNewUploadFilesChanged($event)"-->
-<!--      (removingFilePaths)="onRemovingFilePathsChanged($event)"-->
-<!--      [previouslyUploadFiles]="baseVersion?.versionFileTreeNodes"></texera-user-files-uploader>-->
-    <texera-user-files-uploader></texera-user-files-uploader>
+    <texera-user-files-uploader
+      (uploadedFiles)="onNewUploadFilesChanged($event)"
+      (removingFilePaths)="onRemovingFilePathsChanged($event)"
+      [previouslyUploadFiles]="baseVersion?.versionFileTreeNodes">
+    </texera-user-files-uploader>
   </div>
 
   <button
-    mat-stroked-button
-    color="primary"
+    nz-button
+    nzType="primary"
     (click)="onClickCreate()"
     [disabled]="isCreateButtonDisabled"
     class="create-btn">
@@ -30,8 +30,8 @@
   </button>
 
   <button
-    mat-stroked-button
-    color="primary"
+    nz-button
+    nzType="default"
     (click)="onClickCancel()"
     class="cancel-btn">
     Cancel

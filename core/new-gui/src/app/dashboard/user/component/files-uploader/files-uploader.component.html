@@ -9,22 +9,6 @@
     nzCloseable
     (nzOnClose)="hideBanner()">
   </nz-alert>
-<!--  <nz-upload-->
-<!--    nzType="drag"-->
-<!--    [nzMultiple]="true"-->
-<!--    [nzDirectory]="true"-->
-<!--    [nzBeforeUpload]="handleBeforeFileUpload"-->
-<!--    [nzShowUploadList]="true"-->
-<!--    (nzChange)="handleFileUpload($event)"-->
-<!--  >-->
-<!--    <p class="ant-upload-drag-icon">-->
-<!--      <span nz-icon nzType="inbox"></span>-->
-<!--    </p>-->
-<!--    <p class="ant-upload-text">Click or drag file/directory to this area to upload</p>-->
-<!--    <p class="ant-upload-hint">-->
-<!--      Support Files and Directories Upload-->
-<!--    </p>-->
-<!--  </nz-upload>-->
   <ngx-file-drop
     dropZoneLabel="Drop files here"
     (onFileDrop)="fileDropped($event)">
@@ -37,8 +21,8 @@
         <!--                <p class="file-drop-hint">Consider zipping large directories for faster uploads</p>-->
         <p>or</p>
         <button
-          mat-stroked-button
-          color="primary"
+          nz-button
+          nzType="primary"
           class="upload-file-button"
           (click)="openFileSelector()">
           Browser & Upload Files
@@ -49,23 +33,21 @@
   <div
     *ngIf="previouslyUploadFiles && previouslyUploadFiles.length > 0"
     class="uploaded-files-list">
-    <h6 class="new-upload-title">Previous Uploads</h6>
+    <h4 class="new-upload-title">Previous Uploads</h4>
     <texera-user-dataset-version-filetree
       [fileTreeNodes]="previouslyUploadFiles"
+      [isTreeNodeDeletable]="true"
+      (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"
     ></texera-user-dataset-version-filetree>
-    <!--       [isFileTreeNodeDeletable]="true"-->
-    <!--      (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"-->
   </div>
   <div
     *ngIf="newUploadNodeToFileItems && newUploadNodeToFileItems.size > 0"
     class="uploaded-files-list">
-    <h6 class="new-upload-title">New Uploads</h6>
+    <h4 class="new-upload-title">New Uploads</h4>
     <texera-user-dataset-version-filetree
       [fileTreeNodes]="newUploadFileTreeNodes"
       [isTreeNodeDeletable]="true"
       (deletedTreeNode)="onNewUploadsFileDeleted($event)"
     ></texera-user-dataset-version-filetree>
-    <!--      [isFileTreeNodeDeletable]="true"-->
-    <!--      (deletedTreeNode)="onNewUploadsFileDeleted($event)">-->
   </div>
 </div>

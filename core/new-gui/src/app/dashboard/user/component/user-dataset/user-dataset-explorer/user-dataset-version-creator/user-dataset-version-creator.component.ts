@@ -107,7 +107,7 @@ export class UserDatasetVersionCreator implements OnInit {
 
     if (this.newUploadFiles.length == 0 && this.removedFilePaths.length == 0) {
       this.notificationService.error(
-        `Please make file-related changes when creating a new ${this.isCreatingVersion ? "Version" : "Dataset"}`
+        `Please either upload new file(s) or remove old file(s) when creating a new ${this.isCreatingVersion ? "Version" : "Dataset"}`
       );
       return;
     }

@@ -1,22 +1,27 @@
 <div
-  [ngStyle]="!isMaximized ? {'padding-top': '15px', 'margin-left': '30px', 'width': '100%', 'height': '80%', 'overflow-y': 'scroll'}:
-                                {'padding-top': '15px', 'margin-left': '30px', 'width': '100%', 'height': '100%', 'overflow-y': 'scroll'}">
+  [ngStyle]="!isMaximized ? {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '80%', 'overflow-x': 'auto', 'overflow-y': 'auto'}:
+                                {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '100%', 'overflow-x': 'auto', 'overflow-y': 'auto'}">
   <div class="file-display-area">
     <div *ngIf="isLoading">
-      <nz-spin
-        nzSimple
-        [nzSize]="'large'"></nz-spin>
+      <nz-spin nzTip="Loading...">
+        <nz-alert
+          nzType="info"
+          nzMessage="File content is loading"
+        ></nz-alert>
+      </nz-spin>
     </div>
     <nz-table
       *ngIf="displayCSV || displayXlsx"
-      #basicTable>
+      #basicTable
+      [nzData]="tableContent"
+    >
       <thead>
         <tr>
           <th *ngFor="let column of tableDataHeader">{{ column }}</th>
         </tr>
       </thead>
       <tbody>
-        <tr *ngFor="let row of tableContent">
+        <tr *ngFor="let row of basicTable.data">
           <td *ngFor="let cell of row">{{ cell }}</td>
         </tr>
       </tbody>

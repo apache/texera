@@ -116,9 +116,11 @@
         </texera-user-dataset-version-creator>
       </div>
     </div>
-    <div *ngIf="isDisplayingDataset()">
+    <div
+      class="right-sider"
+      *ngIf="isDisplayingDataset()">
       <div class="right-panel-title">
-        <h5>Data Explorer</h5>
+        <h5>Dataset Explorer</h5>
       </div>
       <div class="version-storage">
         <h6 style="font-weight: lighter; font-size: 0.9em">Choose a Version:</h6>
@@ -140,6 +142,8 @@
         >
       </texera-user-dataset-version-filetree>
       <button
+        nz-button
+        nzType="primary"
         *ngIf="userHasWriteAccess()"
         class="rounded-button"
         (click)="onClickOpenVersionCreator()">

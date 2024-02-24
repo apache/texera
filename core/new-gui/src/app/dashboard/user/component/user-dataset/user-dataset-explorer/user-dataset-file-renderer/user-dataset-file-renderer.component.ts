@@ -49,18 +49,19 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
   private DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
   public fileURL: string | undefined;
+  // safe url is used to display some formats including image
   public safeFileURL: SafeUrl | undefined;
 
-  // pdf related control
-  public displayPdf: boolean = false;
-
-  // csv related control
+  // table related control
   public displayCSV: boolean = false;
+  public displayXlsx: boolean = false;
   public tableDataHeader: any[] = [];
   public tableContent: any[][] = [];
+  // pagination for table-like data
+  currentPageIndex = 0;
+  pageSizeOptions = [3,5,10,20,50];
+  pageSize = 20;
 
-  // xlsx related control
-  public displayXlsx: boolean = false;
 
   // image related control
   public displayImage: boolean = false;
@@ -124,7 +125,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
     }
   }
 
-  // In your component
   showImageModal = false;
 
   toggleImageModal() {
@@ -133,14 +133,14 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
 
   reloadFileContent() {
     this.turnOffAllDisplay();
-
+    this.isLoading = true;
     if (this.did && this.dvid && this.filePath != "") {
       this.datasetService
         .retrieveDatasetVersionSingleFile(this.did, this.dvid, this.filePath)
         .pipe()
         .subscribe({
           next: blob => {
-            this.isLoading = true;
+            this.isLoading = false;
             const MaxSize = MIME_TYPE_SIZE_LIMITS_MB[blob.type] || this.DEFAULT_MAX_SIZE;
             const fileSize = blob.size;
             if (fileSize > MaxSize) {
@@ -199,14 +199,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
                   },
                 });
                 break;
-              case MIME_TYPES.PDF:
-                // Handle PDF display
-                this.fileURL = URL.createObjectURL(blob);
-                setTimeout(() => {
-                  this.displayPdf = true;
-                  this.isLoading = false;
-                }, 0);
-                break;
               case MIME_TYPES.MD:
                 this.displayMarkdown = true;
                 this.readFileAsText(blob);
@@ -224,7 +216,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
                   this.notificationService.warning("File Type is currently not supported in preview");
                 break;
             }
-            this.isLoading = false;
           },
           error: (error: unknown) => {
             this.notificationService.error(`Error rendering file '${this.filePath}'`);
@@ -235,7 +226,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
   }
 
   turnOffAllDisplay() {
-    this.displayPdf = false;
     this.displayCSV = false;
     this.displayXlsx = false;
     this.displayImage = false;

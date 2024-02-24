@@ -212,9 +212,10 @@ object DatasetResource {
               val filePathsValue = bodyPart.getValueAs(classOf[String])
               val filePaths = filePathsValue.split(",")
               filePaths.foreach { filePath =>
+                val normalizedFilePath = filePath.stripPrefix("/")
                 GitVersionControlLocalFileStorage.removeFileFromRepo(
                   datasetPath,
-                  datasetPath.resolve(filePath)
+                  datasetPath.resolve(normalizedFilePath)
                 )
               }
               fileOperationHappens = true

@@ -135,7 +135,7 @@ export class DatasetService {
   public retrieveDatasetVersionFileTree(did: number, dvid: number): Observable<DatasetVersionFileTreeNode[]> {
     return this.http
       .get<{ fileNodes: FileNode[] }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/fileTree`
+        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
       )
       .pipe(map(response => parseFileNodesToTreeNodes(response.fileNodes)));
   }
