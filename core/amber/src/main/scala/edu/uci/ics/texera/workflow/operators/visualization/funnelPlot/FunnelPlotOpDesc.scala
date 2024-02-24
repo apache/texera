@@ -37,6 +37,7 @@ class FunnelPlotOpDesc extends VisualizationOperator with PythonOperatorDescript
   @JsonProperty(required = false)
   @JsonSchemaTitle("Color Column")
   @JsonPropertyDescription("Column to categorically colorize funnel sections")
+  @AutofillAttributeName
   var color: String = ""
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
