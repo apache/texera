@@ -38,9 +38,9 @@ jobs:
           path: |
             core/new-gui/node_modules
             core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-yarn-cache-v4-${{ hashFiles('**/yarn.lock') }}
+          key: ${{ runner.os }}-yarn-cache-v5-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-cache-v4-
+            ${{ runner.os }}-yarn-cache-v5-
       - name: Install dependency
         run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false --network-timeout=100000
       - name: Lint with Prettier & ESLint
