@@ -71,11 +71,8 @@ export class LocalLoginComponent {
         }),
         untilDestroyed(this)
       )
-      .subscribe(
-        // The new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-        Zone.current.wrap(() => {
-          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow");
-        }, "")
+      .subscribe(() =>
+        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow")
       );
   }
 
@@ -112,11 +109,8 @@ export class LocalLoginComponent {
         }),
         untilDestroyed(this)
       )
-      .subscribe(
-        // The new page will append to the bottom of the page, and the original page does not remove, zone solves this issue
-        Zone.current.wrap(() => {
-          this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow");
-        }, "")
+      .subscribe(() =>
+        this.router.navigateByUrl(this.route.snapshot.queryParams["returnUrl"] || "/dashboard/workflow")
       );
   }
 }

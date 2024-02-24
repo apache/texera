@@ -1,9 +1,9 @@
-<mat-tab-group (selectedTabChange)="onTabChanged($event)">
-  <mat-tab
+<nz-tabset (nzSelectChange)="onTabChanged($event)">
+  <nz-tab
     *ngFor="let metric of metrics"
-    label="{{metric}}">
-  </mat-tab>
-</mat-tab-group>
+    nzTitle="{{metric}}">
+  </nz-tab>
+</nz-tabset>
 <div
   id="chart"
   class="chart-property"></div>

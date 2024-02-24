@@ -2,7 +2,7 @@ import { Component, Input, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
 import * as Plotly from "plotly.js-basic-dist-min";
-import { MatTabChangeEvent } from "@angular/material/tabs";
+import { NzTabChangeEvent } from "ng-zorro-antd/tabs";
 
 @UntilDestroy()
 @Component({
@@ -37,10 +37,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   /**
    * Create a new line chart corresponding to the change of a tab
-   * @param selection of a certain metric
    */
-  onTabChanged(event: MatTabChangeEvent): void {
-    this.createChart(event.index);
+  onTabChanged(event: NzTabChangeEvent): void {
+    this.createChart(event.index!);
   }
 
   /**
