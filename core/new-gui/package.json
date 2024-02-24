@@ -7,8 +7,8 @@
   "license": "Apache-2.0",
   "scripts": {
     "start": "concurrently --kill-others \"npx y-websocket\" \"ng serve\"",
-    "build": "ng build --configuration production --progress=false --source-map=false",
-    "analyze": "ng build --configuration production --stats-json && webpack-bundle-analyzer dist/stats.json",
+    "build": "ng build --configuration=production --progress=false --source-map=false",
+    "analyze": "ng build --configuration=production --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test",
     "test:ci": "ng test --watch=false --progress=false --browsers=ChromeHeadless",
     "prettier:fix": "prettier --write ./src",
