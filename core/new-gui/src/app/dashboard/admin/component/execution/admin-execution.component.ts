@@ -60,7 +60,10 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
       });
   }, 1000); // 1 second interval
 
-  constructor(private adminExecutionService: AdminExecutionService, private modalService: NzModalService) {}
+  constructor(
+    private adminExecutionService: AdminExecutionService,
+    private modalService: NzModalService
+  ) {}
 
   ngOnInit() {
     this.adminExecutionService
