@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { CodeareaCustomTemplateComponent } from "./codearea-custom-template.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
