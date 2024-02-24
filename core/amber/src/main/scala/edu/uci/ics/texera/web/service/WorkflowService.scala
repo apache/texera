@@ -3,8 +3,8 @@ package edu.uci.ics.texera.web.service
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -163,9 +163,9 @@ class WorkflowService(
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)
         }
-        controllerConf = controllerConf.copy(workerLoggingConfMapping = { _ =>
-          Some(WorkerReplayLoggingConfig(writeTo = writeLocation))
-        })
+        controllerConf = controllerConf.copy(faultToleranceConfOpt =
+          Some(FaultToleranceConfig(writeTo = writeLocation))
+        )
       }
       if (req.replayFromExecution.isDefined) {
         val replayInfo = req.replayFromExecution.get
@@ -173,14 +173,14 @@ class WorkflowService(
           .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
           .foreach { execution =>
             val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(workerRestoreConfMapping = { _ =>
+            controllerConf = controllerConf.copy(stateRestoreConfOpt =
               Some(
-                WorkerStateRestoreConfig(
+                StateRestoreConfig(
                   readFrom = readLocation,
                   replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
                 )
               )
-            })
+            )
           }
       }
     }

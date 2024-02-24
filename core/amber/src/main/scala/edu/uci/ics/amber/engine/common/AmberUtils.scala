@@ -1,6 +1,7 @@
 package edu.uci.ics.amber.engine.common
 
 import akka.actor.{ActorSystem, Address, DeadLetter, Props}
+import akka.serialization.{Serialization, SerializationExtension}
 import com.typesafe.config.ConfigFactory.defaultApplication
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
@@ -10,6 +11,8 @@ import java.io.{BufferedReader, InputStreamReader}
 import java.net.URL
 
 object AmberUtils {
+
+  var serde: Serialization = _
 
   def convertToImmutableMap[K, V](javaMap: java.util.Map[K, V]): scala.collection.immutable.Map[K, V] = {
     import scala.jdk.CollectionConverters._
@@ -72,6 +75,7 @@ object AmberUtils {
     val deadLetterMonitorActor =
       system.actorOf(Props[DeadLetterMonitorActor](), name = "dead-letter-monitor-actor")
     system.eventStream.subscribe(deadLetterMonitorActor, classOf[DeadLetter])
+    serde = SerializationExtension(system)
     system
   }
 }

@@ -12,7 +12,6 @@ import {
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
-import { BreakpointPropertyEditFrameComponent } from "./breakpoint-property-edit-frame/breakpoint-property-edit-frame.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
@@ -126,61 +125,6 @@ describe("PropertyEditorComponent", () => {
     expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
     expect(component.frameComponentConfig?.componentInputs).toEqual({
       currentOperatorId: mockResultPredicate.operatorID,
-    });
-  });
-
-  it("should clear and hide the property editor panel correctly upon unhighlighting a link", () => {
-    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-    workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    workflowActionService.addOperator(mockResultPredicate, mockPoint);
-    workflowActionService.addLink(mockScanResultLink);
-
-    // highlight the link
-    jointGraphWrapper.highlightLink(mockScanResultLink.linkID);
-    fixture.detectChanges();
-
-    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentLinkId: mockScanResultLink.linkID,
-    });
-
-    // unhighlight the highlighted link
-    jointGraphWrapper.unhighlightLink(mockScanResultLink.linkID);
-    fixture.detectChanges();
-
-    expect(component.frameComponentConfig).toBeUndefined();
-  });
-
-  it("should switch the content of property editor to another link-breakpoint from the former link-breakpoint correctly", () => {
-    const jointGraphWrapper = workflowActionService.getJointGraphWrapper();
-
-    workflowActionService.addOperator(mockScanPredicate, mockPoint);
-    workflowActionService.addOperator(mockSentimentPredicate, mockPoint);
-    workflowActionService.addOperator(mockResultPredicate, mockPoint);
-    workflowActionService.addLink(mockScanSentimentLink);
-    workflowActionService.addLink(mockSentimentResultLink);
-
-    // highlight the first link
-    jointGraphWrapper.highlightLink(mockScanSentimentLink.linkID);
-
-    fixture.detectChanges();
-    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentLinkId: mockScanSentimentLink.linkID,
-    });
-
-    // unhighlight the link
-    jointGraphWrapper.unhighlightLink(mockScanSentimentLink.linkID);
-    fixture.detectChanges();
-    expect(component.frameComponentConfig).toBeUndefined();
-
-    // highlight the second link
-    jointGraphWrapper.highlightLink(mockSentimentResultLink.linkID);
-    fixture.detectChanges();
-    expect(component.frameComponentConfig?.component).toBe(BreakpointPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
-      currentLinkId: mockSentimentResultLink.linkID,
     });
   });
 });

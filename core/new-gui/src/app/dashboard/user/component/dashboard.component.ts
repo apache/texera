@@ -21,7 +21,10 @@ import { FlarumService } from "../service/flarum/flarum.service";
 export class DashboardComponent implements OnInit {
   isAdmin = this.userService.isAdmin();
 
-  constructor(private userService: UserService, private flarumService: FlarumService) {}
+  constructor(
+    private userService: UserService,
+    private flarumService: FlarumService
+  ) {}
 
   ngOnInit(): void {
     if (!document.cookie.includes("flarum_remember")) {

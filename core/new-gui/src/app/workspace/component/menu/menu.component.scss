@@ -62,6 +62,11 @@ i {
   justify-content: center;
 }
 
+[nz-button] {
+  width: 32px;
+  padding: 0;
+}
+
 #save-state {
   font-size: 10px;
   color: royalblue;
@@ -69,6 +74,7 @@ i {
 }
 
 #run-button {
+  padding-left: 10px;
   width: 140px;
   text-align: left;
 }
