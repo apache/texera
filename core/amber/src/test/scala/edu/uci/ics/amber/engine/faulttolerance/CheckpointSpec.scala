@@ -51,7 +51,13 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       resultStorage
     )
     val cp =
-      new ControllerProcessor(workflow.context, ControllerConfig.default, CONTROLLER, msg => {})
+      new ControllerProcessor(
+        workflow.context,
+        resultStorage,
+        ControllerConfig.default,
+        CONTROLLER,
+        msg => {}
+      )
     val chkpt = new CheckpointState()
     chkpt.save(CP_STATE_KEY, cp)
   }
