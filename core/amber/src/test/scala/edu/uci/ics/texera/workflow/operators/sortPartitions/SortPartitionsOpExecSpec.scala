@@ -45,13 +45,13 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "output in order" in {
 
     opExec.open()
-    opExec.processTexeraTuple(Left(tuple(3)), 0)
-    opExec.processTexeraTuple(Left(tuple(1)), 0)
-    opExec.processTexeraTuple(Left(tuple(2)), 0)
-    opExec.processTexeraTuple(Left(tuple(5)), 0)
+    opExec.processTuple(Left(tuple(3)), 0)
+    opExec.processTuple(Left(tuple(1)), 0)
+    opExec.processTuple(Left(tuple(2)), 0)
+    opExec.processTuple(Left(tuple(5)), 0)
 
     val outputTuples: List[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), 0).toList
+      opExec.processTuple(Right(InputExhausted()), 0).toList
     assert(outputTuples.size == 4)
     assert(outputTuples(0).equals(tuple(1)))
     assert(outputTuples(1).equals(tuple(2)))

@@ -21,7 +21,7 @@ class HashJoinProbeOpExec[K](
 
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {

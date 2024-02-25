@@ -12,7 +12,7 @@ class SymmetricDifferenceOpExec extends OperatorExecutor {
 
   private var exhaustedCounter: Int = 0
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {

@@ -7,7 +7,7 @@ import scala.collection.mutable
 
 class DistinctOpExec extends OperatorExecutor {
   private val hashset: mutable.LinkedHashSet[Tuple] = mutable.LinkedHashSet()
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {

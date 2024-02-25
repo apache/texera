@@ -24,7 +24,7 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
 
   override def close(): Unit = {}
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[TupleLike] = {

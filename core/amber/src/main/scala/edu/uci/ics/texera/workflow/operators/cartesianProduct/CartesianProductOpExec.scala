@@ -15,7 +15,7 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
   var leftTuples: ArrayBuffer[Tuple] = _
   var isLeftTupleCollectionFinished: Boolean = false
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {

@@ -17,7 +17,7 @@ class HtmlVizOpExec(htmlContentAttrName: String, outputSchema: Schema) extends O
 
   override def close(): Unit = {}
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] =

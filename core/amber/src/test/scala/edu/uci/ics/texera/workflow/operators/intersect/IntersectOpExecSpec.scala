@@ -66,16 +66,16 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 7).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input1)
+      opExec.processTuple(Left(commonTuples(i)), input1)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 
     (5 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input2)
+      opExec.processTuple(Left(commonTuples(i)), input2)
     })
 
     val outputTuples: Set[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), input2).toSet
+      opExec.processTuple(Right(InputExhausted()), input2).toSet
     assert(outputTuples.equals(commonTuples.slice(5, 8).toSet))
 
     opExec.close()
@@ -88,15 +88,15 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
     assertThrows[IllegalArgumentException] {
       (1 to 100).map(_ => {
-        opExec.processTexeraTuple(Left(tuple()), 2)
-        opExec.processTexeraTuple(
+        opExec.processTuple(Left(tuple()), 2)
+        opExec.processTuple(
           Left(commonTuples(Random.nextInt(commonTuples.size))),
           3
         )
       })
 
       val outputTuples: Set[Tuple] =
-        opExec.processTexeraTuple(Right(InputExhausted()), 0).toSet
+        opExec.processTuple(Right(InputExhausted()), 0).toSet
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
       outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
@@ -112,15 +112,15 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), input0)
-      opExec.processTexeraTuple(
+      opExec.processTuple(Left(tuple()), input0)
+      opExec.processTuple(
         Left(commonTuples(Random.nextInt(commonTuples.size))),
         input0
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input0).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input0).isEmpty)
 
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
     opExec.close()
   }
 
@@ -132,15 +132,15 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), input1)
-      opExec.processTexeraTuple(
+      opExec.processTuple(Left(tuple()), input1)
+      opExec.processTuple(
         Left(commonTuples(Random.nextInt(commonTuples.size))),
         input1
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input2).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
 
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
     opExec.close()
   }
 
@@ -151,15 +151,15 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input2).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
     (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), input1)
-      opExec.processTexeraTuple(
+      opExec.processTuple(Left(tuple()), input1)
+      opExec.processTuple(
         Left(commonTuples(Random.nextInt(commonTuples.size))),
         input1
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 
     opExec.close()
   }
@@ -172,22 +172,22 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), input1)
-      opExec.processTexeraTuple(
+      opExec.processTuple(Left(tuple()), input1)
+      opExec.processTuple(
         Left(commonTuples(Random.nextInt(commonTuples.size))),
         input1
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input2).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
 
     (1 to 100).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), input1)
-      opExec.processTexeraTuple(
+      opExec.processTuple(Left(tuple()), input1)
+      opExec.processTuple(
         Left(commonTuples(Random.nextInt(commonTuples.size))),
         input1
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 
     opExec.close()
   }
@@ -195,8 +195,8 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "work with two empty input upstreams" in {
 
     opExec.open()
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), 0).isEmpty)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), 1).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), 0).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), 1).isEmpty)
     opExec.close()
   }
 

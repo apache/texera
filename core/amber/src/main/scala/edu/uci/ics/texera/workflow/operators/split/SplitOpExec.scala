@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.split
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -15,10 +16,10 @@ class SplitOpExec(
 
   lazy val random = new Random(opDesc.seeds(actor))
 
-  override def processTuple(
+  override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
       input: Int
-  ): Iterator[(ITuple, Option[PortIdentity])] = {
+  ): Iterator[(TupleLike, Option[PortIdentity])] = {
     tuple match {
       case Left(iTuple) =>
         val isTraining = random.nextInt(100) < opDesc.k
@@ -29,7 +30,7 @@ class SplitOpExec(
     }
   }
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = ???

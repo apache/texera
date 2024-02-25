@@ -58,7 +58,7 @@ class WorkerSpec
 
     override def close(): Unit = println("closed!")
 
-    override def processTuple(
+    override def processTupleMultiPort(
         tuple: Either[ITuple, InputExhausted],
         input: Int
     ): Iterator[(ITuple, Option[PortIdentity])] = {

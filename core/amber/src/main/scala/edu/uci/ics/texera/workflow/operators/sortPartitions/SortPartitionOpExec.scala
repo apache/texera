@@ -19,7 +19,7 @@ class SortPartitionOpExec(
 
   private def sortTuples(): Iterator[Tuple] = unorderedTuples.sortWith(compareTuples).iterator
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {

@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 trait ISinkOperatorExecutor extends IOperatorExecutor {
 
-  override def processTuple(
+  override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
       input: Int
   ): Iterator[(ITuple, Option[PortIdentity])] = {

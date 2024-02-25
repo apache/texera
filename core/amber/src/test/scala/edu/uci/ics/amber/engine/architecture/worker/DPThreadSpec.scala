@@ -90,7 +90,12 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
-      ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
         .expects(Left(x), 0)
     }
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
@@ -118,7 +123,12 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
-      ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
         .expects(Left(x), 0)
     }
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
@@ -153,7 +163,12 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
-      ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
         .expects(Left(x), 0)
     }
     val dataChannelID2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
@@ -194,7 +209,12 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
     dpThread.start()
     tuples.foreach { x =>
-      ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
         .expects(Left(x), 0)
     }
     val dataChannelId2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)

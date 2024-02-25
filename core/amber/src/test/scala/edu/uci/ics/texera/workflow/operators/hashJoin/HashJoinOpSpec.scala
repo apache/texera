@@ -45,12 +45,12 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (0 to 7).map(i => {
       assert(
-        buildOpExec.processTexeraTuple(Left(tuple("build", 1, Some(i))), build).isEmpty
+        buildOpExec.processTuple(Left(tuple("build", 1, Some(i))), build).isEmpty
       )
     })
 
     val buildOpOutputIterator =
-      buildOpExec.processTexeraTuple(Right(InputExhausted()), build)
+      buildOpExec.processTuple(Right(InputExhausted()), build)
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
@@ -66,20 +66,20 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     while (buildOpOutputIterator.hasNext) {
       assert(
         probeOpExec
-          .processTexeraTuple(Left(buildOpOutputIterator.next()), build)
+          .processTuple(Left(buildOpOutputIterator.next()), build)
           .isEmpty
       )
     }
-    assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), build).isEmpty)
+    assert(probeOpExec.processTuple(Right(InputExhausted()), build).isEmpty)
 
     buildOpExec.close()
 
     val outputTuples = (5 to 9)
-      .map(i => probeOpExec.processTexeraTuple(Left(tuple("probe", 1, Some(i))), probe))
+      .map(i => probeOpExec.processTuple(Left(tuple("probe", 1, Some(i))), probe))
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
 
-    assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), probe).isEmpty)
+    assert(probeOpExec.processTuple(Right(InputExhausted()), probe).isEmpty)
 
     assert(outputTuples.size == 3)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 3)
@@ -100,11 +100,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (0 to 7).map(i => {
       assert(
-        buildOpExec.processTexeraTuple(Left(tuple("same", 1, Some(i))), build).isEmpty
+        buildOpExec.processTuple(Left(tuple("same", 1, Some(i))), build).isEmpty
       )
     })
     val buildOpOutputIterator =
-      buildOpExec.processTexeraTuple(Right(InputExhausted()), build)
+      buildOpExec.processTuple(Right(InputExhausted()), build)
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
@@ -121,20 +121,20 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     while (buildOpOutputIterator.hasNext) {
       assert(
         probeOpExec
-          .processTexeraTuple(Left(buildOpOutputIterator.next()), build)
+          .processTuple(Left(buildOpOutputIterator.next()), build)
           .isEmpty
       )
     }
-    assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), build).isEmpty)
+    assert(probeOpExec.processTuple(Right(InputExhausted()), build).isEmpty)
 
     buildOpExec.close()
 
     val outputTuples = (5 to 9)
-      .map(i => probeOpExec.processTexeraTuple(Left(tuple("same", n = 2, Some(i))), probe))
+      .map(i => probeOpExec.processTuple(Left(tuple("same", n = 2, Some(i))), probe))
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
 
-    assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), probe).isEmpty)
+    assert(probeOpExec.processTuple(Right(InputExhausted()), probe).isEmpty)
 
     assert(outputTuples.size == 3)
     assert(outputTuples.head.getSchema.getAttributeNames.size() == 3)
@@ -154,11 +154,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (0 to 7).map(i => {
       assert(
-        buildOpExec.processTexeraTuple(Left(tuple("same", 1, Some(i))), build).isEmpty
+        buildOpExec.processTuple(Left(tuple("same", 1, Some(i))), build).isEmpty
       )
     })
     val buildOpOutputIterator =
-      buildOpExec.processTexeraTuple(Right(InputExhausted()), build)
+      buildOpExec.processTuple(Right(InputExhausted()), build)
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
@@ -175,24 +175,24 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     while (buildOpOutputIterator.hasNext) {
       assert(
         probeOpExec
-          .processTexeraTuple(Left(buildOpOutputIterator.next()), build)
+          .processTuple(Left(buildOpOutputIterator.next()), build)
           .isEmpty
       )
     }
-    assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), build).isEmpty)
+    assert(probeOpExec.processTuple(Right(InputExhausted()), build).isEmpty)
 
     buildOpExec.close()
 
     assert(
       (5 to 9)
         .map(_ => {
-          probeOpExec.processTexeraTuple(Left(tuple("same", n = 2, None)), probe)
+          probeOpExec.processTuple(Left(tuple("same", n = 2, None)), probe)
         })
         .foldLeft(Iterator[Tuple]())(_ ++ _)
         .size == 5
     )
 
-    assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), probe).size == 8)
+    assert(probeOpExec.processTuple(Right(InputExhausted()), probe).size == 8)
 
     probeOpExec.close()
   }

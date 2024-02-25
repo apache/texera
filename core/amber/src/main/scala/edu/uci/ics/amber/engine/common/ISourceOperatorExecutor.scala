@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 trait ISourceOperatorExecutor extends IOperatorExecutor {
 
-  override def processTuple(
+  override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
       input: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {

@@ -88,10 +88,20 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (outputHandler.apply _).expects(*).once()
     (operator.open _).expects().once()
     tuples.foreach { x =>
-      ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
         .expects(Left(x), 0)
     }
-    ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+    (
+        (
+            tuple: Either[ITuple, InputExhausted],
+            input: Int
+        ) => operator.processTupleMultiPort(tuple, input)
+    )
       .expects(
         Right(InputExhausted()),
         0
@@ -131,10 +141,20 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
     (operator.open _).expects().once()
     tuples.foreach { x =>
-      ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
         .expects(Left(x), 0)
     }
-    ((tuple: Either[ITuple, InputExhausted], input: Int) => operator.processTuple(tuple, input))
+    (
+        (
+            tuple: Either[ITuple, InputExhausted],
+            input: Int
+        ) => operator.processTupleMultiPort(tuple, input)
+    )
       .expects(Right(InputExhausted()), 0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()

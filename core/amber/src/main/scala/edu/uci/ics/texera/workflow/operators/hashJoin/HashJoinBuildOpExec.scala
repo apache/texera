@@ -16,7 +16,7 @@ class HashJoinBuildOpExec[K](
   var outputSchema: Schema =
     Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {

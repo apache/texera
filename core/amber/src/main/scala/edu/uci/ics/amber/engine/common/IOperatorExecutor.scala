@@ -12,7 +12,7 @@ trait IOperatorExecutor {
 
   def close(): Unit
 
-  def processTuple(
+  def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
       input: Int
   ): Iterator[(TupleLike, Option[PortIdentity])]

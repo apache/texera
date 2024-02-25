@@ -42,7 +42,7 @@ class PartialAggregateOpExec(
   override def open(): Unit = {}
   override def close(): Unit = {}
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): scala.Iterator[Tuple] = {

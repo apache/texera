@@ -8,15 +8,15 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 trait OperatorExecutor extends IOperatorExecutor {
 
-  override def processTuple(
+  override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
       input: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
-    processTexeraTuple(tuple.asInstanceOf[Either[Tuple, InputExhausted]], input).map(t =>
+    processTuple(tuple.asInstanceOf[Either[Tuple, InputExhausted]], input).map(t =>
       (t, Option.empty)
     )
   }
 
-  def processTexeraTuple(tuple: Either[Tuple, InputExhausted], input: Int): Iterator[TupleLike]
+  def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): Iterator[TupleLike]
 
 }

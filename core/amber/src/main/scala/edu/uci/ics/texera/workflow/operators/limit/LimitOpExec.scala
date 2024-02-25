@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 class LimitOpExec(val limit: Int) extends OperatorExecutor {
   var count = 0
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       input: Int
   ): Iterator[Tuple] = {
