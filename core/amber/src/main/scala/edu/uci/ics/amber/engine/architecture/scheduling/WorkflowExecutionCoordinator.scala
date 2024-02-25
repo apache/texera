@@ -6,22 +6,25 @@ import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
+import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.collection.mutable
 
-class WorkflowExecutionController(
+class WorkflowExecutionCoordinator(
     getNextRegions: () => Set[Region],
     workflowExecution: WorkflowExecution,
     controllerConfig: ControllerConfig,
     asyncRPCClient: AsyncRPCClient
 ) extends LazyLogging {
 
-  private val regionExecutionControllers
-      : mutable.HashMap[RegionIdentity, RegionExecutionController] =
+  private val executedRegions: mutable.ListBuffer[Set[Region]] = mutable.ListBuffer()
+
+  private val regionExecutionCoordinators
+      : mutable.HashMap[RegionIdentity, RegionExecutionCoordinator] =
     mutable.HashMap()
 
   /**
-    * The entry function for WorkflowExecutor.
     * Each invocation will execute the next batch of Regions that are ready to be executed, if there are any.
     */
   def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
@@ -29,22 +32,36 @@ class WorkflowExecutionController(
       return Future()
     }
     Future
-      .collect(
-        getNextRegions()
+      .collect({
+        val nextRegions = getNextRegions()
+        executedRegions.append(nextRegions)
+        nextRegions
           .map(region => {
             workflowExecution.initRegionExecution(region)
-            regionExecutionControllers(region.id) = new RegionExecutionController(
+            regionExecutionCoordinators(region.id) = new RegionExecutionCoordinator(
               region,
               workflowExecution,
               asyncRPCClient,
               controllerConfig
             )
-            regionExecutionControllers(region.id)
+            regionExecutionCoordinators(region.id)
           })
           .map(regionExecutionController => regionExecutionController.execute(actorService))
           .toSeq
-      )
+      })
       .unit
+  }
+
+  def getRegionOfLink(link: PhysicalLink): Region = {
+    executedRegions.flatten.findLast(region => region.getLinks.contains(link)).get
+  }
+
+  def getRegionOfPortId(portId: GlobalPortIdentity): Option[Region] = {
+    executedRegions.flatten.findLast(region => region.getPorts.contains(portId))
+  }
+
+  def getExecutingRegions: Set[Region]  = {
+    executedRegions.flatten.filterNot(region => workflowExecution.getRegionExecution(region.id).isCompleted).toSet
   }
 
 }
