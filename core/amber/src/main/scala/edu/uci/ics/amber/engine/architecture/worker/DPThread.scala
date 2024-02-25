@@ -83,7 +83,7 @@ class DPThread(
             case _: InterruptedException =>
               // dp thread will stop here
               logger.info("DP Thread exits")
-            case err: Exception =>
+            case err: Throwable =>
               logger.error("DP Thread exists unexpectedly", err)
               dp.asyncRPCClient.send(
                 FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),

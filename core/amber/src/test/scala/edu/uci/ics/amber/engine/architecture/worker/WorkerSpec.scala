@@ -160,7 +160,7 @@ class WorkerSpec
   "Worker" should "process data messages correctly" in {
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink).once()
+    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink, null).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
@@ -192,7 +192,9 @@ class WorkerSpec
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     def mkBatch(start: Int, end: Int): Array[ITuple] = {
       (start until end).map { x =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _)
+          .expects(ITuple(x, x, x, x), mockLink, null)
+          .once()
         ITuple(x, x, x, x)
       }.toArray
     }
@@ -269,7 +271,7 @@ class WorkerSpec
     )
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
@@ -285,7 +287,7 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(

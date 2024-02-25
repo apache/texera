@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.internalAggObjKey
+import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.getOutputSchema
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
@@ -12,9 +12,22 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.IterableHasAsJava
 
 object PartialAggregateOpExec {
-  val INTERNAL_AGGREGATE_PARTIAL_OBJECT = "__internal_aggregate_partial_object__";
   def internalAggObjKey(key: Int): String = {
     s"__internal_aggregate_partial_object_${key}__"
+  }
+
+  def getOutputSchema(
+      inputSchema: Schema,
+      aggFuncs: List[DistributedAggregation[Object]],
+      groupByKeys: List[String]
+  ): Schema = {
+    Schema
+      .newBuilder()
+      // add group by keys
+      .add(groupByKeys.map(k => inputSchema.getAttribute(k)).asJava)
+      // add intermediate internal aggregation objects
+      .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)).asJava)
+      .build()
   }
 }
 
@@ -24,13 +37,7 @@ class PartialAggregateOpExec(
     val inputSchema: Schema
 ) extends OperatorExecutor {
 
-  var schema: Schema = Schema
-    .newBuilder()
-    // add group by keys
-    .add(groupByKeys.map(k => inputSchema.getAttribute(k)).asJava)
-    // add intermediate internal aggregation objects
-    .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)).asJava)
-    .build()
+  var schema: Schema = getOutputSchema(inputSchema, aggFuncs, groupByKeys)
 
   var partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
 

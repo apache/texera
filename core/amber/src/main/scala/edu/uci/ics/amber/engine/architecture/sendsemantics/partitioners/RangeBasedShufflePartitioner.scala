@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.RangeBasedShufflePartitioning
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
@@ -12,22 +11,20 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
   val keysPerReceiver =
     ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length).toLong + 1
 
-  override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
+  override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
     // Do range partitioning only on the first attribute in `rangeColumnIndices`.
-    val fieldType = tuple
-      .asInstanceOf[Tuple]
-      .getSchema
+    val fieldType = tuple.getSchema
       .getAttributes()
       .get(partitioning.rangeColumnIndices(0))
       .getType
     var fieldVal: Long = -1
     fieldType match {
       case AttributeType.LONG =>
-        fieldVal = tuple.getLong(partitioning.rangeColumnIndices(0))
+        fieldVal = tuple.get(partitioning.rangeColumnIndices(0)).asInstanceOf[Long]
       case AttributeType.INTEGER =>
-        fieldVal = tuple.getInt(partitioning.rangeColumnIndices(0)).toLong
+        fieldVal = tuple.get(partitioning.rangeColumnIndices(0)).asInstanceOf[Int]
       case AttributeType.DOUBLE =>
-        fieldVal = tuple.getDouble(partitioning.rangeColumnIndices(0)).toLong
+        fieldVal = tuple.get(partitioning.rangeColumnIndices(0)).asInstanceOf[Double].toLong
       case _ =>
         throw new RuntimeException("unsupported attribute type: " + fieldType.toString())
     }

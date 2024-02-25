@@ -5,11 +5,12 @@ import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream}
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable.ArrayBuffer
 
 trait Partitioner extends Serializable {
-  def getBucketIndex(tuple: ITuple): Iterator[Int]
+  def getBucketIndex(tuple: Tuple): Iterator[Int]
 
   def allReceivers: Seq[ActorVirtualIdentity]
 }

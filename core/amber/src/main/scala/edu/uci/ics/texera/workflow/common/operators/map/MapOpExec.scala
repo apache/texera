@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.operators.map
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -32,7 +33,7 @@ abstract class MapOpExec() extends OperatorExecutor with Serializable {
       input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     tuple match {
       case Left(t)  => Iterator(mapFunc(t))
       case Right(_) => Iterator()

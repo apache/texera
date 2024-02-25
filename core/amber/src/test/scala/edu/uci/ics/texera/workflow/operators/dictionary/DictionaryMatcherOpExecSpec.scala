@@ -53,7 +53,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
@@ -61,7 +61,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
@@ -69,7 +69,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
@@ -81,7 +81,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -90,7 +90,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -99,7 +99,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
@@ -111,7 +111,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -120,7 +120,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -129,7 +129,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
     val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 

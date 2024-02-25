@@ -46,7 +46,8 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     projectionOpExec.open()
 
-    val processedTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val processedTuple = outputTuple.asInstanceOf[Tuple]
     assert(processedTuple.length() == 2)
     assert(processedTuple.getField("f1").asInstanceOf[String] == "hello")
     assert(processedTuple.getField("f2").asInstanceOf[Int] == 1)
@@ -68,7 +69,8 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     projectionOpExec.open()
 
-    val processedTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val processedTuple = outputTuple.asInstanceOf[Tuple]
     assert(processedTuple.length() == 2)
     assert(processedTuple.getField("f3").asInstanceOf[Boolean])
     assert(processedTuple.getField("f1").asInstanceOf[String] == "hello")
@@ -122,7 +124,8 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     projectionOpExec.open()
 
-    val processedTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val processedTuple = outputTuple.asInstanceOf[Tuple]
     assert(processedTuple.length() == 2)
     assert(processedTuple.getField("field1").asInstanceOf[String] == "hello")
     assert(processedTuple.getField("f2").asInstanceOf[Int] == 1)

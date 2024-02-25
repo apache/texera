@@ -68,13 +68,6 @@ public class Tuple implements ITuple, Serializable {
         return fields.get(i);
     }
 
-    @Override
-    @JsonIgnore
-    public Object[] toArray() {
-        Object[] array = new Object[0];
-        return fields.toArray(array);
-    }
-
     @JsonProperty(value = "schema")
     public Schema getSchema() {
         return schema;
@@ -211,6 +204,11 @@ public class Tuple implements ITuple, Serializable {
 
     public static Tuple.BuilderV2 newBuilder(Schema schema) {
         return new Tuple.BuilderV2(schema);
+    }
+
+    @Override
+    public Object[] fields() {
+        return fields.toArray();
     }
 
     /**

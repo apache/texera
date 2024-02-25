@@ -1,32 +1,41 @@
 package edu.uci.ics.amber.engine.common.tuple
 
-import edu.uci.ics.amber.engine.common.amberfield.FieldType
-import edu.uci.ics.amber.engine.common.tuple.amber.AmberTuple
+import edu.uci.ics.amber.engine.common.tuple.amber.{MapTupleLike, SeqTupleLike, TupleLike}
 
-import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.hashing.MurmurHash3
 
 object ITuple {
-  def apply(values: Any*): ITuple = new AmberTuple(values.toArray)
-  def fromSeq(values: Seq[Any]): ITuple = new AmberTuple(values.toArray)
-  def fromIterable(values: Iterable[Any]): ITuple = new AmberTuple(values.toArray)
-  def fromJavaStringIterable(values: java.lang.Iterable[String]): ITuple =
-    new AmberTuple(values.asScala.toArray)
-  def fromJavaArray(values: Array[Any]) = new AmberTuple(values)
-  def fromJavaStringArray(values: Array[String], types: Array[FieldType.Value]) =
-    new AmberTuple(values, types)
-  def fromJavaStringIterable(values: java.lang.Iterable[String], types: Array[FieldType.Value]) =
-    new AmberTuple(values.asScala.toArray, types)
-  def fromJavaList(values: java.util.List[Any]): ITuple = new AmberTuple(values.asScala.toArray)
-  val empty = apply()
+  def apply(tupleLike: TupleLike): ITuple = {
+    tupleLike match {
+      case tuple: ITuple      => tuple
+      case like: MapTupleLike => apply(like.fieldMappings.values)
+      case like: SeqTupleLike => apply(like.fields)
+      case _                  => ???
+    }
+  }
+  def apply(values: Any*): ITuple =
+    new ITuple {
+      override val fields: Array[Any] = values.toArray
+
+      // dummy value, will reflect real size in Tuple.
+      override def inMemSize: Long = 200L
+
+      override def length: Int = fields.length
+
+      override def get(i: Int): Any = fields(i)
+    }
 }
 
-trait ITuple extends Serializable {
+trait ITuple extends Serializable with SeqTupleLike {
   def inMemSize: Long
   def size: Int = length
+
   def length: Int
+
   def apply(i: Int): Any = get(i)
+
   def get(i: Int): Any
+
   def getAs[T](i: Int): T = get(i).asInstanceOf[T]
   def isNullAt(i: Int): Boolean = get(i) == null
   def getInstant(i: Int): java.time.Instant = getAs[java.time.Instant](i)
@@ -44,8 +53,6 @@ trait ITuple extends Serializable {
   def getShort(i: Int): Short = getAnyValAs[Short](i)
   def getByte(i: Int): Byte = getAnyValAs[Byte](i)
   def getBoolean(i: Int): Boolean = getAnyValAs[Boolean](i)
-
-  def toArray(): Array[Any]
 
   override def hashCode: Int = {
     var n = 0

@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -21,6 +22,15 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   private val mockDataOutputPort = // scalafix:ok; need it for wiring purpose
     new NetworkOutputGateway(identifier, mockHandler)
   var counter: Int = 0
+  val schema: Schema = Schema
+    .newBuilder()
+    .add("field1", AttributeType.INTEGER)
+    .add("field2", AttributeType.INTEGER)
+    .add("field3", AttributeType.INTEGER)
+    .add("field4", AttributeType.INTEGER)
+    .add("field5", AttributeType.STRING)
+    .add("field6", AttributeType.DOUBLE)
+    .build()
 
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1
@@ -38,6 +48,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
 
   "OutputManager" should "aggregate tuples and output" in {
     val outputManager = wire[OutputManager]
+
     val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
     val fakeID = ActorVirtualIdentity("testReceiver")
     inSequence {
@@ -60,7 +71,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       OneToOnePartitioning(10, fakeReceiver.toSeq)
     )
     tuples.foreach { t =>
-      outputManager.passTupleToDownstream(t, fakeLink)
+      outputManager.passTupleToDownstream(t, fakeLink, schema)
     }
     outputManager.emitEndOfUpstream()
   }
@@ -72,7 +83,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     val fakeLink = PhysicalLink(physicalOpId(), PortIdentity(), physicalOpId(), PortIdentity())
     assertThrows[Exception] {
       tuples.foreach { t =>
-        outputManager.passTupleToDownstream(t, fakeLink)
+        outputManager.passTupleToDownstream(t, fakeLink, schema)
       }
       outputManager.emitEndOfUpstream()
     }
