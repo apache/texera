@@ -13,16 +13,18 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDel
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 class ControllerProcessor(
     workflowContext: WorkflowContext,
+    opResultStorage: OpResultStorage,
     controllerConfig: ControllerConfig,
     actorId: ActorVirtualIdentity,
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
-  val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext)
+  val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext, opResultStorage)
   val workflowExecutionController: WorkflowExecutionController = new WorkflowExecutionController(
     () => this.workflowScheduler.getNextRegions,
     workflowExecution,

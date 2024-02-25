@@ -13,23 +13,16 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-case class WorkflowScheduler(workflowContext: WorkflowContext) {
+class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpResultStorage)
+    extends java.io.Serializable {
   var physicalPlan: PhysicalPlan = _
   var regionPlan: RegionPlan = _
   private var regionExecutionOrder: Iterator[Set[Region]] = _
-  private var opResultStorage: OpResultStorage = _
-  def addPhysicalPlan(physicalPlan: PhysicalPlan): Unit = {
-    this.physicalPlan = physicalPlan
-  }
-
-  def setStorage(opResultStorage: OpResultStorage): Unit = {
-    this.opResultStorage = opResultStorage
-  }
 
   /**
     * Update the total order of the regions to be executed, based on the current physicalPlan.
     */
-  def updateSchedule(): Unit = {
+  def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
@@ -61,6 +54,8 @@ case class WorkflowScheduler(workflowContext: WorkflowContext) {
     }.map(regionIds => regionIds.map(regionId => regionPlan.getRegion(regionId)))
   }
 
-  def getNextRegions: Set[Region] = regionExecutionOrder.next()
+  def getNextRegions: Set[Region] =
+    if (regionExecutionOrder.hasNext) regionExecutionOrder.next()
+    else Set.empty
 
 }

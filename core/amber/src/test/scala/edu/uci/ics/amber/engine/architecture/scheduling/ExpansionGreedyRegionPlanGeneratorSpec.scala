@@ -40,10 +40,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       ),
       resultStorage
     )
-    val workflowScheduler = new WorkflowScheduler(workflow.context)
-    workflowScheduler.addPhysicalPlan(workflow.physicalPlan)
-    workflowScheduler.setStorage(resultStorage)
-    workflowScheduler.updateSchedule()
+    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
+    workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     assert(workflowScheduler.regionPlan.regions.size == 1)
     workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
@@ -98,10 +96,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context)
-    workflowScheduler.addPhysicalPlan(workflow.physicalPlan)
-    workflowScheduler.setStorage(resultStorage)
-    workflowScheduler.updateSchedule()
+    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
+    workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     assert(workflowScheduler.regionPlan.regions.size == 2)
     workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
@@ -186,10 +182,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context)
-    workflowScheduler.addPhysicalPlan(workflow.physicalPlan)
-    workflowScheduler.setStorage(resultStorage)
-    workflowScheduler.updateSchedule()
+    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
+    workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     assert(workflowScheduler.regionPlan.regions.size == 2)
     workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
@@ -258,10 +252,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context)
-    workflowScheduler.addPhysicalPlan(workflow.physicalPlan)
-    workflowScheduler.setStorage(resultStorage)
-    workflowScheduler.updateSchedule()
+    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
+    workflowScheduler.updateSchedule(workflow.physicalPlan)
     assert(workflowScheduler.regionPlan.regions.size == 2)
     workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
       case (regionId, opCount) =>
@@ -329,10 +321,8 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context)
-    workflowScheduler.addPhysicalPlan(workflow.physicalPlan)
-    workflowScheduler.setStorage(resultStorage)
-    workflowScheduler.updateSchedule()
+    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
+    workflowScheduler.updateSchedule(workflow.physicalPlan)
 
     assert(workflowScheduler.regionPlan.regions.size == 2)
     workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
