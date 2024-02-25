@@ -49,7 +49,14 @@ class DataProcessingSpec
 
   def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[ITuple]] = {
     var results: Map[OperatorIdentity, List[ITuple]] = null
-    val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
+    val client = new AmberClient(
+      system,
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      ControllerConfig.default,
+      error => {}
+    )
     val completion = Promise[Unit]()
     client.registerCallback[FatalError](evt => {
       completion.setException(evt.e)
