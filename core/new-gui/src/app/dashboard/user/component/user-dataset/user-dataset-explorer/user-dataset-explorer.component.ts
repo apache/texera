@@ -76,7 +76,8 @@ export class UserDatasetExplorerComponent implements OnInit {
             this.renderDatasetCreatorSider();
           }
           return this.route.data; // or some other observable
-        })
+        }),
+        untilDestroyed(this)
       )
       .subscribe();
   }
@@ -170,7 +171,7 @@ export class UserDatasetExplorerComponent implements OnInit {
     if (this.did && this.selectedVersion && this.selectedVersion.dvid) {
       this.datasetService
         .retrieveDatasetVersionSingleFile(this.did, this.selectedVersion?.dvid, this.currentDisplayedFileName)
-        .pipe()
+        .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
             // download this blob, the filename is the direct name of this file(e.g., /a/b/c.txt, name would be c.txt)
