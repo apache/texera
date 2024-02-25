@@ -14,15 +14,15 @@ class IntersectOpExec extends OperatorExecutor {
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
-    if (input >= 2) {
+    if (port >= 2) {
       throw new IllegalArgumentException("input port should not be more than 2")
     }
     tuple match {
       case Left(t) =>
         // add the tuple to corresponding set
-        if (input == 0) leftSet += t else rightSet += t
+        if (port == 0) leftSet += t else rightSet += t
         Iterator()
 
       case Right(_) =>

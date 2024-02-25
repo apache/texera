@@ -44,7 +44,7 @@ class PartialAggregateOpExec(
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): scala.Iterator[Tuple] = {
     if (aggFuncs.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")

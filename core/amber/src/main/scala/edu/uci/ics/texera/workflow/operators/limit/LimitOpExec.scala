@@ -9,7 +9,7 @@ class LimitOpExec(val limit: Int) extends OperatorExecutor {
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>

@@ -25,11 +25,11 @@ class IntervalJoinOpExec(
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(currentTuple) =>
-        if (input == 0) {
+        if (port == 0) {
           leftTable += currentTuple
           if (rightTable.nonEmpty) {
             removeTooSmallTupleInRightCache(leftTable.head)

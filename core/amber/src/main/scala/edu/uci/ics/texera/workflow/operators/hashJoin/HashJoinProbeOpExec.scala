@@ -23,11 +23,11 @@ class HashJoinProbeOpExec[K](
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(tuple) =>
-        if (input == 0) {
+        if (port == 0) {
           buildTableHashMap.update(tuple.getField("key"), tuple.getField("value"))
           Iterator()
         } else {
@@ -49,7 +49,7 @@ class HashJoinProbeOpExec[K](
           }
         }
       case Right(_) => {
-        if (input == 0) {
+        if (port == 0) {
           Iterator()
         } else {
           if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {

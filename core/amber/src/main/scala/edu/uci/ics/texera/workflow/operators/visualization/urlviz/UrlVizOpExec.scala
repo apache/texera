@@ -19,7 +19,7 @@ class UrlVizOpExec(
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] =
     tuple match {
       case Left(tuple) =>

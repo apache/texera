@@ -7,9 +7,9 @@ trait ISinkOperatorExecutor extends IOperatorExecutor {
 
   override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[(ITuple, Option[PortIdentity])] = {
-    consume(tuple, input)
+    consume(tuple, port)
     Iterator.empty
   }
 

@@ -7,7 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 class UnionOpExec extends OperatorExecutor {
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t)  => Iterator(t)

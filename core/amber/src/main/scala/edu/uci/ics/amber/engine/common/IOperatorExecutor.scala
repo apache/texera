@@ -14,7 +14,7 @@ trait IOperatorExecutor {
 
   def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])]
 
 }

@@ -10,13 +10,13 @@ trait OperatorExecutor extends IOperatorExecutor {
 
   override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
-    processTuple(tuple.asInstanceOf[Either[Tuple, InputExhausted]], input).map(t =>
+    processTuple(tuple.asInstanceOf[Either[Tuple, InputExhausted]], port).map(t =>
       (t, Option.empty)
     )
   }
 
-  def processTuple(tuple: Either[Tuple, InputExhausted], input: Int): Iterator[TupleLike]
+  def processTuple(tuple: Either[Tuple, InputExhausted], port: Int): Iterator[TupleLike]
 
 }

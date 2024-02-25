@@ -14,14 +14,14 @@ class DifferenceOpExec() extends OperatorExecutor {
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
-    if (input >= 2) {
+    if (port >= 2) {
       throw new IllegalArgumentException("input port should not be more than 2")
     }
     tuple match {
       case Left(t) =>
-        if (input == 1) { // right input
+        if (port == 1) { // right input
           rightHashSet.add(t)
         } else { // left input
           leftHashSet.add(t)

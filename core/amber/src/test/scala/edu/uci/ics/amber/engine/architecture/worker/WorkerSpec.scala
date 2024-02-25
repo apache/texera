@@ -60,7 +60,7 @@ class WorkerSpec
 
     override def processTupleMultiPort(
         tuple: Either[ITuple, InputExhausted],
-        input: Int
+        port: Int
     ): Iterator[(ITuple, Option[PortIdentity])] = {
       tuple match {
         case Left(iTuple) => Iterator((iTuple, None))

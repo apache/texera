@@ -17,12 +17,12 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       // is Tuple
       case Left(tuple) =>
-        if (input == 0) {
+        if (port == 0) {
           // left port, store the tuple
           leftTuples += tuple
           Iterator()
@@ -54,7 +54,7 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
 
       // is InputExhausted
       case Right(_) =>
-        if (input == 0 && !isLeftTupleCollectionFinished) {
+        if (port == 0 && !isLeftTupleCollectionFinished) {
           // mark as completed with processing left tuples
           isLeftTupleCollectionFinished = true
         }

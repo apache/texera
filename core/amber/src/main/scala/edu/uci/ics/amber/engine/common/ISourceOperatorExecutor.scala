@@ -8,7 +8,7 @@ trait ISourceOperatorExecutor extends IOperatorExecutor {
 
   override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
     // The input Tuple for source operator will always be InputExhausted.
     // Source and other operators can share the same processing logic.

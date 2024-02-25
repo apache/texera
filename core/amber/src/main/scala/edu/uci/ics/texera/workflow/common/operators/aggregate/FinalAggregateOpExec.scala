@@ -26,7 +26,7 @@ class FinalAggregateOpExec(
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = {
     if (aggFuncs.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")

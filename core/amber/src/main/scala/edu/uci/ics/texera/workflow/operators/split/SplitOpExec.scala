@@ -18,7 +18,7 @@ class SplitOpExec(
 
   override def processTupleMultiPort(
       tuple: Either[ITuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
     tuple match {
       case Left(iTuple) =>
@@ -32,7 +32,7 @@ class SplitOpExec(
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int
+      port: Int
   ): Iterator[Tuple] = ???
 
   override def open(): Unit = {}
