@@ -29,7 +29,7 @@ trait PortCompletedHandler {
         msg.portId,
         input = msg.input
       )
-      cp.workflowScheduler.regionPlan.getRegionOfPortId(globalPortId) match {
+      cp.workflowExecutionCoordinator.getRegionOfPortId(globalPortId) match {
         case Some(region) =>
           val regionExecution = cp.workflowExecution.getRegionExecution(region.id)
           val operatorExecution =
@@ -46,7 +46,7 @@ trait PortCompletedHandler {
             else operatorExecution.isOutputPortCompleted(msg.portId)
 
           if (isPortCompleted) {
-            cp.workflowExecutionController.executeNextRegions(cp.actorService)
+            cp.workflowExecutionCoordinator.executeNextRegions(cp.actorService)
           } else {
             // if the port is not completed yet, do nothing
             Future(())
