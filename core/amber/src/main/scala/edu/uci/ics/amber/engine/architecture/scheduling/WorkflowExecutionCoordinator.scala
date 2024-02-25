@@ -46,22 +46,24 @@ class WorkflowExecutionCoordinator(
             )
             regionExecutionCoordinators(region.id)
           })
-          .map(regionExecutionController => regionExecutionController.execute(actorService))
+          .map(_.execute(actorService))
           .toSeq
       })
       .unit
   }
 
   def getRegionOfLink(link: PhysicalLink): Region = {
-    executedRegions.flatten.findLast(region => region.getLinks.contains(link)).get
+    getExecutingRegions.find(region => region.getLinks.contains(link)).get
   }
 
   def getRegionOfPortId(portId: GlobalPortIdentity): Option[Region] = {
-    executedRegions.flatten.findLast(region => region.getPorts.contains(portId))
+    getExecutingRegions.find(region => region.getPorts.contains(portId))
   }
 
-  def getExecutingRegions: Set[Region]  = {
-    executedRegions.flatten.filterNot(region => workflowExecution.getRegionExecution(region.id).isCompleted).toSet
+  def getExecutingRegions: Set[Region] = {
+    executedRegions.flatten
+      .filterNot(region => workflowExecution.getRegionExecution(region.id).isCompleted)
+      .toSet
   }
 
 }
