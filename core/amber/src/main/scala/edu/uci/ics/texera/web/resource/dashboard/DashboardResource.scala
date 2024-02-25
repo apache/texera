@@ -77,12 +77,13 @@ object DashboardResource {
       case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
         ProjectSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
-        Dataset
+        DatasetSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
         val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params)
         val q2 = FileSearchQueryBuilder.constructQuery(uid, params)
         val q3 = ProjectSearchQueryBuilder.constructQuery(uid, params)
-        q1.unionAll(q2).unionAll(q3)
+        val q4 = DatasetSearchQueryBuilder.constructQuery(uid, params)
+        q1.unionAll(q2).unionAll(q3).unionAll(q4)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 
@@ -101,6 +102,8 @@ object DashboardResource {
             FileSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
             ProjectSearchQueryBuilder.toEntry(uid, record)
+          case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
+            DatasetSearchQueryBuilder.toEntry(uid, record)
         }
       })
 

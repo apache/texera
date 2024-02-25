@@ -2,7 +2,7 @@ package edu.uci.ics.texera.web.resource.dashboard
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.types.UInteger
-import edu.uci.ics.texera.web.model.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS, PROJECT_USER_ACCESS}
+import edu.uci.ics.texera.web.model.jooq.generated.Tables.{DATASET, DATASET_USER_ACCESS}
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
@@ -19,6 +19,9 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     creationTime = DATASET.CREATION_TIME,
     did = DATASET.DID,
     ownerId = DATASET.OWNER_UID,
+    isDatasetPublic = DATASET.IS_PUBLIC,
+    datasetStoragePath = DATASET.STORAGE_PATH,
+    datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE,
   )
 
   override protected def constructFromClause(uid: UInteger, params: DashboardResource.SearchQueryParams): TableLike[_] = {

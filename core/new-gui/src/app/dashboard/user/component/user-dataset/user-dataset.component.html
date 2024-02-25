@@ -16,26 +16,51 @@
           nzType="file-add"></i>
       </button>
     </nz-button-group>
-    <texera-filters #filters></texera-filters>
   </nz-card>
 
   <div class="section-search-bar dataset-search-bar">
-    <texera-filters-instructions></texera-filters-instructions>
-    <nz-select
-      class="search-input-box"
-      name="search-input-box"
-      nzMode="tags"
-      nzPlaceHolder="Search all datasets"
-      [nzBorderless]="true"
-      [nzOpen]="false"
-      ngDefaultControl
-      [(ngModel)]="filters.masterFilterList"
-      [nzAllowClear]="true">
-    </nz-select>
+    <nz-input-group
+      [nzSuffix]="suffixIconSearch"
+      class="texera-dashboard-user-dataset-search-box-input">
+      <input
+        (keyup.enter)="isTyping = false"
+        (ngModelChange)="searchInputOnChange($event)"
+        [(ngModel)]="userDatasetSearchValue"
+        [nzAutocomplete]="auto"
+        nz-input
+        nzBackdrop="false"
+        placeholder="Search Datasets..."
+        type="text" />
+      <ng-template #suffixIconSearch>
+        <i
+          nz-icon
+          nzType="search"></i>
+      </ng-template>
+      <nz-autocomplete
+        #auto
+        [nzDataSource]="filteredDatasetNames"
+        [nzDefaultActiveFirstOption]="false"
+        nzBackfill></nz-autocomplete>
+    </nz-input-group>
   </div>
 
-  <texera-search-results
-    [editable]="true"
-    (deleted)="deleteDataset($event)"
-    (modified)="refreshDatasetItems($event)"></texera-search-results>
+  <nz-card class="section-list-container">
+    <!-- itemSize: the height (px) of each list item,
+      this MUST be approximately the same as list item size set in CSS,
+      .dataset-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
+    -->
+    <cdk-virtual-scroll-viewport
+      class="virtual-scroll-container"
+      itemSize="80">
+      <nz-list>
+        <texera-user-dataset-list-item
+          *cdkVirtualFor="let entry of getDatasetArray()"
+          [entry]="entry"
+          (deleted)="deleteDataset(entry.dataset.did)"
+          (refresh)="ngOnInit()"
+          [editable]="true"
+        ></texera-user-dataset-list-item>
+      </nz-list>
+    </cdk-virtual-scroll-viewport>
+  </nz-card>
 </div>

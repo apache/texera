@@ -6,6 +6,7 @@ import { DatasetService } from "../../../service/user-dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
+import {DashboardDataset} from "../../../type/dashboard-dataset.interface";
 
 @UntilDestroy()
 @Component({
@@ -16,20 +17,21 @@ import { NzModalService } from "ng-zorro-antd/modal";
 export class UserDatasetListItemComponent {
   ROUTER_DATASET_BASE_URL = "/dashboard/dataset";
 
-  private _entry?: DashboardEntry;
+  private _entry?: DashboardDataset;
 
   @Output()
   refresh = new EventEmitter<void>();
 
   @Input()
-  get entry(): DashboardEntry {
+  get entry(): DashboardDataset {
     if (!this._entry) {
       throw new Error("entry property must be provided to UserDatasetListItemComponent.");
     }
     return this._entry;
   }
 
-  set entry(value: DashboardEntry) {
+  set entry(value: DashboardDataset) {
+    console.log("set the entry:", value)
     this._entry = value;
   }
 
@@ -39,7 +41,7 @@ export class UserDatasetListItemComponent {
         "Incorrect type of DashboardEntry provided to UserDatasetListItemComponent. Entry must be dataset."
       );
     }
-    return this.entry.dataset.dataset;
+    return this.entry.dataset;
   }
 
   @Input() editable = false;
@@ -48,9 +50,6 @@ export class UserDatasetListItemComponent {
 
   editingName = false;
   editingDescription = false;
-  /** Whether tracking metadata information about versions is enabled. */
-  datasetVersionsTrackingEnabled: boolean = true;
-  datasetVersionTrackingEnabled: boolean = true;
 
   constructor(
     private modalService: NzModalService,
@@ -59,17 +58,17 @@ export class UserDatasetListItemComponent {
   ) {}
 
   public confirmUpdateDatasetCustomName(name: string) {
-    if (this.entry.dataset.dataset.name == name) {
+    if (this.entry.dataset.name == name) {
       return;
     }
 
-    if (this.entry.dataset.dataset.did)
+    if (this.entry.dataset.did)
       this.datasetService
-        .updateDatasetName(this.entry.dataset.dataset.did, name)
+        .updateDatasetName(this.entry.dataset.did, name)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: () => {
-            this.entry.dataset.dataset.name = name;
+            this.entry.dataset.name = name;
             this.editingName = false;
           },
           error: () => {
@@ -80,17 +79,17 @@ export class UserDatasetListItemComponent {
   }
 
   public confirmUpdateDatasetCustomDescription(description: string) {
-    if (this.entry.dataset.dataset.description == description) {
+    if (this.entry.dataset.description == description) {
       return;
     }
 
-    if (this.entry.dataset.dataset.did)
+    if (this.entry.dataset.did)
       this.datasetService
-        .updateDatasetDescription(this.entry.dataset.dataset.did, description)
+        .updateDatasetDescription(this.entry.dataset.did, description)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: () => {
-            this.entry.dataset.dataset.description = description;
+            this.entry.dataset.description = description;
             this.editingDescription = false;
           },
           error: () => {
@@ -101,17 +100,16 @@ export class UserDatasetListItemComponent {
   }
 
   public onClickOpenShareAccess() {
-    const modalRef = this.modalService.create({
+    this.modalService.create({
       nzContent: ShareAccessComponent,
       nzData: {
-        writeAccess: this.entry.dataset.accessPrivilege === "WRITE",
+        writeAccess: this.entry.accessPrivilege === "WRITE",
         type: "dataset",
-        id: this.entry.dataset.dataset.did,
+        id: this.dataset.did,
       },
       nzFooter: null,
       nzTitle: "Share this dataset with others",
       nzCentered: true,
     });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refresh.emit());
   }
 }

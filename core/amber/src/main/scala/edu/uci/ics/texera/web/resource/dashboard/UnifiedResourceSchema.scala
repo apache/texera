@@ -1,16 +1,14 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{
-  UserFileAccessPrivilege,
-  WorkflowUserAccessPrivilege
-}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{DatasetUserAccessPrivilege, UserFileAccessPrivilege, WorkflowUserAccessPrivilege}
 import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
 import org.jooq.{Field, Record}
 
 import java.sql.Timestamp
+import java.lang.Byte
 import scala.collection.mutable
 
 object UnifiedResourceSchema {
@@ -56,7 +54,10 @@ object UnifiedResourceSchema {
       fileUserAccess: Field[UserFileAccessPrivilege] =
         DSL.inline(null, classOf[UserFileAccessPrivilege]),
       did: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
-
+      datasetStoragePath: Field[String] = DSL.inline(null, classOf[String]),
+      isDatasetPublic: Field[Byte] = DSL.inline(null, classOf[Byte]),
+      datasetUserAccess: Field[DatasetUserAccessPrivilege] =
+        DSL.inline(null, classOf[DatasetUserAccessPrivilege]),
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
@@ -79,7 +80,11 @@ object UnifiedResourceSchema {
         fileUploadTime -> fileUploadTime.as("upload_time"),
         filePath -> filePath.as("path"),
         fileSize -> fileSize.as("size"),
-        fileUserAccess -> fileUserAccess.as("user_file_access")
+        fileUserAccess -> fileUserAccess.as("user_file_access"),
+        did -> did.as("did"),
+        datasetStoragePath -> datasetStoragePath.as("dataset_storage_path"),
+        datasetUserAccess -> datasetUserAccess.as("user_dataset_access"),
+        isDatasetPublic -> isDatasetPublic.as("is_dataset_public")
       )
     )
   }
@@ -115,6 +120,10 @@ object UnifiedResourceSchema {
   * - `filePath`: Path of the file, as a `String`.
   * - `fileSize`: Size of the file, as a `UInteger`.
   * - `fileUserAccess`: Access privileges for the file, as a `UserFileAccessPrivilege`.
+  *
+  * Attributes specific to datasets:
+  * - `did`: Dataset ID, as a `UInteger`.
+  * - `datasetUserAccess`: Access privileges for the dataset, as a `DatasetUserAccessPrivilege`
   */
 class UnifiedResourceSchema private (
     fieldMappingSeq: Seq[(Field[_], Field[_])]

@@ -58,6 +58,10 @@ export class DatasetService {
     return this.http.get<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`).pipe();
   }
 
+  public listDatasets(): Observable<DashboardDataset[]> {
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`).pipe()
+  }
+
   public retrieveDatasetVersionSingleFile(did: number, dvid: number, path: string): Observable<Blob> {
     const encodedPath = encodeURIComponent(path);
     return this.http.get(

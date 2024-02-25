@@ -4,41 +4,14 @@ import edu.uci.ics.texera.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetUserAccessDao,
-  DatasetVersionDao
-}
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetUserAccess,
-  DatasetVersion
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetUserAccessDao, DatasetVersionDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetUserAccess, DatasetVersion}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
-  getDatasetUserAccessPrivilege,
-  userHasReadAccess,
-  userHasWriteAccess,
-  userOwnDataset
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DashboardDataset,
-  DashboardDatasetVersion,
-  DatasetDescriptionModification,
-  DatasetIDs,
-  DatasetNameModification,
-  DatasetVersionRootFileNodes,
-  DatasetVersions,
-  ERR_DATASET_CREATION_FAILED_MESSAGE,
-  ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
-  context,
-  getDashboardDataset,
-  getDatasetByID,
-  getDatasetLatestVersion,
-  getDatasetVersionHashByID,
-  createNewDatasetVersion
-}
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, userHasReadAccess, userHasWriteAccess, userOwnDataset}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, context, createNewDatasetVersion, getDashboardDataset, getDatasetByID, getDatasetLatestVersion, getDatasetVersionHashByID}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.FileNode
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
@@ -54,18 +27,7 @@ import java.nio.file.Paths
 import java.util
 import java.util.concurrent.locks.ReentrantLock
 import javax.annotation.security.RolesAllowed
-import javax.ws.rs.{
-  BadRequestException,
-  Consumes,
-  ForbiddenException,
-  GET,
-  NotFoundException,
-  POST,
-  Path,
-  PathParam,
-  Produces,
-  QueryParam
-}
+import javax.ws.rs.{BadRequestException, Consumes, ForbiddenException, GET, NotFoundException, POST, Path, PathParam, Produces, QueryParam}
 import javax.ws.rs.core.{MediaType, Response, StreamingOutput}
 import scala.jdk.CollectionConverters._
 
@@ -457,6 +419,23 @@ class DatasetResource {
     withTransaction(context)(ctx => {
       getDashboardDataset(ctx, did, uid)
     })
+  }
+
+  /**
+    * This method returns a list of DashboardDatasets objects that are accessible by current user.
+    * @param user the session user
+    * @return list of user accessible DashboardDataset objects
+    */
+  @GET
+  @Path("")
+  def listDatasets(
+                    @Auth user: SessionUser
+                  ): List[DashboardDataset] = {
+    val result = DashboardResource.searchAllResources(
+      user,
+      SearchQueryParams(resourceType = "dataset")
+    )
+    result.results.map(_.dataset.get)
   }
 
   @GET

@@ -1,13 +1,7 @@
 <nz-list-item class="dataset-list-item">
-  <nz-list-item-meta>
+  <nz-list-item-meta class="dataset-item-meta">
     <!-- Margin need only when the checkbox is not visible -->
     <nz-list-item-meta-avatar [ngStyle]="{ 'margin-left': editable ? 'none' : '16px' }">
-      <label
-        *ngIf="editable"
-        nz-checkbox
-        class="dataset-item-checkbox"
-        id="{{dataset.did}}"
-        [(ngModel)]="entry.checked"></label>
       <nz-avatar
         [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
         [nzGap]="4"
@@ -33,7 +27,7 @@
             value="{{ dataset.name }}" />
         </ng-template>
         <button
-          *ngIf="editable && entry.dataset.accessPrivilege == 'WRITE'"
+          *ngIf="editable && entry.accessPrivilege == 'WRITE'"
           (click)="editingName = true"
           nz-button
           mat-card-title="Customize Dataset Name"
@@ -47,7 +41,7 @@
             nzType="edit"></i>
         </button>
         <button
-          *ngIf="editable && entry.dataset.accessPrivilege == 'WRITE'"
+          *ngIf="editable && entry.accessPrivilege == 'WRITE'"
           (click)="editingDescription = true"
           nz-button
           nz-tooltip="Add Description"
@@ -62,16 +56,16 @@
         </button>
         <i
           class="dataset-is-owner-icon"
-          *ngIf="entry.dataset.isOwner"
+          *ngIf="entry.isOwner"
           nz-tooltip="You are the owner"
           nzTooltipPlacement="bottom"
           nz-icon
           nzTheme="outline"
           nzType="user"></i>
         <i
-          *ngIf="!entry.dataset.isOwner"
+          *ngIf="!entry.isOwner"
           nz-tooltip="{{
-                                  entry.dataset.accessPrivilege
+                                  entry.accessPrivilege
                               }} Access"
           nzTooltipPlacement="bottom"
           nz-icon
@@ -85,8 +79,8 @@
       <div class="dataset-item-meta-description">
         <label
           *ngIf="!editingDescription; else customDatasetDescription "
-          (click)="editingDescription = editable && entry.dataset.accessPrivilege == 'WRITE'"
-          class="dataset-description">
+          (click)="editingDescription = editable && entry.accessPrivilege == 'WRITE'"
+          class="dataset-description-label">
           {{ dataset.description }}
         </label>
         <ng-template #customDatasetDescription>
@@ -95,7 +89,7 @@
             #customDescription
             (focusout)="confirmUpdateDatasetCustomDescription(customDescription.value)"
             (keyup.enter)="confirmUpdateDatasetCustomDescription(customDescription.value)"
-            class="dataset-editable-description"
+            class="dataset-editable-description-input"
             value="{{ dataset.description }}"
             maxlength="500" />
         </ng-template>
@@ -124,7 +118,7 @@
         (nzOnConfirm)="deleted.emit()"
         nz-popconfirm
         nzPopconfirmTitle="Confirm to delete this dataset."
-        [disabled]="!entry.dataset.isOwner"
+        [disabled]="!entry.isOwner"
         class="delete-dataset-btn"
         nz-button
         nz-tooltip="Delete the dataset {{
