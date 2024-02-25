@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.fetcher
 
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
@@ -13,7 +13,7 @@ class URLFetcherOpExec(
     val url: String,
     val decodingMethod: DecodingMethod,
     val outputSchema: Schema
-) extends SourceOperatorExecutor {
+) extends ISourceOperatorExecutor {
 
   override def open(): Unit = {}
 

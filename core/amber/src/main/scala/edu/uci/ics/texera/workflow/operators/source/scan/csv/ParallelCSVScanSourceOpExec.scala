@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
@@ -15,7 +15,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
     val desc: ParallelCSVScanSourceOpDesc,
     val startOffset: Long,
     val endOffset: Long
-) extends SourceOperatorExecutor {
+) extends ISourceOperatorExecutor {
   private val schema: Schema = desc.inferSchema()
   private var reader: BufferedBlockReader = _
 

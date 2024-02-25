@@ -1,15 +1,15 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class CSVOldScanSourceOpExec private[csvOld] (val desc: CSVOldScanSourceOpDesc)
-    extends SourceOperatorExecutor {
+    extends ISourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _
