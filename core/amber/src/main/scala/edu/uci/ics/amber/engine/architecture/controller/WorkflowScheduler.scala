@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   ExpansionGreedyRegionPlanGenerator,
   Region,
+  RegionIdentity,
   RegionPlan,
   Schedule
 }
@@ -10,18 +11,11 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
-case class WorkflowScheduler(workflowContext: WorkflowContext) {
+class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpResultStorage)
+    extends java.io.Serializable {
   var physicalPlan: PhysicalPlan = _
   var regionPlan: RegionPlan = _
   private var schedule: Schedule = _
-  private var opResultStorage: OpResultStorage = _
-  def addPhysicalPlan(physicalPlan: PhysicalPlan): Unit = {
-    this.physicalPlan = physicalPlan
-  }
-
-  def setStorage(opResultStorage: OpResultStorage): Unit = {
-    this.opResultStorage = opResultStorage
-  }
 
   /**
     * Update the schedule to be executed, based on the current physicalPlan.
