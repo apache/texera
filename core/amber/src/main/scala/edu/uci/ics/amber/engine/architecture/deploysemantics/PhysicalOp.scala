@@ -4,7 +4,7 @@ import akka.actor.Deploy
 import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
+import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
   OpExecInitInfoWithCode
@@ -20,8 +20,8 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   WorkerReplayInitialization,
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
@@ -438,10 +438,10 @@ case class PhysicalOp(
 
   def build(
       controllerActorService: AkkaActorService,
-      opExecution: OperatorExecution,
+      operatorExecution: OperatorExecution,
       operatorConfig: OperatorConfig,
-      stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
-      replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
+      stateRestoreConfig: Option[StateRestoreConfig],
+      replayLoggingConfig: Option[FaultToleranceConfig]
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,
@@ -462,8 +462,8 @@ case class PhysicalOp(
           physicalOp = this,
           operatorConfig,
           WorkerReplayInitialization(
-            stateRestoreConfigGen(workerId),
-            replayLoggingConfigGen(workerId)
+            stateRestoreConfig,
+            replayLoggingConfig
           )
         )
       }
@@ -472,7 +472,7 @@ case class PhysicalOp(
       controllerActorService.actorOf(
         workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
       )
-      opExecution.initWorkerExecution(workerId)
+      operatorExecution.initWorkerExecution(workerId)
     })
   }
 }

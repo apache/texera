@@ -2,6 +2,7 @@
   position: relative;
 
   h3 {
+    font-weight: bold;
     margin: 0;
     display: inline-block;
   }
@@ -24,11 +25,14 @@
 
 ::ng-deep {
   // overwrite the color of the Formly error message box
-  .texera-workspace-property-editor-form {
+  .property-editor-form {
     [role="alert"] {
       color: #856404;
       background-color: #fff3cd;
       border-color: #ffeeba;
+    }
+    nz-input-number {
+      width: 100%;
     }
   }
 }

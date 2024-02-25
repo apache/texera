@@ -644,7 +644,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
       nzTitle: "Comments",
       nzContent: NzModalCommentBoxComponent,
       // set component @Input attributes
-      nzComponentParams: {
+      nzData: {
         // set the index value and page size to the modal for navigation
         commentBox: commentBox,
       },

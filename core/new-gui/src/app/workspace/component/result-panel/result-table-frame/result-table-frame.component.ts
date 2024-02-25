@@ -130,7 +130,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
       // set component @Input attributes
-      nzComponentParams: {
+      nzData: {
         // set the index value and page size to the modal for navigation
         operatorId: this.operatorId,
         rowIndex: currentRowIndex,

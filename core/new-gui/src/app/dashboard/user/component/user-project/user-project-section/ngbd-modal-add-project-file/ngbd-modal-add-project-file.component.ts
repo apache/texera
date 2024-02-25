@@ -19,7 +19,10 @@ export class NgbdModalAddProjectFileComponent implements OnInit {
   public checkedFiles: boolean[] = [];
   private addedFileKeys: Set<number> = new Set<number>();
 
-  constructor(private userFileService: UserFileService, private userProjectService: UserProjectService) {}
+  constructor(
+    private userFileService: UserFileService,
+    private userProjectService: UserProjectService
+  ) {}
 
   ngOnInit(): void {
     /* determine which files are already part of this project.
