@@ -1,8 +1,9 @@
-import { AfterContentInit, Component, Input } from "@angular/core";
+import { AfterContentInit, Component, inject } from "@angular/core";
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
 import { auditTime } from "rxjs/operators";
 import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -11,15 +12,10 @@ import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
   styleUrls: ["./visualization-frame-content.component.scss"],
 })
 export class VisualizationFrameContentComponent implements AfterContentInit {
+  readonly operatorId: string = inject(NZ_MODAL_DATA).operatorId;
   // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
-
   htmlData: any = "";
-
-  @Input()
-  operatorId?: string;
-  data: ReadonlyArray<object> = [];
-  columns: string[] = [];
 
   constructor(
     private workflowResultService: WorkflowResultService,
@@ -48,13 +44,10 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     if (!operatorResultService) {
       return;
     }
-    this.data = operatorResultService.getCurrentResultSnapshot() ?? [];
-    if (!this.data) {
+    const data = operatorResultService.getCurrentResultSnapshot();
+    if (!data) {
       return;
     }
-    if (this.data?.length < 1) {
-      return;
-    }
-    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object(this.data[0])["html-content"]); // this line bypasses angular security
+    this.htmlData = this.sanitizer.bypassSecurityTrustHtml(Object(data[0])["html-content"]); // this line bypasses angular security
   }
 }
