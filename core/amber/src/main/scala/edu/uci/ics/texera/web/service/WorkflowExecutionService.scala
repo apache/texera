@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.web.service
 
-import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
@@ -14,52 +13,32 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
-import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
   READY,
   RUNNING
 }
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, WorkflowCompiler}
 
-import java.time.Instant
 import scala.collection.mutable
 
 class WorkflowExecutionService(
     controllerConfig: ControllerConfig,
-    workflowContext: WorkflowContext,
+    val workflowContext: WorkflowContext,
     resultService: ExecutionResultService,
     request: WorkflowExecuteRequest,
+    val executionStateStore: ExecutionStateStore,
+    errorHandler: Throwable => Unit,
     lastCompletedLogicalPlan: Option[LogicalPlan]
 ) extends SubscriptionManager
     with LazyLogging {
+
   logger.info("Creating a new execution.")
 
-  val errorHandler: Throwable => Unit = { t =>
-    {
-      logger.error("error during execution", t)
-      executionStateStore.statsStore.updateState(stats =>
-        stats.withEndTimeStamp(System.currentTimeMillis())
-      )
-      executionStateStore.metadataStore.updateState { metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(
-          WorkflowFatalError(
-            EXECUTION_FAILURE,
-            Timestamp(Instant.now),
-            t.toString,
-            t.getStackTrace.mkString("\n"),
-            "unknown operator"
-          )
-        )
-      }
-    }
-  }
   val wsInput = new WebsocketInput(errorHandler)
-  val executionStateStore = new ExecutionStateStore()
 
   addSubscription(
     executionStateStore.metadataStore.registerDiffHandler((oldState, newState) => {
@@ -81,40 +60,12 @@ class WorkflowExecutionService(
     })
   )
 
-  var workflowCompiler: WorkflowCompiler = _
-  var workflow: Workflow = _
-
-  workflowCompilation()
-
-  private def workflowCompilation(): Unit = {
-    logger.info("Compiling the logical plan into a physical plan.")
-
-    try {
-      workflowCompiler = new WorkflowCompiler(workflowContext)
-      workflow = workflowCompiler.compile(
-        request.logicalPlan,
-        resultService.opResultStorage,
-        lastCompletedLogicalPlan,
-        executionStateStore,
-        controllerConfig
-      )
-    } catch {
-      case e: Throwable =>
-        logger.error("error occurred during physical plan compilation", e)
-        executionStateStore.metadataStore.updateState { metadataStore =>
-          updateWorkflowState(FAILED, metadataStore)
-            .addFatalErrors(
-              WorkflowFatalError(
-                EXECUTION_FAILURE,
-                Timestamp(Instant.now),
-                e.toString,
-                e.getStackTrace.mkString("\n"),
-                "unknown operator"
-              )
-            )
-        }
-    }
-  }
+  val workflow: Workflow = new WorkflowCompiler(workflowContext).compile(
+    request.logicalPlan,
+    resultService.opResultStorage,
+    lastCompletedLogicalPlan,
+    executionStateStore
+  )
 
   // Runtime starts from here:
   logger.info("Initialing an AmberClient, runtime starting...")
@@ -126,7 +77,9 @@ class WorkflowExecutionService(
 
   def startWorkflow(): Unit = {
     client = TexeraWebApplication.createAmberRuntime(
-      workflow,
+      workflowContext,
+      workflow.physicalPlan,
+      resultService.opResultStorage,
       controllerConfig,
       errorHandler
     )
@@ -143,7 +96,7 @@ class WorkflowExecutionService(
     executionConsoleService = new ExecutionConsoleService(client, executionStateStore, wsInput)
 
     logger.info("Starting the workflow execution.")
-    resultService.attachToExecution(executionStateStore, workflow.logicalPlan, client)
+    resultService.attachToExecution(executionStateStore, workflow.originalLogicalPlan, client)
     executionStateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(READY, metadataStore.withExecutionId(workflowContext.executionId))
         .withFatalErrors(Seq.empty)

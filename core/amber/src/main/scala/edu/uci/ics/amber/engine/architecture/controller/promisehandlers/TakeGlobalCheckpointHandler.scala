@@ -28,7 +28,7 @@ trait TakeGlobalCheckpointHandler {
     val estimationOnly = msg.estimationOnly
     val uri = msg.destination.resolve(msg.checkpointId.toString)
     var totalSize = 0L
-    val physicalOpIdsToTakeCheckpoint = cp.workflow.physicalPlan.operators.map(_.id)
+    val physicalOpIdsToTakeCheckpoint = cp.workflowScheduler.physicalPlan.operators.map(_.id)
     execute(
       PropagateChannelMarker(
         cp.workflowExecution.getAllRegionExecutions
@@ -36,7 +36,7 @@ trait TakeGlobalCheckpointHandler {
           .toSet,
         msg.checkpointId,
         NoAlignment,
-        cp.workflow.physicalPlan,
+        cp.workflowScheduler.physicalPlan,
         physicalOpIdsToTakeCheckpoint,
         PrepareCheckpoint(msg.checkpointId, estimationOnly)
       ),

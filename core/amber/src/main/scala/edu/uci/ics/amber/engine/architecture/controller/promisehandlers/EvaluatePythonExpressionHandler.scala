@@ -18,7 +18,7 @@ trait EvaluatePythonExpressionHandler {
   registerHandler[EvaluatePythonExpression, List[EvaluatedValue]] { (msg, sender) =>
     {
       val logicalOpId = new OperatorIdentity(msg.operatorId)
-      val physicalOps = cp.workflow.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
+      val physicalOps = cp.workflowScheduler.physicalPlan.getPhysicalOpsOfLogicalOp(logicalOpId)
       if (physicalOps.size != 1) {
         val msg =
           s"logical operator $logicalOpId has ${physicalOps.size} physical operators, expecting a single one"
