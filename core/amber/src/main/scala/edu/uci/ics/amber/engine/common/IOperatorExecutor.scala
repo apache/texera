@@ -17,6 +17,4 @@ trait IOperatorExecutor {
       input: Int
   ): Iterator[(TupleLike, Option[PortIdentity])]
 
-  def getParam(query: String): String = { null }
-
 }
