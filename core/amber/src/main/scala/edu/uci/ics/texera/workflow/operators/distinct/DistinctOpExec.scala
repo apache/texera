@@ -1,8 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.distinct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+
 import scala.collection.mutable
 
 class DistinctOpExec extends OperatorExecutor {
@@ -10,7 +12,7 @@ class DistinctOpExec extends OperatorExecutor {
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     tuple match {
       case Left(t) =>
         hashset.add(t)
