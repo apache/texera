@@ -31,25 +31,44 @@ object PhysicalPlan {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
-    logicalPlan.operators.foreach(op => {
-      op.setContext(context)
-      val subPlan =
-        op.getPhysicalPlan(
-          context.workflowId,
-          context.executionId
-        )
-      physicalPlan = physicalPlan.addSubPlan(subPlan)
-    })
+    logicalPlan.getTopologicalOpIds.asScala.foreach(
+      logicalOpId => {
+        val logicalOp = logicalPlan.getOperator(logicalOpId)
+        logicalOp.setContext(context)
 
-    // connect external links
-    logicalPlan.links.foreach(link => {
-      val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, link.fromPortId)
-      val toOp = physicalPlan.getPhysicalOpForInputPort(link.toOpId, link.toPortId)
-      physicalPlan =
-        physicalPlan.addLink(PhysicalLink(fromOp.id, link.fromPortId, toOp.id, link.toPortId))
-    })
 
-    physicalPlan.propagateWorkflowSchema()
+        val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
+        subPlan.topologicalIterator().foreach({
+          physicalOpId => {
+            val physicalOp = subPlan.getOperator(physicalOpId)
+
+            val externalLinks = logicalPlan.getUpstreamLinks(logicalOp.operatorIdentifier)
+              .filter(link => physicalOp.inputPorts.contains(link.toPortId))
+              .map(
+              link=> {
+                val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, link.fromPortId)
+                  PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+              }
+            )
+
+            val inputLinks= subPlan.getUpstreamPhysicalLinks(physicalOp.id)
+
+            if((externalLinks ++ inputLinks).isEmpty){
+              physicalPlan = physicalPlan.addOperator(physicalOp.propagateOutputSchemas())
+            }else{
+              physicalPlan = physicalPlan.addOperator(physicalOp)
+            }
+            (externalLinks ++ inputLinks).foreach(
+              link => physicalPlan = physicalPlan.addLink(link)
+            )
+
+
+          }
+        })
+      }
+
+    )
+    physicalPlan
   }
 
 }
@@ -154,9 +173,23 @@ case class PhysicalPlan(
   }
 
   def addLink(link: PhysicalLink): PhysicalPlan = {
+    val formOp = operatorMap(link.fromOpId)
+    val (_, _, outputSchema) = formOp.outputPorts(link.fromPortId)
+    val newFromOp = formOp.addOutputLink(link)
+    var newToOp = getOperator(link.toOpId)
+      .addInputLink(link)
+      .addInputSchema(link.toPortId, outputSchema)
+
+    if(newToOp.inputPorts.forall({
+      case (_,(_,_,schema)) => schema.isDefined
+    })){
+      newToOp = newToOp.propagateOutputSchemas()
+    }
+
+
     val newOperators = operatorMap +
-      (link.fromOpId -> getOperator(link.fromOpId).addOutputLink(link)) +
-      (link.toOpId -> getOperator(link.toOpId).addInputLink(link))
+      (link.fromOpId -> newFromOp) +
+      (link.toOpId -> newToOp)
     this.copy(newOperators.values.toSet, links ++ Set(link))
   }
 
@@ -178,6 +211,12 @@ case class PhysicalPlan(
   private def addSubPlan(subPlan: PhysicalPlan): PhysicalPlan = {
     var resultPlan = this.copy(operators, links)
     // add all physical operators to physical DAG
+    subPlan.topologicalIterator().foreach({
+      physicalOpId => {
+        val physicalOp = subPlan.getOperator(physicalOpId)
+
+      }
+    })
     subPlan.operators.foreach(op => resultPlan = resultPlan.addOperator(op))
     // connect intra-operator links
     subPlan.links.foreach((physicalLink: PhysicalLink) =>
@@ -283,20 +322,30 @@ case class PhysicalPlan(
 
       val inputSchemas = mutable.Map(
         op.inputPorts.keys
-        .map(portId => GlobalPortIdentity(op.id, portId, input = true))
-        .map(globalPortId => globalPortId.portId -> allSchemas(globalPortId))
-        .toMap
-          .toSeq: _*)
+          .map(portId => GlobalPortIdentity(op.id, portId, input = true))
+          .map(globalPortId => globalPortId.portId -> allSchemas(globalPortId))
+          .toMap
+          .toSeq: _*
+      )
       val outputSchemas = mutable.Map(op.propagateSchemas.func(inputSchemas.toMap).toSeq: _*)
 
       // reassign
-      val newOp = op.copy()
-        .withInputPorts(op.inputPorts.values.map(_._1).toList, inputSchemas, op.inputPorts.map({
-          case (portId, (port, links, schema)) => portId->links
-        }))
-        .withOutputPorts(op.outputPorts.values.map(_._1).toList, outputSchemas,op.outputPorts.map({
-          case (portId, (port, links, schema)) => portId->links
-        }))
+      val newOp = op
+        .copy()
+        .withInputPorts(
+          op.inputPorts.values.map(_._1).toList,
+          inputSchemas,
+          op.inputPorts.map({
+            case (portId, (port, links, schema)) => portId -> links
+          })
+        )
+        .withOutputPorts(
+          op.outputPorts.values.map(_._1).toList,
+          outputSchemas,
+          op.outputPorts.map({
+            case (portId, (port, links, schema)) => portId -> links
+          })
+        )
       op.outputPorts.foreach {
         case (_, (_, links, schema)) =>
           links.foreach(link =>
@@ -307,12 +356,5 @@ case class PhysicalPlan(
     })
     PhysicalPlan(newOps.toSet, this.links)
   }
-
-
-
-
-
-
-
 
 }

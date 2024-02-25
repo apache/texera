@@ -60,7 +60,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 "Type Casting",
                 "Cast between types",
                 OperatorGroupConstants.UTILITY_GROUP(),
-                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false,asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
                 asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
@@ -73,8 +73,10 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public Schema getOutputSchema(Schema[] schemas) {
         Preconditions.checkArgument(schemas.length == 1);
         Schema outputSchema = schemas[0];
-        for (TypeCastingUnit unit : typeCastingUnits) {
-            outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
+        if (typeCastingUnits != null) {
+            for (TypeCastingUnit unit : typeCastingUnits) {
+                outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
+            }
         }
         return outputSchema;
     }

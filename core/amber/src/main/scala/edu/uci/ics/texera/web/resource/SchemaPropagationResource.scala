@@ -36,12 +36,12 @@ class SchemaPropagationResource extends LazyLogging {
     )
 
     val logicalPlan = LogicalPlan(logicalPlanPojo)
-    // the PhysicalPlan with topology expanded.
-    val physicalPlan = PhysicalPlan(context, logicalPlan)
-
 
     // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
-//    logicalPlan.propagateWorkflowSchema(context, errorList = None)
+    logicalPlan.propagateWorkflowSchema(context, errorList = None)
+
+    // the PhysicalPlan with topology expanded.
+    val physicalPlan = PhysicalPlan(context, logicalPlan)
 
     val physicalInputSchemas = physicalPlan.operators.map(physicalOp => {
       physicalOp.id -> physicalOp.inputPorts.filterNot(port => port._1.internal).values.map(_._3).toList
