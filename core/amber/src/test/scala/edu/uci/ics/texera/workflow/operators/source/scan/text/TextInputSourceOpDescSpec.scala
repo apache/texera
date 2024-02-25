@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileAttributeType
@@ -60,7 +61,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
+      case schemaEnforceable: SchemaEnforceable =>
+        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+    }
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -79,7 +83,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
+      case schemaEnforceable: SchemaEnforceable =>
+        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+    }
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -97,7 +104,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
+      case schemaEnforceable: SchemaEnforceable =>
+        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+    }
 
     assert(
       processedTuple
@@ -117,7 +127,10 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val textScanSourceOpExec =
       new TextInputSourceOpExec(textInputSourceOpDesc)
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTexeraTuple()
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
+      case schemaEnforceable: SchemaEnforceable =>
+        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+    }
 
     assert(processedTuple.next().getField[Int]("line") == 1)
     assert(processedTuple.next().getField[Int]("line") == 2)

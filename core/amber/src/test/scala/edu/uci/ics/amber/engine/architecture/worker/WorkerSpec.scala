@@ -61,9 +61,7 @@ class WorkerSpec
 
     override def processTuple(
         tuple: Either[ITuple, InputExhausted],
-        input: Int,
-        pauseManager: PauseManager,
-        asyncRPCClient: AsyncRPCClient
+        input: Int
     ): Iterator[(ITuple, Option[PortIdentity])] = {
       tuple match {
         case Left(iTuple) => Iterator((iTuple, None))

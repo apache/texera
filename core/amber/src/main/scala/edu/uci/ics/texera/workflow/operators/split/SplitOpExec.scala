@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.split
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -19,9 +17,7 @@ class SplitOpExec(
 
   override def processTuple(
       tuple: Either[ITuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      input: Int
   ): Iterator[(ITuple, Option[PortIdentity])] = {
     tuple match {
       case Left(iTuple) =>
@@ -35,9 +31,7 @@ class SplitOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      input: Int
   ): Iterator[Tuple] = ???
 
   override def open(): Unit = {}

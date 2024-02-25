@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.getOutputSchema
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -46,9 +44,7 @@ class PartialAggregateOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      input: Int
   ): scala.Iterator[Tuple] = {
     if (aggFuncs.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")

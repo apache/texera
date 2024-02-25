@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators.mlmodel
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -28,9 +26,7 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      input: Int
   ): Iterator[TupleLike] = {
     tuple match {
       case Left(t) =>

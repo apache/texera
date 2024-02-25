@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.download
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -43,9 +41,7 @@ class BulkDownloaderOpExec(
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      input: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>

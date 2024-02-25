@@ -159,12 +159,7 @@ class DataProcessor(
   private[this] def processInputTuple(tuple: Either[ITuple, InputExhausted]): Unit = {
     try {
       outputIterator.setTupleOutput(
-        operator.processTuple(
-          tuple,
-          this.inputGateway.getChannel(currentChannelId).getPortId.id,
-          pauseManager,
-          asyncRPCClient
-        )
+        operator.processTuple(tuple, this.inputGateway.getChannel(currentChannelId).getPortId.id)
       )
       if (tuple.isLeft) {
         statisticsManager.increaseInputTupleCount()

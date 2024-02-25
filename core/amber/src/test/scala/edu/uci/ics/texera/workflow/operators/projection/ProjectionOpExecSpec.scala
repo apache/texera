@@ -46,7 +46,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     projectionOpExec.open()
 
-    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0).next()
     val processedTuple = outputTuple.asInstanceOf[Tuple]
     assert(processedTuple.length() == 2)
     assert(processedTuple.getField("f1").asInstanceOf[String] == "hello")
@@ -69,7 +69,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     projectionOpExec.open()
 
-    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0).next()
     val processedTuple = outputTuple.asInstanceOf[Tuple]
     assert(processedTuple.length() == 2)
     assert(processedTuple.getField("f3").asInstanceOf[Boolean])
@@ -85,7 +85,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field---6", "f6")
     )
     assertThrows[RuntimeException] {
-      projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+      projectionOpExec.processTexeraTuple(Left(tuple), 0).next()
     }
 
   }
@@ -93,7 +93,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "raise IllegalArgumentException on empty attributes" in {
     val projectionOpExec = new ProjectionOpExec(List(), null)
     assertThrows[IllegalArgumentException] {
-      projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+      projectionOpExec.processTexeraTuple(Left(tuple), 0).next()
     }
 
   }
@@ -105,7 +105,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field2", "f")
     )
     assertThrows[RuntimeException] {
-      projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+      projectionOpExec.processTexeraTuple(Left(tuple), 0).next()
     }
 
   }
@@ -124,7 +124,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     projectionOpExec.open()
 
-    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val outputTuple = projectionOpExec.processTexeraTuple(Left(tuple), 0).next()
     val processedTuple = outputTuple.asInstanceOf[Tuple]
     assert(processedTuple.length() == 2)
     assert(processedTuple.getField("field1").asInstanceOf[String] == "hello")

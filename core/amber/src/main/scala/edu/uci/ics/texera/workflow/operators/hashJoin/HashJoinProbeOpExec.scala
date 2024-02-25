@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
@@ -25,9 +23,7 @@ class HashJoinProbeOpExec[K](
 
   override def processTexeraTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      input: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(tuple) =>
@@ -96,7 +92,7 @@ class HashJoinProbeOpExec[K](
               // build the new tuple
               builder.build()
             })
-            .toIterator
+            .iterator
       }
   }
 
@@ -148,7 +144,7 @@ class HashJoinProbeOpExec[K](
         // build the new tuple
         builder.build()
       })
-      .toIterator
+      .iterator
   }
 
   private def performRightAntiJoin(tuple: Tuple): Iterator[Tuple] = {

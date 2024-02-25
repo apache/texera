@@ -48,7 +48,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     typeCastingOpExec.open()
 
-    val outputTuple = typeCastingOpExec.processTexeraTuple(Left(tuple), 0, null, null).next()
+    val outputTuple = typeCastingOpExec.processTexeraTuple(Left(tuple), 0).next()
     val processedTuple = outputTuple.asInstanceOf[Tuple]
     assert(processedTuple.length() == 4)
     assert(processedTuple.getField("field1").asInstanceOf[String] == "hello")
