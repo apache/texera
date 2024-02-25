@@ -1,9 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.dictionary
 
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.en.EnglishAnalyzer
 import org.apache.lucene.analysis.tokenattributes.OffsetAttribute
@@ -11,9 +11,12 @@ import org.apache.lucene.analysis.tokenattributes.OffsetAttribute
 import java.io.StringReader
 import scala.collection.mutable
 import scala.collection.mutable.{ListBuffer, Set}
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class DictionaryMatcherOpExec(
-    opDesc: DictionaryMatcherOpDesc
+    attributeName: String,
+    dictionary: String,
+    matchingType: MatchingType,
 ) extends MapOpExec {
 
   // this is needed for the matching types Phrase and Conjunction
@@ -27,8 +30,8 @@ class DictionaryMatcherOpExec(
     */
   override def open(): Unit = {
     // create the dictionary by splitting the values first
-    dictionaryEntries = this.opDesc.dictionary.split(",").toList.map(_.toLowerCase)
-    if (opDesc.matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
+    dictionaryEntries = dictionary.split(",").toList.map(_.toLowerCase)
+    if (matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
       // then tokenize each entry
       this.luceneAnalyzer = new EnglishAnalyzer
       tokenizedDictionaryEntries = ListBuffer[mutable.Set[String]]()
@@ -58,10 +61,10 @@ class DictionaryMatcherOpExec(
     * @return
     */
   def isTupleInDictionary(tuple: Tuple): Boolean = {
-    val text = tuple.getField(this.opDesc.attribute).asInstanceOf[String].toLowerCase()
+    val text = tuple.getField(attributeName).asInstanceOf[String].toLowerCase()
     // depending on the matching type, iterate the dictionary to match the tuple
     if (text.nonEmpty) {
-      this.opDesc.matchingType match {
+      matchingType match {
         case MatchingType.SCANBASED =>
           if (
             dictionaryEntries.contains(
@@ -130,18 +133,13 @@ class DictionaryMatcherOpExec(
     * @param tuple
     * @return
     */
-  def processTuple(tuple: Tuple): Tuple = {
+  def matchTuple(tuple: Tuple): TupleLike = {
     var matched: Boolean = false
-    if (tuple.getField(this.opDesc.attribute) != null) {
+    if (tuple.getField(attributeName) != null) {
       matched = isTupleInDictionary(tuple)
     }
-    Tuple
-      .newBuilder(opDesc.outputPortToSchemaMapping(opDesc.operatorInfo.outputPorts.head.id))
-      .add(tuple)
-      .add(opDesc.resultAttribute, AttributeType.BOOLEAN, matched)
-      .build()
-
+    TupleLike.apply(tuple.getFields.asScala ++ List(matched))
   }
 
-  setMapFunc(processTuple)
+  setMapFunc(matchTuple)
 }

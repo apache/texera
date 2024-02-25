@@ -3,6 +3,8 @@ package edu.uci.ics.amber.engine.common.tuple.amber
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+
 sealed trait FieldArray {
   def fields: Array[Any]
 }
@@ -38,6 +40,15 @@ object TupleLike {
       override def fieldMappings: Map[String, Any] = mappings.toMap
 
       override def inMemSize: Long = ???
+    }
+  }
+
+  def apply(fieldList : java.util.List[Any]):SeqTupleLike = {
+    new SeqTupleLike {
+
+      override def inMemSize: Long = ???
+
+      override def fields: Array[Any] = fieldList.asScala.toArray
     }
   }
 
