@@ -3,7 +3,10 @@ package edu.uci.ics.texera.web.service
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{WorkerModifyLogic, WorkerModifyLogicMultiple}
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
+  WorkerModifyLogic,
+  WorkerModifyLogicMultiple
+}
 import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
@@ -21,7 +24,7 @@ object FriesReconfigurationAlgorithm {
   }
 
   def scheduleReconfigurations(
-      workflowExecutionCoordinator:WorkflowExecutionCoordinator,
+      workflowExecutionCoordinator: WorkflowExecutionCoordinator,
       reconfigurations: List[(PhysicalOp, Option[StateTransferFunc])],
       epochMarkerId: String
   ): Set[PropagateChannelMarker] = {
