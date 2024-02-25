@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   ExpansionGreedyRegionPlanGenerator,
   Region,
-  RegionPlan,
   Schedule
 }
 import edu.uci.ics.texera.workflow.common.WorkflowContext
