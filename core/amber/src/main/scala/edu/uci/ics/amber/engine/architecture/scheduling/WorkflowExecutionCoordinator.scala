@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecut
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
-import scala.collection.IterableOnce.iterableOnceExtensionMethods
 import scala.collection.mutable
 
 class WorkflowExecutionCoordinator(
