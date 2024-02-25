@@ -54,7 +54,9 @@ object UnifiedResourceSchema {
       filePath: Field[String] = DSL.inline(""),
       fileSize: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
       fileUserAccess: Field[UserFileAccessPrivilege] =
-        DSL.inline(null, classOf[UserFileAccessPrivilege])
+        DSL.inline(null, classOf[UserFileAccessPrivilege]),
+      did: Field[UInteger] = DSL.inline(null, classOf[UInteger]),
+
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(
