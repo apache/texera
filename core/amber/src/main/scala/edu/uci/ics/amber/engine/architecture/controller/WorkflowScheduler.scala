@@ -17,7 +17,7 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
   private var schedule: Schedule = _
 
   /**
-    * Update the schedule to be executed, based on the current physicalPlan.
+    * Update the schedule to be executed, based on the given physicalPlan.
     */
   def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
     // generate an RegionPlan with regions.
@@ -32,6 +32,6 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
     this.schedule = Schedule.apply(regionPlan)
   }
 
-  def getNextRegions: Set[Region] = schedule.next()
+  def getNextRegions: Set[Region] = if (!schedule.hasNext) Set() else schedule.next()
 
 }

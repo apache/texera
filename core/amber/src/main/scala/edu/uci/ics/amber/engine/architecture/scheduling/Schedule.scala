@@ -24,7 +24,6 @@ case class Schedule(private val regionPlan: RegionPlan) extends Iterator[Set[Reg
   override def hasNext: Boolean = levelSets.isDefinedAt(currentLevel)
 
   override def next(): Set[Region] = {
-    if (!hasNext) return Set()
     val regions = levelSets(currentLevel).map(regionId => regionPlan.getRegion(regionId)).toSet
     currentLevel += 1
     regions
