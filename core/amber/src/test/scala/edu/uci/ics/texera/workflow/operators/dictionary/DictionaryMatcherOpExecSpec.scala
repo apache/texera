@@ -38,7 +38,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.matchingType = MatchingType.SCANBASED
     opDesc.inputPortToSchemaMapping(PortIdentity()) = tupleSchema
     opDesc.outputPortToSchemaMapping(PortIdentity()) = opDesc.getOutputSchema(Array(tupleSchema))
-    opExec = new DictionaryMatcherOpExec(opDesc.attribute,opDesc.dictionary,opDesc.matchingType)
+    opExec = new DictionaryMatcherOpExec(opDesc.attribute, opDesc.dictionary, opDesc.matchingType)
   }
 
   it should "open" in {

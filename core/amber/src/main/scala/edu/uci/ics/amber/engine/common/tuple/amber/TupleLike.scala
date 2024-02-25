@@ -43,7 +43,7 @@ object TupleLike {
     }
   }
 
-  def apply(fieldList : java.util.List[Any]):SeqTupleLike = {
+  def apply(fieldList: java.util.List[Any]): SeqTupleLike = {
     new SeqTupleLike {
 
       override def inMemSize: Long = ???

@@ -16,7 +16,7 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 class DictionaryMatcherOpExec(
     attributeName: String,
     dictionary: String,
-    matchingType: MatchingType,
+    matchingType: MatchingType
 ) extends MapOpExec {
 
   // this is needed for the matching types Phrase and Conjunction
