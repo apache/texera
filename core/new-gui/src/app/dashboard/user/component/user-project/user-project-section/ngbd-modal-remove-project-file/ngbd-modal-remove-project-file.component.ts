@@ -17,7 +17,10 @@ export class NgbdModalRemoveProjectFileComponent implements OnInit {
 
   public checkedFiles: boolean[] = [];
 
-  constructor(private userProjectService: UserProjectService, private userFileService: UserFileService) {}
+  constructor(
+    private userProjectService: UserProjectService,
+    private userFileService: UserFileService
+  ) {}
 
   ngOnInit(): void {
     this.checkedFiles = new Array(this.addedFiles.length).fill(false);

@@ -83,7 +83,7 @@ export class UserWorkflowListItemComponent {
   public onClickGetWorkflowExecutions(): void {
     this.modalService.create({
       nzContent: WorkflowExecutionModalComponent,
-      nzComponentParams: { wid: this.workflow.wid },
+      nzData: { wid: this.workflow.wid },
       nzTitle: "Execution results of Workflow: " + this.workflow.name,
       nzFooter: null,
       nzWidth: "80%",
@@ -121,7 +121,7 @@ export class UserWorkflowListItemComponent {
   public async onClickOpenShareAccess(): Promise<void> {
     this.modalService.create({
       nzContent: ShareAccessComponent,
-      nzComponentParams: {
+      nzData: {
         writeAccess: this.entry.workflow.accessLevel === "WRITE",
         type: "workflow",
         id: this.workflow.wid,

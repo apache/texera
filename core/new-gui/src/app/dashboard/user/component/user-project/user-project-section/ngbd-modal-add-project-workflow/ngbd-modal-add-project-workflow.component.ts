@@ -20,7 +20,10 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   private addedWorkflowKeys: Set<number> = new Set<number>(); // tracks which workflows to NOT display,  the workflow IDs of the workflows (if any) already inside the project
   private addedWorkflows: DashboardWorkflow[] = []; // for passing back to update the frontend cache, stores the new workflow list including newly added workflows
 
-  constructor(private workflowPersistService: WorkflowPersistService, private userProjectService: UserProjectService) {}
+  constructor(
+    private workflowPersistService: WorkflowPersistService,
+    private userProjectService: UserProjectService
+  ) {}
 
   ngOnInit(): void {
     this.refreshProjectWorkflowEntries();
