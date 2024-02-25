@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.fetcher
 
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
@@ -18,7 +19,7 @@ class URLFetcherOpExec(
 
   override def close(): Unit = {}
 
-  override def produceTexeraTuple(): Iterator[Tuple] = {
+  override def produceTuple(): Iterator[TupleLike] = {
     val builder = Tuple.newBuilder(outputSchema)
     val urlObj = new URL(url)
     val input = getInputStreamFromURL(urlObj)

@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -18,7 +19,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
   private val schema: Schema = desc.inferSchema()
   private var reader: BufferedBlockReader = _
 
-  override def produceTexeraTuple(): Iterator[Tuple] =
+  override def produceTuple(): Iterator[TupleLike] =
     new Iterator[Tuple]() {
       override def hasNext: Boolean = reader.hasNext
 

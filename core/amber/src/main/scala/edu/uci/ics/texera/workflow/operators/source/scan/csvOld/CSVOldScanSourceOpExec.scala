@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
@@ -12,7 +13,7 @@ class CSVOldScanSourceOpExec private[csvOld] (val desc: CSVOldScanSourceOpDesc)
   val schema: Schema = desc.inferSchema()
   var reader: CSVReader = _
   var rows: Iterator[Seq[String]] = _
-  override def produceTexeraTuple(): Iterator[Tuple] = {
+  override def produceTuple(): Iterator[TupleLike] = {
 
     var tuples = rows
       .map(fields =>

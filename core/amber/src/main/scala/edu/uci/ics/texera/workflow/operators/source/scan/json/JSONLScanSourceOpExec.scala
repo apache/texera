@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.json
 
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -19,7 +20,7 @@ class JSONLScanSourceOpExec private[json] (
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
 
-  override def produceTexeraTuple(): Iterator[Tuple] = {
+  override def produceTuple(): Iterator[TupleLike] = {
     rows
       .map(line => {
         try {
