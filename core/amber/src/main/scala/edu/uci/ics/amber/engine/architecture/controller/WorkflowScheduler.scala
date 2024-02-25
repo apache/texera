@@ -3,7 +3,6 @@ package edu.uci.ics.amber.engine.architecture.controller
 import edu.uci.ics.amber.engine.architecture.scheduling.{
   ExpansionGreedyRegionPlanGenerator,
   Region,
-  RegionIdentity,
   RegionPlan,
   Schedule
 }
@@ -20,7 +19,7 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
   /**
     * Update the schedule to be executed, based on the current physicalPlan.
     */
-  def updateSchedule(): Unit = {
+  def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
     val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
