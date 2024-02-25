@@ -1,12 +1,12 @@
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import {Component, OnInit} from "@angular/core";
+import { Component, OnInit } from "@angular/core";
 import { UserService } from "../../../../common/service/user/user.service";
 import { Router } from "@angular/router";
 import { SearchService } from "../../service/search.service";
 import { DatasetService } from "../../service/user-dataset/dataset.service";
 import { DashboardEntry } from "../../type/dashboard-entry";
 import { SortMethod } from "../../type/sort-method";
-import {DashboardDataset} from "../../type/dashboard-dataset.interface";
+import { DashboardDataset } from "../../type/dashboard-dataset.interface";
 import Fuse from "fuse.js";
 
 @UntilDestroy()
@@ -16,7 +16,6 @@ import Fuse from "fuse.js";
   styleUrls: ["user-dataset.component.scss"],
 })
 export class UserDatasetComponent implements OnInit {
-
   public dashboardUserDatasetEntries: ReadonlyArray<DashboardDataset> = [];
   public userDatasetSearchValue: string = "";
   public filteredDatasetNames: Array<string> = [];
@@ -64,7 +63,7 @@ export class UserDatasetComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(datasetEntries => {
         this.dashboardUserDatasetEntries = datasetEntries;
-      })
+      });
   }
 
   public getDatasetArray(): ReadonlyArray<DashboardDataset> {
@@ -75,9 +74,9 @@ export class UserDatasetComponent implements OnInit {
       this.fuse.setCollection(datasetArray);
       return this.fuse.search(this.userDatasetSearchValue).map(item => {
         return item.item;
-      })
+      });
     } else if (!this.isTyping) {
-      return datasetArray.slice()
+      return datasetArray.slice();
     }
     return datasetArray;
   }
@@ -92,5 +91,4 @@ export class UserDatasetComponent implements OnInit {
         });
     }
   }
-
 }

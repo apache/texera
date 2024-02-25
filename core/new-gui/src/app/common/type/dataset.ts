@@ -1,4 +1,4 @@
-import {DatasetVersionFileTreeNode} from "./datasetVersionFileTree";
+import { DatasetVersionFileTreeNode } from "./datasetVersionFileTree";
 
 export interface DatasetVersion {
   dvid: number | undefined;

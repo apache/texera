@@ -30,7 +30,7 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.PNG]: 5 * 1024 * 1024, // 5 MB
   [MIME_TYPES.CSV]: 2 * 1024 * 1024, // 2 MB for text-based data files
   [MIME_TYPES.TXT]: 1 * 1024 * 1024, // 1 MB for plain text files
-  [MIME_TYPES.MD]: 1 * 1024 * 1024,  // 1 MB for MD files
+  [MIME_TYPES.MD]: 1 * 1024 * 1024, // 1 MB for MD files
   [MIME_TYPES.JSON]: 1 * 1024 * 1024, // 1 MB for JSON files
   [MIME_TYPES.MSEXCEL]: 10 * 1024 * 1024, // 10 MB for Excel spreadsheets
   [MIME_TYPES.MP4]: 50 * 1024 * 1024, // 50 MB for MP4 videos
@@ -57,9 +57,8 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
   public tableContent: any[][] = [];
   // pagination for table-like data
   currentPageIndex = 0;
-  pageSizeOptions = [3,5,10,20,50];
+  pageSizeOptions = [3, 5, 10, 20, 50];
   pageSize = 20;
-
 
   // image related control
   public displayImage: boolean = false;
@@ -219,10 +218,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
                 break;
             }
           },
-          error: (error: unknown) => {
-            this.notificationService.error(`Error rendering file '${this.filePath}'`);
-            this.onFileLoadingError();
-          },
         });
     }
   }
@@ -264,7 +259,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
     this.isFileTypePreviewUnsupported = true;
   }
 
-   isPreviewSupported(mimeType: string) {
+  isPreviewSupported(mimeType: string) {
     return Object.hasOwnProperty.call(MIME_TYPE_SIZE_LIMITS_MB, mimeType);
   }
 

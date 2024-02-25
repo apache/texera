@@ -2,40 +2,34 @@
   [ngStyle]="!isMaximized ? {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '80%', 'overflow-x': 'auto', 'overflow-y': 'auto'}:
                                 {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '100%', 'overflow-x': 'auto', 'overflow-y': 'auto'}">
   <div class="file-display-area">
-
     <div *ngIf="isLoading">
       <nz-spin nzTip="Loading...">
         <nz-alert
           nzType="info"
-          nzMessage="File content is loading"
-        ></nz-alert>
+          nzMessage="File content is loading"></nz-alert>
       </nz-spin>
     </div>
     <div *ngIf="isFileLoadingError">
       <nz-alert
         nzType="error"
         nzMessage="File loading encounter error."
-        nzDescription="Ops, There is something wrong when loading the file you are requesting."
-      ></nz-alert>
+        nzDescription="Ops, There is something wrong when loading the file you are requesting."></nz-alert>
     </div>
     <div *ngIf="isFileSizeUnloadable">
       <nz-alert
         nzType="warning"
-        nzMessage="File is too large to preview"
-      ></nz-alert>
+        nzMessage="File is too large to preview"></nz-alert>
     </div>
     <div *ngIf="isFileTypePreviewUnsupported">
       <nz-alert
         nzType="warning"
-        nzMessage="Preview of the file type is currently not supported"
-      ></nz-alert>
+        nzMessage="Preview of the file type is currently not supported"></nz-alert>
     </div>
 
     <nz-table
       *ngIf="displayCSV || displayXlsx"
       #basicTable
-      [nzData]="tableContent"
-    >
+      [nzData]="tableContent">
       <thead>
         <tr>
           <th *ngFor="let column of tableDataHeader">{{ column }}</th>

@@ -1,5 +1,5 @@
-import {FileUploadItem} from "../../dashboard/user/type/dashboard-file.interface";
-import {FileNode} from "./fileNode";
+import { FileUploadItem } from "../../dashboard/user/type/dashboard-file.interface";
+import { FileNode } from "./fileNode";
 
 export interface DatasetVersionFileTree {
   [key: string]: DatasetVersionFileTree | string;
@@ -177,9 +177,7 @@ export class DatasetVersionFileTreeManager {
     return this.root.children ?? [];
   }
 }
-export function parseFileUploadItemToTreeNodes(
-  fileUploadItems: FileUploadItem[]
-): DatasetVersionFileTreeNode[] {
+export function parseFileUploadItemToTreeNodes(fileUploadItems: FileUploadItem[]): DatasetVersionFileTreeNode[] {
   const root: DatasetVersionFileTreeNode = { name: "/", type: "directory", children: [], parentDir: "" };
   const treeNodesMap = new Map<string, DatasetVersionFileTreeNode>();
   treeNodesMap.set("/", root);
@@ -210,15 +208,18 @@ export function parseFileUploadItemToTreeNodes(
   return root.children ?? []; // Return the top-level nodes (excluding the root)
 }
 
-export function parseFileNodesToTreeNodes(fileNodes: FileNode[], parentPath: string = ''): DatasetVersionFileTreeNode[] {
+export function parseFileNodesToTreeNodes(
+  fileNodes: FileNode[],
+  parentPath: string = ""
+): DatasetVersionFileTreeNode[] {
   return fileNodes.map(fileNode => {
-    const splitPath = fileNode.path.split('/');
-    const name = splitPath.pop() || ''; // Get the last segment as name
-    const parentDir = splitPath.length > 0 ? '/' + splitPath.join('/') : '/'; // Join the rest as parent directory
+    const splitPath = fileNode.path.split("/");
+    const name = splitPath.pop() || ""; // Get the last segment as name
+    const parentDir = splitPath.length > 0 ? "/" + splitPath.join("/") : "/"; // Join the rest as parent directory
 
     const treeNode: DatasetVersionFileTreeNode = {
       name: name,
-      type: fileNode.isFile ? 'file' : 'directory',
+      type: fileNode.isFile ? "file" : "directory",
       parentDir: parentDir,
     };
 
@@ -229,4 +230,3 @@ export function parseFileNodesToTreeNodes(fileNodes: FileNode[], parentPath: str
     return treeNode;
   });
 }
-

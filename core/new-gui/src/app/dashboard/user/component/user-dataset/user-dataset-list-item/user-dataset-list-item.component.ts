@@ -6,7 +6,7 @@ import { DatasetService } from "../../../service/user-dataset/dataset.service";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import { NzModalService } from "ng-zorro-antd/modal";
-import {DashboardDataset} from "../../../type/dashboard-dataset.interface";
+import { DashboardDataset } from "../../../type/dashboard-dataset.interface";
 
 @UntilDestroy()
 @Component({
@@ -31,7 +31,7 @@ export class UserDatasetListItemComponent {
   }
 
   set entry(value: DashboardDataset) {
-    console.log("set the entry:", value)
+    console.log("set the entry:", value);
     this._entry = value;
   }
 

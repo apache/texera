@@ -9,7 +9,7 @@ import {
   getPathsFromTreeNode,
   parseFileUploadItemToTreeNodes,
 } from "../../../../common/type/datasetVersionFileTree";
-import {NzUploadChangeParam, NzUploadFile} from "ng-zorro-antd/upload";
+import { NzUploadChangeParam, NzUploadFile } from "ng-zorro-antd/upload";
 
 @Component({
   selector: "texera-user-files-uploader",
@@ -113,6 +113,4 @@ export class FilesUploaderComponent {
     this.newUploadFileTreeNodes = [...this.newUploadFileTreeManager.getRootNodes()];
     this.newUploadNodeToFileItems.set(newNode, fileUploadItem);
   }
-
-
 }

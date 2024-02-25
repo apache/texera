@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.web.resource.dashboard
 
 import edu.uci.ics.texera.web.SqlServer
-import edu.uci.ics.texera.web.model.jooq.generated.enums.{DatasetUserAccessPrivilege, UserFileAccessPrivilege, WorkflowUserAccessPrivilege}
+import edu.uci.ics.texera.web.model.jooq.generated.enums.{
+  DatasetUserAccessPrivilege,
+  UserFileAccessPrivilege,
+  WorkflowUserAccessPrivilege
+}
 import edu.uci.ics.texera.web.resource.dashboard.UnifiedResourceSchema.context
 import org.jooq.impl.DSL
 import org.jooq.types.UInteger
@@ -57,7 +61,7 @@ object UnifiedResourceSchema {
       datasetStoragePath: Field[String] = DSL.inline(null, classOf[String]),
       isDatasetPublic: Field[Byte] = DSL.inline(null, classOf[Byte]),
       datasetUserAccess: Field[DatasetUserAccessPrivilege] =
-        DSL.inline(null, classOf[DatasetUserAccessPrivilege]),
+        DSL.inline(null, classOf[DatasetUserAccessPrivilege])
   ): UnifiedResourceSchema = {
     new UnifiedResourceSchema(
       Seq(

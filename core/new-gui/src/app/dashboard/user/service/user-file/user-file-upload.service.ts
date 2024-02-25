@@ -60,7 +60,6 @@ export class UserFileUploadService {
     return pathComponent.replace(/[^a-zA-Z0-9._-]/g, "_");
   }
 
-
   /**
    * returns all pending files to be uploaded.
    */

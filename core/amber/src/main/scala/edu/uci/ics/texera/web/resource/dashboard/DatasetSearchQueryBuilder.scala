@@ -7,7 +7,12 @@ import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivil
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
-import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{getContainsFilter, getDateFilter, getFullTextSearchFilter, getSubstringSearchFilter}
+import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
+  getContainsFilter,
+  getDateFilter,
+  getFullTextSearchFilter,
+  getSubstringSearchFilter
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -21,18 +26,27 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     ownerId = DATASET.OWNER_UID,
     isDatasetPublic = DATASET.IS_PUBLIC,
     datasetStoragePath = DATASET.STORAGE_PATH,
-    datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE,
+    datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE
   )
 
-  override protected def constructFromClause(uid: UInteger, params: DashboardResource.SearchQueryParams): TableLike[_] = {
+  override protected def constructFromClause(
+      uid: UInteger,
+      params: DashboardResource.SearchQueryParams
+  ): TableLike[_] = {
     DATASET
       .leftJoin(DATASET_USER_ACCESS)
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
-      .where(DATASET.IS_PUBLIC.eq(DatasetResource.DATASET_IS_PUBLIC)
-          .or(DATASET_USER_ACCESS.UID.eq(uid)))
+      .where(
+        DATASET.IS_PUBLIC
+          .eq(DatasetResource.DATASET_IS_PUBLIC)
+          .or(DATASET_USER_ACCESS.UID.eq(uid))
+      )
   }
 
-  override protected def constructWhereClause(uid: UInteger, params: DashboardResource.SearchQueryParams): Condition = {
+  override protected def constructWhereClause(
+      uid: UInteger,
+      params: DashboardResource.SearchQueryParams
+  ): Condition = {
     val splitKeywords = params.keywords.asScala
       .flatMap(_.split("[+\\-()<>~*@\"]"))
       .filter(_.nonEmpty)
@@ -55,7 +69,10 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       )
   }
   override protected def getGroupByFields: Seq[GroupField] = Seq.empty
-  override protected def toEntryImpl(uid: UInteger, record: Record): DashboardResource.DashboardClickableFileEntry = {
+  override protected def toEntryImpl(
+      uid: UInteger,
+      record: Record
+  ): DashboardResource.DashboardClickableFileEntry = {
     val dataset = record.into(DATASET).into(classOf[Dataset])
 
     val dd = DashboardDataset(
@@ -69,9 +86,8 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     )
     DashboardClickableFileEntry(
       resourceType = SearchQueryBuilder.DATASET_RESOURCE_TYPE,
-      dataset = Some(dd))
+      dataset = Some(dd)
+    )
   }
 }
-class DatasetSearchQueryBuilder {
-
-}
+class DatasetSearchQueryBuilder {}

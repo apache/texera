@@ -14,7 +14,7 @@ import {
   DatasetVersionFileTreeNode,
   parseFileNodesToTreeNodes,
 } from "../../../../common/type/datasetVersionFileTree";
-import {FileNode} from "../../../../common/type/fileNode";
+import { FileNode } from "../../../../common/type/fileNode";
 
 export const DATASET_BASE_URL = "dataset";
 export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
@@ -33,7 +33,10 @@ export const DATASET_VERSION_LATEST_URL = DATASET_VERSION_BASE_URL + "/latest";
   providedIn: "root",
 })
 export class DatasetService {
-  constructor(private http: HttpClient, private notificationService: NotificationService) {}
+  constructor(
+    private http: HttpClient,
+    private notificationService: NotificationService
+  ) {}
 
   public createDataset(
     dataset: Dataset,
@@ -59,7 +62,7 @@ export class DatasetService {
   }
 
   public listDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`).pipe()
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`).pipe();
   }
 
   public retrieveDatasetVersionSingleFile(did: number, dvid: number, path: string): Observable<Blob> {
@@ -90,10 +93,10 @@ export class DatasetService {
     });
 
     return this.http
-      .post<{ datasetVersion: DatasetVersion; fileNodes: FileNode[] }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`,
-        formData
-      )
+      .post<{
+        datasetVersion: DatasetVersion;
+        fileNodes: FileNode[];
+      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/version/create`, formData)
       .pipe(
         map(response => {
           response.datasetVersion.versionFileTreeNodes = parseFileNodesToTreeNodes(response.fileNodes);
@@ -108,9 +111,9 @@ export class DatasetService {
    */
   public retrieveDatasetVersionList(did: number): Observable<DatasetVersion[]> {
     return this.http
-      .get<{ versions: DatasetVersion[] }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_RETRIEVE_LIST_URL}`
-      )
+      .get<{
+        versions: DatasetVersion[];
+      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_RETRIEVE_LIST_URL}`)
       .pipe(map(response => response.versions));
   }
 
@@ -120,9 +123,10 @@ export class DatasetService {
    */
   public retrieveDatasetLatestVersion(did: number): Observable<DatasetVersion> {
     return this.http
-      .get<{ datasetVersion: DatasetVersion; fileNodes: FileNode[] }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_LATEST_URL}`
-      )
+      .get<{
+        datasetVersion: DatasetVersion;
+        fileNodes: FileNode[];
+      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_LATEST_URL}`)
       .pipe(
         map(response => {
           response.datasetVersion.versionFileTreeNodes = parseFileNodesToTreeNodes(response.fileNodes);
@@ -138,9 +142,9 @@ export class DatasetService {
    */
   public retrieveDatasetVersionFileTree(did: number, dvid: number): Observable<DatasetVersionFileTreeNode[]> {
     return this.http
-      .get<{ fileNodes: FileNode[] }>(
-        `${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`
-      )
+      .get<{
+        fileNodes: FileNode[];
+      }>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_VERSION_BASE_URL}/${dvid}/rootFileNodes`)
       .pipe(map(response => parseFileNodesToTreeNodes(response.fileNodes)));
   }
 

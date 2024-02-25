@@ -1,10 +1,13 @@
 import { UntilDestroy } from "@ngneat/until-destroy";
-import {Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges} from "@angular/core";
-import {DatasetVersionFileTreeNode, getFullPathFromFileTreeNode} from "../../../../../../common/type/datasetVersionFileTree";
-import {NzContextMenuService} from "ng-zorro-antd/dropdown";
-import {SelectionModel} from "@angular/cdk/collections";
-import {NzTreeFlatDataSource, NzTreeFlattener} from "ng-zorro-antd/tree-view";
-import {FlatTreeControl, TreeControl} from "@angular/cdk/tree";
+import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from "@angular/core";
+import {
+  DatasetVersionFileTreeNode,
+  getFullPathFromFileTreeNode,
+} from "../../../../../../common/type/datasetVersionFileTree";
+import { NzContextMenuService } from "ng-zorro-antd/dropdown";
+import { SelectionModel } from "@angular/cdk/collections";
+import { NzTreeFlatDataSource, NzTreeFlattener } from "ng-zorro-antd/tree-view";
+import { FlatTreeControl, TreeControl } from "@angular/cdk/tree";
 
 interface TreeFlatNode {
   expandable: boolean;
@@ -20,10 +23,9 @@ interface TreeFlatNode {
   templateUrl: "./user-dataset-version-filetree.component.html",
   styleUrls: ["./user-dataset-version-filetree.component.scss"],
 })
-export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges{
-
+export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges {
   @Input()
-  isTreeNodeDeletable: boolean = true;
+  isTreeNodeDeletable: boolean = false;
 
   @Input()
   fileTreeNodes: DatasetVersionFileTreeNode[] = [];
@@ -33,7 +35,6 @@ export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges{
 
   @Output()
   public deletedTreeNode = new EventEmitter<DatasetVersionFileTreeNode>();
-
 
   nodeLookup: { [key: string]: DatasetVersionFileTreeNode } = {};
 
@@ -45,15 +46,15 @@ export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges{
       name: node.name,
       level,
       disabled: false,
-      key: uniqueKey
-    }
-  }
+      key: uniqueKey,
+    };
+  };
 
   selectListSelection = new SelectionModel<TreeFlatNode>();
   treeControl = new FlatTreeControl<TreeFlatNode>(
     node => node.level,
     node => node.expandable
-  )
+  );
   treeFlattener = new NzTreeFlattener(
     this.treeNodeTransformer,
     node => node.level,
@@ -77,11 +78,10 @@ export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges{
 
   onNodeSelected(node: TreeFlatNode): void {
     // look up for the DatasetVersionFileTreeNode
-    this.selectedTreeNode.emit(this.nodeLookup[node.key])
+    this.selectedTreeNode.emit(this.nodeLookup[node.key]);
   }
   onNodeDeleted(node: TreeFlatNode): void {
     // look up for the DatasetVersionFileTreeNode
-    this.deletedTreeNode.emit(this.nodeLookup[node.key])
+    this.deletedTreeNode.emit(this.nodeLookup[node.key]);
   }
-
 }

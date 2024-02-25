@@ -1,5 +1,4 @@
 <div class="file-uploader">
-
   <nz-alert
     *ngIf="fileUploadingFinished"
     class="file-uploader-banner"
@@ -37,8 +36,7 @@
     <texera-user-dataset-version-filetree
       [fileTreeNodes]="previouslyUploadFiles"
       [isTreeNodeDeletable]="true"
-      (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"
-    ></texera-user-dataset-version-filetree>
+      (deletedTreeNode)="onPreviouslyUploadedFileDeleted($event)"></texera-user-dataset-version-filetree>
   </div>
   <div
     *ngIf="newUploadNodeToFileItems && newUploadNodeToFileItems.size > 0"
@@ -47,7 +45,6 @@
     <texera-user-dataset-version-filetree
       [fileTreeNodes]="newUploadFileTreeNodes"
       [isTreeNodeDeletable]="true"
-      (deletedTreeNode)="onNewUploadsFileDeleted($event)"
-    ></texera-user-dataset-version-filetree>
+      (deletedTreeNode)="onNewUploadsFileDeleted($event)"></texera-user-dataset-version-filetree>
   </div>
 </div>

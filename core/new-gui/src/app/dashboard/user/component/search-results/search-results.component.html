@@ -65,11 +65,11 @@
           <nz-sider
             *ngIf="showResourceTypes"
             [nzWidth]="40"
-          ><i
-            class="resource-type-icon"
-            nz-icon
-            nzTheme="outline"
-            nzType="database"></i
+            ><i
+              class="resource-type-icon"
+              nz-icon
+              nzTheme="outline"
+              nzType="database"></i
           ></nz-sider>
           <nz-content>
             <texera-user-dataset-list-item
@@ -78,7 +78,7 @@
               (deleted)="deleted.emit(entry)"
               (refresh)="modified.emit(entry)">
             </texera-user-dataset-list-item> </nz-content
-          ></nz-layout>
+        ></nz-layout>
       </ng-container>
     </nz-list>
     <div

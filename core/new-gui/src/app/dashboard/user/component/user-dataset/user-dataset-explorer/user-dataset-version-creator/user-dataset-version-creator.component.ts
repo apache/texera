@@ -1,5 +1,5 @@
 import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
-import {FormBuilder, FormGroup, Validators} from "@angular/forms";
+import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { FormlyFieldConfig } from "@ngx-formly/core";
 import { DatasetService } from "../../../../service/user-dataset/dataset.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
@@ -37,8 +37,8 @@ export class UserDatasetVersionCreator implements OnInit {
   constructor(
     private datasetService: DatasetService,
     private notificationService: NotificationService,
-    private formBuilder: FormBuilder) {
-  }
+    private formBuilder: FormBuilder
+  ) {}
 
   ngOnInit() {
     this.setFormFields();
@@ -52,42 +52,42 @@ export class UserDatasetVersionCreator implements OnInit {
   private setFormFields() {
     this.fields = this.isCreatingVersion
       ? [
-        // Fields when isCreatingVersion is true
-        {
-          key: "name",
-          type: "input",
-          templateOptions: {
-            label: "Name",
-            required: true,
+          // Fields when isCreatingVersion is true
+          {
+            key: "name",
+            type: "input",
+            templateOptions: {
+              label: "Name",
+              required: true,
+            },
           },
-        },
-      ]
+        ]
       : [
-        // Fields when isCreatingVersion is false
-        {
-          key: "name",
-          type: "input",
-          templateOptions: {
-            label: "Name",
-            required: true,
+          // Fields when isCreatingVersion is false
+          {
+            key: "name",
+            type: "input",
+            templateOptions: {
+              label: "Name",
+              required: true,
+            },
           },
-        },
-        {
-          key: "description",
-          type: "input",
-          templateOptions: {
-            label: "Description",
+          {
+            key: "description",
+            type: "input",
+            templateOptions: {
+              label: "Description",
+            },
           },
-        },
-        {
-          key: "versionName",
-          type: "input",
-          templateOptions: {
-            label: "Initial Version Name",
-            required: true,
+          {
+            key: "versionName",
+            type: "input",
+            templateOptions: {
+              label: "Initial Version Name",
+              required: true,
+            },
           },
-        },
-      ];
+        ];
   }
   get formControlNames(): string[] {
     return Object.keys(this.form.controls);

@@ -16,8 +16,8 @@ import { AdminGuardService } from "./dashboard/admin/service/admin-guard.service
 import { SearchComponent } from "./dashboard/user/component/search/search.component";
 import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
 import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
-import {UserDatasetExplorerComponent} from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
-import {UserDatasetComponent} from "./dashboard/user/component/user-dataset/user-dataset.component";
+import { UserDatasetExplorerComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
+import { UserDatasetComponent } from "./dashboard/user/component/user-dataset/user-dataset.component";
 /*
  *  This file defines the url path
  *  The workflow workspace is set as default path

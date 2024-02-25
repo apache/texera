@@ -38,7 +38,7 @@ export class ShareAccessComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    console.log(`access entry: ${this.type}, ${this.id}`)
+    console.log(`access entry: ${this.type}, ${this.id}`);
     this.accessService
       .getAccessList(this.type, this.id)
       .pipe(untilDestroyed(this))
