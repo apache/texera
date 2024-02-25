@@ -64,6 +64,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+      case _ => ???
     }
 
     assert(processedTuple.next().getField("line").equals("line1"))
@@ -86,6 +87,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+      case _ => ???
     }
 
     assert(processedTuple.next().getField("line").equals("line1"))
@@ -107,6 +109,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+      case _ => ???
     }
 
     assert(
@@ -130,6 +133,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
+      case _ => ???
     }
 
     assert(processedTuple.next().getField[Int]("line") == 1)

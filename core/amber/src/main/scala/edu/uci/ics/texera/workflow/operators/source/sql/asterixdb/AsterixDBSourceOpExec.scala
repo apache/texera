@@ -8,7 +8,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseF
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
-import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{queryAsterixDB, updateAsterixDBVersionMapping}
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
+  queryAsterixDB,
+  updateAsterixDBVersionMapping
+}
 
 import java.sql._
 import java.time.format.DateTimeFormatter

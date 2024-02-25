@@ -66,7 +66,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
+      case _ => ???
     }
+
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
     assert(processedTuple.next().getField("line").equals("line3"))
@@ -86,6 +88,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
+      case _ => ???
     }
 
     assert(processedTuple.next().getField("line").equals("line1"))
@@ -105,6 +108,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
+      case _ => ???
     }
 
     assert(
@@ -126,6 +130,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
+      case _ => ???
     }
 
     assert(processedTuple.next().getField[Int]("line") == 1)
@@ -148,6 +153,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
       case schemaEnforceable: SchemaEnforceable =>
         TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
+      case _ => ???
     }
 
     assert(processedTuple.next().getField("line").equals("line1"))
