@@ -36,7 +36,7 @@ class RegexOpDesc extends FilterOpDesc {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((_, _, _) =>
-          new RegexOpExec(this.regex, this.caseInsensitive, this.attribute)
+          new RegexOpExec(regex, caseInsensitive, attribute)
         )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
