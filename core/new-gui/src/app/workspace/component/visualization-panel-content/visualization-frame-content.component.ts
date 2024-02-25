@@ -12,7 +12,7 @@ import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
   styleUrls: ["./visualization-frame-content.component.scss"],
 })
 export class VisualizationFrameContentComponent implements AfterContentInit {
-  readonly operatorId: string = inject(NZ_MODAL_DATA).operatorId;
+  operatorId: string = inject(NZ_MODAL_DATA).operatorId;
   // progressive visualization update and redraw interval in milliseconds
   public static readonly UPDATE_INTERVAL_MS = 2000;
   htmlData: any = "";
