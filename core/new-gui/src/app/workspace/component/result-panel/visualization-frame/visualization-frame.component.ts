@@ -37,7 +37,7 @@ export class VisualizationFrameComponent {
       nzContent: VisualizationFrameContentComponent,
       nzFooter: null, // null indicates that the footer of the window would be hidden
       nzBodyStyle: { width: "70vw", height: "74vh" },
-      nzComponentParams: {
+      nzData: {
         operatorId: this.operatorId,
       },
     });

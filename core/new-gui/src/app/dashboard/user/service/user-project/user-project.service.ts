@@ -20,7 +20,10 @@ export const USER_FILE_DELETE_URL = `${USER_FILE_BASE_URL}/delete`;
 export class UserProjectService {
   private files: ReadonlyArray<DashboardFile> = [];
 
-  constructor(private http: HttpClient, private notificationService: NotificationService) {}
+  constructor(
+    private http: HttpClient,
+    private notificationService: NotificationService
+  ) {}
 
   public getProjectList(): Observable<DashboardProject[]> {
     return this.http.get<DashboardProject[]>(`${USER_PROJECT_LIST_URL}`);

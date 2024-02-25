@@ -1,4 +1,3 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { CodeareaCustomTemplateComponent } from "./codearea-custom-template.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
@@ -28,7 +27,7 @@ describe("CodeareaCustomTemplateComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(CodeareaCustomTemplateComponent);
     component = fixture.componentInstance;
-    component.field = { formControl: new FormControl() };
+    component.field = { props: {}, formControl: new FormControl() };
     fixture.detectChanges();
   });
 
