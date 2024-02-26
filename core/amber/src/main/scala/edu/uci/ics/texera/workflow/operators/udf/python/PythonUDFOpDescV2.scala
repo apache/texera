@@ -133,7 +133,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     //    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.newBuilder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
     // for any pythonUDFType, it can add custom output columns (attributes).
