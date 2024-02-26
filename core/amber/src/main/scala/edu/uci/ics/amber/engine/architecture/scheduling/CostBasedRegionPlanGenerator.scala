@@ -108,7 +108,7 @@ class CostBasedRegionPlanGenerator(
     val updatedSearchResult = search()
     val regionDAG = updatedSearchResult.regionDAG
     populateDownstreamLinks(regionDAG)
-    allocateResource(regionDAG)
+    allocateResource(regionDAG, physicalPlan)
     regionDAG
   }
 

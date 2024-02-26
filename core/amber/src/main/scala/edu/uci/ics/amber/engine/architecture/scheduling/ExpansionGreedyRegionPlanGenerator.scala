@@ -14,7 +14,6 @@ import scala.annotation.tailrec
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
-
 class ExpansionGreedyRegionPlanGenerator(
     workflowContext: WorkflowContext,
     var physicalPlan: PhysicalPlan,
@@ -222,7 +221,7 @@ class ExpansionGreedyRegionPlanGenerator(
     populateDownstreamLinks(regionDAG)
 
     // allocate resources on regions
-    allocateResource(regionDAG)
+    allocateResource(regionDAG, physicalPlan)
 
     regionDAG
   }

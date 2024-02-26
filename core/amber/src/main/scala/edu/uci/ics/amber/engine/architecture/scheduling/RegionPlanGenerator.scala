@@ -2,7 +2,10 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
+  DefaultResourceAllocator,
+  ExecutionClusterInfo
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -19,10 +22,10 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 object RegionPlanGenerator {
   def replaceVertex(
-                     graph: DirectedAcyclicGraph[Region, RegionLink],
-                     oldVertex: Region,
-                     newVertex: Region
-                   ): Unit = {
+      graph: DirectedAcyclicGraph[Region, RegionLink],
+      oldVertex: Region,
+      newVertex: Region
+  ): Unit = {
     if (oldVertex.equals(newVertex)) {
       return
     }
@@ -59,8 +62,11 @@ abstract class RegionPlanGenerator(
 
   def generate(): (RegionPlan, PhysicalPlan)
 
-  def allocateResource(regionDAG: DirectedAcyclicGraph[Region, RegionLink]): Unit = {
-    val resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
+  def allocateResource(
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink],
+      updatedPhysicalPlan: PhysicalPlan
+  ): Unit = {
+    val resourceAllocator = new DefaultResourceAllocator(updatedPhysicalPlan, executionClusterInfo)
     // generate the region configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
