@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
 import scala.collection.mutable
+import java.util
 
 case class Tuple @JsonCreator() (
     @JsonProperty(value = "schema", required = true) schema: Schema,
