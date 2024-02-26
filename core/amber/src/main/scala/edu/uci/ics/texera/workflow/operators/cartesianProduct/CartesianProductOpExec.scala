@@ -1,95 +1,54 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
-import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.{InputExhausted, amberexception}
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-
+import edu.uci.ics.texera.workflow.operators.hashJoin.JoinUtils
 import scala.collection.mutable.ArrayBuffer
 
-class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSchema: Schema)
-    extends OperatorExecutor {
-  val leftSchemaSize: Int = leftSchema.getAttributesScala.length
-  var leftTuples: ArrayBuffer[Tuple] = _
-  var isLeftTupleCollectionFinished: Boolean = false
+/**
+  * Executes a Cartesian Product operation between tuples from two input streams.
+  */
+class CartesianProductOpExec extends OperatorExecutor {
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[Tuple] = {
+  private var leftTuples: ArrayBuffer[Tuple] = _
+  private var isLeftTupleCollectionFinished: Boolean = false
+
+  /**
+    * Processes incoming tuples from either the left or right input stream.
+    * Tuples from the left stream are collected until the stream is exhausted.
+    * Then, for each tuple from the right stream, it generates a Cartesian product
+    * with every tuple collected from the left stream.
+    *
+    * @param tuple Either a Tuple from one of the streams or an InputExhausted signal.
+    * @param port The port number indicating which stream the tuple is from (0 for left, 1 for right).
+    * @return An Iterator of TupleLike objects representing the Cartesian product.
+    */
+  override def processTuple(tuple: Either[Tuple, InputExhausted], port: Int): Iterator[TupleLike] =
     tuple match {
-      // is Tuple
-      case Left(tuple) =>
-        if (port == 0) {
-          // left port, store the tuple
-          leftTuples += tuple
-          Iterator()
-        } else if (!isLeftTupleCollectionFinished) {
-          // should not occur, have to finish processing left input tuples
-          throw new WorkflowRuntimeException(
-            "Cannot process right input port tuples before finished with left input port"
-          )
-        } else {
-          // right port, join with all left tuples
-          leftTuples
-            .map(leftTuple => {
-              /*
-              output schema should have unchanged left tuple attributes
-              followed by right schema attributes (with duplicates renamed)
-               */
-              val builder = Tuple.newBuilder(outputSchema).add(leftTuple)
-              fillRightTupleFields(
-                builder,
-                rightSchema,
-                tuple.getFields.toArray(),
-                leftSchemaSize,
-                resolveDuplicateName = true
-              )
-              builder.build()
-            })
-            .iterator
-        }
+      case Left(tuple) if port == 0 =>
+        leftTuples += tuple
+        Iterator.empty
 
-      // is InputExhausted
-      case Right(_) =>
-        if (port == 0 && !isLeftTupleCollectionFinished) {
-          // mark as completed with processing left tuples
-          isLeftTupleCollectionFinished = true
-        }
-        Iterator()
-    }
-  }
+      case Left(tuple) if port == 1 && isLeftTupleCollectionFinished =>
+        leftTuples.map(leftTuple => JoinUtils.joinTuples(leftTuple, tuple)).iterator
 
-  // add attributes of a "right" tuple to existing Tuple builder
-  private def fillRightTupleFields(
-      builder: BuilderV2,
-      rightSchema: Schema,
-      fields: Array[Object],
-      leftSchemaOffset: Int,
-      resolveDuplicateName: Boolean = false
-  ): Unit = {
-    val outputSchemas = outputSchema.getAttributesScala
-    rightSchema.getAttributesScala map { (attribute: Attribute) =>
-      {
-        val attributeIndex = rightSchema.getIndex(attribute.getName)
-        val field = fields.apply(attributeIndex)
-        if (resolveDuplicateName) {
-          // duplicate attribute name, use renamed attribute generated in output schema
-          builder.add(outputSchemas.apply(leftSchemaOffset + attributeIndex), field)
-        } else {
-          builder.add(attribute, field)
-        }
-      }
+      case Left(_) if port == 1 =>
+        throw new amberexception.WorkflowRuntimeException(
+          "Right input received before left input was exhausted."
+        )
+
+      case Right(_) if port == 0 =>
+        isLeftTupleCollectionFinished = true
+        Iterator.empty
+
+      case Right(_) => Iterator.empty
     }
-  }
 
   override def open(): Unit = {
-    leftTuples = new ArrayBuffer[Tuple]()
+    leftTuples = ArrayBuffer[Tuple]()
   }
 
-  override def close(): Unit = {
-    leftTuples.clear()
-  }
+  override def close(): Unit = leftTuples.clear()
 }
