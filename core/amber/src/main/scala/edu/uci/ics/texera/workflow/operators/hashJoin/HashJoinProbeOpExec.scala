@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
@@ -23,15 +21,13 @@ class HashJoinProbeOpExec[K](
 
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(tuple) =>
-        if (input == 0) {
+        if (port == 0) {
           buildTableHashMap.update(tuple.getField("key"), tuple.getField("value"))
           Iterator()
         } else {
@@ -53,7 +49,7 @@ class HashJoinProbeOpExec[K](
           }
         }
       case Right(_) => {
-        if (input == 0) {
+        if (port == 0) {
           Iterator()
         } else {
           if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
@@ -96,7 +92,7 @@ class HashJoinProbeOpExec[K](
               // build the new tuple
               builder.build()
             })
-            .toIterator
+            .iterator
       }
   }
 
@@ -148,7 +144,7 @@ class HashJoinProbeOpExec[K](
         // build the new tuple
         builder.build()
       })
-      .toIterator
+      .iterator
   }
 
   private def performRightAntiJoin(tuple: Tuple): Iterator[Tuple] = {

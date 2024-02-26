@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
@@ -21,11 +19,9 @@ class SortPartitionOpExec(
 
   private def sortTuples(): Iterator[Tuple] = unorderedTuples.sortWith(compareTuples).iterator
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>
