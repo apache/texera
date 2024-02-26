@@ -15,7 +15,11 @@ export class UserFileUploadService {
   // these files won't be uploaded until the user hits the "upload" button
   private filesToBeUploaded: FileUploadItem[] = [];
 
-  constructor(private userService: UserService, private userFileService: UserFileService, private http: HttpClient) {}
+  constructor(
+    private userService: UserService,
+    private userFileService: UserFileService,
+    private http: HttpClient
+  ) {}
 
   private static createFileUploadItem(file: File): FileUploadItem {
     return {

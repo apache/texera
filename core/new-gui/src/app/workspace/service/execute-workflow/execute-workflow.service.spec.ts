@@ -12,7 +12,6 @@ import { Observable, of } from "rxjs";
 
 import { mockLogicalPlan_scan_result, mockWorkflowPlan_scan_result } from "./mock-workflow-plan";
 import { HttpClient } from "@angular/common/http";
-import { environment } from "../../../../environments/environment";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
 
@@ -23,8 +22,6 @@ class StubHttpClient {
     return of("a");
   }
 }
-
-/* eslint-disable @typescript-eslint/no-non-null-assertion */
 
 describe("ExecuteWorkflowService", () => {
   let service: ExecuteWorkflowService;

@@ -82,18 +82,11 @@
           nzType="comment"></span>
         <span>Forum</span>
       </li>
-
       <li
         *ngIf="isAdmin"
-        nz-submenu>
-        <span
-          class="submenu"
-          title>
-          <span
-            nz-icon
-            nzType="tool"></span>
-          <span>Admin</span>
-        </span>
+        nz-submenu
+        nzTitle="Admin"
+        nzIcon="tool">
         <ul>
           <li
             nz-menu-item

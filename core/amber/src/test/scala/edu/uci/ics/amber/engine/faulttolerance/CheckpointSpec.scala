@@ -50,7 +50,14 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       ),
       resultStorage
     )
-    val cp = new ControllerProcessor(workflow, ControllerConfig.default, CONTROLLER, msg => {})
+    val cp =
+      new ControllerProcessor(
+        workflow.context,
+        resultStorage,
+        ControllerConfig.default,
+        CONTROLLER,
+        msg => {}
+      )
     val chkpt = new CheckpointState()
     chkpt.save(CP_STATE_KEY, cp)
   }
@@ -84,7 +91,14 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       ),
       resultStorage
     )
-    val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
+    val client = new AmberClient(
+      system,
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      ControllerConfig.default,
+      error => {}
+    )
     Await.result(client.sendAsync(StartWorkflow()))
     Thread.sleep(100)
     Await.result(client.sendAsync(PauseWorkflow()))

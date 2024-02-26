@@ -96,7 +96,7 @@ export class UserProjectComponent implements OnInit {
   public openPublicProject(): void {
     const modalRef = this.modalService.create({
       nzContent: PublicProjectComponent,
-      nzComponentParams: { disabledList: new Set(this.userProjectEntries.map(project => project.pid)) },
+      nzData: { disabledList: new Set(this.userProjectEntries.map(project => project.pid)) },
       nzFooter: null,
       nzTitle: "Add Public Projects",
       nzCentered: true,
