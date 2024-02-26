@@ -57,7 +57,7 @@ export class UserDatasetListItemComponent {
   ) {}
 
   public confirmUpdateDatasetCustomName(name: string) {
-    if (this.entry.dataset.name == name) {
+    if (this.entry.dataset.name === name) {
       return;
     }
 
@@ -78,7 +78,7 @@ export class UserDatasetListItemComponent {
   }
 
   public confirmUpdateDatasetCustomDescription(description: string) {
-    if (this.entry.dataset.description == description) {
+    if (this.entry.dataset.description === description) {
       return;
     }
 

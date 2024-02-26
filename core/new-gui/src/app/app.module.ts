@@ -124,7 +124,7 @@ import { HighlightSearchTermsPipe } from "./dashboard/user/component/user-workfl
 import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 import { FilesUploaderComponent } from "./dashboard/user/component/files-uploader/files-uploader.component";
 import { UserDatasetComponent } from "./dashboard/user/component/user-dataset/user-dataset.component";
-import { UserDatasetVersionCreator } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetVersionCreatorComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
 import { UserDatasetExplorerComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
 import { UserDatasetVersionFiletreeComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
 import { UserDatasetFileRendererComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
@@ -191,7 +191,7 @@ registerLocaleData(en);
     NgbdModalRemoveProjectFileComponent,
     FilesUploaderComponent,
     UserDatasetComponent,
-    UserDatasetVersionCreator,
+    UserDatasetVersionCreatorComponent,
     UserDatasetExplorerComponent,
     UserDatasetVersionFiletreeComponent,
     UserDatasetListItemComponent,

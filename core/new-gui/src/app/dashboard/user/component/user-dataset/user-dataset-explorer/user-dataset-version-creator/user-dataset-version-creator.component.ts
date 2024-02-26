@@ -12,7 +12,7 @@ import { NotificationService } from "../../../../../../common/service/notificati
   templateUrl: "./user-dataset-version-creator.component.html",
   styleUrls: ["./user-dataset-version-creator.component.scss"],
 })
-export class UserDatasetVersionCreator implements OnInit {
+export class UserDatasetVersionCreatorComponent implements OnInit {
   @Input()
   isCreatingVersion: boolean = false;
 
