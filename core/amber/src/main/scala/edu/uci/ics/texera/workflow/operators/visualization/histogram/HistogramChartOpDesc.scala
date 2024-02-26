@@ -13,26 +13,26 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(required = false, defaultValue = "Histogram Graph Visual")
+  @JsonProperty(required = false, defaultValue = "Histogram")
   @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("Add a title to your histogram graph")
-  var title: String = "Histogram Visualization"
+  @JsonPropertyDescription("Add a title to your histogram plot.")
+  var title: String = "Histogram"
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("Choose a column to analyze")
+  @JsonPropertyDescription("Column for analyzing")
   @AutofillAttributeName
   var value: String = ""
 
   @JsonProperty(required = false)
-  @JsonSchemaTitle("Category")
-  @JsonPropertyDescription("Choose a column for assigning different colors based on the value")
+  @JsonSchemaTitle("Category Column")
+  @JsonPropertyDescription("Column for assigning different colors")
   @AutofillAttributeName
   var category: String = ""
 
   @JsonProperty(defaultValue = "false", required = false)
   @JsonSchemaTitle("Separate Graphs")
-  @JsonPropertyDescription("Separate graphs for each category")
+  @JsonPropertyDescription("Separate histogram for each category")
   var separate: Boolean = _
 
   /**
