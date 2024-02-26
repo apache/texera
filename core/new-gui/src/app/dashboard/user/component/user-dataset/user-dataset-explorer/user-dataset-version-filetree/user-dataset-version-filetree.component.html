@@ -2,7 +2,8 @@
   <nz-tree-view
     [nzTreeControl]="treeControl"
     [nzDataSource]="dataSource"
-    [nzDirectoryTree]="true">
+    [nzDirectoryTree]="true"
+    nzNoAnimation>
     <nz-tree-node
       *nzTreeNodeDef="let node"
       nzTreeNodePadding>
@@ -46,17 +47,6 @@
           nzTheme="outline"></span>
         {{ node.name }}
       </nz-tree-node-option>
-      <button
-        *ngIf="isTreeNodeDeletable"
-        nz-button
-        nzType="default"
-        nzSize="small"
-        (click)="onNodeDeleted(node)">
-        <span
-          nz-icon
-          nzType="delete"
-          nzTheme="outline"></span>
-      </button>
     </nz-tree-node>
   </nz-tree-view>
 </div>

@@ -33,6 +33,7 @@ export class FilesUploaderComponent {
   >();
   newUploadFileTreeManager: DatasetVersionFileTreeManager = new DatasetVersionFileTreeManager();
   newUploadFileTreeNodes: DatasetVersionFileTreeNode[] = [];
+
   fileUploadingFinished: boolean = false;
   // four types: "success", "info", "warning" and "error"
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";
@@ -49,26 +50,45 @@ export class FilesUploaderComponent {
   }
 
   public fileDropped(files: NgxFileDropEntry[]) {
-    for (const droppedFile of files) {
-      if (droppedFile.fileEntry.isFile) {
-        const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
-        fileEntry.file(
-          file => {
-            this.showFileUploadBanner("success", "Files are uploaded successfully!");
-
+    // here I use promise to ensure the atomicity of files uploading
+    const filePromises = files.map(droppedFile => {
+      return new Promise<FileUploadItem | null>((resolve, reject) => {
+        if (droppedFile.fileEntry.isFile) {
+          const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
+          fileEntry.file(file => {
             const fileUploadItem = UserFileUploadService.createFileUploadItemWithPath(file, droppedFile.relativePath);
-            this.addFileToNewUploadsFileTree(droppedFile.relativePath, fileUploadItem);
-            this.uploadedFiles.emit(Array.from(this.newUploadNodeToFileItems.values()));
-          },
-          err => {
-            this.showFileUploadBanner("error", `Encounter error: ${err.message}`);
-          }
-        );
-      } else {
-        // empty directory is not allowed
-        this.showFileUploadBanner("warning", "Do not upload empty folder");
-      }
-    }
+            resolve(fileUploadItem);
+          }, reject);
+        } else {
+          resolve(null);
+        }
+      });
+    });
+
+    Promise.allSettled(filePromises)
+      .then(results => {
+        const successfulUploads = results
+          .filter((result): result is PromiseFulfilledResult<FileUploadItem | null> => result.status === "fulfilled")
+          .map(result => result.value)
+          .filter((item): item is FileUploadItem => item !== null);
+
+        if (successfulUploads.length > 0) {
+          successfulUploads.forEach(fileUploadItem => {
+            this.addFileToNewUploadsFileTree(fileUploadItem.name, fileUploadItem);
+          });
+          this.showFileUploadBanner("success", `${successfulUploads.length} files uploaded successfully!`);
+        }
+
+        const failedCount = results.length - successfulUploads.length;
+        if (failedCount > 0) {
+          this.showFileUploadBanner("error", `${failedCount} files failed to upload.`);
+        }
+
+        this.uploadedFiles.emit(Array.from(this.newUploadNodeToFileItems.values()));
+      })
+      .catch(error => {
+        this.showFileUploadBanner("error", `Unexpected error: ${error.message}`);
+      });
   }
 
   onPreviouslyUploadedFileDeleted(node: DatasetVersionFileTreeNode) {
@@ -110,6 +130,7 @@ export class FilesUploaderComponent {
 
   private addFileToNewUploadsFileTree(path: string, fileUploadItem: FileUploadItem) {
     const newNode = this.newUploadFileTreeManager.addNodeWithPath(path);
+
     this.newUploadFileTreeNodes = [...this.newUploadFileTreeManager.getRootNodes()];
     this.newUploadNodeToFileItems.set(newNode, fileUploadItem);
   }

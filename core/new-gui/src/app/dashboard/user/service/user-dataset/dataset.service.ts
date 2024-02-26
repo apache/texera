@@ -54,15 +54,15 @@ export class DatasetService {
       formData.append(`file:upload:${sanitizedFilePath}`, file.file);
     });
 
-    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, formData).pipe();
+    return this.http.post<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_CREATE_URL}`, formData);
   }
 
   public getDataset(did: number): Observable<DashboardDataset> {
-    return this.http.get<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`).pipe();
+    return this.http.get<DashboardDataset>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}`);
   }
 
   public listDatasets(): Observable<DashboardDataset[]> {
-    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`).pipe();
+    return this.http.get<DashboardDataset[]>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}`);
   }
 
   public retrieveDatasetVersionSingleFile(did: number, dvid: number, path: string): Observable<Blob> {

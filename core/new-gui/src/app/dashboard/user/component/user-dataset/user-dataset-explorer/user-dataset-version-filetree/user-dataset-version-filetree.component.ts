@@ -25,10 +25,10 @@ interface TreeFlatNode {
 })
 export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges {
   @Input()
-  isTreeNodeDeletable: boolean = false;
+  public isTreeNodeDeletable: boolean = false;
 
   @Input()
-  fileTreeNodes: DatasetVersionFileTreeNode[] = [];
+  public fileTreeNodes: DatasetVersionFileTreeNode[] = [];
 
   @Output()
   public selectedTreeNode = new EventEmitter<DatasetVersionFileTreeNode>();
@@ -69,11 +69,26 @@ export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges {
   ngOnInit(): void {
     this.nodeLookup = {};
     this.dataSource.setData(this.fileTreeNodes);
+    // this delay is used to make user not be able to see the shuffling tree
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    // Track expanded nodes
+    const expandedKeys = this.treeControl.dataNodes
+      .filter(node => this.treeControl.isExpanded(node))
+      .map(node => node.key);
+
+    // Update nodeLookup and data source
     this.nodeLookup = {};
+
     this.dataSource.setData(this.fileTreeNodes);
+
+    // Re-expand previously expanded nodes
+    this.treeControl.dataNodes.forEach(node => {
+      if (expandedKeys.includes(node.key)) {
+        this.treeControl.expand(node);
+      }
+    });
   }
 
   onNodeSelected(node: TreeFlatNode): void {
