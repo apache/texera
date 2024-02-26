@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -50,8 +51,8 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val leftSchema = generate_schema("left", numLeftSchemaAttributes)
     val rightSchema = generate_schema("right", numRightSchemaAttributes)
-    val outputSchema = opDesc.getOutputSchema(Array(leftSchema, rightSchema))
-    opExec = new CartesianProductOpExec(leftSchema, rightSchema, outputSchema)
+
+    opExec = new CartesianProductOpExec()
 
     opExec.open()
     // process 5 left tuples
@@ -65,20 +66,19 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTuple(Right(InputExhausted()), leftPort).isEmpty)
 
     // process 5 right tuples
-    val outputTuples: List[Tuple] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
+    val outputTuples: List[TupleLike] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
       .map(value =>
         opExec
           .processTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort)
       )
-      .foldLeft(Iterator[Tuple]())(_ ++ _)
+      .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
     assert(opExec.processTuple(Right(InputExhausted()), rightPort).isEmpty)
 
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
     assert(
-      outputTuples.head.getSchema.getAttributeNames
-        .size() == numLeftSchemaAttributes + numRightSchemaAttributes
+      outputTuples.head.fields.length == numLeftSchemaAttributes + numRightSchemaAttributes
     )
 
     opExec.close()
@@ -136,7 +136,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
 
-    opExec = new CartesianProductOpExec(leftSchema, rightSchema, outputSchema)
+    opExec = new CartesianProductOpExec()
     opExec.open()
     // process 4 left tuples
     (1 to numLeftTuples).map(value => {
@@ -149,20 +149,19 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTuple(Right(InputExhausted()), leftPort).isEmpty)
 
     // process 3 right tuples
-    val outputTuples: List[Tuple] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
+    val outputTuples: List[TupleLike] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
       .map(value =>
         opExec
           .processTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort)
       )
-      .foldLeft(Iterator[Tuple]())(_ ++ _)
+      .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
     assert(opExec.processTuple(Right(InputExhausted()), rightPort).isEmpty)
 
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
     assert(
-      outputTuples.head.getSchema.getAttributeNames
-        .size() == numLeftSchemaAttributes + numRightSchemaAttributes
+      outputTuples.head.fields.length == numLeftSchemaAttributes + numRightSchemaAttributes
     )
     opExec.close()
   }
