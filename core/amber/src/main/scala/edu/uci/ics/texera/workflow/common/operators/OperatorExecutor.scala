@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.common.operators
 import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -11,7 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 trait OperatorExecutor extends IOperatorExecutor {
 
   override def processTuple(
-      tuple: Either[ITuple, InputExhausted],
+      tuple: Either[Tuple, InputExhausted],
       input: Int,
       pauseManager: PauseManager,
       asyncRPCClient: AsyncRPCClient

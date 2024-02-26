@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChan
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -28,10 +28,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.utils.TupleFactory.mkTuple
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -60,11 +62,11 @@ class WorkerSpec
     override def close(): Unit = println("closed!")
 
     override def processTuple(
-        tuple: Either[ITuple, InputExhausted],
+        tuple: Either[Tuple, InputExhausted],
         input: Int,
         pauseManager: PauseManager,
         asyncRPCClient: AsyncRPCClient
-    ): Iterator[(ITuple, Option[PortIdentity])] = {
+    ): Iterator[(TupleLike, Option[PortIdentity])] = {
       tuple match {
         case Left(iTuple) => Iterator((iTuple, None))
         case Right(_)     => Iterator.empty
@@ -160,7 +162,7 @@ class WorkerSpec
   "Worker" should "process data messages correctly" in {
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink, null).once()
+    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockLink, null).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
@@ -177,7 +179,7 @@ class WorkerSpec
       WorkflowFIFOMessage(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         0,
-        DataFrame(Array(ITuple(1)))
+        DataFrame(Array(mkTuple(1)))
       )
     )
     //wait test to finish
@@ -190,12 +192,12 @@ class WorkerSpec
     }
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    def mkBatch(start: Int, end: Int): Array[ITuple] = {
+    def mkBatch(start: Int, end: Int): Array[Tuple] = {
       (start until end).map { x =>
         (mockOutputManager.passTupleToDownstream _)
-          .expects(ITuple(x, x, x, x), mockLink, null)
+          .expects(mkTuple(x, x, x, x), mockLink, null)
           .once()
-        ITuple(x, x, x, x)
+        mkTuple(x, x, x, x)
       }.toArray
     }
     val batch1 = mkBatch(0, 400)
@@ -271,13 +273,13 @@ class WorkerSpec
     )
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
+        (mockOutputManager.passTupleToDownstream _).expects(mkTuple(i), mockLink, null).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
             ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
-            DataFrame(Array(ITuple(i)))
+            DataFrame(Array(mkTuple(i)))
           )
         )
       })
@@ -287,13 +289,13 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
+        (mockOutputManager.passTupleToDownstream _).expects(mkTuple(i), mockLink, null).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
             ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
-            DataFrame(Array(ITuple(i)))
+            DataFrame(Array(mkTuple(i)))
           )
         )
       })
