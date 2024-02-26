@@ -61,6 +61,10 @@ object TupleLike {
     }
   }
 
+  def enforceSchema(tupleLike: TupleLike, schema: Schema): Tuple = {
+    enforceSchema(tupleLike.asInstanceOf[SchemaEnforceable], schema)
+  }
+
   /**
     * Transforms a TupleLike object to a Tuple that conforms to a given Schema.
     *
