@@ -15,11 +15,11 @@ import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
 
 class CostBasedRegionPlanGenerator(
     workflowContext: WorkflowContext,
-    var physicalPlan: PhysicalPlan,
+    initialPhysicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
 ) extends RegionPlanGenerator(
       workflowContext,
-      physicalPlan,
+      initialPhysicalPlan,
       opResultStorage
     )
     with LazyLogging {
@@ -32,7 +32,7 @@ class CostBasedRegionPlanGenerator(
 
   private val useGlobalSearch = AmberConfig.useGlobalSearch
 
-  override def generate(): (RegionPlan, PhysicalPlan) = {
+  def generate(): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG()
 
@@ -137,29 +137,26 @@ class CostBasedRegionPlanGenerator(
           }
         // No need to explore further
         case None =>
-          val currentCost = cost(currentState)
-          if (currentCost < result.cost) {
-            val allBlockingEdges = currentState ++ physicalPlan.getOriginalBlockingLinks
-            // Generate and enqueue all neighbor states that haven't been visited
-            val edgesInChainWithBlockingEdge = physicalPlan.getMaxChains
-              .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
-              .flatten
-            val candidateEdges = originalNonBlockingEdges
-              .diff(edgesInChainWithBlockingEdge)
-              .diff(currentState)
-            if (useGlobalSearch) {
-              candidateEdges.foreach { link =>
-                val nextState = currentState + link
-                if (!visited.contains(nextState) && !queue.contains(nextState)) {
-                  queue.enqueue(nextState)
-                }
-              }
-            } else {
-              val nextLink = candidateEdges.minBy(e => cost(currentState + e))
-              val nextState = currentState + nextLink
+          val allBlockingEdges = currentState ++ physicalPlan.getOriginalBlockingLinks
+          // Generate and enqueue all neighbor states that haven't been visited
+          val edgesInChainWithBlockingEdge = physicalPlan.getMaxChains
+            .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
+            .flatten
+          val candidateEdges = originalNonBlockingEdges
+            .diff(edgesInChainWithBlockingEdge)
+            .diff(currentState)
+          if (useGlobalSearch) {
+            candidateEdges.foreach { link =>
+              val nextState = currentState + link
               if (!visited.contains(nextState) && !queue.contains(nextState)) {
                 queue.enqueue(nextState)
               }
+            }
+          } else {
+            val nextLink = candidateEdges.minBy(e => cost(currentState + e))
+            val nextState = currentState + nextLink
+            if (!visited.contains(nextState) && !queue.contains(nextState)) {
+              queue.enqueue(nextState)
             }
           }
       }

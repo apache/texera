@@ -54,7 +54,7 @@ object RegionPlanGenerator {
 
 abstract class RegionPlanGenerator(
     workflowContext: WorkflowContext,
-    physicalPlan: PhysicalPlan,
+    var physicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
 ) {
 

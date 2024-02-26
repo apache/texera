@@ -16,9 +16,9 @@ import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class ExpansionGreedyRegionPlanGenerator(
     workflowContext: WorkflowContext,
-    var physicalPlan: PhysicalPlan,
+    initialPhysicalPlan: PhysicalPlan,
     opResultStorage: OpResultStorage
-) extends RegionPlanGenerator(workflowContext, physicalPlan, opResultStorage)
+) extends RegionPlanGenerator(workflowContext, initialPhysicalPlan, opResultStorage)
     with LazyLogging {
   def generate(): (RegionPlan, PhysicalPlan) = {
 
