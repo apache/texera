@@ -47,7 +47,7 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
               fillRightTupleFields(
                 builder,
                 rightSchema,
-                tuple.getFields.toArray(),
+                tuple.getFields.toArray,
                 leftSchemaSize,
                 resolveDuplicateName = true
               )
@@ -70,7 +70,7 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
   private def fillRightTupleFields(
       builder: BuilderV2,
       rightSchema: Schema,
-      fields: Array[Object],
+      fields: Array[Any],
       leftSchemaOffset: Int,
       resolveDuplicateName: Boolean = false
   ): Unit = {

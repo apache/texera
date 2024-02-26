@@ -125,7 +125,7 @@ class IntervalJoinOpExec(
     val builder = Tuple
       .newBuilder(outputSchema)
       .add(leftTuple)
-    for (i <- 0 until rightTuple.getFields.size()) {
+    for (i <- rightTuple.getFields.indices) {
       val attributeName = rightTuple.getSchema.getAttributeNames.get(i)
       val attribute = rightTuple.getSchema.getAttribute(attributeName)
       builder.add(
@@ -135,7 +135,7 @@ class IntervalJoinOpExec(
           else attributeName,
           attribute.getType
         ),
-        rightTuple.getFields.get(i)
+        rightTuple.getFields(i)
       )
     }
     builder.build()

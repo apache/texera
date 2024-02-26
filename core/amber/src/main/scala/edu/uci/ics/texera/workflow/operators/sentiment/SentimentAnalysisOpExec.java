@@ -59,7 +59,7 @@ public class SentimentAnalysisOpExec extends MapOpExec {
             sentiment = -1;
         }
 
-        return Tuple.newBuilder(outputSchema).add(t).add(opDesc.resultAttribute(), AttributeType.INTEGER, sentiment).build();
+        return Tuple.newBuilder(outputSchema).add(t, true).add(opDesc.resultAttribute(), AttributeType.INTEGER, sentiment).build();
     }
 
 

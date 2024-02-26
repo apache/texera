@@ -94,7 +94,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     inputReader.close()
 
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      data.iterator.asInstanceOf[Iterator[Array[Object]]]
+      data.iterator.asInstanceOf[Iterator[Array[Any]]]
     )
     val header: Array[String] =
       if (hasHeader) parser.getContext.headers()

@@ -85,7 +85,7 @@ class HashJoinProbeOpExec[K](
               )
 
               // fill the build tuple
-              fillNonJoinFields(builder, buildSchema, tuple.getFields.toArray())
+              fillNonJoinFields(builder, buildSchema, tuple.getFields.toArray)
 
               // fill the join attribute (align with build)
               builder.add(
@@ -103,7 +103,7 @@ class HashJoinProbeOpExec[K](
   def fillNonJoinFields(
       builder: BuilderV2,
       schema: Schema,
-      fields: Array[Object],
+      fields: Array[Any],
       resolveDuplicateName: Boolean = false
   ): Unit = {
     schema.getAttributesScala.filter(attribute => attribute.getName != probeAttributeName) map {
@@ -141,7 +141,7 @@ class HashJoinProbeOpExec[K](
         fillNonJoinFields(
           builder,
           probeSchema,
-          probeTuple.getFields.toArray(),
+          probeTuple.getFields.toArray,
           resolveDuplicateName = true
         )
 
@@ -166,7 +166,7 @@ class HashJoinProbeOpExec[K](
     fillNonJoinFields(
       builder,
       probeSchema,
-      tuple.getFields.toArray(),
+      tuple.getFields.toArray,
       resolveDuplicateName = true
     )
 

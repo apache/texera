@@ -56,7 +56,7 @@ object TupleUtils {
       .build
 
     try {
-      val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
+      val fields = scala.collection.mutable.ArrayBuffer.empty[Any]
       val data = JSONToMap(objectMapper.readTree(json))
 
       for (fieldName <- schema.getAttributeNames.asScala) {

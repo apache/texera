@@ -5,18 +5,16 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 
 object TupleFactory {
   def mkTuple(fields: Any*): Tuple = {
-    val arrayOfObjects: Array[Object] = fields.map(_.asInstanceOf[Object]).toArray
     val schemaBuilder = Schema.newBuilder()
     fields.indices.foreach { i =>
       schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
     }
     val schema = schemaBuilder.build()
-    Tuple.newBuilder(schema).addSequentially(arrayOfObjects).build()
+    Tuple.newBuilder(schema).addSequentially(fields.toArray).build()
   }
 
   def mkTupleWithSchema(schema: Schema, fields: Any*): Tuple = {
-    val arrayOfObjects: Array[Object] = fields.map(_.asInstanceOf[Object]).toArray
-    Tuple.newBuilder(schema).addSequentially(arrayOfObjects).build()
+    Tuple.newBuilder(schema).addSequentially(fields.toArray).build()
   }
 
 }

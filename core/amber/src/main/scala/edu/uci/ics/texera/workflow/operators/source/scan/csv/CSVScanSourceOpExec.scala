@@ -37,9 +37,9 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
       .drop(desc.offset.getOrElse(0))
       .map(row => {
         try {
-          val parsedFields: Array[Object] =
-            AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Object]], schema)
-          Tuple.newBuilder(schema).addSequentially(parsedFields).build
+          val parsedFields: Array[Any] =
+            AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
+          Tuple.newBuilder(schema).addSequentially(parsedFields).build()
         } catch {
           case _: Throwable => null
         }

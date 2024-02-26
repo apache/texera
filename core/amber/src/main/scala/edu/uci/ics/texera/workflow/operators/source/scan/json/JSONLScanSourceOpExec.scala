@@ -23,7 +23,7 @@ class JSONLScanSourceOpExec private[json] (
     rows
       .map(line => {
         try {
-          val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
+          val fields = scala.collection.mutable.ArrayBuffer.empty[Any]
           val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
 
           for (fieldName <- schema.getAttributeNames.asScala) {
@@ -34,7 +34,7 @@ class JSONLScanSourceOpExec private[json] (
             }
           }
 
-          Tuple.newBuilder(schema).addSequentially(fields.toArray).build
+          Tuple.newBuilder(schema).addSequentially(fields.toArray).build()
         } catch {
           case _: Throwable => null
         }

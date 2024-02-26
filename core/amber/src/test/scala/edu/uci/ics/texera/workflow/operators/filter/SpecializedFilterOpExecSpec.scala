@@ -91,16 +91,16 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "output null tuples when filtering is_null" in {
     tuplesWithOneFieldNull
       .map(nullTuple => {
-        val attributes = nullTuple.getSchema().getAttributes()
+        val attributes = nullTuple.getSchema.getAttributes
         assert(attributes.size() == 1)
 
         val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
           predicates =
-            asList(new FilterPredicate(attributes.get(0).getName(), ComparisonType.IS_NULL, null))
+            asList(new FilterPredicate(attributes.get(0).getName, ComparisonType.IS_NULL, null))
         })
 
         opExec.open()
-        assert(!opExec.processTexeraTuple(Left(nullTuple), inputPort, null, null).isEmpty)
+        assert(opExec.processTexeraTuple(Left(nullTuple), inputPort, null, null).nonEmpty)
         opExec.close()
       })
   }
@@ -119,19 +119,19 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
     })
     opExec.open()
-    assert(!opExec.processTexeraTuple(Left(nonNullTuple), inputPort, null, null).isEmpty)
+    assert(opExec.processTexeraTuple(Left(nonNullTuple), inputPort, null, null).nonEmpty)
     opExec.close()
   }
 
   it should "filter out null tuples when filter is_not_null" in {
     tuplesWithOneFieldNull
       .map(nullTuple => {
-        val attributes = nullTuple.getSchema().getAttributes()
+        val attributes = nullTuple.getSchema.getAttributes
         assert(attributes.size() == 1)
 
         val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
           predicates = asList(
-            new FilterPredicate(attributes.get(0).getName(), ComparisonType.IS_NOT_NULL, null)
+            new FilterPredicate(attributes.get(0).getName, ComparisonType.IS_NOT_NULL, null)
           )
         })
 

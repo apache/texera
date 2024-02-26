@@ -64,7 +64,7 @@ object AttributeTypeUtils extends Serializable {
     builder.build()
   }
 
-  def parseFields(fields: Array[Object], schema: Schema): Array[Object] = {
+  def parseFields(fields: Array[Any], schema: Schema): Array[Any] = {
     parseFields(fields, schema.getAttributes.asScala.map(attr => attr.getType).toArray)
   }
 
@@ -76,10 +76,10 @@ object AttributeTypeUtils extends Serializable {
     */
   @throws[AttributeTypeException]
   def parseFields(
-      fields: Array[Object],
+      fields: Array[Any],
       attributeTypes: Array[AttributeType]
-  ): Array[Object] = {
-    fields.indices.map(i => parseField(fields.apply(i), attributeTypes.apply(i))).toArray
+  ): Array[Any] = {
+    fields.indices.map(i => parseField(fields(i), attributeTypes(i))).toArray
   }
 
   /**
@@ -91,9 +91,9 @@ object AttributeTypeUtils extends Serializable {
     */
   @throws[AttributeTypeException]
   def parseField(
-      field: Object,
+      field: Any,
       attributeType: AttributeType
-  ): Object = {
+  ): Any = {
     if (field == null) return null
     attributeType match {
       case INTEGER   => parseInteger(field)
@@ -108,7 +108,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseInteger(fieldValue: Object): Integer = {
+  def parseInteger(fieldValue: Any): Integer = {
     fieldValue match {
       case str: String                => str.trim.toInt
       case int: Integer               => int
@@ -124,7 +124,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseLong(fieldValue: Object): java.lang.Long = {
+  def parseLong(fieldValue: Any): java.lang.Long = {
     fieldValue match {
       case str: String                => str.trim.toLong
       case int: Integer               => int.toLong
@@ -141,7 +141,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseTimestamp(fieldValue: Object): Timestamp = {
+  def parseTimestamp(fieldValue: Any): Timestamp = {
     val parseError = new AttributeTypeException(
       s"not able to parse type ${fieldValue.getClass} to Timestamp: ${fieldValue.toString}"
     )
@@ -157,7 +157,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseDouble(fieldValue: Object): java.lang.Double = {
+  def parseDouble(fieldValue: Any): java.lang.Double = {
     fieldValue match {
       case str: String                => str.trim.toDouble
       case int: Integer               => int.toDouble
@@ -173,7 +173,7 @@ object AttributeTypeUtils extends Serializable {
   }
 
   @throws[AttributeTypeException]
-  def parseBoolean(fieldValue: Object): java.lang.Boolean = {
+  def parseBoolean(fieldValue: Any): java.lang.Boolean = {
     val parseError = new AttributeTypeException(
       s"not able to parse type ${fieldValue.getClass} to Boolean: ${fieldValue.toString}"
     )
@@ -200,7 +200,7 @@ object AttributeTypeUtils extends Serializable {
     */
   def inferRow(
       attributeTypes: Array[AttributeType],
-      fields: Array[Object]
+      fields: Array[Any]
   ): Unit = {
     for (i <- fields.indices) {
       attributeTypes.update(i, inferField(attributeTypes.apply(i), fields.apply(i)))
@@ -213,7 +213,7 @@ object AttributeTypeUtils extends Serializable {
     *                       each field array should have exact same order and length.
     * @return AttributeType array
     */
-  def inferSchemaFromRows(fieldsIterator: Iterator[Array[Object]]): Array[AttributeType] = {
+  def inferSchemaFromRows(fieldsIterator: Iterator[Array[Any]]): Array[AttributeType] = {
     var attributeTypes: Array[AttributeType] = Array()
 
     for (fields <- fieldsIterator) {
@@ -230,11 +230,11 @@ object AttributeTypeUtils extends Serializable {
     * @param fieldValue data field to be parsed, original as String field
     * @return inferred AttributeType
     */
-  def inferField(fieldValue: Object): AttributeType = {
+  def inferField(fieldValue: Any): AttributeType = {
     tryParseInteger(fieldValue)
   }
 
-  private def tryParseInteger(fieldValue: Object): AttributeType = {
+  private def tryParseInteger(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
       return INTEGER
     allCatch opt parseInteger(fieldValue) match {
@@ -243,7 +243,7 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  private def tryParseLong(fieldValue: Object): AttributeType = {
+  private def tryParseLong(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
       return LONG
     allCatch opt parseLong(fieldValue) match {
@@ -252,7 +252,7 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  private def tryParseTimestamp(fieldValue: Object): AttributeType = {
+  private def tryParseTimestamp(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
       return TIMESTAMP
     allCatch opt parseTimestamp(fieldValue) match {
@@ -261,7 +261,7 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  private def tryParseDouble(fieldValue: Object): AttributeType = {
+  private def tryParseDouble(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
       return DOUBLE
     allCatch opt parseDouble(fieldValue) match {
@@ -270,7 +270,7 @@ object AttributeTypeUtils extends Serializable {
     }
   }
 
-  private def tryParseBoolean(fieldValue: Object): AttributeType = {
+  private def tryParseBoolean(fieldValue: Any): AttributeType = {
     if (fieldValue == null)
       return BOOLEAN
     allCatch opt parseBoolean(fieldValue) match {
@@ -289,7 +289,7 @@ object AttributeTypeUtils extends Serializable {
     * @param fieldValue data field to be parsed, original as String field
     * @return inferred AttributeType
     */
-  def inferField(attributeType: AttributeType, fieldValue: Object): AttributeType = {
+  def inferField(attributeType: AttributeType, fieldValue: Any): AttributeType = {
     attributeType match {
       case STRING    => tryParseString()
       case BOOLEAN   => tryParseBoolean(fieldValue)

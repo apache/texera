@@ -18,7 +18,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     Tuple
       .newBuilder(schema(name, n))
-      .addSequentially(Array[Object](i.map(_.toString).orNull, i.map(_.toString).orNull))
+      .addSequentially(Array[Any](i.map(_.toString).orNull, i.map(_.toString).orNull))
       .build()
   }
 

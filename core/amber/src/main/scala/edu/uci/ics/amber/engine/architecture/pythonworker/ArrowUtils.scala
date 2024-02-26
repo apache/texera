@@ -72,7 +72,6 @@ object ArrowUtils extends LazyLogging {
 
           })
           .toArray
-          .asInstanceOf[Array[AnyRef]]
       )
       .build()
 
@@ -188,7 +187,10 @@ object ArrowUtils extends LazyLogging {
               index,
               !isNull,
               if (isNull) 0L
-              else AttributeTypeUtils.parseField(value, AttributeType.LONG).asInstanceOf[Long]
+              else
+                AttributeTypeUtils
+                  .parseField(value.asInstanceOf[Object], AttributeType.LONG)
+                  .asInstanceOf[Long]
             )
 
         case _: ArrowType.Utf8 =>

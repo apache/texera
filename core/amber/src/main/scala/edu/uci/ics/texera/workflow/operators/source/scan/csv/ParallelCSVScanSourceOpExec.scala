@@ -6,8 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import org.tukaani.xz.SeekableFileInputStream
 
-import java.util
-import java.util.stream.{IntStream, Stream}
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class ParallelCSVScanSourceOpExec private[csv] (
@@ -31,9 +29,9 @@ class ParallelCSVScanSourceOpExec private[csv] (
           if (line == null) {
             return null
           }
-          var fields: Array[Object] = line.toArray
+          var fields: Array[Any] = line.toArray
 
-          if (fields == null || util.Arrays.stream(fields).noneMatch(s => s != null)) {
+          if (fields == null || fields.forall(s => s == null)) {
             // discard tuple if it's null or it only contains null
             // which means it will always discard Tuple(null) from readLine()
             return null
@@ -41,22 +39,15 @@ class ParallelCSVScanSourceOpExec private[csv] (
 
           // however the null values won't present if omitted in the end, we need to match nulls.
           if (fields.length != schema.getAttributes.size)
-            fields = Stream
-              .concat(
-                util.Arrays.stream(fields),
-                IntStream
-                  .range(0, schema.getAttributes.size - fields.length)
-                  .mapToObj((_: Int) => null)
-              )
-              .toArray()
+            fields = fields ++ Seq.fill(schema.getAttributes.size - fields.length)(null)
           // parse Strings into inferred AttributeTypes
-          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
+          val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
             fields,
             schema.getAttributes.asScala
               .map((attr: Attribute) => attr.getType)
               .toArray
           )
-          Tuple.newBuilder(schema).addSequentially(parsedFields).build
+          Tuple.newBuilder(schema).addSequentially(parsedFields).build()
         } catch {
           case _: Throwable => null
         }
