@@ -1,14 +1,15 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { PublicProjectService } from "../../../service/public-project/public-project.service";
 import { PublicProject } from "../../../type/dashboard-project.interface";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
   templateUrl: "public-project.component.html",
 })
 export class PublicProjectComponent implements OnInit {
-  @Input() disabledList: Set<number> = new Set<number>();
+  readonly disabledList: Set<number> = inject(NZ_MODAL_DATA).disabledList;
   publicProjectEntries: PublicProject[] = [];
   checked = false;
   indeterminate = false;

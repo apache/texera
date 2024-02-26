@@ -1,20 +1,22 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { FormBuilder, FormGroup, Validators } from "@angular/forms";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
 import { ShareAccess } from "../../type/share-access.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
 import { GmailService } from "../../../admin/service/gmail.service";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
   templateUrl: "share-access.component.html",
 })
 export class ShareAccessComponent implements OnInit {
-  @Input() writeAccess!: boolean;
-  @Input() type!: string;
-  @Input() id!: number;
-  @Input() allOwners!: string[];
+  readonly nzModalData = inject(NZ_MODAL_DATA);
+  readonly writeAccess: boolean = this.nzModalData.writeAccess;
+  readonly type: string = this.nzModalData.type;
+  readonly id: number = this.nzModalData.id;
+  readonly allOwners: string[] = this.nzModalData.allOwners;
 
   public validateForm: FormGroup;
   public accessList: ReadonlyArray<ShareAccess> = [];
