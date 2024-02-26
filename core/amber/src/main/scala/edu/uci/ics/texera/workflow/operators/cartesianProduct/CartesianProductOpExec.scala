@@ -1,9 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
@@ -17,16 +15,14 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
   var leftTuples: ArrayBuffer[Tuple] = _
   var isLeftTupleCollectionFinished: Boolean = false
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       // is Tuple
       case Left(tuple) =>
-        if (input == 0) {
+        if (port == 0) {
           // left port, store the tuple
           leftTuples += tuple
           Iterator()
@@ -58,7 +54,7 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
 
       // is InputExhausted
       case Right(_) =>
-        if (input == 0 && !isLeftTupleCollectionFinished) {
+        if (port == 0 && !isLeftTupleCollectionFinished) {
           // mark as completed with processing left tuples
           isLeftTupleCollectionFinished = true
         }

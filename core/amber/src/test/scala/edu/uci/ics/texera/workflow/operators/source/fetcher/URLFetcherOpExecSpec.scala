@@ -13,8 +13,8 @@ class URLFetcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       DecodingMethod.RAW_BYTES,
       resultSchema
     )
-    val iterator = fetcherOpExec.produceTexeraTuple()
-    assert(iterator.next().get(0).isInstanceOf[Array[Byte]])
+    val iterator = fetcherOpExec.produceTuple()
+    assert(iterator.next().fields.toList.head.isInstanceOf[Array[Byte]])
     assert(!iterator.hasNext)
   }
 
@@ -24,8 +24,8 @@ class URLFetcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       DecodingMethod.UTF_8,
       resultSchema
     )
-    val iterator = fetcherOpExec.produceTexeraTuple()
-    assert(iterator.next().get(0).isInstanceOf[String])
+    val iterator = fetcherOpExec.produceTuple()
+    assert(iterator.next().fields.toList.head.isInstanceOf[String])
     assert(!iterator.hasNext)
   }
 

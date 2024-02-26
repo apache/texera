@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
@@ -19,11 +17,9 @@ class UrlVizOpExec(
 
   override def close(): Unit = {}
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      port: Int
   ): Iterator[Tuple] =
     tuple match {
       case Left(tuple) =>

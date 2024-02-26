@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
@@ -28,7 +29,7 @@ class TwitterSearchSourceOpExec(
   var hasNextRequest: Boolean = curLimit > 0
   var lastQueryTime: Long = 0
 
-  override def produceTexeraTuple(): Iterator[Tuple] =
+  override def produceTuple(): Iterator[TupleLike] =
     new Iterator[Tuple]() {
       override def hasNext: Boolean = (hasNextRequest || tweetCache.nonEmpty) && curLimit > 0
 
