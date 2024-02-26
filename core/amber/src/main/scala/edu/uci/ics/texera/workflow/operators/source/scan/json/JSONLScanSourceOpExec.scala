@@ -6,15 +6,19 @@ import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, InputStreamReader}
 import scala.jdk.CollectionConverters.{IterableHasAsScala, IteratorHasAsScala}
 
 class JSONLScanSourceOpExec private[json] (
-    val desc: JSONLScanSourceOpDesc,
-    val startOffset: Int,
-    val endOffset: Int
+    filePath: String,
+    fileEncoding: FileDecodingMethod,
+    startOffset: Int,
+    endOffset: Int,
+    flatten: Boolean,
+    schemaFunc: () => Schema
 ) extends ISourceOperatorExecutor {
   private var schema: Schema = _
   private var rows: Iterator[String] = _
@@ -25,7 +29,7 @@ class JSONLScanSourceOpExec private[json] (
       .map(line => {
         try {
           val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
-          val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
+          val data = JSONToMap(objectMapper.readTree(line), flatten)
 
           for (fieldName <- schema.getAttributeNames.asScala) {
             if (data.contains(fieldName))
@@ -34,8 +38,7 @@ class JSONLScanSourceOpExec private[json] (
               fields += null
             }
           }
-
-          Tuple.newBuilder(schema).addSequentially(fields.toArray).build
+          TupleLike(fields.toSeq: _*)
         } catch {
           case _: Throwable => null
         }
@@ -44,9 +47,9 @@ class JSONLScanSourceOpExec private[json] (
 
   }
   override def open(): Unit = {
-    schema = desc.inferSchema()
+    schema = schemaFunc()
     reader = new BufferedReader(
-      new InputStreamReader(new FileInputStream(desc.filePath.get), desc.fileEncoding.getCharset)
+      new InputStreamReader(new FileInputStream(filePath), fileEncoding.getCharset)
     )
     rows = reader.lines().iterator().asScala.slice(startOffset, endOffset)
   }
