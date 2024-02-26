@@ -82,7 +82,7 @@ export class UserFileListItemComponent {
   public onClickOpenShareAccess(): void {
     const modalRef = this.modalService.create({
       nzContent: ShareAccessComponent,
-      nzComponentParams: {
+      nzData: {
         writeAccess: this.entry.accessLevel === "WRITE",
         type: "file",
         id: this.entry.file.fid,

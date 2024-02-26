@@ -1,9 +1,10 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { forkJoin, Observable } from "rxjs";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
 import { UserProjectService } from "../../../../service/user-project/user-project.service";
 import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -12,14 +13,17 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./ngbd-modal-add-project-file.component.scss"],
 })
 export class NgbdModalAddProjectFileComponent implements OnInit {
-  @Input() addedFiles!: ReadonlyArray<DashboardFile>;
-  @Input() projectId!: number;
+  readonly addedFiles: ReadonlyArray<DashboardFile> = inject(NZ_MODAL_DATA).addedFiles;
+  readonly projectId: number = inject(NZ_MODAL_DATA).projectId;
 
   public unaddedFiles: ReadonlyArray<DashboardFile> = [];
   public checkedFiles: boolean[] = [];
   private addedFileKeys: Set<number> = new Set<number>();
 
-  constructor(private userFileService: UserFileService, private userProjectService: UserProjectService) {}
+  constructor(
+    private userFileService: UserFileService,
+    private userProjectService: UserProjectService
+  ) {}
 
   ngOnInit(): void {
     /* determine which files are already part of this project.

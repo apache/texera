@@ -1,8 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.reservoirsampling
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -15,11 +13,9 @@ class ReservoirSamplingOpExec(val actor: Int, val opDesc: ReservoirSamplingOpDes
   val reservoir: Array[Tuple] = Array.ofDim(opDesc.getKForActor(actor))
   val rand: Random = new Random(opDesc.getSeed(actor))
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
+      port: Int
   ): Iterator[Tuple] = {
     tuple match {
       case Left(t) =>

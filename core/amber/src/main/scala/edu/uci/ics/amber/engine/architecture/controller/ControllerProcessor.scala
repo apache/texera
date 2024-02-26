@@ -8,19 +8,29 @@ import edu.uci.ics.amber.engine.architecture.common.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionController
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 
 class ControllerProcessor(
-    val workflow: Workflow,
-    val controllerConfig: ControllerConfig,
+    workflowContext: WorkflowContext,
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig,
     actorId: ActorVirtualIdentity,
     outputHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit
 ) extends AmberProcessor(actorId, outputHandler) {
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
+  val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext, opResultStorage)
+  val workflowExecutionController: WorkflowExecutionController = new WorkflowExecutionController(
+    () => this.workflowScheduler.getNextRegions,
+    workflowExecution,
+    controllerConfig,
+    asyncRPCClient
+  )
 
   private val initializer = new ControllerAsyncRPCHandlerInitializer(this)
 
@@ -36,8 +46,6 @@ class ControllerProcessor(
 
   @transient var actorService: AkkaActorService = _
 
-  var workflowExecutionController: WorkflowExecutionController = _
-
   def setupActorService(akkaActorService: AkkaActorService): Unit = {
     this.actorService = akkaActorService
   }
@@ -51,15 +59,6 @@ class ControllerProcessor(
 
   def setupLogManager(logManager: ReplayLogManager): Unit = {
     this.logManager = logManager
-  }
-
-  def initWorkflowExecutionController(): Unit = {
-    this.workflowExecutionController = new WorkflowExecutionController(
-      workflow.regionPlan,
-      workflowExecution,
-      controllerConfig,
-      asyncRPCClient
-    )
   }
 
 }

@@ -52,24 +52,24 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "match a tuple if present in the given dictionary entry when matching type is SCANBASED" in {
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
   it should "match a tuple if present in the given dictionary entry when matching type is SUBSTRING" in {
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
   it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED" in {
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
@@ -80,8 +80,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -89,8 +89,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -98,8 +98,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 
@@ -110,8 +110,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictinarySubstring
     opDesc.matchingType = MatchingType.SCANBASED
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -119,8 +119,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictinarySubstring
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(!processedTuple.getField("matched").asInstanceOf[Boolean])
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(!processedTuple.asInstanceOf[Tuple].getField("matched").asInstanceOf[Boolean])
     opExec.close()
   }
 
@@ -128,8 +128,8 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictinarySubstring
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
-    val processedTuple = opExec.processTexeraTuple(Left(tuple), 0, null, null).next()
-    assert(processedTuple.getField("matched"))
+    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    assert(processedTuple.asInstanceOf[Tuple].getField("matched"))
     opExec.close()
   }
 

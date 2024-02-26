@@ -69,9 +69,11 @@
   (keyup.enter)="disconnectQuillFromText()"></div>
 
 <form
+  nz-form
+  [nzLayout]="'vertical'"
   *ngIf="formlyFields && formlyFormGroup"
   [formGroup]="formlyFormGroup"
-  class="texera-workspace-property-editor-form">
+  class="property-editor-form">
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"
@@ -90,7 +92,7 @@
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
 			ExecutionState.Paused) &&
-		this.interactive === false"
+		!this.interactive"
   nz-button
   nz-tooltip="Unlock the operator to change logic"
   nzTooltipPlacement="bottom"
@@ -111,7 +113,7 @@
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
 			ExecutionState.Paused) &&
-		this.interactive === true"
+		this.interactive"
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"
   nzTooltipPlacement="bottom">
