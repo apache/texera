@@ -11,9 +11,7 @@ trait OperatorExecutor extends IOperatorExecutor {
       tuple: Either[Tuple, InputExhausted],
       port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
-    processTuple(tuple, port).map(t =>
-      (t, Option.empty)
-    )
+    processTuple(tuple, port).map(t => (t, Option.empty))
   }
 
   def processTuple(tuple: Either[Tuple, InputExhausted], port: Int): Iterator[TupleLike]
