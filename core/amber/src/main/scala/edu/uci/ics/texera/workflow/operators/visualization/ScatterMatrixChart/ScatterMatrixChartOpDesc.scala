@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixPlot
+package edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixChart
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
@@ -24,9 +24,9 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   }
 }
 """)
-class ScatterMatrixPlotOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
+class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
-  @JsonProperty("Selected Attributes")
+  @JsonProperty(value = "Selected Attributes", required = true)
   @JsonSchemaTitle("Selected Attributes")
   @JsonPropertyDescription("the axes of each scatter plot in the matrix.")
   @AutofillAttributeNameList
@@ -38,10 +38,10 @@ class ScatterMatrixPlotOpDesc extends VisualizationOperator with PythonOperatorD
   @AutofillAttributeName
   var color: String = ""
 
-  @JsonProperty(value = "title", required = false, defaultValue = "Scatter Matrix")
+  @JsonProperty(value = "title", required = true, defaultValue = "Scatter Matrix Chart")
   @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("the title of this matrix")
-  var title: String = "Scatter Matrix"
+  @JsonPropertyDescription("the title of the matrix chart")
+  var title: String = "Scatter Matrix Chart"
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
@@ -49,7 +49,7 @@ class ScatterMatrixPlotOpDesc extends VisualizationOperator with PythonOperatorD
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "ScatterMatrixPlot",
+      "Scatter Matrix Chart",
       "Visualize datasets in a Scatter Matrix",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
@@ -82,10 +82,6 @@ class ScatterMatrixPlotOpDesc extends VisualizationOperator with PythonOperatorD
          |import numpy as np
          |
          |class ProcessTableOperator(UDFTableOperator):
-         |    def render_error(self, error_msg):
-         |        return '''<h1>ScatterMatrixPlot is not available.</h1>
-         |                  <p>Reason is: {} </p>
-         |               '''.format(error_msg)
          |
          |    @overrides
          |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
