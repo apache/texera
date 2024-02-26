@@ -36,10 +36,10 @@ class AkkaMessageTransferService(
   private var networkMessageID = 0L
 
   def initialize(): Unit = {
-    resendHandle = actorService.scheduleWithFixedDelay(30.seconds, 30.seconds, checkResend())
+    resendHandle = actorService.scheduleWithFixedDelay(30.seconds, 30.seconds, checkResend)
     val pollingInterval = AmberConfig.creditPollingIntervalInMs.millis
     creditPollingHandle =
-      actorService.scheduleWithFixedDelay(pollingInterval, pollingInterval, checkCreditPolling())
+      actorService.scheduleWithFixedDelay(pollingInterval, pollingInterval, checkCreditPolling)
   }
 
   def stop(): Unit = {

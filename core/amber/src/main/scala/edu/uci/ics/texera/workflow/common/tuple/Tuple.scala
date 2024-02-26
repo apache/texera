@@ -9,7 +9,6 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
-import scala.collection.JavaConverters._
 import scala.collection.mutable
 
 case class Tuple @JsonCreator() (
