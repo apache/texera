@@ -16,13 +16,11 @@ import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnU
 import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
-import scala.collection.Iterator
 import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
 class AsterixDBSourceOpExec private[asterixdb] (
-    schema: Schema,
     host: String,
     port: String,
     database: String,
@@ -44,9 +42,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
     regexSearchByColumn: String,
     regex: String,
     filterCondition: Boolean,
-    filterPredicates: List[FilterPredicate]
+    filterPredicates: List[FilterPredicate],
+    schemaFunc: () => Schema
 ) extends SQLSourceOpExec(
-      schema,
       table,
       limit,
       offset,
@@ -57,7 +55,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
       interval,
       keywordSearch,
       keywordSearchByColumn,
-      keywords
+      keywords,
+      schemaFunc
     ) {
 
   // format Timestamp. TODO: move to some util package

@@ -17,7 +17,6 @@ import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(
     // source configs
-    schema: Schema,
     table: String,
     var curLimit: Option[Long],
     var curOffset: Option[Long],
@@ -30,20 +29,21 @@ abstract class SQLSourceOpExec(
     // filter conditions:
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
-    keywords: String
+    keywords: String,
+    schemaFunc: () => Schema
 ) extends ISourceOperatorExecutor {
 
   // connection and query related
+  var schema: Schema = _
   val tableNames: ArrayBuffer[String] = ArrayBuffer()
-  val batchByAttribute: Option[Attribute] =
-    if (progressive.getOrElse(false)) Option(schema.getAttribute(batchByColumn.get)) else None
+  var batchByAttribute: Option[Attribute] = None
   var connection: Connection = _
-  var curQuery: Option[PreparedStatement] = None
-  var curResultSet: Option[ResultSet] = None
-  var curLowerBound: Number = _
-  var upperBound: Number = _
+  private var curQuery: Option[PreparedStatement] = None
+  private var curResultSet: Option[ResultSet] = None
+  private var curLowerBound: Number = _
+  private var upperBound: Number = _
   var cachedTuple: Option[Tuple] = None
-  var querySent: Boolean = false
+  private var querySent: Boolean = false
 
   /**
     * A generator of a Texera.Tuple, which converted from a SQL row
@@ -147,6 +147,9 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   override def open(): Unit = {
+    schema = schemaFunc()
+    batchByAttribute =
+      if (progressive.getOrElse(false)) Option(schema.getAttribute(batchByColumn.get)) else None
     connection = establishConn()
 
     // load user table names from the given database
