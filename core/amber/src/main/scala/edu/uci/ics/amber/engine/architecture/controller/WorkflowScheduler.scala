@@ -1,11 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import edu.uci.ics.amber.engine.architecture.scheduling.{
+  CostBasedRegionPlanGenerator,
   ExpansionGreedyRegionPlanGenerator,
   Region,
   RegionIdentity,
   RegionPlan
 }
+import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
@@ -25,11 +27,21 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
   def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
     // generate an RegionPlan with regions.
     //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
-      workflowContext,
-      physicalPlan,
-      opResultStorage
-    ).generate()
+
+    val (regionPlan, updatedPhysicalPlan) = if (AmberConfig.enableCostBasedRegionPlanGenerator) {
+      new CostBasedRegionPlanGenerator(
+        workflowContext,
+        physicalPlan,
+        opResultStorage
+      ).generate()
+    } else {
+      new ExpansionGreedyRegionPlanGenerator(
+        workflowContext,
+        physicalPlan,
+        opResultStorage
+      ).generate()
+    }
+
     this.regionPlan = regionPlan
     this.physicalPlan = updatedPhysicalPlan
 

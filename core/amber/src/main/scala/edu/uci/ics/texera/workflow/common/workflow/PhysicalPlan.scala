@@ -3,7 +3,11 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
@@ -299,33 +303,36 @@ case class PhysicalPlan(
     val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, DefaultEdge](this.dag)
     val chains = this.dag
       .vertexSet()
-      .flatMap { source => {
-        this.dag.getDescendants(source).flatMap { target => {
-          dijkstra
-            .getAllPaths(source, target, true, Integer.MAX_VALUE)
-            .filter(path =>
-              path.getLength > 1 &&
-                path.getVertexList
-                  .filter(v => v != path.getStartVertex && v != path.getEndVertex)
-                  .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
-            )
-            .map(path =>
-              path.getEdgeList
-                .map { edge => {
-                  val fromOpId = this.dag.getEdgeSource(edge)
-                  val toOpId = this.dag.getEdgeTarget(edge)
-                  links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
-                }
-                }
-                .flatMap(_.toList)
+      .flatMap { source =>
+        {
+          this.dag.getDescendants(source).flatMap { target =>
+            {
+              dijkstra
+                .getAllPaths(source, target, true, Integer.MAX_VALUE)
+                .filter(path =>
+                  path.getLength > 1 &&
+                    path.getVertexList
+                      .filter(v => v != path.getStartVertex && v != path.getEndVertex)
+                      .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
+                )
+                .map(path =>
+                  path.getEdgeList
+                    .map { edge =>
+                      {
+                        val fromOpId = this.dag.getEdgeSource(edge)
+                        val toOpId = this.dag.getEdgeTarget(edge)
+                        links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+                      }
+                    }
+                    .flatMap(_.toList)
+                    .toSet
+                )
                 .toSet
-            )
-            .toSet
-        }
+            }
+          }
         }
       }
-      }
-    chains.filter(s1 =>chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
+    chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
   }
 
   def removeLinks(linksToRemove: Set[PhysicalLink]): PhysicalPlan = {

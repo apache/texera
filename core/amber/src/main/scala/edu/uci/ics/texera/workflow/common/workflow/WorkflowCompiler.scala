@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.common.workflow
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
-import edu.uci.ics.amber.engine.architecture.scheduling.{CostBasedRegionPlanGenerator, ExpansionGreedyRegionPlanGenerator}
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
@@ -83,33 +82,8 @@ class WorkflowCompiler(
       logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
     )
 
-    val startTime = System.nanoTime()
-
     // the PhysicalPlan with topology expanded.
     val physicalPlan = PhysicalPlan(context, rewrittenLogicalPlan)
-
-    // generate an RegionPlan with regions.
-    //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
-    val (regionPlan, updatedPhysicalPlan) = new CostBasedRegionPlanGenerator(
-      context,
-      physicalPlan,
-      opResultStorage
-    ).generate()
-
-    val endTime = System.nanoTime()
-    val duration = (endTime - startTime) / 1e6d // Convert nanoseconds to milliseconds
-    println(s"Execution time: $duration ms")
-
-    // validate the plan
-    // TODO: generalize validation to each plan
-    // the updated physical plan's all source operators should have 0 input ports
-    updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
-    }
-    // the updated physical plan's all sink operators should have 1 output ports
-    updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.size == 1)
-    }
 
     Workflow(
       context,
