@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csv
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
@@ -18,10 +17,9 @@ class CSVScanSourceOpExec private[csv] (
     hasHeader: Boolean,
     schemaFunc: () => Schema
 ) extends ISourceOperatorExecutor {
-  val schema: Schema = schemaFunc()
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
-
+  var schema: Schema = _
   var nextRow: Array[String] = _
 
   override def produceTuple(): Iterator[TupleLike] = {
@@ -77,6 +75,8 @@ class CSVScanSourceOpExec private[csv] (
 
     parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
+
+    schema = schemaFunc()
   }
 
   override def close(): Unit = {
