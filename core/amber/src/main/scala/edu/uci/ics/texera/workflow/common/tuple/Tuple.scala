@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
 
+import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
 import scala.util.hashing.MurmurHash3
@@ -45,7 +46,7 @@ case class Tuple @JsonCreator() (
 
   def getFields: Seq[Any] = fieldVals
 
-  override def hashCode: Int = MurmurHash3.orderedHash(fields)
+  override def hashCode: Int = util.Arrays.deepHashCode(fields.map(_.asInstanceOf[AnyRef]))
 
   override def equals(obj: Any): Boolean =
     obj match {
@@ -67,7 +68,7 @@ case class Tuple @JsonCreator() (
     val objectNode = Utils.objectMapper.createObjectNode()
     this.schema.getAttributeNames.asScala.foreach { attrName =>
       val valueNode = Utils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
-      objectNode.set(attrName, valueNode)
+      objectNode.set[ObjectNode](attrName, valueNode)
     }
     objectNode
   }
