@@ -45,6 +45,12 @@ class CostBasedRegionPlanGenerator(
     )
   }
 
+  /**
+    * Create regions based on only pipelined edges. This does not add the region links.
+    * @param physicalPlan The original physical plan without materializations added yet.
+    * @param matEdges Set of edges to materialize (including the original the blocking edges).
+    * @return A set of regions.
+    */
   private def createRegions(
       physicalPlan: PhysicalPlan,
       matEdges: Set[PhysicalLink]
@@ -71,6 +77,12 @@ class CostBasedRegionPlanGenerator(
     }
   }
 
+  /**
+    * Checks a plan for schedulability, and returns a region DAG if the plan is schedulable.
+    * @param matEdges Set of edges to materialize (including the original the blocking edges).
+    * @return If the plan is schedulable, a region DAG will be returned. Otherwise None will be returned to indicate
+    *         that the plan is unschedulable.
+    */
   private def getRegionDAGorUnschedulable(
       matEdges: Set[PhysicalLink]
   ): Option[DirectedAcyclicGraph[Region, RegionLink]] = {
@@ -93,8 +105,13 @@ class CostBasedRegionPlanGenerator(
     Option(regionGraph)
   }
 
+  /**
+    * Performs a search to generate a region DAG.
+    * Materializations are added only after the plan is determined to be schedulable.
+    * @return A region DAG.
+    */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
-    val searchResult = search()
+    val searchResult = bottomUpSearch()
     val linksToMaterialize = searchResult.state
     if (linksToMaterialize.nonEmpty) {
       val matReaderWriterPairs = new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
@@ -105,14 +122,21 @@ class CostBasedRegionPlanGenerator(
         )
       )
     }
-    val updatedSearchResult = search()
-    val regionDAG = updatedSearchResult.regionDAG
+    // Since the plan is now schedulable, calling the search directly returns a region DAG.
+    val regionDAG = bottomUpSearch().regionDAG
     populateDownstreamLinks(regionDAG)
     allocateResource(regionDAG, physicalPlan)
     regionDAG
   }
 
-  private def search(): SearchResult = {
+  /**
+    * The core of the search algorithm. If the input physical plan is already schedulable, no search will be executed.
+    * Otherwise, depending on the configuration, either a global search or a greedy search will be performed to find
+    * an optimal plan. The search starts from a plan where all non-blocking edges are pipelined, and leads to a low-cost
+    * schedulable plan. Optimizations based on chains and bridges are included in the search.
+    * @return A SearchResult containing the plan, the region DAG (without materializations added yet) and the cost.
+    */
+  private def bottomUpSearch(): SearchResult = {
     val originalNonBlockingEdges = physicalPlan.getNonBridgeNonBlockingLinks
     // Queue to hold states to be explored, starting with the empty set
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
@@ -165,10 +189,15 @@ class CostBasedRegionPlanGenerator(
     result
   }
 
+  /**
+    * The cost function used by the search.
+    * @param state A set of additional materialization edges, besides the original blocking edges.
+    * @return A cost determined by the resource allocator.
+    */
   private def cost(state: Set[PhysicalLink]): Double = {
     // Using number of materialization (region) edges as the cost.
-    // This is independent of the schedule / resource allocator
-    // In the future we may need to use the ResourceAllocator to get the cost
+    // This is independent of the schedule / resource allocator.
+    // In the future we may need to use the ResourceAllocator to get the cost.
     state.size
   }
 
