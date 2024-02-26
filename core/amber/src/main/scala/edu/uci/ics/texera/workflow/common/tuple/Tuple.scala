@@ -13,7 +13,6 @@ import org.ehcache.sizeof.SizeOf
 import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
-import scala.util.hashing.MurmurHash3
 
 case class Tuple @JsonCreator() (
     @JsonProperty(value = "schema", required = true) schema: Schema,
