@@ -33,7 +33,6 @@ object FriesReconfigurationAlgorithm {
     regionPlan.regions
       .map(region => physicalPlan.getSubPlan(region.getOperators.map(_.id)))
       .flatMap(regionSubPlan => computeMCS(regionSubPlan, reconfigurations, epochMarkerId))
-      .toSet
   }
 
   private def computeMCS(
