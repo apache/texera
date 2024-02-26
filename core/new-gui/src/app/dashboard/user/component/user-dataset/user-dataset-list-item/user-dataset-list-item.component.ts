@@ -31,7 +31,6 @@ export class UserDatasetListItemComponent {
   }
 
   set entry(value: DashboardDataset) {
-    console.log("set the entry:", value);
     this._entry = value;
   }
 
