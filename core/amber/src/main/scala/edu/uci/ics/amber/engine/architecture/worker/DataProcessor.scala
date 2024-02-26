@@ -37,6 +37,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 }
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -51,23 +52,18 @@ import scala.collection.mutable
 
 object DataProcessor {
 
-  class SpecialDataTuple extends ITuple {
-    override def length: Int = 0
-
-    override def get(i: Int): Any = null
-
-    override def toArray(): Array[Any] = Array.empty
-
-    override def inMemSize: Long = 0
+  case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
+    override def fields: Array[Any] = Array("FinalizePort")
   }
-  case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialDataTuple
-  case class FinalizeOperator() extends SpecialDataTuple
+  case class FinalizeOperator() extends SpecialTupleLike {
+    override def fields: Array[Any] = Array("FinalizeOperator")
+  }
 
-  class DPOutputIterator extends Iterator[(ITuple, Option[PortIdentity])] {
-    val queue = new mutable.Queue[(ITuple, Option[PortIdentity])]
-    @transient var outputIter: Iterator[(ITuple, Option[PortIdentity])] = Iterator.empty
+  class DPOutputIterator extends Iterator[(TupleLike, Option[PortIdentity])] {
+    val queue = new mutable.Queue[(TupleLike, Option[PortIdentity])]
+    @transient var outputIter: Iterator[(TupleLike, Option[PortIdentity])] = Iterator.empty
 
-    def setTupleOutput(outputIter: Iterator[(ITuple, Option[PortIdentity])]): Unit = {
+    def setTupleOutput(outputIter: Iterator[(TupleLike, Option[PortIdentity])]): Unit = {
       if (outputIter != null) {
         this.outputIter = outputIter
       } else {
@@ -77,7 +73,7 @@ object DataProcessor {
 
     override def hasNext: Boolean = outputIter.hasNext || queue.nonEmpty
 
-    override def next(): (ITuple, Option[PortIdentity]) = {
+    override def next(): (TupleLike, Option[PortIdentity]) = {
       if (outputIter.hasNext) {
         outputIter.next()
       } else {
@@ -85,7 +81,7 @@ object DataProcessor {
       }
     }
 
-    def appendSpecialTupleToEnd(tuple: ITuple): Unit = {
+    def appendSpecialTupleToEnd(tuple: TupleLike): Unit = {
       queue.enqueue((tuple, None))
     }
   }
@@ -108,7 +104,7 @@ class DataProcessor(
       workerIdx: Int,
       physicalOp: PhysicalOp,
       operatorConfig: OperatorConfig,
-      currentOutputIterator: Iterator[(ITuple, Option[PortIdentity])]
+      currentOutputIterator: Iterator[(TupleLike, Option[PortIdentity])]
   ): Unit = {
     this.workerIdx = workerIdx
     this.operator = physicalOp.opExecInitInfo match {
@@ -185,7 +181,7 @@ class DataProcessor(
     */
   private[this] def outputOneTuple(): Unit = {
     adaptiveBatchingMonitor.startAdaptiveBatching()
-    var out: (ITuple, Option[PortIdentity]) = null
+    var out: (TupleLike, Option[PortIdentity]) = null
     try {
       out = outputIterator.next()
     } catch safely {
@@ -218,10 +214,28 @@ class DataProcessor(
         asyncRPCClient.send(WorkerExecutionCompleted(), CONTROLLER)
       case FinalizePort(portId, input) =>
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
-      case _ =>
+      case schemaEnforceable: SchemaEnforceable =>
         statisticsManager.increaseOutputTupleCount()
-        val outLinks = physicalOp.getOutputLinks(outputPortOpt)
-        outLinks.foreach(link => outputManager.passTupleToDownstream(outputTuple, link))
+        outputPortOpt match {
+          case Some(port) =>
+            pushTupleToPort(schemaEnforceable, port)
+          case None =>
+            // push to all output ports if not specified.
+            physicalOp.outputPorts.keys.foreach(port => {
+              pushTupleToPort(schemaEnforceable, port)
+            })
+        }
+      case other => // skip for now
+    }
+  }
+
+  private def pushTupleToPort(outputTuple: SchemaEnforceable, port: PortIdentity): Unit = {
+    physicalOp.getOutputLinks(port).foreach { out =>
+      outputManager.passTupleToDownstream(
+        outputTuple,
+        out,
+        physicalOp.outputPorts(port)._3
+      )
     }
   }
 
@@ -250,7 +264,7 @@ class DataProcessor(
     if (inputBatch == null) {
       null
     } else if (inputBatch.isEmpty) {
-      ITuple("Input Exhausted")
+      null // TODO: create input exhausted
     } else {
       inputBatch(currentInputIdx)
     }
@@ -354,7 +368,7 @@ class DataProcessor(
     *
     * @param iterator
     */
-  def setCurrentOutputIterator(iterator: Iterator[ITuple]): Unit = {
+  def setCurrentOutputIterator(iterator: Iterator[TupleLike]): Unit = {
     outputIterator.setTupleOutput(iterator.map(t => (t, Option.empty)))
   }
 
