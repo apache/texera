@@ -46,7 +46,7 @@ case class Tuple @JsonCreator() (
 
   override def equals(obj: Any): Boolean =
     obj match {
-      case that: Tuple => this.fields == that.fields && this.schema == that.schema
+      case that: Tuple => (this.fields sameElements that.fields) && this.schema == that.schema
       case _           => false
     }
 
