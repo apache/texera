@@ -189,7 +189,7 @@ object ArrowUtils extends LazyLogging {
               if (isNull) 0L
               else
                 AttributeTypeUtils
-                  .parseField(value.asInstanceOf[Object], AttributeType.LONG)
+                  .parseField(value, AttributeType.LONG)
                   .asInstanceOf[Long]
             )
 
