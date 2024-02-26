@@ -134,8 +134,8 @@ class DefaultResourceAllocator(
         }
 
         if (outputPartitionInfo.isDefined) {
-          physicalOp
-            .getOutputLinks()
+          physicalOp.outputPorts.keys
+            .flatMap(physicalOp.getOutputLinks)
             .foreach(link =>
               // by default, a link's partition info comes from its input, unless updated to match its output.
               linkPartitionInfos.put(link, outputPartitionInfo.get)
