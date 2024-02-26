@@ -2,22 +2,26 @@ package edu.uci.ics.texera.workflow.operators.intervalJoin
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
   * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)
   */
 class IntervalJoinOpExec(
-    val desc: IntervalJoinOpDesc,
-    val leftTableSchema: Schema,
-    val rightTableSchema: Schema,
-    val outputSchema: Schema
+    leftAttributeName: String,
+    rightAttributeName: String,
+    includeLeftBound: Boolean,
+    includeRightBound: Boolean,
+    constant: Long,
+    timeIntervalType: Option[TimeIntervalType]
 ) extends OperatorExecutor {
 
   var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
@@ -26,7 +30,7 @@ class IntervalJoinOpExec(
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     tuple match {
       case Left(currentTuple) =>
         if (port == 0) {
@@ -35,11 +39,12 @@ class IntervalJoinOpExec(
             removeTooSmallTupleInRightCache(leftTable.head)
             rightTable
               .filter(rightTableTuple => {
+
                 intervalCompare(
-                  currentTuple.getField(desc.leftAttributeName),
-                  rightTableTuple.getField(desc.rightAttributeName),
-                  leftTableSchema
-                    .getAttribute(desc.leftAttributeName)
+                  currentTuple.getField(leftAttributeName),
+                  rightTableTuple.getField(rightAttributeName),
+                  rightTableTuple.getSchema
+                    .getAttribute(rightAttributeName)
                     .getType
                 ) == 0
               })
@@ -55,10 +60,10 @@ class IntervalJoinOpExec(
             leftTable
               .filter(leftTableTuple => {
                 intervalCompare(
-                  leftTableTuple.getField(desc.leftAttributeName),
-                  currentTuple.getField(desc.rightAttributeName),
-                  leftTableSchema
-                    .getAttribute(desc.leftAttributeName)
+                  leftTableTuple.getField(leftAttributeName),
+                  currentTuple.getField(rightAttributeName),
+                  leftTableTuple.getSchema
+                    .getAttribute(leftAttributeName)
                     .getType
                 ) == 0
               })
@@ -82,10 +87,10 @@ class IntervalJoinOpExec(
     while (rightTable.nonEmpty) {
       if (
         intervalCompare(
-          leftTableSmallestTuple.getField(desc.leftAttributeName),
-          rightTable.head.getField(desc.rightAttributeName),
-          leftTableSchema
-            .getAttribute(desc.leftAttributeName)
+          leftTableSmallestTuple.getField(leftAttributeName),
+          rightTable.head.getField(rightAttributeName),
+          leftTableSmallestTuple.getSchema
+            .getAttribute(leftAttributeName)
             .getType
         ) > 0
       ) {
@@ -102,10 +107,10 @@ class IntervalJoinOpExec(
     while (leftTable.nonEmpty) {
       if (
         intervalCompare(
-          leftTable.head.getField(desc.leftAttributeName),
-          rightTableSmallestTuple.getField(desc.rightAttributeName),
-          leftTableSchema
-            .getAttribute(desc.leftAttributeName)
+          leftTable.head.getField(leftAttributeName),
+          rightTableSmallestTuple.getField(rightAttributeName),
+          rightTableSmallestTuple.getSchema
+            .getAttribute(rightAttributeName)
             .getType
         ) < 0
       ) {
@@ -117,24 +122,22 @@ class IntervalJoinOpExec(
 
   }
 
-  private def joinTuples(leftTuple: Tuple, rightTuple: Tuple): Tuple = {
-    val builder = Tuple
-      .newBuilder(outputSchema)
-      .add(leftTuple)
-    for (i <- 0 until rightTuple.getFields.size()) {
-      val attributeName = rightTuple.getSchema.getAttributeNames.get(i)
-      val attribute = rightTuple.getSchema.getAttribute(attributeName)
-      builder.add(
-        new Attribute(
-          if (leftTableSchema.getAttributeNames.contains(attributeName))
-            attributeName + "#@1"
-          else attributeName,
-          attribute.getType
-        ),
-        rightTuple.getFields.get(i)
-      )
-    }
-    builder.build()
+  private def joinTuples(leftTuple: Tuple, rightTuple: Tuple): TupleLike = {
+    // Create a Map from leftTuple's fields
+    val leftTupleFields: Map[String, Any] = leftTuple.getSchema.getAttributeNames.asScala
+      .map(name => name -> leftTuple.getField(name))
+      .toMap
+
+    // Create a Map from rightTuple's fields, renaming conflicts
+    val rightTupleFields = rightTuple.getSchema.getAttributeNames.asScala
+      .map { name =>
+        val newName =
+          if (leftTupleFields.contains(name)) s"$name#@1"
+          else name
+        newName -> rightTuple.getField[Any](name)
+      }
+
+    TupleLike((leftTupleFields ++ rightTupleFields).toSeq: _*)
   }
 
   private def processNumValue[T](
@@ -142,15 +145,15 @@ class IntervalJoinOpExec(
       leftBoundValue: T,
       rightBoundValue: T
   )(implicit ev$1: T => Ordered[T]): Int = {
-    if (desc.includeLeftBound && desc.includeRightBound) {
+    if (includeLeftBound && includeRightBound) {
       if (pointValue >= leftBoundValue && pointValue <= rightBoundValue) 0
       else if (pointValue < leftBoundValue) -1
       else 1
-    } else if (desc.includeLeftBound && !desc.includeRightBound) {
+    } else if (includeLeftBound && !includeRightBound) {
       if (pointValue >= leftBoundValue && pointValue < rightBoundValue) 0
       else if (pointValue < leftBoundValue) -1
       else 1
-    } else if (!desc.includeLeftBound && desc.includeRightBound) {
+    } else if (!includeLeftBound && includeRightBound) {
       if (pointValue > leftBoundValue && pointValue <= rightBoundValue) 0
       else if (pointValue <= leftBoundValue) -1
       else 1
@@ -170,7 +173,7 @@ class IntervalJoinOpExec(
     if (dataType == AttributeType.LONG) {
       val pointValue: Long = point.asInstanceOf[Long]
       val leftBoundValue: Long = leftBound.asInstanceOf[Long]
-      val constantValue: Long = desc.constant
+      val constantValue: Long = constant
       val rightBoundValue: Long = leftBoundValue + constantValue
       result = processNumValue[Long](
         pointValue,
@@ -181,7 +184,7 @@ class IntervalJoinOpExec(
     } else if (dataType == AttributeType.DOUBLE) {
       val pointValue: Double = point.asInstanceOf[Double]
       val leftBoundValue: Double = leftBound.asInstanceOf[Double]
-      val constantValue: Double = desc.constant.asInstanceOf[Double]
+      val constantValue: Double = constant.asInstanceOf[Double]
       val rightBoundValue: Double = leftBoundValue + constantValue
       result = processNumValue[Double](
         pointValue,
@@ -191,7 +194,7 @@ class IntervalJoinOpExec(
     } else if (dataType == AttributeType.INTEGER) {
       val pointValue: Int = point.asInstanceOf[Int]
       val leftBoundValue: Int = leftBound.asInstanceOf[Int]
-      val constantValue: Int = desc.constant.asInstanceOf[Int]
+      val constantValue: Int = constant.asInstanceOf[Int]
       val rightBoundValue: Int = leftBoundValue + constantValue
       result = processNumValue[Int](
         pointValue,
@@ -202,21 +205,21 @@ class IntervalJoinOpExec(
       val pointValue: Timestamp = point.asInstanceOf[Timestamp]
       val leftBoundValue: Timestamp = leftBound.asInstanceOf[Timestamp]
       val rightBoundValue: Timestamp =
-        desc.timeIntervalType match {
+        timeIntervalType match {
           case Some(TimeIntervalType.YEAR) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusYears(desc.constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusYears(constant))
           case Some(TimeIntervalType.MONTH) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMonths(desc.constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMonths(constant))
           case Some(TimeIntervalType.DAY) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(constant))
           case Some(TimeIntervalType.HOUR) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusHours(desc.constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusHours(constant))
           case Some(TimeIntervalType.MINUTE) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(desc.constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusMinutes(constant))
           case Some(TimeIntervalType.SECOND) =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(desc.constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusSeconds(constant))
           case None =>
-            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(desc.constant))
+            Timestamp.valueOf(leftBoundValue.toLocalDateTime.plusDays(constant))
         }
       result = processNumValue(
         pointValue.getTime,

@@ -91,7 +91,14 @@ class IntervalJoinOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((_, _, _) =>
-          new IntervalJoinOpExec(this, leftSchema, rightSchema, outputSchema)
+          new IntervalJoinOpExec(
+            leftAttributeName,
+            rightAttributeName,
+            includeLeftBound,
+            includeRightBound,
+            constant,
+            timeIntervalType
+          )
         )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
