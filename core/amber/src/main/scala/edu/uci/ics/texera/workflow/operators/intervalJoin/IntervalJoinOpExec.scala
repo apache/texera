@@ -5,11 +5,11 @@ import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
+import edu.uci.ics.texera.workflow.operators.hashJoin.JoinUtils
 
 import java.sql.Timestamp
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
@@ -48,7 +48,7 @@ class IntervalJoinOpExec(
                     .getType
                 ) == 0
               })
-              .map(rightTuple => joinTuples(currentTuple, rightTuple))
+              .map(rightTuple => JoinUtils.joinTuples(currentTuple, rightTuple))
               .iterator
           } else {
             Iterator()
@@ -67,7 +67,7 @@ class IntervalJoinOpExec(
                     .getType
                 ) == 0
               })
-              .map(leftTuple => joinTuples(leftTuple, currentTuple))
+              .map(leftTuple => JoinUtils.joinTuples(leftTuple, currentTuple))
               .iterator
           } else {
             Iterator()
@@ -120,24 +120,6 @@ class IntervalJoinOpExec(
       }
     }
 
-  }
-
-  private def joinTuples(leftTuple: Tuple, rightTuple: Tuple): TupleLike = {
-    // Create a Map from leftTuple's fields
-    val leftTupleFields: Map[String, Any] = leftTuple.getSchema.getAttributeNames.asScala
-      .map(name => name -> leftTuple.getField(name))
-      .toMap
-
-    // Create a Map from rightTuple's fields, renaming conflicts
-    val rightTupleFields = rightTuple.getSchema.getAttributeNames.asScala
-      .map { name =>
-        val newName =
-          if (leftTupleFields.contains(name)) s"$name#@1"
-          else name
-        newName -> rightTuple.getField[Any](name)
-      }
-
-    TupleLike((leftTupleFields ++ rightTupleFields).toSeq: _*)
   }
 
   private def processNumValue[T](

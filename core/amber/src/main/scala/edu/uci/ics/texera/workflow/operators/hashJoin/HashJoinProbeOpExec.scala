@@ -9,6 +9,25 @@ import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
+object JoinUtils {
+  def joinTuples(leftTuple: Tuple, rightTuple: Tuple): TupleLike = {
+    // Create a Map from leftTuple's fields
+    val leftTupleFields: Map[String, Any] = leftTuple.getSchema.getAttributeNames.asScala
+      .map(name => name -> leftTuple.getField(name))
+      .toMap
+
+    // Create a Map from rightTuple's fields, renaming conflicts
+    val rightTupleFields = rightTuple.getSchema.getAttributeNames.asScala
+      .map { name =>
+        val newName =
+          if (leftTupleFields.contains(name)) s"$name#@1"
+          else name
+        newName -> rightTuple.getField[Any](name)
+      }
+
+    TupleLike((leftTupleFields ++ rightTupleFields).toSeq: _*)
+  }
+}
 class HashJoinProbeOpExec[K](
     buildAttributeName: String,
     probeAttributeName: String,
@@ -75,21 +94,7 @@ class HashJoinProbeOpExec[K](
       matchedTuples: ListBuffer[Tuple]
   ): Iterator[TupleLike] = {
     matchedTuples.iterator.map { buildTuple =>
-      // Create a Map from buildTuple's attributes
-      val buildTupleAttributes: Map[String, Any] = buildTuple.getSchema.getAttributeNames.asScala
-        .map(name => name -> buildTuple.getField(name))
-        .toMap
-
-      // Create a Map from probeTuple's attributes, renaming conflicts
-      val probeTupleAttributes = probeTuple.getSchema.getAttributeNames.asScala
-        .map { name =>
-          val newName =
-            if (name != buildAttributeName && buildTupleAttributes.contains(name)) s"$name#@1"
-            else name
-          newName -> probeTuple.getField[Any](name)
-        }
-
-      TupleLike((buildTupleAttributes ++ probeTupleAttributes).toSeq: _*)
+      JoinUtils.joinTuples(buildTuple, probeTuple)
     }
   }
 
