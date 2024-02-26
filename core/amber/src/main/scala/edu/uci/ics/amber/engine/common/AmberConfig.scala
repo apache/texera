@@ -75,7 +75,7 @@ object AmberConfig {
   // Region plan generator
   val enableCostBasedRegionPlanGenerator: Boolean =
     getConfSource.getBoolean("region-plan-generator.enable-cost-based-region-plan-generator")
-  val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan.generator.use-global-search")
+  val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan-generator.use-global-search")
 
   // Storage configuration
   val sinkStorageMode: String = getConfSource.getString("storage.mode")

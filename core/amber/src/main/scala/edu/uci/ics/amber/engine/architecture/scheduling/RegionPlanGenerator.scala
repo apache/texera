@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator.replaceVertex
-import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{
-  DefaultResourceAllocator,
-  ExecutionClusterInfo
-}
+import edu.uci.ics.amber.engine.architecture.scheduling.RegionPlanGenerator.replaceVertex
+import edu.uci.ics.amber.engine.architecture.scheduling.resourcePolicies.{DefaultResourceAllocator, ExecutionClusterInfo}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -19,6 +16,38 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
+
+object RegionPlanGenerator {
+  def replaceVertex(
+                     graph: DirectedAcyclicGraph[Region, RegionLink],
+                     oldVertex: Region,
+                     newVertex: Region
+                   ): Unit = {
+    if (oldVertex.equals(newVertex)) {
+      return
+    }
+    graph.addVertex(newVertex)
+    graph
+      .outgoingEdgesOf(oldVertex)
+      .asScala
+      .toList
+      .foreach(oldEdge => {
+        val dest = graph.getEdgeTarget(oldEdge)
+        graph.removeEdge(oldEdge)
+        graph.addEdge(newVertex, dest, RegionLink(newVertex.id, dest.id))
+      })
+    graph
+      .incomingEdgesOf(oldVertex)
+      .asScala
+      .toList
+      .foreach(oldEdge => {
+        val source = graph.getEdgeSource(oldEdge)
+        graph.removeEdge(oldEdge)
+        graph.addEdge(source, newVertex, RegionLink(source.id, newVertex.id))
+      })
+    graph.removeVertex(oldVertex)
+  }
+}
 
 abstract class RegionPlanGenerator(
     workflowContext: WorkflowContext,
