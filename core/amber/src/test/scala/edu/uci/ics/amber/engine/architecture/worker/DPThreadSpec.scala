@@ -93,7 +93,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[ITuple, InputExhausted],
+              tuple: Either[Tuple, InputExhausted],
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )
@@ -126,7 +126,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[ITuple, InputExhausted],
+              tuple: Either[Tuple, InputExhausted],
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )
@@ -166,7 +166,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[ITuple, InputExhausted],
+              tuple: Either[Tuple, InputExhausted],
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )
@@ -212,7 +212,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[ITuple, InputExhausted],
+              tuple: Either[Tuple, InputExhausted],
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )

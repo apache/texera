@@ -91,7 +91,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     tuples.foreach { x =>
       (
           (
-              tuple: Either[ITuple, InputExhausted],
+              tuple: Either[Tuple, InputExhausted],
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )
@@ -99,7 +99,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     (
         (
-            tuple: Either[ITuple, InputExhausted],
+            tuple: Either[Tuple, InputExhausted],
             input: Int
         ) => operator.processTupleMultiPort(tuple, input)
     )
@@ -144,7 +144,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     tuples.foreach { x =>
       (
           (
-              tuple: Either[ITuple, InputExhausted],
+              tuple: Either[Tuple, InputExhausted],
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )
@@ -152,7 +152,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     }
     (
         (
-            tuple: Either[ITuple, InputExhausted],
+            tuple: Either[Tuple, InputExhausted],
             input: Int
         ) => operator.processTupleMultiPort(tuple, input)
     )
