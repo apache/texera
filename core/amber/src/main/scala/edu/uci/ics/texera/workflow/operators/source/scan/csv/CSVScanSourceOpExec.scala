@@ -1,21 +1,22 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 
 import java.io.{File, FileInputStream, InputStreamReader}
 
 class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
-    extends SourceOperatorExecutor {
+    extends ISourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
 
   var nextRow: Array[String] = _
 
-  override def produceTexeraTuple(): Iterator[Tuple] = {
+  override def produceTuple(): Iterator[TupleLike] = {
 
     val rowIterator = new Iterator[Array[String]] {
       override def hasNext: Boolean = {

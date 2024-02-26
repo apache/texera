@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
 import com.github.tototoshi.csv.CSVParser
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
@@ -75,7 +76,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     * A generator of a Texera.Tuple, which converted from a CSV row of fields from AsterixDB
     * @return Iterator[Tuple]
     */
-  override def produceTexeraTuple(): Iterator[Tuple] = {
+  override def produceTuple(): Iterator[TupleLike] = {
     new Iterator[Tuple]() {
       override def hasNext: Boolean = {
 

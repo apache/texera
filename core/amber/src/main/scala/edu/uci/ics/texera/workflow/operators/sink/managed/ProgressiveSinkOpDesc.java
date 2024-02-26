@@ -23,6 +23,7 @@ import scala.Option;
 import scala.Tuple3;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;

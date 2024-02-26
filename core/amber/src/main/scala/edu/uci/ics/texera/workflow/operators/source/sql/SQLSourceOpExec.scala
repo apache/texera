@@ -1,16 +1,16 @@
 package edu.uci.ics.texera.workflow.operators.source.sql
 
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
   parseField,
   parseTimestamp
 }
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import java.sql._
-import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
 import scala.util.control.Breaks.{break, breakable}
 
@@ -30,7 +30,7 @@ abstract class SQLSourceOpExec(
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
     keywords: String
-) extends SourceOperatorExecutor {
+) extends ISourceOperatorExecutor {
 
   // connection and query related
   val tableNames: ArrayBuffer[String] = ArrayBuffer()
@@ -48,7 +48,7 @@ abstract class SQLSourceOpExec(
     * A generator of a Texera.Tuple, which converted from a SQL row
     * @return Iterator[Tuple]
     */
-  override def produceTexeraTuple(): Iterator[Tuple] = {
+  override def produceTuple(): Iterator[TupleLike] = {
     new Iterator[Tuple]() {
       override def hasNext: Boolean = {
         cachedTuple match {

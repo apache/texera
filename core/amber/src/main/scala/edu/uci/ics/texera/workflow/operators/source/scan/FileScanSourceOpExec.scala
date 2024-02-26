@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
@@ -10,10 +11,10 @@ import java.io._
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
-    extends SourceOperatorExecutor {
+    extends ISourceOperatorExecutor {
 
   @throws[IOException]
-  override def produceTexeraTuple(): Iterator[Tuple] = {
+  override def produceTuple(): Iterator[TupleLike] = {
     var filenameIt: Iterator[String] = Iterator.empty
     val fileEntries: Iterator[InputStream] =
       if (desc.extract) {

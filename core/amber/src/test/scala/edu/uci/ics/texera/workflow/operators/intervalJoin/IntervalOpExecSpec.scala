@@ -240,11 +240,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         ) < rightOrder(rightIndex))
       ) {
         val result = opExec
-          .processTexeraTuple(
+          .processTuple(
             Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)),
-            left,
-            null,
-            null
+            left
           )
           .toBuffer
         outputTuples.appendAll(
@@ -253,11 +251,9 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         leftIndex += 1
       } else if (rightIndex < rightOrder.size) {
         val result = opExec
-          .processTexeraTuple(
+          .processTuple(
             Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)),
-            right,
-            null,
-            null
+            right
           )
           .toBuffer
         outputTuples.appendAll(
@@ -275,8 +271,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       dataType
     )
     assert(outputTuples.size == bruteForceResult)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), left, null, null).isEmpty)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), right, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), left).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), right).isEmpty)
     if (outputTuples.nonEmpty)
       assert(outputTuples.head.getSchema.getAttributeNames.length == 4)
     opExec.close()
@@ -428,13 +424,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(
-        opExec.processTexeraTuple(Left(doubleTuple("point", 1, i)), left, null, null).isEmpty
+        opExec.processTuple(Left(doubleTuple("point", 1, i)), left).isEmpty
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), left, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), left).isEmpty)
     val rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
     val outputTuples = rangeList
-      .map(i => opExec.processTexeraTuple(Left(doubleTuple("range", 1, i)), right, null, null))
+      .map(i => opExec.processTuple(Left(doubleTuple("range", 1, i)), right))
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
     assert(outputTuples.size == 11)

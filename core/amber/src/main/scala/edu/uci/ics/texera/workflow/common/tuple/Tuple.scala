@@ -43,7 +43,7 @@ case class Tuple @JsonCreator() (
 
   def getFields: Seq[Any] = fieldVals
 
-  override def hashCode: Int = MurmurHash3.orderedHash(fields)
+  override def hashCode: Int = util.Arrays.deepHashCode(fields.map(_.asInstanceOf[AnyRef]))
 
   override def equals(obj: Any): Boolean =
     obj match {
@@ -65,7 +65,7 @@ case class Tuple @JsonCreator() (
     val objectNode = Utils.objectMapper.createObjectNode()
     this.schema.getAttributeNames.foreach { attrName =>
       val valueNode = Utils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
-      objectNode.set(attrName, valueNode)
+      objectNode.set[ObjectNode](attrName, valueNode)
     }
     objectNode
   }
