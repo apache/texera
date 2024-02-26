@@ -9,8 +9,11 @@ import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
+
+import java.util
 import scala.collection.JavaConverters._
 import scala.collection.mutable
+import scala.util.hashing.MurmurHash3
 
 case class Tuple @JsonCreator() (
     @JsonProperty(value = "schema", required = true) schema: Schema,
@@ -43,7 +46,7 @@ case class Tuple @JsonCreator() (
 
   def getFields: Seq[Any] = fieldVals
 
-  override def hashCode: Int = fieldVals.toArray.hashCode()
+  override def hashCode: Int = MurmurHash3.orderedHash(fields)
 
   override def equals(obj: Any): Boolean =
     obj match {
