@@ -141,10 +141,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
             new HashJoinProbeOpExec[K](
               buildAttributeName,
               probeAttributeName,
-              joinType,
-              buildSchema,
-              probeSchema,
-              outputSchema
+              joinType
             )
           )
         )

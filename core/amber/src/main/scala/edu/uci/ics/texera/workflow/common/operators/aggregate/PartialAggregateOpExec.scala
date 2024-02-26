@@ -34,7 +34,6 @@ class PartialAggregateOpExec(
     val groupByKeys: List[String]
 ) extends OperatorExecutor {
 
-
   var partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
 
   override def open(): Unit = {}
@@ -64,7 +63,7 @@ class PartialAggregateOpExec(
         Iterator()
       case Right(_) =>
         partialObjectsPerKey.iterator.map {
-          case (groupKey, partialObjects) => TupleLike( groupKey ++ partialObjects:_*)
+          case (groupKey, partialObjects) => TupleLike(groupKey ++ partialObjects: _*)
         }
     }
   }

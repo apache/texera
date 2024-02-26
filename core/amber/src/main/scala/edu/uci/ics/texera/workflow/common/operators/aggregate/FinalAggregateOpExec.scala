@@ -34,20 +34,25 @@ class FinalAggregateOpExec(
           .map(_.map(k => t.getField[Object](k)))
           .getOrElse(List.empty)
 
-        val partialObjects = aggFuncs.indices.map(i => t.getField[Object](internalAggObjKey(i))).toList
+        val partialObjects =
+          aggFuncs.indices.map(i => t.getField[Object](internalAggObjKey(i))).toList
 
-        partialObjectsPerKey.put(key, partialObjectsPerKey.get(key)
-          .map(existingPartials =>
-            aggFuncs.indices.map(i =>
-              aggFuncs(i).merge(existingPartials(i), partialObjects(i))
-            ).toList
-          )
-          .getOrElse(partialObjects))
+        partialObjectsPerKey.put(
+          key,
+          partialObjectsPerKey
+            .get(key)
+            .map(existingPartials =>
+              aggFuncs.indices
+                .map(i => aggFuncs(i).merge(existingPartials(i), partialObjects(i)))
+                .toList
+            )
+            .getOrElse(partialObjects)
+        )
         Iterator()
       case Right(_) =>
-        partialObjectsPerKey.iterator.map{
+        partialObjectsPerKey.iterator.map {
           case (group, partial) =>
-            TupleLike(group ++ aggFuncs.indices.map(i => aggFuncs(i).finalAgg(partial(i))):_*)
+            TupleLike(group ++ aggFuncs.indices.map(i => aggFuncs(i).finalAgg(partial(i))): _*)
         }
     }
   }

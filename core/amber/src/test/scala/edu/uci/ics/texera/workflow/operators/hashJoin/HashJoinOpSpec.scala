@@ -56,10 +56,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     probeOpExec = new HashJoinProbeOpExec[String](
       "build_1",
       "probe_1",
-      JoinType.INNER,
-      inputSchemas(0),
-      inputSchemas(1),
-      outputSchema
+      JoinType.INNER
     )
 
     probeOpExec.open()
@@ -110,10 +107,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     probeOpExec = new HashJoinProbeOpExec[String](
       "same",
       "same",
-      JoinType.INNER,
-      inputSchemas(0),
-      inputSchemas(1),
-      outputSchema
+      JoinType.INNER
     )
 
     probeOpExec.open()

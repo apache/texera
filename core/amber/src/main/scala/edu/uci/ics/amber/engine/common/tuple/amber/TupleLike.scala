@@ -89,20 +89,23 @@ object TupleLike {
   }
 
   /**
-    * Constructs a `Tuple` object based on a given schema and a map of field mappings.
+    * Constructs a `Tuple` based on the provided schema and `tupleLike` object.
     *
-    * This method iterates over the field mappings provided by the `tupleLike` object, adding each field to the `Tuple` builder
-    * based on the corresponding attribute in the `schema`. The `schema` defines the structure and types of fields allowed in the `Tuple`.
+    * For each attribute in the schema, the function attempts to find a corresponding value
+    * in the tuple-like object's field mappings. If a mapping is found, that value is used;
+    * otherwise, `null` is used as the attribute value in the built tuple.
     *
-    * @param tupleLike The source of field mappings, where each entry maps a field name to its value.
-    * @param schema    The schema defining the structure and types of the `Tuple` to be built.
-    * @return A `Tuple` instance that matches the provided schema and contains the data from `tupleLike`.
+    * @param tupleLike An object representing the source of data for the tuple to be built,
+    *                  with a mapping from attribute names to their values.
+    * @param schema    The schema defining the attributes and their types for the tuple.
+    * @return          A new `Tuple` instance built according to the schema and the data provided
+    *                  by the `tupleLike` object.
     */
   private def buildTupleWithSchema(tupleLike: MapTupleLike, schema: Schema): Tuple = {
     val builder = Tuple.newBuilder(schema)
-    tupleLike.fieldMappings.foreach {
-      case (name, value) =>
-        builder.add(schema.getAttribute(name), value)
+    schema.getAttributesScala.foreach { attribute =>
+      val value = tupleLike.fieldMappings.getOrElse(attribute.getName, null)
+      builder.add(attribute, value)
     }
     builder.build()
   }

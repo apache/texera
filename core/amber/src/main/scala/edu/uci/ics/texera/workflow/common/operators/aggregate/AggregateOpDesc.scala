@@ -35,9 +35,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) =>
-            new PartialAggregateOpExec(aggFuncs, groupByKeys)
-          )
+          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys))
         )
         .withIsOneToManyOp(true)
         .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> inputSchema))
@@ -74,9 +72,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) =>
-            new FinalAggregateOpExec(aggFuncs, groupByKeys)
-          ),
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys)),
           partitionColumns
         )
         .withParallelizable(false)
