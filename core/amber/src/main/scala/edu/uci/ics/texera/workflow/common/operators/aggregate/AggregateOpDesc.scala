@@ -36,7 +36,7 @@ object AggregateOpDesc {
           workflowId,
           executionId,
           OpExecInitInfo((_, _, _) =>
-            new PartialAggregateOpExec(aggFuncs, groupByKeys, inputSchema)
+            new PartialAggregateOpExec(aggFuncs, groupByKeys)
           )
         )
         .withIsOneToManyOp(true)
@@ -54,7 +54,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema))
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys))
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
@@ -75,7 +75,7 @@ object AggregateOpDesc {
           workflowId,
           executionId,
           OpExecInitInfo((_, _, _) =>
-            new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema)
+            new FinalAggregateOpExec(aggFuncs, groupByKeys)
           ),
           partitionColumns
         )
@@ -89,7 +89,7 @@ object AggregateOpDesc {
         )
     }
 
-    new PhysicalPlan(
+    PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),
       links = Set(
         PhysicalLink(partialPhysicalOp.id, outputPort.id, finalPhysicalOp.id, inputPort.id)

@@ -1,8 +1,8 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.getOutputSchema
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
@@ -31,11 +31,9 @@ object PartialAggregateOpExec {
 
 class PartialAggregateOpExec(
     val aggFuncs: List[DistributedAggregation[Object]],
-    val groupByKeys: List[String],
-    val inputSchema: Schema
+    val groupByKeys: List[String]
 ) extends OperatorExecutor {
 
-  var schema: Schema = getOutputSchema(inputSchema, aggFuncs, groupByKeys)
 
   var partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
 
@@ -45,18 +43,16 @@ class PartialAggregateOpExec(
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): scala.Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     if (aggFuncs.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
     tuple match {
       case Left(t) =>
-        val key =
-          if (groupByKeys == null || groupByKeys.isEmpty) List()
-          else groupByKeys.map(k => t.getField[Object](k))
-
-        if (!partialObjectsPerKey.contains(key))
-          partialObjectsPerKey.put(key, aggFuncs.map(aggFunc => aggFunc.init()))
+        val key = Option(groupByKeys)
+          .filter(_.nonEmpty)
+          .map(_.map(k => t.getField[Object](k)))
+          .getOrElse(List.empty)
 
         val partialObjects =
           partialObjectsPerKey.getOrElseUpdate(key, aggFuncs.map(aggFunc => aggFunc.init()))
@@ -67,10 +63,9 @@ class PartialAggregateOpExec(
         partialObjectsPerKey.put(key, updatedPartialObjects)
         Iterator()
       case Right(_) =>
-        partialObjectsPerKey.iterator.map(pair => {
-          val tupleFields = pair._1 ++ pair._2
-          Tuple.newBuilder(schema).addSequentially(tupleFields.toArray).build()
-        })
+        partialObjectsPerKey.iterator.map {
+          case (groupKey, partialObjects) => TupleLike( groupKey ++ partialObjects:_*)
+        }
     }
   }
 
