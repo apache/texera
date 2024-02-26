@@ -221,7 +221,7 @@ class ExpansionGreedyRegionPlanGenerator(
     populateDownstreamLinks(regionDAG)
 
     // allocate resources on regions
-    allocateResource(regionDAG, physicalPlan)
+    allocateResource(regionDAG)
 
     regionDAG
   }

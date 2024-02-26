@@ -58,15 +58,14 @@ abstract class RegionPlanGenerator(
     opResultStorage: OpResultStorage
 ) {
 
-  val executionClusterInfo = new ExecutionClusterInfo()
+  private val executionClusterInfo = new ExecutionClusterInfo()
 
   def generate(): (RegionPlan, PhysicalPlan)
 
   def allocateResource(
-      regionDAG: DirectedAcyclicGraph[Region, RegionLink],
-      updatedPhysicalPlan: PhysicalPlan
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): Unit = {
-    val resourceAllocator = new DefaultResourceAllocator(updatedPhysicalPlan, executionClusterInfo)
+    val resourceAllocator = new DefaultResourceAllocator(physicalPlan, executionClusterInfo)
     // generate the region configs
     new TopologicalOrderIterator(regionDAG).asScala
       .foreach(region => {
@@ -164,7 +163,7 @@ abstract class RegionPlanGenerator(
 
   }
 
-  def createMatReader(
+  private def createMatReader(
       inputSchema: Schema,
       matWriterLogicalOpId: OperatorIdentity
   ): PhysicalOp = {
@@ -186,7 +185,7 @@ abstract class RegionPlanGenerator(
     )
   }
 
-  def createMatWriter(
+  private def createMatWriter(
       inputSchema: Schema,
       fromLogicalOpId: OperatorIdentity
   ): PhysicalOp = {

@@ -125,7 +125,7 @@ class CostBasedRegionPlanGenerator(
     // Since the plan is now schedulable, calling the search directly returns a region DAG.
     val regionDAG = bottomUpSearch().regionDAG
     populateDownstreamLinks(regionDAG)
-    allocateResource(regionDAG, physicalPlan)
+    allocateResource(regionDAG)
     regionDAG
   }
 
