@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
@@ -13,10 +13,9 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage,
   WorkerReplayInitialization
 }
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -59,11 +58,9 @@ class WorkerSpec
 
     override def close(): Unit = println("closed!")
 
-    override def processTuple(
+    override def processTupleMultiPort(
         tuple: Either[ITuple, InputExhausted],
-        input: Int,
-        pauseManager: PauseManager,
-        asyncRPCClient: AsyncRPCClient
+        port: Int
     ): Iterator[(ITuple, Option[PortIdentity])] = {
       tuple match {
         case Left(iTuple) => Iterator((iTuple, None))
@@ -160,7 +157,7 @@ class WorkerSpec
   "Worker" should "process data messages correctly" in {
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink).once()
+    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink, null).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
@@ -192,7 +189,9 @@ class WorkerSpec
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     def mkBatch(start: Int, end: Int): Array[ITuple] = {
       (start until end).map { x =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _)
+          .expects(ITuple(x, x, x, x), mockLink, null)
+          .once()
         ITuple(x, x, x, x)
       }.toArray
     }
@@ -269,7 +268,7 @@ class WorkerSpec
     )
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
@@ -285,7 +284,7 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(

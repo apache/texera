@@ -23,6 +23,9 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.concurrent.duration.DurationInt
 
@@ -44,12 +47,16 @@ final case class ControllerConfig(
 object Controller {
 
   def props(
-      workflow: Workflow,
+      workflowContext: WorkflowContext,
+      physicalPlan: PhysicalPlan,
+      opResultStorage: OpResultStorage,
       controllerConfig: ControllerConfig = ControllerConfig.default
   ): Props =
     Props(
       new Controller(
-        workflow,
+        workflowContext,
+        physicalPlan,
+        opResultStorage,
         controllerConfig
       )
     )
@@ -59,8 +66,10 @@ object Controller {
 }
 
 class Controller(
-    val workflow: Workflow,
-    val controllerConfig: ControllerConfig
+    workflowContext: WorkflowContext,
+    physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig
 ) extends WorkflowActor(
       controllerConfig.faultToleranceConfOpt,
       CONTROLLER
@@ -69,7 +78,8 @@ class Controller(
   actorRefMappingService.registerActorRef(CLIENT, context.parent)
   val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
   val cp = new ControllerProcessor(
-    workflow,
+    workflowContext,
+    opResultStorage,
     controllerConfig,
     actorId,
     logManager.sendCommitted
@@ -91,7 +101,8 @@ class Controller(
 
   override def initState(): Unit = {
     cp.setupActorService(actorService)
-    cp.initWorkflowExecutionController()
+    cp.workflowScheduler.updateSchedule(physicalPlan)
+
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
     cp.setupLogManager(logManager)

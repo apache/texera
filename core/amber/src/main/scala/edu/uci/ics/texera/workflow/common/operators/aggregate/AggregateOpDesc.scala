@@ -10,6 +10,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.getOutputSchema
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
@@ -41,7 +42,10 @@ object AggregateOpDesc {
         .withIsOneToManyOp(true)
         .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> inputSchema))
         // assume partial op's output is the same as global op's
-        .withOutputPorts(List(outputPort), mutable.Map(outputPort.id -> outputSchema))
+        .withOutputPorts(
+          List(outputPort),
+          mutable.Map(outputPort.id -> getOutputSchema(inputSchema, aggFuncs, groupByKeys))
+        )
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
     val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
