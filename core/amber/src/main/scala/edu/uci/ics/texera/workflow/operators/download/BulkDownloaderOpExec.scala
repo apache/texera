@@ -6,7 +6,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
 import java.net.URL

@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, Input, OnInit } from "@angular/core";
+import { AfterViewInit, Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
@@ -6,7 +6,7 @@ import { ExecutionState } from "../../../../../workspace/types/execute-workflow.
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 import Fuse from "fuse.js";
 import { ceil } from "lodash";
-import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
+import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
 import * as Plotly from "plotly.js-basic-dist-min";
 
@@ -21,6 +21,7 @@ const MAX_USERNAME_SIZE = 5;
   styleUrls: ["./workflow-execution-modal.component.scss"],
 })
 export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
+  readonly wid: number = inject(NZ_MODAL_DATA).wid;
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
@@ -32,9 +33,6 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   public usernamePieChartId = WorkflowExecutionModalComponent.USERNAME_PIE_CHART_ID;
   public statusPieChartId = WorkflowExecutionModalComponent.STATUS_PIE_CHART_ID;
   public processTimeBarChart = WorkflowExecutionModalComponent.PROCESS_TIME_BAR_CHART;
-
-  @Input() wid!: number;
-
   public workflowExecutionsDisplayedList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
@@ -691,9 +689,7 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
           nzFooter: null, // null indicates that the footer of the window would be hidden
           nzBodyStyle: { width: "98vw", height: "92vh" },
           nzContent: WorkflowRuntimeStatisticsComponent,
-          nzData: {
-            workflowRuntimeStatistics: workflowRuntimeStatistics,
-          },
+          nzData: { workflowRuntimeStatistics: workflowRuntimeStatistics },
         });
       });
   }
