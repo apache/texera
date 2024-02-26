@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.IterableHasAsJava
 
 object PartialAggregateOpExec {
   def internalAggObjKey(key: Int): String = {
@@ -24,9 +23,9 @@ object PartialAggregateOpExec {
     Schema
       .newBuilder()
       // add group by keys
-      .add(groupByKeys.map(k => inputSchema.getAttribute(k)).asJava)
+      .add(groupByKeys.map(k => inputSchema.getAttribute(k)))
       // add intermediate internal aggregation objects
-      .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)).asJava)
+      .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)))
       .build()
   }
 }

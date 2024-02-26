@@ -140,7 +140,7 @@ class IntervalJoinOpDesc extends LogicalOp {
     var leftTableSchema: Schema = schemas(0)
     var rightTableSchema: Schema = schemas(1)
     builder.add(leftTableSchema)
-    rightTableSchema.getAttributesScala
+    rightTableSchema.getAttributes
       .map(attr => {
         if (leftTableSchema.containsAttribute(attr.getName)) {
           builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))

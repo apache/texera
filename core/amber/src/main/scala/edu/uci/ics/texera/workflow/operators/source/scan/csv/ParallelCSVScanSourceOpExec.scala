@@ -6,8 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import org.tukaani.xz.SeekableFileInputStream
 
-import scala.jdk.CollectionConverters.IterableHasAsScala
-
 class ParallelCSVScanSourceOpExec private[csv] (
     val desc: ParallelCSVScanSourceOpDesc,
     val startOffset: Long,
@@ -43,7 +41,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
           // parse Strings into inferred AttributeTypes
           val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
             fields,
-            schema.getAttributes.asScala
+            schema.getAttributes
               .map((attr: Attribute) => attr.getType)
               .toArray
           )

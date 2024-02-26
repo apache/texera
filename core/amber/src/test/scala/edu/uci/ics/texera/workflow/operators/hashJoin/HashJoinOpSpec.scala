@@ -82,7 +82,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), probe, null, null).isEmpty)
 
     assert(outputTuples.size == 3)
-    assert(outputTuples.head.getSchema.getAttributeNames.size() == 3)
+    assert(outputTuples.head.getSchema.getAttributeNames.length == 3)
 
     probeOpExec.close()
 
@@ -139,7 +139,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(probeOpExec.processTexeraTuple(Right(InputExhausted()), probe, null, null).isEmpty)
 
     assert(outputTuples.size == 3)
-    assert(outputTuples.head.getSchema.getAttributeNames.size() == 3)
+    assert(outputTuples.head.getSchema.getAttributeNames.length == 3)
 
     probeOpExec.close()
   }

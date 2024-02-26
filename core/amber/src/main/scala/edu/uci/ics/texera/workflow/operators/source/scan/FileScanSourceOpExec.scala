@@ -38,9 +38,9 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
             .newBuilder(desc.sourceSchema())
             .add(
               if (desc.outputFileName) {
-                desc.sourceSchema().getAttributes.get(1)
+                desc.sourceSchema().getAttributes(1)
               } else {
-                desc.sourceSchema().getAttributes.get(0)
+                desc.sourceSchema().getAttributes(0)
               },
               desc.attributeType match {
                 case FileAttributeType.SINGLE_STRING =>
@@ -50,7 +50,7 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
             )
           if (desc.outputFileName) {
             TupleBuilder.add(
-              desc.sourceSchema().getAttributes.get(0),
+              desc.sourceSchema().getAttributes(0),
               fileName
             )
           }
@@ -70,7 +70,7 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
             Tuple
               .newBuilder(desc.sourceSchema())
               .add(
-                desc.sourceSchema().getAttributes.get(0),
+                desc.sourceSchema().getAttributes(0),
                 desc.attributeType match {
                   case FileAttributeType.SINGLE_STRING => line
                   case _                               => parseField(line, desc.attributeType.getType)

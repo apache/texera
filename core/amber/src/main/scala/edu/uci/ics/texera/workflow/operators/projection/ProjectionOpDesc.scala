@@ -18,8 +18,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   UnknownPartition
 }
 
-import scala.jdk.CollectionConverters.IterableHasAsJava
-
 class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()
@@ -83,7 +81,8 @@ class ProjectionOpDesc extends MapOpDesc {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
 
-    Schema.newBuilder
+    Schema
+      .newBuilder()
       .add(
         attributes
           .map(attribute =>
@@ -92,7 +91,6 @@ class ProjectionOpDesc extends MapOpDesc {
               schemas(0).getAttribute(attribute.getOriginalAttribute).getType
             )
           )
-          .asJava
       )
       .build()
   }

@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 
@@ -105,7 +104,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
         // for any pythonUDFType, it can add custom output columns (attributes).
         if (columns != null) {
-            outputSchemaBuilder.add(columns).build();
+            outputSchemaBuilder.add(asScala(columns)).build();
         }
         return outputSchemaBuilder.build();
     }

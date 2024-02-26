@@ -278,7 +278,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTexeraTuple(Right(InputExhausted()), left, null, null).isEmpty)
     assert(opExec.processTexeraTuple(Right(InputExhausted()), right, null, null).isEmpty)
     if (outputTuples.nonEmpty)
-      assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
+      assert(outputTuples.head.getSchema.getAttributeNames.length == 4)
     opExec.close()
   }
 
@@ -438,7 +438,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
     assert(outputTuples.size == 11)
-    assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
+    assert(outputTuples.head.getSchema.getAttributeNames.length == 4)
     opExec.close()
   }
 

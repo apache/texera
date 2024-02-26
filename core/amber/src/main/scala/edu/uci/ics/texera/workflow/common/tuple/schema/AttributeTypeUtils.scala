@@ -5,7 +5,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 
 import java.sql.Timestamp
-import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.Try
 import scala.util.control.Exception.allCatch
 
@@ -27,8 +26,8 @@ object AttributeTypeUtils extends Serializable {
       resultType: AttributeType
   ): Schema = {
     // need a builder to maintain the order of original schema
-    val builder = Schema.newBuilder
-    val attributes: List[Attribute] = schema.getAttributesScala
+    val builder = Schema.newBuilder()
+    val attributes: List[Attribute] = schema.getAttributes
     // change the schema when meet selected attribute else remain the same
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
@@ -55,17 +54,17 @@ object AttributeTypeUtils extends Serializable {
       tuple: Tuple,
       schema: Schema
   ): Tuple = {
-    Preconditions.checkArgument(tuple.getSchema.getAttributes.size() == schema.getAttributes.size())
+    Preconditions.checkArgument(tuple.getSchema.getAttributes.length == schema.getAttributes.length)
 
     val builder = Tuple.newBuilder(schema)
-    schema.getAttributesScala.map(attr =>
+    schema.getAttributes.map(attr =>
       builder.add(attr, parseField(tuple.getField(attr.getName), attr.getType))
     )
     builder.build()
   }
 
   def parseFields(fields: Array[Any], schema: Schema): Array[Any] = {
-    parseFields(fields, schema.getAttributes.asScala.map(attr => attr.getType).toArray)
+    parseFields(fields, schema.getAttributes.map(attr => attr.getType).toArray)
   }
 
   /**

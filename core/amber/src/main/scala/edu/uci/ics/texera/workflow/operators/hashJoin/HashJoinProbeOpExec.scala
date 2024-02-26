@@ -80,7 +80,7 @@ class HashJoinProbeOpExec[K](
               fillNonJoinFields(
                 builder,
                 probeSchema,
-                Array.fill(probeSchema.getAttributesScala.length)(null),
+                Array.fill(probeSchema.getAttributes.length)(null),
                 resolveDuplicateName = true
               )
 
@@ -106,7 +106,7 @@ class HashJoinProbeOpExec[K](
       fields: Array[Any],
       resolveDuplicateName: Boolean = false
   ): Unit = {
-    schema.getAttributesScala.filter(attribute => attribute.getName != probeAttributeName) map {
+    schema.getAttributes.filter(attribute => attribute.getName != probeAttributeName) map {
       (attribute: Attribute) =>
         {
           val field = fields.apply(schema.getIndex(attribute.getName))
@@ -159,7 +159,7 @@ class HashJoinProbeOpExec[K](
     fillNonJoinFields(
       builder,
       buildSchema,
-      Array.fill(buildSchema.getAttributesScala.length)(null)
+      Array.fill(buildSchema.getAttributes.length)(null)
     )
 
     // fill the probe tuple

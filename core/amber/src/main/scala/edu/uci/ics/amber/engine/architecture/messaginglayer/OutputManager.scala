@@ -163,7 +163,7 @@ class OutputManager(
     val builder = Tuple.newBuilder(schema)
     tupleLike.fields.zipWithIndex.foreach {
       case (value, i) =>
-        builder.add(attributes.get(i), value)
+        builder.add(attributes(i), value)
     }
     builder.build()
   }

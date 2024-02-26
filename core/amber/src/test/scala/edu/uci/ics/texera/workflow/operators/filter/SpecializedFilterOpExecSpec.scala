@@ -92,11 +92,11 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     tuplesWithOneFieldNull
       .map(nullTuple => {
         val attributes = nullTuple.getSchema.getAttributes
-        assert(attributes.size() == 1)
+        assert(attributes.length == 1)
 
         val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
           predicates =
-            asList(new FilterPredicate(attributes.get(0).getName, ComparisonType.IS_NULL, null))
+            asList(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NULL, null))
         })
 
         opExec.open()
@@ -127,11 +127,11 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     tuplesWithOneFieldNull
       .map(nullTuple => {
         val attributes = nullTuple.getSchema.getAttributes
-        assert(attributes.size() == 1)
+        assert(attributes.length == 1)
 
         val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
           predicates = asList(
-            new FilterPredicate(attributes.get(0).getName, ComparisonType.IS_NOT_NULL, null)
+            new FilterPredicate(attributes(0).getName, ComparisonType.IS_NOT_NULL, null)
           )
         })
 

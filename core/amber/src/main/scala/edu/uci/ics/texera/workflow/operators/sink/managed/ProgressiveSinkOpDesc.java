@@ -21,14 +21,12 @@ import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.Tuple3;
-import scala.collection.immutable.List;
 
 import java.util.ArrayList;
 import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class ProgressiveSinkOpDesc extends SinkOpDesc {

@@ -13,7 +13,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import org.bson.types.Binary
 
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.{ListHasAsScala, SeqHasAsJava}
 
 object TupleUtils {
 
@@ -47,19 +46,19 @@ object TupleUtils {
       result.toArray
     }))
 
-    val schema = Schema.newBuilder
+    val schema = Schema
+      .newBuilder()
       .add(
         sortedFieldNames.indices
           .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
-          .asJava
       )
-      .build
+      .build()
 
     try {
       val fields = scala.collection.mutable.ArrayBuffer.empty[Any]
       val data = JSONToMap(objectMapper.readTree(json))
 
-      for (fieldName <- schema.getAttributeNames.asScala) {
+      for (fieldName <- schema.getAttributeNames) {
         if (data.contains(fieldName)) {
           fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
         } else {
@@ -74,7 +73,7 @@ object TupleUtils {
 
   def document2Tuple(doc: Document, schema: Schema): Tuple = {
     val builder = Tuple.newBuilder(schema)
-    schema.getAttributes.forEach(attr =>
+    schema.getAttributes.foreach(attr =>
       if (attr.getType == BINARY) {
         // special care for converting MongoDB's binary type to byte[] in our schema
         builder.add(attr, doc.get(attr.getName).asInstanceOf[Binary].getData)

@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
 import java.sql._
 import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(
@@ -182,7 +181,7 @@ abstract class SQLSourceOpExec(
   protected def buildTupleFromRow: Tuple = {
     val tupleBuilder = Tuple.newBuilder(schema)
 
-    for (attr <- schema.getAttributes.asScala) {
+    for (attr <- schema.getAttributes) {
 
       breakable {
         val columnName = attr.getName
@@ -200,7 +199,7 @@ abstract class SQLSourceOpExec(
 
       }
     }
-    tupleBuilder.build
+    tupleBuilder.build()
   }
 
   /**

@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, InputStreamReader}
-import scala.jdk.CollectionConverters.{IterableHasAsScala, IteratorHasAsScala}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class JSONLScanSourceOpExec private[json] (
     val desc: JSONLScanSourceOpDesc,
@@ -26,7 +26,7 @@ class JSONLScanSourceOpExec private[json] (
           val fields = scala.collection.mutable.ArrayBuffer.empty[Any]
           val data = JSONToMap(objectMapper.readTree(line), flatten = desc.flatten)
 
-          for (fieldName <- schema.getAttributeNames.asScala) {
+          for (fieldName <- schema.getAttributeNames) {
             if (data.contains(fieldName))
               fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
             else {

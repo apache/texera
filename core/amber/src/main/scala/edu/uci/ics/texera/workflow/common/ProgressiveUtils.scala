@@ -12,12 +12,12 @@ object ProgressiveUtils {
 
   def addInsertionFlag(tuple: Tuple, outputSchema: Schema): Tuple = {
     assert(!tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
-    Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, true).add(tuple).build
+    Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, true).add(tuple).build()
   }
 
   def addRetractionFlag(tuple: Tuple, outputSchema: Schema): Tuple = {
     assert(!tuple.getSchema.containsAttribute(insertRetractFlagAttr.getName))
-    Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, false).add(tuple).build
+    Tuple.newBuilder(outputSchema).add(insertRetractFlagAttr, false).add(tuple).build()
   }
 
   def isInsertion(tuple: Tuple): Boolean = {

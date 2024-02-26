@@ -66,7 +66,7 @@ class BulkDownloaderOpDesc extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.newBuilder()
     // keep the same schema from input
     outputSchemaBuilder.add(inputSchema)
     if (resultAttribute == null || resultAttribute.isEmpty) {
@@ -78,6 +78,6 @@ class BulkDownloaderOpDesc extends LogicalOp {
         AttributeType.STRING
       )
     )
-    outputSchemaBuilder.build
+    outputSchemaBuilder.build()
   }
 }

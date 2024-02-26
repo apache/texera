@@ -28,7 +28,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.{IterableHasAsScala, SeqHasAsJava}
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 object ResultExportService {
   final val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -65,7 +65,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
     // convert the ITuple into tuple
     val results: Iterable[Tuple] = operatorWithResult.getAll
-    val attributeNames = results.head.getSchema.getAttributeNames.asScala.toList
+    val attributeNames = results.head.getSchema.getAttributeNames
 
     // handle the request according to export type
     request.exportType match {

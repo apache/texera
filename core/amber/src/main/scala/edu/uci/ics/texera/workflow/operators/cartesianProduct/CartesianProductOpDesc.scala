@@ -57,7 +57,7 @@ class CartesianProductOpDesc extends LogicalOp {
     val leftSchema = schemas(0)
     val rightSchema = schemas(1)
     builder.add(leftSchema)
-    rightSchema.getAttributes.forEach(attr => {
+    rightSchema.getAttributes.foreach(attr => {
       var attributeName: String = attr.getName
       // append numerical suffix in case of duplicate attributes
       var suffix: Int = 0

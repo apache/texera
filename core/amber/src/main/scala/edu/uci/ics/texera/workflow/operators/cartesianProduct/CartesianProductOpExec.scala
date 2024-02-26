@@ -13,7 +13,7 @@ import scala.collection.mutable.ArrayBuffer
 
 class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSchema: Schema)
     extends OperatorExecutor {
-  val leftSchemaSize: Int = leftSchema.getAttributesScala.length
+  val leftSchemaSize: Int = leftSchema.getAttributes.length
   var leftTuples: ArrayBuffer[Tuple] = _
   var isLeftTupleCollectionFinished: Boolean = false
 
@@ -74,8 +74,8 @@ class CartesianProductOpExec(leftSchema: Schema, rightSchema: Schema, outputSche
       leftSchemaOffset: Int,
       resolveDuplicateName: Boolean = false
   ): Unit = {
-    val outputSchemas = outputSchema.getAttributesScala
-    rightSchema.getAttributesScala map { (attribute: Attribute) =>
+    val outputSchemas = outputSchema.getAttributes
+    rightSchema.getAttributes map { (attribute: Attribute) =>
       {
         val attributeIndex = rightSchema.getIndex(attribute.getName)
         val field = fields.apply(attributeIndex)

@@ -5,8 +5,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecuto
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 
-import scala.jdk.CollectionConverters.IterableHasAsScala
-
 class CSVOldScanSourceOpExec private[csvOld] (val desc: CSVOldScanSourceOpDesc)
     extends SourceOperatorExecutor {
   val schema: Schema = desc.inferSchema()
@@ -19,7 +17,7 @@ class CSVOldScanSourceOpExec private[csvOld] (val desc: CSVOldScanSourceOpDesc)
         try {
           val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
             fields.toArray,
-            schema.getAttributes.asScala
+            schema.getAttributes
               .map((attr: Attribute) => attr.getType)
               .toArray
           )

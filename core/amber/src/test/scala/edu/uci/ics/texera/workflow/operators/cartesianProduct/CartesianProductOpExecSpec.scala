@@ -6,8 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.jdk.CollectionConverters.SeqHasAsJava
-
 class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val leftPort: Int = 0
   val rightPort: Int = 1
@@ -19,7 +17,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     Tuple
       .newBuilder(schema)
       .addSequentially(
-        (1 to schema.getAttributeNamesScala.length).map(_ => value.map(_.toString).orNull).toArray
+        (1 to schema.getAttributes.length).map(_ => value.map(_.toString).orNull).toArray
       )
       .build()
   }
@@ -29,12 +27,11 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       num_attributes: Int = 1,
       append_num: Boolean = true
   ): Schema = {
-    val attrs: java.lang.Iterable[Attribute] = Range
+    val attrs: Iterable[Attribute] = Range
       .inclusive(1, num_attributes)
       .map(num =>
         new Attribute(base_name + (if (append_num) "#@" + num else ""), AttributeType.STRING)
       )
-      .asJava
     Schema.newBuilder().add(attrs).build()
   }
 
@@ -77,8 +74,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
     assert(
-      outputTuples.head.getSchema.getAttributeNames
-        .size() == numLeftSchemaAttributes + numRightSchemaAttributes
+      outputTuples.head.getSchema.getAttributeNames.length == numLeftSchemaAttributes + numRightSchemaAttributes
     )
 
     opExec.close()
@@ -106,31 +102,31 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     // verify output schema is as expected & has no duplicates
     assert(
-      outputSchema.getAttributeNamesScala.toSet.size == outputSchema.getAttributeNamesScala.size
+      outputSchema.getAttributeNames.toSet.size == outputSchema.getAttributeNames.size
     ) // no duplicates in output Schema
     // check left tuple attributes name remain same
     (0 until numLeftSchemaAttributes).map(index =>
       assert(
-        leftSchema.getAttributeNamesScala
+        leftSchema.getAttributeNames
           .apply(index)
-          .equals(outputSchema.getAttributeNamesScala.apply(index))
+          .equals(outputSchema.getAttributeNames.apply(index))
       )
     )
     // check right tuple attributes without duplicate names are handled
     (0 until numRightSchemaAttributes - 1).map(index =>
       assert(
-        rightSchema.getAttributeNamesScala
+        rightSchema.getAttributeNames
           .apply(index)
-          .equals(outputSchema.getAttributeNamesScala.apply(numLeftSchemaAttributes + index))
+          .equals(outputSchema.getAttributeNames.apply(numLeftSchemaAttributes + index))
       )
     )
     // check right tuple attribute with duplicate name is handled
-    val expectedAttrName: String = rightSchema.getAttributeNamesScala.apply(
+    val expectedAttrName: String = rightSchema.getAttributeNames.apply(
       numRightSchemaAttributes - 1
     ) + "#@" + numLeftSchemaAttributes
     assert(
       expectedAttrName.equals(
-        outputSchema.getAttributeNamesScala.apply(
+        outputSchema.getAttributeNames.apply(
           numLeftSchemaAttributes + numRightSchemaAttributes - 1
         )
       )
@@ -161,8 +157,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
     assert(
-      outputTuples.head.getSchema.getAttributeNames
-        .size() == numLeftSchemaAttributes + numRightSchemaAttributes
+      outputTuples.head.getSchema.getAttributeNames.length == numLeftSchemaAttributes + numRightSchemaAttributes
     )
     opExec.close()
   }

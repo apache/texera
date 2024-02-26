@@ -20,7 +20,7 @@ class TextInputSourceOpExec private[text] (val desc: TextInputSourceOpDesc)
       Tuple
         .newBuilder(desc.sourceSchema())
         .add(
-          desc.sourceSchema().getAttributes.get(0),
+          desc.sourceSchema().getAttributes(0),
           desc.attributeType match {
             case FileAttributeType.SINGLE_STRING => line
             case FileAttributeType.BINARY        => line.getBytes

@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.{IterableHasAsJava, IteratorHasAsScala}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -110,13 +110,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       result.toArray
     }))
 
-    Schema.newBuilder
+    Schema
+      .newBuilder()
       .add(
         sortedFieldNames.indices
           .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
-          .asJava
       )
-      .build
+      .build()
   }
 
 }

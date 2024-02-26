@@ -182,7 +182,7 @@ class DataProcessingSpec
       assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
       assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
-      assert(schema.getAttributes.size() == 9)
+      assert(schema.getAttributes.length == 9)
     }
 
   }
@@ -214,7 +214,7 @@ class DataProcessingSpec
       assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
       assert(schema.getAttribute("test_object.array2.another").getType == AttributeType.INTEGER)
-      assert(schema.getAttributes.size() == 13)
+      assert(schema.getAttributes.length == 13)
     }
   }
 

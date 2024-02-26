@@ -27,7 +27,7 @@ import org.apache.arrow.vector.{
 
 import java.nio.charset.StandardCharsets
 import java.util
-import scala.jdk.CollectionConverters.{CollectionHasAsScala, IterableHasAsJava}
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
@@ -89,7 +89,6 @@ object ArrowUtils extends LazyLogging {
       .add(
         arrowSchema.getFields.asScala
           .map(field => new Attribute(field.getName, toAttributeType(field.getType)))
-          .asJava
       )
       .build()
 
@@ -221,7 +220,7 @@ object ArrowUtils extends LazyLogging {
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
     val arrowFields = new util.ArrayList[Field]
 
-    for (amberAttribute <- schema.getAttributes.asScala) {
+    for (amberAttribute <- schema.getAttributes) {
       val name = amberAttribute.getName
       val field = Field.nullablePrimitive(name, fromAttributeType(amberAttribute.getType))
       arrowFields.add(field)

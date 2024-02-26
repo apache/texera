@@ -16,7 +16,6 @@ import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
 import scala.collection.Iterator
-import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
@@ -167,8 +166,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
       if (values == null) {
         return null
       }
-      for (i <- 0 until schema.getAttributes.size()) {
-        val attr = schema.getAttributes.get(i)
+      for (i <- schema.getAttributes.indices) {
+        val attr = schema.getAttributes(i)
         breakable {
           val columnType = attr.getType
 
@@ -188,7 +187,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           )
         }
       }
-      tupleBuilder.build
+      tupleBuilder.build()
     } catch {
       case _: Exception =>
         null
@@ -311,7 +310,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
-    queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.asScala.zipWithIndex
+    queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.zipWithIndex
       .map((entry: (String, Int)) => { s"if_missing(${entry._1},null) field_${entry._2}" })
       .mkString(", ")} FROM $database.$table WHERE 1 = 1 "
   }

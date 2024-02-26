@@ -56,6 +56,6 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.newBuilder.add(schemas(0)).add(resultAttribute, AttributeType.BOOLEAN).build
+    Schema.newBuilder().add(schemas(0)).add(resultAttribute, AttributeType.BOOLEAN).build()
   }
 }

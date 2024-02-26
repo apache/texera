@@ -69,6 +69,6 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
     Preconditions.checkArgument(schemas.length == 1)
     if (resultAttribute == null || resultAttribute.trim.isEmpty)
       return null
-    Schema.newBuilder.add(schemas(0)).add(resultAttribute, AttributeType.INTEGER).build
+    Schema.newBuilder().add(schemas(0)).add(resultAttribute, AttributeType.INTEGER).build()
   }
 }
