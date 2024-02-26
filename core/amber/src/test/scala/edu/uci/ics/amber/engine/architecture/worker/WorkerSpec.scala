@@ -15,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -166,14 +167,15 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
-      1,
+      2,
       AddInputChannel(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
       )
     )
-    sendControlToWorker(worker, Array(invocation, addInputChannel))
+    sendControlToWorker(worker, Array(invocation, addPort, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -206,14 +208,15 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
-      1,
+      2,
       AddInputChannel(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
       )
     )
-    sendControlToWorker(worker, Array(invocation, addInputChannel))
+    sendControlToWorker(worker, Array(invocation, addPort, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
