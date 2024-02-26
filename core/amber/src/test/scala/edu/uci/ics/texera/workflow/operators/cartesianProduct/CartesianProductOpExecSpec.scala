@@ -58,21 +58,21 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     (1 to numLeftTuples).map(value => {
       assert(
         opExec
-          .processTexeraTuple(Left(generate_tuple(leftSchema, Some(value))), leftPort, null, null)
+          .processTuple(Left(generate_tuple(leftSchema, Some(value))), leftPort)
           .isEmpty
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), leftPort, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), leftPort).isEmpty)
 
     // process 5 right tuples
     val outputTuples: List[Tuple] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
       .map(value =>
         opExec
-          .processTexeraTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort, null, null)
+          .processTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort)
       )
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), rightPort, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), rightPort).isEmpty)
 
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
@@ -142,21 +142,21 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     (1 to numLeftTuples).map(value => {
       assert(
         opExec
-          .processTexeraTuple(Left(generate_tuple(leftSchema, Some(value))), leftPort, null, null)
+          .processTuple(Left(generate_tuple(leftSchema, Some(value))), leftPort)
           .isEmpty
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), leftPort, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), leftPort).isEmpty)
 
     // process 3 right tuples
     val outputTuples: List[Tuple] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
       .map(value =>
         opExec
-          .processTexeraTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort, null, null)
+          .processTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort)
       )
       .foldLeft(Iterator[Tuple]())(_ ++ _)
       .toList
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), rightPort, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), rightPort).isEmpty)
 
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)

@@ -1,10 +1,11 @@
-import { Component, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { NzTableSortFn } from "ng-zorro-antd/table";
 import { UserQuotaService } from "../../service/user-quota/user-quota.service";
 import { AdminUserService } from "../../../admin/service/admin-user.service";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 type UserServiceType = AdminUserService | UserQuotaService;
 
@@ -13,7 +14,7 @@ type UserServiceType = AdminUserService | UserQuotaService;
   templateUrl: "./user-quota.component.html",
 })
 export class UserQuotaComponent implements OnInit {
-  userUid: number = -1;
+  readonly userId: number = inject(NZ_MODAL_DATA).uid;
   backgroundColor: String = "white";
   textColor: String = "Black";
   dynamicHeight: string = "700px";
@@ -40,7 +41,7 @@ export class UserQuotaComponent implements OnInit {
   }
 
   ngOnInit(): void {
-    if (this.userUid == -1) {
+    if (this.userId == -1) {
       this.UserService = this.regularUserService;
       this.dynamicHeight = "";
     } else {
@@ -53,7 +54,7 @@ export class UserQuotaComponent implements OnInit {
   }
 
   refreshData() {
-    this.UserService.getUploadedFiles(this.userUid)
+    this.UserService.getUploadedFiles(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(fileList => {
         this.createdFiles = fileList;
@@ -68,25 +69,25 @@ export class UserQuotaComponent implements OnInit {
         this.topFiveFiles = copiedFiles.slice(0, 5);
       });
 
-    this.UserService.getCreatedWorkflows(this.userUid)
+    this.UserService.getCreatedWorkflows(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(workflowList => {
         this.createdWorkflows = workflowList;
       });
 
-    this.UserService.getAccessFiles(this.userUid)
+    this.UserService.getAccessFiles(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(accessFiles => {
         this.accessFiles = accessFiles;
       });
 
-    this.UserService.getAccessWorkflows(this.userUid)
+    this.UserService.getAccessWorkflows(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(accessWorkflows => {
         this.accessWorkflows = accessWorkflows;
       });
 
-    this.UserService.getMongoDBs(this.userUid)
+    this.UserService.getMongoDBs(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(mongoList => {
         this.totalMongoSize = 0;
@@ -175,7 +176,7 @@ export class UserQuotaComponent implements OnInit {
   }
 
   refreshFiles() {
-    this.UserService.getUploadedFiles(this.userUid)
+    this.UserService.getUploadedFiles(this.userId)
       .pipe(untilDestroyed(this))
       .subscribe(fileList => {
         this.createdFiles = fileList;

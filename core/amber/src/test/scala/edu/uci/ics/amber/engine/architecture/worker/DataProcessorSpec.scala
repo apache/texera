@@ -89,14 +89,24 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (outputHandler.apply _).expects(*).once()
     (operator.open _).expects().once()
     tuples.foreach { x =>
-      (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
+        .expects(Left(x), 0)
     }
-    (operator.processTuple _).expects(
-      Right(InputExhausted()),
-      0,
-      dp.pauseManager,
-      dp.asyncRPCClient
+    (
+        (
+            tuple: Either[ITuple, InputExhausted],
+            input: Int
+        ) => operator.processTupleMultiPort(tuple, input)
     )
+      .expects(
+        Right(InputExhausted()),
+        0
+      )
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     (dp.outputManager.emitEndOfUpstream _).expects().once()
@@ -132,14 +142,21 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
     (operator.open _).expects().once()
     tuples.foreach { x =>
-      (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
+      (
+          (
+              tuple: Either[ITuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
+        .expects(Left(x), 0)
     }
-    (operator.processTuple _).expects(
-      Right(InputExhausted()),
-      0,
-      dp.pauseManager,
-      dp.asyncRPCClient
+    (
+        (
+            tuple: Either[ITuple, InputExhausted],
+            input: Int
+        ) => operator.processTupleMultiPort(tuple, input)
     )
+      .expects(Right(InputExhausted()), 0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     dp.inputGateway.addPort(inputPortId)
