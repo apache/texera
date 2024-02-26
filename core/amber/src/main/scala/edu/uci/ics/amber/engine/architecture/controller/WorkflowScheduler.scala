@@ -25,9 +25,9 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
     * Update the total order of the regions to be executed, based on the current physicalPlan.
     */
   def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
-    // generate an RegionPlan with regions.
-    //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
-
+    // generate an RegionPlan with regions using a region plan generator.
+    // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
+    // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
     val (regionPlan, updatedPhysicalPlan) = if (AmberConfig.enableCostBasedRegionPlanGenerator) {
       new CostBasedRegionPlanGenerator(
         workflowContext,
