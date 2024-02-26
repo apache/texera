@@ -23,7 +23,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
 
   it should "open" in {
-    val projectionOpExec = new ProjectionOpExec(List(), null)
+    val projectionOpExec = new ProjectionOpExec(List())
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field2", "f2"),
       new AttributeUnit("field1", "f1")
@@ -38,7 +38,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("f1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
       .build()
-    val projectionOpExec = new ProjectionOpExec(List(), outputSchema)
+    val projectionOpExec = new ProjectionOpExec(List())
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field2", "f2"),
       new AttributeUnit("field1", "f1")
@@ -61,7 +61,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("f3", AttributeType.BOOLEAN))
       .add(new Attribute("f1", AttributeType.STRING))
       .build()
-    val projectionOpExec = new ProjectionOpExec(List(), outputSchema)
+    val projectionOpExec = new ProjectionOpExec(List())
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field3", "f3"),
       new AttributeUnit("field1", "f1")
@@ -79,7 +79,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise RuntimeException on non-existing fields" in {
-    val projectionOpExec = new ProjectionOpExec(List(), null)
+    val projectionOpExec = new ProjectionOpExec(List())
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field---5", "f5"),
       new AttributeUnit("field---6", "f6")
@@ -91,7 +91,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise IllegalArgumentException on empty attributes" in {
-    val projectionOpExec = new ProjectionOpExec(List(), null)
+    val projectionOpExec = new ProjectionOpExec(List())
     assertThrows[IllegalArgumentException] {
       projectionOpExec.processTuple(Left(tuple), 0).next()
     }
@@ -99,7 +99,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "raise RuntimeException on duplicate alias" in {
-    val projectionOpExec = new ProjectionOpExec(List(), null)
+    val projectionOpExec = new ProjectionOpExec(List())
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field1", "f"),
       new AttributeUnit("field2", "f")
@@ -116,7 +116,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .add(new Attribute("field1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
       .build()
-    val projectionOpExec = new ProjectionOpExec(List(), outputSchema)
+    val projectionOpExec = new ProjectionOpExec(List())
     projectionOpExec.attributes ++= List(
       new AttributeUnit("field2", "f2"),
       new AttributeUnit("field1", "")

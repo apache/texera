@@ -28,12 +28,11 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val outputSchema = outputPortToSchemaMapping(operatorInfo.outputPorts.head.id)
     oneToOnePhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, outputSchema))
+      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes))
     )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
