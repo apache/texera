@@ -5,12 +5,20 @@ import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
+import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.io.{File, FileInputStream, InputStreamReader}
 
-class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
-    extends ISourceOperatorExecutor {
-  val schema: Schema = desc.inferSchema()
+class CSVScanSourceOpExec private[csv] (
+    filePath: String,
+    fileEncoding: FileDecodingMethod,
+    limit: Option[Int],
+    offset: Option[Int],
+    customDelimiter: Option[String],
+    hasHeader: Boolean,
+    schemaFunc: () => Schema
+) extends ISourceOperatorExecutor {
+  val schema: Schema = schemaFunc()
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
 
@@ -35,31 +43,29 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     }
 
     var tupleIterator = rowIterator
-      .drop(desc.offset.getOrElse(0))
+      .drop(offset.getOrElse(0))
       .map(row => {
         try {
-          val parsedFields: Array[Object] =
-            AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Object]], schema)
-          Tuple.newBuilder(schema).addSequentially(parsedFields).build
+          TupleLike(AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Object]], schema): _*)
         } catch {
           case _: Throwable => null
         }
       })
       .filter(t => t != null)
 
-    if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get)
+    if (limit.isDefined) tupleIterator = tupleIterator.take(limit.get)
 
     tupleIterator
   }
 
   override def open(): Unit = {
     inputReader = new InputStreamReader(
-      new FileInputStream(new File(desc.filePath.get)),
-      desc.fileEncoding.getCharset
+      new FileInputStream(new File(filePath)),
+      fileEncoding.getCharset
     )
 
     val csvFormat = new CsvFormat()
-    csvFormat.setDelimiter(desc.customDelimiter.get.charAt(0))
+    csvFormat.setDelimiter(customDelimiter.get.charAt(0))
     csvFormat.setLineSeparator("\n")
     csvFormat.setComment(
       '\u0000'
@@ -67,7 +73,7 @@ class CSVScanSourceOpExec private[csv] (val desc: CSVScanSourceOpDesc)
     val csvSetting = new CsvParserSettings()
     csvSetting.setMaxCharsPerColumn(-1)
     csvSetting.setFormat(csvFormat)
-    csvSetting.setHeaderExtractionEnabled(desc.hasHeader)
+    csvSetting.setHeaderExtractionEnabled(hasHeader)
 
     parser = new CsvParser(csvSetting)
     parser.beginParsing(inputReader)
