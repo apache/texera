@@ -8,4 +8,4 @@ case class Workflow(
     originalLogicalPlan: LogicalPlan,
     logicalPlan: LogicalPlan,
     physicalPlan: PhysicalPlan
-) extends java.io.Serializable {}
+)

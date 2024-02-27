@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.architecture.common.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.execution.WorkflowExecution
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionController
+import edu.uci.ics.amber.engine.architecture.scheduling.WorkflowExecutionCoordinator
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
@@ -25,7 +25,7 @@ class ControllerProcessor(
 
   val workflowExecution: WorkflowExecution = WorkflowExecution()
   val workflowScheduler: WorkflowScheduler = new WorkflowScheduler(workflowContext, opResultStorage)
-  val workflowExecutionController: WorkflowExecutionController = new WorkflowExecutionController(
+  val workflowExecutionCoordinator: WorkflowExecutionCoordinator = new WorkflowExecutionCoordinator(
     () => this.workflowScheduler.getNextRegions,
     workflowExecution,
     controllerConfig,
