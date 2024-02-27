@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.tuple.amber.SeqTupleLike
 import edu.uci.ics.texera.Utils
-import edu.uci.ics.texera.workflow.common.tuple.Tuple.checkSchemaMatchesFields
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
