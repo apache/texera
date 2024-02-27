@@ -56,7 +56,7 @@ class LoggingSpec
           TupleLike.enforceSchema(
             TupleLike(i, i.toString, i.toDouble).asInstanceOf[SchemaEnforceable],
             Schema
-              .newBuilder()
+              .builder()
               .add("field1", AttributeType.INTEGER)
               .add("field2", AttributeType.STRING)
               .add("field3", AttributeType.DOUBLE)

@@ -110,7 +110,7 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
     Schema
-      .newBuilder()
+      .builder()
       .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))))
       .build()
   }

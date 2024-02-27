@@ -61,7 +61,7 @@ case class Schema @JsonCreator() (
 }
 
 object Schema {
-  def newBuilder(): Builder = Builder()
+  def builder(): Builder = Builder()
 
   case class Builder(private var attributes: List[Attribute] = List.empty) {
     private val attributeNames: mutable.Set[String] = mutable.Set.empty

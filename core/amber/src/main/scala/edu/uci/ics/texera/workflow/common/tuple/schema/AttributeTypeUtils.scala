@@ -27,7 +27,7 @@ object AttributeTypeUtils extends Serializable {
       resultType: AttributeType
   ): Schema = {
     // need a builder to maintain the order of original schema
-    val builder = Schema.newBuilder()
+    val builder = Schema.builder()
     val attributes: List[Attribute] = schema.getAttributes
     // change the schema when meet selected attribute else remain the same
     for (i <- attributes.indices) {
@@ -63,7 +63,7 @@ object AttributeTypeUtils extends Serializable {
       typeCastingUnits: List[TypeCastingUnit]
   ): TupleLike =
     TupleLike(
-      tuple.getSchema.getAttributesScala.map { attr =>
+      tuple.getSchema.getAttributes.map { attr =>
         val targetType = typeCastingUnits
           .find(_.attribute == attr.getName)
           .map(_.resultType)

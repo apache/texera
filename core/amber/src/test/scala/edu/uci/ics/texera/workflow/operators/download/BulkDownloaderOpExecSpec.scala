@@ -12,12 +12,12 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class BulkDownloaderOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("url", AttributeType.STRING))
     .build()
 
   val resultSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("url", AttributeType.STRING))
     .add(new Attribute("url result", AttributeType.STRING))
     .build()

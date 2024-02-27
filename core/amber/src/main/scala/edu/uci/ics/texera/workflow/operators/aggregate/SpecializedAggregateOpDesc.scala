@@ -51,7 +51,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       groupByKeys = List()
     }
     Schema
-      .newBuilder()
+      .builder()
       .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
       .build()
   }
@@ -76,7 +76,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       return null
     }
     Schema
-      .newBuilder()
+      .builder()
       .add(getGroupByKeysSchema(schemas).getAttributes)
       .add(aggregations.map(agg => agg.getAggregationAttribute(schemas(0))))
       .build()

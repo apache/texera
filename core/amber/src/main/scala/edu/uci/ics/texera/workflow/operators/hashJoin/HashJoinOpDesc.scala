@@ -63,7 +63,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val probeSchema = inputSchemas(1)
 
     val internalHashTableSchema =
-      Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
+      Schema.builder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
 
     val buildInPartitionRequirement = List(
       Option(HashPartition(List(buildSchema.getIndex(buildAttributeName))))
@@ -198,7 +198,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       buildSchema: Schema,
       probeSchema: Schema
   ): (Schema, Map[Int, Int], Map[Int, Int]) = {
-    val builder = Schema.newBuilder()
+    val builder = Schema.builder()
     builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {
       probeSchema.getAttributes.foreach(attr => {

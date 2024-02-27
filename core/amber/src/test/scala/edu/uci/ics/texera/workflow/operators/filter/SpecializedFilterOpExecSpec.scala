@@ -16,14 +16,14 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .map(attributeType =>
         Tuple
           .builder(
-            Schema.newBuilder().add(new Attribute(attributeType.name(), attributeType)).build()
+            Schema.builder().add(new Attribute(attributeType.name(), attributeType)).build()
           )
           .add(new Attribute(attributeType.name(), attributeType), null)
           .build()
       )
 
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("string", AttributeType.STRING))
     .add(new Attribute("int", AttributeType.INTEGER))
     .add(new Attribute("bool", AttributeType.BOOLEAN))

@@ -143,7 +143,7 @@ class IntervalJoinOpDesc extends LogicalOp {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 2)
-    val builder: Schema.Builder = Schema.newBuilder()
+    val builder: Schema.Builder = Schema.builder()
     val leftTableSchema: Schema = schemas(0)
     val rightTableSchema: Schema = schemas(1)
     builder.add(leftTableSchema)

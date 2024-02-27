@@ -53,6 +53,6 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
     if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.newBuilder().add(schemas(0)).add(resultAttribute, AttributeType.STRING).build()
+    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.STRING).build()
   }
 }

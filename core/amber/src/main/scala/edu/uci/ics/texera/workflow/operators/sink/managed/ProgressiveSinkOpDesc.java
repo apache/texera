@@ -23,7 +23,6 @@ import scala.Option;
 import scala.Tuple3;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
@@ -89,7 +88,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         if (this.outputMode.equals(SET_SNAPSHOT)) {
             if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr().getName())) {
                 // input is insert/retract delta: the flag column is removed in output
-                return Schema.newBuilder().add(inputSchema)
+                return Schema.builder().add(inputSchema)
                         .remove(ProgressiveUtils.insertRetractFlagAttr().getName()).build();
             } else {
                 // input is insert-only delta: output schema is the same as input schema

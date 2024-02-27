@@ -25,7 +25,7 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
       600
     )
   val attr: Attribute = new Attribute("Attr1", AttributeType.INTEGER)
-  val schema: Schema = Schema.newBuilder().add(attr).build()
+  val schema: Schema = Schema.builder().add(attr).build()
 
   val partitioner: RangeBasedShufflePartitioner = RangeBasedShufflePartitioner(partitioning)
 
@@ -61,13 +61,13 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
     assert(idx.next() == 1)
 
     val doubleAttr: Attribute = new Attribute("Attr2", AttributeType.DOUBLE)
-    val doubleSchema: Schema = Schema.newBuilder().add(doubleAttr).build()
+    val doubleSchema: Schema = Schema.builder().add(doubleAttr).build()
     tuple = Tuple.builder(doubleSchema).add(doubleAttr, -90.5).build()
     idx = partitioner.getBucketIndex(tuple)
     assert(idx.next() == 1)
 
     val longAttr: Attribute = new Attribute("Attr3", AttributeType.LONG)
-    val longSchema: Schema = Schema.newBuilder().add(longAttr).build()
+    val longSchema: Schema = Schema.builder().add(longAttr).build()
     tuple = Tuple.builder(longSchema).add(longAttr, -90L).build()
     idx = partitioner.getBucketIndex(tuple)
     assert(idx.next() == 1)

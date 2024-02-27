@@ -114,7 +114,7 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   override def asSource() = true
   override def sourceSchema(): Schema =
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute("id", AttributeType.STRING),
         new Attribute("name", AttributeType.STRING),

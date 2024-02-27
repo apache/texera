@@ -47,7 +47,7 @@ object TupleUtils {
     }))
 
     val schema = Schema
-      .newBuilder()
+      .builder()
       .add(
         sortedFieldNames.indices
           .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))

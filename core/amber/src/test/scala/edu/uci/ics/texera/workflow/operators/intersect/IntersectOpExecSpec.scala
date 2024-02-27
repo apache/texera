@@ -15,7 +15,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var counter: Int = 0
 
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(

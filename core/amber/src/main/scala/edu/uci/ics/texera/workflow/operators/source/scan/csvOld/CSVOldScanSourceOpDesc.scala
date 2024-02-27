@@ -101,7 +101,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
     // build schema based on inferred AttributeTypes
     Schema
-      .newBuilder()
+      .builder()
       .add(
         firstRow.indices
           .map((i: Int) =>

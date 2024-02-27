@@ -59,7 +59,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def schema(name: String, attributeType: AttributeType, n: Int = 1): Schema = {
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute(name, attributeType),
         new Attribute(name + "_" + n, attributeType)

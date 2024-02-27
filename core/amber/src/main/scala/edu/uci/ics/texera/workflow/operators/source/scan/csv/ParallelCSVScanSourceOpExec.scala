@@ -9,7 +9,6 @@ import org.tukaani.xz.SeekableFileInputStream
 import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.compat.immutable.ArraySeq
-import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class ParallelCSVScanSourceOpExec private[csv] (
     filePath: String,

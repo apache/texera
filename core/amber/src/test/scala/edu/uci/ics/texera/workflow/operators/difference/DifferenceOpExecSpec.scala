@@ -15,7 +15,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: DifferenceOpExec = _
   var counter: Int = 0
   val schema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(
       new Attribute("field1", AttributeType.STRING),
       new Attribute("field2", AttributeType.INTEGER),

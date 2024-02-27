@@ -28,7 +28,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
 
   def sourceSchema(): Schema = {
     Schema
-      .newBuilder()
+      .builder()
       .add(
         "URL content",
         if (decodingMethod == DecodingMethod.UTF_8) { AttributeType.STRING }

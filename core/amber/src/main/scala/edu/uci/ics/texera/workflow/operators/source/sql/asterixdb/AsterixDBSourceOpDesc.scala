@@ -149,7 +149,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
   override def querySchema: Schema = {
     updatePort()
 
-    val sb: Schema.Builder = Schema.newBuilder()
+    val sb: Schema.Builder = Schema.builder()
 
     // query dataset's Datatype from Metadata.`Datatype`
     val datasetDataType = queryAsterixDB(

@@ -35,7 +35,7 @@ object ProgressiveUtils {
       isInsertion(tuple), {
         val originalSchema = tuple.getSchema
         val schema = originalSchema.getPartialSchema(
-          originalSchema.getAttributesScala
+          originalSchema.getAttributes
             .map(_.getName)
             .zipWithIndex
             .filterNot {

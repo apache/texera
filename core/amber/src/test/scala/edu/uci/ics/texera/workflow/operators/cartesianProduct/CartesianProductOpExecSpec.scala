@@ -33,7 +33,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .map(num =>
         new Attribute(base_name + (if (append_num) "#@" + num else ""), AttributeType.STRING)
       )
-    Schema.newBuilder().add(attrs).build()
+    Schema.builder().add(attrs).build()
   }
 
   before {
@@ -89,12 +89,12 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val duplicateAttribute: Attribute = new Attribute("left", AttributeType.STRING)
     val leftSchema = Schema
-      .newBuilder()
+      .builder()
       .add(generate_schema("left", numLeftSchemaAttributes - 1))
       .add(duplicateAttribute)
       .build()
     val rightSchema = Schema
-      .newBuilder()
+      .builder()
       .add(generate_schema("right", numRightSchemaAttributes - 1))
       .add(duplicateAttribute)
       .build()

@@ -133,7 +133,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     */
   protected def querySchema: Schema = {
     updatePort()
-    val schemaBuilder = Schema.newBuilder()
+    val schemaBuilder = Schema.builder()
     try {
       val connection = establishConn
       connection.setReadOnly(true)

@@ -13,7 +13,6 @@ import org.ehcache.sizeof.SizeOf
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /**
   * Represents a tuple in a data processing workflow, encapsulating a schema and corresponding field values.
