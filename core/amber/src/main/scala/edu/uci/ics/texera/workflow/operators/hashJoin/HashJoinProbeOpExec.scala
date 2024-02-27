@@ -29,7 +29,6 @@ object JoinUtils {
   }
 }
 class HashJoinProbeOpExec[K](
-    buildAttributeName: String,
     probeAttributeName: String,
     joinType: JoinType
 ) extends OperatorExecutor {

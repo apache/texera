@@ -56,7 +56,6 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
-      "build_1",
       "probe_1",
       JoinType.INNER
     )
@@ -111,7 +110,6 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     probeOpExec = new HashJoinProbeOpExec[String](
       "same",
-      "same",
       JoinType.INNER
     )
 
@@ -164,7 +162,6 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
-      "same",
       "same",
       JoinType.FULL_OUTER
     )
