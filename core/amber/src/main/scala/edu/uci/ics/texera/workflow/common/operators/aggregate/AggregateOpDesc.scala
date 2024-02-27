@@ -66,7 +66,7 @@ object AggregateOpDesc {
     val inputPort = InputPort(PortIdentity(0, internal = true))
 
     // Create the base PhysicalOp with common configurations
-    val finalPhysicalOp = PhysicalOp
+    var finalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
         PhysicalOpIdentity(id, "globalAgg"),
         workflowId,
@@ -83,7 +83,7 @@ object AggregateOpDesc {
 
     // Apply additional configurations for keyed aggregation
     if (!(groupByKeys == null && groupByKeys.isEmpty)) {
-      finalPhysicalOp
+      finalPhysicalOp = finalPhysicalOp
         .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
         .withDerivePartition(_ => HashPartition(groupByKeys))
     }

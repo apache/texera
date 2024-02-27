@@ -8,6 +8,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 class SymmetricDifferenceOpDesc extends LogicalOp {
 
@@ -15,16 +16,21 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp.hashPhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new SymmetricDifferenceOpExec()),
-      operatorInfo.inputPorts
-        .map(inputPort => inputPortToSchemaMapping(inputPort.id))
-        .head
-        .getAttributeNamesScala
-    )
+    val hashAttributeNames = operatorInfo.inputPorts
+      .map(inputPort => inputPortToSchemaMapping(inputPort.id))
+      .head
+      .getAttributeNamesScala
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _, _) => new SymmetricDifferenceOpExec())
+      )
+      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
+      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withPartitionRequirement(List(Option(HashPartition(hashAttributeNames))))
+      .withDerivePartition(_ => HashPartition(hashAttributeNames))
   }
 
   override def operatorInfo: OperatorInfo =

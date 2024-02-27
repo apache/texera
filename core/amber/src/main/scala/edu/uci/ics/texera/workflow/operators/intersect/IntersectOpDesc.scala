@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIden
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 class IntersectOpDesc extends LogicalOp {
 
@@ -15,19 +16,21 @@ class IntersectOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val hashAttributeNames = operatorInfo.inputPorts
+      .map(inputPort => inputPortToSchemaMapping(inputPort.id))
+      .head
+      .getAttributeNamesScala
     PhysicalOp
-      .hashPhysicalOp(
+      .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new IntersectOpExec()),
-        operatorInfo.inputPorts
-          .map(inputPort => inputPortToSchemaMapping(inputPort.id))
-          .head
-          .getAttributeNamesScala
+        OpExecInitInfo((_, _, _) => new IntersectOpExec())
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withPartitionRequirement(List(Option(HashPartition(hashAttributeNames))))
+      .withDerivePartition(_ => HashPartition(hashAttributeNames))
   }
 
   override def operatorInfo: OperatorInfo =
