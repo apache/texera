@@ -110,10 +110,12 @@ class Schema:
 
     def get_partial_schema(self, attribute_names: List[str]) -> "Schema":
         """
-        Create a partial Schema with fields specified by the indices.
-        :param indices: A list of index values.
-        :return: A new Schema with the selected fields, with the same order specified
-        by the indices.
+        Creates a partial Schema with fields specified by the attribute names.
+
+        :param attribute_names: A list of attribute names for which to create the
+                                partial schema.
+        :return: A new Schema instance containing only the specified fields, preserving
+                the order specified by the attribute names.
         """
         raw_schema = OrderedDict()
         for name in attribute_names:

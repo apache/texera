@@ -322,10 +322,12 @@ class Tuple:
 
     def get_partial_tuple(self, attribute_names: List[str]) -> "Tuple":
         """
-        Create a partial Tuple with fields specified by the indices.
-        :param indices: A list of index values.
-        :return: A new Tuple with the selected fields, with the same order specified
-        by the indices.
+        Creates a partial Tuple with fields specified by the attribute names.
+
+        :param attribute_names: A list of attribute names for which to create the
+                                partial tuple.
+        :return: A new Tuple instance containing only the specified fields,
+                preserving the order specified by the attribute names.
         """
         assert self._schema is not None
         schema = self._schema.get_partial_schema(attribute_names)
