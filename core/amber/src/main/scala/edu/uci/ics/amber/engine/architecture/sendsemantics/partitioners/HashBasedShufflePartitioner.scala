@@ -13,7 +13,7 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
       if (partitioning.hashAttributeNames.isEmpty) tuple
       else tuple.getPartialTuple(partitioning.hashAttributeNames.toList)
     val index = Math.floorMod(partialTuple.hashCode(), numBuckets)
-    Iterator.single(index)
+    Iterator(index)
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers
