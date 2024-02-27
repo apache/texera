@@ -2,18 +2,11 @@ package edu.uci.ics.texera.workflow.operators.hashJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ExecutionIdentity,
-  PhysicalOpIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -131,6 +124,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       InputPort(operatorInfo.inputPorts(1).id, dependencies = List(probeBuildInputPort.id))
     val probeOutputPort = OutputPort(PortIdentity(0))
 
+
     val probePhysicalOp =
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -158,6 +152,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withPartitionRequirement(probeInPartitionRequirement)
         .withDerivePartition(probeDerivePartition)
         .withParallelizable(true)
+        .withPropagateSchema(SchemaPropagationFunc(inputSchemas=> Seq(PortIdentity() -> getOutputSchemaInternal(inputSchemas( PortIdentity()), inputSchemas(PortIdentity(1)))._1).toMap))
 
     new PhysicalPlan(
       operators = Set(buildPhysicalOp, probePhysicalOp),

@@ -232,7 +232,7 @@ class DataProcessor(
       outputManager.passTupleToDownstream(
         outputTuple,
         out,
-        physicalOp.outputPorts(port)._3
+        physicalOp.outputPorts(port)._3.get
       )
     }
   }
