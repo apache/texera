@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.architecture.controller.WorkflowScheduler
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
@@ -40,23 +39,27 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       ),
       resultStorage
     )
-    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
 
-    assert(workflowScheduler.regionPlan.regions.size == 1)
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
+
+    assert(regionPlan.regions.size == 1)
+    regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
       case (regionId, opCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
       case (regionId, portCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -96,26 +99,29 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
 
-    assert(workflowScheduler.regionPlan.regions.size == 2)
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
       case (regionId, opCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(2, 2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(2, 2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(4, 4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 4)).foreach {
       case (regionId, portCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
 
-    val buildRegion = workflowScheduler.regionPlan.regions
+    val buildRegion = regionPlan.regions
       .find(region =>
         region.getOperators
           .map(_.id)
@@ -124,7 +130,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           )
       )
       .get
-    val probeRegion = workflowScheduler.regionPlan.regions
+    val probeRegion = regionPlan.regions
       .find(region =>
         region.getOperators
           .map(_.id)
@@ -135,7 +141,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       .get
 
     assert(
-      workflowScheduler.regionPlan.regionLinks.contains(RegionLink(buildRegion.id, probeRegion.id))
+      regionPlan.regionLinks.contains(RegionLink(buildRegion.id, probeRegion.id))
     )
 
   }
@@ -182,23 +188,26 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
 
-    assert(workflowScheduler.regionPlan.regions.size == 2)
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
       case (regionId, opCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(7, 4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(7, 4)).foreach {
       case (regionId, portCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -252,22 +261,26 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
-    assert(workflowScheduler.regionPlan.regions.size == 2)
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
+
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
       case (regionId, opCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
       case (regionId, linkCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
       case (regionId, portCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -321,23 +334,26 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       resultStorage
     )
 
-    val workflowScheduler = new WorkflowScheduler(workflow.context, resultStorage)
-    workflowScheduler.updateSchedule(workflow.physicalPlan)
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
 
-    assert(workflowScheduler.regionPlan.regions.size == 2)
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
       case (regionId, opCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflowScheduler.regionPlan.topologicalIterator().zip(Iterator(8, 4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(8, 4)).foreach {
       case (regionId, portCount) =>
-        assert(workflowScheduler.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
