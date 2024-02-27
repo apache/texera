@@ -48,13 +48,12 @@ class WorkerSpec
     with MockFactory {
 
   def mkTuple(fields: Any*): Tuple = {
-    val arrayOfObjects: Array[Object] = fields.map(_.asInstanceOf[Object]).toArray
     val schemaBuilder = Schema.newBuilder()
     fields.indices.foreach { i =>
       schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
     }
     val schema = schemaBuilder.build()
-    Tuple.newBuilder(schema).addSequentially(arrayOfObjects).build()
+    Tuple.newBuilder(schema).addSequentially(fields.toArray).build()
   }
 
   override def beforeAll(): Unit = {

@@ -55,7 +55,7 @@ class BulkDownloaderOpExec(
   override def close(): Unit = {}
 
   private def downloadTuple(tuple: Tuple): TupleLike = {
-    TupleLike(tuple.getFields.asScala.toSeq ++ Seq(downloadUrl(tuple.getField(urlAttribute))): _*)
+    TupleLike(tuple.getFields ++ Seq(downloadUrl(tuple.getField(urlAttribute))): _*)
   }
 
   private def downloadUrl(url: String): String = {

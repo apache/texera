@@ -61,7 +61,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuple =
       TupleLike.enforceSchema(typeCastingOpExec.processTuple(Left(tuple), 0).next(), castToSchema)
 
-    assert(outputTuple.length() == 4)
+    assert(outputTuple.length == 4)
     assert(outputTuple.getField("field1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("field2").asInstanceOf[String] == "1")
     assert(outputTuple.getField("field3").asInstanceOf[String] == "true")

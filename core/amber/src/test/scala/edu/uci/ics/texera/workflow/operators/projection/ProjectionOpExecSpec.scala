@@ -51,7 +51,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuple =
       TupleLike.enforceSchema(projectionOpExec.processTuple(Left(tuple), 0).next(), outputSchema)
-    assert(outputTuple.length() == 2)
+    assert(outputTuple.length == 2)
     assert(outputTuple.getField("f1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("f2").asInstanceOf[Int] == 1)
     assert(outputTuple.get(0) == "hello")
@@ -75,7 +75,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuple =
       TupleLike.enforceSchema(projectionOpExec.processTuple(Left(tuple), 0).next(), outputSchema)
-    assert(outputTuple.length() == 2)
+    assert(outputTuple.length == 2)
     assert(outputTuple.getField("f3").asInstanceOf[Boolean])
     assert(outputTuple.getField("f1").asInstanceOf[String] == "hello")
     assert(outputTuple.get(0) == true)
@@ -134,7 +134,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuple =
       TupleLike.enforceSchema(projectionOpExec.processTuple(Left(tuple), 0).next(), outputSchema)
-    assert(outputTuple.length() == 2)
+    assert(outputTuple.length == 2)
     assert(outputTuple.getField("field1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("f2").asInstanceOf[Int] == 1)
     assert(outputTuple.get(0) == "hello")

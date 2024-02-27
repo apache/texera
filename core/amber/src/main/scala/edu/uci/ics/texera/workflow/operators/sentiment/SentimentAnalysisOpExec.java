@@ -11,13 +11,11 @@ import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
 import org.apache.avro.generic.GenericData;
+import org.apache.commons.lang.ArrayUtils;
 import scala.Function1;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.Optional;
-import java.util.Properties;
+import java.util.*;
 
 public class SentimentAnalysisOpExec extends MapOpExec {
     private final String attributeName;
@@ -48,7 +46,7 @@ public class SentimentAnalysisOpExec extends MapOpExec {
                 .orElse(0);
 
         int normalizedSentimentScore = Integer.compare(sentimentScore, 2);
-        java.util.List<Object> tupleFields = new ArrayList<>(t.getFields());
+        java.util.List<Object> tupleFields = Arrays.asList(t.fields());
         tupleFields.add(normalizedSentimentScore);
 
         return TupleLike.apply(tupleFields);
