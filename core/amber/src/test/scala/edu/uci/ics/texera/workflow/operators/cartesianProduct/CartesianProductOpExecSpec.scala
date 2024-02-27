@@ -125,9 +125,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
     // check right tuple attribute with duplicate name is handled
-    val expectedAttrName: String = rightSchema.getAttributeNamesScala.apply(
-      numRightSchemaAttributes - 1
-    ) + "#@" + numLeftSchemaAttributes
+    val expectedAttrName: String = "left#@1#@1"
     assert(
       expectedAttrName.equals(
         outputSchema.getAttributeNamesScala.apply(
@@ -160,9 +158,8 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
-    assert(
-      outputTuples.head.fields.length == numLeftSchemaAttributes + numRightSchemaAttributes
-    )
+    // verify output tuple like matches schema
+    outputTuples.foreach(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
     opExec.close()
   }
 }

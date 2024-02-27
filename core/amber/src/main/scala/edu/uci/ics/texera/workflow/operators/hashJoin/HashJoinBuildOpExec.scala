@@ -18,19 +18,14 @@ class HashJoinBuildOpExec[K](buildAttributeName: String) extends OperatorExecuto
   ): Iterator[TupleLike] = {
     tuple match {
       case Left(tuple) =>
-        building(tuple)
+        val key = tuple.getField(buildAttributeName).asInstanceOf[K]
+        buildTableHashMap.getOrElseUpdate(key, new ListBuffer[Tuple]()) += tuple
         Iterator()
       case Right(_) =>
         buildTableHashMap.iterator.map {
           case (k, v) => TupleLike(k, v)
         }
     }
-  }
-
-  private def building(tuple: Tuple): Unit = {
-    val key = tuple.getField(buildAttributeName).asInstanceOf[K]
-    buildTableHashMap.getOrElseUpdate(key, new ListBuffer[Tuple]()) += tuple
-
   }
 
   override def open(): Unit = {

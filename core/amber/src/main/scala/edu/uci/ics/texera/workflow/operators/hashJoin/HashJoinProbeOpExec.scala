@@ -10,18 +10,25 @@ import scala.collection.mutable.ListBuffer
 import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object JoinUtils {
-  def joinTuples(leftTuple: Tuple, rightTuple: Tuple): TupleLike = {
+  def joinTuples(
+      leftTuple: Tuple,
+      rightTuple: Tuple,
+      skipAttributeName: Option[String] = None
+  ): TupleLike = {
+    val leftAttributeNames = leftTuple.getSchema.getAttributeNamesScala
+    val rightAttributeNames = rightTuple.getSchema.getAttributeNamesScala.filterNot(name => skipAttributeName.isDefined && name == skipAttributeName.get)
     // Create a Map from leftTuple's fields
-    val leftTupleFields: Map[String, Any] = leftTuple.getSchema.getAttributeNames.asScala
+    val leftTupleFields: Map[String, Any] = leftAttributeNames
       .map(name => name -> leftTuple.getField(name))
       .toMap
 
     // Create a Map from rightTuple's fields, renaming conflicts
-    val rightTupleFields = rightTuple.getSchema.getAttributeNames.asScala
+    val rightTupleFields = rightAttributeNames
       .map { name =>
-        val newName =
-          if (leftTupleFields.contains(name)) s"$name#@1"
-          else name
+        var newName = name
+        while (leftAttributeNames.contains(newName) || rightAttributeNames.filter(attrName=> name!= attrName).contains(newName)) {
+          newName = s"$newName#@1"
+        }
         newName -> rightTuple.getField[Any](name)
       }
 
@@ -93,7 +100,7 @@ class HashJoinProbeOpExec[K](
       matchedTuples: ListBuffer[Tuple]
   ): Iterator[TupleLike] = {
     matchedTuples.iterator.map { buildTuple =>
-      JoinUtils.joinTuples(buildTuple, probeTuple)
+      JoinUtils.joinTuples(buildTuple, probeTuple, skipAttributeName = Some(probeAttributeName))
     }
   }
 
