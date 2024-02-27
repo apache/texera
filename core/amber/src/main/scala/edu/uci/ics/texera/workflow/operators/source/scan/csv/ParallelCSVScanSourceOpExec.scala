@@ -35,7 +35,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
           if (line == null) {
             return null
           }
-          var fields: Array[Object] = line.toArray
+          var fields: Array[AnyRef] = line.toArray
 
           if (fields == null || util.Arrays.stream(fields).noneMatch(s => s != null)) {
             // discard tuple if it's null or it only contains null
@@ -54,8 +54,8 @@ class ParallelCSVScanSourceOpExec private[csv] (
               )
               .toArray()
           // parse Strings into inferred AttributeTypes
-          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-            fields,
+          val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
+            fields.asInstanceOf[Array[Any]],
             schema.getAttributes.asScala
               .map((attr: Attribute) => attr.getType)
               .toArray

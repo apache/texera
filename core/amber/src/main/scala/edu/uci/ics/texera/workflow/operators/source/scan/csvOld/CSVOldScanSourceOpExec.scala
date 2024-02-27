@@ -26,8 +26,8 @@ class CSVOldScanSourceOpExec private[csvOld] (
     var tuples = rows
       .map(fields =>
         try {
-          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-            fields.toArray.asInstanceOf[Array[Object]],
+          val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
+            fields.toArray,
             schema.getAttributes.asScala
               .map((attr: Attribute) => attr.getType)
               .toArray

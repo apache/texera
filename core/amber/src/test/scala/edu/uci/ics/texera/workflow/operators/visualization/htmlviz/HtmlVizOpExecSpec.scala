@@ -17,7 +17,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def tuple(): Tuple =
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(Array("hello", "<html></html>"))
       .build()
 

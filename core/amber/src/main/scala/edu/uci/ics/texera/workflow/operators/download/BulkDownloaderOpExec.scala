@@ -13,7 +13,6 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class BulkDownloaderOpExec(
     workflowContext: WorkflowContext,
@@ -55,7 +54,7 @@ class BulkDownloaderOpExec(
   override def close(): Unit = {}
 
   private def downloadTuple(tuple: Tuple): TupleLike = {
-    TupleLike(tuple.getFields.asScala.toSeq ++ Seq(downloadUrl(tuple.getField(urlAttribute))): _*)
+    TupleLike(tuple.getFields ++ Seq(downloadUrl(tuple.getField(urlAttribute))): _*)
   }
 
   private def downloadUrl(url: String): String = {

@@ -88,7 +88,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
     results.foreach { tuple =>
-      writer.writeRow(tuple.getFields.asScala.toSeq)
+      writer.writeRow(tuple.getFields)
     }
     writer.close()
     val latestVersion =
@@ -248,7 +248,6 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
       val tupleContent: util.List[AnyRef] =
         tuple.getFields
-          .stream()
           .map(convertUnsupported)
           .toArray
           .toList
@@ -269,14 +268,14 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   /**
     * convert the tuple content into the type the Google Sheet API supports
     */
-  private def convertUnsupported(content: AnyRef): AnyRef = {
+  private def convertUnsupported(content: Any): AnyRef = {
     content match {
 
       // if null, use empty string to represent.
       case null => ""
 
       // Google Sheet API supports String and number(long, int, double and so on)
-      case _: String | _: Number => content
+      case _: String | _: Number => content.asInstanceOf[AnyRef]
 
       // convert all the other type into String
       case _ => content.toString

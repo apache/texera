@@ -18,7 +18,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def generate_tuple(schema: Schema, value: Option[Int]): Tuple = {
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(
         (1 to schema.getAttributeNamesScala.length).map(_ => value.map(_.toString).orNull).toArray
       )

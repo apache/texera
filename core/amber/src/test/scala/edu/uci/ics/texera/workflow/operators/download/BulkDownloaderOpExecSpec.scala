@@ -24,13 +24,13 @@ class BulkDownloaderOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val tuple: () => Tuple = () =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("url", AttributeType.STRING), "http://www.google.com")
       .build()
 
   val tuple2: () => Tuple = () =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("url", AttributeType.STRING), "https://www.google.com")
       .build()
 

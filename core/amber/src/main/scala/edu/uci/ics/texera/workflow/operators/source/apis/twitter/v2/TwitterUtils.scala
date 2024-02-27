@@ -13,7 +13,7 @@ object TwitterUtils {
 
   def tweetDataToTuple(tweetData: TweetData, user: Option[UserData], tweetSchema: Schema): Tuple = {
     val fields = AttributeTypeUtils.parseFields(
-      Array[Object](
+      Array[Any](
         tweetData.getId,
         tweetData.getText,
         // given the fact that the redouane59/twittered library is using LocalDateTime as the API parameter,
@@ -78,6 +78,6 @@ object TwitterUtils {
       ),
       tweetSchema.getAttributes.asScala.map((attribute: Attribute) => { attribute.getType }).toArray
     )
-    Tuple.newBuilder(tweetSchema).addSequentially(fields).build
+    Tuple.builder(tweetSchema).addSequentially(fields).build
   }
 }

@@ -158,7 +158,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
     */
   override def buildTupleFromRow: Tuple = {
 
-    val tupleBuilder = Tuple.newBuilder(schema)
+    val tupleBuilder = Tuple.builder(schema)
     val row = curResultIterator.get.next().toString
 
     var values: Option[List[String]] = None
