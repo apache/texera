@@ -16,7 +16,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
 import scala.Tuple3;
-import scala.collection.immutable.Seq;
 
 
 import java.util.ArrayList;

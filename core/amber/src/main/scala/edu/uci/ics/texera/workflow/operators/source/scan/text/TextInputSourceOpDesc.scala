@@ -26,7 +26,9 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new TextInputSourceOpExec(this))
+        OpExecInitInfo((_, _, _) =>
+          new TextInputSourceOpExec(attributeType, textInput, fileScanLimit, fileScanOffset)
+        )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

@@ -7,16 +7,16 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable.ListBuffer
 
-abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
+abstract class MLModelOpExec extends OperatorExecutor with Serializable {
 
-  var allData: ListBuffer[Tuple] = ListBuffer()
+  private val allData: ListBuffer[Tuple] = ListBuffer()
 
   var currentEpoch: Int = 0
-  var nextMiniBatchStartIdx: Int = 0
-  var miniBatch: Array[Tuple] = _
-  var MINI_BATCH_SIZE: Int = 1000
-  var nextOperation: String = "predict"
-  var hasMoreIterations: Boolean = true
+  private var nextMiniBatchStartIdx: Int = 0
+  private var miniBatch: Array[Tuple] = _
+  private val MINI_BATCH_SIZE: Int = 1000
+  private var nextOperation: String = "predict"
+  private var hasMoreIterations: Boolean = true
 
   def getTotalEpochsCount: Int
 
@@ -37,13 +37,13 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
     }
   }
 
-  def getIterativeTrainingIterator: Iterator[Tuple] = {
-    new Iterator[Tuple] {
+  private def getIterativeTrainingIterator: Iterator[TupleLike] = {
+    new Iterator[TupleLike] {
       override def hasNext: Boolean = {
         hasMoreIterations
       }
 
-      override def next(): Tuple = {
+      override def next(): TupleLike = {
         if (nextOperation.equalsIgnoreCase("predict")) {
           // set the miniBatch
           if (nextMiniBatchStartIdx + MINI_BATCH_SIZE <= allData.size) {
@@ -77,7 +77,7 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
             hasMoreIterations = false
           }
         }
-        return null
+        null
       }
     }
   }

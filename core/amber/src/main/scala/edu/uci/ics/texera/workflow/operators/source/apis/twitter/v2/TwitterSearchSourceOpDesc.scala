@@ -39,7 +39,16 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new TwitterSearchSourceOpExec(this))
+        OpExecInitInfo((_, _, _) =>
+          new TwitterSearchSourceOpExec(
+            apiKey,
+            apiSecretKey,
+            stopWhenRateLimited,
+            searchQuery,
+            limit,
+            () => sourceSchema()
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

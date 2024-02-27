@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.operators.linearregression;
 
 import edu.uci.ics.texera.workflow.common.operators.mlmodel.MLModelOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
-import scala.collection.immutable.List;
 
 public class LinearRegressionOpExec extends MLModelOpExec{
 

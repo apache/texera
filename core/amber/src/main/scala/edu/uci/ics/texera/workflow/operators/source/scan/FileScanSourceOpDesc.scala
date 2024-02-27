@@ -52,7 +52,17 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new FileScanSourceOpExec(this))
+        OpExecInitInfo((_, _, _) =>
+          new FileScanSourceOpExec(
+            filePath.get,
+            attributeType,
+            encoding,
+            extract,
+            outputFileName,
+            fileScanLimit,
+            fileScanOffset
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

@@ -110,7 +110,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     * Make sure all the required parameters are not empty,
     * then query the remote PostgreSQL server for the table schema
     *
-    * @return Texera.Tuple.Schema
+    * @return Tuple.Schema
     */
   override def sourceSchema(): Schema = {
     if (
@@ -126,7 +126,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
 
   /**
     * Establish a connection with the database server base on the info provided by the user
-    * query the MetaData of the table and generate a Texera.tuple.schema accordingly
+    * query the MetaData of the table and generate a Tuple.schema accordingly
     * the "switch" code block shows how SQL data types are mapped to Texera AttributeTypes
     *
     * @return Schema

@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
@@ -17,12 +18,12 @@ class SortPartitionOpExec(
 
   private var unorderedTuples: ArrayBuffer[Tuple] = _
 
-  private def sortTuples(): Iterator[Tuple] = unorderedTuples.sortWith(compareTuples).iterator
+  private def sortTuples(): Iterator[TupleLike] = unorderedTuples.sortWith(compareTuples).iterator
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     tuple match {
       case Left(t) =>
         unorderedTuples.append(t)

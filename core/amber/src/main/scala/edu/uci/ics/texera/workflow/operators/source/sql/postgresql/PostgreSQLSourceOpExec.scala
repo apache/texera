@@ -1,13 +1,12 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
+import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql._
 
 class PostgreSQLSourceOpExec private[postgresql] (
-    schema: Schema,
     host: String,
     port: String,
     database: String,
@@ -23,9 +22,9 @@ class PostgreSQLSourceOpExec private[postgresql] (
     interval: Long,
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
-    keywords: String
+    keywords: String,
+    schemaFunc: () => Schema
 ) extends SQLSourceOpExec(
-      schema,
       table,
       limit,
       offset,
@@ -36,7 +35,8 @@ class PostgreSQLSourceOpExec private[postgresql] (
       interval,
       keywordSearch,
       keywordSearchByColumn,
-      keywords
+      keywords,
+      schemaFunc
     ) {
   val FETCH_TABLE_NAMES_SQL =
     "SELECT table_name FROM information_schema.tables WHERE table_type='BASE TABLE';"
