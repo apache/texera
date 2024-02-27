@@ -16,8 +16,8 @@ import scala.collection.mutable
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class BulkDownloaderOpExec(
-    val workflowContext: WorkflowContext,
-    val urlAttribute: String
+     workflowContext: WorkflowContext,
+     urlAttribute: String
 ) extends OperatorExecutor {
 
   private val downloading = new mutable.Queue[Future[TupleLike]]()

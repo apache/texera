@@ -42,16 +42,12 @@ class ProjectionOpDesc extends MapOpDesc {
   def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
     val inputPartitionInfo = partition.head
 
-    // a mapping from original column index to new column index
-    lazy val columnIndicesMapping = attributes.indices
-      .map(i =>
-        (
-          inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
-            .getIndex(attributes(i).getOriginalAttribute),
-          i
-        )
-      )
-      .toMap
+    // mapping from original column index to new column index
+    lazy val columnIndicesMapping: Map[Integer, Int] = attributes.view
+      .map(attr =>
+        inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
+          .getIndex(attr.getOriginalAttribute) -> attributes.indexOf(attr)
+      ).toMap
 
     val outputPartitionInfo = inputPartitionInfo match {
       case HashPartition(hashColumnIndices) =>
@@ -83,16 +79,11 @@ class ProjectionOpDesc extends MapOpDesc {
     Preconditions.checkArgument(attributes.nonEmpty)
 
     Schema.newBuilder
-      .add(
-        attributes
-          .map(attribute =>
-            new Attribute(
-              attribute.getAlias,
-              schemas(0).getAttribute(attribute.getOriginalAttribute).getType
-            )
-          )
-          .asJava
-      )
+      .add(attributes.map { attribute =>
+        val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
+        new Attribute(attribute.getAlias, originalType)
+      }.asJavaCollection)
       .build()
+
   }
 }
