@@ -142,39 +142,6 @@ object PhysicalOp {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
       .withLocationPreference(Option(new PreferController()))
   }
-
-  def hashPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      logicalOpId: OperatorIdentity,
-      opExec: OpExecInitInfo,
-      hashAttributeNames: List[String]
-  ): PhysicalOp =
-    hashPhysicalOp(
-      PhysicalOpIdentity(logicalOpId, "main"),
-      workflowId,
-      executionId,
-      opExec,
-      hashAttributeNames
-    )
-
-  def hashPhysicalOp(
-      physicalOpId: PhysicalOpIdentity,
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      opExecInitInfo: OpExecInitInfo,
-      hashAttributeNames: List[String]
-  ): PhysicalOp = {
-    PhysicalOp(
-      physicalOpId,
-      workflowId,
-      executionId,
-      opExecInitInfo,
-      partitionRequirement = List(Option(HashPartition(hashAttributeNames))),
-      derivePartition = _ => HashPartition(hashAttributeNames)
-    )
-  }
-
 }
 
 case class PhysicalOp(
