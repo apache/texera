@@ -7,6 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Sche
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import java.io.{File, FileInputStream, InputStreamReader}
+import scala.collection.immutable.ArraySeq
 
 class CSVScanSourceOpExec private[csv] (
     filePath: String,
@@ -44,7 +45,11 @@ class CSVScanSourceOpExec private[csv] (
       .drop(offset.getOrElse(0))
       .map(row => {
         try {
-          TupleLike(AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Object]], schema): _*)
+          TupleLike(
+            ArraySeq.unsafeWrapArray(
+              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Object]], schema)
+            ): _*
+          )
         } catch {
           case _: Throwable => null
         }

@@ -1,10 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
-import edu.uci.ics.amber.engine.common.{InputExhausted, amberexception}
+import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.hashJoin.JoinUtils
+
 import scala.collection.mutable.ArrayBuffer
 
 /**
@@ -13,7 +14,6 @@ import scala.collection.mutable.ArrayBuffer
 class CartesianProductOpExec extends OperatorExecutor {
 
   private var leftTuples: ArrayBuffer[Tuple] = _
-  private var isLeftTupleCollectionFinished: Boolean = false
 
   /**
     * Processes incoming tuples from either the left or right input stream.
@@ -27,23 +27,15 @@ class CartesianProductOpExec extends OperatorExecutor {
     */
   override def processTuple(tuple: Either[Tuple, InputExhausted], port: Int): Iterator[TupleLike] =
     tuple match {
-      case Left(tuple) if port == 0 =>
-        leftTuples += tuple
+      case Left(tuple) =>
+        if (port == 0) {
+          leftTuples += tuple
+          Iterator.empty
+        } else {
+          leftTuples.map(leftTuple => JoinUtils.joinTuples(leftTuple, tuple)).iterator
+        }
+      case Right(_) =>
         Iterator.empty
-
-      case Left(tuple) if port == 1 && isLeftTupleCollectionFinished =>
-        leftTuples.map(leftTuple => JoinUtils.joinTuples(leftTuple, tuple)).iterator
-
-      case Left(_) if port == 1 =>
-        throw new amberexception.WorkflowRuntimeException(
-          "Right input received before left input was exhausted."
-        )
-
-      case Right(_) if port == 0 =>
-        isLeftTupleCollectionFinished = true
-        Iterator.empty
-
-      case Right(_) => Iterator.empty
     }
 
   override def open(): Unit = {

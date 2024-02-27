@@ -7,6 +7,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
+import scala.collection.compat.immutable.ArraySeq
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class CSVOldScanSourceOpExec private[csvOld] (
@@ -32,7 +33,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
               .map((attr: Attribute) => attr.getType)
               .toArray
           )
-          TupleLike(parsedFields: _*)
+          TupleLike(ArraySeq.unsafeWrapArray(parsedFields): _*)
         } catch {
           case _: Throwable => null
         }
