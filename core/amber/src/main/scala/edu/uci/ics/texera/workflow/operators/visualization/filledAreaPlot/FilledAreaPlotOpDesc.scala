@@ -49,7 +49,7 @@ class FilledAreaPlotOpDesc extends VisualizationOperator with PythonOperatorDesc
   var facetColumn: Boolean = false
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def operatorInfo: OperatorInfo =

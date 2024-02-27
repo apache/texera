@@ -9,7 +9,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
@@ -17,7 +17,7 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val tuple: Int => Tuple = i =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), i)
       .add(

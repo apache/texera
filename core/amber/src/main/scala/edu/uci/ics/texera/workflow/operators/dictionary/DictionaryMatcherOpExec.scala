@@ -11,7 +11,6 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import java.io.StringReader
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class DictionaryMatcherOpExec(
     attributeName: String,
@@ -121,7 +120,7 @@ class DictionaryMatcherOpExec(
   private def labelTupleIfMatched(tuple: Tuple): TupleLike = {
     val isMatched =
       Option(tuple.getField[Any](attributeName)).exists(_ => isTupleInDictionary(tuple))
-    TupleLike(tuple.getFields.asScala.toSeq ++ Seq(isMatched): _*)
+    TupleLike(tuple.getFields ++ Seq(isMatched): _*)
   }
 
   setMapFunc(labelTupleIfMatched)

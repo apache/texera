@@ -18,8 +18,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   UnknownPartition
 }
 
-import scala.jdk.CollectionConverters.IterableHasAsJava
-
 class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()
@@ -43,7 +41,7 @@ class ProjectionOpDesc extends MapOpDesc {
     val inputPartitionInfo = partition.head
 
     // mapping from original column index to new column index
-    lazy val columnIndicesMapping: Map[Integer, Int] = attributes.view
+    lazy val columnIndicesMapping: Map[Int, Int] = attributes.view
       .map(attr =>
         inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
           .getIndex(attr.getOriginalAttribute) -> attributes.indexOf(attr)
@@ -78,11 +76,12 @@ class ProjectionOpDesc extends MapOpDesc {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
 
-    Schema.newBuilder
+    Schema
+      .builder()
       .add(attributes.map { attribute =>
         val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
         new Attribute(attribute.getAlias, originalType)
-      }.asJavaCollection)
+      })
       .build()
 
   }
