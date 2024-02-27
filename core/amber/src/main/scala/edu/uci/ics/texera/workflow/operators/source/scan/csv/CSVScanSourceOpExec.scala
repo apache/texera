@@ -47,7 +47,7 @@ class CSVScanSourceOpExec private[csv] (
         try {
           TupleLike(
             ArraySeq.unsafeWrapArray(
-              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Object]], schema)
+              AttributeTypeUtils.parseFields(row.asInstanceOf[Array[Any]], schema)
             ): _*
           )
         } catch {

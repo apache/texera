@@ -7,8 +7,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.jdk.CollectionConverters.SeqHasAsJava
-
 class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val leftPort: Int = 0
   val rightPort: Int = 1
@@ -18,9 +16,9 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def generate_tuple(schema: Schema, value: Option[Int]): Tuple = {
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(
-        (1 to schema.getAttributeNamesScala.length).map(_ => value.map(_.toString).orNull).toArray
+        (1 to schema.getAttributes.length).map(_ => value.map(_.toString).orNull).toArray
       )
       .build()
   }
@@ -30,13 +28,12 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       num_attributes: Int = 1,
       append_num: Boolean = true
   ): Schema = {
-    val attrs: java.lang.Iterable[Attribute] = Range
+    val attrs: Iterable[Attribute] = Range
       .inclusive(1, num_attributes)
       .map(num =>
         new Attribute(base_name + (if (append_num) "#@" + num else ""), AttributeType.STRING)
       )
-      .asJava
-    Schema.newBuilder().add(attrs).build()
+    Schema.builder().add(attrs).build()
   }
 
   before {
@@ -92,12 +89,12 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val duplicateAttribute: Attribute = new Attribute("left", AttributeType.STRING)
     val leftSchema = Schema
-      .newBuilder()
+      .builder()
       .add(generate_schema("left", numLeftSchemaAttributes - 1))
       .add(duplicateAttribute)
       .build()
     val rightSchema = Schema
-      .newBuilder()
+      .builder()
       .add(generate_schema("right", numRightSchemaAttributes - 1))
       .add(duplicateAttribute)
       .build()
@@ -106,29 +103,29 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     // verify output schema is as expected & has no duplicates
     assert(
-      outputSchema.getAttributeNamesScala.toSet.size == outputSchema.getAttributeNamesScala.size
+      outputSchema.getAttributeNames.toSet.size == outputSchema.getAttributeNames.size
     ) // no duplicates in output Schema
     // check left tuple attributes name remain same
     (0 until numLeftSchemaAttributes).map(index =>
       assert(
-        leftSchema.getAttributeNamesScala
+        leftSchema.getAttributeNames
           .apply(index)
-          .equals(outputSchema.getAttributeNamesScala.apply(index))
+          .equals(outputSchema.getAttributeNames.apply(index))
       )
     )
     // check right tuple attributes without duplicate names are handled
     (0 until numRightSchemaAttributes - 1).map(index =>
       assert(
-        rightSchema.getAttributeNamesScala
+        rightSchema.getAttributeNames
           .apply(index)
-          .equals(outputSchema.getAttributeNamesScala.apply(numLeftSchemaAttributes + index))
+          .equals(outputSchema.getAttributeNames.apply(numLeftSchemaAttributes + index))
       )
     )
     // check right tuple attribute with duplicate name is handled
     val expectedAttrName: String = "left#@1#@1"
     assert(
       expectedAttrName.equals(
-        outputSchema.getAttributeNamesScala.apply(
+        outputSchema.getAttributeNames.apply(
           numLeftSchemaAttributes + numRightSchemaAttributes - 1
         )
       )

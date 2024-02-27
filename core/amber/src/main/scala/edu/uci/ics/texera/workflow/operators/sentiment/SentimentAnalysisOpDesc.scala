@@ -57,7 +57,7 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
     new OperatorInfo(
       "Sentiment Analysis",
       "analysis the sentiment of a text using machine learning",
-      OperatorGroupConstants.ANALYTICS_GROUP,
+      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
       supportReconfiguration = true
@@ -67,6 +67,6 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
     Preconditions.checkArgument(schemas.length == 1)
     if (resultAttribute == null || resultAttribute.trim.isEmpty)
       return null
-    Schema.newBuilder.add(schemas(0)).add(resultAttribute, AttributeType.INTEGER).build
+    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.INTEGER).build()
   }
 }

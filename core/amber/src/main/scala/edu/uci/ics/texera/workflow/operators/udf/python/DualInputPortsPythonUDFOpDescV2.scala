@@ -14,8 +14,6 @@ import edu.uci.ics.amber.engine.common.workflow.InputPort
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
-import scala.jdk.CollectionConverters.IterableHasAsJava
-
 class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
     required = true,
@@ -109,7 +107,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 2)
     val inputSchema = schemas(1)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
     // for any pythonUDFType, it can add custom output columns (attributes).
@@ -121,8 +119,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
             throw new RuntimeException("Column name " + column.getName + " already exists!")
         }
       }
-      outputSchemaBuilder.add(outputColumns.asJava).build
+      outputSchemaBuilder.add(outputColumns).build()
     }
-    outputSchemaBuilder.build
+    outputSchemaBuilder.build()
   }
 }

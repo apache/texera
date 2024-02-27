@@ -34,7 +34,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
     OperatorInfo(
       "SymmetricDifference",
       "find the symmetric difference (the set of elements which are in either of the sets, but not in their intersection) of two inputs",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort())
     )

@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.split
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -18,7 +17,7 @@ class SplitOpExec(
   lazy val random = new Random(getSeed(worker))
 
   override def processTupleMultiPort(
-      tuple: Either[ITuple, InputExhausted],
+      tuple: Either[Tuple, InputExhausted],
       port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
     tuple match {

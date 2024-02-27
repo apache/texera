@@ -7,7 +7,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
 import scala.collection.compat.immutable.ArraySeq
-import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class CSVOldScanSourceOpExec private[csvOld] (
     filePath: String,
@@ -26,9 +25,9 @@ class CSVOldScanSourceOpExec private[csvOld] (
     var tuples = rows
       .map(fields =>
         try {
-          val parsedFields: Array[Object] = AttributeTypeUtils.parseFields(
-            fields.toArray.asInstanceOf[Array[Object]],
-            schema.getAttributes.asScala
+          val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
+            fields.toArray,
+            schema.getAttributes
               .map((attr: Attribute) => attr.getType)
               .toArray
           )

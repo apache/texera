@@ -47,13 +47,13 @@ class CartesianProductOpDesc extends LogicalOp {
     Preconditions.checkArgument(schemas.length == 2)
 
     // merge left / right schemas together, sequentially with left schema first
-    val builder = Schema.newBuilder()
+    val builder = Schema.builder()
     val leftSchema = schemas(0)
-    val leftAttributeNames = leftSchema.getAttributeNamesScala
+    val leftAttributeNames = leftSchema.getAttributeNames
     val rightSchema = schemas(1)
-    val rightAttributeNames = rightSchema.getAttributeNamesScala
+    val rightAttributeNames = rightSchema.getAttributeNames
     builder.add(leftSchema)
-    rightSchema.getAttributes.forEach(attr => {
+    rightSchema.getAttributes.foreach(attr => {
       var newName = attr.getName
       while (
         leftAttributeNames.contains(newName) || rightAttributeNames
@@ -77,7 +77,7 @@ class CartesianProductOpDesc extends LogicalOp {
     OperatorInfo(
       "Cartesian Product",
       "Append fields together to get the cartesian product of two inputs",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.JOIN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), displayName = "left"),
         InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity()))

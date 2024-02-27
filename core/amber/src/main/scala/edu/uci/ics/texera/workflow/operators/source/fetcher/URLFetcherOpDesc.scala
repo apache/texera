@@ -28,7 +28,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
 
   def sourceSchema(): Schema = {
     Schema
-      .newBuilder()
+      .builder()
       .add(
         "URL content",
         if (decodingMethod == DecodingMethod.UTF_8) { AttributeType.STRING }
@@ -58,7 +58,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = "URL fetcher",
       operatorDescription = "Fetch the content of a single url",
-      operatorGroupName = OperatorGroupConstants.SOURCE_GROUP,
+      operatorGroupName = OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

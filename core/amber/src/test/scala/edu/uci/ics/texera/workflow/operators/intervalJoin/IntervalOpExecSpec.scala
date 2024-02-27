@@ -35,7 +35,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {
     Tuple
-      .newBuilder(schema(name, attributeType, n))
+      .builder(schema(name, attributeType, n))
       .add(new Attribute(name, attributeType), i)
       .add(new Attribute(name + "_" + 1, attributeType), i)
       .build()
@@ -43,7 +43,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def integerTuple(name: String, n: Int = 1, i: Int): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.INTEGER, n))
+      .builder(schema(name, AttributeType.INTEGER, n))
       .add(new Attribute(name, AttributeType.INTEGER), i)
       .add(new Attribute(name + "_" + 1, AttributeType.INTEGER), i)
       .build()
@@ -51,7 +51,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def doubleTuple(name: String, n: Int = 1, i: Double): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.DOUBLE, n))
+      .builder(schema(name, AttributeType.DOUBLE, n))
       .add(new Attribute(name, AttributeType.DOUBLE), i)
       .add(new Attribute(name + "_" + 1, AttributeType.DOUBLE), i)
       .build()
@@ -59,7 +59,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def schema(name: String, attributeType: AttributeType, n: Int = 1): Schema = {
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute(name, attributeType),
         new Attribute(name + "_" + n, attributeType)
@@ -69,7 +69,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def longTuple(name: String, n: Int = 1, i: Long): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.LONG, n))
+      .builder(schema(name, AttributeType.LONG, n))
       .add(new Attribute(name, AttributeType.LONG), i)
       .add(new Attribute(name + "_" + 1, AttributeType.LONG), i)
       .build()
@@ -77,7 +77,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def timeStampTuple(name: String, n: Int = 1, i: Timestamp): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.TIMESTAMP, n))
+      .builder(schema(name, AttributeType.TIMESTAMP, n))
       .add(new Attribute(name, AttributeType.TIMESTAMP), i)
       .add(new Attribute(name + "_" + 1, AttributeType.TIMESTAMP), i)
       .build()
@@ -279,7 +279,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTuple(Right(InputExhausted()), left).isEmpty)
     assert(opExec.processTuple(Right(InputExhausted()), right).isEmpty)
     if (outputTuples.nonEmpty)
-      assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
+      assert(outputTuples.head.getSchema.getAttributeNames.length == 4)
     opExec.close()
   }
 

@@ -7,7 +7,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object JoinUtils {
   def joinTuples(
@@ -15,8 +14,8 @@ object JoinUtils {
       rightTuple: Tuple,
       skipAttributeName: Option[String] = None
   ): TupleLike = {
-    val leftAttributeNames = leftTuple.getSchema.getAttributeNamesScala
-    val rightAttributeNames = rightTuple.getSchema.getAttributeNamesScala.filterNot(name =>
+    val leftAttributeNames = leftTuple.getSchema.getAttributeNames
+    val rightAttributeNames = rightTuple.getSchema.getAttributeNames.filterNot(name =>
       skipAttributeName.isDefined && name == skipAttributeName.get
     )
     // Create a Map from leftTuple's fields
@@ -93,7 +92,7 @@ class HashJoinProbeOpExec[K](
       .flatMap { tuples =>
         tuples.map { tuple =>
           TupleLike(
-            tuple.getSchema.getAttributeNames.asScala
+            tuple.getSchema.getAttributeNames
               .map(attributeName => attributeName -> tuple.getField(attributeName))
               .toSeq: _*
           )
@@ -113,7 +112,7 @@ class HashJoinProbeOpExec[K](
   private def performRightAntiJoin(tuple: Tuple): Iterator[TupleLike] =
     Iterator(
       TupleLike(
-        tuple.getSchema.getAttributeNames.asScala
+        tuple.getSchema.getAttributeNames
           .map(attributeName => attributeName -> tuple.getField(attributeName))
           .toSeq: _*
       )
