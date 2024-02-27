@@ -99,7 +99,6 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         this.operatorIdentifier,
         OpExecInitInfo((_, _, _) =>
           new AsterixDBSourceOpExec(
-            sourceSchema(),
             host,
             port,
             database,
@@ -121,7 +120,8 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
             regexSearchByColumn.orNull,
             regex.orNull,
             filterCondition.getOrElse(false),
-            filterPredicates
+            filterPredicates,
+            () => sourceSchema()
           )
         )
       )
@@ -139,7 +139,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
     OperatorInfo(
       "AsterixDB Source",
       "Read data from a AsterixDB instance",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

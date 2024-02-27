@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.distinct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -50,11 +51,11 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     opExec.open()
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), 0, null, null)
+      opExec.processTuple(Left(tuple()), 0)
     })
 
-    val outputTuples: List[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), 0, null, null).toList
+    val outputTuples: List[TupleLike] =
+      opExec.processTuple(Right(InputExhausted()), 0).toList
     assert(outputTuples.size == 1)
     assert(outputTuples.head.equals(tuple()))
     opExec.close()
@@ -64,17 +65,17 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     opExec.open()
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), 0, null, null)
+      opExec.processTuple(Left(tuple()), 0)
     })
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple2()), 0, null, null)
+      opExec.processTuple(Left(tuple2()), 0)
     })
     (1 to 1000).map(_ => {
-      opExec.processTexeraTuple(Left(tuple()), 0, null, null)
+      opExec.processTuple(Left(tuple()), 0)
     })
 
-    val outputTuples: List[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), 0, null, null).toList
+    val outputTuples: List[TupleLike] =
+      opExec.processTuple(Right(InputExhausted()), 0).toList
     assert(outputTuples.size == 2)
     assert(outputTuples.head.equals(tuple()))
     assert(outputTuples.apply(1).equals(tuple2()))

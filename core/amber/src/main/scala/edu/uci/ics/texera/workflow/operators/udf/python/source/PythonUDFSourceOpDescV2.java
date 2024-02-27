@@ -71,6 +71,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(true)
+                    .withSuggestedWorkerNum(workers)
                     .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
                     .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>())
                     .withIsOneToManyOp(true)

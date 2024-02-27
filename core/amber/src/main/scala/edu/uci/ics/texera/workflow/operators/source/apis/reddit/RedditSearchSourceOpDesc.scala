@@ -107,7 +107,7 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     OperatorInfo(
       "Reddit Search",
       "Search for recent posts with python-wrapped Reddit API, PRAW",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

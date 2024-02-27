@@ -25,6 +25,7 @@ import scala.collection.immutable.HashMap;
 import scala.collection.immutable.List;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
@@ -55,14 +56,13 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        Schema inputSchema = this.inputPortToSchemaMapping().get(this.operatorInfo().inputPorts().head().id()).get();
         return PhysicalOp.localPhysicalOp(
                 workflowId,
                 executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply(
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter(), inputSchema)
+                                worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter())
                 )
         )
                 .withInputPorts(this.operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())

@@ -1,8 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators.flatmap
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -14,13 +13,13 @@ class FlatMapOpExec(
 ) extends OperatorExecutor
     with Serializable {
 
-  var flatMapFunc: Tuple => Iterator[Tuple] = _
+  var flatMapFunc: Tuple => Iterator[TupleLike] = _
 
   /**
     * Provides the flatMap function of this executor, it should be called in the constructor
     * If the operator executor is implemented in Java, `setFlatMapFuncJava` should be used instead.
     */
-  def setFlatMapFunc(func: Tuple => Iterator[Tuple]): Unit = {
+  def setFlatMapFunc(func: Tuple => Iterator[TupleLike]): Unit = {
     this.flatMapFunc = func
   }
 
@@ -28,12 +27,10 @@ class FlatMapOpExec(
 
   override def close(): Unit = {}
 
-  override def processTexeraTuple(
+  override def processTuple(
       tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
-  ): Iterator[Tuple] = {
+      port: Int
+  ): Iterator[TupleLike] = {
     tuple match {
       case Left(t)  => flatMapFunc(t)
       case Right(_) => Iterator()
