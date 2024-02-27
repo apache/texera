@@ -121,6 +121,7 @@ import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { OverlayModule } from "@angular/cdk/overlay";
 import { HighlightSearchTermsPipe } from "./dashboard/user/component/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
+import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
 
 registerLocaleData(en);
 
@@ -252,6 +253,7 @@ registerLocaleData(en);
     NzResizableModule,
   ],
   providers: [
+    provideNzI18n(en_US),
     AuthGuardService,
     AdminGuardService,
     DatePipe,
