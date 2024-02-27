@@ -17,8 +17,8 @@ export const TEXERA_FORMLY_CONFIG = {
   validationMessages: [
     { name: "required", message: "This field is required" },
     { name: "null", message: "should be null" },
-    { name: "minlength", message: minlengthValidationMessage },
-    { name: "maxlength", message: maxlengthValidationMessage },
+    { name: "minLength", message: minlengthValidationMessage },
+    { name: "maxLength", message: maxlengthValidationMessage },
     { name: "min", message: minValidationMessage },
     { name: "max", message: maxValidationMessage },
     { name: "multipleOf", message: multipleOfValidationMessage },
