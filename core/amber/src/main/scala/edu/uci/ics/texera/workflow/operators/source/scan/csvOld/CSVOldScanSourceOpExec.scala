@@ -32,7 +32,7 @@ class CSVOldScanSourceOpExec private[csvOld] (
               .map((attr: Attribute) => attr.getType)
               .toArray
           )
-          Tuple.newBuilder(schema).addSequentially(parsedFields).build
+          TupleLike(parsedFields: _*)
         } catch {
           case _: Throwable => null
         }
