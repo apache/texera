@@ -13,10 +13,10 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
-  @JsonProperty(required = false, defaultValue = "Histogram")
+  @JsonProperty(required = false, defaultValue = "Histogram Chart")
   @JsonSchemaTitle("Title")
   @JsonPropertyDescription("Add a title to your histogram plot.")
-  var title: String = "Histogram"
+  var title: String = "Histogram Chart"
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
@@ -31,8 +31,8 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
   var category: String = ""
 
   @JsonProperty(defaultValue = "false", required = false)
-  @JsonSchemaTitle("Separate Graphs")
-  @JsonPropertyDescription("Separate histogram for each category")
+  @JsonSchemaTitle("Separate Chart")
+  @JsonPropertyDescription("Separate histogram chart for each category")
   var separate: Boolean = _
 
   /**
@@ -44,8 +44,8 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
-      "Histogram",
-      "Visualize data in a Histogram",
+      "Histogram Chart",
+      "Visualize data in a Histogram Chart",
       OperatorGroupConstants.VISUALIZATION_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
