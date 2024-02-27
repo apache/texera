@@ -21,6 +21,7 @@ export class SearchResultsComponent {
   @Input() searchKeywords: string[] = [];
   @Output() deleted = new EventEmitter<DashboardEntry>();
   @Output() duplicated = new EventEmitter<DashboardEntry>();
+  @Output() modified = new EventEmitter<DashboardEntry>();
 
   constructor(private userService: UserService) {}
 

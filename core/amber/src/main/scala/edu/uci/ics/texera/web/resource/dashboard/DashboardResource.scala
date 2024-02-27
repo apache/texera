@@ -4,6 +4,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource._
 import edu.uci.ics.texera.web.resource.dashboard.SearchQueryBuilder.ALL_RESOURCE_TYPE
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.DashboardDataset
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
 import io.dropwizard.auth.Auth
@@ -21,7 +22,8 @@ object DashboardResource {
       resourceType: String,
       workflow: Option[DashboardWorkflow] = None,
       project: Option[Project] = None,
-      file: Option[DashboardFile] = None
+      file: Option[DashboardFile] = None,
+      dataset: Option[DashboardDataset] = None
   )
 
   case class DashboardSearchResult(results: List[DashboardClickableFileEntry], more: Boolean)
@@ -54,6 +56,7 @@ object DashboardResource {
       @QueryParam("id") workflowIDs: java.util.List[UInteger] = new util.ArrayList(),
       @QueryParam("operator") operators: java.util.List[String] = new util.ArrayList(),
       @QueryParam("projectId") projectIds: java.util.List[UInteger] = new util.ArrayList(),
+      @QueryParam("datasetId") datasetIds: java.util.List[UInteger] = new util.ArrayList(),
       @QueryParam("start") @DefaultValue("0") offset: Int = 0,
       @QueryParam("count") @DefaultValue("20") count: Int = 20,
       @QueryParam("orderBy") @DefaultValue("EditTimeDesc") orderBy: String = "EditTimeDesc"
@@ -73,11 +76,14 @@ object DashboardResource {
         FileSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
         ProjectSearchQueryBuilder.constructQuery(uid, params)
+      case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
+        DatasetSearchQueryBuilder.constructQuery(uid, params)
       case SearchQueryBuilder.ALL_RESOURCE_TYPE =>
         val q1 = WorkflowSearchQueryBuilder.constructQuery(uid, params)
         val q2 = FileSearchQueryBuilder.constructQuery(uid, params)
         val q3 = ProjectSearchQueryBuilder.constructQuery(uid, params)
-        q1.unionAll(q2).unionAll(q3)
+        val q4 = DatasetSearchQueryBuilder.constructQuery(uid, params)
+        q1.unionAll(q2).unionAll(q3).unionAll(q4)
       case _ => throw new IllegalArgumentException(s"Unknown resource type: ${params.resourceType}")
     }
 
@@ -96,6 +102,8 @@ object DashboardResource {
             FileSearchQueryBuilder.toEntry(uid, record)
           case SearchQueryBuilder.PROJECT_RESOURCE_TYPE =>
             ProjectSearchQueryBuilder.toEntry(uid, record)
+          case SearchQueryBuilder.DATASET_RESOURCE_TYPE =>
+            DatasetSearchQueryBuilder.toEntry(uid, record)
         }
       })
 

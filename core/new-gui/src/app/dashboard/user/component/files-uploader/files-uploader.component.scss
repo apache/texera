@@ -1,0 +1,46 @@
+.file-uploader {
+  padding: 20px;
+  transition: border-color 0.3s ease-in-out;
+  margin: auto; /* Center the uploader if width is less than 100% */
+}
+
+.ngx-drop-box {
+  width: 100%;
+  height: 90%;
+}
+
+.file-uploader:hover {
+  border-color: #007bff;
+}
+
+.file-drop-description p {
+  text-align: center;
+  font-size: 15px;
+  margin: 10px 0;
+}
+
+.uploaded-files-list {
+  font-size: 15px;
+  margin-top: 5px;
+  height: 25%;
+  width: 90%;
+  margin-left: 5%;
+  margin-right: 5%;
+  overflow-y: auto;
+  overflow-x: auto;
+}
+
+.upload-file-button {
+  padding: 5px 20px; /* Smaller padding to make the button thinner */
+  font-size: 0.7em; /* Optionally reduce font size */
+  height: 30px; /* Or set a specific height */
+  width: 60%;
+  margin-left: 20%;
+  display: inline-flex; /* Use flexbox to center content */
+  align-items: center; /* Align items vertically */
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.file-uploader-banner {
+}

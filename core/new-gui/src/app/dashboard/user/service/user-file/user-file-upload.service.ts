@@ -31,6 +31,35 @@ export class UserFileUploadService {
     };
   }
 
+  public static createFileUploadItemWithPath(file: File, relativePath: string): FileUploadItem {
+    return {
+      file: file,
+      name: relativePath,
+      description: "",
+      uploadProgress: 0,
+      isUploadingFlag: false,
+    };
+  }
+
+  /**
+   * Sanitizes each part of a file path without altering the slashes.
+   * @param path
+   */
+  public static sanitizeFilePath(path: string): string {
+    const pathParts = path.split("/").map(part => this.sanitizePathComponent(part));
+    return pathParts.join("/");
+  }
+
+  /**
+   * Sanitizes a single component of a file path.
+   * @param pathComponent
+   */
+  private static sanitizePathComponent(pathComponent: string): string {
+    // Example: Replace spaces with underscores, remove special characters
+    // Adjust this regex according to your requirements
+    return pathComponent.replace(/[^a-zA-Z0-9._-]/g, "_");
+  }
+
   /**
    * returns all pending files to be uploaded.
    */
