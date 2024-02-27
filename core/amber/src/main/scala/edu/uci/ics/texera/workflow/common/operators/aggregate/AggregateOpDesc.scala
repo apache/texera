@@ -85,7 +85,6 @@ object AggregateOpDesc {
         if (groupByKeys == null) List()
         else groupByKeys
 
-
       PhysicalOp
         .hashPhysicalOp(
           PhysicalOpIdentity(id, "globalAgg"),

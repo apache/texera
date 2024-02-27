@@ -36,7 +36,7 @@ sealed abstract class PartitionInfo {
 }
 
 object HashPartition {
-  def apply(hashAttributeNames:List[String]): PartitionInfo = {
+  def apply(hashAttributeNames: List[String]): PartitionInfo = {
     if (hashAttributeNames.nonEmpty)
       new HashPartition(hashAttributeNames)
     else
