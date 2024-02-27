@@ -7,9 +7,11 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jooq.exception.MappingException
 
 import scala.collection.mutable
@@ -82,18 +84,22 @@ class OutputManager(
   /**
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
-    * @param tuple ITuple to be passed.
+    * @param tupleLike TupleLike to be passed.
     */
   def passTupleToDownstream(
-      tuple: ITuple,
-      outputPort: PhysicalLink
+      tupleLike: SchemaEnforceable,
+      outputLink: PhysicalLink,
+      schema: Schema
   ): Unit = {
     val partitioner =
-      partitioners.getOrElse(outputPort, throw new MappingException("output port not found"))
-    val it = partitioner.getBucketIndex(tuple)
-    it.foreach(bucketIndex =>
-      networkOutputBuffers((outputPort, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
-    )
+      partitioners.getOrElse(outputLink, throw new MappingException("output port not found"))
+    val outputTuple: Tuple = TupleLike.enforceSchema(tupleLike, schema)
+    partitioner
+      .getBucketIndex(outputTuple)
+      .foreach(bucketIndex => {
+        val destActor = partitioner.allReceivers(bucketIndex)
+        networkOutputBuffers((outputLink, destActor)).addTuple(outputTuple)
+      })
   }
 
   /**
