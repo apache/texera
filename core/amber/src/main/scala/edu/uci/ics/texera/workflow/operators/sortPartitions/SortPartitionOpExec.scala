@@ -18,7 +18,7 @@ class SortPartitionOpExec(
 
   private var unorderedTuples: ArrayBuffer[Tuple] = _
 
-  private def sortTuples(): Iterator[Tuple] = unorderedTuples.sortWith(compareTuples).iterator
+  private def sortTuples(): Iterator[TupleLike] = unorderedTuples.sortWith(compareTuples).iterator
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],

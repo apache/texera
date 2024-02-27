@@ -47,7 +47,8 @@ class ProjectionOpDesc extends MapOpDesc {
       .map(attr =>
         inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
           .getIndex(attr.getOriginalAttribute) -> attributes.indexOf(attr)
-      ).toMap
+      )
+      .toMap
 
     val outputPartitionInfo = inputPartitionInfo match {
       case HashPartition(hashColumnIndices) =>

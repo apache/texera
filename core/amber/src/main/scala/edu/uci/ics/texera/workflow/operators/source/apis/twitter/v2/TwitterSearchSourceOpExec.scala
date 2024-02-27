@@ -33,7 +33,7 @@ class TwitterSearchSourceOpExec(
   var lastQueryTime: Long = 0
 
   override def produceTuple(): Iterator[TupleLike] =
-    new Iterator[Tuple]() {
+    new Iterator[TupleLike]() {
       override def hasNext: Boolean = (hasNextRequest || tweetCache.nonEmpty) && curLimit > 0
 
       override def next(): Tuple = {

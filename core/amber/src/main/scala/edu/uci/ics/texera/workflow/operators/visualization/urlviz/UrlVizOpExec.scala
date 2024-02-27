@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
@@ -20,7 +21,7 @@ class UrlVizOpExec(
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] =
+  ): Iterator[TupleLike] =
     tuple match {
       case Left(tuple) =>
         val iframe =

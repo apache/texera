@@ -46,11 +46,11 @@ abstract class SQLSourceOpExec(
   private var querySent: Boolean = false
 
   /**
-    * A generator of a Texera.Tuple, which converted from a SQL row
-    * @return Iterator[Tuple]
+    * A generator of a Tuple, which converted from a SQL row
+    * @return Iterator[TupleLike]
     */
   override def produceTuple(): Iterator[TupleLike] = {
-    new Iterator[Tuple]() {
+    new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
         cachedTuple match {
           // if existing Tuple in cache, means there exist next Tuple.
@@ -64,12 +64,12 @@ abstract class SQLSourceOpExec(
       }
 
       /**
-        * Fetch the next row from resultSet, parse it into Texera.Tuple and return.
+        * Fetch the next row from resultSet, parse it into Tuple and return.
         * - If resultSet is exhausted, send the next query until no more queries are available.
         * - If no more queries, return null.
         *
         * @throws SQLException all possible exceptions from JDBC
-        * @return Texera.Tuple
+        * @return Tuple
         */
       @throws[SQLException]
       override def next(): Tuple = {
@@ -97,7 +97,7 @@ abstract class SQLSourceOpExec(
                     }
                   })
 
-                  // construct Texera.Tuple from the next result.
+                  // construct Tuple from the next result.
                   val tuple = buildTupleFromRow
 
                   if (tuple == null)
@@ -176,9 +176,9 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-    * Build a Texera.Tuple from a row of curResultSet
+    * Build a Tuple from a row of curResultSet
     *
-    * @return the new Texera.Tuple
+    * @return the new Tuple
     * @throws SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]

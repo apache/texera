@@ -60,11 +60,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
     ) {
 
   // format Timestamp. TODO: move to some util package
-  val formatter: DateTimeFormatter =
+  private val formatter: DateTimeFormatter =
     DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))
 
-  var curQueryString: Option[String] = None
-  var curResultIterator: Option[Iterator[AnyRef]] = None
+  private var curQueryString: Option[String] = None
+  private var curResultIterator: Option[Iterator[AnyRef]] = None
 
   override def open(): Unit = {
     // update AsterixDB API version upon open
@@ -73,11 +73,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * A generator of a Texera.Tuple, which converted from a CSV row of fields from AsterixDB
-    * @return Iterator[Tuple]
+    * A generator of a Tuple, which converted from a CSV row of fields from AsterixDB
+    * @return Iterator[TupleLike]
     */
   override def produceTuple(): Iterator[TupleLike] = {
-    new Iterator[Tuple]() {
+    new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
 
         cachedTuple match {
@@ -113,7 +113,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
                     }
                   })
 
-                  // construct Texera.Tuple from the next result.
+                  // construct Tuple from the next result.
                   val tuple = buildTupleFromRow
 
                   if (tuple == null)
@@ -152,9 +152,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * Build a Texera.Tuple from a row of curResultIterator
+    * Build a Tuple from a row of curResultIterator
     *
-    * @return the new Texera.Tuple
+    * @return the new Tuple
     */
   override def buildTupleFromRow: Tuple = {
 
