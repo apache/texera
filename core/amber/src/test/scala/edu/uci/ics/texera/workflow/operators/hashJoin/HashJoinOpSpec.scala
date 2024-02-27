@@ -15,7 +15,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   var probeOpExec: HashJoinProbeOpExec[String] = _
   var opDesc: HashJoinOpDesc[String] = _
   val internalHashTableSchema: Schema =
-    Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
+    Schema.builder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
   def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {
 
     Tuple
@@ -26,7 +26,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def schema(name: String, n: Int = 1): Schema = {
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute(name, AttributeType.STRING),
         new Attribute(name + "_" + n, AttributeType.STRING)

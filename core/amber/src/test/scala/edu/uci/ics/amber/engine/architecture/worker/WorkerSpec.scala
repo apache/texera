@@ -48,7 +48,7 @@ class WorkerSpec
     with MockFactory {
 
   def mkTuple(fields: Any*): Tuple = {
-    val schemaBuilder = Schema.newBuilder()
+    val schemaBuilder = Schema.builder()
     fields.indices.foreach { i =>
       schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
     }

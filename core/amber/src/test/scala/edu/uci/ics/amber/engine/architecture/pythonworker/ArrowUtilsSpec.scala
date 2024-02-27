@@ -28,7 +28,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   val string: ArrowType.Utf8 = ArrowType.Utf8.INSTANCE
 
   val texeraSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add("test-1", AttributeType.INTEGER)
     .add("test-2", AttributeType.LONG)
     .add("test-3", AttributeType.BOOLEAN)

@@ -23,7 +23,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     new NetworkOutputGateway(identifier, mockHandler)
   var counter: Int = 0
   val schema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add("field1", AttributeType.INTEGER)
     .add("field2", AttributeType.INTEGER)
     .add("field3", AttributeType.INTEGER)

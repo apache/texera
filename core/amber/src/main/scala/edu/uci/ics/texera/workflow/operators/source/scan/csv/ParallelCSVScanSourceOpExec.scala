@@ -9,7 +9,6 @@ import org.tukaani.xz.SeekableFileInputStream
 import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.compat.immutable.ArraySeq
-import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class ParallelCSVScanSourceOpExec private[csv] (
     filePath: String,
@@ -56,7 +55,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
           // parse Strings into inferred AttributeTypes
           val parsedFields: Array[Any] = AttributeTypeUtils.parseFields(
             fields.asInstanceOf[Array[Any]],
-            schema.getAttributes.asScala
+            schema.getAttributes
               .map((attr: Attribute) => attr.getType)
               .toArray
           )

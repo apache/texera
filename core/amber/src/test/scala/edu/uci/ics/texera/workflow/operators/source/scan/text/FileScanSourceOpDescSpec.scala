@@ -27,7 +27,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -35,7 +35,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -45,7 +45,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeName = customOutputAttributeName
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("testing").getType == AttributeType.STRING)
   }
 
@@ -53,7 +53,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.INTEGER)
   }
 

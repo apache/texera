@@ -93,7 +93,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
   override def setSchema(schema: Schema): Unit = {
     // For backward compatibility of old mongoDB(version < 5)
-    schema.getAttributeNames.stream.forEach(name =>
+    schema.getAttributeNames.foreach(name =>
       assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
     )
     this.schema = schema

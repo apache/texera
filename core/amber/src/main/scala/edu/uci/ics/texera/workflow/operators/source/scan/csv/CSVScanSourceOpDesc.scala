@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
-import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -111,8 +110,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
     Schema
-      .newBuilder()
-      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))).asJava)
+      .builder()
+      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))))
       .build()
   }
 

@@ -17,16 +17,14 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Tuple3;
-import scala.collection.immutable.List;
 
 import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class TypeCastingOpDesc extends MapOpDesc {

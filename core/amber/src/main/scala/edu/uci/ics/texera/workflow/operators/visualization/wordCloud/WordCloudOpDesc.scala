@@ -29,7 +29,7 @@ class WordCloudOpDesc extends VisualizationOperator with PythonOperatorDescripto
   var topN: Integer = 100
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def operatorInfo: OperatorInfo =

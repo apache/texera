@@ -13,7 +13,6 @@ import org.ehcache.sizeof.SizeOf
 
 import java.util
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 /**
   * Represents a tuple in a data processing workflow, encapsulating a schema and corresponding field values.
@@ -36,7 +35,7 @@ case class Tuple @JsonCreator() (
 
   require(schema != null, "Schema cannot be null")
   require(fieldVals != null, "Fields cannot be null")
-  checkSchemaMatchesFields(schema.getAttributes.asScala, fieldVals)
+  checkSchemaMatchesFields(schema.getAttributes, fieldVals)
 
   override val inMemSize: Long = SizeOf.newInstance().deepSizeOf(this)
 
@@ -77,7 +76,7 @@ case class Tuple @JsonCreator() (
 
   def asKeyValuePairJson(): ObjectNode = {
     val objectNode = Utils.objectMapper.createObjectNode()
-    this.schema.getAttributeNames.asScala.foreach { attrName =>
+    this.schema.getAttributeNames.foreach { attrName =>
       val valueNode = Utils.objectMapper.convertValue(this.getField(attrName), classOf[JsonNode])
       objectNode.set[ObjectNode](attrName, valueNode)
     }
@@ -86,7 +85,7 @@ case class Tuple @JsonCreator() (
 
   def asDocument(): Document = {
     val doc = new Document()
-    this.schema.getAttributeNames.asScala.foreach { attrName =>
+    this.schema.getAttributeNames.foreach { attrName =>
       doc.put(attrName, this.getField(attrName))
     }
     doc
@@ -164,7 +163,7 @@ object Tuple {
 
       tuple.fields.zipWithIndex.foreach {
         case (field, i) =>
-          val attribute = tuple.schema.getAttributes.get(i)
+          val attribute = tuple.schema.getAttributes(i)
           if (!isStrictSchemaMatch && !schema.containsAttribute(attribute.getName)) {
             // Skip if not matching in non-strict mode
           } else {
@@ -199,8 +198,8 @@ object Tuple {
 
     def addSequentially(fields: Array[Any]): Builder = {
       require(fields != null, "Fields cannot be null")
-      checkSchemaMatchesFields(schema.getAttributes.asScala, fields)
-      schema.getAttributes.asScala.zip(fields).foreach {
+      checkSchemaMatchesFields(schema.getAttributes, fields)
+      schema.getAttributes.zip(fields).foreach {
         case (attribute, field) =>
           this.add(attribute, field)
       }
@@ -208,9 +207,8 @@ object Tuple {
     }
 
     def build(): Tuple = {
-      val missingAttributes = schema.getAttributes.asScala.filterNot(attr =>
-        fieldNameMap.contains(attr.getName.toLowerCase)
-      )
+      val missingAttributes =
+        schema.getAttributes.filterNot(attr => fieldNameMap.contains(attr.getName.toLowerCase))
       if (missingAttributes.nonEmpty) {
         throw new TupleBuildingException(
           s"Tuple does not have the same number of attributes as schema. Missing attributes are $missingAttributes"
@@ -218,7 +216,7 @@ object Tuple {
       }
 
       val fields =
-        schema.getAttributes.asScala.map(attr => fieldNameMap(attr.getName.toLowerCase)).toList
+        schema.getAttributes.map(attr => fieldNameMap(attr.getName.toLowerCase))
       new Tuple(schema, fields)
     }
   }

@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
-import scala.jdk.CollectionConverters.IterableHasAsJava
 import scala.util.{Success, Try}
 
 class PythonUDFOpDescV2 extends LogicalOp {
@@ -134,7 +133,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     //    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
     // for any pythonUDFType, it can add custom output columns (attributes).
@@ -146,9 +145,9 @@ class PythonUDFOpDescV2 extends LogicalOp {
             throw new RuntimeException("Column name " + column.getName + " already exists!")
         }
       }
-      outputSchemaBuilder.add(outputColumns.asJava).build
+      outputSchemaBuilder.add(outputColumns).build()
     }
-    outputSchemaBuilder.build
+    outputSchemaBuilder.build()
   }
 
   override def runtimeReconfiguration(

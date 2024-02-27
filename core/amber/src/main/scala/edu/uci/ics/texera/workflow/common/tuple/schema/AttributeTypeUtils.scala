@@ -6,7 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingUnit
 
 import java.sql.Timestamp
-import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.util.Try
 import scala.util.control.Exception.allCatch
 
@@ -28,8 +27,8 @@ object AttributeTypeUtils extends Serializable {
       resultType: AttributeType
   ): Schema = {
     // need a builder to maintain the order of original schema
-    val builder = Schema.newBuilder
-    val attributes: List[Attribute] = schema.getAttributesScala
+    val builder = Schema.builder()
+    val attributes: List[Attribute] = schema.getAttributes
     // change the schema when meet selected attribute else remain the same
     for (i <- attributes.indices) {
       if (attributes.apply(i).getName.equals(attribute)) {
@@ -64,7 +63,7 @@ object AttributeTypeUtils extends Serializable {
       typeCastingUnits: List[TypeCastingUnit]
   ): TupleLike =
     TupleLike(
-      tuple.getSchema.getAttributesScala.map { attr =>
+      tuple.getSchema.getAttributes.map { attr =>
         val targetType = typeCastingUnits
           .find(_.attribute == attr.getName)
           .map(_.resultType)
@@ -75,7 +74,7 @@ object AttributeTypeUtils extends Serializable {
     )
 
   def parseFields(fields: Array[Any], schema: Schema): Array[Any] = {
-    parseFields(fields, schema.getAttributes.asScala.map(attr => attr.getType).toArray)
+    parseFields(fields, schema.getAttributes.map(attr => attr.getType).toArray)
   }
 
   /**

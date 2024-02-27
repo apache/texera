@@ -76,8 +76,8 @@ object TwitterUtils {
         Boolean.box(user.get.isProtectedAccount),
         Boolean.box(user.get.isVerified)
       ),
-      tweetSchema.getAttributes.asScala.map((attribute: Attribute) => { attribute.getType }).toArray
+      tweetSchema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
     )
-    Tuple.builder(tweetSchema).addSequentially(fields).build
+    Tuple.builder(tweetSchema).addSequentially(fields).build()
   }
 }

@@ -44,7 +44,7 @@ class ScatterMatrixChartOpDesc extends VisualizationOperator with PythonOperator
   var title: String = "Scatter Matrix Chart"
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def operatorInfo: OperatorInfo =

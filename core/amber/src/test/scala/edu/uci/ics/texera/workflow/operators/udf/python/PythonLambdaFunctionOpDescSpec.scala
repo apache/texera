@@ -27,7 +27,7 @@ class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
     val outputSchema = opDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.size() == 4)
+    assert(outputSchema.getAttributes.length == 4)
   }
 
   it should "add multiple new columns into schema successfully" in {
@@ -46,7 +46,7 @@ class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
     val outputSchema = opDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.size() == 5)
+    assert(outputSchema.getAttributes.length == 5)
   }
 
   it should "build successfully when there is no new column but with modifying the existing column" in {
@@ -59,7 +59,7 @@ class PythonLambdaFunctionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
     val outputSchema = opDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.size() == 3)
+    assert(outputSchema.getAttributes.length == 3)
   }
 
   it should "raise exception if the new column name already exists" in {

@@ -7,7 +7,7 @@ import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
@@ -36,7 +36,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "process Tuple" in {
     val outputSchema = Schema
-      .newBuilder()
+      .builder()
       .add(new Attribute("f1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
       .build()
@@ -60,7 +60,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "process Tuple with different order" in {
     val outputSchema = Schema
-      .newBuilder()
+      .builder()
       .add(new Attribute("f3", AttributeType.BOOLEAN))
       .add(new Attribute("f1", AttributeType.STRING))
       .build()
@@ -119,7 +119,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "allow empty alias" in {
     val outputSchema = Schema
-      .newBuilder()
+      .builder()
       .add(new Attribute("field1", AttributeType.STRING))
       .add(new Attribute("f2", AttributeType.INTEGER))
       .build()

@@ -9,7 +9,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, InputStreamReader}
-import scala.jdk.CollectionConverters.{IterableHasAsScala, IteratorHasAsScala}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 import scala.util.{Failure, Success, Try}
 
 class JSONLScanSourceOpExec private[json] (
@@ -28,10 +28,10 @@ class JSONLScanSourceOpExec private[json] (
     rows.flatMap { line =>
       Try {
         val data = JSONToMap(objectMapper.readTree(line), flatten).withDefaultValue(null)
-        val fields = schema.getAttributeNames.asScala.map { fieldName =>
+        val fields = schema.getAttributeNames.map { fieldName =>
           parseField(data(fieldName), schema.getAttribute(fieldName).getType)
         }
-        TupleLike(fields.toSeq: _*)
+        TupleLike(fields: _*)
       } match {
         case Success(tuple) => Some(tuple)
         case Failure(_)     => None
