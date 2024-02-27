@@ -77,7 +77,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
 
     if (workers > 1)
       PhysicalOp
-        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code, "python"))
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
         .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -87,7 +87,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
         .withSuggestedWorkerNum(workers)
     else
       PhysicalOp
-        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code, "python"))
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
         .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

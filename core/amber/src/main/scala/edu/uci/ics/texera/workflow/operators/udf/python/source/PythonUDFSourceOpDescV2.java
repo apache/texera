@@ -54,7 +54,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        OpExecInitInfo exec = OpExecInitInfo.apply(code);
+        OpExecInitInfo exec = OpExecInitInfo.apply(code, "python");
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
         if (workers > 1) {
             return PhysicalOp.sourcePhysicalOp(

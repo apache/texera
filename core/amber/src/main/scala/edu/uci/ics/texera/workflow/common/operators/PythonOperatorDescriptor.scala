@@ -17,7 +17,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(generatedCode)
+          OpExecInitInfo(generatedCode, "python")
         )
         .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
         .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -28,7 +28,7 @@ trait PythonOperatorDescriptor extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(generatedCode)
+          OpExecInitInfo(generatedCode, "python")
         )
         .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
         .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

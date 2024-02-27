@@ -11,7 +11,7 @@ object OpExecInitInfo {
     java.util.function.Function[(Int, PhysicalOp, OperatorConfig), IOperatorExecutor]
       with java.io.Serializable
 
-  def apply(code: String): OpExecInitInfo = OpExecInitInfoWithCode((_, _, _) => code)
+  def apply(code: String, language: String): OpExecInitInfo = OpExecInitInfoWithCode((_, _, _) => (code, language))
   def apply(opExecFunc: OpExecFunc): OpExecInitInfo = OpExecInitInfoWithFunc(opExecFunc)
   def apply(opExecFunc: JavaOpExecFunc): OpExecInitInfo =
     OpExecInitInfoWithFunc((idx, physicalOp, operatorConfig) =>
@@ -32,7 +32,7 @@ sealed trait OpExecInitInfo
 
 // only for Python right now
 // TODO: add language type into this class
-final case class OpExecInitInfoWithCode(codeGen: (Int, PhysicalOp, OperatorConfig) => String)
+final case class OpExecInitInfoWithCode(codeGen: (Int, PhysicalOp, OperatorConfig) => (String, String))
     extends OpExecInitInfo
 final case class OpExecInitInfoWithFunc(
     opGen: (Int, PhysicalOp, OperatorConfig) => IOperatorExecutor
