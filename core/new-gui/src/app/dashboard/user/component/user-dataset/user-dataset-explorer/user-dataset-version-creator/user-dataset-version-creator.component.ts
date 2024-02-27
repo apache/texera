@@ -4,9 +4,10 @@ import { FormlyFieldConfig } from "@ngx-formly/core";
 import { DatasetService } from "../../../../service/user-dataset/dataset.service";
 import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { Dataset, DatasetVersion } from "../../../../../../common/type/dataset";
-import { untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
 
+@UntilDestroy()
 @Component({
   selector: "texera-user-dataset-version-creator",
   templateUrl: "./user-dataset-version-creator.component.html",
@@ -123,7 +124,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       const versionName = this.form.get("name")?.value;
       this.datasetService
         .createDatasetVersion(this.baseVersion?.did, versionName, this.removedFilePaths, this.newUploadFiles)
-        .pipe()
+        .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
             this.notificationService.success(`Version '${versionName}' Created`);
@@ -146,7 +147,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       const initialVersionName = this.form.get("versionName")?.value;
       this.datasetService
         .createDataset(ds, initialVersionName, this.newUploadFiles)
-        .pipe()
+        .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
             this.notificationService.success(`Dataset '${ds.name}' Created`);

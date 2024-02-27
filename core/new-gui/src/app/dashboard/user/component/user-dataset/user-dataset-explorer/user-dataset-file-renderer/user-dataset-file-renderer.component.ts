@@ -1,6 +1,6 @@
 import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from "@angular/core";
 import { DatasetService } from "../../../../service/user-dataset/dataset.service";
-import { untilDestroyed } from "@ngneat/until-destroy";
+import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import * as Papa from "papaparse";
 import { ParseResult } from "papaparse";
 import { DomSanitizer, SafeUrl } from "@angular/platform-browser";
@@ -38,6 +38,7 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   [MIME_TYPES.OCTET_STREAM]: 5 * 1024 * 1024, // Default size for other binary formats
 };
 
+@UntilDestroy()
 @Component({
   selector: "texera-user-dataset-file-renderer",
   templateUrl: "./user-dataset-file-renderer.component.html",
@@ -135,7 +136,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
     if (this.did && this.dvid && this.filePath != "") {
       this.datasetService
         .retrieveDatasetVersionSingleFile(this.did, this.dvid, this.filePath)
-        .pipe()
+        .pipe(untilDestroyed(this))
         .subscribe({
           next: blob => {
             this.isLoading = false;
