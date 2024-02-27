@@ -16,6 +16,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
@@ -261,11 +262,20 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
-      1,
+      2,
       AddInputChannel(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
+      )
+    )
+    worker ! NetworkMessage(
+      2,
+      WorkflowFIFOMessage(
+        ChannelIdentity(CONTROLLER, identifier1, isControl = true),
+        2,
+        addInputChannel
       )
     )
     worker ! NetworkMessage(
@@ -273,7 +283,7 @@ class WorkerSpec
       WorkflowFIFOMessage(
         ChannelIdentity(CONTROLLER, identifier1, isControl = true),
         1,
-        addInputChannel
+        addPort
       )
     )
     worker ! NetworkMessage(
