@@ -9,7 +9,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{MainThreadDelegateMessage, WorkerReplayInitialization}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  MainThreadDelegateMessage,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
@@ -17,10 +20,18 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMess
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  OperatorIdentity,
+  PhysicalOpIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{DEFAULT_EXECUTION_ID, DEFAULT_WORKFLOW_ID}
+import edu.uci.ics.texera.workflow.common.WorkflowContext.{
+  DEFAULT_EXECUTION_ID,
+  DEFAULT_WORKFLOW_ID
+}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
