@@ -142,7 +142,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     val rowCount = vectorSchemaRoot.getRowCount
     val index = 1
 
-    // set Texera.Tuple into the Vectors
+    // set Tuple into the Vectors
     ArrowUtils.setTexeraTuple(tuple, index, vectorSchemaRoot)
 
     assert(vectorSchemaRoot.getVector(0).getObject(index).asInstanceOf[Int] == 2)
@@ -189,10 +189,10 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
     vectorSchemaRoot.allocateNew()
 
-    // set Texera.Tuple into the Vectors
+    // set Tuple into the Vectors
     ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
 
-    // get the Texera.Tuple from the Vectors
+    // get the Tuple from the Vectors
     assert(ArrowUtils.getTexeraTuple(0, vectorSchemaRoot) == tuple)
 
   }
@@ -216,10 +216,10 @@ class ArrowUtilsSpec extends AnyFlatSpec {
     val vectorSchemaRoot = VectorSchemaRoot.create(arrowSchema, allocator)
     vectorSchemaRoot.allocateNew()
 
-    // set Texera.Tuple into the Vectors
+    // set Tuple into the Vectors
     ArrowUtils.appendTexeraTuple(tuple, vectorSchemaRoot)
 
-    // get the Texera.Tuple from the Vectors
+    // get the Tuple from the Vectors
     assert(ArrowUtils.getTexeraTuple(0, vectorSchemaRoot) == tuple)
 
   }

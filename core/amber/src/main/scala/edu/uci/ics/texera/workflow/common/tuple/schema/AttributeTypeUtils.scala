@@ -1,8 +1,9 @@
 package edu.uci.ics.texera.workflow.common.tuple.schema
 import com.github.sisyphsu.dateparser.DateParserUtils
-import com.google.common.base.Preconditions
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
+import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingUnit
 
 import java.sql.Timestamp
 import scala.jdk.CollectionConverters.IterableHasAsScala
@@ -46,23 +47,32 @@ object AttributeTypeUtils extends Serializable {
   }
 
   /**
-    * Returns a new tuple that has the values casted to the given new schema.
-    * @param tuple The tuple to be processed
-    * @param schema The new Schema to be casted into, must have same matching attribute names with the Tuple
-    * @return a new casted Tuple
+    * Casts the fields of a tuple to new types according to a list of type casting units,
+    * producing a new tuple that conforms to the specified type changes.
+    * Each type casting unit specifies the attribute name and the target type to cast to.
+    * If an attribute name in the tuple does not have a corresponding type casting unit,
+    * its value is included in the result tuple without type conversion.
+    *
+    * @param tuple           The source tuple whose fields are to be casted.
+    * @param typeCastingUnits A list of type casting units specifying the attribute names
+    *                         and their corresponding target types for casting.
+    * @return                A new instance of TupleLike with fields casted to the target types
+    *                        as specified by the typeCastingUnits.
     */
-  def TupleCasting(
+  def tupleCasting(
       tuple: Tuple,
-      schema: Schema
-  ): Tuple = {
-    Preconditions.checkArgument(tuple.getSchema.getAttributes.size() == schema.getAttributes.size())
+      typeCastingUnits: List[TypeCastingUnit]
+  ): TupleLike =
+    TupleLike(
+      tuple.getSchema.getAttributesScala.map { attr =>
+        val targetType = typeCastingUnits
+          .find(_.attribute == attr.getName)
+          .map(_.resultType)
+          .getOrElse(attr.getType)
 
-    val builder = Tuple.newBuilder(schema)
-    schema.getAttributesScala.map(attr =>
-      builder.add(attr, parseField(tuple.getField(attr.getName), attr.getType))
+        parseField(tuple.getField(attr.getName), targetType)
+      }: _*
     )
-    builder.build()
-  }
 
   def parseFields(fields: Array[Object], schema: Schema): Array[Object] = {
     parseFields(fields, schema.getAttributes.asScala.map(attr => attr.getType).toArray)
