@@ -15,12 +15,15 @@ import scala.collection.{Iterator, mutable}
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterSearchSourceOpExec(
-    desc: TwitterSearchSourceOpDesc
-) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
-  val outputSchema: Schema = desc.operatorInfo.outputPorts
-    .map(outputPort => desc.outputPortToSchemaMapping(outputPort.id))
-    .head
-  var curLimit: Int = desc.limit
+    apiKey: String,
+    apiSecretKey: String,
+    stopWhenRateLimited: Boolean,
+    searchQuery: String,
+    limit: Int,
+    schemaFunc: () => Schema
+) extends TwitterSourceOpExec(apiKey, apiSecretKey, stopWhenRateLimited) {
+  val outputSchema: Schema = schemaFunc()
+  var curLimit: Int = limit
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _
   // contains tweets from the previous request.
@@ -30,14 +33,14 @@ class TwitterSearchSourceOpExec(
   var lastQueryTime: Long = 0
 
   override def produceTuple(): Iterator[TupleLike] =
-    new Iterator[Tuple]() {
+    new Iterator[TupleLike]() {
       override def hasNext: Boolean = (hasNextRequest || tweetCache.nonEmpty) && curLimit > 0
 
       override def next(): Tuple = {
         // if the current cache is exhausted, query for the next response
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
-            desc.searchQuery,
+            searchQuery,
             curLimit.min(TWITTER_API_BATCH_SIZE_MAX)
           )
         }

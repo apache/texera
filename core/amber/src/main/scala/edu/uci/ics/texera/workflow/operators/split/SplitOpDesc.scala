@@ -32,7 +32,7 @@ class SplitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, _) => new SplitOpExec(idx, this))
+        OpExecInitInfo((idx, _, _) => new SplitOpExec(k, idx, seeds.apply))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -42,7 +42,7 @@ class SplitOpDesc extends LogicalOp {
     OperatorInfo(
       userFriendlyName = "Training/Testing Split",
       operatorDescription = "Split training and testing data to two different ports",
-      operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+      operatorGroupName = OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(
         OutputPort(PortIdentity(), displayName = "training"),

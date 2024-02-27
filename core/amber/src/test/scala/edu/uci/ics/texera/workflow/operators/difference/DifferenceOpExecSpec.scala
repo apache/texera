@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -13,17 +14,18 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var input2: Int = 1
   var opExec: DifferenceOpExec = _
   var counter: Int = 0
+  val schema: Schema = Schema
+    .newBuilder()
+    .add(
+      new Attribute("field1", AttributeType.STRING),
+      new Attribute("field2", AttributeType.INTEGER),
+      new Attribute("field3", AttributeType.BOOLEAN)
+    )
+    .build()
 
   def tuple(): Tuple = {
     counter += 1
-    val schema = Schema
-      .newBuilder()
-      .add(
-        new Attribute("field1", AttributeType.STRING),
-        new Attribute("field2", AttributeType.INTEGER),
-        new Attribute("field3", AttributeType.BOOLEAN)
-      )
-      .build()
+
     Tuple
       .newBuilder(schema)
       .addSequentially(Array("hello", Int.box(counter), Boolean.box(true)))
@@ -54,7 +56,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(Left(commonTuples(i)), input2)
     })
 
-    val outputTuples: Set[Tuple] =
+    val outputTuples: Set[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), input2).toSet
     assert(
       outputTuples.equals(commonTuples.slice(0, 5).toSet)
@@ -77,11 +79,13 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         )
       })
 
-      val outputTuples: Set[Tuple] =
+      val outputTuples: Set[TupleLike] =
         opExec.processTuple(Right(InputExhausted()), 0).toSet
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
-      outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
+      outputTuples.foreach(tupleLike =>
+        assert(TupleLike.enforceSchema(tupleLike, schema).getField[Int]("field2") <= 10)
+      )
       opExec.close()
     }
   }
@@ -96,7 +100,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 
-    val outputTuples: Set[Tuple] =
+    val outputTuples: Set[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), input2).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
@@ -112,7 +116,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     })
     assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
 
-    val outputTuples: Set[Tuple] =
+    val outputTuples: Set[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), input1).toSet
     assert(outputTuples.isEmpty)
     opExec.close()
@@ -128,7 +132,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(Left(commonTuples(i)), input1)
     })
 
-    val outputTuples: Set[Tuple] =
+    val outputTuples: Set[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), input1).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
@@ -147,7 +151,7 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(Left(commonTuples(i)), input1)
     })
 
-    val outputTuples: Set[Tuple] =
+    val outputTuples: Set[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), input1).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
