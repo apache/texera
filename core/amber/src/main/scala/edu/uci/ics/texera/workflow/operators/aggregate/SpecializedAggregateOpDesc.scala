@@ -62,7 +62,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     OperatorInfo(
       "Aggregate",
       "Calculate different types of aggregation values",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.AGGREGATE_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), displayName = "in")
       ),

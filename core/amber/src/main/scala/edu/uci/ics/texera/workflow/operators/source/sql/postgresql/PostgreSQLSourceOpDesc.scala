@@ -61,7 +61,7 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
     OperatorInfo(
       "PostgreSQL Source",
       "Read data from a PostgreSQL instance",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

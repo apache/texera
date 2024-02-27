@@ -43,7 +43,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
     OperatorInfo(
       "Linear Regression",
       "Trains a Linear Regression model",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )

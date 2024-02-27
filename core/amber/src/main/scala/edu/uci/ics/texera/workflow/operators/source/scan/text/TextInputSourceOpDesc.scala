@@ -43,7 +43,7 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
     OperatorInfo(
       userFriendlyName = "Text Input",
       operatorDescription = "Source data from manually inputted text",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.INPUT_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

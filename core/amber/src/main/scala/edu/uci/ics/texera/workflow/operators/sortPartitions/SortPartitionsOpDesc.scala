@@ -81,7 +81,7 @@ class SortPartitionsOpDesc extends LogicalOp {
     OperatorInfo(
       "Sort Partitions",
       "Sort Partitions",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SORT_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )

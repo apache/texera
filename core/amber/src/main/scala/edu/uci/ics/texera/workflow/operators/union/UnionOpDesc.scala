@@ -30,7 +30,7 @@ class UnionOpDesc extends LogicalOp {
     OperatorInfo(
       "Union",
       "Unions the output rows from multiple input operators",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity(0), allowMultiLinks = true)),
       outputPorts = List(OutputPort())
     )

@@ -37,7 +37,7 @@ class DistinctOpDesc extends LogicalOp {
     OperatorInfo(
       "Distinct",
       "Remove duplicate tuples",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
