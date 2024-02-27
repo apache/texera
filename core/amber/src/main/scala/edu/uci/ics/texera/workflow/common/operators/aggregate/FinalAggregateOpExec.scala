@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.common.operators.aggregate
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.internalAggObjKey
+import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc.internalAggObjKey
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable

@@ -10,13 +10,31 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.getOutputSchema
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 object AggregateOpDesc {
+
+  def internalAggObjKey(key: Int): String = {
+    s"__internal_aggregate_partial_object_${key}__"
+  }
+
+  def getOutputSchema(
+      inputSchema: Schema,
+      aggFuncs: List[DistributedAggregation[Object]],
+      groupByKeys: List[String]
+  ): Schema = {
+    Schema
+      .newBuilder()
+      // add group by keys
+      .add(groupByKeys.map(k => inputSchema.getAttribute(k)).asJava)
+      // add intermediate internal aggregation objects
+      .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)).asJava)
+      .build()
+  }
 
   def getPhysicalPlan(
       workflowId: WorkflowIdentity,
