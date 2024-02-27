@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.utils.TupleFactory.mkTupleWithSchema
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
@@ -50,7 +49,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   "OutputManager" should "aggregate tuples and output" in {
     val outputManager = wire[OutputManager]
 
-    val tuples = Array.fill(21)(mkTupleWithSchema(schema, 1, 2, 3, 4, "5", 9.8))
+    val tuples = Array.fill(21)(TupleLike.enforceSchema(TupleLike(1, 2, 3, 4, "5", 9.8), schema))
     val fakeID = ActorVirtualIdentity("testReceiver")
     inSequence {
       (mockHandler.apply _).expects(
@@ -79,7 +78,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
 
   "OutputManager" should "not output tuples when there is no partitioning" in {
     val outputManager = wire[OutputManager]
-    val tuples = Array.fill(21)(mkTupleWithSchema(schema, 1, 2, 3, 4, "5", 9.8))
+    val tuples = Array.fill(21)(TupleLike.enforceSchema(TupleLike(1, 2, 3, 4, "5", 9.8), schema))
     (mockHandler.apply _).expects(*).never()
     val fakeLink = PhysicalLink(physicalOpId(), PortIdentity(), physicalOpId(), PortIdentity())
     assertThrows[Exception] {

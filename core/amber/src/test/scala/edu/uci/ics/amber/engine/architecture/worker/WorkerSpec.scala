@@ -28,12 +28,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.amber.engine.utils.TupleFactory.mkTuple
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -46,6 +46,16 @@ class WorkerSpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with MockFactory {
+
+  def mkTuple(fields: Any*): Tuple = {
+    val arrayOfObjects: Array[Object] = fields.map(_.asInstanceOf[Object]).toArray
+    val schemaBuilder = Schema.newBuilder()
+    fields.indices.foreach { i =>
+      schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
+    }
+    val schema = schemaBuilder.build()
+    Tuple.newBuilder(schema).addSequentially(arrayOfObjects).build()
+  }
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
