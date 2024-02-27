@@ -43,20 +43,12 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val outputSchema: Schema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
-          new URLFetcherOpExec(
-            url,
-            decodingMethod,
-            outputSchema
-          )
-        )
+        OpExecInitInfo((_, _, _) => new URLFetcherOpExec(url, decodingMethod))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

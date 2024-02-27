@@ -31,7 +31,10 @@ export class SharedModel {
    * @param wid workflow ID number, used as part of the address for the shared-editing room.
    * @param user current (local) user info, used for initializing local awareness (user presence).
    */
-  constructor(public wid?: number, public user?: User) {
+  constructor(
+    public wid?: number,
+    public user?: User
+  ) {
     // Initialize Y-structures.
     this.operatorIDMap = this.yDoc.getMap("operatorIDMap");
     this.commentBoxMap = this.yDoc.getMap("commentBoxMap");

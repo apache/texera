@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -13,17 +14,18 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var input2: Int = 1
   var opExec: DifferenceOpExec = _
   var counter: Int = 0
+  val schema: Schema = Schema
+    .newBuilder()
+    .add(
+      new Attribute("field1", AttributeType.STRING),
+      new Attribute("field2", AttributeType.INTEGER),
+      new Attribute("field3", AttributeType.BOOLEAN)
+    )
+    .build()
 
   def tuple(): Tuple = {
     counter += 1
-    val schema = Schema
-      .newBuilder()
-      .add(
-        new Attribute("field1", AttributeType.STRING),
-        new Attribute("field2", AttributeType.INTEGER),
-        new Attribute("field3", AttributeType.BOOLEAN)
-      )
-      .build()
+
     Tuple
       .newBuilder(schema)
       .addSequentially(Array("hello", Int.box(counter), Boolean.box(true)))
@@ -46,16 +48,16 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 7).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input1, null, null)
+      opExec.processTuple(Left(commonTuples(i)), input1)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 
     (5 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input2, null, null)
+      opExec.processTuple(Left(commonTuples(i)), input2)
     })
 
-    val outputTuples: Set[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), input2, null, null).toSet
+    val outputTuples: Set[TupleLike] =
+      opExec.processTuple(Right(InputExhausted()), input2).toSet
     assert(
       outputTuples.equals(commonTuples.slice(0, 5).toSet)
     )
@@ -70,20 +72,20 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
     assertThrows[IllegalArgumentException] {
       (1 to 100).map(_ => {
-        opExec.processTexeraTuple(Left(tuple()), 2, null, null)
-        opExec.processTexeraTuple(
+        opExec.processTuple(Left(tuple()), 2)
+        opExec.processTuple(
           Left(commonTuples(Random.nextInt(commonTuples.size))),
-          3,
-          null,
-          null
+          3
         )
       })
 
-      val outputTuples: Set[Tuple] =
-        opExec.processTexeraTuple(Right(InputExhausted()), 0, null, null).toSet
+      val outputTuples: Set[TupleLike] =
+        opExec.processTuple(Right(InputExhausted()), 0).toSet
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
-      outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
+      outputTuples.foreach(tupleLike =>
+        assert(TupleLike.enforceSchema(tupleLike, schema).getField[Int]("field2") <= 10)
+      )
       opExec.close()
     }
   }
@@ -94,12 +96,12 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input1, null, null)
+      opExec.processTuple(Left(commonTuples(i)), input1)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 
-    val outputTuples: Set[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), input2, null, null).toSet
+    val outputTuples: Set[TupleLike] =
+      opExec.processTuple(Right(InputExhausted()), input2).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -110,12 +112,12 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input2, null, null)
+      opExec.processTuple(Left(commonTuples(i)), input2)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input2, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
 
-    val outputTuples: Set[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), input1, null, null).toSet
+    val outputTuples: Set[TupleLike] =
+      opExec.processTuple(Right(InputExhausted()), input1).toSet
     assert(outputTuples.isEmpty)
     opExec.close()
   }
@@ -125,13 +127,13 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter = 0
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input2, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
     (0 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input1, null, null)
+      opExec.processTuple(Left(commonTuples(i)), input1)
     })
 
-    val outputTuples: Set[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), input1, null, null).toSet
+    val outputTuples: Set[TupleLike] =
+      opExec.processTuple(Right(InputExhausted()), input1).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -142,15 +144,15 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val commonTuples = (1 to 10).map(_ => tuple()).toList
 
     (0 to 5).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input1, null, null)
+      opExec.processTuple(Left(commonTuples(i)), input1)
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input2, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
     (6 to 9).map(i => {
-      opExec.processTexeraTuple(Left(commonTuples(i)), input1, null, null)
+      opExec.processTuple(Left(commonTuples(i)), input1)
     })
 
-    val outputTuples: Set[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), input1, null, null).toSet
+    val outputTuples: Set[TupleLike] =
+      opExec.processTuple(Right(InputExhausted()), input1).toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
   }
@@ -158,8 +160,8 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "work with two empty input upstreams" in {
 
     opExec.open()
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input1, null, null).isEmpty)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), input2, null, null).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
+    assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
     opExec.close()
   }
 

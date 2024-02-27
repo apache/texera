@@ -7,7 +7,6 @@ import { BrowserModule } from "@angular/platform-browser";
 import { BrowserAnimationsModule } from "@angular/platform-browser/animations";
 import { RouterModule } from "@angular/router";
 import { FormlyModule } from "@ngx-formly/core";
-import { FormlyMaterialModule } from "@ngx-formly/material";
 import { NzButtonModule } from "ng-zorro-antd/button";
 import { NzCollapseModule } from "ng-zorro-antd/collapse";
 import { NzDatePickerModule } from "ng-zorro-antd/date-picker";
@@ -110,6 +109,7 @@ import { SearchResultsComponent } from "./dashboard/user/component/search-result
 import { PortPropertyEditFrameComponent } from "./workspace/component/property-editor/port-property-edit-frame/port-property-edit-frame.component";
 import { GmailComponent } from "./dashboard/admin/component/gmail/gmail.component";
 import { PublicProjectComponent } from "./dashboard/user/component/user-project/public-project/public-project.component";
+import { FormlyNgZorroAntdModule } from "@ngx-formly/ng-zorro-antd";
 import { FlarumComponent } from "./dashboard/user/component/flarum/flarum.component";
 import { NzAlertModule } from "ng-zorro-antd/alert";
 import { LeftPanelComponent } from "./workspace/component/left-panel/left-panel.component";
@@ -120,9 +120,20 @@ import { TimeTravelComponent } from "./workspace/component/left-panel/time-trave
 import { NzMessageModule } from "ng-zorro-antd/message";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { OverlayModule } from "@angular/cdk/overlay";
-import { MatInputModule } from "@angular/material/input";
-import { MatTabsModule } from "@angular/material/tabs";
 import { HighlightSearchTermsPipe } from "./dashboard/user/component/user-workflow/user-workflow-list-item/highlight-search-terms.pipe";
+import { en_US, provideNzI18n } from "ng-zorro-antd/i18n";
+import { FilesUploaderComponent } from "./dashboard/user/component/files-uploader/files-uploader.component";
+import { UserDatasetComponent } from "./dashboard/user/component/user-dataset/user-dataset.component";
+import { UserDatasetVersionCreatorComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-version-creator/user-dataset-version-creator.component";
+import { UserDatasetExplorerComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-explorer.component";
+import { UserDatasetVersionFiletreeComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-version-filetree/user-dataset-version-filetree.component";
+import { UserDatasetFileRendererComponent } from "./dashboard/user/component/user-dataset/user-dataset-explorer/user-dataset-file-renderer/user-dataset-file-renderer.component";
+import { NzSpinModule } from "ng-zorro-antd/spin";
+import { UserDatasetListItemComponent } from "./dashboard/user/component/user-dataset/user-dataset-list-item/user-dataset-list-item.component";
+import { NgxFileDropModule } from "ngx-file-drop";
+import { NzTreeModule } from "ng-zorro-antd/tree";
+import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
+import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 
 registerLocaleData(en);
 
@@ -178,6 +189,13 @@ registerLocaleData(en);
     NgbdModalRemoveProjectWorkflowComponent,
     NgbdModalAddProjectFileComponent,
     NgbdModalRemoveProjectFileComponent,
+    FilesUploaderComponent,
+    UserDatasetComponent,
+    UserDatasetVersionCreatorComponent,
+    UserDatasetExplorerComponent,
+    UserDatasetVersionFiletreeComponent,
+    UserDatasetListItemComponent,
+    UserDatasetFileRendererComponent,
     NzModalCommentBoxComponent,
     LeftPanelComponent,
     LocalLoginComponent,
@@ -216,10 +234,8 @@ registerLocaleData(en);
     FormsModule,
     ReactiveFormsModule,
     FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
-    FormlyMaterialModule,
+    FormlyNgZorroAntdModule,
     OverlayModule,
-    MatInputModule,
-    MatTabsModule,
     NzDatePickerModule,
     NzDropDownModule,
     NzButtonModule,
@@ -254,8 +270,14 @@ registerLocaleData(en);
     DragDropModule,
     NzAlertModule,
     NzResizableModule,
+    NzSpinModule,
+    NgxFileDropModule,
+    NzTreeModule,
+    NzTreeViewModule,
+    NzNoAnimationModule,
   ],
   providers: [
+    provideNzI18n(en_US),
     AuthGuardService,
     AdminGuardService,
     DatePipe,

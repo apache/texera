@@ -35,7 +35,6 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) =>
           new PostgreSQLSourceOpExec(
-            querySchema,
             host,
             port,
             database,
@@ -51,7 +50,8 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
             interval,
             keywordSearch.getOrElse(false),
             keywordSearchByColumn.orNull,
-            keywords.orNull
+            keywords.orNull,
+            () => sourceSchema()
           )
         )
       )
