@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.common.collect.Lists;
-import edu.uci.ics.amber.engine.common.tuple.ITuple;
+import edu.uci.ics.amber.engine.common.tuple.amber.SeqTupleLike;
 import edu.uci.ics.texera.Utils;
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-public class Tuple implements ITuple, Serializable {
+public class Tuple implements SeqTupleLike, Serializable {
 
     private final Schema schema;
     private final List<Object> fields;
@@ -56,13 +56,11 @@ public class Tuple implements ITuple, Serializable {
         return this.inMemSize;
     }
 
-    @Override
     @JsonIgnore
     public int length() {
         return fields.size();
     }
 
-    @Override
     @JsonIgnore
     public Object get(int i) {
         return fields.get(i);
@@ -239,7 +237,7 @@ public class Tuple implements ITuple, Serializable {
         public BuilderV2 add(Tuple tuple, boolean isStrictSchemaMatch) {
             checkNotNull(tuple);
 
-            for (int i = 0; i < tuple.size(); i++) {
+            for (int i = 0; i < tuple.length(); i++) {
                 Attribute attribute = tuple.getSchema().getAttributes().get(i);
                 // The isStrictSchemaMatch parameter toggles the ability to check exact schema matching.
                 // This is so that we don't need a "remove" ever. So, if a tuple is passed in and has more fields
