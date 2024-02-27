@@ -1,4 +1,4 @@
-import { Component, inject, OnInit } from "@angular/core";
+import { Component, inject } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { File, Workflow, MongoExecution, MongoWorkflow } from "../../../../common/type/user";
 import { UserFileService } from "../../service/user-file/user-file.service";
@@ -13,8 +13,8 @@ type UserServiceType = AdminUserService | UserQuotaService;
 @Component({
   templateUrl: "./user-quota.component.html",
 })
-export class UserQuotaComponent implements OnInit {
-  readonly userId: number = inject(NZ_MODAL_DATA).uid;
+export class UserQuotaComponent {
+  readonly userId: number;
   backgroundColor: String = "white";
   textColor: String = "Black";
   dynamicHeight: string = "700px";
@@ -38,18 +38,16 @@ export class UserQuotaComponent implements OnInit {
     private regularUserService: UserQuotaService
   ) {
     this.UserService = adminUserService;
-  }
-
-  ngOnInit(): void {
-    if (this.userId == -1) {
-      this.UserService = this.regularUserService;
-      this.dynamicHeight = "";
-    } else {
+    if (inject(NZ_MODAL_DATA, { optional: true })) {
+      this.userId = inject(NZ_MODAL_DATA).uid;
       this.UserService = this.adminUserService;
       this.backgroundColor = "lightcoral";
       this.textColor = "white";
+    } else {
+      this.userId = -1;
+      this.UserService = this.regularUserService;
+      this.dynamicHeight = "";
     }
-
     this.refreshData();
   }
 
