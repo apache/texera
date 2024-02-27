@@ -66,14 +66,6 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val internalHashTableSchema =
       Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
 
-    val buildInPartitionRequirement = List(
-      Option(HashPartition(List(buildAttributeName)))
-    )
-
-    val buildDerivePartition: List[PartitionInfo] => PartitionInfo = _ => {
-      HashPartition(List("key"))
-    }
-
     val buildInputPort = operatorInfo.inputPorts.head
     val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
 
@@ -90,18 +82,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
           List(buildOutputPort),
           mutable.Map(buildOutputPort.id -> internalHashTableSchema)
         )
-        .withPartitionRequirement(buildInPartitionRequirement)
-        .withDerivePartition(buildDerivePartition)
+        .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
+        .withDerivePartition(_ => HashPartition(List("key")))
         .withParallelizable(true)
-
-    val probeInPartitionRequirement = List(
-      Option(HashPartition(List("key"))),
-      Option(HashPartition(List(probeAttributeName)))
-    )
-
-    val probeDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      HashPartition(List(buildAttributeName))
-    }
 
     val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))
     val probeDataInputPort =
@@ -132,8 +115,13 @@ class HashJoinOpDesc[K] extends LogicalOp {
           )
         )
         .withOutputPorts(List(probeOutputPort), mutable.Map(probeOutputPort.id -> outputSchema))
-        .withPartitionRequirement(probeInPartitionRequirement)
-        .withDerivePartition(probeDerivePartition)
+        .withPartitionRequirement(
+          List(
+            Option(HashPartition(List("key"))),
+            Option(HashPartition(List(probeAttributeName)))
+          )
+        )
+        .withDerivePartition(_ => HashPartition(List(probeAttributeName)))
         .withParallelizable(true)
 
     new PhysicalPlan(
