@@ -11,7 +11,6 @@ import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websock
 import { PaginatedResultEvent, WorkflowAvailableResultEvent } from "../../types/workflow-websocket.interface";
 import { map, Observable, of, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
-import { ChartType } from "../../types/visualization.interface";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
 
@@ -121,8 +120,6 @@ export class WorkflowResultService {
         resultService.handleResultUpdate(update);
         // clear previously saved paginated result service
         this.paginatedResultServices.delete(operatorID);
-      } else {
-        const _exhaustiveCheck: never = update;
       }
     });
     this.resultUpdateStream.next(event);
@@ -150,7 +147,6 @@ export class WorkflowResultService {
 }
 
 export class OperatorResultService {
-  private chartType: ChartType | undefined;
   private resultSnapshot: ReadonlyArray<object> | undefined;
 
   constructor(public operatorID: string) {}
@@ -159,24 +155,16 @@ export class OperatorResultService {
     return this.resultSnapshot;
   }
 
-  public getChartType(): ChartType | undefined {
-    return this.chartType;
-  }
-
   public reset(): void {
-    this.chartType = undefined;
     this.resultSnapshot = undefined;
   }
 
   public handleResultUpdate(update: WebDataUpdate): void {
-    this.chartType = update.chartType;
     if (update.mode.type === "SetSnapshotMode") {
       // update the result snapshot with latest update
       this.resultSnapshot = update.table;
     } else if (update.mode.type === "SetDeltaMode") {
       // intentionally do nothing, frontend does not accumulate delta results
-    } else {
-      const _exhaustiveCheck: never = update.mode;
     }
   }
 }
@@ -187,7 +175,10 @@ class OperatorPaginationResultService {
   private currentPageIndex: number = 1;
   private currentTotalNumTuples: number = 0;
 
-  constructor(public operatorID: string, private workflowWebsocketService: WorkflowWebsocketService) {
+  constructor(
+    public operatorID: string,
+    private workflowWebsocketService: WorkflowWebsocketService
+  ) {
     this.workflowWebsocketService
       .subscribeToEvent("PaginatedResultEvent")
       .subscribe(event => this.handlePaginationResult(event));

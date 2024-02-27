@@ -47,7 +47,7 @@ class UrlVizOpDesc extends VisualizationOperator {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName, outputSchema))
+        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

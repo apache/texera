@@ -14,7 +14,6 @@ import { DashboardProject } from "../../../type/dashboard-project.interface";
 import { UserProjectService } from "../../../service/user-project/user-project.service";
 import { DashboardEntry } from "../../../type/dashboard-entry";
 import { firstValueFrom } from "rxjs";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
 
 @UntilDestroy()
 @Component({
@@ -26,6 +25,7 @@ export class UserWorkflowListItemComponent {
   ROUTER_WORKFLOW_BASE_URL = "/workflow";
   ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   private _entry?: DashboardEntry;
+  @Input() public keywords: string[] = [];
 
   @Input()
   get entry(): DashboardEntry {
@@ -61,7 +61,6 @@ export class UserWorkflowListItemComponent {
 
   constructor(
     private modalService: NzModalService,
-    private ngbModalService: NgbModal,
     private workflowPersistService: WorkflowPersistService,
     private fileSaverService: FileSaverService,
     private userProjectService: UserProjectService
@@ -74,13 +73,17 @@ export class UserWorkflowListItemComponent {
       });
   }
 
+  getProjectIds() {
+    return new Set(this.entry.workflow.projectIDs);
+  }
+
   /**
    * open the workflow executions page
    */
   public onClickGetWorkflowExecutions(): void {
     this.modalService.create({
       nzContent: WorkflowExecutionModalComponent,
-      nzComponentParams: { wid: this.workflow.wid },
+      nzData: { wid: this.workflow.wid },
       nzTitle: "Execution results of Workflow: " + this.workflow.name,
       nzFooter: null,
       nzWidth: "80%",
@@ -116,12 +119,18 @@ export class UserWorkflowListItemComponent {
    * open the Modal based on the workflow clicked on
    */
   public async onClickOpenShareAccess(): Promise<void> {
-    const owners = await firstValueFrom(this.workflowPersistService.retrieveOwners());
-    const modalRef = this.ngbModalService.open(ShareAccessComponent);
-    modalRef.componentInstance.writeAccess = this.entry.workflow.accessLevel === "WRITE";
-    modalRef.componentInstance.type = "workflow";
-    modalRef.componentInstance.id = this.workflow.wid;
-    modalRef.componentInstance.allOwners = owners;
+    this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzData: {
+        writeAccess: this.entry.workflow.accessLevel === "WRITE",
+        type: "workflow",
+        id: this.workflow.wid,
+        allOwners: await firstValueFrom(this.workflowPersistService.retrieveOwners()),
+      },
+      nzFooter: null,
+      nzTitle: "Share this workflow with others",
+      nzCentered: true,
+    });
   }
 
   /**

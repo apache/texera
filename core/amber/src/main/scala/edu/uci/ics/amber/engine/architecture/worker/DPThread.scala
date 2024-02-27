@@ -76,21 +76,21 @@ class DPThread(
           Thread.currentThread().setName(getThreadName)
           logger.info("DP thread started")
           startFuture.complete(())
-          dp.startTime = System.nanoTime()
+          dp.statisticsManager.initializeWorkerStartTime(System.nanoTime())
           try {
             runDPThreadMainLogic()
           } catch safely {
             case _: InterruptedException =>
               // dp thread will stop here
               logger.info("DP Thread exits")
-            case err: Exception =>
+            case err: Throwable =>
               logger.error("DP Thread exists unexpectedly", err)
               dp.asyncRPCClient.send(
                 FatalError(new WorkflowRuntimeException("DP Thread exists unexpectedly", err)),
                 CONTROLLER
               )
           }
-          dp.totalExecutionTime = (System.nanoTime() - dp.startTime)
+          dp.statisticsManager.updateTotalExecutionTime(System.nanoTime())
           endFuture.complete(())
         }
       })
@@ -147,7 +147,7 @@ class DPThread(
           case None =>
             // continue processing
             if (!dp.pauseManager.isPaused && !backpressureStatus) {
-              channelId = dp.currentBatchChannel
+              channelId = dp.currentChannelId
             } else {
               waitingForInput = true
             }
@@ -188,7 +188,18 @@ class DPThread(
           }
         }
       }
-      dp.totalExecutionTime = System.nanoTime() - dp.startTime
+      // As the computation is chopped into steps, the checkpoint
+      // serialization must happen after/before a step. Otherwise
+      // DP state will be restored in the middle of a step, which
+      // is often not what we want. Thus, we have this one-time
+      // additional serializationCall assigned inside the checkpoint
+      // handler.
+      if (dp.serializationCall != null) {
+        dp.serializationCall()
+        dp.serializationCall = null
+      }
+
+      dp.statisticsManager.updateTotalExecutionTime(System.nanoTime())
       // End of Main loop
     }
   }

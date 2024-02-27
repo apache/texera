@@ -61,6 +61,7 @@ class DefaultResourceAllocator(
         generateChannelConfigs(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          toPortId = physicalLink.toPortId,
           linkPartitionInfos(physicalLink)
         ),
         toPartitioning(
@@ -133,8 +134,8 @@ class DefaultResourceAllocator(
         }
 
         if (outputPartitionInfo.isDefined) {
-          physicalOp
-            .getOutputLinks()
+          physicalOp.outputPorts.keys
+            .flatMap(physicalOp.getOutputLinks)
             .foreach(link =>
               // by default, a link's partition info comes from its input, unless updated to match its output.
               linkPartitionInfos.put(link, outputPartitionInfo.get)

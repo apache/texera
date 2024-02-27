@@ -4,7 +4,7 @@ import { UserProjectService } from "../../../service/user-project/user-project.s
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { ShareAccessComponent } from "../../share-access/share-access.component";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { PublicProjectService } from "../../../service/public-project/public-project.service";
 import { UserService } from "../../../../../common/service/user/user.service";
 
@@ -18,6 +18,7 @@ export class UserProjectListItemComponent implements OnInit {
   public readonly ROUTER_USER_PROJECT_BASE_URL = "/dashboard/user-project";
   public readonly MAX_PROJECT_DESCRIPTION_CHAR_COUNT = 10000;
   private _entry?: DashboardProject;
+  @Input() public keywords: string[] = [];
   @Input()
   get entry(): DashboardProject {
     if (!this._entry) {
@@ -47,7 +48,7 @@ export class UserProjectListItemComponent implements OnInit {
   constructor(
     private userProjectService: UserProjectService,
     private notificationService: NotificationService,
-    private modalService: NgbModal,
+    private modalService: NzModalService,
     private userService: UserService,
     private publicProjectService: PublicProjectService
   ) {
@@ -142,13 +143,18 @@ export class UserProjectListItemComponent implements OnInit {
   }
 
   public onClickOpenShareAccess(): void {
-    const modalRef = this.modalService.open(ShareAccessComponent);
-    modalRef.componentInstance.writeAccess = this.entry.accessLevel === "WRITE";
-    modalRef.componentInstance.type = "project";
-    modalRef.componentInstance.id = this.entry.pid;
-    modalRef.closed.pipe(untilDestroyed(this)).subscribe(_ => {
-      this.refresh.emit();
+    const modalRef = this.modalService.create({
+      nzContent: ShareAccessComponent,
+      nzData: {
+        writeAccess: this.entry.accessLevel === "WRITE",
+        type: "project",
+        id: this.entry.pid,
+      },
+      nzFooter: null,
+      nzTitle: "Share this project with others",
+      nzCentered: true,
     });
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refresh.emit());
   }
   public visibilityChange(): void {
     if (this.isPublic) {

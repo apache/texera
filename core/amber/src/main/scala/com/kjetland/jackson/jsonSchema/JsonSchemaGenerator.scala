@@ -27,7 +27,7 @@ object JsonSchemaGenerator {
 
 object JsonSchemaConfig {
 
-  val vanillaJsonSchemaDraft4 = JsonSchemaConfig(
+  val vanillaJsonSchemaDraft4: JsonSchemaConfig = JsonSchemaConfig(
     autoGenerateTitleForProperties = false,
     defaultArrayFormat = None,
     useOneOfForOption = false,
@@ -52,7 +52,7 @@ object JsonSchemaConfig {
     * autoGenerateTitleForProperties - If property is named "someName", we will add {"title": "Some Name"}
     * defaultArrayFormat - this will result in a better gui than te default one.
     */
-  val html5EnabledSchema = JsonSchemaConfig(
+  val html5EnabledSchema: JsonSchemaConfig = JsonSchemaConfig(
     autoGenerateTitleForProperties = true,
     defaultArrayFormat = Some("table"),
     useOneOfForOption = true,
@@ -210,12 +210,12 @@ case class SubclassesResolverImpl
 
     if (packagesToScan.nonEmpty) {
       classGraphConfigured = true
-      _classGraph.whitelistPackages( packagesToScan:_* )
+      _classGraph.acceptClasses( packagesToScan:_* )
     }
 
     if ( classesToScan.nonEmpty ) {
       classGraphConfigured = true
-      _classGraph.whitelistClasses( classesToScan:_* )
+      _classGraph.acceptClasses( classesToScan:_* )
     }
 
     if ( !classGraphConfigured ) {

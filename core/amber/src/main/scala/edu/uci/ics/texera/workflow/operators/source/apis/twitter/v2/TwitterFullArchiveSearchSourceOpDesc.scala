@@ -49,7 +49,18 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new TwitterFullArchiveSearchSourceOpExec(this))
+        OpExecInitInfo((_, _, _) =>
+          new TwitterFullArchiveSearchSourceOpExec(
+            apiKey,
+            apiSecretKey,
+            stopWhenRateLimited,
+            searchQuery,
+            limit,
+            fromDateTime,
+            toDateTime,
+            () => sourceSchema()
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.controlcommands
 
-import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkCompletedHandler.LinkCompleted
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortCompletedHandler.PortCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
@@ -15,22 +15,19 @@ import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlReturnV2.Value.Empty
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.MonitoringHandler.QuerySelfWorkloadMetrics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.SchedulerTimeSlotEventHandler.SchedulerTimeSlotEvent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.immutable.ListMap
-import scala.collection.mutable
 import scala.jdk.CollectionConverters.ListHasAsScala
 
 object ControlCommandConvertUtils {
@@ -44,24 +41,22 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
-      case SchedulerTimeSlotEvent(timeSlotExpired: Boolean) =>
-        SchedulerTimeSlotEventV2(timeSlotExpired)
       case OpenOperator() =>
         OpenOperatorV2()
+      case AssignPort(portId, input) =>
+        AssignPortV2(portId, input)
       case AddPartitioning(tag: PhysicalLink, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
-      case UpdateInputLinking(identifier, inputLink) =>
-        UpdateInputLinkingV2(identifier, inputLink)
+      case AddInputChannel(channelId, portId) =>
+        AddInputChannelV2(channelId, portId)
       case QueryStatistics() =>
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource, inputMapping, outputMapping, schema) =>
+      case InitializeOperatorLogic(code, isSource, schema) =>
         InitializeOperatorLogicV2(
           code,
           isSource,
-          inputMapping,
-          outputMapping,
           schema.getAttributes.asScala.foldLeft(ListMap[String, String]())((list, attr) =>
             list + (attr.getName -> attr.getType.toString)
           )
@@ -74,8 +69,6 @@ object ControlCommandConvertUtils {
         EvaluateExpressionV2(expression)
       case WorkerDebugCommand(cmd) =>
         WorkerDebugCommandV2(cmd)
-      case QuerySelfWorkloadMetrics() =>
-        QuerySelfWorkloadMetricsV2()
       case _ =>
         throw new UnsupportedOperationException(
           s"V1 controlCommand $controlCommand cannot be converted to V2"
@@ -92,7 +85,7 @@ object ControlCommandConvertUtils {
         WorkerExecutionCompleted()
       case PythonConsoleMessageV2(message) =>
         ConsoleMessageTriggered(message)
-      case LinkCompletedV2(link) => LinkCompleted(link)
+      case PortCompletedV2(portId, input) => PortCompleted(portId, input)
       case _ =>
         throw new UnsupportedOperationException(
           s"V2 controlCommand $controlCommand cannot be converted to V1"
@@ -104,17 +97,10 @@ object ControlCommandConvertUtils {
       controlReturnV2: ControlReturnV2
   ): Any = {
     controlReturnV2.value match {
-      case Empty                                                        => ()
-      case _: ControlReturnV2.Value.CurrentInputTupleInfo               => null
-      case selfWorkloadReturn: ControlReturnV2.Value.SelfWorkloadReturn =>
-        // TODO: convert real samples back from PythonUDF.
-        //  this is left hardcoded now since sampling is not currently enabled for PythonUDF.
-        (
-          selfWorkloadReturn.value.metrics,
-          List[mutable.HashMap[ActorVirtualIdentity, List[Long]]]()
-        )
-      case exp: ControlReturnV2.Value.ControlException => ControlException(exp.value.msg)
-      case _                                           => controlReturnV2.value.value
+      case Empty                                          => ()
+      case _: ControlReturnV2.Value.CurrentInputTupleInfo => null
+      case exp: ControlReturnV2.Value.ControlException    => ControlException(exp.value.msg)
+      case _                                              => controlReturnV2.value.value
     }
   }
 

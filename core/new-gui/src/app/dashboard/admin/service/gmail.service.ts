@@ -11,7 +11,10 @@ declare var window: any;
 export class GmailService {
   public client: any;
   private _googleCredentialResponse = new Subject<CredentialResponse>();
-  constructor(private http: HttpClient, private notificationService: NotificationService) {}
+  constructor(
+    private http: HttpClient,
+    private notificationService: NotificationService
+  ) {}
   public authSender() {
     this.http
       .get(`${AppSettings.getApiEndpoint()}/auth/google/clientid`, { responseType: "text" })
@@ -43,7 +46,7 @@ export class GmailService {
         next: () => this.notificationService.success("Email sent successfully"),
         error: (error: unknown) => {
           if (error instanceof HttpErrorResponse) {
-            this.notificationService.error(error.error);
+            console.error(error.error);
           }
         },
       });

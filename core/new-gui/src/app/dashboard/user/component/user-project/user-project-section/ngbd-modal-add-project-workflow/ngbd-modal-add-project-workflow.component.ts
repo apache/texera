@@ -1,11 +1,11 @@
-import { Component, Input, OnInit } from "@angular/core";
-import { NgbActiveModal } from "@ng-bootstrap/ng-bootstrap";
+import { Component, inject, OnInit } from "@angular/core";
 import { forkJoin, Observable } from "rxjs";
 import { concatMap } from "rxjs/operators";
 import { WorkflowPersistService } from "src/app/common/service/workflow-persist/workflow-persist.service";
 import { DashboardWorkflow } from "src/app/dashboard/user/type/dashboard-workflow.interface";
 import { UserProjectService } from "src/app/dashboard/user/service/user-project/user-project.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -14,7 +14,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
   styleUrls: ["./ngbd-modal-add-project-workflow.component.scss"],
 })
 export class NgbdModalAddProjectWorkflowComponent implements OnInit {
-  @Input() projectId!: number;
+  readonly projectId: number = inject(NZ_MODAL_DATA).projectId;
 
   public unaddedWorkflows: DashboardWorkflow[] = []; // tracks which workflows to display, the ones that have not yet been added to the project
   public checkedWorkflows: boolean[] = []; // used to implement check boxes
@@ -22,7 +22,6 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
   private addedWorkflows: DashboardWorkflow[] = []; // for passing back to update the frontend cache, stores the new workflow list including newly added workflows
 
   constructor(
-    public activeModal: NgbActiveModal,
     private workflowPersistService: WorkflowPersistService,
     private userProjectService: UserProjectService
   ) {}
@@ -47,11 +46,7 @@ export class NgbdModalAddProjectWorkflowComponent implements OnInit {
     }
 
     // pass back data to update local cache after all changes propagated to backend
-    forkJoin(observables)
-      .pipe(untilDestroyed(this))
-      .subscribe(_ => {
-        this.activeModal.close(this.addedWorkflows);
-      });
+    forkJoin(observables).pipe(untilDestroyed(this)).subscribe();
   }
 
   public changeAll() {

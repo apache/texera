@@ -32,7 +32,7 @@ class SplitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, _) => new SplitOpExec(idx, this))
+        OpExecInitInfo((idx, _, _) => new SplitOpExec(k, idx, seeds.apply))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

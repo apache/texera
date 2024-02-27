@@ -1,6 +1,6 @@
 import { Component, ElementRef, Input, OnChanges, OnInit, SimpleChanges, ViewChild } from "@angular/core";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { BreakpointTriggerInfo, ConsoleMessage } from "../../../types/workflow-common.interface";
+import { ConsoleMessage } from "../../../types/workflow-common.interface";
 import { ExecutionState } from "src/app/workspace/types/execute-workflow.interface";
 import { WorkflowConsoleService } from "../../../service/workflow-console/workflow-console.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -65,16 +65,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        if (
-          event.previous.state === ExecutionState.BreakpointTriggered &&
-          event.current.state === ExecutionState.Completed
-        ) {
-          // intentionally do nothing to leave the information displayed as it is
-          // when kill a workflow after hitting breakpoint
-        } else if (
-          event.previous.state === ExecutionState.Initializing &&
-          event.current.state === ExecutionState.Running
-        ) {
+        if (event.previous.state === ExecutionState.Initializing && event.current.state === ExecutionState.Running) {
           // clear the console for the next execution
           this.clearConsole();
         } else {
@@ -157,7 +148,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     try {
       this.executeWorkflowService.skipTuples(this.workerIds);
     } catch (e) {
-      this.notificationService.error(e);
+      this.notificationService.error((e as Error).message);
     }
   }
 
@@ -165,7 +156,7 @@ export class ConsoleFrameComponent implements OnInit, OnChanges {
     try {
       this.executeWorkflowService.retryExecution(this.workerIds);
     } catch (e) {
-      this.notificationService.error(e);
+      this.notificationService.error((e as Error).message);
     }
   }
 

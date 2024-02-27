@@ -1,7 +1,6 @@
 import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/core";
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
-import { trimDisplayJsonData } from "../../../../common/util/json";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
@@ -117,26 +116,18 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   /**
-   * Opens the ng-bootstrap model to display the row details in
+   * Opens the model to display the row details in
    *  pretty json format when clicked. User can view the details
    *  in a larger, expanded format.
-   *
    */
   open(indexInPage: number, rowData: IndexableObject): void {
     const currentRowIndex = indexInPage + (this.currentPageIndex - 1) * this.pageSize;
-
     // open the modal component
     const modalRef: NzModalRef<RowModalComponent> = this.modalService.create({
       // modal title
       nzTitle: "Row Details",
       nzContent: RowModalComponent,
-      // set component @Input attributes
-      nzComponentParams: {
-        // set the index value and page size to the modal for navigation
-        operatorId: this.operatorId,
-        rowIndex: currentRowIndex,
-        currentDisplayRowData: trimDisplayJsonData(rowData, PRETTY_JSON_TEXT_LIMIT),
-      },
+      nzData: { operatorId: this.operatorId, rowIndex: currentRowIndex }, // set the index value and page size to the modal for navigation
       // prevent browser focusing close button (ugly square highlight)
       nzAutofocus: null,
       // modal footer buttons
