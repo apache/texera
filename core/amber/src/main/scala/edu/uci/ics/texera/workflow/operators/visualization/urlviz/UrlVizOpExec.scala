@@ -4,15 +4,11 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
 /**
   * URL Visualization operator to render any given URL link
   */
-class UrlVizOpExec(
-    urlContentAttrName: String,
-    outputSchema: Schema
-) extends OperatorExecutor {
+class UrlVizOpExec(urlContentAttrName: String) extends OperatorExecutor {
 
   override def open(): Unit = {}
 
@@ -35,12 +31,7 @@ class UrlVizOpExec(
               |  </div>
               |</body>
               |</html>""".stripMargin
-        Iterator(
-          Tuple
-            .newBuilder(outputSchema)
-            .add("html-content", AttributeType.STRING, iframe)
-            .build()
-        )
+        Iterator(TupleLike(iframe))
 
       case Right(_) => Iterator()
     }
