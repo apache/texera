@@ -39,7 +39,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   def tuple(): Tuple = {
     counter += 1
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), counter)
       .add(

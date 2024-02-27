@@ -53,7 +53,7 @@ class WorkerSpec
       schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
     }
     val schema = schemaBuilder.build()
-    Tuple.newBuilder(schema).addSequentially(fields.toArray).build()
+    Tuple.builder(schema).addSequentially(fields.toArray).build()
   }
 
   override def beforeAll(): Unit = {

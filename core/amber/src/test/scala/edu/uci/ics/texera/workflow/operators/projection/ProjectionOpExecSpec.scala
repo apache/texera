@@ -14,7 +14,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
 
   val tuple: Tuple = Tuple
-    .newBuilder(tupleSchema)
+    .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "hello")
     .add(new Attribute("field2", AttributeType.INTEGER), 1)
     .add(

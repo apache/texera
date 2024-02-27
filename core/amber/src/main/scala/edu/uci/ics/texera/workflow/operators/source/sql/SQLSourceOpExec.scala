@@ -183,7 +183,7 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   protected def buildTupleFromRow: Tuple = {
-    val tupleBuilder = Tuple.newBuilder(schema)
+    val tupleBuilder = Tuple.builder(schema)
 
     for (attr <- schema.getAttributes.asScala) {
 

@@ -11,7 +11,6 @@ import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 import java.io.StringReader
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 class DictionaryMatcherOpExec(
     attributeName: String,

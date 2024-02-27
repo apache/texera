@@ -54,7 +54,7 @@ object ArrowUtils extends LazyLogging {
     val schema = toTexeraSchema(arrowSchema)
 
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(
         vectorSchemaRoot.getFieldVectors.asScala
           .map((fieldVector: FieldVector) => {

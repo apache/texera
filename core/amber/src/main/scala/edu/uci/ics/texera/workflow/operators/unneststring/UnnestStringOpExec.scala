@@ -4,8 +4,6 @@ import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import scala.jdk.CollectionConverters.CollectionHasAsScala
-
 class UnnestStringOpExec(attributeName: String, delimiter: String) extends FlatMapOpExec {
 
   setFlatMapFunc(splitByDelimiter)

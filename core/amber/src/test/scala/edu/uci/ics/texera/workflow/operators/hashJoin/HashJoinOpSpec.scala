@@ -19,7 +19,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {
 
     Tuple
-      .newBuilder(schema(name, n))
+      .builder(schema(name, n))
       .addSequentially(Array[Any](i.map(_.toString).orNull, i.map(_.toString).orNull))
       .build()
   }

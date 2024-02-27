@@ -16,7 +16,7 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val tuple: () => Tuple = () =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), 1)
       .add(
@@ -27,7 +27,7 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val tuple2: () => Tuple = () =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), 2)
       .add(

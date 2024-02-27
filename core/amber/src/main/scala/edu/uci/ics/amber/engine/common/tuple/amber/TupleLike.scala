@@ -106,7 +106,7 @@ object TupleLike {
     *                  by the `tupleLike` object.
     */
   private def buildTupleWithSchema(tupleLike: MapTupleLike, schema: Schema): Tuple = {
-    val builder = Tuple.newBuilder(schema)
+    val builder = Tuple.builder(schema)
     schema.getAttributesScala.foreach { attribute =>
       val value = tupleLike.fieldMappings.getOrElse(attribute.getName, null)
       builder.add(attribute, value)
@@ -126,7 +126,7 @@ object TupleLike {
     */
   private def buildTupleWithSchema(tupleLike: SeqTupleLike, schema: Schema): Tuple = {
     val attributes = schema.getAttributes
-    val builder = Tuple.newBuilder(schema)
+    val builder = Tuple.builder(schema)
     tupleLike.fields.zipWithIndex.foreach {
       case (value, i) =>
         builder.add(attributes.get(i), value)

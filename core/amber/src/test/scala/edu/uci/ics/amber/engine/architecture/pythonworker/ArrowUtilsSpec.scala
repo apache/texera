@@ -123,7 +123,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   it should "set Arrow Fields from Texera Tuple correctly" in {
 
     val tuple = Tuple
-      .newBuilder(texeraSchema)
+      .builder(texeraSchema)
       .addSequentially(
         Array(
           Int.box(2),
@@ -173,7 +173,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   it should "get Texera Tuple from Arrow Fields correctly" in {
 
     val tuple = Tuple
-      .newBuilder(texeraSchema)
+      .builder(texeraSchema)
       .addSequentially(
         Array(
           Int.box(2),
@@ -200,7 +200,7 @@ class ArrowUtilsSpec extends AnyFlatSpec {
   it should "get Texera Tuple from Arrow Fields with null values correctly" in {
 
     val tuple = Tuple
-      .newBuilder(texeraSchema)
+      .builder(texeraSchema)
       .addSequentially(
         Array(
           Int.box(2),
