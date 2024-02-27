@@ -11,7 +11,7 @@ object OperatorCurrentTuplesUpdateEvent {
         if (p._1 == null) {
           WorkerTuples(workerName, List.empty)
         } else {
-          WorkerTuples(workerName, p._1.toSeq.map(v => v.toString).toList)
+          WorkerTuples(workerName, p._1.fields.map(v => v.toString).toList)
         }
       })
       .filter(tuples => tuples.tuple != null && tuples.tuple.nonEmpty)

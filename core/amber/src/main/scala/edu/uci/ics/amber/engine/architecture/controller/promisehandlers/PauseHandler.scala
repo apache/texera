@@ -12,8 +12,8 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
@@ -40,7 +40,7 @@ trait PauseHandler {
               case (physicalOpId, opExecution) =>
                 // create a buffer for the current input tuple
                 // since we need to show them on the frontend
-                val buffer = mutable.ArrayBuffer[(ITuple, ActorVirtualIdentity)]()
+                val buffer = mutable.ArrayBuffer[(Tuple, ActorVirtualIdentity)]()
                 Future
                   .collect(
                     opExecution.getWorkerIds

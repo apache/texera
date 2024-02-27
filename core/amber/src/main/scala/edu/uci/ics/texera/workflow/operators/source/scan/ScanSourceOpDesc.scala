@@ -85,7 +85,7 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = s"${fileTypeName.get} File Scan",
       operatorDescription = s"Scan data from a ${fileTypeName.get} file",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.INPUT_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

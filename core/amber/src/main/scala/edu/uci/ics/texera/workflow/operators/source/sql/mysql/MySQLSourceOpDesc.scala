@@ -23,7 +23,6 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
         this.operatorIdentifier,
         OpExecInitInfo((_, _, _) =>
           new MySQLSourceOpExec(
-            this.querySchema,
             host,
             port,
             database,
@@ -39,7 +38,8 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
             interval,
             keywordSearch.getOrElse(false),
             keywordSearchByColumn.orNull,
-            keywords.orNull
+            keywords.orNull,
+            () => sourceSchema()
           )
         )
       )
@@ -50,7 +50,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
     OperatorInfo(
       "MySQL Source",
       "Read data from a MySQL instance",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.DATABASE_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

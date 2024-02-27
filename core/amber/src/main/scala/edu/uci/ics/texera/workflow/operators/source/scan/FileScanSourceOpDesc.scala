@@ -52,13 +52,23 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new FileScanSourceOpExec(this))
+        OpExecInitInfo((_, _, _) =>
+          new FileScanSourceOpExec(
+            filePath.get,
+            attributeType,
+            encoding,
+            extract,
+            outputFileName,
+            fileScanLimit,
+            fileScanOffset
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
 
   override def inferSchema(): Schema = {
-    val builder = Schema.newBuilder()
+    val builder = Schema.builder()
     if (outputFileName) builder.add(new Attribute("filename", AttributeType.STRING))
     builder.add(new Attribute(attributeName, attributeType.getType)).build()
   }

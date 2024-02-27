@@ -28,7 +28,7 @@ abstract class TwitterSourceOpDesc extends SourceOperatorDescriptor {
     OperatorInfo(
       userFriendlyName = s"Twitter ${APIName.get} API",
       operatorDescription = s"Retrieve data from Twitter ${APIName.get} API",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
