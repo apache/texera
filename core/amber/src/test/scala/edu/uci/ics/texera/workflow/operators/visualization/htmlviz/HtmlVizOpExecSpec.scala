@@ -22,7 +22,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .build()
 
   it should "process a target field" in {
-    val htmlVizOpExec = new HtmlVizOpExec("field1", outputSchema)
+    val htmlVizOpExec = new HtmlVizOpExec("field1")
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       TupleLike.enforceSchema(htmlVizOpExec.processTuple(Left(tuple()), 0).next(), outputSchema)
@@ -33,7 +33,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "process another target field" in {
 
-    val htmlVizOpExec = new HtmlVizOpExec("field2", outputSchema)
+    val htmlVizOpExec = new HtmlVizOpExec("field2")
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       TupleLike.enforceSchema(htmlVizOpExec.processTuple(Left(tuple()), 0).next(), outputSchema)
