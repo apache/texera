@@ -67,7 +67,7 @@ export const searchTestEntries = (
   keywords: string[],
   params: SearchFilterParameters,
   testEntries: DashboardEntry[],
-  type: "workflow" | "project" | "file" | null
+  type: "workflow" | "project" | "file" | "dataset" | null
 ): DashboardEntry[] => {
   const endOfDay = (date: Date) => {
     date.setHours(23);
