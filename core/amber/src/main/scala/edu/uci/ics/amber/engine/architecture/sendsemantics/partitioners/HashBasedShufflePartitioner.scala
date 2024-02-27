@@ -9,17 +9,11 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
     val numBuckets = partitioning.receivers.length
-    val index = Math.floorMod(
-      tuple
-        .getPartialTuple(
-          partitioning.hashAttributeNames
-            .map(attributeName => tuple.getSchema.getIndex(attributeName).toInt)
-            .toArray
-        )
-        .hashCode(),
-      numBuckets
-    )
-    Iterator(index)
+    val partialTuple =
+      if (partitioning.hashAttributeNames.isEmpty) tuple
+      else tuple.getPartialTuple(partitioning.hashAttributeNames.toList)
+    val index = Math.floorMod(partialTuple.hashCode(), numBuckets)
+    Iterator.single(index)
   }
 
   override def allReceivers: Seq[ActorVirtualIdentity] = partitioning.receivers

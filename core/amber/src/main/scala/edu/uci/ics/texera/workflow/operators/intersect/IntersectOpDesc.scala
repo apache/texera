@@ -16,10 +16,6 @@ class IntersectOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val hashAttributeNames = operatorInfo.inputPorts
-      .map(inputPort => inputPortToSchemaMapping(inputPort.id))
-      .head
-      .getAttributeNamesScala
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -29,8 +25,8 @@ class IntersectOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
-      .withPartitionRequirement(List(Option(HashPartition(hashAttributeNames))))
-      .withDerivePartition(_ => HashPartition(hashAttributeNames))
+      .withPartitionRequirement(List(Option(HashPartition())))
+      .withDerivePartition(_ => HashPartition())
   }
 
   override def operatorInfo: OperatorInfo =

@@ -16,10 +16,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val hashAttributeNames = operatorInfo.inputPorts
-      .map(inputPort => inputPortToSchemaMapping(inputPort.id))
-      .head
-      .getAttributeNamesScala
+
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -29,8 +26,8 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
-      .withPartitionRequirement(List(Option(HashPartition(hashAttributeNames))))
-      .withDerivePartition(_ => HashPartition(hashAttributeNames))
+      .withPartitionRequirement(List(Option(HashPartition(List()))))
+      .withDerivePartition(_ => HashPartition(List()))
   }
 
   override def operatorInfo: OperatorInfo =
