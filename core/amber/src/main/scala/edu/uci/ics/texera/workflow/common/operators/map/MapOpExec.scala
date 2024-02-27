@@ -11,12 +11,12 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
   */
 abstract class MapOpExec extends OperatorExecutor with Serializable {
 
-  var mapFunc: Tuple => TupleLike = _
+  private var mapFunc: Tuple => TupleLike = _
 
   /**
     * Provides the flatMap function of this executor, it should be called in the constructor
     * If the operator executor is implemented in Java, it should be called with:
-    * setMapFunc((Function1<TexeraTuple, TexeraTuple> & Serializable) func)
+    * setMapFunc((Function1<Tuple, TupleLike> & Serializable) func)
     */
   def setMapFunc(func: Tuple => TupleLike): Unit = {
     mapFunc = func
