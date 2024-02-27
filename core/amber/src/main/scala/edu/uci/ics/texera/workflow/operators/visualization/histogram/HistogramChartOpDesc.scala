@@ -1,39 +1,44 @@
 package edu.uci.ics.texera.workflow.operators.visualization.histogram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
 
 class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(required = false, defaultValue = "Histogram Chart")
   @JsonSchemaTitle("Title")
-  @JsonPropertyDescription("Add a title to your histogram plot.")
+  @JsonPropertyDescription("Add a title to your histogram chart.")
   var title: String = "Histogram Chart"
 
   @JsonProperty(value = "value", required = true)
   @JsonSchemaTitle("Value Column")
-  @JsonPropertyDescription("Column for analyzing")
+  @JsonPropertyDescription("Column for counting values.")
   @AutofillAttributeName
   var value: String = ""
 
   @JsonProperty(required = false)
-  @JsonSchemaTitle("Category Column")
-  @JsonPropertyDescription("Column for assigning different colors")
+  @JsonSchemaTitle("Color Column")
+  @JsonPropertyDescription("Column for differentiating data by its value.")
   @AutofillAttributeName
-  var category: String = ""
+  var color: String = ""
 
   @JsonProperty(defaultValue = "false", required = false)
-  @JsonSchemaTitle("Separate Chart")
-  @JsonPropertyDescription("Separate histogram chart for each category")
+  @JsonSchemaTitle("Separate Chart?")
+  @JsonPropertyDescription("Separate histogram chart by value.")
+  @JsonSchemaInject(json = """{"toggleHidden" : ["separateBy"]}""")
   var separate: Boolean = _
+
+  @JsonProperty()
+  @JsonSchemaTitle("SeparateBy Column")
+  @JsonPropertyDescription("Column for separating histogram chart by its value.")
+  @AutofillAttributeName
+  var separateBy: String = ""
+
 
   /**
     * This method is to be implemented to generate the actual Python source code
@@ -53,14 +58,13 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
 
   def createPlotlyFigure(): String = {
     assert(value.nonEmpty)
-    assert(category.nonEmpty)
-    var truthy = ""
-    if (separate) truthy = "True"
+    var colorParam =""
+    var categoryParam = ""
+    if (color.nonEmpty) colorParam = s", color = '$color'"
+    if (separateBy.nonEmpty && separate) categoryParam = s", facet_col = '$separateBy'"
+
     s"""
-       |        if ($truthy):
-       |            fig = px.histogram(table, x = '$value', title = '$title', color = '$category', text_auto = True, facet_col = '$category')
-       |        else:
-       |            fig = px.histogram(table, x = '$value', title = '$title', color = '$category', text_auto = True)
+       |        fig = px.histogram(table, x = '$value', title = '$title', text_auto = True $colorParam $categoryParam)
        |""".stripMargin
   }
 
