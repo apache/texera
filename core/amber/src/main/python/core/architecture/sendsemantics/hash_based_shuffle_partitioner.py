@@ -29,7 +29,11 @@ class HashBasedShufflePartitioner(Partitioner):
     def add_tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
-        partial_tuple = tuple_.get_partial_tuple(self.hash_attribute_names)
+        partial_tuple = (
+            tuple_
+            if not self.hash_attribute_names
+            else tuple_.get_partial_tuple(self.hash_attribute_names)
+        )
         hash_code = hash(partial_tuple) % len(self.receivers)
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)
