@@ -16,6 +16,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -23,13 +24,13 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.utils.TupleFactory.mkTuple
 import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -75,7 +76,14 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
       inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
       outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
-  private val tuples: Array[Tuple] = (0 until 5000).map(mkTuple(_)).toArray
+  private val tuples: Array[Tuple] = (0 until 5000)
+    .map(i =>
+      TupleLike.enforceSchema(
+        TupleLike(i).asInstanceOf[SchemaEnforceable],
+        Schema.newBuilder().add("field1", AttributeType.INTEGER).build()
+      )
+    )
+    .toArray
   private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
   private val logManager: ReplayLogManager =
     ReplayLogManager.createLogManager(logStorage, "none", x => {})

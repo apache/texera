@@ -38,13 +38,23 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
       customDelimiter = Option(",")
 
     filePath match {
-      case Some(_) =>
+      case Some(path) =>
         PhysicalOp
           .sourcePhysicalOp(
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo((_, _, _) => new CSVScanSourceOpExec(this))
+            OpExecInitInfo((_, _, _) =>
+              new CSVScanSourceOpExec(
+                path,
+                fileEncoding,
+                limit,
+                offset,
+                customDelimiter,
+                hasHeader,
+                schemaFunc = () => sourceSchema()
+              )
+            )
           )
           .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
           .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

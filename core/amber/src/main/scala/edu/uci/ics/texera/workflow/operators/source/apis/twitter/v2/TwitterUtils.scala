@@ -78,6 +78,6 @@ object TwitterUtils {
       ),
       tweetSchema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
     )
-    Tuple.newBuilder(tweetSchema).addSequentially(fields).build()
+    Tuple.builder(tweetSchema).addSequentially(fields).build()
   }
 }

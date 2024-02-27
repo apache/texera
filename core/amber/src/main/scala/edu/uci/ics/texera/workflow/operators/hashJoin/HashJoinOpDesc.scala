@@ -138,12 +138,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
           executionId,
           OpExecInitInfo((_, _, _) =>
             new HashJoinProbeOpExec[K](
-              buildAttributeName,
               probeAttributeName,
-              joinType,
-              buildSchema,
-              probeSchema,
-              outputSchema
+              joinType
             )
           )
         )
@@ -187,17 +183,17 @@ class HashJoinOpDesc[K] extends LogicalOp {
       outputPorts = List(OutputPort())
     )
 
-  /*
-    returns a triple containing
-    1: the output schema
-    2: a mapping of left  input attribute index to output attribute index
-    3: a mapping of right input attribute index to output attribute index
-
-    For example, Left(id, l1, l2) joins Right(id, r1, r2) on id:
-    1. output schema: (id, l1, l2, r1, r2)
-    2. left  mapping: (0->0, 1->1, 2->2)
-    3. right mapping: (0->0, 1->3, 1->4)
-   */
+  /**
+    *    returns a triple containing
+    *    1: the output schema
+    *    2: a mapping of left  input attribute index to output attribute index
+    *    3: a mapping of right input attribute index to output attribute index
+    *
+    *    For example, Left(id, l1, l2) joins Right(id, r1, r2) on id:
+    *    1. output schema: (id, l1, l2, r1, r2)
+    *    2. left  mapping: (0->0, 1->1, 2->2)
+    *    3. right mapping: (0->0, 1->3, 1->4)
+    */
   def getOutputSchemaInternal(
       buildSchema: Schema,
       probeSchema: Schema

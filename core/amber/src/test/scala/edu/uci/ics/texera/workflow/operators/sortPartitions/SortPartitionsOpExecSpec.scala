@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -14,9 +15,9 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .add(new Attribute("field3", AttributeType.BOOLEAN))
     .build()
 
-  val tuple: (Int) => Tuple = (i) =>
+  val tuple: Int => Tuple = i =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), i)
       .add(
@@ -51,7 +52,10 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.processTuple(Left(tuple(5)), 0)
 
     val outputTuples: List[Tuple] =
-      opExec.processTuple(Right(InputExhausted()), 0).toList
+      opExec
+        .processTuple(Right(InputExhausted()), 0)
+        .map(tupleLike => TupleLike.enforceSchema(tupleLike, tupleSchema))
+        .toList
     assert(outputTuples.size == 4)
     assert(outputTuples(0).equals(tuple(1)))
     assert(outputTuples(1).equals(tuple(2)))

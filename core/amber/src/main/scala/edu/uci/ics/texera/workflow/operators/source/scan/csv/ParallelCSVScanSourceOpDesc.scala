@@ -54,9 +54,12 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               val endOffset: Long =
                 if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
               new ParallelCSVScanSourceOpExec(
-                this,
+                path,
+                customDelimiter,
+                hasHeader,
                 startOffset,
-                endOffset
+                endOffset,
+                schemaFunc = () => sourceSchema()
               )
             })
           )

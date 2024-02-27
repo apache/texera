@@ -6,19 +6,33 @@ import com.fasterxml.jackson.databind.JsonNode
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.tuple.amber.SeqTupleLike
 import edu.uci.ics.texera.Utils
+import edu.uci.ics.texera.workflow.common.tuple.Tuple.checkSchemaMatchesFields
 import edu.uci.ics.texera.workflow.common.tuple.exception.TupleBuildingException
 import org.bson.Document
 import org.ehcache.sizeof.SizeOf
-import scala.collection.mutable
-import java.util
 
+import java.util
+import scala.collection.mutable
+import scala.jdk.CollectionConverters.CollectionHasAsScala
+
+/**
+  * Represents a tuple in a data processing workflow, encapsulating a schema and corresponding field values.
+  *
+  * A Tuple is a fundamental data structure that holds an ordered collection of elements. Each element can be of any type.
+  * The schema defines the structure of the Tuple, including the names and types of fields that the Tuple can hold.
+  *
+  * @constructor Create a new Tuple with a specified schema and field values.
+  * @param schema The schema associated with this tuple, defining the structure and types of fields in the tuple.
+  * @param fieldVals A list of values corresponding to the fields defined in the schema. Each value in this list
+  *                  is mapped to a field in the schema, in the same order as the fields are defined.
+  *
+  * @throws IllegalArgumentException if either schema or fieldVals is null, ensuring that every Tuple has a well-defined structure.
+  */
 case class Tuple @JsonCreator() (
     @JsonProperty(value = "schema", required = true) schema: Schema,
     @JsonProperty(value = "fields", required = true) fieldVals: List[Any]
 ) extends SeqTupleLike
     with Serializable {
-
-  import Tuple._
 
   require(schema != null, "Schema cannot be null")
   require(fieldVals != null, "Fields cannot be null")
@@ -53,7 +67,7 @@ case class Tuple @JsonCreator() (
 
   def getPartialTuple(indices: Array[Int]): Tuple = {
     val partialSchema = schema.getPartialSchema(indices)
-    val builder = Tuple.BuilderV2(partialSchema)
+    val builder = Tuple.Builder(partialSchema)
     val partialArray = indices.map(fieldVals(_))
     builder.addSequentially(partialArray)
     builder.build()
@@ -83,6 +97,13 @@ case class Tuple @JsonCreator() (
 
 object Tuple {
 
+  /**
+    * Validates that the provided attributes match the provided fields in type and order.
+    *
+    * @param attributes An iterable of Attributes to be validated against the fields.
+    * @param fields     An iterable of field values to be validated against the attributes.
+    * @throws RuntimeException if the sizes of attributes and fields do not match, or if their types are incompatible.
+    */
   private def checkSchemaMatchesFields(
       attributes: Iterable[Attribute],
       fields: Iterable[Any]
@@ -102,6 +123,13 @@ object Tuple {
     }
   }
 
+  /**
+    * Validates that a single field matches its corresponding attribute in type.
+    *
+    * @param attribute The attribute to be matched.
+    * @param field     The field value to be checked.
+    * @throws RuntimeException if the field's type does not match the attribute's defined type.
+    */
   private def checkAttributeMatchesField(attribute: Attribute, field: Any): Unit = {
     if (
       field != null && attribute.getType != AttributeType.ANY && !field.getClass.equals(
@@ -115,14 +143,23 @@ object Tuple {
     }
   }
 
-  def newBuilder(schema: Schema): BuilderV2 = {
-    Tuple.BuilderV2(schema)
+  /**
+    * Creates a new Tuple builder for a specified schema.
+    *
+    * @param schema The schema for which the Tuple builder will create Tuples.
+    * @return A new instance of Tuple.Builder configured with the specified schema.
+    */
+  def builder(schema: Schema): Builder = {
+    Tuple.Builder(schema)
   }
 
-  case class BuilderV2(schema: Schema) {
+  /**
+    * Builder class for constructing Tuple instances in a flexible and controlled manner.
+    */
+  case class Builder(schema: Schema) {
     private val fieldNameMap = mutable.Map.empty[String, Any]
 
-    def add(tuple: Tuple, isStrictSchemaMatch: Boolean = true): BuilderV2 = {
+    def add(tuple: Tuple, isStrictSchemaMatch: Boolean = true): Builder = {
       require(tuple != null, "Tuple cannot be null")
 
       tuple.fields.zipWithIndex.foreach {
@@ -137,7 +174,7 @@ object Tuple {
       this
     }
 
-    def add(attribute: Attribute, field: Any): BuilderV2 = {
+    def add(attribute: Attribute, field: Any): Builder = {
       require(attribute != null, "Attribute cannot be null")
       checkAttributeMatchesField(attribute, field)
 
@@ -151,7 +188,7 @@ object Tuple {
       this
     }
 
-    def add(attributeName: String, attributeType: AttributeType, field: Any): BuilderV2 = {
+    def add(attributeName: String, attributeType: AttributeType, field: Any): Builder = {
       require(
         attributeName != null && attributeType != null,
         "Attribute name and type cannot be null"
@@ -160,7 +197,7 @@ object Tuple {
       this
     }
 
-    def addSequentially(fields: Array[Any]): BuilderV2 = {
+    def addSequentially(fields: Array[Any]): Builder = {
       require(fields != null, "Fields cannot be null")
       checkSchemaMatchesFields(schema.getAttributes, fields)
       schema.getAttributes.zip(fields).foreach {

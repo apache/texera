@@ -65,14 +65,14 @@ object TupleUtils {
           fields += null
         }
       }
-      Tuple.newBuilder(schema).addSequentially(fields.toArray).build()
+      Tuple.builder(schema).addSequentially(fields.toArray).build()
     } catch {
       case e: Exception => throw e
     }
   }
 
   def document2Tuple(doc: Document, schema: Schema): Tuple = {
-    val builder = Tuple.newBuilder(schema)
+    val builder = Tuple.builder(schema)
     schema.getAttributes.foreach(attr =>
       if (attr.getType == BINARY) {
         // special care for converting MongoDB's binary type to byte[] in our schema
