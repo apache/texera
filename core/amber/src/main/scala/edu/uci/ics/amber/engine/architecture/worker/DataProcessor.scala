@@ -18,13 +18,13 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMP
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.operators.udf.java.JavaRuntimeCompilation
 
@@ -106,7 +106,7 @@ class DataProcessor(
 
   var outputIterator: DPOutputIterator = new DPOutputIterator()
 
-  var inputBatch: Array[ITuple] = _
+  var inputBatch: Array[Tuple] = _
   var currentInputIdx: Int = -1
   var currentChannelId: ChannelIdentity = _
 
@@ -142,14 +142,12 @@ class DataProcessor(
     *
     * @return an iterator of output tuples
     */
-  private[this] def processInputTuple(tuple: Either[ITuple, InputExhausted]): Unit = {
+  private[this] def processInputTuple(tuple: Either[Tuple, InputExhausted]): Unit = {
     try {
       outputIterator.setTupleOutput(
-        operator.processTuple(
+        operator.processTupleMultiPort(
           tuple,
-          this.inputGateway.getChannel(currentChannelId).getPortId.id,
-          pauseManager,
-          asyncRPCClient
+          this.inputGateway.getChannel(currentChannelId).getPortId.id
         )
       )
       if (tuple.isLeft) {
@@ -240,13 +238,13 @@ class DataProcessor(
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
-  private[this] def initBatch(channelId: ChannelIdentity, batch: Array[ITuple]): Unit = {
+  private[this] def initBatch(channelId: ChannelIdentity, batch: Array[Tuple]): Unit = {
     currentChannelId = channelId
     inputBatch = batch
     currentInputIdx = 0
   }
 
-  def getCurrentInputTuple: ITuple = {
+  def getCurrentInputTuple: Tuple = {
     if (inputBatch == null) {
       null
     } else if (inputBatch.isEmpty) {

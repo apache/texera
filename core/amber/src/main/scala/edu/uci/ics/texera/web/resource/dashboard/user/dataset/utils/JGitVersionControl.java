@@ -85,43 +85,49 @@ public class JGitVersionControl {
       ObjectId commitId = repository.resolve(commitHash);
       RevCommit commit = revWalk.parseCommit(commitId);
 
-      // initialize the treeWalk to traverse the file tree
-      TreeWalk treeWalk = new TreeWalk(repository);
-      treeWalk.addTree(commit.getTree());
-      treeWalk.setRecursive(true);
+      try (TreeWalk treeWalk = new TreeWalk(repository)) {
+        treeWalk.addTree(commit.getTree());
+        treeWalk.setRecursive(false);
 
-      while (treeWalk.next()) {
-        Path fullPath = repoPath.resolve(treeWalk.getPathString());
-        String pathStr = fullPath.toString();
+        while (treeWalk.next()) {
+          Path fullPath = repoPath.resolve(treeWalk.getPathString());
+          FileNode currentNode = createOrGetNode(pathToFileNodeMap, repoPath, fullPath);
 
-        // Determine if the current path is at the root level
-        if (treeWalk.getDepth() == 0) {
-          FileNode rootNode = new FileNode(repoPath, fullPath);
-          rootNodes.add(rootNode);
-          pathToFileNodeMap.put(pathStr, rootNode);
-        } else {
-          // For child nodes, find or create the parent node based on the directory structure
-          Path parentPath = fullPath.getParent();
-          String parentPathStr = parentPath.toString();
-          FileNode parentNode = pathToFileNodeMap.get(parentPathStr);
-
-          if (parentNode == null) {
-            parentNode = new FileNode(repoPath, parentPath);
-            pathToFileNodeMap.put(parentPathStr, parentNode);
-            // Determine if this parent should be added to rootNodes
-            if (parentPath.getParent().equals(repoPath)) {
-              rootNodes.add(parentNode);
-            }
+          if (treeWalk.isSubtree()) {
+            treeWalk.enterSubtree();
+          } else {
+            // For files, we've already added them. Just ensure parent linkage is correct.
+            ensureParentChildLink(pathToFileNodeMap, repoPath, fullPath, currentNode);
           }
 
-          FileNode childNode = new FileNode(repoPath, fullPath);
-          parentNode.addChildNode(childNode);
-          // Map child node to its path for potential future children
-          pathToFileNodeMap.put(pathStr, childNode);
+          // For directories, also ensure they are correctly linked
+          if (currentNode.isDirectory()) {
+            ensureParentChildLink(pathToFileNodeMap, repoPath, fullPath, currentNode);
+          }
         }
       }
     }
+
+    // Extract root nodes
+    pathToFileNodeMap.values().forEach(node -> {
+      if (node.getAbsolutePath().getParent().equals(repoPath)) {
+        rootNodes.add(node);
+      }
+    });
+
     return rootNodes;
+  }
+
+  private static FileNode createOrGetNode(Map<String, FileNode> map, Path repoPath, Path path) {
+    return map.computeIfAbsent(path.toString(), k -> new FileNode(repoPath, path));
+  }
+
+  private static void ensureParentChildLink(Map<String, FileNode> map, Path repoPath, Path childPath, FileNode childNode) {
+    Path parentPath = childPath.getParent();
+    if (parentPath != null && !parentPath.equals(repoPath)) {
+      FileNode parentNode = createOrGetNode(map, repoPath, parentPath);
+      parentNode.addChildNode(childNode);
+    }
   }
 
   public static void add(Path repoPath, Path filePath) throws IOException, GitAPIException {

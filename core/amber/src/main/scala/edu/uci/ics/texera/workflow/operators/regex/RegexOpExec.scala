@@ -5,18 +5,13 @@ import java.util.regex.Pattern
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-class RegexOpExec(val opDesc: RegexOpDesc) extends FilterOpExec {
+class RegexOpExec(regex: String, caseInsensitive: Boolean, attributeName: String)
+    extends FilterOpExec {
   lazy val pattern: Pattern =
-    if (opDesc.caseInsensitive) Pattern.compile(opDesc.regex, Pattern.CASE_INSENSITIVE)
-    else Pattern.compile(opDesc.regex)
+    Pattern.compile(regex, if (caseInsensitive) Pattern.CASE_INSENSITIVE else 0)
   this.setFilterFunc(this.matchRegex)
-
-  def matchRegex(tuple: Tuple): Boolean = {
-    val tupleValue = Option[Any](tuple.getField(opDesc.attribute)).map(x => x.toString)
-    if (tupleValue.isEmpty)
-      false
-    else
-      pattern.matcher(tupleValue.get).find
-  }
-
+  private def matchRegex(tuple: Tuple): Boolean =
+    Option[Any](tuple.getField(attributeName).toString)
+      .map(_.toString)
+      .exists(value => pattern.matcher(value).find)
 }

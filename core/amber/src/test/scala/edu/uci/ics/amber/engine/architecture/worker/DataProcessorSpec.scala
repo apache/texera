@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream, W
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -27,6 +27,8 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_WORKFLOW_ID
 }
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
@@ -67,7 +69,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .addInputLink(link)
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
-  private val tuples: Array[ITuple] = (0 until 400).map(ITuple(_)).toArray
+  private val tuples: Array[Tuple] = (0 until 400)
+    .map(i =>
+      TupleLike.enforceSchema(
+        TupleLike(i).asInstanceOf[SchemaEnforceable],
+        Schema.builder().add("field1", AttributeType.INTEGER).build()
+      )
+    )
+    .toArray
 
   def mkDataProcessor: DataProcessor = {
     val dp: DataProcessor =
@@ -88,14 +97,24 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (outputHandler.apply _).expects(*).once()
     (operator.open _).expects().once()
     tuples.foreach { x =>
-      (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
+      (
+          (
+              tuple: Either[Tuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
+        .expects(Left(x), 0)
     }
-    (operator.processTuple _).expects(
-      Right(InputExhausted()),
-      0,
-      dp.pauseManager,
-      dp.asyncRPCClient
+    (
+        (
+            tuple: Either[Tuple, InputExhausted],
+            input: Int
+        ) => operator.processTupleMultiPort(tuple, input)
     )
+      .expects(
+        Right(InputExhausted()),
+        0
+      )
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     (dp.outputManager.emitEndOfUpstream _).expects().once()
@@ -131,14 +150,21 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
     (operator.open _).expects().once()
     tuples.foreach { x =>
-      (operator.processTuple _).expects(Left(x), 0, dp.pauseManager, dp.asyncRPCClient)
+      (
+          (
+              tuple: Either[Tuple, InputExhausted],
+              input: Int
+          ) => operator.processTupleMultiPort(tuple, input)
+      )
+        .expects(Left(x), 0)
     }
-    (operator.processTuple _).expects(
-      Right(InputExhausted()),
-      0,
-      dp.pauseManager,
-      dp.asyncRPCClient
+    (
+        (
+            tuple: Either[Tuple, InputExhausted],
+            input: Int
+        ) => operator.processTupleMultiPort(tuple, input)
     )
+      .expects(Right(InputExhausted()), 0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     dp.inputGateway.addPort(inputPortId)

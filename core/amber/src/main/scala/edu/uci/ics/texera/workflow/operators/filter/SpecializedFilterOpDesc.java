@@ -16,7 +16,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
 import scala.Tuple3;
-import scala.collection.immutable.Seq;
 
 
 import java.util.ArrayList;
@@ -52,7 +51,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
         return new OperatorInfo(
                 "Filter",
                 "Performs a filter operation",
-                OperatorGroupConstants.SEARCH_GROUP(),
+                OperatorGroupConstants.CLEANING_GROUP(),
                 asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
                 asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,

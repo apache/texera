@@ -19,7 +19,6 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PartitionInfo, PhysicalPlan}
 
-import scala.jdk.CollectionConverters.IterableHasAsScala
 import scala.collection.mutable
 
 @JsonSchemaInject(json = """
@@ -64,7 +63,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val probeSchema = inputSchemas(1)
 
     val internalHashTableSchema =
-      Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
+      Schema.builder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
 
     val buildInPartitionRequirement = List(
       Option(HashPartition(List(buildSchema.getIndex(buildAttributeName))))
@@ -139,12 +138,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
           executionId,
           OpExecInitInfo((_, _, _) =>
             new HashJoinProbeOpExec[K](
-              buildAttributeName,
               probeAttributeName,
-              joinType,
-              buildSchema,
-              probeSchema,
-              outputSchema
+              joinType
             )
           )
         )
@@ -188,25 +183,25 @@ class HashJoinOpDesc[K] extends LogicalOp {
       outputPorts = List(OutputPort())
     )
 
-  /*
-    returns a triple containing
-    1: the output schema
-    2: a mapping of left  input attribute index to output attribute index
-    3: a mapping of right input attribute index to output attribute index
-
-    For example, Left(id, l1, l2) joins Right(id, r1, r2) on id:
-    1. output schema: (id, l1, l2, r1, r2)
-    2. left  mapping: (0->0, 1->1, 2->2)
-    3. right mapping: (0->0, 1->3, 1->4)
-   */
+  /**
+    *    returns a triple containing
+    *    1: the output schema
+    *    2: a mapping of left  input attribute index to output attribute index
+    *    3: a mapping of right input attribute index to output attribute index
+    *
+    *    For example, Left(id, l1, l2) joins Right(id, r1, r2) on id:
+    *    1. output schema: (id, l1, l2, r1, r2)
+    *    2. left  mapping: (0->0, 1->1, 2->2)
+    *    3. right mapping: (0->0, 1->3, 1->4)
+    */
   def getOutputSchemaInternal(
       buildSchema: Schema,
       probeSchema: Schema
   ): (Schema, Map[Int, Int], Map[Int, Int]) = {
-    val builder = Schema.newBuilder()
+    val builder = Schema.builder()
     builder.add(buildSchema).removeIfExists(probeAttributeName)
     if (probeAttributeName.equals(buildAttributeName)) {
-      probeSchema.getAttributes.asScala.foreach(attr => {
+      probeSchema.getAttributes.foreach(attr => {
         val attributeName = attr.getName
         if (
           builder.build().containsAttribute(attributeName) && attributeName != probeAttributeName
@@ -225,21 +220,21 @@ class HashJoinOpDesc[K] extends LogicalOp {
         }
       })
       val leftSchemaMapping =
-        buildSchema.getAttributeNamesScala.zipWithIndex
+        buildSchema.getAttributeNames.zipWithIndex
           .filter(p => p._1 != buildAttributeName)
           .map(p => p._2)
           .zipWithIndex
           .map(p => (p._1, p._2))
           .toMap
 
-      val rightSchemaMapping = probeSchema.getAttributesScala.indices
-        .map(i => (i, i + buildSchema.getAttributes.size() - 1))
+      val rightSchemaMapping = probeSchema.getAttributes.indices
+        .map(i => (i, i + buildSchema.getAttributes.length - 1))
         .toMap
 
       (builder.build(), leftSchemaMapping, rightSchemaMapping)
     } else {
       probeSchema.getAttributes
-        .forEach(attr => {
+        .foreach(attr => {
           val originalAttrName = attr.getName
           var attributeName = originalAttrName
           if (builder.build().containsAttribute(attributeName)) {
@@ -255,14 +250,14 @@ class HashJoinOpDesc[K] extends LogicalOp {
         })
 
       val leftSchemaMapping =
-        buildSchema.getAttributeNamesScala.indices.map(i => (i, i)).toMap
+        buildSchema.getAttributeNames.indices.map(i => (i, i)).toMap
 
       val rightSchemaMapping =
-        probeSchema.getAttributeNamesScala.zipWithIndex
+        probeSchema.getAttributeNames.zipWithIndex
           .filter(p => p._1 != probeAttributeName)
           .map(p => p._2)
           .zipWithIndex
-          .map(p => (p._1, p._2 + +buildSchema.getAttributes.size()))
+          .map(p => (p._1, p._2 + +buildSchema.getAttributes.length))
           .toMap
 
       (builder.build(), leftSchemaMapping, rightSchemaMapping)

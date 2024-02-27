@@ -115,6 +115,7 @@ object WorkflowCacheRewriter {
               storageType
             )
           )
+          println(logicalPlan.getOperator(storageKey).outputPortToSchemaMapping)
           sink.getStorage.setSchema(
             logicalPlan.getOperator(storageKey).outputPortToSchemaMapping.values.head
           )

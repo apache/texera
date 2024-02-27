@@ -53,9 +53,9 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
   }
 
   test("types should get inferred correctly with one row") {
-    val row: Array[Object] =
+    val row: Array[Any] =
       Array("string", "1", "2020-01-02T00:05:56.000Z", "1.3", "213214124124124", "true")
-    val rows: Iterator[Array[Object]] = Iterator(row)
+    val rows: Iterator[Array[Any]] = Iterator(row)
     val attributeTypes = inferSchemaFromRows(rows)
     assert(attributeTypes(0) == STRING)
     assert(attributeTypes(1) == INTEGER)
@@ -68,7 +68,7 @@ class AttributeTypeUtilsSpec extends AnyFunSuite {
 
   test("types should get inferred correctly with multiple rows") {
 
-    val rows: Iterator[Array[Object]] = Iterator(
+    val rows: Iterator[Array[Any]] = Iterator(
       Array("string", "1 ", "2020-01-02T00:05:56.000Z", "1.3 ", "9223372036854775807", "true"),
       Array("1932-09-06", "0 ", "1932-09-06T03:47:19Z", "9223.23", "-1", "false "),
       Array("", "-1", "1979-08-12T10:18:49Z", "-.11", "-9223372036854775808 ", "0"),
