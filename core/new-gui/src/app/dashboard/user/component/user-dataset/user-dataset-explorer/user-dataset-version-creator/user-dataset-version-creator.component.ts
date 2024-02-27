@@ -45,11 +45,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
     this.setFormFields();
   }
 
-  ngOnChanges() {
-    // Update the form fields when the input property changes
-    this.setFormFields();
-  }
-
   private setFormFields() {
     this.fields = this.isCreatingVersion
       ? [

@@ -27,7 +27,7 @@
             value="{{ dataset.name }}" />
         </ng-template>
         <button
-          *ngIf="editable && entry.accessPrivilege == 'WRITE'"
+          *ngIf="editable && entry.accessPrivilege === 'WRITE'"
           (click)="editingName = true"
           nz-button
           mat-card-title="Customize Dataset Name"
@@ -41,7 +41,7 @@
             nzType="edit"></i>
         </button>
         <button
-          *ngIf="editable && entry.accessPrivilege == 'WRITE'"
+          *ngIf="editable && entry.accessPrivilege === 'WRITE'"
           (click)="editingDescription = true"
           nz-button
           nz-tooltip="Add Description"

@@ -1,4 +1,4 @@
-import { Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges } from "@angular/core";
+import {Component, Input, Output, EventEmitter, OnInit, OnChanges, SimpleChanges, OnDestroy} from "@angular/core";
 import { DatasetService } from "../../../../service/user-dataset/dataset.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import * as Papa from "papaparse";
@@ -44,7 +44,7 @@ export const MIME_TYPE_SIZE_LIMITS_MB = {
   templateUrl: "./user-dataset-file-renderer.component.html",
   styleUrls: ["./user-dataset-file-renderer.component.scss"],
 })
-export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
+export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDestroy {
   private DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 
   public fileURL: string | undefined;
@@ -56,10 +56,6 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges {
   public displayXlsx: boolean = false;
   public tableDataHeader: any[] = [];
   public tableContent: any[][] = [];
-  // pagination for table-like data
-  currentPageIndex = 0;
-  pageSizeOptions = [3, 5, 10, 20, 50];
-  pageSize = 20;
 
   // image related control
   public displayImage: boolean = false;
