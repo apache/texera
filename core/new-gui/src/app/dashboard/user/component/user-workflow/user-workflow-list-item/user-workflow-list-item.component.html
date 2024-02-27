@@ -6,6 +6,7 @@
         *ngIf="editable"
         class="workflow-item-checkbox"
         id="{{workflow.wid}}"
+        ngDefaultControl
         [(ngModel)]="entry.checked"></label>
       <nz-avatar
         [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
