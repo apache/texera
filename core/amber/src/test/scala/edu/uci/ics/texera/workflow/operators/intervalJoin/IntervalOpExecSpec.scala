@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -220,10 +221,12 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      opDesc,
-      inputSchemas(0),
-      inputSchemas(1),
-      outputSchema
+      leftAttributeName = leftKey,
+      rightAttributeName = rightKey,
+      includeLeftBound = includeLeftBound,
+      includeRightBound = includeRightBound,
+      constant = intervalConstant,
+      timeIntervalType = Some(timeIntervalType)
     )
     opExec.open()
     counter = 0
@@ -244,6 +247,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
             Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)),
             left
           )
+          .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
           .toBuffer
         outputTuples.appendAll(
           result
@@ -255,6 +259,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
             Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)),
             right
           )
+          .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
           .toBuffer
         outputTuples.appendAll(
           result
@@ -399,24 +404,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with Double value int [] interval" in {
-    val inputSchemas =
-      Array(schema("point", AttributeType.DOUBLE), schema("range", AttributeType.DOUBLE))
-
-    val opDesc = new IntervalJoinOpDesc(
-      "point_1",
-      "range_1",
-      inputSchemas,
-      3,
+    val opExec = new IntervalJoinOpExec(
+      leftAttributeName = "point_1",
+      rightAttributeName = "range_1",
       includeLeftBound = true,
       includeRightBound = true,
-      timeIntervalType = TimeIntervalType.DAY
-    )
-    val outputSchema = opDesc.getOutputSchema(inputSchemas)
-    val opExec = new IntervalJoinOpExec(
-      opDesc,
-      inputSchemas(0),
-      inputSchemas(1),
-      outputSchema
+      constant = 3,
+      timeIntervalType = Option(TimeIntervalType.DAY)
     )
 
     opExec.open()
@@ -431,10 +425,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
     val outputTuples = rangeList
       .map(i => opExec.processTuple(Left(doubleTuple("range", 1, i)), right))
-      .foldLeft(Iterator[Tuple]())(_ ++ _)
+      .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
     assert(outputTuples.size == 11)
-    assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
+    assert(outputTuples.head.fields.length == 4)
     opExec.close()
   }
 

@@ -26,7 +26,7 @@ class WorkflowExecutionController(
     */
   def executeNextRegions(actorService: AkkaActorService): Future[Unit] = {
     if (workflowExecution.getRunningRegionExecutions.nonEmpty) {
-      return Future()
+      return Future(())
     }
     Future
       .collect(

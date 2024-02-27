@@ -10,13 +10,31 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.getOutputSchema
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.collection.mutable
+import scala.jdk.CollectionConverters.IterableHasAsJava
 
 object AggregateOpDesc {
+
+  def internalAggObjKey(key: Int): String = {
+    s"__internal_aggregate_partial_object_${key}__"
+  }
+
+  def getOutputSchema(
+      inputSchema: Schema,
+      aggFuncs: List[DistributedAggregation[Object]],
+      groupByKeys: List[String]
+  ): Schema = {
+    Schema
+      .newBuilder()
+      // add group by keys
+      .add(groupByKeys.map(k => inputSchema.getAttribute(k)).asJava)
+      // add intermediate internal aggregation objects
+      .add(aggFuncs.indices.map(i => new Attribute(internalAggObjKey(i), AttributeType.ANY)).asJava)
+      .build()
+  }
 
   def getPhysicalPlan(
       workflowId: WorkflowIdentity,
@@ -35,9 +53,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) =>
-            new PartialAggregateOpExec(aggFuncs, groupByKeys, inputSchema)
-          )
+          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggFuncs, groupByKeys))
         )
         .withIsOneToManyOp(true)
         .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> inputSchema))
@@ -54,7 +70,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema))
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys))
         )
         .withParallelizable(false)
         .withIsOneToManyOp(true)
@@ -74,9 +90,7 @@ object AggregateOpDesc {
           PhysicalOpIdentity(id, "globalAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) =>
-            new FinalAggregateOpExec(aggFuncs, groupByKeys, outputSchema)
-          ),
+          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys)),
           partitionColumns
         )
         .withParallelizable(false)
@@ -89,7 +103,7 @@ object AggregateOpDesc {
         )
     }
 
-    new PhysicalPlan(
+    PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),
       links = Set(
         PhysicalLink(partialPhysicalOp.id, outputPort.id, finalPhysicalOp.id, inputPort.id)

@@ -7,7 +7,6 @@ import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpExec
 import java.sql._
 
 class MySQLSourceOpExec private[mysql] (
-    schema: Schema,
     host: String,
     port: String,
     database: String,
@@ -23,9 +22,9 @@ class MySQLSourceOpExec private[mysql] (
     interval: Long,
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
-    keywords: String
+    keywords: String,
+    schemaFunc: () => Schema
 ) extends SQLSourceOpExec(
-      schema,
       table,
       limit,
       offset,
@@ -36,7 +35,8 @@ class MySQLSourceOpExec private[mysql] (
       interval,
       keywordSearch,
       keywordSearchByColumn,
-      keywords
+      keywords,
+      schemaFunc
     ) {
 
   val FETCH_TABLE_NAMES_SQL =

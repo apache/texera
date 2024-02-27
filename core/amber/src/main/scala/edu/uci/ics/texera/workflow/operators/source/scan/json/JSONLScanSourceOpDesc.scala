@@ -45,13 +45,20 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo((idx, physicalOp, operatorConfig) => {
+            OpExecInitInfo((idx, _, operatorConfig) => {
               val workerCount = operatorConfig.workerConfigs.length
               val startOffset: Int = offsetValue + count / workerCount * idx
               val endOffset: Int =
                 offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
                                else count)
-              new JSONLScanSourceOpExec(this, startOffset, endOffset)
+              new JSONLScanSourceOpExec(
+                path,
+                fileEncoding,
+                startOffset,
+                endOffset,
+                flatten,
+                schemaFunc = () => inferSchema()
+              )
             })
           )
           .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)

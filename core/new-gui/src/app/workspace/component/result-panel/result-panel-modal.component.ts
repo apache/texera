@@ -28,25 +28,22 @@ export class RowModalComponent implements OnChanges {
   // Index of current displayed row in currentResult
   readonly operatorId: string = inject(NZ_MODAL_DATA).operatorId;
   rowIndex: number = inject(NZ_MODAL_DATA).rowIndex;
-
-  // when modal is opened, currentDisplayRow will be passed as
-  //  componentInstance to display as data table.
   currentDisplayRowData: Record<string, unknown> = {};
 
   constructor(
     public modal: NzModalRef<any, number>,
     private workflowResultService: WorkflowResultService
-  ) {}
+  ) {
+    this.ngOnChanges();
+  }
 
   ngOnChanges(): void {
-    if (this.operatorId !== undefined) {
-      const resultService = this.workflowResultService.getPaginatedResultService(this.operatorId);
-      resultService
-        ?.selectTuple(this.rowIndex, DEFAULT_PAGE_SIZE)
-        .pipe(untilDestroyed(this))
-        .subscribe(res => {
-          this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
-        });
-    }
+    this.workflowResultService
+      .getPaginatedResultService(this.operatorId)
+      ?.selectTuple(this.rowIndex, DEFAULT_PAGE_SIZE)
+      .pipe(untilDestroyed(this))
+      .subscribe(res => {
+        this.currentDisplayRowData = trimDisplayJsonData(res, PRETTY_JSON_TEXT_LIMIT);
+      });
   }
 }
