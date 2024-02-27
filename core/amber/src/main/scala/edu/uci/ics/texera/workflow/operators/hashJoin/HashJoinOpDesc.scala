@@ -67,14 +67,11 @@ class HashJoinOpDesc[K] extends LogicalOp {
       Schema.newBuilder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
 
     val buildInPartitionRequirement = List(
-      Option(HashPartition(List(buildSchema.getIndex(buildAttributeName))))
+      Option(HashPartition(List(buildAttributeName)))
     )
 
-    val buildDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-      val buildPartition = inputPartitions.head.asInstanceOf[HashPartition]
-      val buildAttrIndex = buildSchema.getIndex(buildAttributeName)
-      assert(buildPartition.hashColumnIndices.contains(buildAttrIndex))
-      HashPartition(List(0))
+    val buildDerivePartition: List[PartitionInfo] => PartitionInfo = _ => {
+      HashPartition(List("key"))
     }
 
     val buildInputPort = operatorInfo.inputPorts.head
@@ -98,32 +95,12 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withParallelizable(true)
 
     val probeInPartitionRequirement = List(
-      Option(HashPartition(List(0))),
-      Option(HashPartition(List(inputSchemas(1).getIndex(probeAttributeName))))
+      Option(HashPartition(List("key"))),
+      Option(HashPartition(List(probeAttributeName)))
     )
 
     val probeDerivePartition: List[PartitionInfo] => PartitionInfo = inputPartitions => {
-
-      val buildPartition = HashPartition(
-        List(buildSchema.getIndex(buildAttributeName))
-      ).asInstanceOf[HashPartition]
-
-      val probePartition = inputPartitions(1).asInstanceOf[HashPartition]
-      val probAttrIndex = inputSchemas(1).getIndex(probeAttributeName)
-
-      assert(probePartition.hashColumnIndices.contains(probAttrIndex))
-
-      // mapping from build/probe schema index to the final output schema index
-      val schemaMappings = getOutputSchemaInternal(buildSchema, probeSchema)
-      val buildMapping = schemaMappings._2
-      val probeMapping = schemaMappings._3
-
-      val outputHashIndices = buildPartition.hashColumnIndices.flatMap(i => buildMapping.get(i)) ++
-        probePartition.hashColumnIndices.flatMap(i => probeMapping.get(i))
-
-      assert(outputHashIndices.nonEmpty)
-
-      HashPartition(outputHashIndices)
+      HashPartition(List(buildAttributeName))
     }
 
     val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))

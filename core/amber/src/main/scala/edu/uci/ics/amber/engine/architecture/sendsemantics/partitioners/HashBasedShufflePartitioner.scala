@@ -11,7 +11,7 @@ case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitionin
     val numBuckets = partitioning.receivers.length
     val index = Math.floorMod(
       tuple
-        .getPartialTuple(partitioning.hashColumnIndices.toArray)
+        .getPartialTuple(partitioning.hashAttributeNames.map(attributeName => tuple.getSchema.getIndex(attributeName).toInt).toArray)
         .hashCode(),
       numBuckets
     )

@@ -74,15 +74,9 @@ class IntervalJoinOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val inputSchemas =
-      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
-    val leftSchema = inputSchemas(0)
-    val rightSchema = inputSchemas(1)
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     val partitionRequirement = List(
-      Option(HashPartition(List(leftSchema.getIndex(leftAttributeName)))),
-      Option(HashPartition(List(rightSchema.getIndex(rightAttributeName))))
+      Option(HashPartition(List(leftAttributeName))),
+      Option(HashPartition(List(rightAttributeName)))
     )
 
     PhysicalOp

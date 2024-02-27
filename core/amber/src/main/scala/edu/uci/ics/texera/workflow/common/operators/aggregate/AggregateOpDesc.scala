@@ -81,9 +81,10 @@ object AggregateOpDesc {
           mutable.Map(PortIdentity() -> outputSchema)
         )
     } else {
-      val partitionColumns: List[Int] =
+      val partitionColumns: List[String] =
         if (groupByKeys == null) List()
-        else groupByKeys.indices.toList // group by columns are always placed in the beginning
+        else groupByKeys
+
 
       PhysicalOp
         .hashPhysicalOp(

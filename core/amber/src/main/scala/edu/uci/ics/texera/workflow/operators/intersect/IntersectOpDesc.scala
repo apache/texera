@@ -24,10 +24,7 @@ class IntersectOpDesc extends LogicalOp {
         operatorInfo.inputPorts
           .map(inputPort => inputPortToSchemaMapping(inputPort.id))
           .head
-          .getAttributes
-          .toArray
-          .indices
-          .toList
+          .getAttributeNamesScala
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

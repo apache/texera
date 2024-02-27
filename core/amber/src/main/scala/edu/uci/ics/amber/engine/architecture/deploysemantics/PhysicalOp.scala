@@ -148,14 +148,14 @@ object PhysicalOp {
       executionId: ExecutionIdentity,
       logicalOpId: OperatorIdentity,
       opExec: OpExecInitInfo,
-      hashColumnIndices: List[Int]
+      hashAttributeNames: List[String]
   ): PhysicalOp =
     hashPhysicalOp(
       PhysicalOpIdentity(logicalOpId, "main"),
       workflowId,
       executionId,
       opExec,
-      hashColumnIndices
+      hashAttributeNames
     )
 
   def hashPhysicalOp(
@@ -163,15 +163,15 @@ object PhysicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity,
       opExecInitInfo: OpExecInitInfo,
-      hashColumnIndices: List[Int]
+      hashAttributeNames: List[String]
   ): PhysicalOp = {
     PhysicalOp(
       physicalOpId,
       workflowId,
       executionId,
       opExecInitInfo,
-      partitionRequirement = List(Option(HashPartition(hashColumnIndices))),
-      derivePartition = _ => HashPartition(hashColumnIndices)
+      partitionRequirement = List(Option(HashPartition(hashAttributeNames))),
+      derivePartition = _ => HashPartition(hashAttributeNames)
     )
   }
 

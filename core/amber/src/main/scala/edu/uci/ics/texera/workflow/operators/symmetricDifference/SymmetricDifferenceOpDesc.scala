@@ -23,10 +23,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       operatorInfo.inputPorts
         .map(inputPort => inputPortToSchemaMapping(inputPort.id))
         .head
-        .getAttributes
-        .toArray
-        .indices
-        .toList
+        .getAttributeNamesScala
     )
   }
 

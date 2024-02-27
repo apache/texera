@@ -36,9 +36,9 @@ sealed abstract class PartitionInfo {
 }
 
 object HashPartition {
-  def apply(hashColumnIndices: List[Int]): PartitionInfo = {
-    if (hashColumnIndices.nonEmpty)
-      new HashPartition(hashColumnIndices)
+  def apply(hashAttributeNames:List[String]): PartitionInfo = {
+    if (hashAttributeNames.nonEmpty)
+      new HashPartition(hashAttributeNames)
     else
       UnknownPartition()
   }
@@ -48,7 +48,7 @@ object HashPartition {
   * Represents an input stream is partitioned on multiple nodes
   * according to a hash function on the specified column indices.
   */
-final case class HashPartition(hashColumnIndices: List[Int]) extends PartitionInfo
+final case class HashPartition(hashAttributeNames: List[String]) extends PartitionInfo
 
 object RangePartition {
 
