@@ -51,11 +51,15 @@ class CartesianProductOpDesc extends LogicalOp {
     val leftSchema = schemas(0)
     val leftAttributeNames = leftSchema.getAttributeNamesScala
     val rightSchema = schemas(1)
-    val rightAttributeNames=  rightSchema.getAttributeNamesScala
+    val rightAttributeNames = rightSchema.getAttributeNamesScala
     builder.add(leftSchema)
     rightSchema.getAttributes.forEach(attr => {
       var newName = attr.getName
-      while (leftAttributeNames.contains(newName) || rightAttributeNames.filterNot(attrName => attrName == attr.getName).contains(newName)) {
+      while (
+        leftAttributeNames.contains(newName) || rightAttributeNames
+          .filterNot(attrName => attrName == attr.getName)
+          .contains(newName)
+      ) {
         newName = s"$newName#@1"
       }
       if (newName == attr.getName) {

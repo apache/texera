@@ -78,7 +78,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuples = (5 to 9)
       .map(i => probeOpExec.processTuple(Left(tuple("probe", 1, Some(i))), probe))
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
-      .map(tupleLike=> TupleLike.enforceSchema(tupleLike, outputSchema))
+      .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
       .toList
 
     assert(probeOpExec.processTuple(Right(InputExhausted()), probe).isEmpty)
@@ -133,7 +133,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuples = (5 to 9)
       .map(i => probeOpExec.processTuple(Left(tuple("same", n = 2, Some(i))), probe))
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
-      .map(tupleLike=> TupleLike.enforceSchema(tupleLike, outputSchema))
+      .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
       .toList
 
     assert(probeOpExec.processTuple(Right(InputExhausted()), probe).isEmpty)
@@ -190,7 +190,7 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
           probeOpExec.processTuple(Left(tuple("same", n = 2, None)), probe)
         })
         .foldLeft(Iterator[TupleLike]())(_ ++ _)
-        .map(tupleLike=> TupleLike.enforceSchema(tupleLike, outputSchema))
+        .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
         .size == 5
     )
 

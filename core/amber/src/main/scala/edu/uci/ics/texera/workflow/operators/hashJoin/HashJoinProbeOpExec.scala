@@ -16,7 +16,9 @@ object JoinUtils {
       skipAttributeName: Option[String] = None
   ): TupleLike = {
     val leftAttributeNames = leftTuple.getSchema.getAttributeNamesScala
-    val rightAttributeNames = rightTuple.getSchema.getAttributeNamesScala.filterNot(name => skipAttributeName.isDefined && name == skipAttributeName.get)
+    val rightAttributeNames = rightTuple.getSchema.getAttributeNamesScala.filterNot(name =>
+      skipAttributeName.isDefined && name == skipAttributeName.get
+    )
     // Create a Map from leftTuple's fields
     val leftTupleFields: Map[String, Any] = leftAttributeNames
       .map(name => name -> leftTuple.getField(name))
@@ -26,7 +28,11 @@ object JoinUtils {
     val rightTupleFields = rightAttributeNames
       .map { name =>
         var newName = name
-        while (leftAttributeNames.contains(newName) || rightAttributeNames.filter(attrName=> name!= attrName).contains(newName)) {
+        while (
+          leftAttributeNames.contains(newName) || rightAttributeNames
+            .filter(attrName => name != attrName)
+            .contains(newName)
+        ) {
           newName = s"$newName#@1"
         }
         newName -> rightTuple.getField[Any](name)
