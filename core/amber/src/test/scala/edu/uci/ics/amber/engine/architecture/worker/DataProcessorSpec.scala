@@ -13,7 +13,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream, W
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -72,7 +72,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val tuples: Array[Tuple] = (0 until 400)
     .map(i =>
       TupleLike.enforceSchema(
-        TupleLike(i),
+        TupleLike(i).asInstanceOf[SchemaEnforceable],
         Schema.newBuilder().add("field1", AttributeType.INTEGER).build()
       )
     )
