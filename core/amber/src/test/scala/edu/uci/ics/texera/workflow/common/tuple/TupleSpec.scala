@@ -37,7 +37,7 @@ class TupleSpec extends AnyFlatSpec {
     val inputTuple = Tuple.newBuilder(schema).addSequentially(Array("string-value")).build()
     val newTuple = Tuple.newBuilder(inputTuple.getSchema).add(inputTuple).build()
 
-    assert(newTuple.size == inputTuple.size)
+    assert(newTuple.length() == inputTuple.length())
   }
 
   it should "fail when unknown attribute is added to tuple" in {
@@ -85,7 +85,7 @@ class TupleSpec extends AnyFlatSpec {
 
     // This is the important test. Input tuple has 3 attributes but output tuple has only 2
     // It's because of isStrictSchemaMatch=false
-    assert(outputTuple.size == 2);
+    assert(outputTuple.length() == 2);
   }
 
   it should "produce identical strings" in {

@@ -11,7 +11,6 @@ import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
@@ -47,8 +46,8 @@ class DataProcessingSpec
     resultStorage.close()
   }
 
-  def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[ITuple]] = {
-    var results: Map[OperatorIdentity, List[ITuple]] = null
+  def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
+    var results: Map[OperatorIdentity, List[Tuple]] = null
     val client = new AmberClient(
       system,
       workflow.context,
