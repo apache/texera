@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, InputStreamReader}
 import scala.jdk.CollectionConverters.{IterableHasAsScala, IteratorHasAsScala}
+import scala.util.{Failure, Success, Try}
 
 class JSONLScanSourceOpExec private[json] (
     filePath: String,
@@ -24,26 +25,18 @@ class JSONLScanSourceOpExec private[json] (
   private var reader: BufferedReader = _
 
   override def produceTuple(): Iterator[TupleLike] = {
-    rows
-      .map(line => {
-        try {
-          val fields = scala.collection.mutable.ArrayBuffer.empty[Object]
-          val data = JSONToMap(objectMapper.readTree(line), flatten)
-
-          for (fieldName <- schema.getAttributeNames.asScala) {
-            if (data.contains(fieldName))
-              fields += parseField(data(fieldName), schema.getAttribute(fieldName).getType)
-            else {
-              fields += null
-            }
-          }
-          TupleLike(fields.toSeq: _*)
-        } catch {
-          case _: Throwable => null
+    rows.flatMap { line =>
+      Try {
+        val data = JSONToMap(objectMapper.readTree(line), flatten).withDefaultValue(null)
+        val fields = schema.getAttributeNames.asScala.map { fieldName =>
+          parseField(data(fieldName), schema.getAttribute(fieldName).getType)
         }
-      })
-      .filter(tuple => tuple != null)
-
+        TupleLike(fields.toSeq: _*)
+      } match {
+        case Success(tuple) => Some(tuple)
+        case Failure(_)     => None
+      }
+    }
   }
   override def open(): Unit = {
     schema = schemaFunc()
