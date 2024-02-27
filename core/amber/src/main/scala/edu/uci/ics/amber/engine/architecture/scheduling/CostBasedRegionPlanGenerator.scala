@@ -30,8 +30,6 @@ class CostBasedRegionPlanGenerator(
       cost: Double
   )
 
-  private val useGlobalSearch = AmberConfig.useGlobalSearch
-
   def generate(): (RegionPlan, PhysicalPlan) = {
 
     val regionDAG = createRegionDAG()
@@ -48,7 +46,7 @@ class CostBasedRegionPlanGenerator(
   /**
     * Create regions based on only pipelined edges. This does not add the region links.
     * @param physicalPlan The original physical plan without materializations added yet.
-    * @param matEdges Set of edges to materialize (including the original the blocking edges).
+    * @param matEdges Set of edges to materialize (including the original blocking edges).
     * @return A set of regions.
     */
   private def createRegions(
@@ -79,11 +77,11 @@ class CostBasedRegionPlanGenerator(
 
   /**
     * Checks a plan for schedulability, and returns a region DAG if the plan is schedulable.
-    * @param matEdges Set of edges to materialize (including the original the blocking edges).
+    * @param matEdges Set of edges to materialize (including the original blocking edges).
     * @return If the plan is schedulable, a region DAG will be returned. Otherwise None will be returned to indicate
     *         that the plan is unschedulable.
     */
-  private def getRegionDAGorUnschedulable(
+  private def tryConnectRegionDAG(
       matEdges: Set[PhysicalLink]
   ): Option[DirectedAcyclicGraph[Region, RegionLink]] = {
     val regionGraph = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
@@ -142,34 +140,34 @@ class CostBasedRegionPlanGenerator(
     val queue: mutable.Queue[Set[PhysicalLink]] = mutable.Queue(Set.empty[PhysicalLink])
     // Keep track of visited states to avoid revisiting
     val visited: mutable.Set[Set[PhysicalLink]] = mutable.Set.empty[Set[PhysicalLink]]
-    // Initialize the result with an impossible high cost for comparison
-    var result: SearchResult = SearchResult(
-      Set.empty,
-      new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink]),
-      Double.PositiveInfinity
+    // Initialize the bestResult with an impossible high cost for comparison
+    var bestResult: SearchResult = SearchResult(
+      state = Set.empty,
+      regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink]),
+      cost = Double.PositiveInfinity
     )
 
     while (queue.nonEmpty) {
       val currentState = queue.dequeue()
       visited.add(currentState)
-      getRegionDAGorUnschedulable(physicalPlan.getOriginalBlockingLinks ++ currentState) match {
-        case Some(regionDAG: DirectedAcyclicGraph[Region, RegionLink]) =>
-          // Calculate the current state's cost and update the result if it's lower
-          val currentCost = cost(currentState)
-          if (currentCost < result.cost) {
-            result = SearchResult(currentState, regionDAG, currentCost)
+      tryConnectRegionDAG(physicalPlan.getOriginalBlockingLinks ++ currentState) match {
+        case Some(regionDAG) =>
+          // Calculate the current state's cost and update the bestResult if it's lower
+          val cost = evaluate(currentState)
+          if (cost < bestResult.cost) {
+            bestResult = SearchResult(currentState, regionDAG, cost)
           }
         // No need to explore further
         case None =>
           val allBlockingEdges = currentState ++ physicalPlan.getOriginalBlockingLinks
-          // Generate and enqueue all neighbor states that haven't been visited
+          // Generate and enqueue all neighbour states that haven't been visited
           val edgesInChainWithBlockingEdge = physicalPlan.getMaxChains
             .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
             .flatten
           val candidateEdges = originalNonBlockingEdges
             .diff(edgesInChainWithBlockingEdge)
             .diff(currentState)
-          if (useGlobalSearch) {
+          if (AmberConfig.useGlobalSearch) {
             candidateEdges.foreach { link =>
               val nextState = currentState + link
               if (!visited.contains(nextState) && !queue.contains(nextState)) {
@@ -177,7 +175,7 @@ class CostBasedRegionPlanGenerator(
               }
             }
           } else {
-            val nextLink = candidateEdges.minBy(e => cost(currentState + e))
+            val nextLink = candidateEdges.minBy(e => evaluate(currentState + e))
             val nextState = currentState + nextLink
             if (!visited.contains(nextState) && !queue.contains(nextState)) {
               queue.enqueue(nextState)
@@ -186,7 +184,7 @@ class CostBasedRegionPlanGenerator(
       }
     }
 
-    result
+    bestResult
   }
 
   /**
@@ -194,7 +192,7 @@ class CostBasedRegionPlanGenerator(
     * @param state A set of additional materialization edges, besides the original blocking edges.
     * @return A cost determined by the resource allocator.
     */
-  private def cost(state: Set[PhysicalLink]): Double = {
+  private def evaluate(state: Set[PhysicalLink]): Double = {
     // Using number of materialization (region) edges as the cost.
     // This is independent of the schedule / resource allocator.
     // In the future we may need to use the ResourceAllocator to get the cost.

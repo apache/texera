@@ -23,15 +23,15 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
     */
   def updateSchedule(physicalPlan: PhysicalPlan): Unit = {
     // generate an RegionPlan with regions using a region plan generator.
-    // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
-    // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
     val (regionPlan, updatedPhysicalPlan) = if (AmberConfig.enableCostBasedRegionPlanGenerator) {
+      // CostBasedRegionPlanGenerator considers costs to try to find an optimal plan.
       new CostBasedRegionPlanGenerator(
         workflowContext,
         physicalPlan,
         opResultStorage
       ).generate()
     } else {
+      // ExpansionGreedyRegionPlanGenerator is the stable default plan generator.
       new ExpansionGreedyRegionPlanGenerator(
         workflowContext,
         physicalPlan,
@@ -41,7 +41,7 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
 
     this.regionPlan = regionPlan
     this.physicalPlan = updatedPhysicalPlan
-    this.schedule = Schedule.apply(regionPlan)
+    this.schedule = Schedule(regionPlan)
   }
 
   def getNextRegions: Set[Region] = if (!schedule.hasNext) Set() else schedule.next()
