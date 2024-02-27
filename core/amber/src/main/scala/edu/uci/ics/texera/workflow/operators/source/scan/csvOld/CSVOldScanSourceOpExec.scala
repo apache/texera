@@ -3,7 +3,6 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csvOld
 import com.github.tototoshi.csv.{CSVReader, DefaultCSVFormat}
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
 
