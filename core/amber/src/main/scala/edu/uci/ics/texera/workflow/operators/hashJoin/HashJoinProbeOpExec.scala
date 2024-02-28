@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HashJoinInternalKeyName
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -55,7 +56,9 @@ class HashJoinProbeOpExec[K](
     tuple match {
       case Left(tuple) if port == 0 =>
         // Load build hash map
-        buildTableHashMap(tuple.getField("key")) = (tuple.getField("value"), false)
+        val key = tuple.getField[K](HashJoinInternalKeyName)
+        buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))._1 += tuple
+          .getPartialTuple(tuple.getSchema.getAttributeNames.filterNot(n => n == "key"))
         Iterator.empty
 
       case Left(tuple) =>
