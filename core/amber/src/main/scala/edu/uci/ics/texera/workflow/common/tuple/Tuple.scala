@@ -85,13 +85,6 @@ case class Tuple @JsonCreator() (
     builder.build()
   }
 
-  def getPartialTuple(attributes: Array[String]): Tuple = {
-    val partialSchema = schema.getPartialSchema(attributes)
-    val builder = Tuple.Builder(partialSchema)
-    builder.addSequentially(attributes.map(getField))
-    builder.build()
-  }
-
   override def toString: String =
     s"Tuple [schema=$schema, fields=${fieldVals.mkString("[", ", ", "]")}]"
 
