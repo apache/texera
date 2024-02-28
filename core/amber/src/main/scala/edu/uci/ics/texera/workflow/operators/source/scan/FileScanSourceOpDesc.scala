@@ -65,7 +65,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> inferSchema())))
 
   override def inferSchema(): Schema = {
-    val builder = Schema.newBuilder()
+    val builder = Schema.builder()
     if (outputFileName) builder.add(new Attribute("filename", AttributeType.STRING))
     builder.add(new Attribute(attributeName, attributeType.getType)).build()
   }

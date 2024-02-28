@@ -8,7 +8,7 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
@@ -16,7 +16,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
 
   val castToSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.STRING))
     .add(new Attribute("field3", AttributeType.STRING))
@@ -33,7 +33,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   castingUnits.add(castingUnit2)
 
   val tuple: Tuple = Tuple
-    .newBuilder(tupleSchema)
+    .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "hello")
     .add(new Attribute("field2", AttributeType.INTEGER), 1)
     .add(
@@ -61,7 +61,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuple =
       TupleLike.enforceSchema(typeCastingOpExec.processTuple(Left(tuple), 0).next(), castToSchema)
 
-    assert(outputTuple.length() == 4)
+    assert(outputTuple.length == 4)
     assert(outputTuple.getField("field1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("field2").asInstanceOf[String] == "1")
     assert(outputTuple.getField("field3").asInstanceOf[String] == "true")

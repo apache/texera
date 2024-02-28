@@ -10,7 +10,6 @@ import com.google.api.services.drive.Drive
 import com.google.api.services.drive.model.{File, FileList, Permission}
 import com.google.api.services.sheets.v4.Sheets
 import com.google.api.services.sheets.v4.model.{Spreadsheet, SpreadsheetProperties, ValueRange}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.Utils.retry
 import edu.uci.ics.texera.web.model.websocket.request.ResultExportRequest
@@ -29,7 +28,7 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import scala.annotation.tailrec
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.{IterableHasAsScala, SeqHasAsJava}
+import scala.jdk.CollectionConverters.SeqHasAsJava
 
 object ResultExportService {
   final val UPLOAD_BATCH_ROW_COUNT = 10000
@@ -66,7 +65,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
 
     // convert the ITuple into tuple
     val results: Iterable[Tuple] = operatorWithResult.getAll
-    val attributeNames = results.head.getSchema.getAttributeNames.asScala.toList
+    val attributeNames = results.head.getSchema.getAttributeNames
 
     // handle the request according to export type
     request.exportType match {
@@ -89,7 +88,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
     results.foreach { tuple =>
-      writer.writeRow(tuple.getFields.asScala.toSeq)
+      writer.writeRow(tuple.getFields)
     }
     writer.close()
     val latestVersion =
@@ -116,7 +115,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   private def handleGoogleSheetRequest(
       exportCache: mutable.HashMap[String, String],
       request: ResultExportRequest,
-      results: Iterable[ITuple],
+      results: Iterable[Tuple],
       header: List[String]
   ): ResultExportResponse = {
     // create google sheet
@@ -240,18 +239,15 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   private def uploadResult(
       sheetService: Sheets,
       sheetId: String,
-      result: Iterable[ITuple]
+      result: Iterable[Tuple]
   ): Unit = {
     val content: util.List[util.List[AnyRef]] =
       Lists.newArrayListWithCapacity(UPLOAD_BATCH_ROW_COUNT)
     // use for loop to avoid copying the whole result at the same time
-    for (tuple: ITuple <- result) {
+    for (tuple: Tuple <- result) {
 
       val tupleContent: util.List[AnyRef] =
-        tuple
-          .asInstanceOf[Tuple]
-          .getFields
-          .stream()
+        tuple.getFields
           .map(convertUnsupported)
           .toArray
           .toList
@@ -272,14 +268,14 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
   /**
     * convert the tuple content into the type the Google Sheet API supports
     */
-  private def convertUnsupported(content: AnyRef): AnyRef = {
+  private def convertUnsupported(content: Any): AnyRef = {
     content match {
 
       // if null, use empty string to represent.
       case null => ""
 
       // Google Sheet API supports String and number(long, int, double and so on)
-      case _: String | _: Number => content
+      case _: String | _: Number => content.asInstanceOf[AnyRef]
 
       // convert all the other type into String
       case _ => content.toString

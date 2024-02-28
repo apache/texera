@@ -13,7 +13,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var opExec: SymmetricDifferenceOpExec = _
   var counter: Int = 0
   val schema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(
       new Attribute("field1", AttributeType.STRING),
       new Attribute("field2", AttributeType.INTEGER),
@@ -24,7 +24,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     counter += 1
 
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(Array("hello", Int.box(counter), Boolean.box(true)))
       .build()
   }

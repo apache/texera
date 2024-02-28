@@ -9,14 +9,14 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.STRING))
     .build()
 
   val tuple: Tuple = Tuple
-    .newBuilder(tupleSchema)
+    .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "a-b-c")
     .add(new Attribute("field2", AttributeType.INTEGER), 1)
     .add(new Attribute("field3", AttributeType.STRING), "a")
@@ -73,7 +73,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec = new UnnestStringOpExec(attributeName = "field1", delimiter = "/")
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
     val tuple: Tuple = Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "//a//b/")
       .add(new Attribute("field2", AttributeType.INTEGER), 1)
       .add(new Attribute("field3", AttributeType.STRING), "a")
@@ -94,7 +94,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec = new UnnestStringOpExec(attributeName = "field1", delimiter = "<\\d*>")
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
     val tuple: Tuple = Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "<>a<1>b<12>")
       .add(new Attribute("field2", AttributeType.INTEGER), 1)
       .add(new Attribute("field3", AttributeType.STRING), "a")

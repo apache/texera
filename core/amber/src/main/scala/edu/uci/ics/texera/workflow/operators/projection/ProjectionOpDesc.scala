@@ -11,8 +11,6 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
 
-import scala.jdk.CollectionConverters.IterableHasAsJava
-
 class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()
@@ -54,7 +52,7 @@ class ProjectionOpDesc extends MapOpDesc {
     val inputPartitionInfo = partition.head
 
     // mapping from original column index to new column index
-    lazy val columnIndicesMapping: Map[Integer, Int] = attributes.view
+    lazy val columnIndicesMapping: Map[Int, Int] = attributes.view
       .map(attr =>
         inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
           .getIndex(attr.getOriginalAttribute) -> attributes.indexOf(attr)
@@ -62,9 +60,8 @@ class ProjectionOpDesc extends MapOpDesc {
       .toMap
 
     val outputPartitionInfo = inputPartitionInfo match {
-      case HashPartition(hashColumnIndices) =>
-        val newIndices = hashColumnIndices.flatMap(i => columnIndicesMapping.get(i))
-        if (newIndices.nonEmpty) HashPartition(newIndices) else UnknownPartition()
+      case HashPartition(hashAttributeNames) =>
+        if (hashAttributeNames.nonEmpty) HashPartition(hashAttributeNames) else UnknownPartition()
       case RangePartition(rangeColumnIndices, min, max) =>
         val newIndices = rangeColumnIndices.flatMap(i => columnIndicesMapping.get(i))
         if (newIndices.nonEmpty) RangePartition(newIndices, min, max) else UnknownPartition()
@@ -90,11 +87,12 @@ class ProjectionOpDesc extends MapOpDesc {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
 
-    Schema.newBuilder
+    Schema
+      .builder()
       .add(attributes.map { attribute =>
         val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
         new Attribute(attribute.getAlias, originalType)
-      }.asJavaCollection)
+      })
       .build()
 
   }

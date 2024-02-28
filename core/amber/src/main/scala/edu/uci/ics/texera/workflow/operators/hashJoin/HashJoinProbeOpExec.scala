@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -7,7 +8,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
-import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 object JoinUtils {
   def joinTuples(
@@ -15,8 +15,8 @@ object JoinUtils {
       rightTuple: Tuple,
       skipAttributeName: Option[String] = None
   ): TupleLike = {
-    val leftAttributeNames = leftTuple.getSchema.getAttributeNamesScala
-    val rightAttributeNames = rightTuple.getSchema.getAttributeNamesScala.filterNot(name =>
+    val leftAttributeNames = leftTuple.getSchema.getAttributeNames
+    val rightAttributeNames = rightTuple.getSchema.getAttributeNames.filterNot(name =>
       skipAttributeName.isDefined && name == skipAttributeName.get
     )
     // Create a Map from leftTuple's fields
@@ -56,7 +56,11 @@ class HashJoinProbeOpExec[K](
     tuple match {
       case Left(tuple) if port == 0 =>
         // Load build hash map
-        buildTableHashMap(tuple.getField("key")) = (tuple.getField("value"), false)
+        val key = tuple.getField[K](HASH_JOIN_INTERNAL_KEY_NAME)
+        buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))._1 += tuple
+          .getPartialTuple(
+            tuple.getSchema.getAttributeNames.filterNot(n => n == HASH_JOIN_INTERNAL_KEY_NAME)
+          )
         Iterator.empty
 
       case Left(tuple) =>
@@ -93,9 +97,8 @@ class HashJoinProbeOpExec[K](
       .flatMap { tuples =>
         tuples.map { tuple =>
           TupleLike(
-            tuple.getSchema.getAttributeNames.asScala
-              .map(attributeName => attributeName -> tuple.getField(attributeName))
-              .toSeq: _*
+            tuple.getSchema.getAttributeNames
+              .map(attributeName => attributeName -> tuple.getField(attributeName)): _*
           )
         }
       }
@@ -113,9 +116,8 @@ class HashJoinProbeOpExec[K](
   private def performRightAntiJoin(tuple: Tuple): Iterator[TupleLike] =
     Iterator(
       TupleLike(
-        tuple.getSchema.getAttributeNames.asScala
-          .map(attributeName => attributeName -> tuple.getField(attributeName))
-          .toSeq: _*
+        tuple.getSchema.getAttributeNames
+          .map(attributeName => attributeName -> tuple.getField(attributeName)): _*
       )
     )
 

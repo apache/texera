@@ -51,7 +51,7 @@ class SchemaPropagationResource extends LazyLogging {
     })
 
     val responseContent = logicalInputSchemas
-      .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributesScala))))
+      .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributes))))
     SchemaPropagationResponse(0, responseContent, null)
 
   }

@@ -59,7 +59,7 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
     // we are also currently depending on redouane59/twittered client library to parse tweet fields.
 
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute("id", AttributeType.STRING),
         new Attribute("text", AttributeType.STRING),

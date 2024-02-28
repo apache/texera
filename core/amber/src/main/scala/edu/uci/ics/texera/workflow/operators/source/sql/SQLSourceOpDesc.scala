@@ -133,7 +133,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
     */
   protected def querySchema: Schema = {
     updatePort()
-    val schemaBuilder = Schema.newBuilder
+    val schemaBuilder = Schema.builder()
     try {
       val connection = establishConn
       connection.setReadOnly(true)
@@ -178,7 +178,7 @@ abstract class SQLSourceOpDesc extends SourceOperatorDescriptor {
         }
       }
       connection.close()
-      schemaBuilder.build
+      schemaBuilder.build()
     } catch {
       case e @ (_: SQLException | _: ClassCastException) =>
         throw new RuntimeException(

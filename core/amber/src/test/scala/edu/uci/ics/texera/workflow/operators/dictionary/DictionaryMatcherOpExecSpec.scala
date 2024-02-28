@@ -9,14 +9,14 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
     .build()
 
   val tuple: Tuple = Tuple
-    .newBuilder(tupleSchema)
+    .builder(tupleSchema)
     .add(new Attribute("field1", AttributeType.STRING), "nice a a person")
     .add(new Attribute("field2", AttributeType.INTEGER), 1)
     .add(

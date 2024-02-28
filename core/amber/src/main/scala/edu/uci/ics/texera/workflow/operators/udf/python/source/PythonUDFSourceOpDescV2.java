@@ -120,11 +120,11 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
 
     @Override
     public Schema sourceSchema() {
-        Schema.Builder outputSchemaBuilder = Schema.newBuilder();
+        Schema.Builder outputSchemaBuilder = Schema.builder();
 
         // for any pythonUDFType, it can add custom output columns (attributes).
         if (columns != null) {
-            outputSchemaBuilder.add(columns).build();
+            outputSchemaBuilder.add(asScala(columns)).build();
         }
         return outputSchemaBuilder.build();
     }
