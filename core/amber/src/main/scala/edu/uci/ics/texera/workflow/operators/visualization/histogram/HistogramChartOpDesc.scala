@@ -27,7 +27,7 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
   @AutofillAttributeName
   var color: String = ""
 
-  @JsonProperty()
+  @JsonProperty(required = false)
   @JsonSchemaTitle("SeparateBy Column")
   @JsonPropertyDescription("Column for separating histogram chart by its value.")
   @AutofillAttributeName
