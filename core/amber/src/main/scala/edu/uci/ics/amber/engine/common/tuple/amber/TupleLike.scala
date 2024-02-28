@@ -87,12 +87,9 @@ object TupleLike {
 
     // Ensure Iterable types do not have an implicit NotAnIterable available
     // This is a way to "exclude" Iterable types by not providing an implicit instance for them
-    implicit def iterableIsNotAnIterable[A, C[T] <: Iterable[T]]: NotAnIterable[C[A]] =
+    implicit def iterableIsNotAnIterable[C[_] <: Iterable[A], A]: NotAnIterable[C[A]] =
       sys.error("Iterable types are not allowed")
   }
-  implicit class IsArray[A](val dummy: Boolean = true)
-  // Provide implicit evidence for arrays and a lack thereof for other types to prevent ambiguity
-  implicit def arrayEvidence[T]: IsArray[T] = new IsArray[T]()
 
   def apply(mappings: Map[String, Any]): MapTupleLike = {
     new MapTupleLike {
@@ -130,9 +127,9 @@ object TupleLike {
     }
   }
 
-  def apply[T](array: Array[T])(implicit ev: IsArray[T]): SeqTupleLike = {
+  def apply(array: Array[Any]): SeqTupleLike = {
     new SeqTupleLike {
-      override val getFields: Array[Any] = array.map(_.asInstanceOf[Any])
+      override val getFields: Array[Any] = array
     }
   }
 
