@@ -3,14 +3,47 @@ package edu.uci.ics.texera.web.resource.dashboard.user.environment
 import edu.uci.ics.texera.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetOfEnvironment, DatasetVersion, Environment, EnvironmentOfWorkflow}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetOfEnvironment,
+  DatasetVersion,
+  Environment,
+  EnvironmentOfWorkflow
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment.ENVIRONMENT
 import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetOfEnvironmentDao, DatasetVersionDao, EnvironmentDao, EnvironmentOfWorkflowDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetOfEnvironmentDao,
+  DatasetVersionDao,
+  EnvironmentDao,
+  EnvironmentOfWorkflowDao
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.retrieveDatasetVersionFilePaths
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{DatasetAccessResource, DatasetResource}
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{DashboardEnvironment, DatasetID, DatasetOfEnvironmentAlreadyExistsMessage, DatasetOfEnvironmentDetails, DatasetOfEnvironmentDoseNotExistMessage, EnvironmentIDs, EnvironmentNotFoundMessage, UserNoPermissionExceptionMessage, WorkflowLink, context, doesDatasetExistInEnvironment, doesUserOwnEnvironment, getEnvironmentByEid, retrieveDatasetsAndVersions, retrieveDatasetsOfEnvironmentFileList, userHasReadAccessToEnvironment, userHasWriteAccessToEnvironment}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
+  DatasetAccessResource,
+  DatasetResource
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
+  DashboardEnvironment,
+  DatasetID,
+  DatasetOfEnvironmentAlreadyExistsMessage,
+  DatasetOfEnvironmentDetails,
+  DatasetOfEnvironmentDoseNotExistMessage,
+  EnvironmentIDs,
+  EnvironmentNotFoundMessage,
+  UserNoPermissionExceptionMessage,
+  WorkflowLink,
+  context,
+  doesDatasetExistInEnvironment,
+  doesUserOwnEnvironment,
+  getEnvironmentByEid,
+  retrieveDatasetsAndVersions,
+  retrieveDatasetsOfEnvironmentFileList,
+  userHasReadAccessToEnvironment,
+  userHasWriteAccessToEnvironment
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
@@ -46,7 +79,12 @@ object EnvironmentResource {
     environmentOfWorkflow != null && !environmentOfWorkflow.isEmpty
   }
 
-  def createEnvironment(ctx: DSLContext, uid: UInteger, name: String, description: String): Environment = {
+  def createEnvironment(
+      ctx: DSLContext,
+      uid: UInteger,
+      name: String,
+      description: String
+  ): Environment = {
     val environment = new Environment()
     environment.setOwnerUid(uid)
     environment.setName(name)
@@ -75,11 +113,19 @@ object EnvironmentResource {
     environment.getOwnerUid == uid
   }
 
-  private def doesDatasetExistInEnvironment(ctx: DSLContext, did: UInteger, eid: UInteger): Boolean = {
-    val count = ctx.selectCount()
+  private def doesDatasetExistInEnvironment(
+      ctx: DSLContext,
+      did: UInteger,
+      eid: UInteger
+  ): Boolean = {
+    val count = ctx
+      .selectCount()
       .from(DATASET_OF_ENVIRONMENT)
-      .where(DATASET_OF_ENVIRONMENT.EID.eq(eid)
-        .and(DATASET_OF_ENVIRONMENT.DID.eq(did)))
+      .where(
+        DATASET_OF_ENVIRONMENT.EID
+          .eq(eid)
+          .and(DATASET_OF_ENVIRONMENT.DID.eq(did))
+      )
       .fetchOne() // Fetch the record
 
     val countVal = count.getValue(0, classOf[Int]) // Get the count value from the record
@@ -104,7 +150,11 @@ object EnvironmentResource {
     val workflowIds = envOfWorkflows.asScala.map(_.getWid).toList
     workflowIds
   }
-  private def userHasWriteAccessToEnvironment(ctx: DSLContext, eid: UInteger, uid: UInteger): Boolean = {
+  private def userHasWriteAccessToEnvironment(
+      ctx: DSLContext,
+      eid: UInteger,
+      uid: UInteger
+  ): Boolean = {
     // if user is the owner of the environment, return true
     if (doesUserOwnEnvironment(ctx, uid, eid)) {
       return true
@@ -118,7 +168,11 @@ object EnvironmentResource {
     })
     false
   }
-  private def userHasReadAccessToEnvironment(ctx: DSLContext, eid: UInteger, uid: UInteger): Boolean = {
+  private def userHasReadAccessToEnvironment(
+      ctx: DSLContext,
+      eid: UInteger,
+      uid: UInteger
+  ): Boolean = {
     // if user is the owner of the environment, return true
     if (doesUserOwnEnvironment(ctx, uid, eid)) {
       return true
@@ -133,7 +187,11 @@ object EnvironmentResource {
     false
   }
 
-  private def retrieveDatasetsAndVersions(ctx: DSLContext, uid: UInteger, eid: UInteger): List[DatasetOfEnvironmentDetails] = {
+  private def retrieveDatasetsAndVersions(
+      ctx: DSLContext,
+      uid: UInteger,
+      eid: UInteger
+  ): List[DatasetOfEnvironmentDetails] = {
     val datasetOfEnvironmentDao = new DatasetOfEnvironmentDao(ctx.configuration())
     val datasetsOfEnvironment = datasetOfEnvironmentDao.fetchByEid(eid).asScala
 
@@ -161,7 +219,11 @@ object EnvironmentResource {
     }.toList
   }
 
-  private def retrieveDatasetsOfEnvironmentFileList(ctx: DSLContext, uid: UInteger, datasetsOfEnv: List[DatasetOfEnvironmentDetails]): List[String] = {
+  private def retrieveDatasetsOfEnvironmentFileList(
+      ctx: DSLContext,
+      uid: UInteger,
+      datasetsOfEnv: List[DatasetOfEnvironmentDetails]
+  ): List[String] = {
     datasetsOfEnv.flatMap(entry => {
       val did = entry.dataset.getDid
       val dvid = entry.version.getDvid
@@ -173,16 +235,15 @@ object EnvironmentResource {
     })
   }
 
-
   case class DashboardEnvironment(
-                                   environment: Environment,
-                                   isCurrentUserEditable: Boolean,
-                                 )
+      environment: Environment,
+      isCurrentUserEditable: Boolean
+  )
 
   case class DatasetOfEnvironmentDetails(
-                                          dataset: Dataset,
-                                          version: DatasetVersion
-                                        )
+      dataset: Dataset,
+      version: DatasetVersion
+  )
 
   case class EnvironmentIDs(eids: List[UInteger])
 
@@ -208,22 +269,27 @@ class EnvironmentResource {
   def createEnvironment(@Auth user: SessionUser, environment: Environment): DashboardEnvironment = {
 
     withTransaction(context) { ctx =>
-    {
-      val uid = environment.getOwnerUid
+      {
+        val uid = environment.getOwnerUid
 
-      val createdEnvironment = EnvironmentResource.createEnvironment(ctx, uid, environment.getName, environment.getDescription)
+        val createdEnvironment = EnvironmentResource.createEnvironment(
+          ctx,
+          uid,
+          environment.getName,
+          environment.getDescription
+        )
 
-      DashboardEnvironment(
-        new Environment(
-          createdEnvironment.getEid,
-          createdEnvironment.getOwnerUid,
-          createdEnvironment.getName,
-          createdEnvironment.getDescription,
-          createdEnvironment.getCreationTime
-        ),
-        isCurrentUserEditable = true
-      )
-    }
+        DashboardEnvironment(
+          new Environment(
+            createdEnvironment.getEid,
+            createdEnvironment.getOwnerUid,
+            createdEnvironment.getName,
+            createdEnvironment.getDescription,
+            createdEnvironment.getCreationTime
+          ),
+          isCurrentUserEditable = true
+        )
+      }
     }
   }
 
@@ -248,9 +314,9 @@ class EnvironmentResource {
   @GET
   @Path("/{eid}")
   def retrieveEnvironmentByEid(
-                                @PathParam("eid") eid: UInteger,
-                                @Auth user: SessionUser
-                              ): DashboardEnvironment = {
+      @PathParam("eid") eid: UInteger,
+      @Auth user: SessionUser
+  ): DashboardEnvironment = {
     val uid = user.getUid
 
     withTransaction(context) { ctx =>
@@ -268,9 +334,9 @@ class EnvironmentResource {
   @GET
   @Path("/{eid}/dataset")
   def getDatasetsOfEnvironment(
-                                @PathParam("eid") eid: UInteger,
-                                @Auth user: SessionUser
-                              ): List[DatasetOfEnvironment] = {
+      @PathParam("eid") eid: UInteger,
+      @Auth user: SessionUser
+  ): List[DatasetOfEnvironment] = {
     val uid = user.getUid
     withTransaction(context) { ctx =>
       if (!userHasReadAccessToEnvironment(ctx, eid, uid)) {
@@ -278,18 +344,16 @@ class EnvironmentResource {
       }
       val datasetOfEnvironmentDao = new DatasetOfEnvironmentDao(ctx.configuration())
       val datasetsOfEnvironment = datasetOfEnvironmentDao.fetchByEid(eid)
-      datasetsOfEnvironment.
-        asScala.
-        toList
+      datasetsOfEnvironment.asScala.toList
     }
   }
 
   @GET
   @Path("/{eid}/dataset/details")
   def getDatasetsOfEnvironmentDetails(
-                                       @PathParam("eid") eid: UInteger,
-                                       @Auth user: SessionUser
-                                     ): List[DatasetOfEnvironmentDetails] = {
+      @PathParam("eid") eid: UInteger,
+      @Auth user: SessionUser
+  ): List[DatasetOfEnvironmentDetails] = {
     val uid = user.getUid
     withTransaction(context) { ctx =>
       if (!userHasReadAccessToEnvironment(ctx, eid, uid)) {
@@ -302,16 +366,18 @@ class EnvironmentResource {
   @POST
   @Path("/{eid}/dataset/add")
   def addDatasetForEnvironment(
-                                @PathParam("eid") eid: UInteger,
-                                @Auth user: SessionUser,
-                                datasetID: DatasetID
-                              ): Response = {
+      @PathParam("eid") eid: UInteger,
+      @Auth user: SessionUser,
+      datasetID: DatasetID
+  ): Response = {
     val uid = user.getUid
-   withTransaction(context)(ctx => {
+    withTransaction(context)(ctx => {
       val did = datasetID.did
 
-      if (!DatasetAccessResource.userHasReadAccess(ctx, did, uid)
-        || !userHasWriteAccessToEnvironment(ctx, eid, uid)) {
+      if (
+        !DatasetAccessResource.userHasReadAccess(ctx, did, uid)
+        || !userHasWriteAccessToEnvironment(ctx, eid, uid)
+      ) {
         return Response
           .status(Response.Status.FORBIDDEN)
           .entity(UserNoPermissionExceptionMessage)
@@ -327,11 +393,13 @@ class EnvironmentResource {
 
       val datasetOfEnvironmentDao = new DatasetOfEnvironmentDao(ctx.configuration())
       val latestDatasetVersion = DatasetResource.getDatasetLatestVersion(ctx, did, uid)
-      datasetOfEnvironmentDao.insert(new DatasetOfEnvironment(
-        did,
-        eid,
-        latestDatasetVersion.getDvid
-      ))
+      datasetOfEnvironmentDao.insert(
+        new DatasetOfEnvironment(
+          did,
+          eid,
+          latestDatasetVersion.getDvid
+        )
+      )
       Response.status(Response.Status.OK).build()
     })
   }
@@ -339,16 +407,18 @@ class EnvironmentResource {
   @POST
   @Path("/{eid}/dataset/remove")
   def removeDatasetForEnvironment(
-                                   @PathParam("eid") eid: UInteger,
-                                   @Auth user: SessionUser,
-                                   datasetID: DatasetID,
-                                 ): Response = {
+      @PathParam("eid") eid: UInteger,
+      @Auth user: SessionUser,
+      datasetID: DatasetID
+  ): Response = {
     val uid = user.getUid
     withTransaction(context)(ctx => {
       val did = datasetID.did
 
-      if (!DatasetAccessResource.userHasReadAccess(ctx, did, uid)
-        || !userHasWriteAccessToEnvironment(ctx, eid, uid)) {
+      if (
+        !DatasetAccessResource.userHasReadAccess(ctx, did, uid)
+        || !userHasWriteAccessToEnvironment(ctx, eid, uid)
+      ) {
         return Response
           .status(Response.Status.FORBIDDEN)
           .entity(UserNoPermissionExceptionMessage)
@@ -362,8 +432,8 @@ class EnvironmentResource {
           .build()
       }
 
-
-      ctx.deleteFrom(DATASET_OF_ENVIRONMENT)
+      ctx
+        .deleteFrom(DATASET_OF_ENVIRONMENT)
         .where(DATASET_OF_ENVIRONMENT.DID.eq(did))
         .and(DATASET_OF_ENVIRONMENT.EID.eq(eid))
         .execute()
@@ -374,10 +444,10 @@ class EnvironmentResource {
   @POST
   @Path("/{eid}/linkWorkflow")
   def linkWorkflowToEnvironment(
-                                 @PathParam("eid") eid: UInteger,
-                                 @Auth user: SessionUser,
-                                 workflowLink: WorkflowLink
-                               ): Response = {
+      @PathParam("eid") eid: UInteger,
+      @Auth user: SessionUser,
+      workflowLink: WorkflowLink
+  ): Response = {
     val uid = user.getUid
 
     withTransaction(context)(ctx => {
@@ -390,20 +460,23 @@ class EnvironmentResource {
       }
 
       // Check if an entry with the specified wid already exists
-      val exists = ctx.selectCount()
+      val exists = ctx
+        .selectCount()
         .from(ENVIRONMENT_OF_WORKFLOW)
         .where(ENVIRONMENT_OF_WORKFLOW.WID.eq(wid))
         .fetchOne(0, classOf[Int]) > 0
 
       if (exists) {
         // Update the existing entry
-        ctx.update(ENVIRONMENT_OF_WORKFLOW)
+        ctx
+          .update(ENVIRONMENT_OF_WORKFLOW)
           .set(ENVIRONMENT_OF_WORKFLOW.EID, eid)
           .where(ENVIRONMENT_OF_WORKFLOW.WID.eq(wid))
           .execute()
       } else {
         // Insert a new entry
-        ctx.insertInto(ENVIRONMENT_OF_WORKFLOW)
+        ctx
+          .insertInto(ENVIRONMENT_OF_WORKFLOW)
           .set(ENVIRONMENT_OF_WORKFLOW.EID, eid)
           .set(ENVIRONMENT_OF_WORKFLOW.WID, wid)
           .execute()
@@ -415,7 +488,11 @@ class EnvironmentResource {
 
   @GET
   @Path("/{eid}/files/{query:.*}")
-  def getDatasetsFileList(@Auth user: SessionUser, @PathParam("eid") eid: UInteger, @PathParam("query") q: String): List[String] = {
+  def getDatasetsFileList(
+      @Auth user: SessionUser,
+      @PathParam("eid") eid: UInteger,
+      @PathParam("query") q: String
+  ): List[String] = {
     val query = URLDecoder.decode(q, "UTF-8")
     val uid = user.getUid
 

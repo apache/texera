@@ -256,7 +256,12 @@ object DatasetResource {
     }
   }
 
-  def retrieveDatasetVersionFilePaths(ctx: DSLContext, uid: UInteger, did: UInteger, dvid: UInteger): util.List[String] = {
+  def retrieveDatasetVersionFilePaths(
+      ctx: DSLContext,
+      uid: UInteger,
+      did: UInteger,
+      dvid: UInteger
+  ): util.List[String] = {
     val dataset = getDatasetByID(ctx, did, uid)
     val versionHash = getDatasetVersionHashByID(ctx, did, dvid, uid)
 

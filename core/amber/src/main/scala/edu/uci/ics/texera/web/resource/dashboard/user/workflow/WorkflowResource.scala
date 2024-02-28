@@ -5,10 +5,19 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{EnvironmentOfWorkflowDao, WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  EnvironmentOfWorkflowDao,
+  WorkflowDao,
+  WorkflowOfProjectDao,
+  WorkflowOfUserDao,
+  WorkflowUserAccessDao
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{createEnvironment, doesWorkflowHaveEnvironment}
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
+  createEnvironment,
+  doesWorkflowHaveEnvironment
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
@@ -41,7 +50,9 @@ object WorkflowResource {
     context.configuration()
   )
   final private lazy val workflowOfProjectDao = new WorkflowOfProjectDao(context.configuration)
-  final private lazy val environmentOfWorkflowDao = new EnvironmentOfWorkflowDao(context.configuration)
+  final private lazy val environmentOfWorkflowDao = new EnvironmentOfWorkflowDao(
+    context.configuration
+  )
 
   private def insertWorkflow(workflow: Workflow, user: User): Unit = {
     workflowDao.insert(workflow)
@@ -314,8 +325,7 @@ class WorkflowResource extends LazyLogging {
         "Runtime Environment of Workflow #%d %s".format(wid.intValue(), workflow.getName)
       )
 
-      environmentOfWorkflowDao.insert(
-        new EnvironmentOfWorkflow(createdEnvironment.getEid, wid))
+      environmentOfWorkflowDao.insert(new EnvironmentOfWorkflow(createdEnvironment.getEid, wid))
     }
     workflowDao.fetchOneByWid(wid)
   }
@@ -471,13 +481,15 @@ class WorkflowResource extends LazyLogging {
   @GET
   @Path("/{wid}/environment")
   def retrieveWorkflowEnvironment(
-                                   @PathParam("wid") wid: UInteger,
-                                   @Auth user: SessionUser
-                                 ): Environment = {
+      @PathParam("wid") wid: UInteger,
+      @Auth user: SessionUser
+  ): Environment = {
 
     val uid = user.getUid
     if (!hasReadAccess(wid, uid)) {
-      throw new ForbiddenException("current user has no read access to this workflow and its environment")
+      throw new ForbiddenException(
+        "current user has no read access to this workflow and its environment"
+      )
     }
 
     EnvironmentResource.getEnvironmentByWid(context, uid, wid)
