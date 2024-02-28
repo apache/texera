@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HashJoinInternalKeyName
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
@@ -17,7 +17,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
   var opDesc: HashJoinOpDesc[String] = _
 
   def getInternalHashTableSchema(buildInputSchema: Schema): Schema = {
-    Schema.builder().add(HashJoinInternalKeyName, AttributeType.ANY).add(buildInputSchema).build()
+    Schema
+      .builder()
+      .add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY)
+      .add(buildInputSchema)
+      .build()
   }
   def tuple(name: String, n: Int = 1, i: Option[Int]): Tuple = {
 

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HashJoinInternalKeyName
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
@@ -23,7 +23,7 @@ import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
 import scala.collection.mutable
 
 object HashJoinOpDesc {
-  val HashJoinInternalKeyName = "__internal__hashtable__key__"
+  val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"
 }
 
 @JsonSchemaInject(json = """
@@ -68,7 +68,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val probeSchema = inputSchemas(1)
 
     val internalHashTableSchema =
-      Schema.builder().add(HashJoinInternalKeyName, AttributeType.ANY).add(buildSchema).build()
+      Schema.builder().add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY).add(buildSchema).build()
 
     val buildInputPort = operatorInfo.inputPorts.head
     val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
@@ -87,7 +87,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           mutable.Map(buildOutputPort.id -> internalHashTableSchema)
         )
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
-        .withDerivePartition(_ => HashPartition(List(HashJoinInternalKeyName)))
+        .withDerivePartition(_ => HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME)))
         .withParallelizable(true)
 
     val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))
@@ -121,7 +121,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withOutputPorts(List(probeOutputPort), mutable.Map(probeOutputPort.id -> outputSchema))
         .withPartitionRequirement(
           List(
-            Option(HashPartition(List(HashJoinInternalKeyName))),
+            Option(HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME))),
             Option(HashPartition(List(probeAttributeName)))
           )
         )
