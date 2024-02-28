@@ -27,12 +27,6 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
   @AutofillAttributeName
   var color: String = ""
 
-  @JsonProperty(defaultValue = "false", required = false)
-  @JsonSchemaTitle("Separate Chart?")
-  @JsonPropertyDescription("Separate histogram chart by value.")
-  @JsonSchemaInject(json = """{"toggleHidden" : ["separateBy"]}""")
-  var separate: Boolean = _
-
   @JsonProperty()
   @JsonSchemaTitle("SeparateBy Column")
   @JsonPropertyDescription("Column for separating histogram chart by its value.")
@@ -61,7 +55,7 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
     var colorParam =""
     var categoryParam = ""
     if (color.nonEmpty) colorParam = s", color = '$color'"
-    if (separateBy.nonEmpty && separate) categoryParam = s", facet_col = '$separateBy'"
+    if (separateBy.nonEmpty) categoryParam = s", facet_col = '$separateBy'"
 
     s"""
        |        fig = px.histogram(table, x = '$value', title = '$title', text_auto = True $colorParam $categoryParam)
@@ -80,7 +74,7 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
          |
          |class ProcessTableOperator(UDFTableOperator):
          |    def render_error(self, error_msg):
-         |        return '''<h1>PieChart is not available.</h1>
+         |        return '''<h1>Histogram chart is not available.</h1>
          |                  <p>Reason is: {} </p>
          |               '''.format(error_msg)
          |
