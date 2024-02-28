@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -93,7 +93,7 @@ class OutputManager(
   ): Unit = {
     val partitioner =
       partitioners.getOrElse(outputLink, throw new MappingException("output port not found"))
-    val outputTuple: Tuple = TupleLike.enforceSchema(tupleLike, schema)
+    val outputTuple: Tuple = tupleLike.enforceSchema(schema)
     partitioner
       .getBucketIndex(outputTuple)
       .foreach(bucketIndex => {

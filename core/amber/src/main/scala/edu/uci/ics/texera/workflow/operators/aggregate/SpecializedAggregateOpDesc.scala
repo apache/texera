@@ -52,7 +52,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
     }
     Schema
       .builder()
-      .add(groupByKeys.map(key => schemas(0).getAttribute(key)).toArray: _*)
+      .add(groupByKeys.map(key => schemas(0).getAttribute(key)): _*)
       .build()
   }
 

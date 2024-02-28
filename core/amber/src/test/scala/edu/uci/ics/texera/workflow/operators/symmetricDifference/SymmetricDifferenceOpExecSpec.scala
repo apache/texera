@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.symmetricDifference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -81,7 +81,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       val outputTuples: Set[Tuple] =
         opExec
           .processTuple(Right(InputExhausted()), 0)
-          .map(tupleLike => TupleLike.enforceSchema(tupleLike, schema))
+          .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
           .toSet
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
@@ -105,7 +105,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuples: Set[Tuple] =
       opExec
         .processTuple(Right(InputExhausted()), input2)
-        .map(tupleLike => TupleLike.enforceSchema(tupleLike, schema))
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
         .toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
@@ -126,7 +126,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuples: Set[Tuple] =
       opExec
         .processTuple(Right(InputExhausted()), input1)
-        .map(tupleLike => TupleLike.enforceSchema(tupleLike, schema))
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
         .toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
@@ -147,7 +147,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuples: Set[Tuple] =
       opExec
         .processTuple(Right(InputExhausted()), input1)
-        .map(tupleLike => TupleLike.enforceSchema(tupleLike, schema))
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
         .toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()
@@ -171,7 +171,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val outputTuples: Set[Tuple] =
       opExec
         .processTuple(Right(InputExhausted()), input1)
-        .map(tupleLike => TupleLike.enforceSchema(tupleLike, schema))
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(schema))
         .toSet
     assert(outputTuples.equals(commonTuples.toSet))
     opExec.close()

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.typecasting
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -59,16 +59,20 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     typeCastingOpExec.open()
 
     val outputTuple =
-      TupleLike.enforceSchema(typeCastingOpExec.processTuple(Left(tuple), 0).next(), castToSchema)
+      typeCastingOpExec
+        .processTuple(Left(tuple), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(castToSchema)
 
     assert(outputTuple.length == 4)
     assert(outputTuple.getField("field1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("field2").asInstanceOf[String] == "1")
     assert(outputTuple.getField("field3").asInstanceOf[String] == "true")
     assert(outputTuple.getField("field4").asInstanceOf[Long] == 3L)
-    assert(outputTuple.get(0) == "hello")
-    assert(outputTuple.get(1) == "1")
-    assert(outputTuple.get(2) == "true")
-    assert(outputTuple.get(3) == 3L)
+    assert("hello" == outputTuple.getField[String](0))
+    assert(outputTuple.getField[String](1) == "1")
+    assert(outputTuple.getField[String](2) == "true")
+    assert(outputTuple.getField[Long](3) == 3L)
   }
 }

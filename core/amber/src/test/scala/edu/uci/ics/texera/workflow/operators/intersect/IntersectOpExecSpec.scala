@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.intersect
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -101,7 +101,12 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
       outputTuples.foreach(tupleLike =>
-        assert(TupleLike.enforceSchema(tupleLike, tupleSchema).getField[Int]("field2") <= 10)
+        assert(
+          tupleLike
+            .asInstanceOf[SchemaEnforceable]
+            .enforceSchema(tupleSchema)
+            .getField[Int]("field2") <= 10
+        )
       )
       opExec.close()
     }

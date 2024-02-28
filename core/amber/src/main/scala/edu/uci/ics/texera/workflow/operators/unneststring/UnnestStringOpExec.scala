@@ -12,6 +12,6 @@ class UnnestStringOpExec(attributeName: String, delimiter: String) extends FlatM
       .split(tuple.getField(attributeName).toString)
       .filter(_.nonEmpty)
       .iterator
-      .map(split => TupleLike(tuple.getFields ++ Seq(split): _*))
+      .map(split => TupleLike(tuple.getFields ++ Seq(split)))
   }
 }

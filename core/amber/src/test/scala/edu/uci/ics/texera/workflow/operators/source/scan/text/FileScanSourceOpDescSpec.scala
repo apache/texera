@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.{
@@ -73,7 +73,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, fileScanSourceOpDesc.sourceSchema()))
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -101,7 +103,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, fileScanSourceOpDesc.sourceSchema()))
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -127,7 +131,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, fileScanSourceOpDesc.sourceSchema()))
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(
       processedTuple
@@ -155,7 +161,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, fileScanSourceOpDesc.sourceSchema()))
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField[Int]("line") == 1)
     assert(processedTuple.next().getField[Int]("line") == 2)
@@ -184,7 +192,9 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     FileScanSourceOpExec.open()
     val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
       .produceTuple()
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, fileScanSourceOpDesc.sourceSchema()))
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))

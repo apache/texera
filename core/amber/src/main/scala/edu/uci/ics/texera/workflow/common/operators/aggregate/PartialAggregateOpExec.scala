@@ -41,7 +41,7 @@ class PartialAggregateOpExec(
         Iterator()
       case Right(_) =>
         partialObjectsPerKey.iterator.map {
-          case (groupKey, partialObjects) => TupleLike(groupKey ++ partialObjects: _*)
+          case (groupKey, partialObjects) => TupleLike(groupKey ++ partialObjects)
         }
     }
   }

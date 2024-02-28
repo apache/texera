@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -84,7 +84,12 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
       outputTuples.foreach(tupleLike =>
-        assert(TupleLike.enforceSchema(tupleLike, schema).getField[Int]("field2") <= 10)
+        assert(
+          tupleLike
+            .asInstanceOf[SchemaEnforceable]
+            .enforceSchema(schema)
+            .getField[Int]("field2") <= 10
+        )
       )
       opExec.close()
     }

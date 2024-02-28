@@ -52,7 +52,7 @@ class FinalAggregateOpExec(
       case Right(_) =>
         partialObjectsPerKey.iterator.map {
           case (group, partial) =>
-            TupleLike(group ++ aggFuncs.indices.map(i => aggFuncs(i).finalAgg(partial(i))): _*)
+            TupleLike(group ++ aggFuncs.indices.map(i => aggFuncs(i).finalAgg(partial(i))))
         }
     }
   }

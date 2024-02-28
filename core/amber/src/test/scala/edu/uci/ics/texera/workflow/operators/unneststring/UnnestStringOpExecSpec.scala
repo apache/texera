@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.unneststring
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -47,7 +47,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.open()
     val processedTuple = opExec
       .processTuple(Left(tuple), 0)
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
+      .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
     assert(processedTuple.next().getField("split").equals("a"))
     assert(processedTuple.next().getField("split").equals("b"))
     assert(processedTuple.next().getField("split").equals("c"))
@@ -62,7 +62,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.open()
     val processedTuple = opExec
       .processTuple(Left(tuple), 0)
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
+      .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
     assert(processedTuple.next().getField("split").equals("a"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("split"))
     opExec.close()
@@ -82,7 +82,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.open()
     val processedTuple = opExec
       .processTuple(Left(tuple), 0)
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
+      .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
     assert(processedTuple.next().getField("split").equals("a"))
     assert(processedTuple.next().getField("split").equals("b"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("split"))
@@ -103,7 +103,7 @@ class UnnestStringOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.open()
     val processedTuple = opExec
       .processTuple(Left(tuple), 0)
-      .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
+      .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
     assert(processedTuple.next().getField("split").equals("a"))
     assert(processedTuple.next().getField("split").equals("b"))
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("split"))

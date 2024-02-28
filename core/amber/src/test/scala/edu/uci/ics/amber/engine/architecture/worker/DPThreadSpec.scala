@@ -16,7 +16,7 @@ import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -78,8 +78,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     )
   private val tuples: Array[Tuple] = (0 until 5000)
     .map(i =>
-      TupleLike.enforceSchema(
-        TupleLike(i).asInstanceOf[SchemaEnforceable],
+      TupleLike(i).enforceSchema(
         Schema.builder().add("field1", AttributeType.INTEGER).build()
       )
     )
