@@ -5,6 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment;
@@ -41,7 +42,7 @@ import org.jooq.impl.SchemaImpl;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class TexeraDb extends SchemaImpl {
 
-    private static final long serialVersionUID = -376568838;
+    private static final long serialVersionUID = -633402813;
 
     /**
      * The reference instance of <code>texera_db</code>
@@ -52,6 +53,11 @@ public class TexeraDb extends SchemaImpl {
      * The table <code>texera_db.dataset</code>.
      */
     public final Dataset DATASET = edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET;
+
+    /**
+     * The table <code>texera_db.dataset_of_environment</code>.
+     */
+    public final DatasetOfEnvironment DATASET_OF_ENVIRONMENT = edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT;
 
     /**
      * The table <code>texera_db.dataset_user_access</code>.
@@ -176,6 +182,7 @@ public class TexeraDb extends SchemaImpl {
     private final List<Table<?>> getTables0() {
         return Arrays.<Table<?>>asList(
             Dataset.DATASET,
+            DatasetOfEnvironment.DATASET_OF_ENVIRONMENT,
             DatasetUserAccess.DATASET_USER_ACCESS,
             DatasetVersion.DATASET_VERSION,
             Environment.ENVIRONMENT,

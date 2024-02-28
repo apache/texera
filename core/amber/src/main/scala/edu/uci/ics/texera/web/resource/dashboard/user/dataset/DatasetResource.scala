@@ -256,6 +256,18 @@ object DatasetResource {
     }
   }
 
+  def retrieveDatasetVersionFilePaths(ctx: DSLContext, uid: UInteger, did: UInteger, dvid: UInteger): util.List[String] = {
+    val dataset = getDatasetByID(ctx, did, uid)
+    val versionHash = getDatasetVersionHashByID(ctx, did, dvid, uid)
+
+    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+      Paths.get(dataset.getStoragePath),
+      versionHash
+    )
+
+    FileNode.getAllFileRelativePaths(fileNodes)
+  }
+
   case class DashboardDataset(
       dataset: Dataset,
       accessPrivilege: EnumType,

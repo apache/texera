@@ -5,6 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment;
@@ -44,6 +45,9 @@ public class Indexes {
     public static final Index DATASET_IDX_DATASET_NAME_DESCRIPTION = Indexes0.DATASET_IDX_DATASET_NAME_DESCRIPTION;
     public static final Index DATASET_OWNER_UID = Indexes0.DATASET_OWNER_UID;
     public static final Index DATASET_PRIMARY = Indexes0.DATASET_PRIMARY;
+    public static final Index DATASET_OF_ENVIRONMENT_DVID = Indexes0.DATASET_OF_ENVIRONMENT_DVID;
+    public static final Index DATASET_OF_ENVIRONMENT_EID = Indexes0.DATASET_OF_ENVIRONMENT_EID;
+    public static final Index DATASET_OF_ENVIRONMENT_PRIMARY = Indexes0.DATASET_OF_ENVIRONMENT_PRIMARY;
     public static final Index DATASET_USER_ACCESS_PRIMARY = Indexes0.DATASET_USER_ACCESS_PRIMARY;
     public static final Index DATASET_USER_ACCESS_UID = Indexes0.DATASET_USER_ACCESS_UID;
     public static final Index DATASET_VERSION_DID = Indexes0.DATASET_VERSION_DID;
@@ -98,6 +102,9 @@ public class Indexes {
         public static Index DATASET_IDX_DATASET_NAME_DESCRIPTION = Internal.createIndex("idx_dataset_name_description", Dataset.DATASET, new OrderField[] { Dataset.DATASET.NAME, Dataset.DATASET.DESCRIPTION }, false);
         public static Index DATASET_OWNER_UID = Internal.createIndex("owner_uid", Dataset.DATASET, new OrderField[] { Dataset.DATASET.OWNER_UID }, false);
         public static Index DATASET_PRIMARY = Internal.createIndex("PRIMARY", Dataset.DATASET, new OrderField[] { Dataset.DATASET.DID }, true);
+        public static Index DATASET_OF_ENVIRONMENT_DVID = Internal.createIndex("dvid", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, new OrderField[] { DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DVID }, false);
+        public static Index DATASET_OF_ENVIRONMENT_EID = Internal.createIndex("eid", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, new OrderField[] { DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.EID }, false);
+        public static Index DATASET_OF_ENVIRONMENT_PRIMARY = Internal.createIndex("PRIMARY", DatasetOfEnvironment.DATASET_OF_ENVIRONMENT, new OrderField[] { DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.DID, DatasetOfEnvironment.DATASET_OF_ENVIRONMENT.EID }, true);
         public static Index DATASET_USER_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", DatasetUserAccess.DATASET_USER_ACCESS, new OrderField[] { DatasetUserAccess.DATASET_USER_ACCESS.DID, DatasetUserAccess.DATASET_USER_ACCESS.UID }, true);
         public static Index DATASET_USER_ACCESS_UID = Internal.createIndex("uid", DatasetUserAccess.DATASET_USER_ACCESS, new OrderField[] { DatasetUserAccess.DATASET_USER_ACCESS.UID }, false);
         public static Index DATASET_VERSION_DID = Internal.createIndex("did", DatasetVersion.DATASET_VERSION, new OrderField[] { DatasetVersion.DATASET_VERSION.DID }, false);

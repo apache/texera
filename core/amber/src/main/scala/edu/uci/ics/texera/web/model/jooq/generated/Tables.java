@@ -5,6 +5,7 @@ package edu.uci.ics.texera.web.model.jooq.generated;
 
 
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset;
+import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetUserAccess;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion;
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment;
@@ -37,6 +38,11 @@ public class Tables {
      * The table <code>texera_db.dataset</code>.
      */
     public static final Dataset DATASET = Dataset.DATASET;
+
+    /**
+     * The table <code>texera_db.dataset_of_environment</code>.
+     */
+    public static final DatasetOfEnvironment DATASET_OF_ENVIRONMENT = DatasetOfEnvironment.DATASET_OF_ENVIRONMENT;
 
     /**
      * The table <code>texera_db.dataset_user_access</code>.

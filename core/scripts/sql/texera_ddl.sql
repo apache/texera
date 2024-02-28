@@ -269,6 +269,17 @@ CREATE TABLE IF NOT EXISTS dataset_version
     FOREIGN KEY (`did`) REFERENCES `dataset` (`did`) ON DELETE CASCADE
     )  ENGINE = INNODB;
 
+
+CREATE TABLE IF NOT EXISTS dataset_of_environment
+(
+    `did`                   INT UNSIGNED NOT NULL,
+    `eid`                   INT UNSIGNED NOT NULL,
+    `dvid`                  INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`did`, `eid`),
+    FOREIGN KEY (`eid`) REFERENCES `environment` (`eid`) ON DELETE CASCADE,
+    FOREIGN KEY (`dvid`) REFERENCES `dataset_version` (`dvid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
 -- create fulltext search indexes
 
 CREATE FULLTEXT INDEX `idx_workflow_name_description_content` ON `texera_db`.`workflow` (name, description, content);
