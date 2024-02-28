@@ -551,17 +551,8 @@ object RoundRobinPartitioning extends scalapb.GeneratedMessageCompanion[edu.uci.
 final case class HashBasedShufflePartitioning(
     batchSize: _root_.scala.Int,
     receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
-    hashColumnIndices: _root_.scala.Seq[_root_.scala.Int]
+    hashAttributeNames: _root_.scala.Seq[_root_.scala.Predef.String]
     ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning.NonEmpty with scalapb.lenses.Updatable[HashBasedShufflePartitioning] {
-    private[this] def hashColumnIndicesSerializedSize = {
-      if (__hashColumnIndicesSerializedSizeField == 0) __hashColumnIndicesSerializedSizeField = {
-        var __s: _root_.scala.Int = 0
-        hashColumnIndices.foreach(__i => __s += _root_.com.google.protobuf.CodedOutputStream.computeInt32SizeNoTag(__i))
-        __s
-      }
-      __hashColumnIndicesSerializedSizeField
-    }
-    @transient private[this] var __hashColumnIndicesSerializedSizeField: _root_.scala.Int = 0
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
@@ -577,9 +568,9 @@ final case class HashBasedShufflePartitioning(
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
-      if (hashColumnIndices.nonEmpty) {
-        val __localsize = hashColumnIndicesSerializedSize
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__localsize) + __localsize
+      hashAttributeNames.foreach { __item =>
+        val __value = __item
+        __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(3, __value)
       }
       __size
     }
@@ -604,10 +595,9 @@ final case class HashBasedShufflePartitioning(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      if (hashColumnIndices.nonEmpty) {
-        _output__.writeTag(3, 2)
-        _output__.writeUInt32NoTag(hashColumnIndicesSerializedSize)
-        hashColumnIndices.foreach(_output__.writeInt32NoTag)
+      hashAttributeNames.foreach { __v =>
+        val __m = __v
+        _output__.writeString(3, __m)
       };
     }
     def withBatchSize(__v: _root_.scala.Int): HashBasedShufflePartitioning = copy(batchSize = __v)
@@ -615,10 +605,10 @@ final case class HashBasedShufflePartitioning(
     def addReceivers(__vs: edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity*): HashBasedShufflePartitioning = addAllReceivers(__vs)
     def addAllReceivers(__vs: Iterable[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): HashBasedShufflePartitioning = copy(receivers = receivers ++ __vs)
     def withReceivers(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]): HashBasedShufflePartitioning = copy(receivers = __v)
-    def clearHashColumnIndices = copy(hashColumnIndices = _root_.scala.Seq.empty)
-    def addHashColumnIndices(__vs: _root_.scala.Int*): HashBasedShufflePartitioning = addAllHashColumnIndices(__vs)
-    def addAllHashColumnIndices(__vs: Iterable[_root_.scala.Int]): HashBasedShufflePartitioning = copy(hashColumnIndices = hashColumnIndices ++ __vs)
-    def withHashColumnIndices(__v: _root_.scala.Seq[_root_.scala.Int]): HashBasedShufflePartitioning = copy(hashColumnIndices = __v)
+    def clearHashAttributeNames = copy(hashAttributeNames = _root_.scala.Seq.empty)
+    def addHashAttributeNames(__vs: _root_.scala.Predef.String*): HashBasedShufflePartitioning = addAllHashAttributeNames(__vs)
+    def addAllHashAttributeNames(__vs: Iterable[_root_.scala.Predef.String]): HashBasedShufflePartitioning = copy(hashAttributeNames = hashAttributeNames ++ __vs)
+    def withHashAttributeNames(__v: _root_.scala.Seq[_root_.scala.Predef.String]): HashBasedShufflePartitioning = copy(hashAttributeNames = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -626,7 +616,7 @@ final case class HashBasedShufflePartitioning(
           if (__t != 0) __t else null
         }
         case 2 => receivers
-        case 3 => hashColumnIndices
+        case 3 => hashAttributeNames
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -634,7 +624,7 @@ final case class HashBasedShufflePartitioning(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PInt(batchSize)
         case 2 => _root_.scalapb.descriptors.PRepeated(receivers.iterator.map(_.toPMessage).toVector)
-        case 3 => _root_.scalapb.descriptors.PRepeated(hashColumnIndices.iterator.map(_root_.scalapb.descriptors.PInt(_)).toVector)
+        case 3 => _root_.scalapb.descriptors.PRepeated(hashAttributeNames.iterator.map(_root_.scalapb.descriptors.PString(_)).toVector)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -647,7 +637,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning = {
     var __batchSize: _root_.scala.Int = 0
     val __receivers: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]
-    val __hashColumnIndices: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Int] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Int]
+    val __hashAttributeNames: _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String] = new _root_.scala.collection.immutable.VectorBuilder[_root_.scala.Predef.String]
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -657,23 +647,15 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
           __batchSize = _input__.readInt32()
         case 18 =>
           __receivers += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity](_input__)
-        case 24 =>
-          __hashColumnIndices += _input__.readInt32()
-        case 26 => {
-          val length = _input__.readRawVarint32()
-          val oldLimit = _input__.pushLimit(length)
-          while (_input__.getBytesUntilLimit > 0) {
-            __hashColumnIndices += _input__.readInt32()
-          }
-          _input__.popLimit(oldLimit)
-        }
+        case 26 =>
+          __hashAttributeNames += _input__.readStringRequireUtf8()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
         batchSize = __batchSize,
         receivers = __receivers.result(),
-        hashColumnIndices = __hashColumnIndices.result()
+        hashAttributeNames = __hashAttributeNames.result()
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning] = _root_.scalapb.descriptors.Reads{
@@ -682,7 +664,7 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
       edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
         batchSize = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
         receivers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]]).getOrElse(_root_.scala.Seq.empty),
-        hashColumnIndices = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Int]]).getOrElse(_root_.scala.Seq.empty)
+        hashAttributeNames = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[_root_.scala.Predef.String]]).getOrElse(_root_.scala.Seq.empty)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -700,24 +682,24 @@ object HashBasedShufflePartitioning extends scalapb.GeneratedMessageCompanion[ed
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
     batchSize = 0,
     receivers = _root_.scala.Seq.empty,
-    hashColumnIndices = _root_.scala.Seq.empty
+    hashAttributeNames = _root_.scala.Seq.empty
   )
   implicit class HashBasedShufflePartitioningLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning](_l) {
     def batchSize: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.batchSize)((c_, f_) => c_.copy(batchSize = f_))
     def receivers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity]] = field(_.receivers)((c_, f_) => c_.copy(receivers = f_))
-    def hashColumnIndices: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Int]] = field(_.hashColumnIndices)((c_, f_) => c_.copy(hashColumnIndices = f_))
+    def hashAttributeNames: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[_root_.scala.Predef.String]] = field(_.hashAttributeNames)((c_, f_) => c_.copy(hashAttributeNames = f_))
   }
   final val BATCHSIZE_FIELD_NUMBER = 1
   final val RECEIVERS_FIELD_NUMBER = 2
-  final val HASHCOLUMNINDICES_FIELD_NUMBER = 3
+  final val HASHATTRIBUTENAMES_FIELD_NUMBER = 3
   def of(
     batchSize: _root_.scala.Int,
     receivers: _root_.scala.Seq[edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity],
-    hashColumnIndices: _root_.scala.Seq[_root_.scala.Int]
+    hashAttributeNames: _root_.scala.Seq[_root_.scala.Predef.String]
   ): _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning = _root_.edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning(
     batchSize,
     receivers,
-    hashColumnIndices
+    hashAttributeNames
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.sendsemantics.HashBasedShufflePartitioning])
 }

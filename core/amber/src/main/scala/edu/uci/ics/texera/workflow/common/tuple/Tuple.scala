@@ -64,10 +64,10 @@ case class Tuple @JsonCreator() (
       case _           => false
     }
 
-  def getPartialTuple(indices: Array[Int]): Tuple = {
-    val partialSchema = schema.getPartialSchema(indices)
+  def getPartialTuple(attributeNames: List[String]): Tuple = {
+    val partialSchema = schema.getPartialSchema(attributeNames)
     val builder = Tuple.Builder(partialSchema)
-    val partialArray = indices.map(fieldVals(_))
+    val partialArray = attributeNames.map(getField[Any]).toArray
     builder.addSequentially(partialArray)
     builder.build()
   }

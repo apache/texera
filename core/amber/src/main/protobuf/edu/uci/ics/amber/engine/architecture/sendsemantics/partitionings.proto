@@ -35,7 +35,7 @@ message RoundRobinPartitioning{
 message HashBasedShufflePartitioning{
   int32 batchSize = 1;
   repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
-  repeated int32 hashColumnIndices = 3;
+  repeated string hashAttributeNames = 3;
 }
 
 message RangeBasedShufflePartitioning {

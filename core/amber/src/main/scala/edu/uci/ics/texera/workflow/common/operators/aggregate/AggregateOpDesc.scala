@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
 
 import scala.collection.mutable
 
@@ -63,43 +63,28 @@ object AggregateOpDesc {
         )
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
-    val finalPhysicalOp = if (groupByKeys == null || groupByKeys.isEmpty) {
-      PhysicalOp
-        .localPhysicalOp(
-          PhysicalOpIdentity(id, "globalAgg"),
-          workflowId,
-          executionId,
-          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys))
-        )
-        .withParallelizable(false)
-        .withIsOneToManyOp(true)
-        // assume partial op's output is the same as global op's
-        .withInputPorts(List(inputPort), mutable.Map(inputPort.id -> outputSchema))
-        .withOutputPorts(
-          List(OutputPort(PortIdentity(0))),
-          mutable.Map(PortIdentity() -> outputSchema)
-        )
-    } else {
-      val partitionColumns: List[Int] =
-        if (groupByKeys == null) List()
-        else groupByKeys.indices.toList // group by columns are always placed in the beginning
 
-      PhysicalOp
-        .hashPhysicalOp(
-          PhysicalOpIdentity(id, "globalAgg"),
-          workflowId,
-          executionId,
-          OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys)),
-          partitionColumns
-        )
-        .withParallelizable(false)
-        .withIsOneToManyOp(true)
-        // assume partial op's output is the same as global op's
-        .withInputPorts(List(inputPort), mutable.Map(inputPort.id -> outputSchema))
-        .withOutputPorts(
-          List(OutputPort(PortIdentity(0))),
-          mutable.Map(PortIdentity() -> outputSchema)
-        )
+    // Create the base PhysicalOp with common configurations
+    var finalPhysicalOp = PhysicalOp
+      .oneToOnePhysicalOp(
+        PhysicalOpIdentity(id, "globalAgg"),
+        workflowId,
+        executionId,
+        OpExecInitInfo((_, _, _) => new FinalAggregateOpExec(aggFuncs, groupByKeys))
+      )
+      .withParallelizable(false)
+      .withIsOneToManyOp(true)
+      .withInputPorts(List(inputPort), mutable.Map(inputPort.id -> outputSchema))
+      .withOutputPorts(
+        List(OutputPort(PortIdentity(0))),
+        mutable.Map(PortIdentity() -> outputSchema)
+      )
+
+    // Apply additional configurations for keyed aggregation
+    if (!(groupByKeys == null && groupByKeys.isEmpty)) {
+      finalPhysicalOp = finalPhysicalOp
+        .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
+        .withDerivePartition(_ => HashPartition(groupByKeys))
     }
 
     PhysicalPlan(
