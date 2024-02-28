@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.tuple
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.databind.JsonNode
+import com.google.common.base.Preconditions.checkNotNull
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.tuple.amber.SeqTupleLike
 import edu.uci.ics.texera.Utils
@@ -29,38 +30,50 @@ import scala.collection.mutable
   */
 case class Tuple @JsonCreator() (
     @JsonProperty(value = "schema", required = true) schema: Schema,
-    @JsonProperty(value = "fields", required = true) fieldVals: List[Any]
+    @JsonProperty(value = "fields", required = true) fieldVals: Array[Any]
 ) extends SeqTupleLike
     with Serializable {
 
-  require(schema != null, "Schema cannot be null")
-  require(fieldVals != null, "Fields cannot be null")
+  checkNotNull(schema)
+  checkNotNull(fieldVals)
   checkSchemaMatchesFields(schema.getAttributes, fieldVals)
 
   override val inMemSize: Long = SizeOf.newInstance().deepSizeOf(this)
 
-  @JsonIgnore def length: Int = fieldVals.size
-
-  @JsonIgnore def get(i: Int): Any = fieldVals(i)
+  @JsonIgnore def length: Int = fieldVals.length
 
   @JsonIgnore def getSchema: Schema = schema
+
+  def getField[T](index: Int): T = {
+    fieldVals(index).asInstanceOf[T]
+  }
 
   def getField[T](attributeName: String): T = {
     if (!schema.containsAttribute(attributeName)) {
       throw new RuntimeException(s"$attributeName is not in the tuple")
     }
-    fieldVals(schema.getIndex(attributeName)).asInstanceOf[T]
+    getField(schema.getIndex(attributeName))
   }
 
-  def getField[T](attributeName: String, fieldClass: Class[T]): T = getField[T](attributeName)
+  def getField[T](attribute: Attribute): T = getField(attribute.getName)
 
-  def getFields: Seq[Any] = fieldVals
+  override def getFields: Array[Any] = fieldVals
 
-  override def hashCode: Int = util.Arrays.deepHashCode(fields.map(_.asInstanceOf[AnyRef]))
+  override def enforceSchema(schema: Schema): Tuple = {
+    assert(
+      getSchema == schema,
+      s"output tuple schema does not match the expected schema! " +
+        s"output schema: $getSchema, " +
+        s"expected schema: $schema"
+    )
+    this
+  }
+
+  override def hashCode: Int = util.Arrays.deepHashCode(getFields.map(_.asInstanceOf[AnyRef]))
 
   override def equals(obj: Any): Boolean =
     obj match {
-      case that: Tuple => (this.fields sameElements that.fields) && this.schema == that.schema
+      case that: Tuple => (this.getFields sameElements that.getFields) && this.schema == that.schema
       case _           => false
     }
 
@@ -72,7 +85,15 @@ case class Tuple @JsonCreator() (
     builder.build()
   }
 
-  override def toString: String = s"Tuple [schema=$schema, fields=$fieldVals]"
+  def getPartialTuple(attributes: Array[String]): Tuple = {
+    val partialSchema = schema.getPartialSchema(attributes)
+    val builder = Tuple.Builder(partialSchema)
+    builder.addSequentially(attributes.map(getField))
+    builder.build()
+  }
+
+  override def toString: String =
+    s"Tuple [schema=$schema, fields=${fieldVals.mkString("[", ", ", "]")}]"
 
   def asKeyValuePairJson(): ObjectNode = {
     val objectNode = Utils.objectMapper.createObjectNode()
@@ -90,8 +111,6 @@ case class Tuple @JsonCreator() (
     }
     doc
   }
-
-  override def fields: Array[Any] = fieldVals.toArray
 }
 
 object Tuple {
@@ -161,13 +180,13 @@ object Tuple {
     def add(tuple: Tuple, isStrictSchemaMatch: Boolean = true): Builder = {
       require(tuple != null, "Tuple cannot be null")
 
-      tuple.fields.zipWithIndex.foreach {
+      tuple.getFields.zipWithIndex.foreach {
         case (field, i) =>
           val attribute = tuple.schema.getAttributes(i)
           if (!isStrictSchemaMatch && !schema.containsAttribute(attribute.getName)) {
             // Skip if not matching in non-strict mode
           } else {
-            add(attribute, tuple.fields(i))
+            add(attribute, tuple.getFields(i))
           }
       }
       this
@@ -216,7 +235,7 @@ object Tuple {
       }
 
       val fields =
-        schema.getAttributes.map(attr => fieldNameMap(attr.getName.toLowerCase))
+        schema.getAttributes.map(attr => fieldNameMap(attr.getName.toLowerCase)).toArray
       new Tuple(schema, fields)
     }
   }

@@ -153,7 +153,7 @@ object ArrowUtils extends LazyLogging {
 
     for (i <- arrowFields.indices) {
       val vector: FieldVector = vectorSchemaRoot.getVector(i)
-      val value = tuple.get(i)
+      val value = tuple.getField(i)
       val isNull = value == null
       arrowFields.apply(i).getFieldType.getType match {
         case _: ArrowType.Int =>

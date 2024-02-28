@@ -38,11 +38,11 @@ class SortPartitionOpExec(
     val attributeIndex = t1.getSchema.getIndex(sortAttributeName)
     attributeType match {
       case AttributeType.LONG =>
-        t1.get(attributeIndex).asInstanceOf[Long] < t2.get(attributeIndex).asInstanceOf[Long]
+        t1.getField[Long](attributeIndex) < t2.getField[Long](attributeIndex)
       case AttributeType.INTEGER =>
-        t1.get(attributeIndex).asInstanceOf[Int] < t2.get(attributeIndex).asInstanceOf[Int]
+        t1.getField[Int](attributeIndex) < t2.getField[Int](attributeIndex)
       case AttributeType.DOUBLE =>
-        t1.get(attributeIndex).asInstanceOf[Double] < t2.get(attributeIndex).asInstanceOf[Double]
+        t1.getField[Double](attributeIndex) < t2.getField[Double](attributeIndex)
       case _ =>
         true // unsupported type
     }

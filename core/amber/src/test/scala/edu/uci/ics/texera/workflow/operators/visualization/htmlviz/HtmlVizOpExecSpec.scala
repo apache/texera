@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -25,7 +25,11 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val htmlVizOpExec = new HtmlVizOpExec("field1")
     htmlVizOpExec.open()
     val processedTuple: Tuple =
-      TupleLike.enforceSchema(htmlVizOpExec.processTuple(Left(tuple()), 0).next(), outputSchema)
+      htmlVizOpExec
+        .processTuple(Left(tuple()), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(outputSchema)
 
     assert(processedTuple.getField("html-content").asInstanceOf[String] == "hello")
 
@@ -36,7 +40,11 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val htmlVizOpExec = new HtmlVizOpExec("field2")
     htmlVizOpExec.open()
     val processedTuple: Tuple =
-      TupleLike.enforceSchema(htmlVizOpExec.processTuple(Left(tuple()), 0).next(), outputSchema)
+      htmlVizOpExec
+        .processTuple(Left(tuple()), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(outputSchema)
 
     assert(processedTuple.getField("html-content").asInstanceOf[String] == "<html></html>")
 
