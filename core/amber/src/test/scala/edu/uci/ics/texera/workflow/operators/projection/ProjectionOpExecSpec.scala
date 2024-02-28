@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -50,12 +50,16 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     projectionOpExec.open()
 
     val outputTuple =
-      TupleLike.enforceSchema(projectionOpExec.processTuple(Left(tuple), 0).next(), outputSchema)
+      projectionOpExec
+        .processTuple(Left(tuple), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(outputSchema)
     assert(outputTuple.length == 2)
     assert(outputTuple.getField("f1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("f2").asInstanceOf[Int] == 1)
-    assert(outputTuple.get(0) == "hello")
-    assert(outputTuple.get(1) == 1)
+    assert(outputTuple.getField[String](0) == "hello")
+    assert(outputTuple.getField[Int](1) == 1)
   }
 
   it should "process Tuple with different order" in {
@@ -74,12 +78,16 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     projectionOpExec.open()
 
     val outputTuple =
-      TupleLike.enforceSchema(projectionOpExec.processTuple(Left(tuple), 0).next(), outputSchema)
+      projectionOpExec
+        .processTuple(Left(tuple), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(outputSchema)
     assert(outputTuple.length == 2)
     assert(outputTuple.getField("f3").asInstanceOf[Boolean])
     assert(outputTuple.getField("f1").asInstanceOf[String] == "hello")
-    assert(outputTuple.get(0) == true)
-    assert(outputTuple.get(1) == "hello")
+    assert(outputTuple.getField[Boolean](0))
+    assert(outputTuple.getField[String](1) == "hello")
   }
 
   it should "raise RuntimeException on non-existing fields" in {
@@ -133,12 +141,16 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     projectionOpExec.open()
 
     val outputTuple =
-      TupleLike.enforceSchema(projectionOpExec.processTuple(Left(tuple), 0).next(), outputSchema)
+      projectionOpExec
+        .processTuple(Left(tuple), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(outputSchema)
     assert(outputTuple.length == 2)
     assert(outputTuple.getField("field1").asInstanceOf[String] == "hello")
     assert(outputTuple.getField("f2").asInstanceOf[Int] == 1)
-    assert(outputTuple.get(0) == "hello")
-    assert(outputTuple.get(1) == 1)
+    assert(outputTuple.getField[String](0) == "hello")
+    assert(outputTuple.getField[Int](1) == 1)
   }
 
 }

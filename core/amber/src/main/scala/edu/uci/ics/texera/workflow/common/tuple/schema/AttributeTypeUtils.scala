@@ -70,7 +70,7 @@ object AttributeTypeUtils extends Serializable {
           .getOrElse(attr.getType)
 
         parseField(tuple.getField(attr.getName), targetType)
-      }: _*
+      }
     )
 
   def parseFields(fields: Array[Any], schema: Schema): Array[Any] = {

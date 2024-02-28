@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -247,7 +247,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
             Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)),
             left
           )
-          .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
+          .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(
           result
@@ -259,7 +259,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
             Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)),
             right
           )
-          .map(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
+          .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(
           result
@@ -428,7 +428,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
     assert(outputTuples.size == 11)
-    assert(outputTuples.head.fields.length == 4)
+    assert(outputTuples.head.getFields.length == 4)
     opExec.close()
   }
 
