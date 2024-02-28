@@ -1,13 +1,16 @@
 package edu.uci.ics.texera.workflow.operators.visualization.histogram
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaTitle}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
   @JsonProperty(required = false, defaultValue = "Histogram Chart")
@@ -33,7 +36,6 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
   @AutofillAttributeName
   var separateBy: String = ""
 
-
   /**
     * This method is to be implemented to generate the actual Python source code
     * based on operators predicates.
@@ -52,7 +54,7 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
 
   def createPlotlyFigure(): String = {
     assert(value.nonEmpty)
-    var colorParam =""
+    var colorParam = ""
     var categoryParam = ""
     if (color.nonEmpty) colorParam = s", color = '$color'"
     if (separateBy.nonEmpty) categoryParam = s", facet_col = '$separateBy'"
@@ -93,7 +95,7 @@ class HistogramChartOpDesc extends VisualizationOperator with PythonOperatorDesc
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def chartType(): String = VisualizationConstants.HTML_VIZ
