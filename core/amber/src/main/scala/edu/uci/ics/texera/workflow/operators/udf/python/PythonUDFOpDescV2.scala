@@ -77,7 +77,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
       //    Preconditions.checkArgument(schemas.length == 1)
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-      val outputSchemaBuilder = Schema.newBuilder
+      val outputSchemaBuilder = Schema.builder()
       // keep the same schema from input
       if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
       // for any pythonUDFType, it can add custom output columns (attributes).
@@ -89,9 +89,9 @@ class PythonUDFOpDescV2 extends LogicalOp {
               throw new RuntimeException("Column name " + column.getName + " already exists!")
           }
         }
-        outputSchemaBuilder.add(outputColumns.asJava).build
+        outputSchemaBuilder.add(outputColumns).build()
       }
-      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build)
+      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
     }
 
     if (workers > 1)

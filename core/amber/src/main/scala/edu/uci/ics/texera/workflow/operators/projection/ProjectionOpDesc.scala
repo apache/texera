@@ -32,7 +32,7 @@ class ProjectionOpDesc extends MapOpDesc {
         Preconditions.checkArgument(inputSchemas.size == 1)
         Preconditions.checkArgument(attributes.nonEmpty)
         val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-        val outputSchema = Schema.newBuilder
+        val outputSchema = Schema.builder()
           .add(
             attributes
               .map(attribute =>
@@ -41,7 +41,6 @@ class ProjectionOpDesc extends MapOpDesc {
                   inputSchema.getAttribute(attribute.getOriginalAttribute).getType
                 )
               )
-              .asJava
           )
           .build()
         Map(operatorInfo.outputPorts.head.id -> outputSchema)
