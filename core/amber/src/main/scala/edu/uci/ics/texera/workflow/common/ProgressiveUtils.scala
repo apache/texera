@@ -35,16 +35,9 @@ object ProgressiveUtils {
       isInsertion(tuple), {
         val originalSchema = tuple.getSchema
         val schema = originalSchema.getPartialSchema(
-          originalSchema.getAttributes
-            .map(_.getName)
-            .zipWithIndex
-            .filterNot {
-              case (name, index) => name == insertRetractFlagAttr.getName
-            }
-            .map(_._2)
-            .toArray
+          originalSchema.getAttributeNames.filterNot(_ == insertRetractFlagAttr.getName)
         )
-        Tuple.builder(schema).add(tuple, false).build()
+        Tuple.builder(schema).add(tuple, isStrictSchemaMatch = false).build()
       }
     )
   }

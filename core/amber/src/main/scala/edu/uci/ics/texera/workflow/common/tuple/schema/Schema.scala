@@ -9,7 +9,7 @@ case class Schema @JsonCreator() (
     @JsonProperty(value = "attributes", required = true) attributes: List[Attribute]
 ) extends Serializable {
 
-  require(attributes != null, "Attributes cannot be null")
+  checkNotNull(attributes)
 
   val attributeIndex: Map[String, Int] =
     attributes.view.map(_.getName.toLowerCase).zipWithIndex.toMap
@@ -54,10 +54,10 @@ case class Schema @JsonCreator() (
 
   override def toString: String = s"Schema[$attributes]"
 
-  def getPartialSchema(indices: Array[Int]): Schema = {
-    val partialAttributes = indices.map(attributes(_)).toList
-    Schema(partialAttributes)
+  def getPartialSchema(attributeNames: List[String]): Schema = {
+    Schema(attributeNames.map(name => getAttribute(name)))
   }
+
 }
 
 object Schema {

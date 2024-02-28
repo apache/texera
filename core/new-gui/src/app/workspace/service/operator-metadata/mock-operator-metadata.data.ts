@@ -309,7 +309,7 @@ export const mockPortSchema: PortSchema = {
             title: "hash",
             properties: {
               type: { const: "hash" },
-              hashColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              hashAttributeNames: { type: "array", items: { type: "string" }, title: "attribute names" },
             },
           },
           {

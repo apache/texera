@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.scheduling.{
   CostBasedRegionPlanGenerator,
   ExpansionGreedyRegionPlanGenerator,
   Region,
-  RegionPlan,
   Schedule
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
@@ -15,7 +14,6 @@ import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpResultStorage)
     extends java.io.Serializable {
   var physicalPlan: PhysicalPlan = _
-  var regionPlan: RegionPlan = _
   private var schedule: Schedule = _
 
   /**
@@ -38,10 +36,8 @@ class WorkflowScheduler(workflowContext: WorkflowContext, opResultStorage: OpRes
         opResultStorage
       ).generate()
     }
-
-    this.regionPlan = regionPlan
     this.physicalPlan = updatedPhysicalPlan
-    this.schedule = Schedule(regionPlan)
+    this.schedule = Schedule.apply(regionPlan)
   }
 
   def getNextRegions: Set[Region] = if (!schedule.hasNext) Set() else schedule.next()

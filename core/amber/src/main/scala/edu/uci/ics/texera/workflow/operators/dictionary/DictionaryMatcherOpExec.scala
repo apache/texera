@@ -120,7 +120,7 @@ class DictionaryMatcherOpExec(
   private def labelTupleIfMatched(tuple: Tuple): TupleLike = {
     val isMatched =
       Option(tuple.getField[Any](attributeName)).exists(_ => isTupleInDictionary(tuple))
-    TupleLike(tuple.getFields ++ Seq(isMatched): _*)
+    TupleLike(tuple.getFields ++ Seq(isMatched))
   }
 
   setMapFunc(labelTupleIfMatched)

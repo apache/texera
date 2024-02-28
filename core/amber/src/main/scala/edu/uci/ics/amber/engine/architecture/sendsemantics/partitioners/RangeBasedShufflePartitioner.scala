@@ -19,11 +19,11 @@ case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartition
     var fieldVal: Long = -1
     fieldType match {
       case AttributeType.LONG =>
-        fieldVal = tuple.get(partitioning.rangeColumnIndices(0)).asInstanceOf[Long]
+        fieldVal = tuple.getField[Long](partitioning.rangeColumnIndices(0))
       case AttributeType.INTEGER =>
-        fieldVal = tuple.get(partitioning.rangeColumnIndices(0)).asInstanceOf[Int]
+        fieldVal = tuple.getField[Int](partitioning.rangeColumnIndices(0))
       case AttributeType.DOUBLE =>
-        fieldVal = tuple.get(partitioning.rangeColumnIndices(0)).asInstanceOf[Double].toLong
+        fieldVal = tuple.getField[Double](partitioning.rangeColumnIndices(0)).toLong
       case _ =>
         throw new RuntimeException("unsupported attribute type: " + fieldType.toString())
     }

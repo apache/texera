@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -75,7 +75,7 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
     assert(
-      outputTuples.head.fields.length == numLeftSchemaAttributes + numRightSchemaAttributes
+      outputTuples.head.getFields.length == numLeftSchemaAttributes + numRightSchemaAttributes
     )
 
     opExec.close()
@@ -156,7 +156,9 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
     // verify output tuple like matches schema
-    outputTuples.foreach(tupleLike => TupleLike.enforceSchema(tupleLike, outputSchema))
+    outputTuples.foreach(tupleLike =>
+      tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema)
+    )
     opExec.close()
   }
 }

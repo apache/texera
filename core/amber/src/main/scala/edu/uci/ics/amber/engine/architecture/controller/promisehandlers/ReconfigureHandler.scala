@@ -23,8 +23,7 @@ trait ReconfigureHandler {
   registerHandler[Reconfigure, Unit] { (msg, sender) =>
     {
       val epochMarkers = FriesReconfigurationAlgorithm.scheduleReconfigurations(
-        cp.workflowScheduler.physicalPlan,
-        cp.workflowScheduler.regionPlan,
+        cp.workflowExecutionCoordinator,
         msg.reconfigurations,
         msg.reconfigurationId
       )
