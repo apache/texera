@@ -43,13 +43,46 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public title: string | undefined;
   public formControl!: FormControl;
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
+  public language: string="java";
+  public languageTitle: string = this.generateLanguageTitle(this.language);
+  operatorType: string='';
+
+  private generateLanguageTitle(language: string): string {
+    return `${language.toUpperCase()} Script`;
+  }
+
+  changeLanguage(newLanguage: string) {
+    this.language = newLanguage;
+    if (this.editor) {
+      // Update the language in the existing editor instance
+      monaco.editor.setModelLanguage(this.editor.getModel(), newLanguage);
+    }
+    this.languageTitle = this.generateLanguageTitle(newLanguage);
+  }
 
   constructor(
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
-  ) {}
+  ) {
+    
+    const currentOperatorId = this.workflowActionService
+      .getJointGraphWrapper()
+      .getCurrentHighlightedOperatorIDs()[0];
+  
+    this.operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType
+    if (this.operatorType=="JavaUDF")
+    {
+      this.changeLanguage("java")
+      this.languageTitle = this.generateLanguageTitle("java");
+    }
+    else
+    {
+      this.changeLanguage("python")
+      this.languageTitle = this.generateLanguageTitle("python");
+    }
+  }
   ngAfterViewInit() {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.operatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
@@ -121,7 +154,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    */
   private initMonaco() {
     const editor = monaco.editor.create(this.editorElement.nativeElement, {
-      language: "python",
+      language: this.language,
       fontSize: 11,
       theme: "vs-dark",
       automaticLayout: true,

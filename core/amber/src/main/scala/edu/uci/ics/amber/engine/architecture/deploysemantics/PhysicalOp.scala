@@ -229,7 +229,7 @@ case class PhysicalOp(
   def isPythonOperator: Boolean = {
     opExecInitInfo match {
       case opExecInfo: OpExecInitInfoWithCode =>
-        val (code, language) = opExecInfo.codeGen(0, this,OperatorConfig.empty)
+        val (code, language) = opExecInfo.codeGen(0, this, OperatorConfig.empty)
         var isPythonCode = true
         if (language == "java") {
           isPythonCode = false
@@ -244,7 +244,8 @@ case class PhysicalOp(
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    val (code, language)=opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
+    val (code, language) =
+      opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
     code
   }
 
