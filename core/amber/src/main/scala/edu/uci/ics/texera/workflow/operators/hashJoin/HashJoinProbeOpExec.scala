@@ -37,7 +37,7 @@ object JoinUtils {
         newName -> rightTuple.getField[Any](name)
       }
 
-    TupleLike((leftTupleFields ++ rightTupleFields).toSeq: _*)
+    TupleLike(leftTupleFields ++ rightTupleFields)
   }
 }
 class HashJoinProbeOpExec[K](

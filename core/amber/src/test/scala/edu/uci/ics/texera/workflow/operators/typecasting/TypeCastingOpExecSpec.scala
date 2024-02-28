@@ -70,7 +70,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(outputTuple.getField("field2").asInstanceOf[String] == "1")
     assert(outputTuple.getField("field3").asInstanceOf[String] == "true")
     assert(outputTuple.getField("field4").asInstanceOf[Long] == 3L)
-    assert("hello" == outputTuple.getField(0))
+    assert("hello" == outputTuple.getField[String](0))
     assert(outputTuple.getField[String](1) == "1")
     assert(outputTuple.getField[String](2) == "true")
     assert(outputTuple.getField[Long](3) == 3L)
