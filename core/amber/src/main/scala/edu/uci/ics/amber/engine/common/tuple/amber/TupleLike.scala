@@ -46,8 +46,7 @@ trait SeqTupleLike extends TupleLike with SchemaEnforceable {
 trait MapTupleLike extends SeqTupleLike with SchemaEnforceable {
   override def inMemSize: Long = ???
   def fieldMappings: Map[String, Any]
-
-  override val getFields: Array[Any] = fieldMappings.values.toArray
+  override def getFields: Array[Any] = fieldMappings.values.toArray
 
   /**
     * Constructs a `Tuple` based on the provided schema and `tupleLike` object.
