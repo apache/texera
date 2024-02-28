@@ -73,10 +73,10 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
         probeOpExec
           .processTuple(
             Left(
-              TupleLike.enforceSchema(
-                buildOpOutputIterator.next(),
-                getInternalHashTableSchema(inputSchemas.head)
-              )
+              buildOpOutputIterator
+                .next()
+                .asInstanceOf[SchemaEnforceable]
+                .enforceSchema(getInternalHashTableSchema(inputSchemas.head))
             ),
             build
           )
@@ -133,10 +133,10 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
         probeOpExec
           .processTuple(
             Left(
-              TupleLike.enforceSchema(
-                buildOpOutputIterator.next(),
-                getInternalHashTableSchema(inputSchemas.head)
-              )
+              buildOpOutputIterator
+                .next()
+                .asInstanceOf[SchemaEnforceable]
+                .enforceSchema(getInternalHashTableSchema(inputSchemas.head))
             ),
             build
           )
@@ -192,10 +192,10 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
         probeOpExec
           .processTuple(
             Left(
-              TupleLike.enforceSchema(
-                buildOpOutputIterator.next(),
-                getInternalHashTableSchema(inputSchemas.head)
-              )
+              buildOpOutputIterator
+                .next()
+                .asInstanceOf[SchemaEnforceable]
+                .enforceSchema(getInternalHashTableSchema(inputSchemas.head))
             ),
             build
           )
