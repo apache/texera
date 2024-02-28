@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
-import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph, DirectedPseudograph}
 
 import scala.collection.mutable
 import scala.jdk.CollectionConverters.{CollectionHasAsScala, IteratorHasAsScala}
@@ -78,29 +78,34 @@ class CostBasedRegionPlanGenerator(
   /**
     * Checks a plan for schedulability, and returns a region DAG if the plan is schedulable.
     * @param matEdges Set of edges to materialize (including the original blocking edges).
-    * @return If the plan is schedulable, a region DAG will be returned. Otherwise None will be returned to indicate
-    *         that the plan is unschedulable.
+    * @return If the plan is schedulable, a region DAG will be returned. Otherwise a DirectedPseudograph (with directed
+    *         cycles) will be returned to indicate that the plan is unschedulable.
     */
   private def tryConnectRegionDAG(
       matEdges: Set[PhysicalLink]
-  ): Option[DirectedAcyclicGraph[Region, RegionLink]] = {
-    val regionGraph = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
+  ): Either[DirectedAcyclicGraph[Region, RegionLink], DirectedPseudograph[Region, RegionLink]] = {
+    val regionDAG = new DirectedAcyclicGraph[Region, RegionLink](classOf[RegionLink])
+    val regionGraph = new DirectedPseudograph[Region, RegionLink](classOf[RegionLink])
     val opToRegionMap = new mutable.HashMap[PhysicalOpIdentity, Region]
     createRegions(physicalPlan, matEdges).foreach(region => {
       region.getOperators.foreach(op => opToRegionMap(op.id) = region)
       regionGraph.addVertex(region)
+      regionDAG.addVertex(region)
     })
+    var isAcyclic = true
     matEdges.foreach(blockingEdge => {
       val fromRegion = opToRegionMap(blockingEdge.fromOpId)
       val toRegion = opToRegionMap(blockingEdge.toOpId)
+      regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       try {
-        regionGraph.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+        regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
       } catch {
         case _: IllegalArgumentException =>
-          return None
+          isAcyclic = false
       }
     })
-    Option(regionGraph)
+    if (isAcyclic) Left(regionDAG)
+    else Right(regionGraph)
   }
 
   /**
@@ -151,14 +156,15 @@ class CostBasedRegionPlanGenerator(
       val currentState = queue.dequeue()
       visited.add(currentState)
       tryConnectRegionDAG(physicalPlan.getOriginalBlockingLinks ++ currentState) match {
-        case Some(regionDAG) =>
+        case Left(regionDAG) =>
           // Calculate the current state's cost and update the bestResult if it's lower
-          val cost = evaluate(currentState)
+          val cost =
+            evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
           if (cost < bestResult.cost) {
             bestResult = SearchResult(currentState, regionDAG, cost)
           }
         // No need to explore further
-        case None =>
+        case Right(_) =>
           val allBlockingEdges = currentState ++ physicalPlan.getOriginalBlockingLinks
           // Generate and enqueue all neighbour states that haven't been visited
           val edgesInChainWithBlockingEdge = physicalPlan.getMaxChains
@@ -175,7 +181,17 @@ class CostBasedRegionPlanGenerator(
               }
             }
           } else {
-            val nextLink = candidateEdges.minBy(e => evaluate(currentState + e))
+            val nextLink = candidateEdges.minBy(e =>
+              tryConnectRegionDAG(physicalPlan.getOriginalBlockingLinks ++ currentState + e) match {
+                case Left(regionDAG) =>
+                  evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
+                case Right(regionGraph) =>
+                  evaluate(
+                    regionGraph.vertexSet().asScala.toSet,
+                    regionGraph.edgeSet().asScala.toSet
+                  )
+              }
+            )
             val nextState = currentState + nextLink
             if (!visited.contains(nextState) && !queue.contains(nextState)) {
               queue.enqueue(nextState)
@@ -188,15 +204,16 @@ class CostBasedRegionPlanGenerator(
   }
 
   /**
-    * The cost function used by the search.
-    * @param state A set of additional materialization edges, besides the original blocking edges.
+    * The cost function used by the search. Takes in a region graph represented as set of regions and links.
+    * @param regions A set of regions created based on a search state.
+    * @param regionLinks A set of links to indicate dependencies between regions, based on the materialization edges.
     * @return A cost determined by the resource allocator.
     */
-  private def evaluate(state: Set[PhysicalLink]): Double = {
+  private def evaluate(regions: Set[Region], regionLinks: Set[RegionLink]): Double = {
     // Using number of materialization (region) edges as the cost.
     // This is independent of the schedule / resource allocator.
     // In the future we may need to use the ResourceAllocator to get the cost.
-    state.size
+    regionLinks.size
   }
 
 }
