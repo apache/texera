@@ -23,7 +23,7 @@ class HashJoinBuildOpExec[K](buildAttributeName: String) extends OperatorExecuto
         Iterator()
       case Right(_) =>
         buildTableHashMap.iterator.flatMap {
-          case (k, v) => v.map(t => TupleLike(List(k) ++ t.getFields: _*))
+          case (k, v) => v.map(t => TupleLike(List(k) ++ t.getFields))
         }
     }
   }
