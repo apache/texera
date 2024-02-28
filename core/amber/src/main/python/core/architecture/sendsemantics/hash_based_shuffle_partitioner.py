@@ -23,13 +23,17 @@ class HashBasedShufflePartitioner(Partitioner):
         self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
             (receiver, list()) for receiver in partitioning.receivers
         ]
-        self.hash_column_indices = partitioning.hash_column_indices
+        self.hash_attribute_names = partitioning.hash_attribute_names
 
     @overrides
     def add_tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
-        partial_tuple = tuple_.get_partial_tuple(self.hash_column_indices)
+        partial_tuple = (
+            tuple_
+            if not self.hash_attribute_names
+            else tuple_.get_partial_tuple(self.hash_attribute_names)
+        )
         hash_code = hash(partial_tuple) % len(self.receivers)
         receiver, batch = self.receivers[hash_code]
         batch.append(tuple_)

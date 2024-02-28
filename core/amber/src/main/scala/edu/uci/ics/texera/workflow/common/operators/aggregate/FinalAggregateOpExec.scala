@@ -1,21 +1,17 @@
 package edu.uci.ics.texera.workflow.common.operators.aggregate
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
-import edu.uci.ics.texera.workflow.common.operators.aggregate.PartialAggregateOpExec.internalAggObjKey
+import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc.internalAggObjKey
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import scala.collection.mutable
 
 class FinalAggregateOpExec(
     val aggFuncs: List[DistributedAggregation[Object]],
-    val groupByKeys: List[String],
-    val outputSchema: Schema
+    val groupByKeys: List[String]
 ) extends OperatorExecutor {
-
-  var groupByKeyAttributes: Array[Attribute] = _
-  var schema: Schema = _
 
   // each value in partialObjectsPerKey has the same length as aggFuncs
   // partialObjectsPerKey(key)[i] corresponds to aggFuncs[i]
@@ -27,42 +23,37 @@ class FinalAggregateOpExec(
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     if (aggFuncs.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
     tuple match {
       case Left(t) =>
-        val key =
-          if (groupByKeys == null || groupByKeys.isEmpty) List()
-          else groupByKeys.map(k => t.getField[Object](k))
+        val key = Option(groupByKeys)
+          .filter(_.nonEmpty)
+          .map(_.map(k => t.getField[Object](k)))
+          .getOrElse(List.empty)
 
         val partialObjects =
           aggFuncs.indices.map(i => t.getField[Object](internalAggObjKey(i))).toList
-        if (!partialObjectsPerKey.contains(key)) {
-          partialObjectsPerKey.put(key, partialObjects)
-        } else {
-          val updatedPartialObjects = aggFuncs.indices
-            .map(i => {
-              val aggFunc = aggFuncs(i)
-              val partial1 = partialObjectsPerKey(key)(i)
-              val partial2 = partialObjects(i)
-              aggFunc.merge(partial1, partial2)
-            })
-            .toList
-          partialObjectsPerKey.put(key, updatedPartialObjects)
-        }
+
+        partialObjectsPerKey.put(
+          key,
+          partialObjectsPerKey
+            .get(key)
+            .map(existingPartials =>
+              aggFuncs.indices
+                .map(i => aggFuncs(i).merge(existingPartials(i), partialObjects(i)))
+                .toList
+            )
+            .getOrElse(partialObjects)
+        )
         Iterator()
       case Right(_) =>
-        partialObjectsPerKey.iterator.map(pair => {
-          val finalAggValues = aggFuncs.indices.map(i => aggFuncs(i).finalAgg(pair._2(i)))
-
-          val tupleBuilder = Tuple.newBuilder(outputSchema)
-          // add group by keys and final agg values
-          tupleBuilder.addSequentially((pair._1 ++ finalAggValues).toArray)
-
-          tupleBuilder.build()
-        })
+        partialObjectsPerKey.iterator.map {
+          case (group, partial) =>
+            TupleLike(group ++ aggFuncs.indices.map(i => aggFuncs(i).finalAgg(partial(i))))
+        }
     }
   }
 

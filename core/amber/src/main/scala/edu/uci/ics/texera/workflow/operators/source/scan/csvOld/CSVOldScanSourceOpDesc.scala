@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.IOException
-import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -39,13 +38,23 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
       customDelimiter = Option(",")
 
     filePath match {
-      case Some(_) =>
+      case Some(path) =>
         PhysicalOp
           .sourcePhysicalOp(
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo((_, _, _) => new CSVOldScanSourceOpExec(this))
+            OpExecInitInfo((_, _, _) =>
+              new CSVOldScanSourceOpExec(
+                path,
+                fileEncoding,
+                limit,
+                offset,
+                customDelimiter,
+                hasHeader,
+                schemaFunc = () => sourceSchema()
+              )
+            )
           )
           .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
           .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -91,7 +100,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     reader.close()
 
     // build schema based on inferred AttributeTypes
-    Schema.newBuilder
+    Schema
+      .builder()
       .add(
         firstRow.indices
           .map((i: Int) =>
@@ -100,9 +110,8 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
               attributeTypeList.apply(i)
             )
           )
-          .asJava
       )
-      .build
+      .build()
   }
 
 }

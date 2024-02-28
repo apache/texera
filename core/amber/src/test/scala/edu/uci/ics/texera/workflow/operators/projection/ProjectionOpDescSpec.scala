@@ -32,7 +32,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field2", "f2")
     )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.size() == 2)
+    assert(outputSchema.getAttributes.length == 2)
 
   }
 
@@ -42,7 +42,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field1", "f1")
     )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.size() == 2)
+    assert(outputSchema.getAttributes.length == 2)
     assert(outputSchema.getIndex("f2") == 0)
     assert(outputSchema.getIndex("f1") == 1)
 
@@ -97,7 +97,7 @@ class ProjectionOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
       new AttributeUnit("field2", "")
     )
     val outputSchema = projectionOpDesc.getOutputSchema(Array(schema))
-    assert(outputSchema.getAttributes.size() == 2)
+    assert(outputSchema.getAttributes.length == 2)
 
   }
 

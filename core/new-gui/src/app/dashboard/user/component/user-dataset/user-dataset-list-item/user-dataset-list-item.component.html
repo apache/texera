@@ -1,0 +1,135 @@
+<nz-list-item class="dataset-list-item">
+  <nz-list-item-meta class="dataset-item-meta">
+    <!-- Margin need only when the checkbox is not visible -->
+    <nz-list-item-meta-avatar [ngStyle]="{ 'margin-left': editable ? 'none' : '16px' }">
+      <nz-avatar
+        [ngStyle]="{ 'background-color': 'grey', 'vertical-align': 'middle' }"
+        [nzGap]="4"
+        [nzText]="'' + dataset.did"
+        nzSize="default"></nz-avatar>
+    </nz-list-item-meta-avatar>
+
+    <!-- editable name of saved dataset -->
+    <nz-list-item-meta-title class="meta-title-container">
+      <div class="dataset-item-meta-title">
+        <a
+          *ngIf="!editingName; else customDatasetTitle "
+          [routerLink]="ROUTER_DATASET_BASE_URL + '/' + dataset.did"
+          class="dataset-name"
+          >{{ dataset.name }}</a
+        >
+        <ng-template #customDatasetTitle>
+          <input
+            #customName
+            (focusout)="confirmUpdateDatasetCustomName(customName.value)"
+            (keyup.enter)="confirmUpdateDatasetCustomName(customName.value)"
+            placeholder="{{ dataset.name }}"
+            value="{{ dataset.name }}" />
+        </ng-template>
+        <button
+          *ngIf="editable && entry.accessPrivilege === 'WRITE'"
+          (click)="editingName = true"
+          nz-button
+          mat-card-title="Customize Dataset Name"
+          nz-tooltip="Customize Dataset Name"
+          nzSize="small"
+          nzTooltipPlacement="bottom"
+          nzType="text">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="edit"></i>
+        </button>
+        <button
+          *ngIf="editable && entry.accessPrivilege === 'WRITE'"
+          (click)="editingDescription = true"
+          nz-button
+          nz-tooltip="Add Description"
+          nzSize="small"
+          nzTooltipPlacement="bottom"
+          nzType="text"
+          class="add-description-btn">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="plus-square"></i>
+        </button>
+        <i
+          class="dataset-is-owner-icon"
+          *ngIf="entry.isOwner"
+          nz-tooltip="You are the owner"
+          nzTooltipPlacement="bottom"
+          nz-icon
+          nzTheme="outline"
+          nzType="user"></i>
+        <i
+          *ngIf="!entry.isOwner"
+          nz-tooltip="{{
+                                  entry.accessPrivilege
+                              }} Access"
+          nzTooltipPlacement="bottom"
+          nz-icon
+          nzTheme="outline"
+          nzType="team"></i>
+      </div>
+    </nz-list-item-meta-title>
+
+    <!-- editable description of saved dataset -->
+    <nz-list-item-meta-description>
+      <div class="dataset-item-meta-description">
+        <label
+          *ngIf="!editingDescription; else customDatasetDescription "
+          (click)="editingDescription = editable && entry.accessPrivilege == 'WRITE'"
+          class="dataset-description-label">
+          {{ dataset.description }}
+        </label>
+        <ng-template #customDatasetDescription>
+          <input
+            title="Description"
+            #customDescription
+            (focusout)="confirmUpdateDatasetCustomDescription(customDescription.value)"
+            (keyup.enter)="confirmUpdateDatasetCustomDescription(customDescription.value)"
+            class="dataset-editable-description-input"
+            value="{{ dataset.description }}"
+            maxlength="500" />
+        </ng-template>
+      </div>
+    </nz-list-item-meta-description>
+  </nz-list-item-meta>
+
+  <ul nz-list-item-actions>
+    <nz-list-item-action>
+      <button
+        (click)="onClickOpenShareAccess()"
+        nz-button
+        nz-tooltip="Share the dataset {{
+                      dataset.name
+                  }} to others"
+        nzTooltipPlacement="bottom"
+        type="button">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="share-alt"></i>
+      </button>
+    </nz-list-item-action>
+    <nz-list-item-action *ngIf="editable">
+      <button
+        (nzOnConfirm)="deleted.emit()"
+        nz-popconfirm
+        nzPopconfirmTitle="Confirm to delete this dataset."
+        [disabled]="!entry.isOwner"
+        class="delete-dataset-btn"
+        nz-button
+        nz-tooltip="Delete the dataset {{
+                      dataset.name
+                  }}"
+        nzTooltipPlacement="bottom">
+        <i
+          nz-icon
+          nzTheme="outline"
+          nzType="delete"></i>
+      </button>
+    </nz-list-item-action>
+  </ul>
+</nz-list-item>

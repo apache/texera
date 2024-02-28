@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
@@ -17,12 +18,12 @@ class SortPartitionOpExec(
 
   private var unorderedTuples: ArrayBuffer[Tuple] = _
 
-  private def sortTuples(): Iterator[Tuple] = unorderedTuples.sortWith(compareTuples).iterator
+  private def sortTuples(): Iterator[TupleLike] = unorderedTuples.sortWith(compareTuples).iterator
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     tuple match {
       case Left(t) =>
         unorderedTuples.append(t)
@@ -37,11 +38,11 @@ class SortPartitionOpExec(
     val attributeIndex = t1.getSchema.getIndex(sortAttributeName)
     attributeType match {
       case AttributeType.LONG =>
-        t1.getLong(attributeIndex) < t2.getLong(attributeIndex)
+        t1.getField[Long](attributeIndex) < t2.getField[Long](attributeIndex)
       case AttributeType.INTEGER =>
-        t1.getInt(attributeIndex) < t2.getInt(attributeIndex)
+        t1.getField[Int](attributeIndex) < t2.getField[Int](attributeIndex)
       case AttributeType.DOUBLE =>
-        t1.getDouble(attributeIndex) < t2.getDouble(attributeIndex)
+        t1.getField[Double](attributeIndex) < t2.getField[Double](attributeIndex)
       case _ =>
         true // unsupported type
     }

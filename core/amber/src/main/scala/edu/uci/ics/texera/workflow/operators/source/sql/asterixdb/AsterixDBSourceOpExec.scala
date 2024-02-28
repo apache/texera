@@ -17,12 +17,10 @@ import java.sql._
 import java.time.format.DateTimeFormatter
 import java.time.{ZoneId, ZoneOffset}
 import scala.collection.Iterator
-import scala.jdk.CollectionConverters.ListHasAsScala
 import scala.util.control.Breaks.{break, breakable}
 import scala.util.{Failure, Success, Try}
 
 class AsterixDBSourceOpExec private[asterixdb] (
-    schema: Schema,
     host: String,
     port: String,
     database: String,
@@ -44,9 +42,9 @@ class AsterixDBSourceOpExec private[asterixdb] (
     regexSearchByColumn: String,
     regex: String,
     filterCondition: Boolean,
-    filterPredicates: List[FilterPredicate]
+    filterPredicates: List[FilterPredicate],
+    schemaFunc: () => Schema
 ) extends SQLSourceOpExec(
-      schema,
       table,
       limit,
       offset,
@@ -57,15 +55,16 @@ class AsterixDBSourceOpExec private[asterixdb] (
       interval,
       keywordSearch,
       keywordSearchByColumn,
-      keywords
+      keywords,
+      schemaFunc
     ) {
 
   // format Timestamp. TODO: move to some util package
-  val formatter: DateTimeFormatter =
+  private val formatter: DateTimeFormatter =
     DateTimeFormatter.ISO_LOCAL_DATE_TIME.withZone(ZoneId.from(ZoneOffset.UTC))
 
-  var curQueryString: Option[String] = None
-  var curResultIterator: Option[Iterator[AnyRef]] = None
+  private var curQueryString: Option[String] = None
+  private var curResultIterator: Option[Iterator[AnyRef]] = None
 
   override def open(): Unit = {
     // update AsterixDB API version upon open
@@ -74,11 +73,11 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * A generator of a Texera.Tuple, which converted from a CSV row of fields from AsterixDB
-    * @return Iterator[Tuple]
+    * A generator of a Tuple, which converted from a CSV row of fields from AsterixDB
+    * @return Iterator[TupleLike]
     */
   override def produceTuple(): Iterator[TupleLike] = {
-    new Iterator[Tuple]() {
+    new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
 
         cachedTuple match {
@@ -114,7 +113,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
                     }
                   })
 
-                  // construct Texera.Tuple from the next result.
+                  // construct Tuple from the next result.
                   val tuple = buildTupleFromRow
 
                   if (tuple == null)
@@ -153,13 +152,13 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   /**
-    * Build a Texera.Tuple from a row of curResultIterator
+    * Build a Tuple from a row of curResultIterator
     *
-    * @return the new Texera.Tuple
+    * @return the new Tuple
     */
   override def buildTupleFromRow: Tuple = {
 
-    val tupleBuilder = Tuple.newBuilder(schema)
+    val tupleBuilder = Tuple.builder(schema)
     val row = curResultIterator.get.next().toString
 
     var values: Option[List[String]] = None
@@ -168,8 +167,8 @@ class AsterixDBSourceOpExec private[asterixdb] (
       if (values == null) {
         return null
       }
-      for (i <- 0 until schema.getAttributes.size()) {
-        val attr = schema.getAttributes.get(i)
+      for (i <- schema.getAttributes.indices) {
+        val attr = schema.getAttributes(i)
         breakable {
           val columnType = attr.getType
 
@@ -189,7 +188,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
           )
         }
       }
-      tupleBuilder.build
+      tupleBuilder.build()
     } catch {
       case _: Exception =>
         null
@@ -312,7 +311,7 @@ class AsterixDBSourceOpExec private[asterixdb] (
   }
 
   override def addBaseSelect(queryBuilder: StringBuilder): Unit = {
-    queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.asScala.zipWithIndex
+    queryBuilder ++= "\n" + s"SELECT ${schema.getAttributeNames.zipWithIndex
       .map((entry: (String, Int)) => { s"if_missing(${entry._1},null) field_${entry._2}" })
       .mkString(", ")} FROM $database.$table WHERE 1 = 1 "
   }

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileAttributeType
@@ -23,7 +23,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -31,7 +31,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -41,7 +41,7 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textInputSourceOpDesc.attributeName = customOutputAttributeName
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("testing").getType == AttributeType.STRING)
   }
 
@@ -49,23 +49,22 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
     val inferredSchema: Schema = textInputSourceOpDesc.sourceSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.INTEGER)
   }
 
   it should "read first 5 lines of the input text into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestTextFilePath)
-    textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
-    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(textInputSourceOpDesc)
+      new TextInputSourceOpExec(FileAttributeType.STRING, inputString, fileScanLimit = Option(5))
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike
+          .asInstanceOf[SchemaEnforceable]
+          .enforceSchema(textInputSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -78,17 +77,16 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text with CRLF separators into corresponding output tuples" in {
     val inputString: String = readFileIntoString(TestCRLFTextFilePath)
-    textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = FileAttributeType.STRING
-    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(textInputSourceOpDesc)
+      new TextInputSourceOpExec(FileAttributeType.STRING, inputString, fileScanLimit = Option(5))
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike
+          .asInstanceOf[SchemaEnforceable]
+          .enforceSchema(textInputSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -101,21 +99,21 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text into a single output tuple" in {
     val inputString: String = readFileIntoString(TestTextFilePath)
-    textInputSourceOpDesc.textInput = inputString
-    textInputSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(textInputSourceOpDesc)
+      new TextInputSourceOpExec(FileAttributeType.SINGLE_STRING, inputString)
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike
+          .asInstanceOf[SchemaEnforceable]
+          .enforceSchema(textInputSourceOpDesc.sourceSchema())
+      )
 
     assert(
       processedTuple
         .next()
-        .getField("line")
+        .getField[String]("line")
         .equals("line1\nline2\nline3\nline4\nline5\nline6\nline7\nline8\nline9\nline10")
     )
     assertThrows[java.util.NoSuchElementException](processedTuple.next().getField("line"))
@@ -124,17 +122,17 @@ class TextInputSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "read first 5 lines of the input text into corresponding output INTEGER tuples" in {
     val inputString: String = readFileIntoString(TestNumbersFilePath)
-    textInputSourceOpDesc.textInput = inputString
     textInputSourceOpDesc.attributeType = FileAttributeType.INTEGER
-    textInputSourceOpDesc.fileScanLimit = Option(5)
     val textScanSourceOpExec =
-      new TextInputSourceOpExec(textInputSourceOpDesc)
+      new TextInputSourceOpExec(FileAttributeType.INTEGER, inputString, fileScanLimit = Option(5))
     textScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = textScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, textInputSourceOpDesc.sourceSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = textScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike
+          .asInstanceOf[SchemaEnforceable]
+          .enforceSchema(textInputSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField[Int]("line") == 1)
     assert(processedTuple.next().getField[Int]("line") == 2)

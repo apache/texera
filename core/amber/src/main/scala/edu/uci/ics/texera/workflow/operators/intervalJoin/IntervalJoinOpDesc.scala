@@ -74,15 +74,9 @@ class IntervalJoinOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val inputSchemas =
-      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
-    val leftSchema = inputSchemas(0)
-    val rightSchema = inputSchemas(1)
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     val partitionRequirement = List(
-      Option(HashPartition(List(leftSchema.getIndex(leftAttributeName)))),
-      Option(HashPartition(List(rightSchema.getIndex(rightAttributeName))))
+      Option(HashPartition(List(leftAttributeName))),
+      Option(HashPartition(List(rightAttributeName)))
     )
 
     PhysicalOp
@@ -91,7 +85,14 @@ class IntervalJoinOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecInitInfo((_, _, _) =>
-          new IntervalJoinOpExec(this, leftSchema, rightSchema, outputSchema)
+          new IntervalJoinOpExec(
+            leftAttributeName,
+            rightAttributeName,
+            includeLeftBound,
+            includeRightBound,
+            constant,
+            timeIntervalType
+          )
         )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
@@ -136,11 +137,11 @@ class IntervalJoinOpDesc extends LogicalOp {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 2)
-    val builder: Schema.Builder = Schema.newBuilder()
-    var leftTableSchema: Schema = schemas(0)
-    var rightTableSchema: Schema = schemas(1)
+    val builder: Schema.Builder = Schema.builder()
+    val leftTableSchema: Schema = schemas(0)
+    val rightTableSchema: Schema = schemas(1)
     builder.add(leftTableSchema)
-    rightTableSchema.getAttributesScala
+    rightTableSchema.getAttributes
       .map(attr => {
         if (leftTableSchema.containsAttribute(attr.getName)) {
           builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))

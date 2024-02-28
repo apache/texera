@@ -21,15 +21,12 @@ import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.Tuple3;
-import scala.collection.immutable.List;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.function.Function;
 
 import static edu.uci.ics.texera.workflow.common.IncrementalOutputMode.SET_SNAPSHOT;
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class ProgressiveSinkOpDesc extends SinkOpDesc {
@@ -55,14 +52,13 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        Schema inputSchema = this.inputPortToSchemaMapping().get(this.operatorInfo().inputPorts().head().id()).get();
         return PhysicalOp.localPhysicalOp(
                 workflowId,
                 executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply(
                         (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter(), inputSchema)
+                                worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter())
                 )
         )
                 .withInputPorts(this.operatorInfo().inputPorts(), inputPortToSchemaMapping())
@@ -92,7 +88,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
         if (this.outputMode.equals(SET_SNAPSHOT)) {
             if (inputSchema.containsAttribute(ProgressiveUtils.insertRetractFlagAttr().getName())) {
                 // input is insert/retract delta: the flag column is removed in output
-                return Schema.newBuilder().add(inputSchema)
+                return Schema.builder().add(inputSchema)
                         .remove(ProgressiveUtils.insertRetractFlagAttr().getName()).build();
             } else {
                 // input is insert-only delta: output schema is the same as input schema
