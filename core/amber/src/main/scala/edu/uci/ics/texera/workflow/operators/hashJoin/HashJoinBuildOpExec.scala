@@ -22,8 +22,8 @@ class HashJoinBuildOpExec[K](buildAttributeName: String) extends OperatorExecuto
         buildTableHashMap.getOrElseUpdate(key, new ListBuffer[Tuple]()) += tuple
         Iterator()
       case Right(_) =>
-        buildTableHashMap.iterator.map {
-          case (k, v) => TupleLike(k, v)
+        buildTableHashMap.iterator.flatMap {
+          case (k, v) => v.map(t => TupleLike(List(k) ++ t.fields: _*))
         }
     }
   }
