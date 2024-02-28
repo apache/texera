@@ -88,6 +88,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           mutable.Map(buildOutputPort.id -> internalHashTableSchema)
         )
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
+        .withPropagateSchema(SchemaPropagationFunc(_ => Map(PortIdentity(internal=true)-> internalHashTableSchema)))
         .withDerivePartition(_ => HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME)))
         .withParallelizable(true)
 
