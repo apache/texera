@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
@@ -20,6 +21,10 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
 
 import scala.collection.mutable
+
+object HashJoinOpDesc {
+  val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"
+}
 
 @JsonSchemaInject(json = """
 {
@@ -63,7 +68,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val probeSchema = inputSchemas(1)
 
     val internalHashTableSchema =
-      Schema.builder().add("key", AttributeType.ANY).add("value", AttributeType.ANY).build()
+      Schema.builder().add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY).add(buildSchema).build()
 
     val buildInputPort = operatorInfo.inputPorts.head
     val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
@@ -82,7 +87,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           mutable.Map(buildOutputPort.id -> internalHashTableSchema)
         )
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
-        .withDerivePartition(_ => HashPartition(List("key")))
+        .withDerivePartition(_ => HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME)))
         .withParallelizable(true)
 
     val probeBuildInputPort = InputPort(PortIdentity(0, internal = true))
@@ -116,7 +121,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withOutputPorts(List(probeOutputPort), mutable.Map(probeOutputPort.id -> outputSchema))
         .withPartitionRequirement(
           List(
-            Option(HashPartition(List("key"))),
+            Option(HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME))),
             Option(HashPartition(List(probeAttributeName)))
           )
         )
