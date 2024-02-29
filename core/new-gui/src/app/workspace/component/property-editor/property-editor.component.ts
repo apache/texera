@@ -32,7 +32,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   screenWidth = window.innerWidth;
   propertyWidth = 400;
   isOperatorSelected: boolean = false;
-  propertyHeight = 100;
+  propertyHeight = 120;
   prevHeight = 0;
   prevWidth = 0;
 
@@ -176,6 +176,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     this.prevWidth = this.propertyWidth;
     this.propertyWidth = 47;
     this.prevHeight = this.propertyHeight;
-    this.propertyHeight = 100;
+    this.propertyHeight = 120;
   }
 }
