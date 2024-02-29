@@ -35,28 +35,30 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy, OnInit {
 
   ngAfterViewInit() {
     const map = document.getElementById("mini-map")!;
-    this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
-    new joint.dia.Paper({
-      el: map,
-      model: this.workflowActionService.getJointGraphWrapper().jointGraph,
-      background: { color: "#F6F6F6" },
-      interactive: false,
-      width: map.offsetWidth,
-      height: map.offsetHeight,
-    })
-      .scale(this.scale)
-      .translate(-MAIN_CANVAS.xMin * this.scale, -MAIN_CANVAS.yMin * this.scale);
-    this.workflowActionService
-      .getJointGraphWrapper()
-      .getMainJointPaperAttachedStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(mainPaper => {
-        this.paper = mainPaper;
-        this.updateNavigator();
-        mainPaper.on("translate", () => this.updateNavigator());
-        mainPaper.on("scale", () => this.updateNavigator());
-        mainPaper.on("resize", () => this.updateNavigator());
-      });
+    if (map) {
+      this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
+      new joint.dia.Paper({
+        el: map,
+        model: this.workflowActionService.getJointGraphWrapper().jointGraph,
+        background: { color: "#F6F6F6" },
+        interactive: false,
+        width: map.offsetWidth,
+        height: map.offsetHeight,
+      })
+        .scale(this.scale)
+        .translate(-MAIN_CANVAS.xMin * this.scale, -MAIN_CANVAS.yMin * this.scale);
+      this.workflowActionService
+        .getJointGraphWrapper()
+        .getMainJointPaperAttachedStream()
+        .pipe(untilDestroyed(this))
+        .subscribe(mainPaper => {
+          this.paper = mainPaper;
+          this.updateNavigator();
+          mainPaper.on("translate", () => this.updateNavigator());
+          mainPaper.on("scale", () => this.updateNavigator());
+          mainPaper.on("resize", () => this.updateNavigator());
+        });
+    }
   }
 
   ngOnInit(): void {
