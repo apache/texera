@@ -44,7 +44,7 @@ public class SentimentAnalysisOpExec extends MapOpExec {
                 .orElse(0);
 
         int normalizedSentimentScore = Integer.compare(sentimentScore, 2);
-        java.util.List<Object> tupleFields = Arrays.asList(t.getFields());
+        ArrayList<Object> tupleFields = new ArrayList<>(Arrays.asList(t.getFields()));
         tupleFields.add(normalizedSentimentScore);
 
         return TupleLike.apply(tupleFields);
