@@ -104,17 +104,12 @@ class DataProcessor(
     this.workerIdx = workerIdx
     this.operator = physicalOp.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => {
-        try {
-          val (code, language) = codeGen(workerIdx, physicalOp, operatorConfig)
-          val compiledClass = JavaRuntimeCompilation.compileCode(code)
-          val constructor = compiledClass.getDeclaredConstructor()
-          val instance = constructor.newInstance()
-          instance.asInstanceOf[OperatorExecutor]
-        } catch {
-          case exception: Exception =>
-            println(s"Exception: $exception")
-            ???
-        }
+        val (code, language) = codeGen(workerIdx, physicalOp, operatorConfig)
+        val compiledClass = JavaRuntimeCompilation.compileCode(code)
+        val constructor = compiledClass.getDeclaredConstructor()
+        println("Try works")
+        val instance = constructor.newInstance()
+        instance.asInstanceOf[OperatorExecutor]
       }
       case OpExecInitInfoWithFunc(opGen) =>
         opGen(workerIdx, physicalOp, operatorConfig)

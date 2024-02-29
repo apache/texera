@@ -9,7 +9,7 @@ object JavaRuntimeCompilation {
 
   def compileCode(code: String): Class[_] = {
     val packageName =
-      s"package edu.uci.ics.texera.workflow.operators.udf.java;\n" //to hide it from user we will apend the package in the udf code.
+      s"package edu.uci.ics.texera.workflow.operators.udf.java;\n" //to hide it from user we will append the package in the udf code.
     val codeToCompile = packageName + code
     val defaultClassName = s"edu.uci.ics.texera.workflow.operators.udf.java.JavaUDFOpExec"
 
@@ -23,16 +23,15 @@ object JavaRuntimeCompilation {
 
     try {
       task.call()
-
-
-    val compiledBytes: Array[Byte] = fileManager.getCompiledBytes
-    val classLoader = new CustomClassLoader
-    val compiledClass = classLoader.loadClass(defaultClassName, compiledBytes)
-    compiledClass
+      val compiledBytes: Array[Byte] = fileManager.getCompiledBytes
+      val classLoader = new CustomClassLoader
+      val compiledClass = classLoader.loadClass(defaultClassName, compiledBytes)
+      compiledClass
     } catch {
       case exception: Exception =>
         println(s"Exception: $exception")
-        ???
+        val nullClass: Class[_] = null
+        nullClass
     }
   }
 

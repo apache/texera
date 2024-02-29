@@ -45,7 +45,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
   public language: string="java";
   public languageTitle: string = this.generateLanguageTitle(this.language);
-  operatorType: string='';
+  public operatorType: string='';
 
   private generateLanguageTitle(language: string): string {
     return `${language.toUpperCase()} Script`;
@@ -54,7 +54,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   changeLanguage(newLanguage: string) {
     this.language = newLanguage;
     if (this.editor) {
-      // Update the language in the existing editor instance
       monaco.editor.setModelLanguage(this.editor.getModel(), newLanguage);
     }
     this.languageTitle = this.generateLanguageTitle(newLanguage);
