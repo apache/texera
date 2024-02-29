@@ -25,6 +25,11 @@
   }
 }
 
+texera-property-editor {
+  grid-row: 1/5;
+  grid-column: 1/4;
+}
+
 /**
   * this style is used by all the sub-components
   * to utilize the entire area specified to them by the css grids
@@ -85,24 +90,6 @@ texera-menu {
   position: fixed;
   top: 0;
   left: 0;
-}
-
-/**
-  * this style specifies that the property editor for the operators
-  * on the right will occupy the 3rd (last) column and use second and third
-  * rows. Overflow auto creates a scrollbar when the content exceeds the size
-  * of the grid
-  */
-.texera-property-editor-grid-container {
-  grid-column: 3/4;
-  grid-row: 2/6;
-  overflow: auto;
-}
-
-.texera-right-side-bar-split-editor-minimap {
-  height: calc(100vh - var(--header-height) - 10px);
-  display: grid;
-  grid-template-rows: 1fr auto;
 }
 
 /**

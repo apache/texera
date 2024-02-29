@@ -1,10 +1,3 @@
-<!-- <div class="property-editor">
-  <ndc-dynamic
-    [ndcDynamicComponent]="frameComponentConfig?.component"
-    [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
-</div> -->
-
-
 <div
   [hidden]="!isOperatorSelected"
   cdkDrag
@@ -12,17 +5,22 @@
   nz-resizable
   [nzMinWidth]="400"
   [nzMaxWidth]="800"
+  [nzMinHeight]="100"
+  [nzMaxHeight]="1200"
+  [style.height.px]="propertyHeight"
   [style.width.px]="propertyWidth"
   (nzResize)="onResize_property($event)">
     <div
       id="right-panel-content"
-      *ngIf="this.propertyDisplay">
+      *ngIf="this.propertyDisplay"
+      nz-resizable>
       <h6
         id="title"
         cdkDragHandle>
         Property
       </h6>
-      <div class="property-editor">
+      <div 
+        class="property-editor">
         <ndc-dynamic
           [ndcDynamicComponent]="frameComponentConfig?.component"
           [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
@@ -60,5 +58,5 @@
           class="icon-right"></span>
       </li>
     </ul>
-    <nz-resize-handles [nzDirections]="['left']"></nz-resize-handles>
+    <nz-resize-handles [nzDirections]="['left', 'bottom']"></nz-resize-handles>
 </div>

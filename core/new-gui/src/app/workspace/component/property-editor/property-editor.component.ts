@@ -32,10 +32,16 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   screenWidth = window.innerWidth;
   propertyWidth = 400;
   isOperatorSelected: boolean = false;
+  propertyHeight = 100;
 
   constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {
     const width = localStorage.getItem("property-panel-width");
     if (width) this.propertyWidth = Number(width);
+
+    const height = localStorage.getItem("property-panel-height");
+    if (height) {
+      this.propertyHeight = Number(height);
+    }
 
     const display = localStorage.getItem("property-panel-display");
 
@@ -66,6 +72,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
     localStorage.setItem("property-panel-width", String(this.propertyWidth));
+    localStorage.setItem("property-panel-height", String(this.propertyHeight));
 
     if (this.propertyDisplay) {
       localStorage.setItem("property-panel-display", "true");
@@ -134,7 +141,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       });
   }
 
-  //加
   openPropertyPanel() {
     if (this.propertyDisplay == false) {
       this.propertyWidth = 400;
@@ -145,6 +151,10 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   onResize_property(event: NzResizeEvent): void {
     if (event.width) {
       this.propertyWidth = event.width;
+    }
+
+    if (event.height) {
+      this.propertyHeight = event.height;
     }
   }
 
