@@ -28,7 +28,6 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
 import scala.collection.immutable.ListMap
-import scala.jdk.CollectionConverters.ListHasAsScala
 
 object ControlCommandConvertUtils {
   def controlCommandToV2(
@@ -57,7 +56,7 @@ object ControlCommandConvertUtils {
         InitializeOperatorLogicV2(
           code,
           isSource,
-          schema.getAttributes.asScala.foldLeft(ListMap[String, String]())((list, attr) =>
+          schema.getAttributes.foldLeft(ListMap[String, String]())((list, attr) =>
             list + (attr.getName -> attr.getType.toString)
           )
         )

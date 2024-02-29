@@ -68,10 +68,7 @@ export class UserProjectSectionComponent implements OnInit {
   public onClickOpenAddFile() {
     this.modalService.create({
       nzContent: NgbdModalAddProjectFileComponent,
-      nzComponentParams: {
-        addedFiles: this.getUserProjectFilesArray(),
-        projectId: this.pid,
-      },
+      nzData: { addedFiles: this.getUserProjectFilesArray(), projectId: this.pid },
       nzFooter: null,
       nzTitle: "Add Files To Project",
       nzCentered: true,
@@ -81,10 +78,7 @@ export class UserProjectSectionComponent implements OnInit {
   public onClickOpenRemoveFile() {
     this.modalService.create({
       nzContent: NgbdModalRemoveProjectFileComponent,
-      nzComponentParams: {
-        addedFiles: this.getUserProjectFilesArray(),
-        projectId: this.pid,
-      },
+      nzData: { addedFiles: this.getUserProjectFilesArray(), projectId: this.pid },
       nzFooter: null,
       nzTitle: "Remove Files From Project",
       nzCentered: true,

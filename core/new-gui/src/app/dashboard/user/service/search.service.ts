@@ -23,7 +23,7 @@ export class SearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "project" | "file" | null,
+    type: "workflow" | "project" | "file" | "dataset" | null,
     orderBy: SortMethod
   ): Observable<SearchResult> {
     return this.http.get<SearchResult>(

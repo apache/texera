@@ -18,8 +18,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   UnknownPartition
 }
 
-import scala.jdk.CollectionConverters.IterableHasAsJava
-
 class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()
@@ -28,12 +26,11 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val outputSchema = outputPortToSchemaMapping(operatorInfo.outputPorts.head.id)
     oneToOnePhysicalOp(
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes, outputSchema))
+      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes))
     )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -43,21 +40,17 @@ class ProjectionOpDesc extends MapOpDesc {
   def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
     val inputPartitionInfo = partition.head
 
-    // a mapping from original column index to new column index
-    lazy val columnIndicesMapping = attributes.indices
-      .map(i =>
-        (
-          inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
-            .getIndex(attributes(i).getOriginalAttribute),
-          i
-        )
+    // mapping from original column index to new column index
+    lazy val columnIndicesMapping: Map[Int, Int] = attributes.view
+      .map(attr =>
+        inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
+          .getIndex(attr.getOriginalAttribute) -> attributes.indexOf(attr)
       )
       .toMap
 
     val outputPartitionInfo = inputPartitionInfo match {
-      case HashPartition(hashColumnIndices) =>
-        val newIndices = hashColumnIndices.flatMap(i => columnIndicesMapping.get(i))
-        if (newIndices.nonEmpty) HashPartition(newIndices) else UnknownPartition()
+      case HashPartition(hashAttributeNames) =>
+        if (hashAttributeNames.nonEmpty) HashPartition(hashAttributeNames) else UnknownPartition()
       case RangePartition(rangeColumnIndices, min, max) =>
         val newIndices = rangeColumnIndices.flatMap(i => columnIndicesMapping.get(i))
         if (newIndices.nonEmpty) RangePartition(newIndices, min, max) else UnknownPartition()
@@ -73,7 +66,7 @@ class ProjectionOpDesc extends MapOpDesc {
     OperatorInfo(
       "Projection",
       "Keeps the column",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
@@ -83,17 +76,13 @@ class ProjectionOpDesc extends MapOpDesc {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(attributes.nonEmpty)
 
-    Schema.newBuilder
-      .add(
-        attributes
-          .map(attribute =>
-            new Attribute(
-              attribute.getAlias,
-              schemas(0).getAttribute(attribute.getOriginalAttribute).getType
-            )
-          )
-          .asJava
-      )
+    Schema
+      .builder()
+      .add(attributes.map { attribute =>
+        val originalType = schemas.head.getAttribute(attribute.getOriginalAttribute).getType
+        new Attribute(attribute.getAlias, originalType)
+      })
       .build()
+
   }
 }

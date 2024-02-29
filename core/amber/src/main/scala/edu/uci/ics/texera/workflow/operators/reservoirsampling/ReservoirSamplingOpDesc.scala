@@ -51,7 +51,7 @@ class ReservoirSamplingOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, _) => new ReservoirSamplingOpExec(idx, this))
+        OpExecInitInfo((idx, _, _) => new ReservoirSamplingOpExec(idx, getKForActor, getSeed))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)

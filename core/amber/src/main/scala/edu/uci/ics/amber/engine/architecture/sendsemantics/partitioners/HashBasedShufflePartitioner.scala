@@ -1,22 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners
 
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.HashBasedShufflePartitioning
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 case class HashBasedShufflePartitioner(partitioning: HashBasedShufflePartitioning)
     extends Partitioner {
 
-  override def getBucketIndex(tuple: ITuple): Iterator[Int] = {
+  override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
     val numBuckets = partitioning.receivers.length
-    val index = Math.floorMod(
-      tuple
-        .asInstanceOf[Tuple]
-        .getPartialTuple(partitioning.hashColumnIndices.toArray)
-        .hashCode(),
-      numBuckets
-    )
+    val partialTuple =
+      if (partitioning.hashAttributeNames.isEmpty) tuple
+      else tuple.getPartialTuple(partitioning.hashAttributeNames.toList)
+    val index = Math.floorMod(partialTuple.hashCode(), numBuckets)
     Iterator(index)
   }
 

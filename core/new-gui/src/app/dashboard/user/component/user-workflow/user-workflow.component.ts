@@ -115,7 +115,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   public onClickOpenAddWorkflow() {
     const modalRef = this.modalService.create({
       nzContent: NgbdModalAddProjectWorkflowComponent,
-      nzComponentParams: { projectId: this.pid },
+      nzData: { projectId: this.pid },
       nzFooter: null,
       nzTitle: "Add Workflows To Project",
       nzCentered: true,
@@ -129,7 +129,7 @@ export class UserWorkflowComponent implements AfterViewInit {
   public onClickOpenRemoveWorkflow() {
     const modalRef = this.modalService.create({
       nzContent: NgbdModalRemoveProjectWorkflowComponent,
-      nzComponentParams: { projectId: this.pid },
+      nzData: { projectId: this.pid },
       nzFooter: null,
       nzTitle: "Remove Workflows From Project",
       nzCentered: true,

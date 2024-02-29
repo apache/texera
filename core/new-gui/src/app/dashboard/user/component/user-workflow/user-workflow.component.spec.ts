@@ -5,10 +5,6 @@ import { FormsModule, ReactiveFormsModule } from "@angular/forms";
 import { UserWorkflowComponent } from "./user-workflow.component";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { StubWorkflowPersistService } from "../../../../common/service/workflow-persist/stub-workflow-persist.service";
-import { MatDividerModule } from "@angular/material/divider";
-import { MatListModule } from "@angular/material/list";
-import { MatCardModule } from "@angular/material/card";
-import { MatDialogModule } from "@angular/material/dialog";
 import { ShareAccessComponent } from "../share-access/share-access.component";
 import { HttpClient } from "@angular/common/http";
 import { ShareAccessService } from "../../service/share-access/share-access.service";
@@ -73,10 +69,6 @@ describe("SavedWorkflowSectionComponent", () => {
         },
       ],
       imports: [
-        MatDividerModule,
-        MatListModule,
-        MatCardModule,
-        MatDialogModule,
         FormsModule,
         RouterTestingModule,
         HttpClientTestingModule,

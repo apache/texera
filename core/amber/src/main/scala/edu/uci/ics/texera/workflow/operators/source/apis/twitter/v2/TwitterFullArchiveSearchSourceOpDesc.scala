@@ -49,7 +49,18 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new TwitterFullArchiveSearchSourceOpExec(this))
+        OpExecInitInfo((_, _, _) =>
+          new TwitterFullArchiveSearchSourceOpExec(
+            apiKey,
+            apiSecretKey,
+            stopWhenRateLimited,
+            searchQuery,
+            limit,
+            fromDateTime,
+            toDateTime,
+            () => sourceSchema()
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -60,7 +71,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
     // we are also currently depending on redouane59/twittered client library to parse tweet fields.
 
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute("id", AttributeType.STRING),
         new Attribute("text", AttributeType.STRING),

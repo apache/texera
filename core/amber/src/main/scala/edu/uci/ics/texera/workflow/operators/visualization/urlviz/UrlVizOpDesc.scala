@@ -47,7 +47,7 @@ class UrlVizOpDesc extends VisualizationOperator {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName, outputSchema))
+        OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -63,6 +63,6 @@ class UrlVizOpDesc extends VisualizationOperator {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
 
 }
