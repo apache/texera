@@ -20,18 +20,24 @@ object JavaRuntimeCompilation {
     val compilationUnits =
       util.Arrays.asList(new StringJavaFileObject(defaultClassName, codeToCompile))
     val task = compiler.getTask(null, fileManager, null, null, null, compilationUnits)
-
+    var compiledClass: Class[_] = null
+//try and catch block used, if the code is not compiled
     try {
       task.call()
+
       val compiledBytes: Array[Byte] = fileManager.getCompiledBytes
-      val classLoader = new CustomClassLoader
-      val compiledClass = classLoader.loadClass(defaultClassName, compiledBytes)
-      compiledClass
+      if (!compiledBytes.isEmpty) { //extra checking for compiled bytes since compiled bytes can be null and we do not want classloader to load it.
+        val classLoader = new CustomClassLoader
+        compiledClass = classLoader.loadClass(defaultClassName, compiledBytes)
+        compiledClass
+      } else {
+        compiledClass
+      }
+
     } catch {
       case exception: Exception =>
         println(s"Exception: $exception")
-        val nullClass: Class[_] = null
-        nullClass
+        compiledClass
     }
   }
 

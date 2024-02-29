@@ -32,10 +32,10 @@ class JavaUDFOpDesc extends LogicalOp {
         "//    }\n" +
         "//    \n" +
         "//    public TupleLike processTuple(Tuple t) {\n" +
-        "//        String a=\"what is your code\";\n" +
-        "//        java.util.List<Object> l = new ArrayList<>();\n" +
-        "//        l.add(a);\n\n" +
-        "//        return TupleLike.apply(l);\n" +
+        "//        String txt=\"Hello Texera, this is Java UDF!\";\n" +
+        "//        java.util.List<Object> dataList = new ArrayList<>();\n" +
+        "//        dataList.add(txt);\n\n" +
+        "//        return TupleLike.apply(dataList);\n" +
         "//    }\n" +
         "//}"
   )
