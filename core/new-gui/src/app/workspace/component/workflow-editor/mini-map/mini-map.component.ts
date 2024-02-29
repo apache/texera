@@ -28,7 +28,7 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy, OnInit {
 
     if (display === "true") {
       this.minimapDisplay = true;
-    } else { 
+    } else {
       this.minimapDisplay = false;
     }
   }
@@ -103,16 +103,14 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy, OnInit {
       this.miniMapWidth = 400;
     }
     this.minimapDisplay = true;
-    
+
     setTimeout(() => {
       this.ngAfterViewInit();
-    })
+    });
   }
 
   onClose_minimap(): void {
     this.minimapDisplay = false;
     this.miniMapWidth = 47;
   }
-
-
 }

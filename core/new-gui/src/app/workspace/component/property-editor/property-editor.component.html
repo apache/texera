@@ -10,53 +10,52 @@
   [style.height.px]="propertyHeight"
   [style.width.px]="propertyWidth"
   (nzResize)="onResize_property($event)">
-    <div
-      id="right-panel-content"
-      *ngIf="this.propertyDisplay"
-      nz-resizable>
-      <h6
-        id="title"
-        cdkDragHandle>
-        Property
-      </h6>
-      <div 
-        class="property-editor">
-        <ndc-dynamic
-          [ndcDynamicComponent]="frameComponentConfig?.component"
-          [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
-      </div>
+  <div
+    id="right-panel-content"
+    *ngIf="this.propertyDisplay"
+    nz-resizable>
+    <h6
+      id="title"
+      cdkDragHandle>
+      Property
+    </h6>
+    <div class="property-editor">
+      <ndc-dynamic
+        [ndcDynamicComponent]="frameComponentConfig?.component"
+        [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
     </div>
-    <ul
-      nz-menu
-      id="dock">
-      <li
-        nz-menu-item
-        (click)="onClose_property()"
-        *ngIf="this.propertyDisplay">
-        <span
-          nz-icon
-          nzType="minus"></span>
-      </li>
-      <li
-        nz-menu-item
-        nzSelected="{{!this.propertyDisplay}}"
-        cdkDragHandle
-        *ngIf="!this.propertyDisplay">
-        <span
-          nz-icon
-          nzType="drag"
-          *ngIf="!this.propertyDisplay"></span>
-      </li>
-      <li
-        nz-menu-item
-        nzSelected="{{this.propertyDisplay}}"
-        (click)="openPropertyPanel()">
-        <span
-          nz-icon
-          nzType="form"
-          nzTheme="outline"
-          class="icon-right"></span>
-      </li>
-    </ul>
-    <nz-resize-handles [nzDirections]="['left', 'bottom']"></nz-resize-handles>
+  </div>
+  <ul
+    nz-menu
+    id="dock">
+    <li
+      nz-menu-item
+      (click)="onClose_property()"
+      *ngIf="this.propertyDisplay">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+    <li
+      nz-menu-item
+      nzSelected="{{!this.propertyDisplay}}"
+      cdkDragHandle
+      *ngIf="!this.propertyDisplay">
+      <span
+        nz-icon
+        nzType="drag"
+        *ngIf="!this.propertyDisplay"></span>
+    </li>
+    <li
+      nz-menu-item
+      nzSelected="{{this.propertyDisplay}}"
+      (click)="openPropertyPanel()">
+      <span
+        nz-icon
+        nzType="form"
+        nzTheme="outline"
+        class="icon-right"></span>
+    </li>
+  </ul>
+  <nz-resize-handles [nzDirections]="['left', 'bottom']"></nz-resize-handles>
 </div>

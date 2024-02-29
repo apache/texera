@@ -36,7 +36,10 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   prevHeight = 0;
   prevWidth = 0;
 
-  constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {
+  constructor(
+    public workflowActionService: WorkflowActionService,
+    private changeDetectorRef: ChangeDetectorRef
+  ) {
     const width = localStorage.getItem("property-panel-width");
     if (width) this.propertyWidth = Number(width);
 

@@ -1,5 +1,14 @@
 import { Location } from "@angular/common";
-import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener, Type } from "@angular/core";
+import {
+  AfterViewInit,
+  OnInit,
+  Component,
+  OnDestroy,
+  ViewChild,
+  ViewContainerRef,
+  HostListener,
+  Type,
+} from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
@@ -26,8 +35,8 @@ import { CodeEditorService } from "../service/code-editor/code-editor.service";
 
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
 //changed
-import { MiniMapComponent } from './workflow-editor/mini-map/mini-map.component';
-import { PropertyEditorComponent } from './property-editor/property-editor.component';
+import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component";
+import { PropertyEditorComponent } from "./property-editor/property-editor.component";
 import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 //changed
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
@@ -43,7 +52,6 @@ export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
   ],
 })
 export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
-
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
