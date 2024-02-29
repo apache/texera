@@ -817,7 +817,7 @@ export class WorkflowGraph {
     // ) as YType<OperatorPropertiesType>;
     // set the new copy back to the operator ID map
     // TODO: we temporarily disable this due to Yjs update causing issues in Formly.
-    this.getSharedOperatorType(operatorID).set("operatorProperties", newProperty);
+    this.getSharedOperatorType(operatorID).set("operatorProperties", createYTypeFromObject(newProperty));
     // updateYTypeFromObject(previousProperty, newProperty);
   }
 

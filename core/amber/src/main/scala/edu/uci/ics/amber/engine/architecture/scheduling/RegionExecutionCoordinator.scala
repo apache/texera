@@ -25,7 +25,7 @@ import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 
 import scala.collection.Seq
-class RegionExecutionController(
+class RegionExecutionCoordinator(
     region: Region,
     workflowExecution: WorkflowExecution,
     asyncRPCClient: AsyncRPCClient,

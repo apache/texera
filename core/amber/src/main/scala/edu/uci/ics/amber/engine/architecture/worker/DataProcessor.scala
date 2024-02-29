@@ -48,10 +48,10 @@ import scala.collection.mutable
 object DataProcessor {
 
   case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
-    override def fields: Array[Any] = Array("FinalizePort")
+    override def getFields: Array[Any] = Array("FinalizePort")
   }
   case class FinalizeOperator() extends SpecialTupleLike {
-    override def fields: Array[Any] = Array("FinalizeOperator")
+    override def getFields: Array[Any] = Array("FinalizeOperator")
   }
 
   class DPOutputIterator extends Iterator[(TupleLike, Option[PortIdentity])] {

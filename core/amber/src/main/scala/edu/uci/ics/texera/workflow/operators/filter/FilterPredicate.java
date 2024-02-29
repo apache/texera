@@ -70,25 +70,25 @@ public class FilterPredicate {
     }
 
     private boolean evaluateFilterBoolean(Tuple inputTuple) {
-        Boolean tupleValue = inputTuple.getField(attribute, Boolean.class);
+        Boolean tupleValue = inputTuple.getField(attribute);
         return evaluateFilter(tupleValue.toString().toLowerCase(), value.trim().toLowerCase(), condition);
     }
 
     private boolean evaluateFilterDouble(Tuple inputTuple) {
-        Double tupleValue = inputTuple.getField(attribute, Double.class);
+        Double tupleValue = inputTuple.getField(attribute);
         Double compareToValue = Double.parseDouble(value);
         return evaluateFilter(tupleValue, compareToValue, condition);
     }
 
     private boolean evaluateFilterInt(Tuple inputTuple) {
-        Integer tupleValueInt = inputTuple.getField(attribute, Integer.class);
+        Integer tupleValueInt = inputTuple.getField(attribute);
         Double tupleValueDouble = tupleValueInt == null ? null : (double) tupleValueInt;
         Double compareToValue = Double.parseDouble(value);
         return evaluateFilter(tupleValueDouble, compareToValue, condition);
     }
 
     private boolean evaluateFilterLong(Tuple inputTuple) {
-        Long tupleValue = inputTuple.getField(attribute, Long.class);
+        Long tupleValue = inputTuple.getField(attribute);
         Long compareToValue = Long.valueOf(value.trim());
         return evaluateFilter(tupleValue, compareToValue, condition);
     }
@@ -105,7 +105,8 @@ public class FilterPredicate {
     }
 
     private boolean evaluateFilterTimestamp(Tuple inputTuple) {
-        Long tupleValue = inputTuple.getField(attribute, Timestamp.class).getTime();
+        Timestamp ts = inputTuple.getField(attribute);
+        Long tupleValue = ts.getTime();
         Long compareToValue = AttributeTypeUtils.parseTimestamp(value.trim()).getTime();
         return evaluateFilter(tupleValue, compareToValue, condition);
 
