@@ -33,6 +33,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   propertyWidth = 400;
   isOperatorSelected: boolean = false;
   propertyHeight = 100;
+  prevHeight = 0;
+  prevWidth = 0;
 
   constructor(public workflowActionService: WorkflowActionService, private changeDetectorRef: ChangeDetectorRef) {
     const width = localStorage.getItem("property-panel-width");
@@ -146,6 +148,14 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
       this.propertyWidth = 400;
     }
     this.propertyDisplay = true;
+
+    if (this.prevHeight != 0) {
+      this.propertyHeight = this.prevHeight;
+    }
+
+    if (this.prevWidth != 0) {
+      this.propertyWidth = this.prevWidth;
+    }
   }
 
   onResize_property(event: NzResizeEvent): void {
@@ -160,6 +170,9 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
   onClose_property(): void {
     this.propertyDisplay = false;
+    this.prevWidth = this.propertyWidth;
     this.propertyWidth = 47;
+    this.prevHeight = this.propertyHeight;
+    this.propertyHeight = 100;
   }
 }
