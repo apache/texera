@@ -7,8 +7,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
   Dataset,
   DatasetOfEnvironment,
   DatasetVersion,
-  Environment,
-  EnvironmentOfWorkflow
+  Environment
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment.ENVIRONMENT
 import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW
@@ -32,7 +31,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentRes
   DatasetOfEnvironmentDetails,
   DatasetOfEnvironmentDoseNotExistMessage,
   EnvironmentIDs,
-  EnvironmentNotFoundMessage,
   UserNoPermissionExceptionMessage,
   WorkflowLink,
   context,
@@ -52,11 +50,9 @@ import org.jooq.types.UInteger
 import java.net.URLDecoder
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs.core.{MediaType, Response}
-import javax.ws.rs.{GET, InternalServerErrorException, POST, Path, PathParam, Produces}
+import javax.ws.rs.{GET, POST, Path, PathParam, Produces}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
-import scala.reflect.internal.util.NoSourceFile.path
-import scala.util.matching.Regex
 
 object EnvironmentResource {
   private val context = SqlServer.createDSLContext()
