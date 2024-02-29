@@ -107,7 +107,6 @@ class DataProcessor(
         val (code, language) = codeGen(workerIdx, physicalOp, operatorConfig)
         val compiledClass = JavaRuntimeCompilation.compileCode(code)
         val constructor = compiledClass.getDeclaredConstructor()
-        println("Try works")
         val instance = constructor.newInstance()
         instance.asInstanceOf[OperatorExecutor]
       }
