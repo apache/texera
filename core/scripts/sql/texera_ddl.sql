@@ -18,8 +18,8 @@ DROP TABLE IF EXISTS `workflow_executions`;
 DROP TABLE IF EXISTS `dataset`;
 DROP TABLE IF EXISTS `dataset_user_access`;
 DROP TABLE IF EXISTS `dataset_version`;
-DROP TABLE IF EXISTS `environment`
-DROP TABLE IF EXISTS `environment_of_workflow`
+DROP TABLE IF EXISTS `environment`;
+DROP TABLE IF EXISTS `environment_of_workflow`;
 
 
 SET PERSIST time_zone = '+00:00'; -- this line is mandatory
