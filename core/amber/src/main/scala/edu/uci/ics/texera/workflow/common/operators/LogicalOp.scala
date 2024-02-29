@@ -86,6 +86,8 @@ import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.Dumbbell
 import edu.uci.ics.texera.workflow.operators.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart.Scatter3dChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.ScatterMatrixChart.ScatterMatrixChartOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.funnelPlot.FunnelPlotOpDesc
 import org.apache.commons.lang3.builder.{EqualsBuilder, HashCodeBuilder, ToStringBuilder}
 import org.apache.zookeeper.KeeperException.UnimplementedException
 
@@ -170,8 +172,10 @@ trait StateTransferFunc
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
     new Type(value = classOf[DummyOpDesc], name = "Dummy"),
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
+    new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
-    new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart")
+    new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
+    new Type(value = classOf[FunnelPlotOpDesc], name = "FunnelPlot")
   )
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {

@@ -1,11 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.download
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
 import java.net.URL
@@ -13,17 +13,14 @@ import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.collection.mutable
-import scala.jdk.CollectionConverters.IterableHasAsScala
 
 class BulkDownloaderOpExec(
-    val workflowContext: WorkflowContext,
-    val urlAttribute: String,
-    val resultAttribute: String,
-    val outputSchema: Schema
+    workflowContext: WorkflowContext,
+    urlAttribute: String
 ) extends OperatorExecutor {
-  private val downloading = new mutable.Queue[Future[Tuple]]()
 
-  class DownloadResultIterator(blocking: Boolean) extends Iterator[Tuple] {
+  private val downloading = new mutable.Queue[Future[TupleLike]]()
+  private class DownloadResultIterator(blocking: Boolean) extends Iterator[TupleLike] {
     override def hasNext: Boolean = {
       if (downloading.isEmpty) {
         return false
@@ -34,7 +31,7 @@ class BulkDownloaderOpExec(
       downloading.head.isCompleted
     }
 
-    override def next(): Tuple = {
+    override def next(): TupleLike = {
       downloading.dequeue().value.get.get
     }
   }
@@ -42,7 +39,7 @@ class BulkDownloaderOpExec(
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     tuple match {
       case Left(t) =>
         downloading.enqueue(Future { downloadTuple(t) })
@@ -56,30 +53,11 @@ class BulkDownloaderOpExec(
 
   override def close(): Unit = {}
 
-  def downloadTuple(tuple: Tuple): Tuple = {
-
-    val builder = Tuple.newBuilder(outputSchema)
-    outputSchema.getAttributes.asScala
-      .foreach(attr => {
-        if (attr.getName == resultAttribute) {
-          builder.add(
-            resultAttribute,
-            AttributeType.STRING,
-            downloadUrl(tuple.getField(urlAttribute))
-          )
-        } else {
-          builder.add(
-            attr.getName,
-            tuple.getSchema.getAttribute(attr.getName).getType,
-            tuple.getField(attr.getName)
-          )
-        }
-      })
-
-    builder.build()
+  private def downloadTuple(tuple: Tuple): TupleLike = {
+    TupleLike(tuple.getFields ++ Seq(downloadUrl(tuple.getField(urlAttribute))))
   }
 
-  def downloadUrl(url: String): String = {
+  private def downloadUrl(url: String): String = {
     try {
       Await.result(
         Future {

@@ -14,18 +14,12 @@ class CartesianProductOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val inputSchemas =
-      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
-          new CartesianProductOpExec(inputSchemas(0), inputSchemas(1), outputSchema)
-        )
+        OpExecInitInfo((_, _, _) => new CartesianProductOpExec())
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -53,24 +47,27 @@ class CartesianProductOpDesc extends LogicalOp {
     Preconditions.checkArgument(schemas.length == 2)
 
     // merge left / right schemas together, sequentially with left schema first
-    val builder = Schema.newBuilder()
+    val builder = Schema.builder()
     val leftSchema = schemas(0)
+    val leftAttributeNames = leftSchema.getAttributeNames
     val rightSchema = schemas(1)
+    val rightAttributeNames = rightSchema.getAttributeNames
     builder.add(leftSchema)
-    rightSchema.getAttributes.forEach(attr => {
-      var attributeName: String = attr.getName
-      // append numerical suffix in case of duplicate attributes
-      var suffix: Int = 0
-      while (builder.build().containsAttribute(attributeName)) {
-        suffix += 1
-        attributeName = s"${attr.getName}#@$suffix"
+    rightSchema.getAttributes.foreach(attr => {
+      var newName = attr.getName
+      while (
+        leftAttributeNames.contains(newName) || rightAttributeNames
+          .filterNot(attrName => attrName == attr.getName)
+          .contains(newName)
+      ) {
+        newName = s"$newName#@1"
       }
-      if (suffix == 0) {
+      if (newName == attr.getName) {
         // non-duplicate attribute, add to builder as is
         builder.add(attr)
       } else {
         // renamed the duplicate attribute, construct new Attribute
-        builder.add(new Attribute(attributeName, attr.getType))
+        builder.add(new Attribute(newName, attr.getType))
       }
     })
     builder.build()
@@ -80,7 +77,7 @@ class CartesianProductOpDesc extends LogicalOp {
     OperatorInfo(
       "Cartesian Product",
       "Append fields together to get the cartesian product of two inputs",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.JOIN_GROUP,
       inputPorts = List(
         InputPort(PortIdentity(), displayName = "left"),
         InputPort(PortIdentity(1), displayName = "right", dependencies = List(PortIdentity()))

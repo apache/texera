@@ -1,21 +1,49 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.Tuple.BuilderV2
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
 
+object JoinUtils {
+  def joinTuples(
+      leftTuple: Tuple,
+      rightTuple: Tuple,
+      skipAttributeName: Option[String] = None
+  ): TupleLike = {
+    val leftAttributeNames = leftTuple.getSchema.getAttributeNames
+    val rightAttributeNames = rightTuple.getSchema.getAttributeNames.filterNot(name =>
+      skipAttributeName.isDefined && name == skipAttributeName.get
+    )
+    // Create a Map from leftTuple's fields
+    val leftTupleFields: Map[String, Any] = leftAttributeNames
+      .map(name => name -> leftTuple.getField(name))
+      .toMap
+
+    // Create a Map from rightTuple's fields, renaming conflicts
+    val rightTupleFields = rightAttributeNames
+      .map { name =>
+        var newName = name
+        while (
+          leftAttributeNames.contains(newName) || rightAttributeNames
+            .filter(attrName => name != attrName)
+            .contains(newName)
+        ) {
+          newName = s"$newName#@1"
+        }
+        newName -> rightTuple.getField[Any](name)
+      }
+
+    TupleLike(leftTupleFields ++ rightTupleFields)
+  }
+}
 class HashJoinProbeOpExec[K](
-    val buildAttributeName: String,
-    val probeAttributeName: String,
-    val joinType: JoinType,
-    val buildSchema: Schema,
-    val probeSchema: Schema,
-    val outputSchema: Schema
+    probeAttributeName: String,
+    joinType: JoinType
 ) extends OperatorExecutor {
   var currentTuple: Tuple = _
 
@@ -24,157 +52,74 @@ class HashJoinProbeOpExec[K](
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] =
     tuple match {
+      case Left(tuple) if port == 0 =>
+        // Load build hash map
+        val key = tuple.getField[K](HASH_JOIN_INTERNAL_KEY_NAME)
+        buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))._1 += tuple
+          .getPartialTuple(
+            tuple.getSchema.getAttributeNames.filterNot(n => n == HASH_JOIN_INTERNAL_KEY_NAME)
+          )
+        Iterator.empty
+
       case Left(tuple) =>
-        if (port == 0) {
-          buildTableHashMap.update(tuple.getField("key"), tuple.getField("value"))
-          Iterator()
-        } else {
-          // probing phase
-          val key = tuple.getField(probeAttributeName).asInstanceOf[K]
-          val (matchedTuples, _) =
-            buildTableHashMap.getOrElse(key, (new ListBuffer[Tuple](), false))
+        // Probe phase
+        val key = tuple.getField(probeAttributeName).asInstanceOf[K]
+        val (matchedTuples, joined) =
+          buildTableHashMap.getOrElse(key, (new ListBuffer[Tuple](), false))
 
-          if (matchedTuples.isEmpty) {
-            // does not have a match with the probe tuple
-            if (joinType != JoinType.RIGHT_OUTER && joinType != JoinType.FULL_OUTER) {
-              return Iterator()
-            }
-            performRightAntiJoin(tuple)
-          } else {
-            // found a join match group
-            buildTableHashMap.put(key, (matchedTuples, true))
-            performJoin(tuple, matchedTuples)
-          }
-        }
-      case Right(_) => {
-        if (port == 0) {
-          Iterator()
+        if (matchedTuples.nonEmpty) {
+          // Join match found
+          buildTableHashMap.put(key, (matchedTuples, true))
+          performJoin(tuple, matchedTuples)
+        } else if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
+          // Handle right and full outer joins without a match
+          performRightAntiJoin(tuple)
         } else {
-          if (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) {
-            performLeftAntiJoin
-          } else {
-            Iterator()
-          }
+          // No match found
+          Iterator.empty
         }
-      }
+
+      case Right(_)
+          if port != 0 && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) =>
+        // Handle left and full outer joins after input is exhausted
+        performLeftAntiJoin
+
+      case _ =>
+        // Default case for all other conditions
+        Iterator.empty
     }
-  }
 
-  private def performLeftAntiJoin: Iterator[Tuple] = {
+  private def performLeftAntiJoin: Iterator[TupleLike] = {
     buildTableHashMap.valuesIterator
-      .filter({ case (_: ListBuffer[Tuple], joined: Boolean) => !joined })
-      .flatMap {
-        case (tuples: ListBuffer[Tuple], _: Boolean) =>
-          tuples
-            .map((tuple: Tuple) => {
-              // creates a builder
-              val builder = Tuple.newBuilder(outputSchema)
-
-              // fill the probe tuple attributes as null, since no match
-              fillNonJoinFields(
-                builder,
-                probeSchema,
-                Array.fill(probeSchema.getAttributesScala.length)(null),
-                resolveDuplicateName = true
-              )
-
-              // fill the build tuple
-              fillNonJoinFields(builder, buildSchema, tuple.getFields.toArray())
-
-              // fill the join attribute (align with build)
-              builder.add(
-                buildSchema.getAttribute(buildAttributeName),
-                tuple.getField(buildAttributeName)
-              )
-
-              // build the new tuple
-              builder.build()
-            })
-            .iterator
+      .collect { case (tuples: ListBuffer[Tuple], joined: Boolean) if !joined => tuples }
+      .flatMap { tuples =>
+        tuples.map { tuple =>
+          TupleLike(
+            tuple.getSchema.getAttributeNames
+              .map(attributeName => attributeName -> tuple.getField(attributeName)): _*
+          )
+        }
       }
   }
 
-  def fillNonJoinFields(
-      builder: BuilderV2,
-      schema: Schema,
-      fields: Array[Object],
-      resolveDuplicateName: Boolean = false
-  ): Unit = {
-    schema.getAttributesScala.filter(attribute => attribute.getName != probeAttributeName) map {
-      (attribute: Attribute) =>
-        {
-          val field = fields.apply(schema.getIndex(attribute.getName))
-          if (resolveDuplicateName) {
-            val attributeName = attribute.getName
-            builder.add(
-              new Attribute(
-                if (buildSchema.getAttributeNames.contains(attributeName))
-                  attributeName + "#@1"
-                else attributeName,
-                attribute.getType
-              ),
-              field
-            )
-          } else {
-            builder.add(attribute, field)
-          }
-        }
+  private def performJoin(
+      probeTuple: Tuple,
+      matchedTuples: ListBuffer[Tuple]
+  ): Iterator[TupleLike] = {
+    matchedTuples.iterator.map { buildTuple =>
+      JoinUtils.joinTuples(buildTuple, probeTuple, skipAttributeName = Some(probeAttributeName))
     }
   }
 
-  private def performJoin(probeTuple: Tuple, matchedTuples: ListBuffer[Tuple]): Iterator[Tuple] = {
-
-    matchedTuples
-      .map(buildTuple => {
-        // creates a builder with the build tuple filled
-        val builder = Tuple
-          .newBuilder(outputSchema)
-          .add(buildTuple)
-
-        // append the probe tuple
-        fillNonJoinFields(
-          builder,
-          probeSchema,
-          probeTuple.getFields.toArray(),
-          resolveDuplicateName = true
-        )
-
-        // build the new tuple
-        builder.build()
-      })
-      .iterator
-  }
-
-  private def performRightAntiJoin(tuple: Tuple): Iterator[Tuple] = {
-    // creates a builder
-    val builder = Tuple.newBuilder(outputSchema)
-
-    // fill the build tuple attributes as null, since no match
-    fillNonJoinFields(
-      builder,
-      buildSchema,
-      Array.fill(buildSchema.getAttributesScala.length)(null)
+  private def performRightAntiJoin(tuple: Tuple): Iterator[TupleLike] =
+    Iterator(
+      TupleLike(
+        tuple.getSchema.getAttributeNames
+          .map(attributeName => attributeName -> tuple.getField(attributeName)): _*
+      )
     )
-
-    // fill the probe tuple
-    fillNonJoinFields(
-      builder,
-      probeSchema,
-      tuple.getFields.toArray(),
-      resolveDuplicateName = true
-    )
-
-    // fill the join attribute (align with probe)
-    builder.add(
-      buildSchema.getAttribute(buildAttributeName),
-      tuple.getField(probeAttributeName)
-    )
-
-    // build the new tuple
-    Iterator(builder.build())
-  }
 
   override def open(): Unit = {
     buildTableHashMap = new mutable.HashMap[K, (mutable.ListBuffer[Tuple], Boolean)]()

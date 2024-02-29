@@ -1,13 +1,14 @@
 package edu.uci.ics.texera.workflow.operators.distinct
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
@@ -15,7 +16,7 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val tuple: () => Tuple = () =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), 1)
       .add(
@@ -26,7 +27,7 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val tuple2: () => Tuple = () =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), 2)
       .add(
@@ -53,7 +54,7 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(Left(tuple()), 0)
     })
 
-    val outputTuples: List[Tuple] =
+    val outputTuples: List[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), 0).toList
     assert(outputTuples.size == 1)
     assert(outputTuples.head.equals(tuple()))
@@ -73,7 +74,7 @@ class DistinctOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(Left(tuple()), 0)
     })
 
-    val outputTuples: List[Tuple] =
+    val outputTuples: List[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), 0).toList
     assert(outputTuples.size == 2)
     assert(outputTuples.head.equals(tuple()))

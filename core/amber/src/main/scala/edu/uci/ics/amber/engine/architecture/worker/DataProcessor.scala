@@ -36,7 +36,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowFIFOMessage
 }
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -47,16 +46,17 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
 object DataProcessor {
 
   case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
-    override def fields: Array[Any] = Array("FinalizePort")
+    override def getFields: Array[Any] = Array("FinalizePort")
   }
   case class FinalizeOperator() extends SpecialTupleLike {
-    override def fields: Array[Any] = Array("FinalizeOperator")
+    override def getFields: Array[Any] = Array("FinalizeOperator")
   }
 
   class DPOutputIterator extends Iterator[(TupleLike, Option[PortIdentity])] {
@@ -120,7 +120,7 @@ class DataProcessor(
 
   var outputIterator: DPOutputIterator = new DPOutputIterator()
 
-  var inputBatch: Array[ITuple] = _
+  var inputBatch: Array[Tuple] = _
   var currentInputIdx: Int = -1
   var currentChannelId: ChannelIdentity = _
 
@@ -156,7 +156,7 @@ class DataProcessor(
     *
     * @return an iterator of output tuples
     */
-  private[this] def processInputTuple(tuple: Either[ITuple, InputExhausted]): Unit = {
+  private[this] def processInputTuple(tuple: Either[Tuple, InputExhausted]): Unit = {
     try {
       outputIterator.setTupleOutput(
         operator.processTupleMultiPort(
@@ -252,13 +252,13 @@ class DataProcessor(
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
 
-  private[this] def initBatch(channelId: ChannelIdentity, batch: Array[ITuple]): Unit = {
+  private[this] def initBatch(channelId: ChannelIdentity, batch: Array[Tuple]): Unit = {
     currentChannelId = channelId
     inputBatch = batch
     currentInputIdx = 0
   }
 
-  def getCurrentInputTuple: ITuple = {
+  def getCurrentInputTuple: Tuple = {
     if (inputBatch == null) {
       null
     } else if (inputBatch.isEmpty) {

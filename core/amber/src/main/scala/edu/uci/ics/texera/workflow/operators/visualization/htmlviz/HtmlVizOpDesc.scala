@@ -36,7 +36,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName, outputSchema))
+        OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -52,5 +52,5 @@ class HtmlVizOpDesc extends VisualizationOperator {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema =
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
 }

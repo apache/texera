@@ -27,7 +27,7 @@ import org.apache.arrow.vector.{
 
 import java.nio.charset.StandardCharsets
 import java.util
-import scala.jdk.CollectionConverters.{CollectionHasAsScala, IterableHasAsJava}
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
@@ -54,7 +54,7 @@ object ArrowUtils extends LazyLogging {
     val schema = toTexeraSchema(arrowSchema)
 
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(
         vectorSchemaRoot.getFieldVectors.asScala
           .map((fieldVector: FieldVector) => {
@@ -72,7 +72,6 @@ object ArrowUtils extends LazyLogging {
 
           })
           .toArray
-          .asInstanceOf[Array[AnyRef]]
       )
       .build()
 
@@ -86,11 +85,10 @@ object ArrowUtils extends LazyLogging {
     */
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema
-      .newBuilder()
+      .builder()
       .add(
         arrowSchema.getFields.asScala
           .map(field => new Attribute(field.getName, toAttributeType(field.getType)))
-          .asJava
       )
       .build()
 
@@ -155,7 +153,7 @@ object ArrowUtils extends LazyLogging {
 
     for (i <- arrowFields.indices) {
       val vector: FieldVector = vectorSchemaRoot.getVector(i)
-      val value = tuple.get(i)
+      val value = tuple.getField[AnyRef](i)
       val isNull = value == null
       arrowFields.apply(i).getFieldType.getType match {
         case _: ArrowType.Int =>
@@ -188,7 +186,10 @@ object ArrowUtils extends LazyLogging {
               index,
               !isNull,
               if (isNull) 0L
-              else AttributeTypeUtils.parseField(value, AttributeType.LONG).asInstanceOf[Long]
+              else
+                AttributeTypeUtils
+                  .parseField(value, AttributeType.LONG)
+                  .asInstanceOf[Long]
             )
 
         case _: ArrowType.Utf8 =>
@@ -219,7 +220,7 @@ object ArrowUtils extends LazyLogging {
   def fromTexeraSchema(schema: Schema): org.apache.arrow.vector.types.pojo.Schema = {
     val arrowFields = new util.ArrayList[Field]
 
-    for (amberAttribute <- schema.getAttributes.asScala) {
+    for (amberAttribute <- schema.getAttributes) {
       val name = amberAttribute.getName
       val field = Field.nullablePrimitive(name, fromAttributeType(amberAttribute.getType))
       arrowFields.add(field)

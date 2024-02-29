@@ -13,7 +13,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters.{IterableHasAsJava, IteratorHasAsScala}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -45,13 +45,20 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo((idx, physicalOp, operatorConfig) => {
+            OpExecInitInfo((idx, _, operatorConfig) => {
               val workerCount = operatorConfig.workerConfigs.length
               val startOffset: Int = offsetValue + count / workerCount * idx
               val endOffset: Int =
                 offsetValue + (if (idx != workerCount - 1) count / workerCount * (idx + 1)
                                else count)
-              new JSONLScanSourceOpExec(this, startOffset, endOffset)
+              new JSONLScanSourceOpExec(
+                path,
+                fileEncoding,
+                startOffset,
+                endOffset,
+                flatten,
+                schemaFunc = () => inferSchema()
+              )
             })
           )
           .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
@@ -110,13 +117,13 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
       result.toArray
     }))
 
-    Schema.newBuilder
+    Schema
+      .builder()
       .add(
         sortedFieldNames.indices
           .map(i => new Attribute(sortedFieldNames(i), attributeTypes(i)))
-          .asJava
       )
-      .build
+      .build()
   }
 
 }

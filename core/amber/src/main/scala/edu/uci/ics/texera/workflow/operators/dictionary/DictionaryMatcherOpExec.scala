@@ -1,19 +1,21 @@
 package edu.uci.ics.texera.workflow.operators.dictionary
 
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.Utils
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 import org.apache.lucene.analysis.Analyzer
 import org.apache.lucene.analysis.en.EnglishAnalyzer
-import org.apache.lucene.analysis.tokenattributes.OffsetAttribute
+import org.apache.lucene.analysis.tokenattributes.CharTermAttribute
 
 import java.io.StringReader
 import scala.collection.mutable
-import scala.collection.mutable.{ListBuffer, Set}
+import scala.collection.mutable.ListBuffer
 
 class DictionaryMatcherOpExec(
-    opDesc: DictionaryMatcherOpDesc
+    attributeName: String,
+    dictionary: String,
+    matchingType: MatchingType
 ) extends MapOpExec {
 
   // this is needed for the matching types Phrase and Conjunction
@@ -27,8 +29,8 @@ class DictionaryMatcherOpExec(
     */
   override def open(): Unit = {
     // create the dictionary by splitting the values first
-    dictionaryEntries = this.opDesc.dictionary.split(",").toList.map(_.toLowerCase)
-    if (opDesc.matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
+    dictionaryEntries = dictionary.split(",").toList.map(_.toLowerCase)
+    if (matchingType == MatchingType.CONJUNCTION_INDEXBASED) {
       // then tokenize each entry
       this.luceneAnalyzer = new EnglishAnalyzer
       tokenizedDictionaryEntries = ListBuffer[mutable.Set[String]]()
@@ -45,103 +47,81 @@ class DictionaryMatcherOpExec(
   /**
     * use LuceneAnalyzer to tokenize the dictionary
     */
-  def tokenizeDictionary(): Unit = {
+  private def tokenizeDictionary(): Unit = {
     for (text <- dictionaryEntries) {
       tokenizedDictionaryEntries += tokenize(text)
     }
   }
 
   /**
-    * decide if a tuple matches a dictionary after it is tokenized based on {@link MatchingType}
+    * Determines whether a given tuple matches any dictionary entry based on defined matching criteria.
+    * The tuple's specified field is converted to a lowercase string for comparison.
     *
-    * @param tuple
-    * @return
+    * @param tuple The tuple whose field is to be checked against dictionary entries.
+    * @return true if the tuple matches a dictionary entry according to the matching criteria; false otherwise.
     */
-  def isTupleInDictionary(tuple: Tuple): Boolean = {
-    val text = tuple.getField(this.opDesc.attribute).asInstanceOf[String].toLowerCase()
-    // depending on the matching type, iterate the dictionary to match the tuple
-    if (text.nonEmpty) {
-      this.opDesc.matchingType match {
-        case MatchingType.SCANBASED =>
-          if (
-            dictionaryEntries.contains(
-              text
-            )
-          ) {
-            return true
-          }
-        case MatchingType.SUBSTRING =>
-          for (entry <- dictionaryEntries) {
-            if (
-              entry.contains(
-                text
-              )
-            ) {
-              return true
-            }
-          }
+  private def isTupleInDictionary(tuple: Tuple): Boolean = {
+    val text = tuple.getField(attributeName).asInstanceOf[String].toLowerCase
 
-        case MatchingType.CONJUNCTION_INDEXBASED =>
-          // first, tokenize the tuple
-          val tokenizedTuple = tokenize(text)
-          if (tokenizedTuple.nonEmpty) {
-            for (entry <- tokenizedDictionaryEntries) {
-              if (entry.subsetOf(tokenizedTuple)) {
-                return true
-              }
-            }
-          }
+    // Return false if the text is empty, as it cannot match any dictionary entry
+    if (text.isEmpty) return false
+
+    matchingType match {
+      case MatchingType.SCANBASED =>
+        // Directly check if the dictionary contains the text
+        dictionaryEntries.contains(text)
+
+      case MatchingType.SUBSTRING =>
+        // Check if any dictionary entry contains the text as a substring
+        dictionaryEntries.exists(entry => entry.contains(text))
+
+      case MatchingType.CONJUNCTION_INDEXBASED =>
+        // Tokenize the text and check if any tokenized dictionary entry is a subset of the tokenized text
+        val tokenizedText = tokenize(text)
+        tokenizedText.nonEmpty && tokenizedDictionaryEntries.exists(entry =>
+          entry.subsetOf(tokenizedText)
+        )
+    }
+  }
+
+  /**
+    * Tokenizes a given text into a set of unique tokens, excluding stopwords.
+    *
+    * @param text The input text to tokenize.
+    * @return A mutable set of tokens derived from the input text, excluding stopwords.
+    */
+  private def tokenize(text: String): mutable.Set[String] = {
+    val tokens = mutable.Set[String]()
+    val tokenStream = luceneAnalyzer.tokenStream("", new StringReader(text))
+    try {
+      val charTermAttribute = tokenStream.addAttribute(classOf[CharTermAttribute])
+      tokenStream.reset()
+      while (tokenStream.incrementToken()) {
+        val term = charTermAttribute.toString.toLowerCase
+        if (
+          !EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(term) && !Utils.URL_STOP_WORDS_SET
+            .contains(term)
+        ) {
+          tokens += term
+        }
       }
-
+    } finally {
+      tokenStream.close() // Ensure the token stream is always closed
     }
-    false
+    tokens
   }
 
   /**
-    * tokenize a given text to a list of tokens after removing stopwords
+    * Labels an input tuple as matched if it is present in the dictionary.
     *
-    * @param text
-    * @return
+    * @param tuple The input tuple to be checked against the dictionary.
+    * @return A TupleLike object containing the original fields of the tuple and a boolean indicating the match status.
     */
-  def tokenize(text: String): Set[String] = {
-    val tokenizedSet = Set[String]()
-    val tokenStream = luceneAnalyzer.tokenStream(null, new StringReader(text))
-    val offsetAttribute = tokenStream.addAttribute(classOf[OffsetAttribute])
-    tokenStream.reset()
-    while ({
-      tokenStream.incrementToken
-    }) {
-      val charStart = offsetAttribute.startOffset
-      val charEnd = offsetAttribute.endOffset
-      val termStr = text.substring(charStart, charEnd).toLowerCase
-      if (
-        !EnglishAnalyzer.ENGLISH_STOP_WORDS_SET.contains(termStr) && !Utils.URL_STOP_WORDS_SET
-          .contains(termStr)
-      )
-        tokenizedSet += termStr
-    }
-    tokenStream.close()
-    tokenizedSet
+  private def labelTupleIfMatched(tuple: Tuple): TupleLike = {
+    val isMatched =
+      Option(tuple.getField[Any](attributeName)).exists(_ => isTupleInDictionary(tuple))
+    TupleLike(tuple.getFields ++ Seq(isMatched))
   }
 
-  /**
-    * to process a tuple and give it a label if it is present in the dictionary,
-    *
-    * @param tuple
-    * @return
-    */
-  def processTuple(tuple: Tuple): Tuple = {
-    var matched: Boolean = false
-    if (tuple.getField(this.opDesc.attribute) != null) {
-      matched = isTupleInDictionary(tuple)
-    }
-    Tuple
-      .newBuilder(opDesc.outputPortToSchemaMapping(opDesc.operatorInfo.outputPorts.head.id))
-      .add(tuple)
-      .add(opDesc.resultAttribute, AttributeType.BOOLEAN, matched)
-      .build()
-
-  }
-
-  setMapFunc(processTuple)
+  setMapFunc(labelTupleIfMatched)
 }

@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, IOException}
-import scala.jdk.CollectionConverters.IterableHasAsJava
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -55,9 +54,12 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               val endOffset: Long =
                 if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
               new ParallelCSVScanSourceOpExec(
-                this,
+                path,
+                customDelimiter,
+                hasHeader,
                 startOffset,
-                endOffset
+                endOffset,
+                schemaFunc = () => sourceSchema()
               )
             })
           )
@@ -105,7 +107,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     reader.close()
 
     // build schema based on inferred AttributeTypes
-    Schema.newBuilder
+    Schema
+      .builder()
       .add(
         firstRow.indices
           .map((i: Int) =>
@@ -114,9 +117,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               attributeTypeList.apply(i)
             )
           )
-          .asJava
       )
-      .build
+      .build()
   }
 
 }

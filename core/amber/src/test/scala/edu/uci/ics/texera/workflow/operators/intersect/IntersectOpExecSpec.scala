@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.intersect
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -14,7 +15,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var counter: Int = 0
 
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(
@@ -38,7 +39,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   def tuple(): Tuple = {
     counter += 1
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), counter)
       .add(
@@ -74,7 +75,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       opExec.processTuple(Left(commonTuples(i)), input2)
     })
 
-    val outputTuples: Set[Tuple] =
+    val outputTuples: Set[TupleLike] =
       opExec.processTuple(Right(InputExhausted()), input2).toSet
     assert(outputTuples.equals(commonTuples.slice(5, 8).toSet))
 
@@ -95,11 +96,18 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         )
       })
 
-      val outputTuples: Set[Tuple] =
+      val outputTuples: Set[TupleLike] =
         opExec.processTuple(Right(InputExhausted()), 0).toSet
       assert(outputTuples.size <= 10)
       assert(outputTuples.subsetOf(commonTuples.toSet))
-      outputTuples.foreach(tuple => assert(tuple.getField[Int]("field2") <= 10))
+      outputTuples.foreach(tupleLike =>
+        assert(
+          tupleLike
+            .asInstanceOf[SchemaEnforceable]
+            .enforceSchema(tupleSchema)
+            .getField[Int]("field2") <= 10
+        )
+      )
       opExec.close()
     }
   }

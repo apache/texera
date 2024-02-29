@@ -2,24 +2,31 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.io.IOUtils.toByteArray
 
 import java.io._
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
-    extends ISourceOperatorExecutor {
+class FileScanSourceOpExec private[scan] (
+    filePath: String,
+    fileAttributeType: FileAttributeType,
+    fileEncoding: FileDecodingMethod,
+    extract: Boolean,
+    outputFileName: Boolean,
+    fileScanLimit: Option[Int] = None,
+    fileScanOffset: Option[Int] = None
+) extends ISourceOperatorExecutor {
 
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
     var filenameIt: Iterator[String] = Iterator.empty
     val fileEntries: Iterator[InputStream] =
-      if (desc.extract) {
+      if (extract) {
         val inputStream: ArchiveInputStream = new ArchiveStreamFactory().createArchiveInputStream(
-          new BufferedInputStream(new FileInputStream(desc.filePath.get))
+          new BufferedInputStream(new FileInputStream(filePath))
         )
         val (it1, it2) = Iterator
           .continually(inputStream.getNextEntry)
@@ -29,55 +36,39 @@ class FileScanSourceOpExec private[scan] (val desc: FileScanSourceOpDesc)
         filenameIt = it1.map(entry => entry.getName)
         it2.map(_ => inputStream)
       } else {
-        Iterator(new FileInputStream(desc.filePath.get))
+        Iterator(new FileInputStream(filePath))
       }
 
-    if (desc.attributeType.isSingle) {
+    if (fileAttributeType.isSingle) {
       fileEntries.zipAll(filenameIt, null, null).map {
         case (entry, fileName) =>
-          val TupleBuilder = Tuple
-            .newBuilder(desc.sourceSchema())
-            .add(
-              if (desc.outputFileName) {
-                desc.sourceSchema().getAttributes.get(1)
-              } else {
-                desc.sourceSchema().getAttributes.get(0)
-              },
-              desc.attributeType match {
-                case FileAttributeType.SINGLE_STRING =>
-                  new String(toByteArray(entry), desc.encoding.getCharset)
-                case _ => parseField(toByteArray(entry), desc.attributeType.getType)
-              }
-            )
-          if (desc.outputFileName) {
-            TupleBuilder.add(
-              desc.sourceSchema().getAttributes.get(0),
-              fileName
-            )
+          val fields: mutable.ListBuffer[Any] = mutable.ListBuffer()
+          fields.addOne(fileAttributeType match {
+            case FileAttributeType.SINGLE_STRING =>
+              new String(toByteArray(entry), fileEncoding.getCharset)
+            case _ => parseField(toByteArray(entry), fileAttributeType.getType)
+          })
+          if (outputFileName) {
+            fields.addOne(fileName)
           }
-          TupleBuilder.build()
+
+          TupleLike(fields.toSeq: _*)
       }
     } else {
       fileEntries.flatMap(entry =>
-        new BufferedReader(new InputStreamReader(entry, desc.encoding.getCharset))
+        new BufferedReader(new InputStreamReader(entry, fileEncoding.getCharset))
           .lines()
           .iterator()
           .asScala
           .slice(
-            desc.fileScanOffset.getOrElse(0),
-            desc.fileScanOffset.getOrElse(0) + desc.fileScanLimit.getOrElse(Int.MaxValue)
+            fileScanOffset.getOrElse(0),
+            fileScanOffset.getOrElse(0) + fileScanLimit.getOrElse(Int.MaxValue)
           )
           .map(line => {
-            Tuple
-              .newBuilder(desc.sourceSchema())
-              .add(
-                desc.sourceSchema().getAttributes.get(0),
-                desc.attributeType match {
-                  case FileAttributeType.SINGLE_STRING => line
-                  case _                               => parseField(line, desc.attributeType.getType)
-                }
-              )
-              .build()
+            TupleLike(fileAttributeType match {
+              case FileAttributeType.SINGLE_STRING => line
+              case _                               => parseField(line, fileAttributeType.getType)
+            })
           })
       )
     }

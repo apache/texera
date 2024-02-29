@@ -1,12 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
 import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
-class DifferenceOpExec() extends OperatorExecutor {
+class DifferenceOpExec extends OperatorExecutor {
 
   private val leftHashSet: mutable.HashSet[Tuple] = new mutable.HashSet()
   private val rightHashSet: mutable.HashSet[Tuple] = new mutable.HashSet()
@@ -15,7 +16,7 @@ class DifferenceOpExec() extends OperatorExecutor {
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[Tuple] = {
+  ): Iterator[TupleLike] = {
     if (port >= 2) {
       throw new IllegalArgumentException("input port should not be more than 2")
     }

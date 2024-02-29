@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.text
 
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.{
@@ -27,7 +27,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "infer schema with single column representing each line of text in normal text scan mode" in {
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -35,7 +35,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.STRING)
   }
 
@@ -45,7 +45,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeName = customOutputAttributeName
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("testing").getType == AttributeType.STRING)
   }
 
@@ -53,7 +53,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     val inferredSchema: Schema = fileScanSourceOpDesc.inferSchema()
 
-    assert(inferredSchema.getAttributes.size() == 1)
+    assert(inferredSchema.getAttributes.length == 1)
     assert(inferredSchema.getAttribute("line").getType == AttributeType.INTEGER)
   }
 
@@ -61,13 +61,21 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(fileScanSourceOpDesc)
+      new FileScanSourceOpExec(
+        fileScanSourceOpDesc.filePath.get,
+        fileScanSourceOpDesc.attributeType,
+        fileScanSourceOpDesc.fileEncoding,
+        fileScanSourceOpDesc.extract,
+        fileScanSourceOpDesc.outputFileName,
+        fileScanSourceOpDesc.fileScanLimit,
+        fileScanSourceOpDesc.fileScanOffset
+      )
     FileScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -83,13 +91,21 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(fileScanSourceOpDesc)
+      new FileScanSourceOpExec(
+        fileScanSourceOpDesc.filePath.get,
+        fileScanSourceOpDesc.attributeType,
+        fileScanSourceOpDesc.fileEncoding,
+        fileScanSourceOpDesc.extract,
+        fileScanSourceOpDesc.outputFileName,
+        fileScanSourceOpDesc.fileScanLimit,
+        fileScanSourceOpDesc.fileScanOffset
+      )
     FileScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))
@@ -103,13 +119,21 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "read first 5 lines of the input text file into a single output tuple" in {
     fileScanSourceOpDesc.attributeType = FileAttributeType.SINGLE_STRING
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(fileScanSourceOpDesc)
+      new FileScanSourceOpExec(
+        fileScanSourceOpDesc.filePath.get,
+        fileScanSourceOpDesc.attributeType,
+        fileScanSourceOpDesc.fileEncoding,
+        fileScanSourceOpDesc.extract,
+        fileScanSourceOpDesc.outputFileName,
+        fileScanSourceOpDesc.fileScanLimit,
+        fileScanSourceOpDesc.fileScanOffset
+      )
     FileScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(
       processedTuple
@@ -125,13 +149,21 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.filePath = Some(TestNumbersFilePath)
     fileScanSourceOpDesc.attributeType = FileAttributeType.INTEGER
     fileScanSourceOpDesc.fileScanLimit = Option(5)
-    val FileScanSourceOpExec = new FileScanSourceOpExec(fileScanSourceOpDesc)
+    val FileScanSourceOpExec = new FileScanSourceOpExec(
+      fileScanSourceOpDesc.filePath.get,
+      fileScanSourceOpDesc.attributeType,
+      fileScanSourceOpDesc.fileEncoding,
+      fileScanSourceOpDesc.extract,
+      fileScanSourceOpDesc.outputFileName,
+      fileScanSourceOpDesc.fileScanLimit,
+      fileScanSourceOpDesc.fileScanOffset
+    )
     FileScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField[Int]("line") == 1)
     assert(processedTuple.next().getField[Int]("line") == 2)
@@ -148,13 +180,21 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.attributeType = FileAttributeType.STRING
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec =
-      new FileScanSourceOpExec(fileScanSourceOpDesc)
+      new FileScanSourceOpExec(
+        fileScanSourceOpDesc.filePath.get,
+        fileScanSourceOpDesc.attributeType,
+        fileScanSourceOpDesc.fileEncoding,
+        fileScanSourceOpDesc.extract,
+        fileScanSourceOpDesc.outputFileName,
+        fileScanSourceOpDesc.fileScanLimit,
+        fileScanSourceOpDesc.fileScanOffset
+      )
     FileScanSourceOpExec.open()
-    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec.produceTuple().map {
-      case schemaEnforceable: SchemaEnforceable =>
-        TupleLike.enforceSchema(schemaEnforceable, fileScanSourceOpDesc.inferSchema())
-      case _ => ???
-    }
+    val processedTuple: Iterator[Tuple] = FileScanSourceOpExec
+      .produceTuple()
+      .map(tupleLike =>
+        tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(fileScanSourceOpDesc.sourceSchema())
+      )
 
     assert(processedTuple.next().getField("line").equals("line1"))
     assert(processedTuple.next().getField("line").equals("line2"))

@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 class DistinctOpDesc extends LogicalOp {
 
@@ -16,28 +17,23 @@ class DistinctOpDesc extends LogicalOp {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     PhysicalOp
-      .hashPhysicalOp(
+      .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new DistinctOpExec()),
-        operatorInfo.inputPorts
-          .map(inputPort => inputPortToSchemaMapping(inputPort.id))
-          .head
-          .getAttributes
-          .toArray
-          .indices
-          .toList
+        OpExecInitInfo((_, _, _) => new DistinctOpExec())
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withPartitionRequirement(List(Option(HashPartition())))
+      .withDerivePartition(_ => HashPartition())
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Distinct",
       "Remove duplicate tuples",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )

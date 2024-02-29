@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.common.ambermessage._
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
@@ -23,7 +23,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     new NetworkOutputGateway(identifier, mockHandler)
   var counter: Int = 0
   val schema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add("field1", AttributeType.INTEGER)
     .add("field2", AttributeType.INTEGER)
     .add("field3", AttributeType.INTEGER)
@@ -49,7 +49,9 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   "OutputManager" should "aggregate tuples and output" in {
     val outputManager = wire[OutputManager]
 
-    val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
+    val tuples = Array.fill(21)(
+      TupleLike(1, 2, 3, 4, "5", 9.8).enforceSchema(schema)
+    )
     val fakeID = ActorVirtualIdentity("testReceiver")
     inSequence {
       (mockHandler.apply _).expects(
@@ -71,14 +73,16 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       OneToOnePartitioning(10, fakeReceiver.toSeq)
     )
     tuples.foreach { t =>
-      outputManager.passTupleToDownstream(t, fakeLink, schema)
+      outputManager.passTupleToDownstream(TupleLike(t.getFields), fakeLink, schema)
     }
     outputManager.emitEndOfUpstream()
   }
 
   "OutputManager" should "not output tuples when there is no partitioning" in {
     val outputManager = wire[OutputManager]
-    val tuples = Array.fill(21)(ITuple(1, 2, 3, 4, "5", 9.8))
+    val tuples = Array.fill(21)(
+      TupleLike(1, 2, 3, 4, "5", 9.8).enforceSchema(schema)
+    )
     (mockHandler.apply _).expects(*).never()
     val fakeLink = PhysicalLink(physicalOpId(), PortIdentity(), physicalOpId(), PortIdentity())
     assertThrows[Exception] {
