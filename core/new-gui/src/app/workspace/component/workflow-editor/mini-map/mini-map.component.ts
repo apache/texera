@@ -15,7 +15,6 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy, OnInit {
   paper!: joint.dia.Paper;
   dragging = false;
 
-  //加
   minimapDisplay = false;
   screenWidth = window.innerWidth;
   miniMapWidth = 47;
@@ -99,7 +98,6 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy, OnInit {
     }
   }
 
-  //加
   openMiniMapPanel() {
     if (this.minimapDisplay == false) {
       this.miniMapWidth = 400;
