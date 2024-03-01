@@ -86,7 +86,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
     localStorage.setItem("property-panel-style", document.getElementById("property-editor-container")!.style.cssText);
   }
-  
+
   /**
    * This method changes the property editor according to how operators are highlighted on the workflow editor.
    *
