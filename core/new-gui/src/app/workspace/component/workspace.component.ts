@@ -33,12 +33,6 @@ import { WorkflowConsoleService } from "../service/workflow-console/workflow-con
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 
-import { NzResizeEvent } from "ng-zorro-antd/resizable";
-//changed
-import { MiniMapComponent } from "./workflow-editor/mini-map/mini-map.component";
-import { PropertyEditorComponent } from "./property-editor/property-editor.component";
-import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
-//changed
 export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
 
 @UntilDestroy()

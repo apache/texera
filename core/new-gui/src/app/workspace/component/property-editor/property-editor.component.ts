@@ -27,7 +27,6 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
 export class PropertyEditorComponent implements OnInit, OnDestroy {
   frameComponentConfig?: PropertyEditFrameConfig;
 
-  //加
   propertyDisplay = true;
   screenWidth = window.innerWidth;
   propertyWidth = 300;
@@ -87,6 +86,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
     localStorage.setItem("property-panel-style", document.getElementById("property-editor-container")!.style.cssText);
   }
+  
   /**
    * This method changes the property editor according to how operators are highlighted on the workflow editor.
    *
