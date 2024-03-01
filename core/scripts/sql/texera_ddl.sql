@@ -204,8 +204,8 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `log_location`           TEXT, /* uri to log storage */
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
-    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
-    FOREIGN KEY (`environment_eid`) REFERENCES environment(`eid`) ON DELETE SET NULL,
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`environment_eid`) REFERENCES environment(`eid`) ON DELETE SET NULL
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS public_project
