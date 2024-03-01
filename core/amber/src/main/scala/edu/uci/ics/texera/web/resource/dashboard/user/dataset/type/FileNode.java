@@ -2,7 +2,9 @@ package edu.uci.ics.texera.web.resource.dashboard.user.dataset.type;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 
@@ -57,5 +59,31 @@ public class FileNode {
   @Override
   public int hashCode() {
     return Objects.hash(absoluteFilePath, children);
+  }
+
+  /**
+   * Collects the relative paths of all file nodes from a given set of FileNode.
+   * @param nodes The set of FileNode to collect file paths from.
+   * @return A list of strings representing the relative paths of all file nodes.
+   */
+  public static List<String> getAllFileRelativePaths(Set<FileNode> nodes) {
+    List<String> filePaths = new ArrayList<>();
+    getAllFileRelativePathsHelper(nodes, filePaths);
+    return filePaths;
+  }
+
+  /**
+   * Helper method to recursively collect the relative paths of all file nodes.
+   * @param nodes The current set of FileNode to collect file paths from.
+   * @param filePaths The list to add the relative paths of the file nodes to.
+   */
+  private static void getAllFileRelativePathsHelper(Set<FileNode> nodes, List<String> filePaths) {
+    for (FileNode node : nodes) {
+      if (node.isFile()) {
+        filePaths.add(node.getRelativePath().toString());
+      } else if (node.isDirectory()) {
+        getAllFileRelativePathsHelper(node.getChildren(), filePaths);
+      }
+    }
   }
 }
