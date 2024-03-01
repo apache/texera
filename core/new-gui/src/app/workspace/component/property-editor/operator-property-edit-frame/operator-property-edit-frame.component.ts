@@ -416,7 +416,7 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
           }
         },
       };
-      
+
       // Disable dummy operator for user
       if (mappedField.key === "dummyOperator") {
         mappedField.expressionProperties = {
