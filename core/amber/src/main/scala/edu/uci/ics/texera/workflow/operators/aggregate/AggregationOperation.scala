@@ -7,6 +7,7 @@ import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggrega
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import org.jooq.AggregateFunction
 
 import java.sql.Timestamp
 
@@ -71,8 +72,7 @@ class AggregationOperation() {
   }
 
   @JsonIgnore
-  def getAggFunc(inputSchema: Schema): DistributedAggregation[Object] = {
-    val attrType = inputSchema.getAttribute(attribute).getType
+  def getAggFunc(attrType: AttributeType): DistributedAggregation[Object] = {
     val aggFunc = aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg()
       case AggregationFunction.COUNT   => countAgg()
@@ -85,6 +85,20 @@ class AggregationOperation() {
     }
     aggFunc.asInstanceOf[DistributedAggregation[Object]]
   }
+
+  @JsonIgnore
+  def getFinal: AggregationOperation = {
+    val newAggFunc = aggFunction match {
+      case AggregationFunction.COUNT   => AggregationFunction.SUM
+      case a:AggregationFunction => a
+    }
+    val res = new AggregationOperation()
+    res.aggFunction= newAggFunc
+    res.resultAttribute = resultAttribute
+    res.attribute = resultAttribute
+    res
+  }
+
 
   private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
     if (

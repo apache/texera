@@ -2,13 +2,17 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
+import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.aggregate.AggregateOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, FinalAggregateOpExec, PartialAggregateOpExec}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
+
+import scala.collection.mutable
 
 case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 
@@ -35,14 +39,54 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
       operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
     val outputSchema =
       operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
-    AggregateOpDesc.getPhysicalPlan(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      aggregations.map(agg => agg.getAggFunc(inputSchema)),
-      groupByKeys,
-      inputSchema,
-      outputSchema
+
+    val outputPort = OutputPort(PortIdentity(internal = true))
+    val partialPhysicalOp =
+      PhysicalOp
+        .oneToOnePhysicalOp(
+          PhysicalOpIdentity(operatorIdentifier, "localAgg"),
+          workflowId,
+          executionId,
+          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggregations, groupByKeys))
+        )
+        .withIsOneToManyOp(true)
+        .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> inputSchema))
+        // assume partial op's output is the same as global op's
+        .withOutputPorts(
+          List(outputPort),
+          mutable.Map(outputPort.id -> outputSchema)
+        )
+
+    val inputPort = InputPort(PortIdentity(0, internal = true))
+
+    // Create the base PhysicalOp with common configurations
+    var finalPhysicalOp = PhysicalOp
+      .oneToOnePhysicalOp(
+        PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
+        workflowId,
+        executionId,
+        OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggregations.map(aggr => aggr.getFinal), groupByKeys))
+      )
+      .withParallelizable(false)
+      .withIsOneToManyOp(true)
+      .withInputPorts(List(inputPort), mutable.Map(inputPort.id -> outputSchema))
+      .withOutputPorts(
+        List(OutputPort(PortIdentity(0))),
+        mutable.Map(PortIdentity() -> outputSchema)
+      )
+
+    // Apply additional configurations for keyed aggregation
+    if (!(groupByKeys == null && groupByKeys.isEmpty)) {
+      finalPhysicalOp = finalPhysicalOp
+        .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
+        .withDerivePartition(_ => HashPartition(groupByKeys))
+    }
+
+    PhysicalPlan(
+      operators = Set(partialPhysicalOp, finalPhysicalOp),
+      links = Set(
+        PhysicalLink(partialPhysicalOp.id, outputPort.id, finalPhysicalOp.id, inputPort.id)
+      )
     )
   }
 
