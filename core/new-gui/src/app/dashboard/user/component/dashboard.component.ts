@@ -38,7 +38,6 @@ export class DashboardComponent implements OnInit {
             document.cookie = `flarum_remember=${response.token};path=/`;
           },
           error: (err: unknown) => {
-            console.log(err);
             if ((err as HttpErrorResponse).status == 404) {
               this.displayForum = false;
             } else {
