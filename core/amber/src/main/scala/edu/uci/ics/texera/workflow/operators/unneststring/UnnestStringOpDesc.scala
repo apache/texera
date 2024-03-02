@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.unneststring
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -10,6 +10,8 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+
+import scala.collection.mutable
 
 class UnnestStringOpDesc extends FlatMapOpDesc {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")
@@ -46,8 +48,9 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new UnnestStringOpExec(attribute, delimiter))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))))
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
