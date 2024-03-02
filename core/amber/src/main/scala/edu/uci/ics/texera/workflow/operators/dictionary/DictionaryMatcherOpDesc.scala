@@ -47,8 +47,7 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts, mutable.Map())
       .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
-      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id-> {if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-        Schema.builder().add(inputSchemas(operatorInfo.inputPorts.head.id)).add(resultAttribute, AttributeType.BOOLEAN).build()})))
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id-> getOutputSchema(inputSchemas.values.toArray))))
   }
 
   override def operatorInfo: OperatorInfo =
