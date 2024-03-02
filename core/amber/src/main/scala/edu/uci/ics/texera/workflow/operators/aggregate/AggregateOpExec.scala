@@ -1,10 +1,9 @@
-package edu.uci.ics.texera.workflow.common.operators.aggregate
+package edu.uci.ics.texera.workflow.operators.aggregate
 
 import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.operators.aggregate.AggregationOperation
 
 import scala.collection.mutable
 
@@ -13,8 +12,8 @@ class AggregateOpExec(
     groupByKeys: List[String]
 ) extends OperatorExecutor {
 
-  private val partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
-  private var aggFuncs: List[DistributedAggregation[Object]] = _
+  private val keyedPartialAggregateObj = new mutable.HashMap[List[Object], List[Object]]()
+  private var distributedAggrFuncs: List[DistributedAggregation[Object]] = _
   override def open(): Unit = {}
   override def close(): Unit = {}
 
@@ -31,24 +30,24 @@ class AggregateOpExec(
           .filter(_.nonEmpty)
           .map(_.map(k => t.getField[Object](k)))
           .getOrElse(List.empty)
-        if (aggFuncs == null) {
-          aggFuncs =
+        if (distributedAggrFuncs == null) {
+          distributedAggrFuncs =
             aggregations.map(agg => agg.getAggFunc(t.getSchema.getAttribute(agg.attribute).getType))
         }
 
         val partialObjects =
-          partialObjectsPerKey.getOrElseUpdate(key, aggFuncs.map(aggFunc => aggFunc.init()))
-        val updatedPartialObjects = aggFuncs.zip(partialObjects).map {
+          keyedPartialAggregateObj.getOrElseUpdate(key, distributedAggrFuncs.map(aggFunc => aggFunc.init()))
+        val updatedPartialObjects = distributedAggrFuncs.zip(partialObjects).map {
           case (aggFunc, partial) =>
             aggFunc.iterate(partial, t)
         }
-        partialObjectsPerKey.put(key, updatedPartialObjects)
+        keyedPartialAggregateObj.put(key, updatedPartialObjects)
         Iterator()
       case Right(_) =>
-        partialObjectsPerKey.iterator.map {
+        keyedPartialAggregateObj.iterator.map {
 
           case (group, partial) =>
-            TupleLike(group ++ aggFuncs.indices.map(i => aggFuncs(i).finalAgg(partial(i))))
+            TupleLike(group ++ distributedAggrFuncs.indices.map(i => distributedAggrFuncs(i).finalAgg(partial(i))))
         }
     }
   }
