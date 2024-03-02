@@ -4,18 +4,17 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameOnPort1
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameOnPort1}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
+
+import scala.collection.mutable
 
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
@@ -95,9 +94,10 @@ class IntervalJoinOpDesc extends LogicalOp {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(Array(inputSchemas(operatorInfo.inputPorts.head.id), inputSchemas(operatorInfo.inputPorts.last.id))))))
       .withPartitionRequirement(partitionRequirement)
   }
 
@@ -120,7 +120,6 @@ class IntervalJoinOpDesc extends LogicalOp {
   def this(
       leftTableAttributeName: String,
       rightTableAttributeName: String,
-      schemas: Array[Schema],
       constant: Long,
       includeLeftBound: Boolean,
       includeRightBound: Boolean,
@@ -136,7 +135,6 @@ class IntervalJoinOpDesc extends LogicalOp {
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 2)
     val builder: Schema.Builder = Schema.builder()
     val leftTableSchema: Schema = schemas(0)
     val rightTableSchema: Schema = schemas(1)
