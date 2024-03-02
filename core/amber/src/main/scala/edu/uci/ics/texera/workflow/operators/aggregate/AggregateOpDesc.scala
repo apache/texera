@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -71,13 +75,9 @@ class AggregateOpDesc extends LogicalOp {
         List(OutputPort(PortIdentity(0))),
         mutable.Map(PortIdentity() -> outputSchema)
       )
+      .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
+      .withDerivePartition(_ => HashPartition(groupByKeys))
 
-    // Apply additional configurations for keyed aggregation
-    if (!(groupByKeys == null && groupByKeys.isEmpty)) {
-      finalPhysicalOp = finalPhysicalOp
-        .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
-        .withDerivePartition(_ => HashPartition(groupByKeys))
-    }
 
     var plan = PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),

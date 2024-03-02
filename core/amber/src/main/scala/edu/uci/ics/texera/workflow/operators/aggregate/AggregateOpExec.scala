@@ -7,49 +7,59 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable
 
+/**
+  * AggregateOpExec performs aggregation operations on input tuples, optionally grouping them by specified keys.
+  *
+  * @param aggregations a list of aggregation operations to apply on the tuples
+  * @param groupByKeys a list of attribute names to group the tuples by
+  */
 class AggregateOpExec(
     aggregations: List[AggregationOperation],
     groupByKeys: List[String]
 ) extends OperatorExecutor {
 
-  private val keyedPartialAggregateObj = new mutable.HashMap[List[Object], List[Object]]()
-  private var distributedAggrFuncs: List[DistributedAggregation[Object]] = _
+  private val keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
+  private var distributedAggregations: List[DistributedAggregation[Object]] = _
+
   override def open(): Unit = {}
+
   override def close(): Unit = {}
 
   override def processTuple(
       tuple: Either[Tuple, InputExhausted],
       port: Int
-  ): Iterator[TupleLike] = {
-    if (aggregations.isEmpty) {
-      throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
-    }
+  ): Iterator[TupleLike] =
     tuple match {
       case Left(t) =>
-        val key = Option(groupByKeys)
-          .filter(_.nonEmpty)
-          .map(_.map(k => t.getField[Object](k)))
-          .getOrElse(List.empty)
-        if (distributedAggrFuncs == null) {
-          distributedAggrFuncs =
+        // Initialize distributedAggregations if it's not yet initialized
+        if (distributedAggregations == null) {
+          distributedAggregations =
             aggregations.map(agg => agg.getAggFunc(t.getSchema.getAttribute(agg.attribute).getType))
         }
 
-        val partialObjects =
-          keyedPartialAggregateObj.getOrElseUpdate(key, distributedAggrFuncs.map(aggFunc => aggFunc.init()))
-        val updatedPartialObjects = distributedAggrFuncs.zip(partialObjects).map {
-          case (aggFunc, partial) =>
-            aggFunc.iterate(partial, t)
-        }
-        keyedPartialAggregateObj.put(key, updatedPartialObjects)
-        Iterator()
-      case Right(_) =>
-        keyedPartialAggregateObj.iterator.map {
+        // Construct the group key
+        val key = groupByKeys.map(t.getField[Object])
 
-          case (group, partial) =>
-            TupleLike(group ++ distributedAggrFuncs.indices.map(i => distributedAggrFuncs(i).finalAgg(partial(i))))
+        // Get or initialize the partial aggregate for the key
+        val partialAggregates =
+          keyedPartialAggregates.getOrElseUpdate(key, distributedAggregations.map(_.init()))
+
+        // Update the partial aggregates with the current tuple
+        val updatedAggregates = (distributedAggregations zip partialAggregates).map {
+          case (aggregation, partial) => aggregation.iterate(partial, t)
+        }
+
+        keyedPartialAggregates(key) = updatedAggregates
+        Iterator.empty
+
+      case Right(_) =>
+        // Finalize aggregation for all keys and produce the result
+        keyedPartialAggregates.iterator.map {
+          case (key, partials) =>
+            val finalAggregates = partials.zipWithIndex.map {
+              case (partial, index) => distributedAggregations(index).finalAgg(partial)
+            }
+            TupleLike(key ++ finalAggregates)
         }
     }
-  }
-
 }
