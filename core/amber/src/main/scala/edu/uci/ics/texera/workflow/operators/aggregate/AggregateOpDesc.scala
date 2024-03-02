@@ -59,7 +59,7 @@ class AggregateOpDesc extends LogicalOp {
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
 
-    var finalPhysicalOp = PhysicalOp
+    val finalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
         PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
         workflowId,
@@ -77,7 +77,6 @@ class AggregateOpDesc extends LogicalOp {
       )
       .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
       .withDerivePartition(_ => HashPartition(groupByKeys))
-
 
     var plan = PhysicalPlan(
       operators = Set(partialPhysicalOp, finalPhysicalOp),
