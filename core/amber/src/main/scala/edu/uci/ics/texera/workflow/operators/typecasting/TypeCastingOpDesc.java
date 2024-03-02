@@ -5,8 +5,11 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagation;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
+import edu.uci.ics.amber.engine.common.AmberUtils;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
@@ -19,9 +22,12 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.Tuple1;
 import scala.Tuple3;
 import scala.collection.immutable.HashMap;
+import scala.collection.immutable.Map;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.function.Function;
 
@@ -48,7 +54,24 @@ public class TypeCastingOpDesc extends MapOpDesc {
                         )
                 )
                 .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
-                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>());
+                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>())
+                .withPropagateSchema(
+                        SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+                            // Initialize a Java HashMap
+                            java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
+                            Schema outputSchema = inputSchemas.values().head();
+                            if (typeCastingUnits != null) {
+                                for (TypeCastingUnit unit : typeCastingUnits) {
+                                    outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
+                                }
+                            }
+
+                            javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
+
+                            // Convert the Java Map to a Scala immutable Map
+                            return AmberUtils.convertToImmutableMap(javaMap);
+                        })
+                );
     }
 
     @Override
@@ -68,7 +91,6 @@ public class TypeCastingOpDesc extends MapOpDesc {
 
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
-        Preconditions.checkArgument(schemas.length == 1);
         Schema outputSchema = schemas[0];
         if (typeCastingUnits != null) {
             for (TypeCastingUnit unit : typeCastingUnits) {
