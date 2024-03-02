@@ -87,7 +87,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withInputPorts(operatorInfo.inputPorts, mutable.Map())
         .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
-        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(Array(inputSchemas(operatorInfo.inputPorts.head.id), inputSchemas(operatorInfo.inputPorts.last.id))))))
+        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray))))
     }
   }
 

@@ -1,8 +1,10 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+
+import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends LogicalOp {
   override def getPhysicalOp(
@@ -19,9 +21,10 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withParallelizable(parallelizable())
+        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray))))
     } else {
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -30,8 +33,8 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withParallelizable(parallelizable())
     }
   }
