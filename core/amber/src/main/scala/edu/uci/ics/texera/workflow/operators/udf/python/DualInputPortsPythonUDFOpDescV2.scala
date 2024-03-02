@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -13,6 +13,8 @@ import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
 import edu.uci.ics.amber.engine.common.workflow.InputPort
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+
+import scala.collection.mutable
 
 class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
@@ -72,18 +74,20 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))))
         .withSuggestedWorkerNum(workers)
     } else {
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(Array(inputSchemas(operatorInfo.inputPorts.head.id), inputSchemas(operatorInfo.inputPorts.last.id))))))
     }
   }
 

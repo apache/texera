@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
+import scala.collection.mutable
 import scala.util.Random
 
 class ReservoirSamplingOpDesc extends LogicalOp {
@@ -53,8 +54,8 @@ class ReservoirSamplingOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new ReservoirSamplingOpExec(idx, getKForActor, getSeed))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
   }
 
   override def operatorInfo: OperatorInfo = {
