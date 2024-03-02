@@ -29,8 +29,7 @@ class ProjectionOpDesc extends MapOpDesc {
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
       .withDerivePartition(derivePartition())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
-        Preconditions.checkArgument(inputSchemas.size == 1)
-        Preconditions.checkArgument(attributes.nonEmpty)
+        if (attributes == null) attributes = List()
         val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
         val outputSchema = Schema.builder()
           .add(
