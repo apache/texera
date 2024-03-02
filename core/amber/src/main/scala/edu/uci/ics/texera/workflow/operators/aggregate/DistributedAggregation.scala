@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.common.operators.aggregate
+package edu.uci.ics.texera.workflow.operators.aggregate
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -22,7 +22,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
   * https://www.sigops.org/s/conferences/sosp/2009/papers/yu-sosp09.pdf
   */
 case class DistributedAggregation[P <: AnyRef](
-    // () => PartialObject
     init: () => P,
     // PartialObject + Tuple => PartialObject
     iterate: (P, Tuple) => P,
