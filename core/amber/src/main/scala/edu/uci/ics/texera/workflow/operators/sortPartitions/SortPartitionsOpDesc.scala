@@ -13,6 +13,8 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.RangePartition
 
+import scala.collection.mutable
+
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -71,8 +73,8 @@ class SortPartitionsOpDesc extends LogicalOp {
           )
         })
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
       .withPartitionRequirement(partitionRequirement)
 
   }

@@ -10,6 +10,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
+import scala.collection.mutable
+
 class SymmetricDifferenceOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
@@ -24,8 +26,8 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new SymmetricDifferenceOpExec())
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
       .withPartitionRequirement(List(Option(HashPartition(List()))))
       .withDerivePartition(_ => HashPartition(List()))
   }

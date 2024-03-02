@@ -9,6 +9,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 
+import scala.collection.mutable
 import scala.util.Random
 
 class RandomKSamplingOpDesc extends FilterOpDesc {
@@ -38,8 +39,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new RandomKSamplingOpExec(percentage, idx, getSeed))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
   }
 
   override def operatorInfo: OperatorInfo =
