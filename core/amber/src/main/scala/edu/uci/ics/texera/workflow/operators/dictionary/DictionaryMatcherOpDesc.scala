@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
@@ -10,6 +10,8 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+
+import scala.collection.mutable
 
 /**
   * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.
@@ -32,7 +34,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
+  ): PhysicalOp = {
+
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -42,8 +45,11 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
           new DictionaryMatcherOpExec(attribute, dictionary, matchingType)
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id-> {if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
+        Schema.builder().add(inputSchemas(operatorInfo.inputPorts.head.id)).add(resultAttribute, AttributeType.BOOLEAN).build()})))
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
