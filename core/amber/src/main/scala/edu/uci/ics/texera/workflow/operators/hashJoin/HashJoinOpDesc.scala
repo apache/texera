@@ -61,15 +61,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
-    val inputSchemas =
-      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id))
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
-    val buildSchema = inputSchemas.head
-    val probeSchema = inputSchemas(1)
 
-    val internalHashTableSchema =
-      Schema.builder().add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY).add(buildSchema).build()
 
     val buildInputPort = operatorInfo.inputPorts.head
     val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
@@ -82,13 +74,13 @@ class HashJoinOpDesc[K] extends LogicalOp {
           executionId,
           OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
         )
-        .withInputPorts(List(buildInputPort), mutable.Map(buildInputPort.id -> buildSchema))
+        .withInputPorts(List(buildInputPort),           mutable.Map())
         .withOutputPorts(
           List(buildOutputPort),
-          mutable.Map(buildOutputPort.id -> internalHashTableSchema)
+          mutable.Map()
         )
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
-        .withPropagateSchema(SchemaPropagationFunc(_ => Map(PortIdentity(internal=true)-> internalHashTableSchema)))
+        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(PortIdentity(internal=true)-> Schema.builder().add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY).add(inputSchemas(operatorInfo.inputPorts.head.id)).build())))
         .withDerivePartition(_ => HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME)))
         .withParallelizable(true)
 
@@ -115,12 +107,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
             probeBuildInputPort,
             probeDataInputPort
           ),
-          mutable.Map(
-            probeBuildInputPort.id -> internalHashTableSchema,
-            probeDataInputPort.id -> probeSchema
-          )
+          mutable.Map()
         )
-        .withOutputPorts(List(probeOutputPort), mutable.Map(probeOutputPort.id -> outputSchema))
+        .withOutputPorts(List(probeOutputPort),           mutable.Map())
         .withPartitionRequirement(
           List(
             Option(HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME))),
@@ -131,11 +120,11 @@ class HashJoinOpDesc[K] extends LogicalOp {
         .withParallelizable(true)
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
-            Seq(
+            Map(
               PortIdentity() -> getOutputSchema(
                 Array(inputSchemas(PortIdentity(internal=true)), inputSchemas(PortIdentity(1)))
               )
-            ).toMap
+            )
           )
         )
 
@@ -170,6 +159,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
     val probeSchema = schemas(1)
     val builder = Schema.builder()
     builder.add(buildSchema)
+    builder.removeIfExists(HASH_JOIN_INTERNAL_KEY_NAME)
     val leftAttributeNames = buildSchema.getAttributeNames
     val rightAttributeNames =
       probeSchema.getAttributeNames.filterNot(name => name == probeAttributeName)

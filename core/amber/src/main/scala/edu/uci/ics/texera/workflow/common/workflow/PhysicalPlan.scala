@@ -68,6 +68,11 @@ object PhysicalPlan {
       }
 
     )
+    physicalPlan.operators.foreach(operator => {
+      operator.inputPorts.foreach(port=> if(port._2._3.isEmpty) {println("missing schema " + operator.id + " on input "+ port._1)})
+      operator.outputPorts.foreach(port=> if(port._2._3.isEmpty) {println("missing schema " + operator.id + " on output "+ port._1)})
+    })
+
     physicalPlan
   }
 
