@@ -10,6 +10,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 
 import java.sql.Timestamp
 
+case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -87,16 +88,15 @@ class AggregationOperation {
   @JsonIgnore
   def getFinal: AggregationOperation = {
     val newAggFunc = aggFunction match {
-      case AggregationFunction.COUNT   => AggregationFunction.SUM
-      case a:AggregationFunction => a
+      case AggregationFunction.COUNT => AggregationFunction.SUM
+      case a: AggregationFunction    => a
     }
     val res = new AggregationOperation()
-    res.aggFunction= newAggFunc
+    res.aggFunction = newAggFunc
     res.resultAttribute = resultAttribute
     res.attribute = resultAttribute
     res
   }
-
 
   private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
     if (
