@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, Physical
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, AggregateOpExec}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
 
 import scala.collection.mutable
@@ -115,14 +115,14 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     if (
-      aggregations.exists(agg => (agg.resultAttribute == null || agg.resultAttribute.trim.isEmpty))
+      aggregations.exists(agg => agg.resultAttribute == null || agg.resultAttribute.trim.isEmpty)
     ) {
       return null
     }
     Schema
       .builder()
       .add(getGroupByKeysSchema(schemas).getAttributes)
-      .add(aggregations.map(agg => agg.getAggregationAttribute(schemas(0))))
+      .add(aggregations.map(agg => agg.getAggregationAttribute(schemas(0).getAttribute(agg.attribute).getType)))
       .build()
   }
 

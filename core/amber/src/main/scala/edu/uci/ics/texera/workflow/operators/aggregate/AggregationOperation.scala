@@ -6,8 +6,7 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
-import org.jooq.AggregateFunction
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
 
 import java.sql.Timestamp
 
@@ -41,7 +40,7 @@ import java.sql.Timestamp
   }
 }
 """)
-class AggregationOperation() {
+class AggregationOperation {
   @JsonProperty(required = true)
   @JsonSchemaTitle("Aggregate Func")
   @JsonPropertyDescription("sum, count, average, min, max, or concat")
@@ -57,8 +56,7 @@ class AggregationOperation() {
   var resultAttribute: String = _
 
   @JsonIgnore
-  def getAggregationAttribute(inputSchema: Schema): Attribute = {
-    val attrType = inputSchema.getAttribute(attribute).getType
+  def getAggregationAttribute(attrType: AttributeType): Attribute = {
     val resultAttrType = this.aggFunction match {
       case AggregationFunction.SUM     => attrType
       case AggregationFunction.COUNT   => AttributeType.INTEGER
@@ -66,7 +64,7 @@ class AggregationOperation() {
       case AggregationFunction.MIN     => attrType
       case AggregationFunction.MAX     => attrType
       case AggregationFunction.CONCAT  => AttributeType.STRING
-      case _                           => throw new RuntimeException("unknown agg functionL " + this.aggFunction)
+      case _                           => throw new RuntimeException("Unknown aggregation function: " + this.aggFunction)
     }
     new Attribute(resultAttribute, resultAttrType)
   }
@@ -290,7 +288,7 @@ class AggregationOperation() {
     }
   }
 
-  def zero(attributeType: AttributeType): Object =
+  private def zero(attributeType: AttributeType): Object =
     attributeType match {
       case AttributeType.INTEGER   => java.lang.Integer.valueOf(0)
       case AttributeType.DOUBLE    => java.lang.Double.valueOf(0)
@@ -302,7 +300,7 @@ class AggregationOperation() {
         )
     }
 
-  def maxValue(attributeType: AttributeType): Object =
+  private def maxValue(attributeType: AttributeType): Object =
     attributeType match {
       case AttributeType.INTEGER   => Integer.MAX_VALUE.asInstanceOf[Object]
       case AttributeType.DOUBLE    => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
@@ -314,7 +312,7 @@ class AggregationOperation() {
         )
     }
 
-  def minValue(attributeType: AttributeType): Object =
+  private def minValue(attributeType: AttributeType): Object =
     attributeType match {
       case AttributeType.INTEGER   => Integer.MIN_VALUE.asInstanceOf[Object]
       case AttributeType.DOUBLE    => java.lang.Double.MIN_VALUE.asInstanceOf[Object]

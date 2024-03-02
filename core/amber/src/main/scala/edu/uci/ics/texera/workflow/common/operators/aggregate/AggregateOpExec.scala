@@ -13,8 +13,8 @@ class AggregateOpExec(
     groupByKeys: List[String]
 ) extends OperatorExecutor {
 
-  var partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
-  var aggFuncs :List[DistributedAggregation[Object]]= _
+  private val partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
+  private var aggFuncs :List[DistributedAggregation[Object]]= _
   override def open(): Unit = {}
   override def close(): Unit = {}
 
@@ -31,7 +31,7 @@ class AggregateOpExec(
           .filter(_.nonEmpty)
           .map(_.map(k => t.getField[Object](k)))
           .getOrElse(List.empty)
-        println(t.getSchema)
+
         aggFuncs = aggregations.map(agg => agg.getAggFunc(t.getSchema.getAttribute(agg.attribute).getType))
         val partialObjects =
           partialObjectsPerKey.getOrElseUpdate(key, aggFuncs.map(aggFunc => aggFunc.init()))
