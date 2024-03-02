@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Physi
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
-import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, FinalAggregateOpExec, PartialAggregateOpExec}
+import edu.uci.ics.texera.workflow.common.operators.aggregate.{AggregateOpDesc, AggregateOpExec}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
 
@@ -47,7 +47,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
           PhysicalOpIdentity(operatorIdentifier, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggregations, groupByKeys))
+          OpExecInitInfo((_, _, _) => new AggregateOpExec(aggregations, groupByKeys))
         )
         .withIsOneToManyOp(true)
         .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> inputSchema))
@@ -65,7 +65,7 @@ class SpecializedAggregateOpDesc extends AggregateOpDesc {
         PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
         workflowId,
         executionId,
-        OpExecInitInfo((_, _, _) => new PartialAggregateOpExec(aggregations.map(aggr => aggr.getFinal), groupByKeys))
+        OpExecInitInfo((_, _, _) => new AggregateOpExec(aggregations.map(aggr => aggr.getFinal), groupByKeys))
       )
       .withParallelizable(false)
       .withIsOneToManyOp(true)

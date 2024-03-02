@@ -8,7 +8,7 @@ import edu.uci.ics.texera.workflow.operators.aggregate.AggregationOperation
 
 import scala.collection.mutable
 
-class PartialAggregateOpExec(
+class AggregateOpExec(
     aggregations: List[AggregationOperation] ,
     groupByKeys: List[String]
 ) extends OperatorExecutor {
