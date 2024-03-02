@@ -28,14 +28,7 @@ class AggregateOpDesc extends LogicalOp {
   @JsonSchemaTitle("Group By Keys")
   @JsonPropertyDescription("group by columns")
   @AutofillAttributeNameList
-  var groupByKeys: List[String] = _
-
-  override def getPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    throw new UnsupportedOperationException("should implement `getPhysicalPlan` instead")
-  }
+  var groupByKeys: List[String] = List()
 
   override def getPhysicalPlan(
       workflowId: WorkflowIdentity,
@@ -101,26 +94,16 @@ class AggregateOpDesc extends LogicalOp {
     plan
   }
 
-  private def getGroupByKeysSchema(schemas: Array[Schema]): Schema = {
-    if (groupByKeys == null) {
-      groupByKeys = List()
-    }
-    Schema
-      .builder()
-      .add(groupByKeys.map(key => schemas(0).getAttribute(key)): _*)
-      .build()
-  }
-
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Aggregate",
       "Calculate different types of aggregation values",
       OperatorGroupConstants.AGGREGATE_GROUP,
       inputPorts = List(
-        InputPort(PortIdentity(), displayName = "in")
+        InputPort(PortIdentity())
       ),
       outputPorts = List(
-        OutputPort(PortIdentity(), displayName = "out")
+        OutputPort(PortIdentity())
       )
     )
 
@@ -132,7 +115,12 @@ class AggregateOpDesc extends LogicalOp {
     }
     Schema
       .builder()
-      .add(getGroupByKeysSchema(schemas).getAttributes)
+      .add(
+        Schema
+          .builder()
+          .add(groupByKeys.map(key => schemas(0).getAttribute(key)): _*)
+          .build()
+      )
       .add(
         aggregations.map(agg =>
           agg.getAggregationAttribute(schemas(0).getAttribute(agg.attribute).getType)

@@ -9,12 +9,12 @@ import edu.uci.ics.texera.workflow.operators.aggregate.AggregationOperation
 import scala.collection.mutable
 
 class AggregateOpExec(
-    aggregations: List[AggregationOperation] ,
+    aggregations: List[AggregationOperation],
     groupByKeys: List[String]
 ) extends OperatorExecutor {
 
   private val partialObjectsPerKey = new mutable.HashMap[List[Object], List[Object]]()
-  private var aggFuncs :List[DistributedAggregation[Object]]= _
+  private var aggFuncs: List[DistributedAggregation[Object]] = _
   override def open(): Unit = {}
   override def close(): Unit = {}
 
@@ -31,8 +31,11 @@ class AggregateOpExec(
           .filter(_.nonEmpty)
           .map(_.map(k => t.getField[Object](k)))
           .getOrElse(List.empty)
+        if (aggFuncs == null) {
+          aggFuncs =
+            aggregations.map(agg => agg.getAggFunc(t.getSchema.getAttribute(agg.attribute).getType))
+        }
 
-        aggFuncs = aggregations.map(agg => agg.getAggFunc(t.getSchema.getAttribute(agg.attribute).getType))
         val partialObjects =
           partialObjectsPerKey.getOrElseUpdate(key, aggFuncs.map(aggFunc => aggFunc.init()))
         val updatedPartialObjects = aggFuncs.zip(partialObjects).map {
