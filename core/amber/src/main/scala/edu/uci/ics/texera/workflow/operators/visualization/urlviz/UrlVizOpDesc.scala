@@ -14,7 +14,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-import scala.collection.mutable
 
 /**
   * URL Visualization operator to render any content in given URL link

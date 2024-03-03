@@ -13,7 +13,6 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
-import scala.collection.mutable
 
 class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
 

@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
-import scala.collection.mutable
 import scala.util.{Success, Try}
 
 class PythonUDFOpDescV2 extends LogicalOp {

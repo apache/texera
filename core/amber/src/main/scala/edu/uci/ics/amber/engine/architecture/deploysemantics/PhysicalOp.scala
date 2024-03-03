@@ -31,7 +31,6 @@ import edu.uci.ics.texera.workflow.common.workflow._
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 
 case object SchemaPropagation {

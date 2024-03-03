@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
-import scala.collection.mutable
 
 class BulkDownloaderOpDesc extends LogicalOp {
 

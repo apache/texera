@@ -14,7 +14,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-import scala.collection.mutable
 
 /**
   * HTML Visualization operator to render any given HTML code

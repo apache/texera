@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 
-import scala.collection.mutable
 
 class RegexOpDesc extends FilterOpDesc {
 

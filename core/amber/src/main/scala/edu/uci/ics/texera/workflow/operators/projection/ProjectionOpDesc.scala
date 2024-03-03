@@ -18,7 +18,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   UnknownPartition
 }
 
-import scala.collection.mutable
 
 class ProjectionOpDesc extends MapOpDesc {
 

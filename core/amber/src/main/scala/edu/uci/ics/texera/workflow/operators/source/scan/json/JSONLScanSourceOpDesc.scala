@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
-import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 

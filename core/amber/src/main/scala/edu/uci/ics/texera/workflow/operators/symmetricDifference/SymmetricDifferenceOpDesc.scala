@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
-import scala.collection.mutable
 
 class SymmetricDifferenceOpDesc extends LogicalOp {
 

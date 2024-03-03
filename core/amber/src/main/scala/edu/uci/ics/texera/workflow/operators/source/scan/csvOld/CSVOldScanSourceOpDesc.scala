@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.IOException
-import scala.collection.mutable
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 

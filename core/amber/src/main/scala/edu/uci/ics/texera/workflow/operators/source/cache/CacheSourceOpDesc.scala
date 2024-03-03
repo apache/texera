@@ -13,7 +13,6 @@ import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescrip
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-import scala.collection.mutable
 
 class CacheSourceOpDesc(val targetSinkStorageId: OperatorIdentity, opResultStorage: OpResultStorage)
     extends SourceOperatorDescriptor {

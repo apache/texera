@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
-import scala.collection.mutable
 
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 

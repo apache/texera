@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.operators.flatmap.FlatMapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 
-import scala.collection.mutable
 
 class UnnestStringOpDesc extends FlatMapOpDesc {
   @JsonProperty(value = "Delimiter", required = true, defaultValue = ",")

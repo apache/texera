@@ -4,7 +4,6 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, Schema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
-import scala.collection.mutable
 
 trait PythonOperatorDescriptor extends LogicalOp {
   override def getPhysicalOp(

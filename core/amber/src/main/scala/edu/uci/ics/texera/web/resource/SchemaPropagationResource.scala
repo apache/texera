@@ -6,7 +6,7 @@ import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.http.response.SchemaPropagationResponse
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan, WorkflowCompiler}
+import edu.uci.ics.texera.workflow.common.workflow.{LogicalPlan, PhysicalPlan}
 import io.dropwizard.auth.Auth
 import org.jooq.types.UInteger
 

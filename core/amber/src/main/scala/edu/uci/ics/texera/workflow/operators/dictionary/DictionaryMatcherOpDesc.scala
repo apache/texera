@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
-import scala.collection.mutable
 
 /**
   * Dictionary matcher operator matches a tuple if the specified column is in the given dictionary.

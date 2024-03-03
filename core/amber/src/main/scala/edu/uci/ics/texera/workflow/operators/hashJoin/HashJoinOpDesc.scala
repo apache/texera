@@ -5,7 +5,6 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
   PhysicalOpIdentity,
@@ -21,7 +20,6 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
 
-import scala.collection.mutable
 
 object HashJoinOpDesc {
   val HASH_JOIN_INTERNAL_KEY_NAME = "__internal__hashtable__key__"

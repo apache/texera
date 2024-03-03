@@ -12,7 +12,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, Physic
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
 import edu.uci.ics.texera.workflow.operators.source.cache.CacheSourceOpDesc

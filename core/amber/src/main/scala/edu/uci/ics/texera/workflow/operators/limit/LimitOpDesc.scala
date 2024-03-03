@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFun
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
-import scala.collection.mutable
 import scala.util.{Success, Try}
 
 class LimitOpDesc extends LogicalOp {

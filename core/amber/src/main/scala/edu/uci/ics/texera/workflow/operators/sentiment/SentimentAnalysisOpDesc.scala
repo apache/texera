@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sentiment
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
@@ -12,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
-import scala.collection.mutable
 
 @JsonSchemaInject(json = """
 {

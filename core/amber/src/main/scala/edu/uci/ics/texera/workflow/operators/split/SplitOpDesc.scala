@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
-import scala.collection.mutable
 import scala.util.Random
 
 class SplitOpDesc extends LogicalOp {

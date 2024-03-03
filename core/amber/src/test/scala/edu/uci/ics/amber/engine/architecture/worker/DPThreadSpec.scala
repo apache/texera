@@ -36,7 +36,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
-import scala.collection.mutable
 
 class DPThreadSpec extends AnyFlatSpec with MockFactory {
 

@@ -11,7 +11,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
-import scala.collection.mutable
 
 class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDesc {
   @JsonProperty(required = true)
