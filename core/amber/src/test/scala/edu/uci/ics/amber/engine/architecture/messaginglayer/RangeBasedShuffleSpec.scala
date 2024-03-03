@@ -16,16 +16,17 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
   val fakeID4: ActorVirtualIdentity = ActorVirtualIdentity("rec4")
   val fakeID5: ActorVirtualIdentity = ActorVirtualIdentity("rec5")
 
+  val attr: Attribute = new Attribute("Attr1", AttributeType.INTEGER)
+  val schema: Schema = Schema.builder().add(attr).build()
   val partitioning: RangeBasedShufflePartitioning =
     RangeBasedShufflePartitioning(
       400,
       List(fakeID1, fakeID2, fakeID3, fakeID4, fakeID5),
-      Seq(0),
+      Seq("Attr1"),
       -400,
       600
     )
-  val attr: Attribute = new Attribute("Attr1", AttributeType.INTEGER)
-  val schema: Schema = Schema.builder().add(attr).build()
+
 
   val partitioner: RangeBasedShufflePartitioner = RangeBasedShufflePartitioner(partitioning)
 
