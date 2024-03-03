@@ -44,7 +44,8 @@ class ProjectionOpDesc extends MapOpDesc {
       case HashPartition(hashAttributeNames) =>
         if (hashAttributeNames.nonEmpty) HashPartition(hashAttributeNames) else UnknownPartition()
       case RangePartition(rangeAttributeNames, min, max) =>
-        if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max) else UnknownPartition()
+        if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max)
+        else UnknownPartition()
       case SinglePartition()    => inputPartitionInfo
       case BroadcastPartition() => inputPartitionInfo
       case UnknownPartition()   => inputPartitionInfo

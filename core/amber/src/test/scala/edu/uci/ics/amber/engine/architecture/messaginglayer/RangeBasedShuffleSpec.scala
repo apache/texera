@@ -27,7 +27,6 @@ class RangeBasedShuffleSpec extends AnyFlatSpec with MockFactory {
       600
     )
 
-
   val partitioner: RangeBasedShufflePartitioner = RangeBasedShufflePartitioner(partitioning)
 
   "RangeBasedShuffleSpec" should "return 0 when value is less than rangeMin" in {
