@@ -1,6 +1,5 @@
 package edu.uci.ics.amber.engine.e2e
 
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.aggregate.{
   AggregateOpDesc,
   AggregationFunction,
