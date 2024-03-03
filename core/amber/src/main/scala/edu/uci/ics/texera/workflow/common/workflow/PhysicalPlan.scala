@@ -2,7 +2,6 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -11,15 +10,10 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.collection.mutable
-import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, SetHasAsScala}
-import scala.util.{Failure, Success, Try}
 
 object PhysicalPlan {
 
@@ -78,25 +72,6 @@ case class PhysicalPlan(
 
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
-
-  def getSinkOperatorIds: Set[PhysicalOpIdentity] =
-    operatorMap.keys
-      .filter(op => dag.outDegreeOf(op) == 0)
-      .toSet
-
-  private def getPhysicalOpForInputPort(
-      logicalOpId: OperatorIdentity,
-      portId: PortIdentity
-  ): PhysicalOp = {
-    assert(!portId.internal, "only support external port")
-    val candidatePhysicalOps =
-      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.inputPorts.contains(portId))
-    assert(
-      candidatePhysicalOps.size == 1,
-      s"find ${candidatePhysicalOps.size} input port(s) with id = $portId for operator $logicalOpId"
-    )
-    candidatePhysicalOps.head
-  }
 
   private def getPhysicalOpForOutputPort(
       logicalOpId: OperatorIdentity,
@@ -179,25 +154,6 @@ case class PhysicalPlan(
 
   def setOperator(physicalOp: PhysicalOp): PhysicalPlan = {
     this.copy(operators = (operatorMap + (physicalOp.id -> physicalOp)).values.toSet)
-  }
-
-  private def addSubPlan(subPlan: PhysicalPlan): PhysicalPlan = {
-    var resultPlan = this.copy(operators, links)
-    // add all physical operators to physical DAG
-    subPlan
-      .topologicalIterator()
-      .foreach({ physicalOpId =>
-        {
-          val physicalOp = subPlan.getOperator(physicalOpId)
-
-        }
-      })
-    subPlan.operators.foreach(op => resultPlan = resultPlan.addOperator(op))
-    // connect intra-operator links
-    subPlan.links.foreach((physicalLink: PhysicalLink) =>
-      resultPlan = resultPlan.addLink(physicalLink)
-    )
-    resultPlan
   }
 
   def getPhysicalOpByWorkerId(workerId: ActorVirtualIdentity): PhysicalOp =
@@ -286,50 +242,6 @@ case class PhysicalPlan(
     upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
       getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
     }
-  }
-
-  def propagateWorkflowSchema(): PhysicalPlan = {
-
-    // propagate output schema following topological order
-    val allSchemas: mutable.HashMap[GlobalPortIdentity, Schema] = mutable.HashMap()
-    val newOps = topologicalIterator().map(opId => {
-      val op = getOperator(opId)
-
-      val inputSchemas = mutable.Map(
-        op.inputPorts.keys
-          .map(portId => GlobalPortIdentity(op.id, portId, input = true))
-          .map(globalPortId => globalPortId.portId -> allSchemas(globalPortId))
-          .toMap
-          .toSeq: _*
-      )
-      val outputSchemas = mutable.Map(op.propagateSchemas.func(inputSchemas.toMap).toSeq: _*)
-
-      // reassign
-      val newOp = op
-        .copy()
-        .withInputPorts(
-          op.inputPorts.values.map(_._1).toList,
-          inputSchemas,
-          op.inputPorts.map({
-            case (portId, (port, links, schema)) => portId -> links
-          })
-        )
-        .withOutputPorts(
-          op.outputPorts.values.map(_._1).toList,
-          outputSchemas,
-          op.outputPorts.map({
-            case (portId, (port, links, schema)) => portId -> links
-          })
-        )
-      op.outputPorts.foreach {
-        case (_, (_, links, schema)) =>
-          links.foreach(link =>
-            allSchemas(GlobalPortIdentity(link.toOpId, link.toPortId, input = true)) = schema.get
-          )
-      }
-      newOp
-    })
-    PhysicalPlan(newOps.toSet, this.links)
   }
 
 }
