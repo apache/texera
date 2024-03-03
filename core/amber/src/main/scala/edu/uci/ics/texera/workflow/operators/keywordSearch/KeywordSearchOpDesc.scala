@@ -10,6 +10,8 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 
+import scala.collection.mutable
+
 class KeywordSearchOpDesc extends FilterOpDesc {
 
   @JsonProperty(required = true)
@@ -34,8 +36,8 @@ class KeywordSearchOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new KeywordSearchOpExec(attribute, keyword))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
   }
 
   override def operatorInfo: OperatorInfo =

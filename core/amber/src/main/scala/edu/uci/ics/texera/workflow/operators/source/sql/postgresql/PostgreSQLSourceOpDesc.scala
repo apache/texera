@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.sql.postgresql
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
@@ -13,6 +13,7 @@ import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
+import scala.collection.mutable
 class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
 
   @JsonProperty()
@@ -55,8 +56,9 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "PostgreSQL Source",

@@ -10,6 +10,8 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
 
+import scala.collection.mutable
+
 class RegexOpDesc extends FilterOpDesc {
 
   @JsonProperty(value = "attribute", required = true)
@@ -37,8 +39,8 @@ class RegexOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new RegexOpExec(regex, caseInsensitive, attribute))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
   }
 
   override def operatorInfo: OperatorInfo =

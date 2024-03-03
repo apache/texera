@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
+import scala.collection.mutable
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -56,8 +57,8 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
               )
             )
           )
-          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+          .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+          .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
           .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> inferSchema())))
       case None =>
         throw new RuntimeException("File path is not provided.")

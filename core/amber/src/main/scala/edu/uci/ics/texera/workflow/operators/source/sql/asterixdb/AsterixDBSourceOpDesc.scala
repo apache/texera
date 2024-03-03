@@ -1,30 +1,21 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.asterixdb
 
-import com.fasterxml.jackson.annotation.{
-  JsonIgnoreProperties,
-  JsonProperty,
-  JsonPropertyDescription
-}
+import com.fasterxml.jackson.annotation.{JsonIgnoreProperties, JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
-import edu.uci.ics.texera.workflow.common.metadata.annotations.{
-  AutofillAttributeName,
-  AutofillAttributeNameList,
-  UIWidget
-}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.{AutofillAttributeName, AutofillAttributeNameList, UIWidget}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.filter.FilterPredicate
 import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
-import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{
-  fetchDataTypeFields,
-  queryAsterixDB
-}
+import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnUtil.{fetchDataTypeFields, queryAsterixDB}
 import kong.unirest.json.JSONObject
+
+import scala.collection.mutable
 
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
@@ -125,8 +116,9 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
 
   override def sourceSchema(): Schema = {
     if (this.host == null || this.port == null || this.database == null || this.table == null)

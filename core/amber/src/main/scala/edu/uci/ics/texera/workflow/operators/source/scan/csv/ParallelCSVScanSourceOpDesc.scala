@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, IOException}
+import scala.collection.mutable
 
 class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -63,8 +64,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               )
             })
           )
-          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+          .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+          .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
           .withParallelizable(true)
           .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> inferSchema())))
 

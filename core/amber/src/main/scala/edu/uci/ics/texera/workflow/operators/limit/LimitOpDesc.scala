@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, StateTransferFun
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
+import scala.collection.mutable
 import scala.util.{Success, Try}
 
 class LimitOpDesc extends LogicalOp {
@@ -33,8 +34,8 @@ class LimitOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new LimitOpExec(limitPerWorker(idx)))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
   }
 
   override def operatorInfo: OperatorInfo =

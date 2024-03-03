@@ -33,6 +33,7 @@ object PhysicalPlan {
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(
       logicalOpId => {
+        println("expanding " + logicalOpId)
         val logicalOp = logicalPlan.getOperator(logicalOpId)
         logicalOp.setContext(context)
 

@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.scan.json.JSONUtil.JSONToMap
 
 import java.io.{BufferedReader, FileInputStream, IOException, InputStreamReader}
+import scala.collection.mutable
 import scala.collection.mutable.ArrayBuffer
 import scala.jdk.CollectionConverters.IteratorHasAsScala
 
@@ -61,8 +62,8 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
               )
             })
           )
-          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+          .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+          .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
           .withParallelizable(true)
           .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> inferSchema())))
 

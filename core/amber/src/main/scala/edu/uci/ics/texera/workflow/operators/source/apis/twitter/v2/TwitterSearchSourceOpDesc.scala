@@ -1,17 +1,15 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{
-  JsonSchemaDescription,
-  JsonSchemaInject,
-  JsonSchemaTitle
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
+
+import scala.collection.mutable
 
 class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
 
@@ -50,8 +48,9 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
 
   override def sourceSchema(): Schema = {
 

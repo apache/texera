@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.sql.mysql
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
@@ -9,6 +9,7 @@ import edu.uci.ics.texera.workflow.operators.source.sql.SQLSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.sql.mysql.MySQLConnUtil.connect
 
 import java.sql.{Connection, SQLException}
+import scala.collection.mutable
 
 class MySQLSourceOpDesc extends SQLSourceOpDesc {
 
@@ -43,8 +44,9 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

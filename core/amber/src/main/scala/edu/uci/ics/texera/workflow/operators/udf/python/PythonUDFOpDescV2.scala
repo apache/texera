@@ -12,6 +12,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
+import scala.collection.mutable
 import scala.util.{Success, Try}
 
 class PythonUDFOpDescV2 extends LogicalOp {
@@ -98,8 +99,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
@@ -109,8 +110,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
       PhysicalOp
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(false)

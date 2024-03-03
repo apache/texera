@@ -11,6 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
+import scala.collection.mutable
 import scala.util.Random
 
 class SplitOpDesc extends LogicalOp {
@@ -34,8 +35,8 @@ class SplitOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new SplitOpExec(k, idx, seeds.apply))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => operatorInfo.outputPorts.map(_.id).map(id=> id-> inputSchemas(operatorInfo.inputPorts.head.id)).toMap))
   }
 

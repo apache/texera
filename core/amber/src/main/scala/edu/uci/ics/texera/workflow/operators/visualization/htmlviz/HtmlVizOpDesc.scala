@@ -2,17 +2,16 @@ package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{
-  VisualizationConstants,
-  VisualizationOperator
-}
+import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+
+import scala.collection.mutable
 
 /**
   * HTML Visualization operator to render any given HTML code
@@ -29,8 +28,6 @@ class HtmlVizOpDesc extends VisualizationOperator {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -38,8 +35,9 @@ class HtmlVizOpDesc extends VisualizationOperator {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
+      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray))))
   }
 
   override def operatorInfo: OperatorInfo =
