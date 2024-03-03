@@ -16,7 +16,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
 import scala.Tuple3;
-import scala.collection.immutable.HashMap;
 
 
 import java.util.ArrayList;
@@ -42,8 +41,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                                         x -> new SpecializedFilterOpExec(this)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), new HashMap<>())
-                .withOutputPorts(operatorInfo().outputPorts(), new HashMap<>());
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts());
     }
 
     @Override

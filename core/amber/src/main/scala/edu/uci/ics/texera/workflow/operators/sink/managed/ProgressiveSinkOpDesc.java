@@ -23,7 +23,6 @@ import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
 import scala.Tuple3;
-import scala.collection.immutable.HashMap;
 import scala.collection.immutable.Map;
 
 import java.io.Serializable;
@@ -67,8 +66,8 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                                 worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter())
                 )
         )
-                .withInputPorts(this.operatorInfo().inputPorts(), new HashMap<>())
-                .withOutputPorts(this.operatorInfo().outputPorts(), new HashMap<>())
+                .withInputPorts(this.operatorInfo().inputPorts())
+                .withOutputPorts(this.operatorInfo().outputPorts())
                 .withPropagateSchema(
                         SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
                             // Initialize a Java HashMap

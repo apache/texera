@@ -35,8 +35,8 @@ import scala.collection.mutable.ArrayBuffer
 
 case object SchemaPropagation {
 
-  type ScalaSchemaPropagationFunc = Map[PortIdentity, Schema] => Map[PortIdentity, Schema]
-  type JavaSchemaPropagationFunc =
+  private type ScalaSchemaPropagationFunc = Map[PortIdentity, Schema] => Map[PortIdentity, Schema]
+  private type JavaSchemaPropagationFunc =
     java.util.function.Function[Map[PortIdentity, Schema], Map[PortIdentity, Schema]]
       with java.io.Serializable
 
@@ -206,10 +206,6 @@ case class PhysicalOp(
     inputPorts.isEmpty
   }
 
-  def isSinkOperator: Boolean = {
-    outputPorts.isEmpty
-  }
-
   def isPythonOperator: Boolean = {
     isInitWithCode // currently, only Python operators are initialized with code
   }
@@ -229,36 +225,30 @@ case class PhysicalOp(
   }
 
   /**
-    * Creates a copy of the PhysicalOp with the specified input ports and associated links.
+    * Creates a copy of the PhysicalOp with the specified input ports. Each input port is associated
+    * with an empty list of links and a None schema, reflecting the absence of predefined connections
+    * and schema information.
     *
-    * @param inputs A list of InputPort instances to be set.
-    * @param links A mapping from PortIdentity to a list of PhysicalLink instances, defaulting to an empty map.
-    * @return A new PhysicalOp instance with updated input ports.
+    * @param inputs A list of InputPort instances to set as the new input ports.
+    * @return A new instance of PhysicalOp with the input ports updated.
     */
-  def withInputPorts(
-      inputs: List[InputPort],
-      links: Map[PortIdentity, List[PhysicalLink]] = Map()
-  ): PhysicalOp = {
+  def withInputPorts(inputs: List[InputPort]): PhysicalOp = {
     this.copy(inputPorts =
-      inputs.map(input => input.id -> (input, links.getOrElse(input.id, List.empty), None)).toMap
+      inputs.map(input => input.id -> (input, List.empty[PhysicalLink], None)).toMap
     )
   }
 
   /**
-    * Creates a copy of the PhysicalOp with the specified output ports and associated links.
+    * Creates a copy of the PhysicalOp with the specified output ports. Each output port is
+    * initialized with an empty list of links and a None schema, indicating
+    * the absence of outbound connections and schema details at this stage.
     *
-    * @param outputs A list of OutputPort instances to be set.
-    * @param links A mapping from PortIdentity to a list of PhysicalLink instances, defaulting to an empty map.
-    * @return A new PhysicalOp instance with updated output ports.
+    * @param outputs A list of OutputPort instances to set as the new output ports.
+    * @return A new instance of PhysicalOp with the output ports updated.
     */
-  def withOutputPorts(
-      outputs: List[OutputPort],
-      links: Map[PortIdentity, List[PhysicalLink]] = Map()
-  ): PhysicalOp = {
+  def withOutputPorts(outputs: List[OutputPort]): PhysicalOp = {
     this.copy(outputPorts =
-      outputs
-        .map(output => output.id -> (output, links.getOrElse(output.id, List.empty), None))
-        .toMap
+      outputs.map(output => output.id -> (output, List.empty[PhysicalLink], None)).toMap
     )
   }
 
@@ -302,15 +292,31 @@ case class PhysicalOp(
     this.copy(blockingInputs = blockingInputs)
   }
 
+  /**
+    * Updates the schema of a specified input port.
+    *
+    * @param portId The identity of the port to update.
+    * @param schema The new schema to be associated with the port.
+    * @return A new instance of PhysicalOp with the updated input port schema.
+    */
   private def setInputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
     this.copy(inputPorts = inputPorts.updatedWith(portId) {
       case Some((port, links, _)) => Some((port, links, schema))
+      case None                   => None
     })
   }
 
+  /**
+    * Updates the schema of a specified output port.
+    *
+    * @param portId The identity of the port to update.
+    * @param schema The new schema to be associated with the port.
+    * @return A new instance of PhysicalOp with the updated output port schema.
+    */
   private def setOutputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
     this.copy(outputPorts = outputPorts.updatedWith(portId) {
       case Some((port, links, _)) => Some((port, links, schema))
+      case None                   => None
     })
   }
 

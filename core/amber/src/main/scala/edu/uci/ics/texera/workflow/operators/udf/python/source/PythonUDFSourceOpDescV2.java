@@ -20,7 +20,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
 import scala.Option;
-import scala.collection.immutable.HashMap;
 import scala.collection.immutable.Map;
 
 import java.io.Serializable;
@@ -71,8 +70,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     )
                     .withParallelizable(true)
                     .withSuggestedWorkerNum(workers)
-                    .withInputPorts(operatorInfo().inputPorts(), new HashMap<>())
-                    .withOutputPorts(operatorInfo().outputPorts(), new HashMap<>())
+                    .withInputPorts(operatorInfo().inputPorts())
+                    .withOutputPorts(operatorInfo().outputPorts())
                     .withIsOneToManyOp(true)
                     .withPropagateSchema(
                             SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
@@ -94,8 +93,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(false)
-                    .withInputPorts(operatorInfo().inputPorts(), new HashMap<>())
-                    .withOutputPorts(operatorInfo().outputPorts(), new HashMap<>())
+                    .withInputPorts(operatorInfo().inputPorts())
+                    .withOutputPorts(operatorInfo().outputPorts())
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
         }
