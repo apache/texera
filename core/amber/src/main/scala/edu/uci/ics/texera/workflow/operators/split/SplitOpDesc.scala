@@ -35,8 +35,8 @@ class SplitOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new SplitOpExec(k, idx, seeds.apply))
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>
           operatorInfo.outputPorts

@@ -64,8 +64,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         testOpId.logicalOpId,
         OpExecInitInfo((_, _, _) => operator)
       )
-      .withInputPorts(List(InputPort()), mutable.Map(PortIdentity() -> null))
-      .withOutputPorts(List(OutputPort()), mutable.Map(PortIdentity() -> null))
+      .withInputPorts(List(InputPort()))
+      .withOutputPorts(List(OutputPort()))
       .addInputLink(link)
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]

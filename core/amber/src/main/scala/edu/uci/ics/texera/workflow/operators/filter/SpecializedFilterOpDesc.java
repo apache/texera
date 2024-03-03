@@ -17,14 +17,12 @@ import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
 import scala.Tuple3;
 import scala.collection.immutable.HashMap;
-import scala.collection.immutable.Seq;
 
 
 import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.*;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
@@ -44,8 +42,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                                         x -> new SpecializedFilterOpExec(this)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
-                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>());
+                .withInputPorts(operatorInfo().inputPorts(), new HashMap<>())
+                .withOutputPorts(operatorInfo().outputPorts(), new HashMap<>());
     }
 
     @Override

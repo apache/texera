@@ -230,37 +230,35 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with the input ports
+    * Creates a copy of the PhysicalOp with the specified input ports and associated links.
+    *
+    * @param inputs A list of InputPort instances to be set.
+    * @param links A mapping from PortIdentity to a list of PhysicalLink instances, defaulting to an empty map.
+    * @return A new PhysicalOp instance with updated input ports.
     */
   def withInputPorts(
       inputs: List[InputPort],
-      inputPortToSchemaMapping: mutable.Map[PortIdentity, Schema],
       links: Map[PortIdentity, List[PhysicalLink]] = Map()
   ): PhysicalOp = {
     this.copy(inputPorts =
-      inputs
-        .map(input =>
-          input.id -> (input, links.getOrElse(input.id, List()), inputPortToSchemaMapping
-            .get(input.id))
-        )
-        .toMap
+      inputs.map(input => input.id -> (input, links.getOrElse(input.id, List.empty), None)).toMap
     )
   }
 
   /**
-    * creates a copy with the output ports
+    * Creates a copy of the PhysicalOp with the specified output ports and associated links.
+    *
+    * @param outputs A list of OutputPort instances to be set.
+    * @param links A mapping from PortIdentity to a list of PhysicalLink instances, defaulting to an empty map.
+    * @return A new PhysicalOp instance with updated output ports.
     */
   def withOutputPorts(
       outputs: List[OutputPort],
-      outputPortToSchemaMapping: mutable.Map[PortIdentity, Schema],
       links: Map[PortIdentity, List[PhysicalLink]] = Map()
   ): PhysicalOp = {
     this.copy(outputPorts =
       outputs
-        .map(output =>
-          output.id -> (output, links.getOrElse(output.id, List()), outputPortToSchemaMapping
-            .get(output.id))
-        )
+        .map(output => output.id -> (output, links.getOrElse(output.id, List.empty), None))
         .toMap
     )
   }

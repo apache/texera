@@ -73,11 +73,8 @@ class HashJoinOpDesc[K] extends LogicalOp {
           executionId,
           OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
         )
-        .withInputPorts(List(buildInputPort), mutable.Map())
-        .withOutputPorts(
-          List(buildOutputPort),
-          mutable.Map()
-        )
+        .withInputPorts(List(buildInputPort))
+        .withOutputPorts(List(buildOutputPort))
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
@@ -115,10 +112,9 @@ class HashJoinOpDesc[K] extends LogicalOp {
           List(
             probeBuildInputPort,
             probeDataInputPort
-          ),
-          mutable.Map()
+          )
         )
-        .withOutputPorts(List(probeOutputPort), mutable.Map())
+        .withOutputPorts(List(probeOutputPort))
         .withPartitionRequirement(
           List(
             Option(HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME))),

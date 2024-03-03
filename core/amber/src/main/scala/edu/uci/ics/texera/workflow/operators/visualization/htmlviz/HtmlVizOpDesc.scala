@@ -38,8 +38,8 @@ class HtmlVizOpDesc extends VisualizationOperator {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName))
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>
           Map(

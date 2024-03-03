@@ -6,7 +6,6 @@ import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagation;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.AmberUtils;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
@@ -72,8 +71,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     )
                     .withParallelizable(true)
                     .withSuggestedWorkerNum(workers)
-                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
-                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>())
+                    .withInputPorts(operatorInfo().inputPorts(), new HashMap<>())
+                    .withOutputPorts(operatorInfo().outputPorts(), new HashMap<>())
                     .withIsOneToManyOp(true)
                     .withPropagateSchema(
                             SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
@@ -95,8 +94,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(false)
-                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
-                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>())
+                    .withInputPorts(operatorInfo().inputPorts(), new HashMap<>())
+                    .withOutputPorts(operatorInfo().outputPorts(), new HashMap<>())
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
         }

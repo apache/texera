@@ -64,8 +64,8 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
       )

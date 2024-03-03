@@ -25,8 +25,8 @@ class DistinctOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new DistinctOpExec())
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
   }

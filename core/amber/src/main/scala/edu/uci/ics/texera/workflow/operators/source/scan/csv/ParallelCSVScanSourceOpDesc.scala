@@ -64,8 +64,8 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
               )
             })
           )
-          .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-          .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+          .withInputPorts(operatorInfo.inputPorts)
+          .withOutputPorts(operatorInfo.outputPorts)
           .withParallelizable(true)
           .withPropagateSchema(
             SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))

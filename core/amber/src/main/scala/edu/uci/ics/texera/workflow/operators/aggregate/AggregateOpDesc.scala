@@ -47,11 +47,8 @@ class AggregateOpDesc extends LogicalOp {
           OpExecInitInfo((_, _, _) => new AggregateOpExec(aggregations, groupByKeys))
         )
         .withIsOneToManyOp(true)
-        .withInputPorts(List(InputPort(PortIdentity())), mutable.Map())
-        .withOutputPorts(
-          List(outputPort),
-          mutable.Map()
-        )
+        .withInputPorts(List(InputPort(PortIdentity())))
+        .withOutputPorts(List(outputPort))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
             Map(PortIdentity(internal = true) -> {
@@ -100,11 +97,8 @@ class AggregateOpDesc extends LogicalOp {
       )
       .withParallelizable(false)
       .withIsOneToManyOp(true)
-      .withInputPorts(List(inputPort), mutable.Map())
-      .withOutputPorts(
-        List(OutputPort(PortIdentity(0))),
-        mutable.Map()
-      )
+      .withInputPorts(List(inputPort))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>
           Map(operatorInfo.outputPorts.head.id -> {

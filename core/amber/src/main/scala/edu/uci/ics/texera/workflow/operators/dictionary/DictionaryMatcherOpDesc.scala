@@ -45,8 +45,8 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
           new DictionaryMatcherOpExec(attribute, dictionary, matchingType)
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>
           Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))

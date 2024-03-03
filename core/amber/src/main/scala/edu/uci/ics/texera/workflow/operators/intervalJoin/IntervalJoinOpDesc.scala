@@ -97,8 +97,8 @@ class IntervalJoinOpDesc extends LogicalOp {
           )
         )
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>

@@ -36,8 +36,8 @@ class KeywordSearchOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new KeywordSearchOpExec(attribute, keyword))
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

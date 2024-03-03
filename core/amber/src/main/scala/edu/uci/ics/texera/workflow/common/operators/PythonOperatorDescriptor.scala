@@ -21,8 +21,8 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withParallelizable(parallelizable())
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
@@ -41,8 +41,8 @@ trait PythonOperatorDescriptor extends LogicalOp {
           operatorIdentifier,
           OpExecInitInfo(generatedCode)
         )
-        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withParallelizable(parallelizable())
     }
   }

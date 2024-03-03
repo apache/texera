@@ -67,8 +67,8 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                                 worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter())
                 )
         )
-                .withInputPorts(this.operatorInfo().inputPorts(), inputPortToSchemaMapping(), new HashMap<>())
-                .withOutputPorts(this.operatorInfo().outputPorts(), outputPortToSchemaMapping(), new HashMap<>())
+                .withInputPorts(this.operatorInfo().inputPorts(), new HashMap<>())
+                .withOutputPorts(this.operatorInfo().outputPorts(), new HashMap<>())
                 .withPropagateSchema(
                         SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
                             // Initialize a Java HashMap

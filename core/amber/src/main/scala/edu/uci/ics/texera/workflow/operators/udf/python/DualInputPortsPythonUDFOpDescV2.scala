@@ -74,8 +74,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
@@ -88,8 +88,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-        .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>

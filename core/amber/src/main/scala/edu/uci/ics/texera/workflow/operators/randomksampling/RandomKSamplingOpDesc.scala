@@ -39,8 +39,8 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((idx, _, _) => new RandomKSamplingOpExec(percentage, idx, getSeed))
       )
-      .withInputPorts(operatorInfo.inputPorts, mutable.Map())
-      .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =
