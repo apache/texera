@@ -3,6 +3,7 @@ import { WorkflowPersistService } from "../../../common/service/workflow-persist
 import { UserService } from "../../../common/service/user/user.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { FlarumService } from "../service/flarum/flarum.service";
+import { HttpErrorResponse } from "@angular/common/http";
 
 /**
  * dashboardComponent is the component which contains all the subcomponents
@@ -20,6 +21,7 @@ import { FlarumService } from "../service/flarum/flarum.service";
 @UntilDestroy()
 export class DashboardComponent implements OnInit {
   isAdmin = this.userService.isAdmin();
+  displayForum = true;
 
   constructor(
     private userService: UserService,
@@ -36,10 +38,14 @@ export class DashboardComponent implements OnInit {
             document.cookie = `flarum_remember=${response.token};path=/`;
           },
           error: (err: unknown) => {
-            this.flarumService
-              .register()
-              .pipe(untilDestroyed(this))
-              .subscribe(() => this.ngOnInit());
+            if ((err as HttpErrorResponse).status == 404) {
+              this.displayForum = false;
+            } else {
+              this.flarumService
+                .register()
+                .pipe(untilDestroyed(this))
+                .subscribe(() => this.ngOnInit());
+            }
           },
         });
     }
