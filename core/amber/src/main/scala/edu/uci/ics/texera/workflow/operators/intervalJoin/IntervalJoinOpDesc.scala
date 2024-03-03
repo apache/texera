@@ -16,7 +16,6 @@ import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
-
 /** This Operator have two assumptions:
   * 1. The tuples in both inputs come in ascending order
   * 2. The left input join key takes as points, join condition is: left key in the range of (right key, right key + constant)

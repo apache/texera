@@ -8,7 +8,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
-
 class CartesianProductOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,

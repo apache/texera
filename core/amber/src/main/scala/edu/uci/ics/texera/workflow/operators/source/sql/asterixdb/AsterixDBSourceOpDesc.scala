@@ -26,7 +26,6 @@ import edu.uci.ics.texera.workflow.operators.source.sql.asterixdb.AsterixDBConnU
 }
 import kong.unirest.json.JSONObject
 
-
 @JsonIgnoreProperties(value = Array("username", "password"))
 class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
 

@@ -33,7 +33,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 
-
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("sender"), "main")

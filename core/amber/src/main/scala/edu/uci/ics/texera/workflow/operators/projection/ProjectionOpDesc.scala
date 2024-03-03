@@ -18,7 +18,6 @@ import edu.uci.ics.texera.workflow.common.workflow.{
   UnknownPartition
 }
 
-
 class ProjectionOpDesc extends MapOpDesc {
 
   var attributes: List[AttributeUnit] = List()

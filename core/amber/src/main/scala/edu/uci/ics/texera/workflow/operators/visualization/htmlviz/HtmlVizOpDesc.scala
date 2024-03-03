@@ -14,7 +14,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-
 /**
   * HTML Visualization operator to render any given HTML code
   * This is the description of the operator

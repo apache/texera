@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 
-
 class URLFetcherOpDesc extends SourceOperatorDescriptor {
 
   @JsonProperty(required = true)

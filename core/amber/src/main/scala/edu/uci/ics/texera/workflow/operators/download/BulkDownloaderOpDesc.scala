@@ -12,7 +12,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 
-
 class BulkDownloaderOpDesc extends LogicalOp {
 
   @JsonProperty(required = true)

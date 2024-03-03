@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.mlmodel.MLModelOpDesc
 
-
 class LinearRegressionOpDesc extends MLModelOpDesc {
 
   @JsonProperty(value = "x attribute", required = true)

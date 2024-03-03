@@ -14,7 +14,6 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationOperator
 }
 
-
 /**
   * URL Visualization operator to render any content in given URL link
   * This is the description of the operator
