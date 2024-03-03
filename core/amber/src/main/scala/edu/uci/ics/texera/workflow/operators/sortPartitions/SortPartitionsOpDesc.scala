@@ -44,12 +44,10 @@ class SortPartitionsOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val inputSchema =
-      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
     val partitionRequirement = List(
       Option(
         RangePartition(
-          List(inputSchema.getIndex(sortAttributeName)),
+          List(sortAttributeName),
           domainMin,
           domainMax
         )
