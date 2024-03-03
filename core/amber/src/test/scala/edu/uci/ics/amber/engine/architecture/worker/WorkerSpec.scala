@@ -47,13 +47,15 @@ class WorkerSpec
     with BeforeAndAfterAll
     with MockFactory {
 
-  def mkTuple(fields: Any*): Tuple = {
+  def mkSchema(fields: Any*): Schema = {
     val schemaBuilder = Schema.builder()
     fields.indices.foreach { i =>
       schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
     }
-    val schema = schemaBuilder.build()
-    Tuple.builder(schema).addSequentially(fields.toArray).build()
+    schemaBuilder.build()
+  }
+  def mkTuple(fields: Any*): Tuple = {
+    Tuple.builder(mkSchema(fields: _*)).addSequentially(fields.toArray).build()
   }
 
   override def beforeAll(): Unit = {
@@ -95,16 +97,12 @@ class WorkerSpec
   )
   private val mockLink =
     PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, PortIdentity())
-  private val physicalOp = PhysicalOp
+  private var physicalOp = PhysicalOp
     .oneToOnePhysicalOp(
       DEFAULT_WORKFLOW_ID,
       DEFAULT_EXECUTION_ID,
       operatorIdentity,
       OpExecInitInfo((_, _, _) => mockOpExecutor)
-    )
-    .copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
 
   private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
@@ -167,9 +165,13 @@ class WorkerSpec
   }
 
   "Worker" should "process data messages correctly" in {
+    physicalOp = physicalOp.copy(
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Some(mkSchema(1)))),
+      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Some(mkSchema(1))))
+    )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockLink, null).once()
+    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockLink, mkSchema(1)).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
@@ -198,12 +200,17 @@ class WorkerSpec
     ignoreMsg {
       case a => println(a); true
     }
+    physicalOp = physicalOp.copy(
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Some(mkSchema(1, 1, 1, 1)))),
+      outputPorts =
+        Map(PortIdentity() -> (OutputPort(), List(mockLink), Some(mkSchema(1, 1, 1, 1))))
+    )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     def mkBatch(start: Int, end: Int): Array[Tuple] = {
       (start until end).map { x =>
         (mockOutputManager.passTupleToDownstream _)
-          .expects(mkTuple(x, x, x, x), mockLink, null)
+          .expects(mkTuple(x, x, x, x), mockLink, mkSchema(x, x, x, x))
           .once()
         mkTuple(x, x, x, x)
       }.toArray
@@ -256,6 +263,10 @@ class WorkerSpec
     ignoreMsg {
       case a => println(a); true
     }
+    physicalOp = physicalOp.copy(
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Some(mkSchema(1)))),
+      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Some(mkSchema(1))))
+    )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
@@ -291,7 +302,9 @@ class WorkerSpec
     )
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(mkTuple(i), mockLink, null).once()
+        (mockOutputManager.passTupleToDownstream _)
+          .expects(mkTuple(i), mockLink, mkSchema(i))
+          .once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
@@ -307,7 +320,9 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(mkTuple(i), mockLink, null).once()
+        (mockOutputManager.passTupleToDownstream _)
+          .expects(mkTuple(i), mockLink, mkSchema(i))
+          .once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(

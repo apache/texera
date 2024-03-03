@@ -38,8 +38,6 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictionaryScan
     opDesc.resultAttribute = "matched"
     opDesc.matchingType = MatchingType.SCANBASED
-    opDesc.inputPortToSchemaMapping(PortIdentity()) = tupleSchema
-    opDesc.outputPortToSchemaMapping(PortIdentity()) = opDesc.getOutputSchema(Array(tupleSchema))
     outputSchema = opDesc.getOutputSchema(Array(tupleSchema))
   }
 

@@ -49,8 +49,6 @@ object TestOperators {
     csvHeaderlessOp.fileName = Some(fileName)
     csvHeaderlessOp.customDelimiter = Some(",")
     csvHeaderlessOp.hasHeader = header
-    csvHeaderlessOp.outputPortToSchemaMapping(PortIdentity()) =
-      csvHeaderlessOp.getOutputSchema(Array())
     csvHeaderlessOp
 
   }
