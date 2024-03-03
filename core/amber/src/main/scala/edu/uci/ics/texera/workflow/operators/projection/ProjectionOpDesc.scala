@@ -40,20 +40,11 @@ class ProjectionOpDesc extends MapOpDesc {
   def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
     val inputPartitionInfo = partition.head
 
-    // mapping from original column index to new column index
-    lazy val columnIndicesMapping: Map[Int, Int] = attributes.view
-      .map(attr =>
-        inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
-          .getIndex(attr.getOriginalAttribute) -> attributes.indexOf(attr)
-      )
-      .toMap
-
     val outputPartitionInfo = inputPartitionInfo match {
       case HashPartition(hashAttributeNames) =>
         if (hashAttributeNames.nonEmpty) HashPartition(hashAttributeNames) else UnknownPartition()
-      case RangePartition(rangeColumnIndices, min, max) =>
-        val newIndices = rangeColumnIndices.flatMap(i => columnIndicesMapping.get(i))
-        if (newIndices.nonEmpty) RangePartition(newIndices, min, max) else UnknownPartition()
+      case RangePartition(rangeAttributeNames, min, max) =>
+        if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max) else UnknownPartition()
       case SinglePartition()    => inputPartitionInfo
       case BroadcastPartition() => inputPartitionInfo
       case UnknownPartition()   => inputPartitionInfo
