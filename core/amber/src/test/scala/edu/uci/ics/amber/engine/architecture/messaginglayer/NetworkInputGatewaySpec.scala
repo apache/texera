@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
@@ -15,8 +15,7 @@ class NetworkInputGatewaySpec extends AnyFlatSpec with MockFactory {
   private val payloads = (0 until 4).map { i =>
     DataFrame(
       Array(
-        TupleLike.enforceSchema(
-          TupleLike(i).asInstanceOf[SchemaEnforceable],
+        TupleLike(i) enforceSchema (
           Schema.builder().add("field1", AttributeType.INTEGER).build()
         )
       )
