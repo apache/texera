@@ -18,7 +18,7 @@ export interface LogicalPort
   }> {}
 
 export type PartitionInfo =
-  | Readonly<{ type: "hash"; hashColumnIndices: number[] }>
+  | Readonly<{ type: "hash"; hashAttributeNames: string[] }>
   | Readonly<{ type: "range"; rangeAttributeNames: string[]; rangeMin: number; rangeMax: number }>
   | Readonly<{ type: "single" }>
   | Readonly<{ type: "broadcast" }>
