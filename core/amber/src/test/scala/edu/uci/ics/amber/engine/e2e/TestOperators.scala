@@ -2,9 +2,9 @@ package edu.uci.ics.amber.engine.e2e
 
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.operators.aggregate.{
+  AggregateOpDesc,
   AggregationFunction,
-  AggregationOperation,
-  SpecializedAggregateOpDesc
+  AggregationOperation
 }
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
@@ -84,8 +84,8 @@ object TestOperators {
       attributeToAggregate: String,
       aggFunction: AggregationFunction,
       groupByAttributes: List[String]
-  ): SpecializedAggregateOpDesc = {
-    val aggOp = new SpecializedAggregateOpDesc()
+  ): AggregateOpDesc = {
+    val aggOp = new AggregateOpDesc()
     val aggFunc = new AggregationOperation()
     aggFunc.aggFunction = aggFunction
     aggFunc.attribute = attributeToAggregate
