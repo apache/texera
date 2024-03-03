@@ -54,7 +54,7 @@ object PhysicalPlan {
             val inputLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
             if ((externalLinks ++ inputLinks).isEmpty) {
-              physicalPlan = physicalPlan.addOperator(physicalOp.propagateOutputSchemas())
+              physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
             } else {
               physicalPlan = physicalPlan.addOperator(physicalOp)
             }
@@ -177,17 +177,9 @@ case class PhysicalPlan(
     val formOp = operatorMap(link.fromOpId)
     val (_, _, outputSchema) = formOp.outputPorts(link.fromPortId)
     val newFromOp = formOp.addOutputLink(link)
-    var newToOp = getOperator(link.toOpId)
+    val newToOp = getOperator(link.toOpId)
       .addInputLink(link)
-      .addInputSchema(link.toPortId, outputSchema)
-
-    if (
-      newToOp.inputPorts.forall({
-        case (_, (_, _, schema)) => schema.isDefined
-      })
-    ) {
-      newToOp = newToOp.propagateOutputSchemas()
-    }
+      .propagateSchema(Some(link.toPortId, outputSchema.get))
 
     val newOperators = operatorMap +
       (link.fromOpId -> newFromOp) +

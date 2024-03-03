@@ -16,7 +16,6 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.
   RoundRobinPreference
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
-import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -24,7 +23,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   StateRestoreConfig,
   WorkerReplayInitialization
 }
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
@@ -306,6 +305,18 @@ case class PhysicalOp(
     this.copy(blockingInputs = blockingInputs)
   }
 
+  private def setInputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
+    this.copy(inputPorts = inputPorts.updatedWith(portId) {
+      case Some((port, links, _)) => Some((port, links, schema))
+    })
+  }
+
+  private def setOutputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
+    this.copy(outputPorts = outputPorts.updatedWith(portId) {
+      case Some((port, links, _)) => Some((port, links, schema))
+    })
+  }
+
   def withPropagateSchema(func: SchemaPropagationFunc): PhysicalOp = {
     this.copy(propagateSchemas = func)
   }
@@ -426,38 +437,29 @@ case class PhysicalOp(
     processingOrder.toList
   }
 
-  def addInputSchema(targetPortId: PortIdentity, newSchema: Option[Schema]): PhysicalOp = {
-    this.copy(inputPorts = this.inputPorts.map({
-      case (portId, (port, links, schema)) =>
-        if (portId == targetPortId) { portId -> (port, links, newSchema) }
-        else { portId -> (port, links, schema) }
-    }))
-  }
-
-  def propagateOutputSchemas(): PhysicalOp = {
-    val inputSchemas = inputPorts.map {
-      case (portId, (_, _, schema)) => portId -> schema.get
+  def propagateSchema(newInputSchema: Option[(PortIdentity, Schema)] = None): PhysicalOp = {
+    // Update the input schema if a new one is provided
+    val updatedOp = newInputSchema.foldLeft(this.copy()) { (op, inputSchema) =>
+      val (portId, schema) = inputSchema
+      op.setInputSchema(portId, Some(schema))
     }
-    val outputSchemas = mutable.Map(propagateSchemas.func(inputSchemas).toSeq: _*)
 
-    // reassign
-    val newOp = this
-      .copy()
-      .withInputPorts(
-        inputPorts.values.map(_._1).toList,
-        new mutable.HashMap() ++ inputSchemas,
-        inputPorts.map({
-          case (portId, (port, links, schema)) => portId -> links
-        })
-      )
-      .withOutputPorts(
-        outputPorts.values.map(_._1).toList,
-        outputSchemas,
-        outputPorts.map({
-          case (portId, (port, links, schema)) => portId -> links
-        })
-      )
-    newOp
+    // Extract input schemas, checking if all are defined
+    val inputSchemas = updatedOp.inputPorts.collect {
+      case (portId, (_, _, Some(schema))) => portId -> schema
+    }
+
+    // Check if we have all necessary input schemas to propagate to output schemas
+    if (updatedOp.inputPorts.size == inputSchemas.size) {
+      // All input schemas are available, propagate to output schema
+      propagateSchemas.func(inputSchemas).foldLeft(updatedOp) { (op, portIdAndSchema) =>
+        val (portId, schema) = portIdAndSchema
+        op.setOutputSchema(portId, Some(schema))
+      }
+    } else {
+      // Not all input schemas are defined, return the updated operation without changes
+      updatedOp
+    }
   }
 
   def build(

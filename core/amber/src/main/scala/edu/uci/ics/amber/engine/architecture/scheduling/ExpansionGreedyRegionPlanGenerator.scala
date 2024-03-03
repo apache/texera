@@ -341,9 +341,9 @@ class ExpansionGreedyRegionPlanGenerator(
       .removeLink(physicalLink)
       .setOperatorUnblockPort(toOp.id, toPortId)
 
+    // create cache writer and link
     val matWriterPhysicalOp: PhysicalOp =
       createMatWriter(fromOp.id.logicalOpId)
-
     val sourceToWriterLink =
       PhysicalLink(
         fromOp.id,
@@ -351,14 +351,13 @@ class ExpansionGreedyRegionPlanGenerator(
         matWriterPhysicalOp.id,
         matWriterPhysicalOp.inputPorts.keys.head
       )
-
     newPhysicalPlan = newPhysicalPlan
       .addOperator(matWriterPhysicalOp)
       .addLink(sourceToWriterLink)
 
+    // create cache reader and link
     val matReaderPhysicalOp: PhysicalOp =
       createMatReader(matWriterPhysicalOp.id.logicalOpId)
-    // create 2 links for materialization
     val readerToDestLink =
       PhysicalLink(
         matReaderPhysicalOp.id,
@@ -366,7 +365,6 @@ class ExpansionGreedyRegionPlanGenerator(
         toOp.id,
         toPortId
       )
-
     // add the pair to the map for later adding edges between 2 regions.
     writerReaderPairs(matWriterPhysicalOp.id) = matReaderPhysicalOp.id
     newPhysicalPlan
@@ -388,7 +386,7 @@ class ExpansionGreedyRegionPlanGenerator(
       workflowContext.workflowId,
       workflowContext.executionId
     )
-    res.propagateOutputSchemas()
+    res.propagateSchema()
 
   }
 
