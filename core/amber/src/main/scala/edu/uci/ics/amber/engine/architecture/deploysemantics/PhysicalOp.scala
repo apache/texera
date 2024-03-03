@@ -5,13 +5,25 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfo,
+  OpExecInitInfoWithCode
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
+  AddressInfo,
+  LocationPreference,
+  PreferController,
+  RoundRobinPreference
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.GlobalPortIdentity
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
@@ -422,10 +434,9 @@ case class PhysicalOp(
     }))
   }
 
-
-  def propagateOutputSchemas() : PhysicalOp = {
+  def propagateOutputSchemas(): PhysicalOp = {
     val inputSchemas = inputPorts.map {
-      case (portId, (_, _, schema)) => portId->schema.get
+      case (portId, (_, _, schema)) => portId -> schema.get
     }
     val outputSchemas = mutable.Map(propagateSchemas.func(inputSchemas).toSeq: _*)
 

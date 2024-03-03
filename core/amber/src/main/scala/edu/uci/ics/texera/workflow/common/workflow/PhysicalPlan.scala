@@ -31,47 +31,49 @@ object PhysicalPlan {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
-    logicalPlan.getTopologicalOpIds.asScala.foreach(
-      logicalOpId => {
-        println("expanding " + logicalOpId)
-        val logicalOp = logicalPlan.getOperator(logicalOpId)
-        logicalOp.setContext(context)
+    logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId => {
+      println("expanding " + logicalOpId)
+      val logicalOp = logicalPlan.getOperator(logicalOpId)
+      logicalOp.setContext(context)
 
-
-        val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
-        subPlan.topologicalIterator().foreach({
-          physicalOpId => {
+      val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
+      subPlan
+        .topologicalIterator()
+        .foreach({ physicalOpId =>
+          {
             val physicalOp = subPlan.getOperator(physicalOpId)
 
-            val externalLinks = logicalPlan.getUpstreamLinks(logicalOp.operatorIdentifier)
+            val externalLinks = logicalPlan
+              .getUpstreamLinks(logicalOp.operatorIdentifier)
               .filter(link => physicalOp.inputPorts.contains(link.toPortId))
-              .map(
-              link=> {
+              .map(link => {
                 val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, link.fromPortId)
-                  PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
-              }
-            )
+                PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+              })
 
-            val inputLinks= subPlan.getUpstreamPhysicalLinks(physicalOp.id)
+            val inputLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
-            if((externalLinks ++ inputLinks).isEmpty){
+            if ((externalLinks ++ inputLinks).isEmpty) {
               physicalPlan = physicalPlan.addOperator(physicalOp.propagateOutputSchemas())
-            }else{
+            } else {
               physicalPlan = physicalPlan.addOperator(physicalOp)
             }
-            (externalLinks ++ inputLinks).foreach(
-              link => physicalPlan = physicalPlan.addLink(link)
-            )
-
+            (externalLinks ++ inputLinks).foreach(link => physicalPlan = physicalPlan.addLink(link))
 
           }
         })
-      }
-
-    )
+    })
     physicalPlan.operators.foreach(operator => {
-      operator.inputPorts.foreach(port=> if(port._2._3.isEmpty) {println("missing schema " + operator.id + " on input "+ port._1)})
-      operator.outputPorts.foreach(port=> if(port._2._3.isEmpty) {println("missing schema " + operator.id + " on output "+ port._1)})
+      operator.inputPorts.foreach(port =>
+        if (port._2._3.isEmpty) {
+          println("missing schema " + operator.id + " on input " + port._1)
+        }
+      )
+      operator.outputPorts.foreach(port =>
+        if (port._2._3.isEmpty) {
+          println("missing schema " + operator.id + " on output " + port._1)
+        }
+      )
     })
 
     physicalPlan
@@ -179,12 +181,13 @@ case class PhysicalPlan(
       .addInputLink(link)
       .addInputSchema(link.toPortId, outputSchema)
 
-    if(newToOp.inputPorts.forall({
-      case (_,(_,_,schema)) => schema.isDefined
-    })){
+    if (
+      newToOp.inputPorts.forall({
+        case (_, (_, _, schema)) => schema.isDefined
+      })
+    ) {
       newToOp = newToOp.propagateOutputSchemas()
     }
-
 
     val newOperators = operatorMap +
       (link.fromOpId -> newFromOp) +
@@ -210,12 +213,14 @@ case class PhysicalPlan(
   private def addSubPlan(subPlan: PhysicalPlan): PhysicalPlan = {
     var resultPlan = this.copy(operators, links)
     // add all physical operators to physical DAG
-    subPlan.topologicalIterator().foreach({
-      physicalOpId => {
-        val physicalOp = subPlan.getOperator(physicalOpId)
+    subPlan
+      .topologicalIterator()
+      .foreach({ physicalOpId =>
+        {
+          val physicalOp = subPlan.getOperator(physicalOpId)
 
-      }
-    })
+        }
+      })
     subPlan.operators.foreach(op => resultPlan = resultPlan.addOperator(op))
     // connect intra-operator links
     subPlan.links.foreach((physicalLink: PhysicalLink) =>

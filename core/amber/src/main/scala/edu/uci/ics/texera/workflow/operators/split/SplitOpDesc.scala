@@ -37,7 +37,14 @@ class SplitOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts, mutable.Map())
       .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
-      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => operatorInfo.outputPorts.map(_.id).map(id=> id-> inputSchemas(operatorInfo.inputPorts.head.id)).toMap))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          operatorInfo.outputPorts
+            .map(_.id)
+            .map(id => id -> inputSchemas(operatorInfo.inputPorts.head.id))
+            .toMap
+        )
+      )
   }
 
   override def operatorInfo: OperatorInfo = {

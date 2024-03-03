@@ -67,7 +67,9 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
           .withInputPorts(operatorInfo.inputPorts, mutable.Map())
           .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
           .withParallelizable(true)
-          .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> inferSchema())))
+          .withPropagateSchema(
+            SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+          )
 
       case None =>
         throw new RuntimeException("File path is not provided.")

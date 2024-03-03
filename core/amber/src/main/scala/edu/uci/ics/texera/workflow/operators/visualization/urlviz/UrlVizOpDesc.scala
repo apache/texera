@@ -9,7 +9,10 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 import scala.collection.mutable
 
@@ -48,7 +51,15 @@ class UrlVizOpDesc extends VisualizationOperator {
       )
       .withInputPorts(operatorInfo.inputPorts, mutable.Map())
       .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
-      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray))))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(
+            operatorInfo.outputPorts.head.id -> getOutputSchema(
+              operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
+            )
+          )
+        )
+      )
   }
 
   override def operatorInfo: OperatorInfo =

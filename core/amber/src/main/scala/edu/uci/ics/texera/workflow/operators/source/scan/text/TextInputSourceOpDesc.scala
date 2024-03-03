@@ -34,7 +34,9 @@ class TextInputSourceOpDesc extends SourceOperatorDescriptor with TextSourceOpDe
       )
       .withInputPorts(operatorInfo.inputPorts, mutable.Map())
       .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
-      .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
 
   override def sourceSchema(): Schema =
     Schema

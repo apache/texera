@@ -62,7 +62,6 @@ class HashJoinOpDesc[K] extends LogicalOp {
       executionId: ExecutionIdentity
   ): PhysicalPlan = {
 
-
     val buildInputPort = operatorInfo.inputPorts.head
     val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
 
@@ -74,13 +73,23 @@ class HashJoinOpDesc[K] extends LogicalOp {
           executionId,
           OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
         )
-        .withInputPorts(List(buildInputPort),           mutable.Map())
+        .withInputPorts(List(buildInputPort), mutable.Map())
         .withOutputPorts(
           List(buildOutputPort),
           mutable.Map()
         )
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
-        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(PortIdentity(internal=true)-> Schema.builder().add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY).add(inputSchemas(operatorInfo.inputPorts.head.id)).build())))
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(
+              PortIdentity(internal = true) -> Schema
+                .builder()
+                .add(HASH_JOIN_INTERNAL_KEY_NAME, AttributeType.ANY)
+                .add(inputSchemas(operatorInfo.inputPorts.head.id))
+                .build()
+            )
+          )
+        )
         .withDerivePartition(_ => HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME)))
         .withParallelizable(true)
 
@@ -109,7 +118,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           ),
           mutable.Map()
         )
-        .withOutputPorts(List(probeOutputPort),           mutable.Map())
+        .withOutputPorts(List(probeOutputPort), mutable.Map())
         .withPartitionRequirement(
           List(
             Option(HashPartition(List(HASH_JOIN_INTERNAL_KEY_NAME))),
@@ -122,7 +131,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           SchemaPropagationFunc(inputSchemas =>
             Map(
               PortIdentity() -> getOutputSchema(
-                Array(inputSchemas(PortIdentity(internal=true)), inputSchemas(PortIdentity(1)))
+                Array(inputSchemas(PortIdentity(internal = true)), inputSchemas(PortIdentity(1)))
               )
             )
           )

@@ -4,7 +4,11 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, PhysicalOpIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ExecutionIdentity,
+  PhysicalOpIdentity,
+  WorkflowIdentity
+}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeNameList
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -48,28 +52,40 @@ class AggregateOpDesc extends LogicalOp {
           List(outputPort),
           mutable.Map()
         )
-        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(PortIdentity(internal = true) -> {
-          if (
-            aggregations.exists(agg => agg.resultAttribute == null || agg.resultAttribute.trim.isEmpty)
-          ) {
-            return null
-          }
-          Schema
-            .builder()
-            .add(
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(PortIdentity(internal = true) -> {
+              if (
+                aggregations
+                  .exists(agg => agg.resultAttribute == null || agg.resultAttribute.trim.isEmpty)
+              ) {
+                return null
+              }
               Schema
                 .builder()
-                .add(groupByKeys.map(key => inputSchemas(operatorInfo.inputPorts.head.id).getAttribute(key)): _*)
+                .add(
+                  Schema
+                    .builder()
+                    .add(
+                      groupByKeys.map(key =>
+                        inputSchemas(operatorInfo.inputPorts.head.id).getAttribute(key)
+                      ): _*
+                    )
+                    .build()
+                )
+                .add(
+                  aggregations.map(agg =>
+                    agg.getAggregationAttribute(
+                      inputSchemas(operatorInfo.inputPorts.head.id)
+                        .getAttribute(agg.attribute)
+                        .getType
+                    )
+                  )
+                )
                 .build()
-            )
-            .add(
-              aggregations.map(agg =>
-                agg.getAggregationAttribute(inputSchemas(operatorInfo.inputPorts.head.id).getAttribute(agg.attribute).getType)
-              )
-            )
-            .build()
-        })
-        ))
+            })
+          )
+        )
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
 
@@ -89,9 +105,13 @@ class AggregateOpDesc extends LogicalOp {
         List(OutputPort(PortIdentity(0))),
         mutable.Map()
       )
-      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> {
-        inputSchemas(PortIdentity(internal = true))
-      })))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(operatorInfo.outputPorts.head.id -> {
+            inputSchemas(PortIdentity(internal = true))
+          })
+        )
+      )
       .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
       .withDerivePartition(_ => HashPartition(groupByKeys))
 

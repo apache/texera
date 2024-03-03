@@ -1,7 +1,11 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty}
-import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaDescription, JsonSchemaInject, JsonSchemaTitle}
+import com.kjetland.jackson.jsonSchema.annotations.{
+  JsonSchemaDescription,
+  JsonSchemaInject,
+  JsonSchemaTitle
+}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -62,7 +66,9 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts, mutable.Map())
       .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
-      .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
 
   override def sourceSchema(): Schema = {
 

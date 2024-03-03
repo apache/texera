@@ -77,7 +77,11 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withInputPorts(operatorInfo.inputPorts, mutable.Map())
         .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
-        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))))
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
+          )
+        )
         .withSuggestedWorkerNum(workers)
     } else {
       PhysicalOp
@@ -87,7 +91,15 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withInputPorts(operatorInfo.inputPorts, mutable.Map())
         .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
-        .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id -> getOutputSchema(operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray))))
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(
+              operatorInfo.outputPorts.head.id -> getOutputSchema(
+                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
+              )
+            )
+          )
+        )
     }
   }
 

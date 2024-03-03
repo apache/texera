@@ -128,7 +128,6 @@ case class LogicalPlan(
     links.filter(l => l.toOpId == opId)
   }
 
-
   def getInputSchemaMap: Map[OperatorIdentity, List[Option[Schema]]] = {
     operators
       .map(operator => {

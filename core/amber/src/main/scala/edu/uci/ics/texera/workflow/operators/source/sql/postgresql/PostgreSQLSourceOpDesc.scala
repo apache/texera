@@ -58,7 +58,9 @@ class PostgreSQLSourceOpDesc extends SQLSourceOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts, mutable.Map())
       .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
-      .withPropagateSchema( SchemaPropagationFunc(_=> Map(operatorInfo.outputPorts.head.id -> sourceSchema())))
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "PostgreSQL Source",

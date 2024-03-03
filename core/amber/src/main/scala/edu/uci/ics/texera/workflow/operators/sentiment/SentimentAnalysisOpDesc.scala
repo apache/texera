@@ -53,7 +53,11 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
       )
       .withInputPorts(operatorInfo.inputPorts, mutable.Map())
       .withOutputPorts(operatorInfo.outputPorts, mutable.Map())
-      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => Map(operatorInfo.outputPorts.head.id-> getOutputSchema(inputSchemas.values.toArray))))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
+        )
+      )
   }
 
   override def operatorInfo =

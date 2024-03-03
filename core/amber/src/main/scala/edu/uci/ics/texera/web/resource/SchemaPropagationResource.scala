@@ -44,11 +44,17 @@ class SchemaPropagationResource extends LazyLogging {
     val physicalPlan = PhysicalPlan(context, logicalPlan)
 
     val physicalInputSchemas = physicalPlan.operators.map(physicalOp => {
-      physicalOp.id -> physicalOp.inputPorts.filterNot(port => port._1.internal).values.map(_._3).toList
+      physicalOp.id -> physicalOp.inputPorts
+        .filterNot(port => port._1.internal)
+        .values
+        .map(_._3)
+        .toList
     })
-    val logicalInputSchemas = physicalInputSchemas.groupBy(_._1.logicalOpId).map({
-      case(logicalOpId, schemas )=> logicalOpId -> schemas.flatMap(_._2).toList
-    })
+    val logicalInputSchemas = physicalInputSchemas
+      .groupBy(_._1.logicalOpId)
+      .map({
+        case (logicalOpId, schemas) => logicalOpId -> schemas.flatMap(_._2).toList
+      })
 
     val responseContent = logicalInputSchemas
       .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributes))))

@@ -9,7 +9,14 @@ import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata._
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
-import edu.uci.ics.texera.workflow.common.workflow.{BroadcastPartition, HashPartition, PartitionInfo, RangePartition, SinglePartition, UnknownPartition}
+import edu.uci.ics.texera.workflow.common.workflow.{
+  BroadcastPartition,
+  HashPartition,
+  PartitionInfo,
+  RangePartition,
+  SinglePartition,
+  UnknownPartition
+}
 
 import scala.collection.mutable
 
@@ -33,7 +40,8 @@ class ProjectionOpDesc extends MapOpDesc {
       .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
         if (attributes == null) attributes = List()
         val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
-        val outputSchema = Schema.builder()
+        val outputSchema = Schema
+          .builder()
           .add(
             attributes
               .map(attribute =>
