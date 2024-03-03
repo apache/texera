@@ -23,26 +23,20 @@ import scala.util.{Failure, Success, Try}
 
 object PhysicalPlan {
 
-  def apply(operatorList: Array[PhysicalOp], links: Array[PhysicalLink]): PhysicalPlan = {
-    new PhysicalPlan(operatorList.toSet, links.toSet)
-  }
-
   def apply(context: WorkflowContext, logicalPlan: LogicalPlan): PhysicalPlan = {
 
     var physicalPlan = PhysicalPlan(operators = Set.empty, links = Set.empty)
 
     logicalPlan.getTopologicalOpIds.asScala.foreach(logicalOpId => {
-      println("expanding " + logicalOpId)
       val logicalOp = logicalPlan.getOperator(logicalOpId)
       logicalOp.setContext(context)
 
       val subPlan = logicalOp.getPhysicalPlan(context.workflowId, context.executionId)
       subPlan
         .topologicalIterator()
-        .foreach({ physicalOpId =>
+        .map(subPlan.getOperator)
+        .foreach({ physicalOp =>
           {
-            val physicalOp = subPlan.getOperator(physicalOpId)
-
             val externalLinks = logicalPlan
               .getUpstreamLinks(logicalOp.operatorIdentifier)
               .filter(link => physicalOp.inputPorts.contains(link.toPortId))
@@ -51,31 +45,16 @@ object PhysicalPlan {
                 PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
               })
 
-            val inputLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
+            val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
-            if ((externalLinks ++ inputLinks).isEmpty) {
-              physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
-            } else {
-              physicalPlan = physicalPlan.addOperator(physicalOp)
-            }
-            (externalLinks ++ inputLinks).foreach(link => physicalPlan = physicalPlan.addLink(link))
-
+            // Add the operator and all links to the physical plan
+            physicalPlan = (externalLinks ++ internalLinks)
+              .foldLeft(physicalPlan.addOperator(physicalOp.propagateSchema())) { (plan, link) =>
+                plan.addLink(link)
+              }
           }
         })
     })
-    physicalPlan.operators.foreach(operator => {
-      operator.inputPorts.foreach(port =>
-        if (port._2._3.isEmpty) {
-          println("missing schema " + operator.id + " on input " + port._1)
-        }
-      )
-      operator.outputPorts.foreach(port =>
-        if (port._2._3.isEmpty) {
-          println("missing schema " + operator.id + " on output " + port._1)
-        }
-      )
-    })
-
     physicalPlan
   }
 
