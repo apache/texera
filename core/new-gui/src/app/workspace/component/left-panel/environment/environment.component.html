@@ -1,0 +1,144 @@
+<nz-layout class="environment-layout">
+  <span
+    nz-tooltip="{{environmentTooltip}}"
+    nzTooltipPlacement="right"
+    class="environment-info"
+    nz-icon
+    nzType="info-circle"
+    nzTheme="outline"></span>
+  <ul
+    nz-menu
+    nzMode="horizontal">
+    <li
+      nz-menu-item
+      (click)="selectedMenu='datasets'"
+      [nzSelected]="selectedMenu === 'datasets'">
+      <span
+        nz-icon
+        nzType="database"></span>
+      Datasets
+    </li>
+    <!-- Add more menu items here if needed -->
+  </ul>
+
+  <!-- datasets display -->
+  <div
+    *ngIf="selectedMenu === 'datasets'"
+    class="datasets-container">
+    <button
+      class="link-dataset-btn"
+      nz-button
+      nzType="primary"
+      (click)="onClickOpenDatasetLinkModal()">
+      Link Dataset
+    </button>
+    <!-- Content for Datasets -->
+    <nz-collapse>
+      <nz-collapse-panel
+        *ngFor="let datasetFileTree of datasetFileTrees"
+        [nzHeader]="datasetFileTree[1]"
+        [nzExtra]="extraTemplate">
+        <ng-template #extraTemplate>
+          <i
+            nz-icon
+            nzType="ellipsis"
+            nzTheme="outline"
+            (click)="onClickOpenEnvironmentDatasetDetails(datasetFileTree[0])"></i>
+        </ng-template>
+        <div>
+          <texera-user-dataset-version-filetree
+            [fileTreeNodes]="datasetFileTree[2]"
+            [isTreeNodeDeletable]="false"
+            (selectedTreeNode)="displayDatasetFileContent($event, datasetFileTree[0])">
+          </texera-user-dataset-version-filetree>
+        </div>
+      </nz-collapse-panel>
+    </nz-collapse>
+
+    <!-- Link Datasets Modal -->
+    <nz-modal
+      [(nzVisible)]="showDatasetLinkModal"
+      nzTitle="Link a new Dataset to the Environment"
+      [nzMaskClosable]="true"
+      (nzOnCancel)="handleCancelLinkDataset()"
+      [nzFooter]="null">
+      <ng-container *nzModalContent>
+        <div class="link-new-dataset-area">
+          <input
+            [(ngModel)]="inputDatasetName"
+            (input)="onUserInputDatasetName($event)"
+            type="text"
+            nz-input
+            name="datasetName"
+            placeholder="Enter Dataset Name"
+            [nzAutocomplete]="auto" />
+          <nz-autocomplete #auto>
+            <nz-auto-option
+              *ngFor="let dataset of filteredLinkingDatasets"
+              [nzLabel]="dataset.name">
+              <div class="auto-option-content">
+                <div class="dataset-id-container">{{dataset.did?.toString()}}</div>
+                <span class="dataset-name">{{ dataset.name }}</span>
+                <button
+                  nz-button
+                  nzType="primary"
+                  class="dataset-option-link-btn"
+                  (click)="onClickLinkDataset(dataset)">
+                  Link
+                </button>
+              </div>
+            </nz-auto-option>
+          </nz-autocomplete>
+        </div>
+      </ng-container>
+    </nz-modal>
+
+    <nz-modal
+      [(nzVisible)]="showDatasetDetails"
+      nzTitle="Dataset Details"
+      (nzOnCancel)="handleCancelDatasetDetails()"
+      [nzFooter]="null"
+      [nzMaskClosable]="true">
+      <ng-container *nzModalContent>
+        <table class="custom-table">
+          <tbody>
+            <tr>
+              <td class="table-label">Dataset ID</td>
+              <td class="table-value">{{showingDatasetDid}}</td>
+            </tr>
+            <tr>
+              <td class="table-label">Name</td>
+              <td class="table-value">{{showingDatasetName}}</td>
+            </tr>
+            <tr>
+              <td class="table-label">Description</td>
+              <td class="table-value">{{showingDatasetDescription}}</td>
+            </tr>
+            <tr>
+              <td class="table-label">Version Name</td>
+              <td class="table-value">{{showingDatasetVersionName}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </ng-container>
+    </nz-modal>
+
+    <nz-modal
+      [(nzVisible)]="showDatasetFile"
+      (nzOnCancel)="handleCancelDatasetFileDisplay()"
+      [nzTitle]="selectedDatasetFilename"
+      [nzFooter]="null"
+      [nzMaskClosable]="true">
+      <ng-container *nzModalContent>
+        <texera-user-dataset-file-renderer
+          [did]="selectedDatasetFileDid"
+          [dvid]="selectedDatasetFileDvid"
+          [filePath]="selectedDatasetFilename"
+          [isMaximized]="true">
+        </texera-user-dataset-file-renderer>
+      </ng-container>
+    </nz-modal>
+  </div>
+
+  <!-- Add more content sections for other menu items if needed -->
+</nz-layout>
