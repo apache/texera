@@ -227,12 +227,12 @@ class DataProcessor(
     }
   }
 
-  private def pushTupleToPort(outputTuple: SchemaEnforceable, port: PortIdentity): Unit = {
-    physicalOp.getOutputLinks(port).foreach { out =>
+  private def pushTupleToPort(outputTuple: SchemaEnforceable, portId: PortIdentity): Unit = {
+    physicalOp.getOutputLinks(portId).foreach { out =>
       outputManager.passTupleToDownstream(
         outputTuple,
         out,
-        physicalOp.outputPorts(port)._3.get
+        outputGateway.getPort(portId).schema
       )
     }
   }
@@ -301,7 +301,7 @@ class DataProcessor(
         if (inputGateway.getAllPorts.forall(portId => inputGateway.isPortCompleted(portId))) {
           // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
           outputGateway
-            .getPortIds()
+            .getPortIds
             .foreach(outputPortId =>
               outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
             )

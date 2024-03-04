@@ -19,7 +19,7 @@ from core.architecture.sendsemantics.round_robin_partitioner import (
 from core.architecture.sendsemantics.broad_cast_partitioner import (
     BroadcastPartitioner,
 )
-from core.models import Tuple
+from core.models import Tuple, Schema
 from core.models.payload import OutputDataFrame, DataPayload
 from core.util import get_one_of
 from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
@@ -32,7 +32,9 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
-    PhysicalLink, PortIdentity, ChannelIdentity,
+    PhysicalLink,
+    PortIdentity,
+    ChannelIdentity,
 )
 
 
@@ -53,7 +55,7 @@ class TupleToBatchConverter:
         self._ports: typing.Dict[PortIdentity, WorkerPort] = dict()
         self._channels: typing.Dict[ChannelIdentity, Channel] = dict()
 
-    def add_output_port(self, port_id: PortIdentity)-> None:
+    def add_output_port(self, port_id: PortIdentity, schema: Schema) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
@@ -61,7 +63,7 @@ class TupleToBatchConverter:
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
-            self._ports[port_id] = WorkerPort()
+            self._ports[port_id] = WorkerPort(schema)
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """

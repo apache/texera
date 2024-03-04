@@ -1,6 +1,6 @@
 from typing import Iterator, Optional, Union, Dict, List
 
-from core.models import Tuple, ArrowTableTupleProvider
+from core.models import Tuple, ArrowTableTupleProvider, Schema
 from core.models.marker import EndOfAllMarker, Marker, SenderChangeMarker
 from core.models.payload import InputDataFrame, DataPayload, EndOfUpstream
 from core.models.tuple import InputExhausted
@@ -27,8 +27,9 @@ class Channel:
 
 
 class WorkerPort:
-    def __init__(self):
+    def __init__(self, schema: Schema):
         self.channels: List[Channel] = list()
+        self._schema = schema
 
     def add_channel(self, channel: Channel) -> None:
         self.channels.append(channel)
@@ -38,6 +39,7 @@ class WorkerPort:
             map(lambda channel: channel.is_completed(), self.channels)
         )
 
+
 class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
@@ -46,7 +48,7 @@ class BatchToTupleConverter:
         self._channels: Dict[ChannelIdentity, Channel] = dict()
         self._current_channel_id: Optional[ChannelIdentity] = None
 
-    def add_input_port(self, port_id: PortIdentity) -> None:
+    def add_input_port(self, port_id: PortIdentity, schema: Schema) -> None:
         if port_id.id is None:
             port_id.id = 0
         if port_id.internal is None:
@@ -54,7 +56,7 @@ class BatchToTupleConverter:
 
         # each port can only be added and initialized once.
         if port_id not in self._ports:
-            self._ports[port_id] = WorkerPort()
+            self._ports[port_id] = WorkerPort(schema)
 
     def get_port_id(self, channel_id: ChannelIdentity) -> PortIdentity:
         return self._channels[channel_id].port_id

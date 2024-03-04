@@ -22,7 +22,7 @@ class NetworkOutputGateway(
 ) extends AmberLogging
     with Serializable {
 
-  private val portIds: mutable.HashMap[PortIdentity, Boolean] = mutable.HashMap()
+  private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
   private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
@@ -76,15 +76,17 @@ class NetworkOutputGateway(
 
   def addPort(portId: PortIdentity, schema: Schema): Unit = {
     // each port can only be added and initialized once.
-    if (this.portIds.contains(portId)) {
+    if (this.ports.contains(portId)) {
       return
     }
-    this.portIds(portId) = false
+    this.ports(portId) = WorkerPort(schema)
 
   }
 
-  def getPortIds(): Set[PortIdentity] = {
-    this.portIds.keys.toSet
+  def getPortIds: Set[PortIdentity] = {
+    this.ports.keys.toSet
   }
+
+  def getPort(portId:PortIdentity) : WorkerPort =ports(portId)
 
 }
