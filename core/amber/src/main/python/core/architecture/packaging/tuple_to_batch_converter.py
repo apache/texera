@@ -4,6 +4,7 @@ from itertools import chain
 from loguru import logger
 from typing import Iterable, Iterator
 
+from core.architecture.packaging.batch_to_tuple_converter import WorkerPort, Channel
 from core.architecture.sendsemantics.hash_based_shuffle_partitioner import (
     HashBasedShufflePartitioner,
 )
@@ -31,7 +32,7 @@ from proto.edu.uci.ics.amber.engine.architecture.sendsemantics import (
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
-    PhysicalLink,
+    PhysicalLink, PortIdentity, ChannelIdentity,
 )
 
 
@@ -49,6 +50,18 @@ class TupleToBatchConverter:
             RangeBasedShufflePartitioning: RangeBasedShufflePartitioner,
             BroadcastPartitioning: BroadcastPartitioner,
         }
+        self._ports: typing.Dict[PortIdentity, WorkerPort] = dict()
+        self._channels: typing.Dict[ChannelIdentity, Channel] = dict()
+
+    def add_output_port(self, port_id: PortIdentity)-> None:
+        if port_id.id is None:
+            port_id.id = 0
+        if port_id.internal is None:
+            port_id.internal = False
+
+        # each port can only be added and initialized once.
+        if port_id not in self._ports:
+            self._ports[port_id] = WorkerPort()
 
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """

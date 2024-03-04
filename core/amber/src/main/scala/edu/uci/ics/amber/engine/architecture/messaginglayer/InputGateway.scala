@@ -3,6 +3,7 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 trait InputGateway {
 
@@ -22,7 +23,7 @@ trait InputGateway {
 
   def getAllPorts: Set[PortIdentity]
 
-  def addPort(portId: PortIdentity): Unit
+  def addPort(portId: PortIdentity, schema: Schema): Unit
 
   def getPort(portId: PortIdentity): WorkerPort
 

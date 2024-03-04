@@ -42,8 +42,8 @@ object ControlCommandConvertUtils {
         ResumeWorkerV2()
       case OpenOperator() =>
         OpenOperatorV2()
-      case AssignPort(portId, input) =>
-        AssignPortV2(portId, input)
+      case AssignPort(portId, input, schema) =>
+        AssignPortV2(portId, input, schema.toRawSchema)
       case AddPartitioning(tag: PhysicalLink, partitioning: Partitioning) =>
         AddPartitioningV2(tag, partitioning)
       case AddInputChannel(channelId, portId) =>
@@ -56,9 +56,7 @@ object ControlCommandConvertUtils {
         InitializeOperatorLogicV2(
           code,
           isSource,
-          schema.getAttributes.foldLeft(ListMap[String, String]())((list, attr) =>
-            list + (attr.getName -> attr.getType.toString)
-          )
+          schema.toRawSchema
         )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()

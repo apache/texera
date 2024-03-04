@@ -38,7 +38,6 @@ class WorkerPort:
             map(lambda channel: channel.is_completed(), self.channels)
         )
 
-
 class BatchToTupleConverter:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 

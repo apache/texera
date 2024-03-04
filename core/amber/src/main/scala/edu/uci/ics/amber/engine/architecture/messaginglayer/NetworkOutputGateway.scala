@@ -1,17 +1,13 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ControlPayload,
-  DataPayload,
-  WorkflowFIFOMessage,
-  WorkflowFIFOMessagePayload
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage, WorkflowFIFOMessagePayload}
 
 import java.util.concurrent.atomic.AtomicLong
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
 
@@ -78,7 +74,7 @@ class NetworkOutputGateway(
     idToSequenceNums.getOrElseUpdate(channelId, new AtomicLong()).getAndIncrement()
   }
 
-  def addPort(portId: PortIdentity): Unit = {
+  def addPort(portId: PortIdentity, schema: Schema): Unit = {
     // each port can only be added and initialized once.
     if (this.portIds.contains(portId)) {
       return

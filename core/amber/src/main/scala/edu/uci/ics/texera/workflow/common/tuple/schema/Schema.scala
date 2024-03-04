@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.tuple.schema
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 case class Schema @JsonCreator() (
@@ -58,6 +59,9 @@ case class Schema @JsonCreator() (
     Schema(attributeNames.map(name => getAttribute(name)))
   }
 
+  def toRawSchema:Map[String, String] = getAttributes.foldLeft(ListMap[String, String]())((list, attr) =>
+    list + (attr.getName -> attr.getType.toString)
+  )
 }
 
 object Schema {

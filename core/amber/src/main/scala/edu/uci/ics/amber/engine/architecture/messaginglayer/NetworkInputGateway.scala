@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.architecture.logreplay.OrderEnforcer
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
 
@@ -74,12 +75,12 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
     this.ports.keys.toSet
   }
 
-  def addPort(portId: PortIdentity): Unit = {
+  def addPort(portId: PortIdentity, schema: Schema): Unit = {
     // each port can only be added and initialized once.
     if (this.ports.contains(portId)) {
       return
     }
-    this.ports(portId) = WorkerPort()
+    this.ports(portId) = WorkerPort(schema)
   }
 
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)

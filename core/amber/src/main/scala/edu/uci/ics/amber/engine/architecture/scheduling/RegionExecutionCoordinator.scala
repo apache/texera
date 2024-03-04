@@ -149,18 +149,20 @@ class RegionExecutionCoordinator(
     Future.collect(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
-          physicalOp.inputPorts.keys
-            .map(inputPortId => GlobalPortIdentity(physicalOp.id, inputPortId, input = true))
+          physicalOp.inputPorts
+            .map{
+              case (inputPortId, (port, links, schema)) => GlobalPortIdentity(physicalOp.id, inputPortId, input = true)-> schema.get}
             .concat(
-              physicalOp.outputPorts.keys
-                .map(outputPortId => GlobalPortIdentity(physicalOp.id, outputPortId, input = false))
+              physicalOp.outputPorts
+                .map{
+                  case (outputPortId, (port, links, schema)) => GlobalPortIdentity(physicalOp.id, outputPortId, input = false)-> schema.get}
             )
         }
-        .flatMap { globalPortId =>
+        .flatMap { case (globalPortId, schema) =>
           {
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
-                asyncRPCClient.send(AssignPort(globalPortId.portId, globalPortId.input), workerId)
+                asyncRPCClient.send(AssignPort(globalPortId.portId, globalPortId.input, schema), workerId)
             }
           }
         }
