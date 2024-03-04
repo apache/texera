@@ -39,6 +39,9 @@ class WorkerPort:
             map(lambda channel: channel.is_completed(), self.channels)
         )
 
+    def get_schema(self) -> Schema:
+        return self._schema
+
 
 class InputManager:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")

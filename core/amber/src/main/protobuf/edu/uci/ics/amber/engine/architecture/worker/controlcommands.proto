@@ -61,7 +61,6 @@ message LinkOrdinal {
 message InitializeOperatorLogicV2 {
     string code = 1;
     bool is_source = 2;
-    map<string, string> output_schema = 3;
 }
 
 message ModifyOperatorLogicV2 {

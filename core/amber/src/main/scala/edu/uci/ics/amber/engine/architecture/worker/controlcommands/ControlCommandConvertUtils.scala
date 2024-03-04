@@ -52,11 +52,10 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(code, isSource, schema) =>
+      case InitializeOperatorLogic(code, isSource) =>
         InitializeOperatorLogicV2(
           code,
-          isSource,
-          schema.toRawSchema
+          isSource
         )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()

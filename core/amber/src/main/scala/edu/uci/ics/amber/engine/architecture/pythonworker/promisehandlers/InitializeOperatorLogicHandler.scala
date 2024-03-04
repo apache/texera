@@ -6,7 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 object InitializeOperatorLogicHandler {
   final case class InitializeOperatorLogic(
       code: String,
-      isSource: Boolean,
-      outputSchema: Schema
+      isSource: Boolean
   ) extends ControlCommand[Unit]
 }

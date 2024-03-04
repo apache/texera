@@ -105,9 +105,7 @@ class OperatorManager:
             and not inspect.isabstract(cls)
         )
 
-    def initialize_operator(
-        self, code: str, is_source: bool, output_schema: Mapping[str, str]
-    ) -> None:
+    def initialize_operator(self, code: str, is_source: bool) -> None:
         """
         Initialize the operator logic with the given code. The output schema is
         decided by the user.
@@ -121,7 +119,6 @@ class OperatorManager:
         operator: type(Operator) = self.load_operator(code)
         self.operator = operator()
         self.operator.is_source = is_source
-        self.operator.output_schema = output_schema
         assert (
             isinstance(self.operator, SourceOperator) == self.operator.is_source
         ), "Please use SourceOperator API for source operators."

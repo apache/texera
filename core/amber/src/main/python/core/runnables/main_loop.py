@@ -166,7 +166,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     to,
                     batch,
                 ) in self.context.output_manager.tuple_to_batch(output_tuple):
-                    batch.schema = self.context.operator_manager.operator.output_schema
+                    batch.schema = self.context.operator_manager.get_port().get_schema()
                     self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
@@ -222,9 +222,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param sender_change_marker: SenderChangeMarker which contains sender link.
         """
         self.context.tuple_processing_manager.current_input_port_id = (
-            self.context.input_manager.get_port_id(
-                sender_change_marker.channel_id
-            )
+            self.context.input_manager.get_port_id(sender_change_marker.channel_id)
         )
 
     def _process_end_of_all_marker(self, _: EndOfAllMarker) -> None:
@@ -237,7 +235,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         :param _: EndOfAllMarker
         """
         for to, batch in self.context.output_manager.emit_end_of_upstream():
-            batch.schema = self.context.operator_manager.operator.output_schema
+            batch.schema = self.context.output_manager.get_port().get_schema()
             self._output_queue.put(DataElement(tag=to, payload=batch))
             self._check_and_process_control()
             control_command = set_one_of(

@@ -65,6 +65,9 @@ class OutputManager:
         if port_id not in self._ports:
             self._ports[port_id] = WorkerPort(schema)
 
+    def get_port(self, port_id=None) -> WorkerPort:
+        return list(self._ports.values())[0]
+
     def add_partitioning(self, tag: PhysicalLink, partitioning: Partitioning) -> None:
         """
         Add down stream operator and its transfer policy
