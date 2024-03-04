@@ -4,7 +4,7 @@ from itertools import chain
 from loguru import logger
 from typing import Iterable, Iterator
 
-from core.architecture.packaging.batch_to_tuple_converter import WorkerPort, Channel
+from core.architecture.packaging.input_manager import WorkerPort, Channel
 from core.architecture.sendsemantics.hash_based_shuffle_partitioner import (
     HashBasedShufflePartitioner,
 )
@@ -38,7 +38,7 @@ from proto.edu.uci.ics.amber.engine.common import (
 )
 
 
-class TupleToBatchConverter:
+class OutputManager:
     def __init__(
         self,
     ):

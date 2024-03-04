@@ -40,7 +40,7 @@ class WorkerPort:
         )
 
 
-class BatchToTupleConverter:
+class InputManager:
     SOURCE_STARTER = ActorVirtualIdentity("SOURCE_STARTER")
 
     def __init__(self):
@@ -77,7 +77,7 @@ class BatchToTupleConverter:
         self, from_: ActorVirtualIdentity, payload: DataPayload
     ) -> Iterator[Union[Tuple, InputExhausted, Marker]]:
         # special case used to yield for source op
-        if from_ == BatchToTupleConverter.SOURCE_STARTER:
+        if from_ == InputManager.SOURCE_STARTER:
             yield InputExhausted()
             yield EndOfAllMarker()
             return

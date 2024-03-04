@@ -9,11 +9,11 @@ class AssignPortHandler(ControlHandler):
 
     def __call__(self, context: Context, command: AssignPortV2, *args, **kwargs):
         if command.input:
-            context.batch_to_tuple_converter.add_input_port(
+            context.input_manager.add_input_port(
                 command.port_id, Schema(raw_schema=command.schema)
             )
         else:
-            context.tuple_to_batch_converter.add_output_port(
+            context.output_manager.add_output_port(
                 command.port_id, Schema(raw_schema=command.schema)
             )
         return None
