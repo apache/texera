@@ -23,7 +23,7 @@ class RangeBasedShufflePartitioner(Partitioner):
         self.receivers: List[typing.Tuple[ActorVirtualIdentity, List[Tuple]]] = [
             (receiver, list()) for receiver in partitioning.receivers
         ]
-        self.range_column_indices = partitioning.range_column_indices
+        self.range_attribute_names = partitioning.range_attribute_names
         self.range_min = partitioning.range_min
         self.range_max = partitioning.range_max
         self.keys_per_receiver = int(
@@ -46,7 +46,7 @@ class RangeBasedShufflePartitioner(Partitioner):
     def add_tuple_to_batch(
         self, tuple_: Tuple
     ) -> Iterator[typing.Tuple[ActorVirtualIdentity, OutputDataFrame]]:
-        column_val = tuple_[self.range_column_indices[0]]
+        column_val = tuple_[self.range_attribute_names[0]]
         receiver_index = self.get_receiver_index(column_val)
         receiver, batch = self.receivers[receiver_index]
         batch.append(tuple_)

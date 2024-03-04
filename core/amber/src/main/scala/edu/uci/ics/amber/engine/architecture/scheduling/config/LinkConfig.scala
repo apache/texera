@@ -31,11 +31,11 @@ case object LinkConfig {
           hashAttributeNames
         )
 
-      case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
+      case RangePartition(rangeAttributeNames, rangeMin, rangeMax) =>
         RangeBasedShufflePartitioning(
           defaultBatchSize,
           toWorkerIds,
-          rangeColumnIndices,
+          rangeAttributeNames,
           rangeMin,
           rangeMax
         )

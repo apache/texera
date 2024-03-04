@@ -316,7 +316,7 @@ export const mockPortSchema: PortSchema = {
             title: "range",
             properties: {
               type: { const: "range" },
-              rangeColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              rangeAttributeNames: { type: "array", items: { type: "string" }, title: "attribute names" },
               rangeMin: { type: "integer", title: "range min" },
               rangeMax: { type: "integer", title: "range max" },
             },
