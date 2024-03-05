@@ -96,30 +96,30 @@ export class EnvironmentComponent implements OnInit {
     if (this.eid) {
       const eid = this.eid;
       this.environmentService
-          .retrieveDatasetsOfEnvironmentDetails(eid)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-        next: datasets => {
-          datasets.forEach(entry => {
-            const did = entry.dataset.did;
-            const dvid = entry.version.dvid;
-            if (did && dvid) {
-              this.datasetService
+        .retrieveDatasetsOfEnvironmentDetails(eid)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: datasets => {
+            datasets.forEach(entry => {
+              const did = entry.dataset.did;
+              const dvid = entry.version.dvid;
+              if (did && dvid) {
+                this.datasetService
                   .retrieveDatasetVersionFileTree(did, dvid)
                   .pipe(untilDestroyed(this))
                   .subscribe({
-                next: datasetFileTree => {
-                  this.datasetsOfEnvironment.set(did, [entry, datasetFileTree]);
-                  this.datasetFileTrees.push([did, entry.dataset.name, datasetFileTree]);
-                },
-              });
-            }
-          });
-        },
-        error: (err: unknown) => {
-          this.notificationService.error("Datasets of Environment loading error!");
-        },
-      });
+                    next: datasetFileTree => {
+                      this.datasetsOfEnvironment.set(did, [entry, datasetFileTree]);
+                      this.datasetFileTrees.push([did, entry.dataset.name, datasetFileTree]);
+                    },
+                  });
+              }
+            });
+          },
+          error: (err: unknown) => {
+            this.notificationService.error("Datasets of Environment loading error!");
+          },
+        });
     }
   }
 
@@ -135,36 +135,36 @@ export class EnvironmentComponent implements OnInit {
   onClickOpenDatasetAddModal() {
     // initialize the datasets info
     this.datasetService
-        .retrieveAccessibleDatasets()
-        .pipe(untilDestroyed(this))
-        .subscribe({
-      next: datasets => {
-        this.userAccessibleDatasets = datasets.filter(ds => {
-          const newDid = ds.dataset.did;
-          const newName = ds.dataset.name;
+      .retrieveAccessibleDatasets()
+      .pipe(untilDestroyed(this))
+      .subscribe({
+        next: datasets => {
+          this.userAccessibleDatasets = datasets.filter(ds => {
+            const newDid = ds.dataset.did;
+            const newName = ds.dataset.name;
 
-          // Check if the datasetsOfEnvironment does not have the newDid
-          const didNotExist = newDid && !this.datasetsOfEnvironment.has(newDid);
+            // Check if the datasetsOfEnvironment does not have the newDid
+            const didNotExist = newDid && !this.datasetsOfEnvironment.has(newDid);
 
-          // Check if the datasetsOfEnvironment does not have the newName
-          const nameNotExist = ![...this.datasetsOfEnvironment.values()].some(
-            ([details, _]) => details.dataset.name === newName
-          );
-          return didNotExist && nameNotExist;
-        });
+            // Check if the datasetsOfEnvironment does not have the newName
+            const nameNotExist = ![...this.datasetsOfEnvironment.values()].some(
+              ([details, _]) => details.dataset.name === newName
+            );
+            return didNotExist && nameNotExist;
+          });
 
-        this.filteredLinkingDatasets = this.userAccessibleDatasets.map(dataset => ({
-          name: dataset.dataset.name,
-          did: dataset.dataset.did,
-        }));
+          this.filteredLinkingDatasets = this.userAccessibleDatasets.map(dataset => ({
+            name: dataset.dataset.name,
+            did: dataset.dataset.did,
+          }));
 
-        if (this.userAccessibleDatasets.length == 0) {
-          this.notificationService.warning("There is no available datasets to be added to the environment.");
-        } else {
-          this.showDatasetLinkModal = true;
-        }
-      },
-    });
+          if (this.userAccessibleDatasets.length == 0) {
+            this.notificationService.warning("There is no available datasets to be added to the environment.");
+          } else {
+            this.showDatasetLinkModal = true;
+          }
+        },
+      });
   }
 
   handleCancelLinkDataset() {
@@ -173,18 +173,19 @@ export class EnvironmentComponent implements OnInit {
 
   onClickAddDataset(dataset: { did: number | undefined; name: string }) {
     if (this.eid && dataset.did) {
-      this.environmentService.addDatasetToEnvironment(this.eid, dataset.did)
-          .pipe(untilDestroyed(this))
-          .subscribe({
-        next: response => {
-          this.notificationService.success(`Link dataset ${dataset.name} to the environment successfully`);
-          this.showDatasetLinkModal = false;
-          this.loadDatasetsOfEnvironment();
-        },
-        error: (err: unknown) => {
-          this.notificationService.error(`Linking dataset ${dataset.name} encounters error`);
-        },
-      });
+      this.environmentService
+        .addDatasetToEnvironment(this.eid, dataset.did)
+        .pipe(untilDestroyed(this))
+        .subscribe({
+          next: response => {
+            this.notificationService.success(`Link dataset ${dataset.name} to the environment successfully`);
+            this.showDatasetLinkModal = false;
+            this.loadDatasetsOfEnvironment();
+          },
+          error: (err: unknown) => {
+            this.notificationService.error(`Linking dataset ${dataset.name} encounters error`);
+          },
+        });
     }
   }
 
