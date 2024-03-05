@@ -37,8 +37,8 @@ class RegexOpDesc extends FilterOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new RegexOpExec(regex, caseInsensitive, attribute))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

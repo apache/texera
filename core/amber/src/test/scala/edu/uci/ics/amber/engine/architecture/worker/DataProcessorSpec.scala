@@ -33,8 +33,6 @@ import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterEach
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.mutable
-
 class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfterEach {
   private val testOpId = PhysicalOpIdentity(OperatorIdentity("testop"), "main")
   private val upstreamOpId = PhysicalOpIdentity(OperatorIdentity("sender"), "main")
@@ -64,8 +62,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         testOpId.logicalOpId,
         OpExecInitInfo((_, _, _) => operator)
       )
-      .withInputPorts(List(InputPort()), mutable.Map(PortIdentity() -> null))
-      .withOutputPorts(List(OutputPort()), mutable.Map(PortIdentity() -> null))
+      .withInputPorts(List(InputPort()))
+      .withOutputPorts(List(OutputPort()))
       .addInputLink(link)
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]

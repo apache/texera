@@ -23,8 +23,8 @@ class DifferenceOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new DifferenceOpExec())
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
   }

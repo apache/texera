@@ -36,7 +36,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
-import scala.collection.mutable
 
 class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
@@ -59,8 +58,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     workflowId = DEFAULT_WORKFLOW_ID,
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
-  ).withInputPorts(List(InputPort()), mutable.Map(mockInputPortId -> null))
-    .withOutputPorts(List(OutputPort()), mutable.Map(PortIdentity() -> null))
+  ).withInputPorts(List(InputPort()))
+    .withOutputPorts(List(OutputPort()))
 
   private val mockLink =
     PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, mockInputPortId)

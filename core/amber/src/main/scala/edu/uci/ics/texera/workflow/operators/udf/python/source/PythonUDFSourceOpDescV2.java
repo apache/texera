@@ -5,21 +5,27 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
+import edu.uci.ics.amber.engine.common.AmberUtils;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
+import edu.uci.ics.amber.engine.common.workflow.OutputPort;
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Option;
-import edu.uci.ics.amber.engine.common.workflow.OutputPort;
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 
+import scala.Option;
+import scala.collection.immutable.Map;
+
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
@@ -64,9 +70,20 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     )
                     .withParallelizable(true)
                     .withSuggestedWorkerNum(workers)
-                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
-                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
+                    .withInputPorts(operatorInfo().inputPorts())
+                    .withOutputPorts(operatorInfo().outputPorts())
                     .withIsOneToManyOp(true)
+                    .withPropagateSchema(
+                            SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+                                // Initialize a Java HashMap
+                                java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
+
+                                javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
+
+                                // Convert the Java Map to a Scala immutable Map
+                                return AmberUtils.toImmutableMap(javaMap);
+                            })
+                    )
                     .withLocationPreference(Option.empty());
         } else {
             return PhysicalOp.sourcePhysicalOp(
@@ -76,8 +93,8 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                         exec
                     )
                     .withParallelizable(false)
-                    .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
-                    .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping())
+                    .withInputPorts(operatorInfo().inputPorts())
+                    .withOutputPorts(operatorInfo().outputPorts())
                     .withIsOneToManyOp(true)
                     .withLocationPreference(Option.empty());
         }

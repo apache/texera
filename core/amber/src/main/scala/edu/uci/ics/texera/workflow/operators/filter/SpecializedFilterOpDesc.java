@@ -22,7 +22,6 @@ import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.*;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
@@ -42,8 +41,8 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                                         x -> new SpecializedFilterOpExec(this)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
-                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts());
     }
 
     @Override

@@ -136,7 +136,7 @@ class RegionExecutionCoordinator(
                   InitializeOperatorLogic(
                     pythonUDFPhysicalOp.getPythonCode,
                     pythonUDFPhysicalOp.isSourceOperator,
-                    pythonUDFPhysicalOp.outputPorts.values.head._3
+                    pythonUDFPhysicalOp.outputPorts.values.head._3.toOption.get
                   ),
                   workerId
                 )
