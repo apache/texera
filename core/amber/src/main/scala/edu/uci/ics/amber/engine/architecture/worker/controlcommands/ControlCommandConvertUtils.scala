@@ -49,7 +49,7 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(_, _, opExecInitInfo, isSource) =>
+      case InitializeOperatorLogic(_, opExecInitInfo, isSource) =>
         InitializeOperatorLogicV2(
           opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0),
           isSource

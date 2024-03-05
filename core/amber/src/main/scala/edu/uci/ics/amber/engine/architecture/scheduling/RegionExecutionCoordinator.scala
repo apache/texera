@@ -130,7 +130,6 @@ class RegionExecutionCoordinator(
               asyncRPCClient
                 .send(
                   InitializeOperatorLogic(
-                    VirtualIdentityUtils.getWorkerIndex(workerId),
                     resourceConfig.operatorConfigs(VirtualIdentityUtils.getPhysicalOpId(workerId)).workerConfigs.length,
                     pythonUDFPhysicalOp.opExecInitInfo,
                     pythonUDFPhysicalOp.isSourceOperator
