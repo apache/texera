@@ -34,28 +34,14 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
-case object SchemaPropagationFunc {
-  private type JavaSchemaPropagationFunc =
-    java.util.function.Function[Map[PortIdentity, Schema], Map[PortIdentity, Schema]]
-      with java.io.Serializable
-  def apply(javaFunc: JavaSchemaPropagationFunc): SchemaPropagationFunc =
-    SchemaPropagationFunc(inputSchemas => javaFunc.apply(inputSchemas))
-
-}
-
-case class SchemaPropagationFunc(func: Map[PortIdentity, Schema] => Map[PortIdentity, Schema])
-
 class SchemaNotAvailableException(message: String) extends Exception(message)
 
-case object SchemaPropagation {
+case object SchemaPropagationFunc {
 
-  private type ScalaSchemaPropagationFunc = Map[PortIdentity, Schema] => Map[PortIdentity, Schema]
   private type JavaSchemaPropagationFunc =
     java.util.function.Function[Map[PortIdentity, Schema], Map[PortIdentity, Schema]]
       with java.io.Serializable
 
-  def apply(scalaFunc: ScalaSchemaPropagationFunc): SchemaPropagationFunc =
-    SchemaPropagationFunc(scalaFunc)
   def apply(javaFunc: JavaSchemaPropagationFunc): SchemaPropagationFunc =
     SchemaPropagationFunc(inputSchemas => javaFunc.apply(inputSchemas))
 
@@ -515,31 +501,6 @@ case class PhysicalOp(
       processingOrder.append(topologicalIterator.next())
     }
     processingOrder.toList
-  }
-
-  def propagateSchema(newInputSchema: Option[(PortIdentity, Schema)] = None): PhysicalOp = {
-    // Update the input schema if a new one is provided
-    val updatedOp = newInputSchema.foldLeft(this.copy()) { (op, inputSchema) =>
-      val (portId, schema) = inputSchema
-      op.setInputSchema(portId, Some(schema))
-    }
-
-    // Extract input schemas, checking if all are defined
-    val inputSchemas = updatedOp.inputPorts.collect {
-      case (portId, (_, _, Some(schema))) => portId -> schema
-    }
-
-    // Check if we have all necessary input schemas to propagate to output schemas
-    if (updatedOp.inputPorts.size == inputSchemas.size) {
-      // All input schemas are available, propagate to output schema
-      propagateSchemas.func(inputSchemas).foldLeft(updatedOp) { (op, portIdAndSchema) =>
-        val (portId, schema) = portIdAndSchema
-        op.setOutputSchema(portId, Some(schema))
-      }
-    } else {
-      // Not all input schemas are defined, return the updated operation without changes
-      updatedOp
-    }
   }
 
   def build(
