@@ -95,8 +95,10 @@ class WorkerSpec
     executionId = DEFAULT_EXECUTION_ID,
     opExecInitInfo = null
   )
+  private val mockPortId = PortIdentity()
   private val mockLink =
-    PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, PortIdentity())
+    PhysicalLink(physicalOp1.id, mockPortId, physicalOp2.id, mockPortId)
+
   private var physicalOp = PhysicalOp
     .oneToOnePhysicalOp(
       DEFAULT_WORKFLOW_ID,
@@ -171,11 +173,11 @@ class WorkerSpec
     )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockLink, mkSchema(1)).once()
+    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockPortId).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
+    val addPort = ControlInvocation(1, AssignPort(mockPortId, input = true, mkSchema(1)))
     val addInputChannel = ControlInvocation(
       2,
       AddInputChannel(
@@ -211,7 +213,7 @@ class WorkerSpec
     def mkBatch(start: Int, end: Int): Array[Tuple] = {
       (start until end).map { x =>
         (mockOutputManager.passTupleToDownstream _)
-          .expects(mkTuple(x, x, x, x), mockLink, mkSchema(x, x, x, x))
+          .expects(mkTuple(x, x, x, x), mockPortId)
           .once()
         mkTuple(x, x, x, x)
       }.toArray
@@ -222,7 +224,8 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
+    val addPort =
+      ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true, mkSchema(1, 1, 1, 1)))
     val addInputChannel = ControlInvocation(
       2,
       AddInputChannel(
@@ -273,7 +276,7 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
+    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true, mkSchema(1)))
     val addInputChannel = ControlInvocation(
       2,
       AddInputChannel(
@@ -304,7 +307,7 @@ class WorkerSpec
     Random
       .shuffle((0 until 50).map { i =>
         (mockOutputManager.passTupleToDownstream _)
-          .expects(mkTuple(i), mockLink, mkSchema(i))
+          .expects(mkTuple(i), mockPortId)
           .once()
         NetworkMessage(
           i + 2,
@@ -322,7 +325,7 @@ class WorkerSpec
     Random
       .shuffle((50 until 100).map { i =>
         (mockOutputManager.passTupleToDownstream _)
-          .expects(mkTuple(i), mockLink, mkSchema(i))
+          .expects(mkTuple(i), mockPortId)
           .once()
         NetworkMessage(
           i + 2,

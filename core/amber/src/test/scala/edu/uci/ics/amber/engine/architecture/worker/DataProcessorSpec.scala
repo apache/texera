@@ -67,10 +67,9 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .addInputLink(link)
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
+  private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
   private val tuples: Array[Tuple] = (0 until 400)
-    .map(i =>
-      TupleLike(i).enforceSchema(Schema.builder().add("field1", AttributeType.INTEGER).build())
-    )
+    .map(i => TupleLike(i).enforceSchema(schema))
     .toArray
 
   def mkDataProcessor: DataProcessor = {
@@ -115,7 +114,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (dp.outputManager.emitEndOfUpstream _).expects().once()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (operator.close _).expects().once()
-    dp.inputGateway.addPort(inputPortId)
+    dp.inputGateway.addPort(inputPortId, schema)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
@@ -162,7 +161,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .expects(Right(InputExhausted()), 0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
-    dp.inputGateway.addPort(inputPortId)
+    dp.inputGateway.addPort(inputPortId, schema)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)

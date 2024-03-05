@@ -65,7 +65,8 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       )
       (mockHandler.apply _).expects(mkDataMessage(fakeID, identifier, 3, EndOfUpstream()))
     }
-    val fakeLink = PhysicalLink(physicalOpId(), PortIdentity(), physicalOpId(), PortIdentity())
+    val mockPortId = PortIdentity()
+    val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
     outputManager.addPartitionerWithPartitioning(
@@ -73,7 +74,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       OneToOnePartitioning(10, fakeReceiver.toSeq)
     )
     tuples.foreach { t =>
-      outputManager.passTupleToDownstream(TupleLike(t.getFields), fakeLink, schema)
+      outputManager.passTupleToDownstream(TupleLike(t.getFields), mockPortId)
     }
     outputManager.emitEndOfUpstream()
   }
@@ -84,10 +85,12 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       TupleLike(1, 2, 3, 4, "5", 9.8).enforceSchema(schema)
     )
     (mockHandler.apply _).expects(*).never()
-    val fakeLink = PhysicalLink(physicalOpId(), PortIdentity(), physicalOpId(), PortIdentity())
+    val mockPortId = PortIdentity()
+    val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
+
     assertThrows[Exception] {
       tuples.foreach { t =>
-        outputManager.passTupleToDownstream(t, fakeLink, schema)
+        outputManager.passTupleToDownstream(t, mockPortId)
       }
       outputManager.emitEndOfUpstream()
     }
