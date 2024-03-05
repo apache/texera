@@ -1,8 +1,9 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
 import * as Plotly from "plotly.js-basic-dist-min";
-import { MatTabChangeEvent } from "@angular/material/tabs";
+import { NzTabChangeEvent } from "ng-zorro-antd/tabs";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -11,8 +12,7 @@ import { MatTabChangeEvent } from "@angular/material/tabs";
   styleUrls: ["./workflow-runtime-statistics.component.scss"],
 })
 export class WorkflowRuntimeStatisticsComponent implements OnInit {
-  @Input()
-  workflowRuntimeStatistics?: WorkflowRuntimeStatistics[];
+  readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;
 
   private groupedStats?: Record<string, WorkflowRuntimeStatistics[]>;
   public metrics: string[] = [
@@ -37,10 +37,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   /**
    * Create a new line chart corresponding to the change of a tab
-   * @param selection of a certain metric
    */
-  onTabChanged(event: MatTabChangeEvent): void {
-    this.createChart(event.index);
+  onTabChanged(event: NzTabChangeEvent): void {
+    this.createChart(event.index!);
   }
 
   /**
@@ -76,7 +75,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
    * 1. Shorten the operator ID
    * 2. Remove sink operator
    * 3. Contain only a certain metric given a metric idx
-   * @param selection of a certain metric
+   * @param metric_idx
    */
   private createDataset(metric_idx: number): any[] {
     if (!this.groupedStats) {
@@ -124,7 +123,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   /**
    * Create a line chart using plotly
-   * @param selection of a certain metric
+   * @param metric_idx
    */
   private createChart(metric_idx: number): void {
     const dataset = this.createDataset(metric_idx);

@@ -17,16 +17,14 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Tuple3;
-import scala.collection.immutable.List;
 
 import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class TypeCastingOpDesc extends MapOpDesc {
@@ -38,15 +36,14 @@ public class TypeCastingOpDesc extends MapOpDesc {
 
     @Override
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
-        Preconditions.checkArgument(!typeCastingUnits.isEmpty());
-        Schema outputSchema = this.outputPortToSchemaMapping().get(this.operatorInfo().outputPorts().head().id()).get();
+        if (typeCastingUnits==null) typeCastingUnits = new ArrayList<>();
         return PhysicalOp.oneToOnePhysicalOp(
                         workflowId,
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
                                 (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                        worker -> new TypeCastingOpExec(outputSchema)
+                                        worker -> new TypeCastingOpExec(typeCastingUnits)
                         )
                 )
                 .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
@@ -58,7 +55,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
         return new OperatorInfo(
                 "Type Casting",
                 "Cast between types",
-                OperatorGroupConstants.UTILITY_GROUP(),
+                OperatorGroupConstants.CLEANING_GROUP(),
                 asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false,asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
                 asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,

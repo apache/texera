@@ -24,18 +24,18 @@ case object LinkConfig {
       partitionInfo: PartitionInfo
   ): Partitioning = {
     partitionInfo match {
-      case HashPartition(hashColumnIndices) =>
+      case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
           defaultBatchSize,
           toWorkerIds,
-          hashColumnIndices
+          hashAttributeNames
         )
 
-      case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
+      case RangePartition(rangeAttributeNames, rangeMin, rangeMax) =>
         RangeBasedShufflePartitioning(
           defaultBatchSize,
           toWorkerIds,
-          rangeColumnIndices,
+          rangeAttributeNames,
           rangeMin,
           rangeMax
         )

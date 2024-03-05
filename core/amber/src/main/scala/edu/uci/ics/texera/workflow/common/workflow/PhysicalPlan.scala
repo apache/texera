@@ -128,17 +128,10 @@ case class PhysicalPlan(
     links.filter(l => l.toOpId == physicalOpId)
   }
 
-  def getDownstreamPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
-    dag.outgoingEdgesOf(physicalOpId).asScala.map(e => dag.getEdgeTarget(e)).toSet
-  }
-
   def getDownstreamPhysicalLinks(physicalOpId: PhysicalOpIdentity): Set[PhysicalLink] = {
     links.filter(l => l.fromOpId == physicalOpId)
   }
 
-  def getDescendantPhysicalOpIds(physicalOpId: PhysicalOpIdentity): Set[PhysicalOpIdentity] = {
-    dag.getDescendants(physicalOpId).asScala.toSet
-  }
   def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
     new TopologicalOrderIterator(dag).asScala
   }

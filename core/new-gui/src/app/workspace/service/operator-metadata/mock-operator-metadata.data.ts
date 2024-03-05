@@ -309,14 +309,14 @@ export const mockPortSchema: PortSchema = {
             title: "hash",
             properties: {
               type: { const: "hash" },
-              hashColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              hashAttributeNames: { type: "array", items: { type: "string" }, title: "attribute names" },
             },
           },
           {
             title: "range",
             properties: {
               type: { const: "range" },
-              rangeColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              rangeAttributeNames: { type: "array", items: { type: "string" }, title: "attribute names" },
               rangeMin: { type: "integer", title: "range min" },
               rangeMax: { type: "integer", title: "range max" },
             },

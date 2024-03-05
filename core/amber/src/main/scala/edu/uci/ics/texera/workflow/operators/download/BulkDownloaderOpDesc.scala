@@ -34,8 +34,6 @@ class BulkDownloaderOpDesc extends LogicalOp {
       executionId: ExecutionIdentity
   ): PhysicalOp = {
     assert(getContext.userId.isDefined)
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
@@ -44,9 +42,7 @@ class BulkDownloaderOpDesc extends LogicalOp {
         OpExecInitInfo((_, _, _) =>
           new BulkDownloaderOpExec(
             getContext,
-            urlAttribute,
-            resultAttribute,
-            outputSchema
+            urlAttribute
           )
         )
       )
@@ -66,7 +62,7 @@ class BulkDownloaderOpDesc extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     // keep the same schema from input
     outputSchemaBuilder.add(inputSchema)
     if (resultAttribute == null || resultAttribute.isEmpty) {
@@ -78,6 +74,6 @@ class BulkDownloaderOpDesc extends LogicalOp {
         AttributeType.STRING
       )
     )
-    outputSchemaBuilder.build
+    outputSchemaBuilder.build()
   }
 }

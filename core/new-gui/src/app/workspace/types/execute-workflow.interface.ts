@@ -4,7 +4,6 @@
  * These interfaces confront to the backend API.
  */
 
-import { ChartType } from "./visualization.interface";
 import { WorkflowFatalError, OperatorCurrentTuples } from "./workflow-websocket.interface";
 export interface PortIdentity
   extends Readonly<{
@@ -47,17 +46,6 @@ export interface LogicalPlan
     opsToViewResult?: string[];
     opsToReuseResult?: string[];
   }> {}
-
-/**
- * The backend interface of the return object of a successful execution
- */
-export interface WebOperatorResult
-  extends Readonly<{
-    operatorID: string;
-    table: ReadonlyArray<object>;
-    chartType: ChartType | undefined;
-  }> {}
-
 export enum OperatorState {
   Uninitialized = "Uninitialized",
   Initializing = "Initializing",
@@ -98,7 +86,6 @@ export interface WebDataUpdate
   extends Readonly<{
     mode: SetSnapshotMode | SetDeltaMode;
     table: ReadonlyArray<object>;
-    chartType: ChartType | undefined;
   }> {}
 
 export type WebResultUpdate = WebPaginationUpdate | WebDataUpdate;

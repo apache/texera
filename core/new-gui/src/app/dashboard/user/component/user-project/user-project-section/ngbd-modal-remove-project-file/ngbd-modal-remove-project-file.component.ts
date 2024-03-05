@@ -1,9 +1,10 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { forkJoin, Observable } from "rxjs";
 import { UserProjectService } from "../../../../service/user-project/user-project.service";
 import { DashboardFile } from "../../../../type/dashboard-file.interface";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserFileService } from "../../../../service/user-file/user-file.service";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -12,12 +13,15 @@ import { UserFileService } from "../../../../service/user-file/user-file.service
   styleUrls: ["./ngbd-modal-remove-project-file.component.scss"],
 })
 export class NgbdModalRemoveProjectFileComponent implements OnInit {
-  @Input() addedFiles!: ReadonlyArray<DashboardFile>;
-  @Input() projectId!: number;
+  readonly addedFiles: ReadonlyArray<DashboardFile> = inject(NZ_MODAL_DATA).addedFiles;
+  readonly projectId: number = inject(NZ_MODAL_DATA).projectId;
 
   public checkedFiles: boolean[] = [];
 
-  constructor(private userProjectService: UserProjectService, private userFileService: UserFileService) {}
+  constructor(
+    private userProjectService: UserProjectService,
+    private userFileService: UserFileService
+  ) {}
 
   ngOnInit(): void {
     this.checkedFiles = new Array(this.addedFiles.length).fill(false);

@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWor
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -42,10 +43,14 @@ class PauseSpec
       operators: List[LogicalOp],
       links: List[LogicalLink]
   ): Unit = {
+    val resultStorage = new OpResultStorage()
+    val workflow = TestUtils.buildWorkflow(operators, links, resultStorage)
     val client =
       new AmberClient(
         system,
-        TestUtils.buildWorkflow(operators, links),
+        workflow.context,
+        workflow.physicalPlan,
+        resultStorage,
         ControllerConfig.default,
         error => {}
       )

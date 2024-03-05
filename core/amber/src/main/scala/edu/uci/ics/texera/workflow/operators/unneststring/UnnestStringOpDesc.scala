@@ -44,7 +44,7 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new UnnestStringOpExec(this))
+        OpExecInitInfo((_, _, _) => new UnnestStringOpExec(attribute, delimiter))
       )
       .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
       .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
@@ -53,6 +53,6 @@ class UnnestStringOpDesc extends FlatMapOpDesc {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.forall(_ == schemas(0)))
     if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.newBuilder.add(schemas(0)).add(resultAttribute, AttributeType.STRING).build
+    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.STRING).build()
   }
 }

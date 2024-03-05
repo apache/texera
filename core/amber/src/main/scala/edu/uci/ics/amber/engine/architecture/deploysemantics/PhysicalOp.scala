@@ -142,39 +142,6 @@ object PhysicalOp {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
       .withLocationPreference(Option(new PreferController()))
   }
-
-  def hashPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      logicalOpId: OperatorIdentity,
-      opExec: OpExecInitInfo,
-      hashColumnIndices: List[Int]
-  ): PhysicalOp =
-    hashPhysicalOp(
-      PhysicalOpIdentity(logicalOpId, "main"),
-      workflowId,
-      executionId,
-      opExec,
-      hashColumnIndices
-    )
-
-  def hashPhysicalOp(
-      physicalOpId: PhysicalOpIdentity,
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      opExecInitInfo: OpExecInitInfo,
-      hashColumnIndices: List[Int]
-  ): PhysicalOp = {
-    PhysicalOp(
-      physicalOpId,
-      workflowId,
-      executionId,
-      opExecInitInfo,
-      partitionRequirement = List(Option(HashPartition(hashColumnIndices))),
-      derivePartition = _ => HashPartition(hashColumnIndices)
-    )
-  }
-
 }
 
 case class PhysicalOp(
@@ -368,16 +335,11 @@ case class PhysicalOp(
   /**
     * returns all output links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
-  def getOutputLinks(portIdOpt: Option[PortIdentity] = None): List[PhysicalLink] = {
+  def getOutputLinks(portId: PortIdentity): List[PhysicalLink] = {
     outputPorts.values
       .flatMap(_._2)
+      .filter(link => link.fromPortId == portId)
       .toList
-      .filter(link =>
-        portIdOpt match {
-          case Some(portId) => link.fromPortId == portId
-          case None         => true
-        }
-      )
   }
 
   /**

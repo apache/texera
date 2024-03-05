@@ -16,6 +16,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Dataset.DATASET
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET_VERSION
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{
   getDatasetUserAccessPrivilege,
   userHasReadAccess,
@@ -33,11 +35,11 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   ERR_DATASET_CREATION_FAILED_MESSAGE,
   ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE,
   context,
+  createNewDatasetVersion,
   getDashboardDataset,
   getDatasetByID,
   getDatasetLatestVersion,
-  getDatasetVersionHashByID,
-  createNewDatasetVersion
+  getDatasetVersionHashByID
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.FileNode
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
@@ -212,9 +214,10 @@ object DatasetResource {
               val filePathsValue = bodyPart.getValueAs(classOf[String])
               val filePaths = filePathsValue.split(",")
               filePaths.foreach { filePath =>
+                val normalizedFilePath = filePath.stripPrefix("/")
                 GitVersionControlLocalFileStorage.removeFileFromRepo(
                   datasetPath,
-                  datasetPath.resolve(filePath)
+                  datasetPath.resolve(normalizedFilePath)
                 )
               }
               fileOperationHappens = true
@@ -251,6 +254,23 @@ object DatasetResource {
       // Release the lock
       lock.unlock()
     }
+  }
+
+  def retrieveDatasetVersionFilePaths(
+      ctx: DSLContext,
+      uid: UInteger,
+      did: UInteger,
+      dvid: UInteger
+  ): util.List[String] = {
+    val dataset = getDatasetByID(ctx, did, uid)
+    val versionHash = getDatasetVersionHashByID(ctx, did, dvid, uid)
+
+    val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+      Paths.get(dataset.getStoragePath),
+      versionHash
+    )
+
+    FileNode.getAllFileRelativePaths(fileNodes)
   }
 
   case class DashboardDataset(
@@ -456,6 +476,23 @@ class DatasetResource {
     withTransaction(context)(ctx => {
       getDashboardDataset(ctx, did, uid)
     })
+  }
+
+  /**
+    * This method returns a list of DashboardDatasets objects that are accessible by current user.
+    * @param user the session user
+    * @return list of user accessible DashboardDataset objects
+    */
+  @GET
+  @Path("")
+  def listDatasets(
+      @Auth user: SessionUser
+  ): List[DashboardDataset] = {
+    val result = DashboardResource.searchAllResources(
+      user,
+      SearchQueryParams(resourceType = "dataset")
+    )
+    result.results.map(_.dataset.get)
   }
 
   @GET

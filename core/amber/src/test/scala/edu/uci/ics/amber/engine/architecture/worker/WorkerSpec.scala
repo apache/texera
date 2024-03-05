@@ -4,8 +4,8 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
@@ -13,12 +13,12 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage,
   WorkerReplayInitialization
 }
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -32,6 +32,8 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext.{
   DEFAULT_EXECUTION_ID,
   DEFAULT_WORKFLOW_ID
 }
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
@@ -44,6 +46,15 @@ class WorkerSpec
     with AnyFlatSpecLike
     with BeforeAndAfterAll
     with MockFactory {
+
+  def mkTuple(fields: Any*): Tuple = {
+    val schemaBuilder = Schema.builder()
+    fields.indices.foreach { i =>
+      schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
+    }
+    val schema = schemaBuilder.build()
+    Tuple.builder(schema).addSequentially(fields.toArray).build()
+  }
 
   override def beforeAll(): Unit = {
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
@@ -59,12 +70,10 @@ class WorkerSpec
 
     override def close(): Unit = println("closed!")
 
-    override def processTuple(
-        tuple: Either[ITuple, InputExhausted],
-        input: Int,
-        pauseManager: PauseManager,
-        asyncRPCClient: AsyncRPCClient
-    ): Iterator[(ITuple, Option[PortIdentity])] = {
+    override def processTupleMultiPort(
+        tuple: Either[Tuple, InputExhausted],
+        port: Int
+    ): Iterator[(TupleLike, Option[PortIdentity])] = {
       tuple match {
         case Left(iTuple) => Iterator((iTuple, None))
         case Right(_)     => Iterator.empty
@@ -160,24 +169,25 @@ class WorkerSpec
   "Worker" should "process data messages correctly" in {
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink).once()
+    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockLink, null).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
-      1,
+      2,
       AddInputChannel(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
       )
     )
-    sendControlToWorker(worker, Array(invocation, addInputChannel))
+    sendControlToWorker(worker, Array(invocation, addPort, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         0,
-        DataFrame(Array(ITuple(1)))
+        DataFrame(Array(mkTuple(1)))
       )
     )
     //wait test to finish
@@ -190,12 +200,14 @@ class WorkerSpec
     }
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    def mkBatch(start: Int, end: Int): Array[ITuple] = {
+    def mkBatch(start: Int, end: Int): Array[Tuple] = {
       for (x <- start until end) {
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink).once()
+        (mockOutputManager.passTupleToDownstream _)
+          .expects(mkTuple(x, x, x, x), mockLink, null)
+          .once()
       }
       (start until end).map { x =>
-        ITuple(x, x, x, x)
+        mkTuple(x, x, x, x)
       }.toArray
     }
     val batch1 = mkBatch(0, 400)
@@ -204,14 +216,15 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
-      1,
+      2,
       AddInputChannel(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
       )
     )
-    sendControlToWorker(worker, Array(invocation, addInputChannel))
+    sendControlToWorker(worker, Array(invocation, addPort, addInputChannel))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -250,11 +263,20 @@ class WorkerSpec
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
-      1,
+      2,
       AddInputChannel(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         mockLink.toPortId
+      )
+    )
+    worker ! NetworkMessage(
+      2,
+      WorkflowFIFOMessage(
+        ChannelIdentity(CONTROLLER, identifier1, isControl = true),
+        2,
+        addInputChannel
       )
     )
     worker ! NetworkMessage(
@@ -262,7 +284,7 @@ class WorkerSpec
       WorkflowFIFOMessage(
         ChannelIdentity(CONTROLLER, identifier1, isControl = true),
         1,
-        addInputChannel
+        addPort
       )
     )
     worker ! NetworkMessage(
@@ -270,7 +292,7 @@ class WorkerSpec
       WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, isControl = true), 0, invocation)
     )
     for (i <- 0 until 100) {
-      (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
+      (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
     }
     Random
       .shuffle((0 until 50).map { i =>
@@ -279,7 +301,7 @@ class WorkerSpec
           WorkflowFIFOMessage(
             ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
-            DataFrame(Array(ITuple(i)))
+            DataFrame(Array(mkTuple(i)))
           )
         )
       })
@@ -294,7 +316,7 @@ class WorkerSpec
           WorkflowFIFOMessage(
             ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
-            DataFrame(Array(ITuple(i)))
+            DataFrame(Array(mkTuple(i)))
           )
         )
       })

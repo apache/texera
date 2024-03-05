@@ -3,13 +3,13 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.operators.aggregate.DistributedAggregation
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseTimestamp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType}
 
 import java.sql.Timestamp
 
+case class AveragePartialObj(sum: Double, count: Double) extends Serializable {}
 @JsonSchemaInject(json = """
 {
   "attributeTypeRules": {
@@ -40,9 +40,9 @@ import java.sql.Timestamp
   }
 }
 """)
-class AggregationOperation() {
+class AggregationOperation {
   @JsonProperty(required = true)
-  @JsonSchemaTitle("Aggregation Function")
+  @JsonSchemaTitle("Aggregate Func")
   @JsonPropertyDescription("sum, count, average, min, max, or concat")
   var aggFunction: AggregationFunction = _
 
@@ -56,8 +56,7 @@ class AggregationOperation() {
   var resultAttribute: String = _
 
   @JsonIgnore
-  def getAggregationAttribute(inputSchema: Schema): Attribute = {
-    val attrType = inputSchema.getAttribute(attribute).getType
+  def getAggregationAttribute(attrType: AttributeType): Attribute = {
     val resultAttrType = this.aggFunction match {
       case AggregationFunction.SUM     => attrType
       case AggregationFunction.COUNT   => AttributeType.INTEGER
@@ -65,14 +64,13 @@ class AggregationOperation() {
       case AggregationFunction.MIN     => attrType
       case AggregationFunction.MAX     => attrType
       case AggregationFunction.CONCAT  => AttributeType.STRING
-      case _                           => throw new RuntimeException("unknown agg functionL " + this.aggFunction)
+      case _                           => throw new RuntimeException("Unknown aggregation function: " + this.aggFunction)
     }
     new Attribute(resultAttribute, resultAttrType)
   }
 
   @JsonIgnore
-  def getAggFunc(inputSchema: Schema): DistributedAggregation[Object] = {
-    val attrType = inputSchema.getAttribute(attribute).getType
+  def getAggFunc(attrType: AttributeType): DistributedAggregation[Object] = {
     val aggFunc = aggFunction match {
       case AggregationFunction.AVERAGE => averageAgg()
       case AggregationFunction.COUNT   => countAgg()
@@ -84,6 +82,19 @@ class AggregationOperation() {
         throw new UnsupportedOperationException("Unknown aggregation function: " + aggFunction)
     }
     aggFunc.asInstanceOf[DistributedAggregation[Object]]
+  }
+
+  @JsonIgnore
+  def getFinal: AggregationOperation = {
+    val newAggFunc = aggFunction match {
+      case AggregationFunction.COUNT => AggregationFunction.SUM
+      case a: AggregationFunction    => a
+    }
+    val res = new AggregationOperation()
+    res.aggFunction = newAggFunc
+    res.resultAttribute = resultAttribute
+    res.attribute = resultAttribute
+    res
   }
 
   private def sumAgg(attributeType: AttributeType): DistributedAggregation[Object] = {
@@ -276,7 +287,7 @@ class AggregationOperation() {
     }
   }
 
-  def zero(attributeType: AttributeType): Object =
+  private def zero(attributeType: AttributeType): Object =
     attributeType match {
       case AttributeType.INTEGER   => java.lang.Integer.valueOf(0)
       case AttributeType.DOUBLE    => java.lang.Double.valueOf(0)
@@ -288,7 +299,7 @@ class AggregationOperation() {
         )
     }
 
-  def maxValue(attributeType: AttributeType): Object =
+  private def maxValue(attributeType: AttributeType): Object =
     attributeType match {
       case AttributeType.INTEGER   => Integer.MAX_VALUE.asInstanceOf[Object]
       case AttributeType.DOUBLE    => java.lang.Double.MAX_VALUE.asInstanceOf[Object]
@@ -300,7 +311,7 @@ class AggregationOperation() {
         )
     }
 
-  def minValue(attributeType: AttributeType): Object =
+  private def minValue(attributeType: AttributeType): Object =
     attributeType match {
       case AttributeType.INTEGER   => Integer.MIN_VALUE.asInstanceOf[Object]
       case AttributeType.DOUBLE    => java.lang.Double.MIN_VALUE.asInstanceOf[Object]
