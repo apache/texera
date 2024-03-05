@@ -124,10 +124,6 @@ class DataProcessor(
 
   var outputIterator: DPOutputIterator = new DPOutputIterator()
 
-  var inputBatch: Array[Tuple] = _
-  var currentInputIdx: Int = -1
-  var currentChannelId: ChannelIdentity = _
-
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
   }
@@ -166,7 +162,7 @@ class DataProcessor(
       outputIterator.setTupleOutput(
         operator.processTupleMultiPort(
           tuple,
-          this.inputGateway.getChannel(currentChannelId).getPortId.id
+          this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
         )
       )
       if (tuple.isLeft) {
@@ -225,8 +221,6 @@ class DataProcessor(
     }
   }
 
-  def hasUnfinishedInput: Boolean = inputBatch != null && currentInputIdx + 1 < inputBatch.length
-
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
   def continueDataProcessing(): Unit = {
@@ -234,26 +228,9 @@ class DataProcessor(
     if (hasUnfinishedOutput) {
       outputOneTuple()
     } else {
-      currentInputIdx += 1
-      processInputTuple(Left(inputBatch(currentInputIdx)))
+      processInputTuple(Left(inputManager.getNextTuple))
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
-  }
-
-  private[this] def initBatch(channelId: ChannelIdentity, batch: Array[Tuple]): Unit = {
-    currentChannelId = channelId
-    inputBatch = batch
-    currentInputIdx = 0
-  }
-
-  def getCurrentInputTuple: Tuple = {
-    if (inputBatch == null) {
-      null
-    } else if (inputBatch.isEmpty) {
-      null // TODO: create input exhausted
-    } else {
-      inputBatch(currentInputIdx)
-    }
   }
 
   def processDataPayload(
@@ -273,8 +250,8 @@ class DataProcessor(
             )
           }
         )
-        initBatch(channelId, tuples)
-        processInputTuple(Left(inputBatch(currentInputIdx)))
+        inputManager.initBatch(channelId, tuples)
+        processInputTuple(Left(inputManager.getNextTuple))
       case EndOfUpstream() =>
         val channel = this.inputGateway.getChannel(channelId)
         val portId = channel.getPortId
@@ -282,7 +259,7 @@ class DataProcessor(
         this.inputManager.getPort(portId).channels(channelId) = true
 
         if (inputManager.isPortCompleted(portId)) {
-          initBatch(channelId, Array.empty)
+          inputManager.initBatch(channelId, Array.empty)
           processInputTuple(Right(InputExhausted()))
           outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
