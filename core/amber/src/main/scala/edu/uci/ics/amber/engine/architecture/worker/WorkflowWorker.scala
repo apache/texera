@@ -42,8 +42,6 @@ object WorkflowWorker {
     Props(
       new WorkflowWorker(
         workerConfig,
-        physicalOp,
-        operatorConfig,
         replayInitialization
       )
     )
@@ -71,15 +69,11 @@ object WorkflowWorker {
 
 class WorkflowWorker(
     workerConfig: WorkerConfig,
-    physicalOp: PhysicalOp,
-    operatorConfig: OperatorConfig,
     replayInitialization: WorkerReplayInitialization
 ) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
-  var dp = new DataProcessor(
-    workerConfig.workerId,
-    logManager.sendCommitted
+  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted
   )
   val timerService = new WorkerTimerService(actorService)
 

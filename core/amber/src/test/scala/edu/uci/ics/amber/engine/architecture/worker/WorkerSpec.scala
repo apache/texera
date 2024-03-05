@@ -130,8 +130,6 @@ class WorkerSpec
     TestActorRef(
       new WorkflowWorker(
         WorkerConfig(identifier1),
-        physicalOp,
-        OperatorConfig(List(WorkerConfig(identifier1))),
         WorkerReplayInitialization(restoreConfOpt = None, faultToleranceConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler) {
