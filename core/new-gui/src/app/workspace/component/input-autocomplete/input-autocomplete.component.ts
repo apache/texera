@@ -26,7 +26,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   }
 
   autocomplete(): void {
-    // currently it's a hard-code UserFileService autocomplete
+    // currently it's a hard-code DatasetFile autocomplete
     // TODO: generalize this callback function with a formly hook.
     const value = this.field.formControl.value.trim();
     const wid = this.workflowActionService.getWorkflowMetadata()?.wid;

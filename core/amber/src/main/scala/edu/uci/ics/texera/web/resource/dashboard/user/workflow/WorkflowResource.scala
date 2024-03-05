@@ -5,23 +5,14 @@ import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.jooq.generated.Tables._
 import edu.uci.ics.texera.web.model.jooq.generated.enums.WorkflowUserAccessPrivilege
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  EnvironmentOfWorkflowDao,
-  WorkflowDao,
-  WorkflowOfProjectDao,
-  WorkflowOfUserDao,
-  WorkflowUserAccessDao
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{EnvironmentOfWorkflowDao, WorkflowDao, WorkflowOfProjectDao, WorkflowOfUserDao, WorkflowUserAccessDao}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
-  createEnvironment,
-  doesWorkflowHaveEnvironment
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{createEnvironment, doesWorkflowHaveEnvironment}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.Condition
+import org.jooq.{Condition, DSLContext}
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 
@@ -80,6 +71,11 @@ object WorkflowResource {
         .newRecord(WORKFLOW_OF_PROJECT.WID, WORKFLOW_OF_PROJECT.PID)
         .values(wid, pid)
     )
+  }
+
+  def getEnvironmentEidOfWorkflow(wid: UInteger): UInteger = {
+    val environmentOfWorkflow = environmentOfWorkflowDao.fetchByWid(wid)
+    environmentOfWorkflow.get(0).getEid
   }
 
   case class DashboardWorkflow(

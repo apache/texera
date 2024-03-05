@@ -4,7 +4,9 @@ import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyD
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.getEnvironmentDatasetFilePathAndVersion
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileAccessResource
+import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor
@@ -63,17 +65,12 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
 
     if (getContext.userId.isDefined) {
       // if context has a valid user ID, the fileName will be in the following format:
-      //    ownerName/fileName
+      //    /datasetName/fileName
       // resolve fileName to be the actual file path.
-      val splitNames = fileName.get.split("/")
-      filePath = UserFileAccessResource
-        .getFilePath(
-          email = splitNames.apply(0),
-          fileName = splitNames.apply(1),
-          getContext.userId.get,
-          UInteger.valueOf(getContext.workflowId.id)
-        )
-
+      // fetch the environment id that workflow is in
+      val environmentEid = WorkflowResource.getEnvironmentEidOfWorkflow(UInteger.valueOf(workflowContext.workflowId.id))
+      val datasetFileDescriptor = getEnvironmentDatasetFilePathAndVersion(getContext.userId.get, environmentEid, fileName.get)
+      filePath = Some(datasetFileDescriptor.tempFilePath().toString)
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.
       filePath = fileName

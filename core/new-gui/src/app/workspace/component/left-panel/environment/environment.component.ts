@@ -126,18 +126,23 @@ export class EnvironmentComponent implements OnInit {
   }
 
   // related control for dataset link modal
-  onClickOpenDatasetLinkModal() {
+  onClickOpenDatasetAddModal() {
     // initialize the datasets info
     this.datasetService.retrieveAccessibleDatasets().subscribe({
       next: datasets => {
         console.log(datasets);
         this.userAccessibleDatasets = datasets.filter(ds => {
           const newDid = ds.dataset.did;
-          return !newDid || !this.datasetsOfEnvironment.has(newDid);
+          return newDid && !this.datasetsOfEnvironment.has(newDid);
         });
+        this.filteredLinkingDatasets = this.userAccessibleDatasets
+          .map(dataset => ({
+            name: dataset.dataset.name,
+            did: dataset.dataset.did,
+          }))
 
         if (this.userAccessibleDatasets.length == 0) {
-          this.notificationService.warning("There is no available datasets to be linked to the environment.");
+          this.notificationService.warning("There is no available datasets to be added to the environment.");
         } else {
           this.showDatasetLinkModal = true;
         }
@@ -149,7 +154,7 @@ export class EnvironmentComponent implements OnInit {
     this.showDatasetLinkModal = false;
   }
 
-  onClickLinkDataset(dataset: { did: number | undefined; name: string }) {
+  onClickAddDataset(dataset: { did: number | undefined; name: string }) {
     if (this.eid && dataset.did) {
       this.environmentService.addDatasetToEnvironment(this.eid, dataset.did).subscribe({
         next: response => {
@@ -177,6 +182,7 @@ export class EnvironmentComponent implements OnInit {
     }
     // console.log(this.filteredLinkingDatasetsName)
   }
+
 
   // controls of dataset details
   get showingDatasetName(): string {

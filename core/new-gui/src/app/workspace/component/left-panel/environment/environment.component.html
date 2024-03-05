@@ -29,8 +29,8 @@
       class="link-dataset-btn"
       nz-button
       nzType="primary"
-      (click)="onClickOpenDatasetLinkModal()">
-      Link Dataset
+      (click)="onClickOpenDatasetAddModal()">
+      Add Dataset
     </button>
     <!-- Content for Datasets -->
     <nz-collapse>
@@ -58,7 +58,7 @@
     <!-- Link Datasets Modal -->
     <nz-modal
       [(nzVisible)]="showDatasetLinkModal"
-      nzTitle="Link a new Dataset to the Environment"
+      nzTitle="Add a new Dataset to current Environment"
       [nzMaskClosable]="true"
       (nzOnCancel)="handleCancelLinkDataset()"
       [nzFooter]="null">
@@ -83,8 +83,8 @@
                   nz-button
                   nzType="primary"
                   class="dataset-option-link-btn"
-                  (click)="onClickLinkDataset(dataset)">
-                  Link
+                  (click)="onClickAddDataset(dataset)">
+                  Add
                 </button>
               </div>
             </nz-auto-option>
