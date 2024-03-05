@@ -381,11 +381,12 @@ class ExpansionGreedyRegionPlanGenerator(
     matReader.setContext(workflowContext)
     matReader.setOperatorId("cacheSource_" + matWriterLogicalOpId.id)
 
-    val res = matReader.getPhysicalOp(
-      workflowContext.workflowId,
-      workflowContext.executionId
-    )
-    res.propagateSchema()
+    matReader
+      .getPhysicalOp(
+        workflowContext.workflowId,
+        workflowContext.executionId
+      )
+      .propagateSchema()
 
   }
 

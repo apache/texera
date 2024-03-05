@@ -37,27 +37,30 @@ class SchemaPropagationResource extends LazyLogging {
 
     val logicalPlan = LogicalPlan(logicalPlanPojo)
 
-    // ignore errors during propagation. errors are reported through EditingTimeCompilationRequest
-//    logicalPlan.propagateWorkflowSchema(context, errorList = None)
-
     // the PhysicalPlan with topology expanded.
     val physicalPlan = PhysicalPlan(context, logicalPlan)
 
-    val physicalInputSchemas = physicalPlan.operators.map(physicalOp => {
-      physicalOp.id -> physicalOp.inputPorts
-        .filterNot(port => port._1.internal)
-        .values
-        .map(_._3)
+    // Extract physical input schemas, excluding internal ports
+    val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
+      physicalOp.id -> physicalOp.inputPorts.values
+        .filterNot(_._1.id.internal)
+        .map(_._3.toOption)
         .toList
-    })
+    }
+
+    // Group the physical input schemas by their logical operation ID and consolidate the schemas
     val logicalInputSchemas = physicalInputSchemas
       .groupBy(_._1.logicalOpId)
-      .map({
-        case (logicalOpId, schemas) => logicalOpId -> schemas.flatMap(_._2).toList
-      })
+      .view
+      .mapValues(_.flatMap(_._2).toList)
+      .toMap
 
-    val responseContent = logicalInputSchemas
-      .map(e => (e._1.id, e._2.map(s => s.map(o => o.getAttributes))))
+    // Prepare the response content by extracting attributes from the schemas,
+    // ignoring errors (errors are reported through EditingTimeCompilationRequest)
+    val responseContent = logicalInputSchemas.map {
+      case (logicalOpId, schemas) =>
+        logicalOpId.id -> schemas.map(_.map(_.getAttributes))
+    }
     SchemaPropagationResponse(0, responseContent, null)
 
   }

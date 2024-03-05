@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagation;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.AmberUtils;
@@ -52,7 +52,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                 .withInputPorts(operatorInfo().inputPorts())
                 .withOutputPorts(operatorInfo().outputPorts())
                 .withPropagateSchema(
-                        SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+                        SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
                             // Initialize a Java HashMap
                             java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
                             Schema outputSchema = inputSchemas.values().head();
@@ -65,7 +65,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
 
                             // Convert the Java Map to a Scala immutable Map
-                            return AmberUtils.convertToImmutableMap(javaMap);
+                            return AmberUtils.toImmutableMap(javaMap);
                         })
                 );
     }

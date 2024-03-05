@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.sink.managed;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Preconditions;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagation;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.AmberUtils;
@@ -69,7 +69,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 .withInputPorts(this.operatorInfo().inputPorts())
                 .withOutputPorts(this.operatorInfo().outputPorts())
                 .withPropagateSchema(
-                        SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+                        SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
                             // Initialize a Java HashMap
                             java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
 
@@ -96,7 +96,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             // set schema for the storage
                             getStorage().setSchema(outputSchema);
                             // Convert the Java Map to a Scala immutable Map
-                            return AmberUtils.convertToImmutableMap(javaMap);
+                            return AmberUtils.toImmutableMap(javaMap);
                         })
                 );
     }

@@ -135,8 +135,7 @@ class RegionExecutionCoordinator(
                 .send(
                   InitializeOperatorLogic(
                     pythonUDFPhysicalOp.getPythonCode,
-                    pythonUDFPhysicalOp.isSourceOperator,
-                    pythonUDFPhysicalOp.outputPorts.values.head._3.get
+                    pythonUDFPhysicalOp.isSourceOperator
                   ),
                   workerId
                 )
@@ -151,11 +150,11 @@ class RegionExecutionCoordinator(
         .flatMap { physicalOp: PhysicalOp =>
           physicalOp.inputPorts
             .map{
-              case (inputPortId, (port, links, schema)) => GlobalPortIdentity(physicalOp.id, inputPortId, input = true)-> schema.get}
+              case (inputPortId, (_, _, Right(schema))) => GlobalPortIdentity(physicalOp.id, inputPortId, input = true)-> schema}
             .concat(
               physicalOp.outputPorts
                 .map{
-                  case (outputPortId, (port, links, schema)) => GlobalPortIdentity(physicalOp.id, outputPortId, input = false)-> schema.get}
+                  case (outputPortId, (_, _, Right(schema))) => GlobalPortIdentity(physicalOp.id, outputPortId, input = false)-> schema}
             )
         }
         .flatMap { case (globalPortId, schema) =>

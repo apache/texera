@@ -166,8 +166,8 @@ class WorkerSpec
 
   "Worker" should "process data messages correctly" in {
     physicalOp = physicalOp.copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Some(mkSchema(1)))),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Some(mkSchema(1))))
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1)))),
+      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1))))
     )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
@@ -201,9 +201,10 @@ class WorkerSpec
       case a => println(a); true
     }
     physicalOp = physicalOp.copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Some(mkSchema(1, 1, 1, 1)))),
+      inputPorts =
+        Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1, 1, 1, 1)))),
       outputPorts =
-        Map(PortIdentity() -> (OutputPort(), List(mockLink), Some(mkSchema(1, 1, 1, 1))))
+        Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1, 1, 1, 1))))
     )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
@@ -264,8 +265,8 @@ class WorkerSpec
       case a => println(a); true
     }
     physicalOp = physicalOp.copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Some(mkSchema(1)))),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Some(mkSchema(1))))
+      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1)))),
+      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1))))
     )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()

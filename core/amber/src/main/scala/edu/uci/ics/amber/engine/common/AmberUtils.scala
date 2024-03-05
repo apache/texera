@@ -6,7 +6,7 @@ import com.typesafe.config.ConfigFactory.defaultApplication
 import com.typesafe.config.{Config, ConfigFactory}
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.architecture.messaginglayer.DeadLetterMonitorActor
-
+import scala.jdk.CollectionConverters._
 import java.io.{BufferedReader, InputStreamReader}
 import java.net.URL
 
@@ -14,10 +14,9 @@ object AmberUtils {
 
   var serde: Serialization = _
 
-  def convertToImmutableMap[K, V](
+  def toImmutableMap[K, V](
       javaMap: java.util.Map[K, V]
   ): scala.collection.immutable.Map[K, V] = {
-    import scala.jdk.CollectionConverters._
     javaMap.asScala.toMap
   }
 

@@ -34,18 +34,23 @@ object PhysicalPlan {
             val externalLinks = logicalPlan
               .getUpstreamLinks(logicalOp.operatorIdentifier)
               .filter(link => physicalOp.inputPorts.contains(link.toPortId))
-              .map(link => {
-                val fromOp = physicalPlan.getPhysicalOpForOutputPort(link.fromOpId, link.fromPortId)
-                PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
-              })
+              .flatMap { link =>
+                physicalPlan
+                  .getPhysicalOpsOfLogicalOp(link.fromOpId)
+                  .find(_.outputPorts.contains(link.fromPortId))
+                  .map(fromOp =>
+                    PhysicalLink(fromOp.id, link.fromPortId, physicalOp.id, link.toPortId)
+                  )
+              }
 
             val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
-            // Add the operator and all links to the physical plan
+            // Add the operator to the physical plan
+            physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
+
+            // Add all the links to the physical plan
             physicalPlan = (externalLinks ++ internalLinks)
-              .foldLeft(physicalPlan.addOperator(physicalOp.propagateSchema())) { (plan, link) =>
-                plan.addLink(link)
-              }
+              .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
           }
         })
     })
@@ -72,20 +77,6 @@ case class PhysicalPlan(
 
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
-
-  private def getPhysicalOpForOutputPort(
-      logicalOpId: OperatorIdentity,
-      portId: PortIdentity
-  ): PhysicalOp = {
-    assert(!portId.internal, "only support external port")
-    val candidatePhysicalOps =
-      getPhysicalOpsOfLogicalOp(logicalOpId).filter(op => op.outputPorts.contains(portId))
-    assert(
-      candidatePhysicalOps.size == 1,
-      s"find ${candidatePhysicalOps.size} output port(s) with id = $portId for operator $logicalOpId"
-    )
-    candidatePhysicalOps.head
-  }
 
   def getPhysicalOpsOfLogicalOp(logicalOpId: OperatorIdentity): List[PhysicalOp] = {
     topologicalIterator()
@@ -133,7 +124,7 @@ case class PhysicalPlan(
     val newFromOp = formOp.addOutputLink(link)
     val newToOp = getOperator(link.toOpId)
       .addInputLink(link)
-      .propagateSchema(Some(link.toPortId, outputSchema.get))
+      .propagateSchema(outputSchema.toOption.map(schema => (link.toPortId, schema)))
 
     val newOperators = operatorMap +
       (link.fromOpId -> newFromOp) +
