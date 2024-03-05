@@ -23,8 +23,8 @@ class IntersectOpDesc extends LogicalOp {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new IntersectOpExec())
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withPartitionRequirement(List(Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
   }

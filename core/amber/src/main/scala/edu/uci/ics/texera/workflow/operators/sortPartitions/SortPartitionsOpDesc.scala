@@ -43,37 +43,28 @@ class SortPartitionsOpDesc extends LogicalOp {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp = {
-    val partitionRequirement = List(
-      Option(
-        RangePartition(
-          List(sortAttributeName),
-          domainMin,
-          domainMax
-        )
-      )
-    )
-
+  ): PhysicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, operatorConfig) => {
-          new SortPartitionOpExec(
-            sortAttributeName,
-            idx,
-            domainMin,
-            domainMax,
-            operatorConfig.workerConfigs.length
-          )
-        })
+        OpExecInitInfo(opExecFunc =
+          (idx, _, operatorConfig) =>
+            new SortPartitionOpExec(
+              sortAttributeName,
+              idx,
+              domainMin,
+              domainMax,
+              operatorConfig.workerConfigs.length
+            )
+        )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
-      .withPartitionRequirement(partitionRequirement)
-
-  }
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(
+        List(Option(RangePartition(List(sortAttributeName), domainMin, domainMax)))
+      )
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

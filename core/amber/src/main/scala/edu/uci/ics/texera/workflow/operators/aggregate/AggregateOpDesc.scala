@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.aggregate
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
@@ -15,8 +15,6 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.{HashPartition, PhysicalPlan}
-
-import scala.collection.mutable
 
 class AggregateOpDesc extends LogicalOp {
   @JsonProperty(value = "aggregations", required = true)
@@ -36,10 +34,6 @@ class AggregateOpDesc extends LogicalOp {
     if (aggregations.isEmpty) {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
-    val inputSchema =
-      operatorInfo.inputPorts.map(inputPort => inputPortToSchemaMapping(inputPort.id)).head
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
 
     val outputPort = OutputPort(PortIdentity(internal = true))
     val partialPhysicalOp =
@@ -51,10 +45,16 @@ class AggregateOpDesc extends LogicalOp {
           OpExecInitInfo((_, _, _) => new AggregateOpExec(aggregations, groupByKeys))
         )
         .withIsOneToManyOp(true)
-        .withInputPorts(List(InputPort(PortIdentity())), mutable.Map(PortIdentity() -> inputSchema))
-        .withOutputPorts(
-          List(outputPort),
-          mutable.Map(outputPort.id -> outputSchema)
+        .withInputPorts(List(InputPort(PortIdentity())))
+        .withOutputPorts(List(outputPort))
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(
+              PortIdentity(internal = true) -> getOutputSchema(
+                operatorInfo.inputPorts.map(port => inputSchemas(port.id)).toArray
+              )
+            )
+          )
         )
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
@@ -70,10 +70,14 @@ class AggregateOpDesc extends LogicalOp {
       )
       .withParallelizable(false)
       .withIsOneToManyOp(true)
-      .withInputPorts(List(inputPort), mutable.Map(inputPort.id -> outputSchema))
-      .withOutputPorts(
-        List(OutputPort(PortIdentity(0))),
-        mutable.Map(PortIdentity() -> outputSchema)
+      .withInputPorts(List(inputPort))
+      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(operatorInfo.outputPorts.head.id -> {
+            inputSchemas(PortIdentity(internal = true))
+          })
+        )
       )
       .withPartitionRequirement(List(Option(HashPartition(groupByKeys))))
       .withDerivePartition(_ => HashPartition(groupByKeys))
