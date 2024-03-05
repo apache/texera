@@ -9,7 +9,7 @@ import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import org.jooq.exception.MappingException
@@ -60,6 +60,8 @@ class OutputManager(
 ) {
 
   val partitioners = mutable.HashMap[PhysicalLink, Partitioner]()
+
+  private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
   val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
@@ -136,5 +138,20 @@ class OutputManager(
       kv._2.noMore()
     })
   }
+
+  def addPort(portId: PortIdentity, schema: Schema): Unit = {
+    // each port can only be added and initialized once.
+    if (this.ports.contains(portId)) {
+      return
+    }
+    this.ports(portId) = WorkerPort(schema)
+
+  }
+
+  def getPortIds: Set[PortIdentity] = {
+    this.ports.keys.toSet
+  }
+
+  def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
 }

@@ -232,7 +232,7 @@ class DataProcessor(
       outputManager.passTupleToDownstream(
         outputTuple,
         out,
-        outputGateway.getPort(portId).schema
+        outputManager.getPort(portId).schema
       )
     }
   }
@@ -300,7 +300,7 @@ class DataProcessor(
         }
         if (inputGateway.getAllPorts.forall(portId => inputGateway.isPortCompleted(portId))) {
           // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
-          outputGateway.getPortIds
+          outputManager.getPortIds
             .foreach(outputPortId =>
               outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
             )

@@ -22,7 +22,7 @@ trait AssignPortHandler {
     if (msg.input) {
       dp.inputGateway.addPort(msg.portId, msg.schema)
     } else {
-      dp.outputGateway.addPort(msg.portId, msg.schema)
+      dp.outputManager.addPort(msg.portId, msg.schema)
     }
   }
 
