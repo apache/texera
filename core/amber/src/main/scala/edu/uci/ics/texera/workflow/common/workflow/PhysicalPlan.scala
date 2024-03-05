@@ -239,12 +239,12 @@ case class PhysicalPlan(
   }
 
   /**
-   * An link is a bridge if removal of that link would increase the number of (weakly) connected components in the
-   * DAG. Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
-   * a bridge. We can thus use bridges to optimize the process of searching for an optimal physical plan.
-   *
-   * @return All non-blocking links that are not bridges.
-   */
+    * An link is a bridge if removal of that link would increase the number of (weakly) connected components in the
+    * DAG. Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
+    * a bridge. We can thus use bridges to optimize the process of searching for an optimal physical plan.
+    *
+    * @return All non-blocking links that are not bridges.
+    */
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
     val bridges = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](this.dag).getBridges
       .map { edge =>
