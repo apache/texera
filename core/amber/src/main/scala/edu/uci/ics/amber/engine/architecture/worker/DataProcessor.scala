@@ -214,15 +214,8 @@ class DataProcessor(
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case schemaEnforceable: SchemaEnforceable =>
         statisticsManager.increaseOutputTupleCount()
-        outputPortOpt match {
-          case Some(port) =>
-            outputManager.passTupleToDownstream(schemaEnforceable, port)
-          case None =>
-            // push to all output ports if not specified.
-            physicalOp.outputPorts.keys.foreach(port => {
-              outputManager.passTupleToDownstream(schemaEnforceable, port)
-            })
-        }
+        outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
+
       case other => // skip for now
     }
   }

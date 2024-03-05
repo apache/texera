@@ -90,12 +90,11 @@ class OutputManager(
     * @param tupleLike TupleLike to be passed.
     * @param outputPortId The output port ID from which the tuple is emitted.
     */
-  def passTupleToDownstream(tupleLike: SchemaEnforceable, outputPortId: PortIdentity): Unit = {
-    partitioners
-      .filter(_._1.fromPortId == outputPortId)
+  def passTupleToDownstream(tupleLike: SchemaEnforceable, outputPortId: Option[PortIdentity] = None): Unit = {
+    outputPortId.map(id => partitioners.filter(_._1.fromPortId == id)).getOrElse(partitioners)
       .foreach {
         case (link, partitioner) =>
-          val outputTuple = tupleLike.enforceSchema(getPort(outputPortId).schema)
+          val outputTuple = tupleLike.enforceSchema(getPort(link.fromPortId).schema)
           partitioner.getBucketIndex(outputTuple).foreach { bucketIndex =>
             val destActor = partitioner.allReceivers(bucketIndex)
             networkOutputBuffers((link, destActor)).addTuple(outputTuple)
