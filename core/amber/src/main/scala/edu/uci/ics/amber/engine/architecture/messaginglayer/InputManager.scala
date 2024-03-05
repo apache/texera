@@ -9,8 +9,8 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import scala.collection.mutable
 
 class InputManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
-  var inputBatch: Array[Tuple] = _
-  var currentInputIdx: Int = -1
+  private var inputBatch: Array[Tuple] = _
+  private var currentInputIdx: Int = -1
   var currentChannelId: ChannelIdentity = _
 
   private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
