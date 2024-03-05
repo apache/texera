@@ -133,13 +133,20 @@ export class EnvironmentComponent implements OnInit {
         console.log(datasets);
         this.userAccessibleDatasets = datasets.filter(ds => {
           const newDid = ds.dataset.did;
-          return newDid && !this.datasetsOfEnvironment.has(newDid);
+          const newName = ds.dataset.name;
+
+          // Check if the datasetsOfEnvironment does not have the newDid
+          const didNotExist = newDid && !this.datasetsOfEnvironment.has(newDid);
+
+          // Check if the datasetsOfEnvironment does not have the newName
+          const nameNotExist = ![...this.datasetsOfEnvironment.values()].some(([details, _]) => details.dataset.name === newName);
+          return didNotExist && nameNotExist;
         });
-        this.filteredLinkingDatasets = this.userAccessibleDatasets
-          .map(dataset => ({
-            name: dataset.dataset.name,
-            did: dataset.dataset.did,
-          }))
+
+        this.filteredLinkingDatasets = this.userAccessibleDatasets.map(dataset => ({
+          name: dataset.dataset.name,
+          did: dataset.dataset.did,
+        }));
 
         if (this.userAccessibleDatasets.length == 0) {
           this.notificationService.warning("There is no available datasets to be added to the environment.");
