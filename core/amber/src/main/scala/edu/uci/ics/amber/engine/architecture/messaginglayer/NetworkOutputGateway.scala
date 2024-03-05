@@ -1,7 +1,12 @@
 package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import edu.uci.ics.amber.engine.common.AmberLogging
-import edu.uci.ics.amber.engine.common.ambermessage.{ControlPayload, DataPayload, WorkflowFIFOMessage, WorkflowFIFOMessagePayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ControlPayload,
+  DataPayload,
+  WorkflowFIFOMessage,
+  WorkflowFIFOMessagePayload
+}
 
 import java.util.concurrent.atomic.AtomicLong
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -87,6 +92,6 @@ class NetworkOutputGateway(
     this.ports.keys.toSet
   }
 
-  def getPort(portId:PortIdentity) : WorkerPort =ports(portId)
+  def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
 }

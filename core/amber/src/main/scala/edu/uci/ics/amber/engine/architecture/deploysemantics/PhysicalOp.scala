@@ -34,20 +34,18 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 import scala.collection.mutable.ArrayBuffer
 import scala.util.{Failure, Success, Try}
 
-class SchemaNotAvailableException(message: String) extends Exception(message)
-
 case object SchemaPropagationFunc {
-
   private type JavaSchemaPropagationFunc =
     java.util.function.Function[Map[PortIdentity, Schema], Map[PortIdentity, Schema]]
       with java.io.Serializable
-
   def apply(javaFunc: JavaSchemaPropagationFunc): SchemaPropagationFunc =
     SchemaPropagationFunc(inputSchemas => javaFunc.apply(inputSchemas))
 
 }
 
 case class SchemaPropagationFunc(func: Map[PortIdentity, Schema] => Map[PortIdentity, Schema])
+
+class SchemaNotAvailableException(message: String) extends Exception(message)
 
 object PhysicalOp {
 
