@@ -524,8 +524,6 @@ case class PhysicalOp(
       } else {
         WorkflowWorker.props(
           workerConfig,
-          physicalOp = this,
-          operatorConfig,
           WorkerReplayInitialization(
             stateRestoreConfig,
             replayLoggingConfig

@@ -1,6 +1,10 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfo,
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -17,11 +21,15 @@ object InitializeOperatorLogicHandler {
 trait InitializeOperatorLogicHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: InitializeOperatorLogic, sender) => {
-    dp.operator = msg.opExecInitInfo match {
-      case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
-      case OpExecInitInfoWithFunc(opGen) => opGen(VirtualIdentityUtils.getWorkerIndex(actorId), msg.totalWorkerCount)
+  registerHandler { (msg: InitializeOperatorLogic, sender) =>
+    {
+      dp.operator = msg.opExecInitInfo match {
+        case OpExecInitInfoWithCode(codeGen) =>
+          ??? // TODO: compile and load java/scala operator here
+        case OpExecInitInfoWithFunc(opGen) =>
+          opGen(VirtualIdentityUtils.getWorkerIndex(actorId), msg.totalWorkerCount)
+      }
     }
-  }}
+  }
 
 }

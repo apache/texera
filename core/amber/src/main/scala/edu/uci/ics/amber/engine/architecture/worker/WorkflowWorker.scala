@@ -35,8 +35,6 @@ import scala.collection.mutable
 object WorkflowWorker {
   def props(
       workerConfig: WorkerConfig,
-      physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
       replayInitialization: WorkerReplayInitialization
   ): Props =
     Props(
@@ -73,8 +71,7 @@ class WorkflowWorker(
 ) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
-  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted
-  )
+  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted)
   val timerService = new WorkerTimerService(actorService)
 
   val dpThread =
