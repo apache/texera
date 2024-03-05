@@ -14,7 +14,7 @@ object AmberUtils {
 
   var serde: Serialization = _
 
-  def convertToImmutableMap[K, V](
+  def toImmutableMap[K, V](
       javaMap: java.util.Map[K, V]
   ): scala.collection.immutable.Map[K, V] = {
     javaMap.asScala.toMap

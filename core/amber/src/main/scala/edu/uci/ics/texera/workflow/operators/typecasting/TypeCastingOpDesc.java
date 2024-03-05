@@ -65,7 +65,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                             javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
 
                             // Convert the Java Map to a Scala immutable Map
-                            return AmberUtils.convertToImmutableMap(javaMap);
+                            return AmberUtils.toImmutableMap(javaMap);
                         })
                 );
     }

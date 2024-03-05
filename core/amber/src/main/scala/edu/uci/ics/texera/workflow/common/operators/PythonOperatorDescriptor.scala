@@ -42,6 +42,15 @@ trait PythonOperatorDescriptor extends LogicalOp {
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
         .withParallelizable(parallelizable())
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(
+              operatorInfo.outputPorts.head.id -> getOutputSchema(
+                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
+              )
+            )
+          )
+        )
     }
   }
 

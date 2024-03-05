@@ -96,7 +96,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                             // set schema for the storage
                             getStorage().setSchema(outputSchema);
                             // Convert the Java Map to a Scala immutable Map
-                            return AmberUtils.convertToImmutableMap(javaMap);
+                            return AmberUtils.toImmutableMap(javaMap);
                         })
                 );
     }

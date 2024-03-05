@@ -81,7 +81,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                                 javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
 
                                 // Convert the Java Map to a Scala immutable Map
-                                return AmberUtils.convertToImmutableMap(javaMap);
+                                return AmberUtils.toImmutableMap(javaMap);
                             })
                     )
                     .withLocationPreference(Option.empty());
