@@ -21,7 +21,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentRes
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
 import io.dropwizard.auth.Auth
-import org.jooq.{Condition, DSLContext}
+import org.jooq.Condition
 import org.jooq.impl.DSL.{groupConcatDistinct, noCondition}
 import org.jooq.types.UInteger
 

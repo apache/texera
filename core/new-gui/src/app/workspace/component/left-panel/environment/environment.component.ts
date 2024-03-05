@@ -95,13 +95,19 @@ export class EnvironmentComponent implements OnInit {
     this.datasetFileTrees = [];
     if (this.eid) {
       const eid = this.eid;
-      this.environmentService.retrieveDatasetsOfEnvironmentDetails(eid).subscribe({
+      this.environmentService
+          .retrieveDatasetsOfEnvironmentDetails(eid)
+          .pipe(untilDestroyed(this))
+          .subscribe({
         next: datasets => {
           datasets.forEach(entry => {
             const did = entry.dataset.did;
             const dvid = entry.version.dvid;
             if (did && dvid) {
-              this.datasetService.retrieveDatasetVersionFileTree(did, dvid).subscribe({
+              this.datasetService
+                  .retrieveDatasetVersionFileTree(did, dvid)
+                  .pipe(untilDestroyed(this))
+                  .subscribe({
                 next: datasetFileTree => {
                   this.datasetsOfEnvironment.set(did, [entry, datasetFileTree]);
                   this.datasetFileTrees.push([did, entry.dataset.name, datasetFileTree]);
@@ -128,7 +134,10 @@ export class EnvironmentComponent implements OnInit {
   // related control for dataset link modal
   onClickOpenDatasetAddModal() {
     // initialize the datasets info
-    this.datasetService.retrieveAccessibleDatasets().subscribe({
+    this.datasetService
+        .retrieveAccessibleDatasets()
+        .pipe(untilDestroyed(this))
+        .subscribe({
       next: datasets => {
         this.userAccessibleDatasets = datasets.filter(ds => {
           const newDid = ds.dataset.did;
@@ -164,7 +173,9 @@ export class EnvironmentComponent implements OnInit {
 
   onClickAddDataset(dataset: { did: number | undefined; name: string }) {
     if (this.eid && dataset.did) {
-      this.environmentService.addDatasetToEnvironment(this.eid, dataset.did).subscribe({
+      this.environmentService.addDatasetToEnvironment(this.eid, dataset.did)
+          .pipe(untilDestroyed(this))
+          .subscribe({
         next: response => {
           this.notificationService.success(`Link dataset ${dataset.name} to the environment successfully`);
           this.showDatasetLinkModal = false;
