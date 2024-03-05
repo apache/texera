@@ -59,7 +59,6 @@ class DataProcessor(
     with Serializable {
 
   @transient var workerIdx: Int = 0
-  @transient var physicalOp: PhysicalOp = _
   @transient var operatorConfig: OperatorConfig = _
   @transient var operator: IOperatorExecutor = _
   @transient var serializationCall: () => Unit = _
@@ -77,7 +76,6 @@ class DataProcessor(
         opGen(workerIdx, physicalOp, operatorConfig)
     }
     this.operatorConfig = operatorConfig
-    this.physicalOp = physicalOp
 
     this.outputManager.outputIterator.setTupleOutput(currentOutputIterator)
   }
