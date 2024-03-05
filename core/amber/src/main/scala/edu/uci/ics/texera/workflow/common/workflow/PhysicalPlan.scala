@@ -41,11 +41,12 @@ object PhysicalPlan {
 
             val internalLinks = subPlan.getUpstreamPhysicalLinks(physicalOp.id)
 
-            // Add the operator and all links to the physical plan
+            // Add the operator to the physical plan
+            physicalPlan = physicalPlan.addOperator(physicalOp.propagateSchema())
+
+            // Add all the links to the physical plan
             physicalPlan = (externalLinks ++ internalLinks)
-              .foldLeft(physicalPlan.addOperator(physicalOp.propagateSchema())) { (plan, link) =>
-                plan.addLink(link)
-              }
+              .foldLeft(physicalPlan) { (plan, link) => plan.addLink(link) }
           }
         })
     })
