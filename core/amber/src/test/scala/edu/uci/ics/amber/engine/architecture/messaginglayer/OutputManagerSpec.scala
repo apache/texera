@@ -74,7 +74,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       OneToOnePartitioning(10, fakeReceiver.toSeq)
     )
     tuples.foreach { t =>
-      outputManager.passTupleToDownstream(TupleLike(t.getFields), mockPortId)
+      outputManager.passTupleToDownstream(TupleLike(t.getFields), None)
     }
     outputManager.emitEndOfUpstream()
   }
@@ -85,12 +85,9 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       TupleLike(1, 2, 3, 4, "5", 9.8).enforceSchema(schema)
     )
     (mockHandler.apply _).expects(*).never()
-    val mockPortId = PortIdentity()
-    val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
-
     assertThrows[Exception] {
       tuples.foreach { t =>
-        outputManager.passTupleToDownstream(t, mockPortId)
+        outputManager.passTupleToDownstream(t, None)
       }
       outputManager.emitEndOfUpstream()
     }

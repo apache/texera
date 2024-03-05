@@ -173,7 +173,7 @@ class WorkerSpec
     )
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockPortId).once()
+    (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), None).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
@@ -213,7 +213,7 @@ class WorkerSpec
     def mkBatch(start: Int, end: Int): Array[Tuple] = {
       (start until end).map { x =>
         (mockOutputManager.passTupleToDownstream _)
-          .expects(mkTuple(x, x, x, x), mockPortId)
+          .expects(mkTuple(x, x, x, x), None)
           .once()
         mkTuple(x, x, x, x)
       }.toArray
@@ -306,9 +306,7 @@ class WorkerSpec
     )
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _)
-          .expects(mkTuple(i), mockPortId)
-          .once()
+        (mockOutputManager.passTupleToDownstream _).expects(mkTuple(i), None).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
@@ -324,9 +322,7 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _)
-          .expects(mkTuple(i), mockPortId)
-          .once()
+        (mockOutputManager.passTupleToDownstream _).expects(mkTuple(i), None).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
