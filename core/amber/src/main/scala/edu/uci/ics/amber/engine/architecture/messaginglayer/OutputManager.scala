@@ -55,15 +55,16 @@ object OutputManager {
   * @param outputGateway DataOutputPort
   */
 class OutputManager(
-                     selfID: ActorVirtualIdentity,
-                     outputGateway: NetworkOutputGateway
+    selfID: ActorVirtualIdentity,
+    outputGateway: NetworkOutputGateway
 ) {
 
-  val partitioners = mutable.HashMap[PhysicalLink, Partitioner]()
+  private val partitioners: mutable.Map[PhysicalLink, Partitioner] =
+    mutable.HashMap[PhysicalLink, Partitioner]()
 
   private val ports: mutable.HashMap[PortIdentity, WorkerPort] = mutable.HashMap()
 
-  val networkOutputBuffers =
+  private val networkOutputBuffers =
     mutable.HashMap[(PhysicalLink, ActorVirtualIdentity), NetworkOutputBuffer]()
 
   /**
@@ -87,26 +88,19 @@ class OutputManager(
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
     * @param tupleLike TupleLike to be passed.
+    * @param outputPortId The output port ID from which the tuple is emitted.
     */
-  def passTupleToDownstream(
-                             tupleLike: SchemaEnforceable,
-                             outputPortId: PortIdentity
-  ): Unit = {
-    partitioners.filter{
-      case (link, partitioner)=> link.fromPortId == outputPortId
-    }
+  def passTupleToDownstream(tupleLike: SchemaEnforceable, outputPortId: PortIdentity): Unit = {
+    partitioners
+      .filter(_._1.fromPortId == outputPortId)
       .foreach {
-      case (link, partitioner) =>
-        val outputTuple: Tuple = tupleLike.enforceSchema(getPort(outputPortId).schema)
-        partitioner
-          .getBucketIndex(outputTuple)
-          .foreach(bucketIndex => {
+        case (link, partitioner) =>
+          val outputTuple = tupleLike.enforceSchema(getPort(outputPortId).schema)
+          partitioner.getBucketIndex(outputTuple).foreach { bucketIndex =>
             val destActor = partitioner.allReceivers(bucketIndex)
             networkOutputBuffers((link, destActor)).addTuple(outputTuple)
-          })
+          }
       }
-
-
   }
 
   /**
