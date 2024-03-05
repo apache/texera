@@ -130,7 +130,6 @@ export class EnvironmentComponent implements OnInit {
     // initialize the datasets info
     this.datasetService.retrieveAccessibleDatasets().subscribe({
       next: datasets => {
-        console.log(datasets);
         this.userAccessibleDatasets = datasets.filter(ds => {
           const newDid = ds.dataset.did;
           const newName = ds.dataset.name;

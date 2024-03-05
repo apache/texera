@@ -11,7 +11,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetVersion.DATASET
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResource.{getDatasetUserAccessPrivilege, userHasReadAccess, userHasWriteAccess, userOwnDataset}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, context, createNewDatasetVersion, getDashboardDataset, getDatasetByID, getDatasetLatestVersion, getDatasetVersionHashByID, retrievePublicDatasets}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DATASET_IS_PRIVATE, DATASET_IS_PUBLIC, DashboardDataset, DashboardDatasetVersion, DatasetDescriptionModification, DatasetIDs, DatasetNameModification, DatasetVersionRootFileNodes, DatasetVersions, ERR_DATASET_CREATION_FAILED_MESSAGE, ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE, context, createNewDatasetVersion, getDashboardDataset, getDatasetByID, getDatasetLatestVersion, getDatasetVersionHashByID, retrievePublicDatasets}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.FileNode
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
@@ -33,7 +33,7 @@ import scala.jdk.CollectionConverters._
 
 object DatasetResource {
   val DATASET_IS_PUBLIC: Byte = 1;
-
+  val DATASET_IS_PRIVATE: Byte = 0;
   val FILE_OPERATION_UPLOAD_PREFIX = "file:upload:"
   val FILE_OPERATION_REMOVE_PREFIX = "file:remove"
 
@@ -401,6 +401,32 @@ class DatasetResource {
 
       val existedDataset = getDatasetByID(ctx, did, uid)
       existedDataset.setDescription(description)
+      datasetDao.update(existedDataset)
+      Response.ok().build()
+    }
+  }
+
+  @POST
+  @Path("/{did}/update/publicity")
+  def toggleDatasetPublicity(
+                              @PathParam("did") did: UInteger,
+                              @Auth sessionUser: SessionUser
+                            ): Response = {
+    withTransaction(context) { ctx =>
+      val datasetDao = new DatasetDao(ctx.configuration())
+      val uid = sessionUser.getUid
+
+      if (!userHasWriteAccess(ctx, did, uid)) {
+        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
+      }
+
+      val existedDataset = getDatasetByID(ctx, did, uid)
+      if (existedDataset.getIsPublic == DATASET_IS_PUBLIC) {
+        existedDataset.setIsPublic(DATASET_IS_PRIVATE)
+      } else {
+        existedDataset.setIsPublic(DATASET_IS_PUBLIC)
+      }
+
       datasetDao.update(existedDataset)
       Response.ok().build()
     }

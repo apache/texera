@@ -21,6 +21,7 @@ export const DATASET_CREATE_URL = DATASET_BASE_URL + "/create";
 export const DATASET_UPDATE_BASE_URL = DATASET_BASE_URL + "/update";
 export const DATASET_UPDATE_NAME_URL = DATASET_UPDATE_BASE_URL + "/name";
 export const DATASET_UPDATE_DESCRIPTION_URL = DATASET_UPDATE_BASE_URL + "/description";
+export const DATASET_UPDATE_PUBLICITY_URL = "update/publicity"
 export const DATASET_LIST_URL = DATASET_BASE_URL + "/list";
 export const DATASET_SEARCH_URL = DATASET_BASE_URL + "/search";
 export const DATASET_DELETE_URL = DATASET_BASE_URL + "/delete";
@@ -171,4 +172,8 @@ export class DatasetService {
       description: description,
     });
   }
+
+  public updateDatasetPublicity(did: number): Observable<Response> {
+    return this.http.post<Response>(`${AppSettings.getApiEndpoint()}/${DATASET_BASE_URL}/${did}/${DATASET_UPDATE_PUBLICITY_URL}`, {})
+  };
 }
