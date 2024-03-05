@@ -6,13 +6,12 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
+import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
-import org.jooq.exception.MappingException
 
 import scala.collection.mutable
 
@@ -51,13 +50,13 @@ object OutputManager {
 
 /** This class is a container of all the transfer partitioners.
   *
-  * @param selfID         ActorVirtualIdentity of self.
+  * @param actorId         ActorVirtualIdentity of self.
   * @param outputGateway DataOutputPort
   */
 class OutputManager(
-    selfID: ActorVirtualIdentity,
+    val actorId: ActorVirtualIdentity,
     outputGateway: NetworkOutputGateway
-) {
+) extends AmberLogging {
 
   private val partitioners: mutable.Map[PhysicalLink, Partitioner] =
     mutable.HashMap[PhysicalLink, Partitioner]()
@@ -80,7 +79,7 @@ class OutputManager(
     partitioner.allReceivers.foreach(receiver => {
       val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
-      outputGateway.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
+      outputGateway.addOutputChannel(ChannelIdentity(actorId, receiver, isControl = false))
     })
   }
 
@@ -123,7 +122,7 @@ class OutputManager(
       case Some(channelIds) =>
         networkOutputBuffers
           .filter(out => {
-            val channel = ChannelIdentity(selfID, out._1._2, isControl = false)
+            val channel = ChannelIdentity(actorId, out._1._2, isControl = false)
             channelIds.contains(channel)
           })
           .values
