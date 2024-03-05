@@ -88,18 +88,24 @@ class OutputManager(
     * Push one tuple to the downstream, will be batched by each transfer partitioning.
     * Should ONLY be called by DataProcessor.
     * @param tupleLike TupleLike to be passed.
-    * @param outputPortId The output port ID from which the tuple is emitted.
+    * @param outputPortId Optionally specifies the output port from which the tuple should be emitted.
+    *                     If None, the tuple is broadcast to all output ports.
     */
-  def passTupleToDownstream(tupleLike: SchemaEnforceable, outputPortId: Option[PortIdentity] = None): Unit = {
-    outputPortId.map(id => partitioners.filter(_._1.fromPortId == id)).getOrElse(partitioners)
-      .foreach {
-        case (link, partitioner) =>
-          val outputTuple = tupleLike.enforceSchema(getPort(link.fromPortId).schema)
-          partitioner.getBucketIndex(outputTuple).foreach { bucketIndex =>
-            val destActor = partitioner.allReceivers(bucketIndex)
-            networkOutputBuffers((link, destActor)).addTuple(outputTuple)
-          }
-      }
+  def passTupleToDownstream(
+      tupleLike: SchemaEnforceable,
+      outputPortId: Option[PortIdentity] = None
+  ): Unit = {
+    (outputPortId match {
+      case Some(portId) => partitioners.filter(_._1.fromPortId == portId) // send to a specific port
+      case None         => partitioners // send to all ports
+    }).foreach {
+      case (link, partitioner) =>
+        // Enforce schema based on the port's schema
+        val tuple = tupleLike.enforceSchema(getPort(link.fromPortId).schema)
+        partitioner.getBucketIndex(tuple).foreach { bucketIndex =>
+          networkOutputBuffers((link, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
+        }
+    }
   }
 
   /**
