@@ -3,9 +3,9 @@ import { FieldType, FieldTypeConfig } from "@ngx-formly/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { debounceTime } from "rxjs/operators";
 import { map } from "rxjs";
-import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
-import {EnvironmentService} from "../../../dashboard/user/service/user-environment/environment.service";
-import {WorkflowPersistService} from "../../../common/service/workflow-persist/workflow-persist.service";
+import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
+import { EnvironmentService } from "../../../dashboard/user/service/user-environment/environment.service";
+import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
 
 @UntilDestroy()
 @Component({
@@ -59,4 +59,5 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
           },
         });
     }
-  }}
+  }
+}

@@ -134,7 +134,7 @@ import { NgxFileDropModule } from "ngx-file-drop";
 import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
-import {EnvironmentComponent} from "./workspace/component/left-panel/environment/environment.component";
+import { EnvironmentComponent } from "./workspace/component/left-panel/environment/environment.component";
 
 registerLocaleData(en);
 

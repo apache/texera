@@ -3,15 +3,46 @@ package edu.uci.ics.texera.web.resource.dashboard.user.environment
 import edu.uci.ics.texera.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetOfEnvironment, DatasetVersion, Environment}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetOfEnvironment,
+  DatasetVersion,
+  Environment
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment.ENVIRONMENT
 import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetOfEnvironmentDao, DatasetVersionDao, EnvironmentDao, EnvironmentOfWorkflowDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetOfEnvironmentDao,
+  DatasetVersionDao,
+  EnvironmentDao,
+  EnvironmentOfWorkflowDao
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.retrieveDatasetVersionFilePaths
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{DatasetAccessResource, DatasetResource}
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{DashboardEnvironment, DatasetID, DatasetOfEnvironmentAlreadyExistsMessage, DatasetOfEnvironmentDetails, DatasetOfEnvironmentDoseNotExistMessage, EnvironmentIDs, UserNoPermissionExceptionMessage, WorkflowLink, context, doesDatasetExistInEnvironment, doesUserOwnEnvironment, getEnvironmentByEid, retrieveDatasetsAndVersions, retrieveDatasetsOfEnvironmentFileList, userHasReadAccessToEnvironment, userHasWriteAccessToEnvironment}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
+  DatasetAccessResource,
+  DatasetResource
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
+  DashboardEnvironment,
+  DatasetID,
+  DatasetOfEnvironmentAlreadyExistsMessage,
+  DatasetOfEnvironmentDetails,
+  DatasetOfEnvironmentDoseNotExistMessage,
+  EnvironmentIDs,
+  UserNoPermissionExceptionMessage,
+  WorkflowLink,
+  context,
+  doesDatasetExistInEnvironment,
+  doesUserOwnEnvironment,
+  getEnvironmentByEid,
+  retrieveDatasetsAndVersions,
+  retrieveDatasetsOfEnvironmentFileList,
+  userHasReadAccessToEnvironment,
+  userHasWriteAccessToEnvironment
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
@@ -68,40 +99,54 @@ object EnvironmentResource {
 
   // return the descriptor of the target file.
   // The filename is passed from the frontend, the did is contained in the filename in the format of /{dataset-name}/{filepath}
-  def getEnvironmentDatasetFilePathAndVersion(uid: UInteger, eid: UInteger, fileName: String): DatasetFileDesc = {
-    withTransaction(context) { ctx => {
-      // Adjust the pattern to match the new fileName format
-      val datasetNamePattern: Regex = """/([^/]+)/.*""".r
+  def getEnvironmentDatasetFilePathAndVersion(
+      uid: UInteger,
+      eid: UInteger,
+      fileName: String
+  ): DatasetFileDesc = {
+    withTransaction(context) { ctx =>
+      {
+        // Adjust the pattern to match the new fileName format
+        val datasetNamePattern: Regex = """/([^/]+)/.*""".r
 
-      // Extract 'datasetName' using the pattern
-      val datasetName = datasetNamePattern.findFirstMatchIn(fileName) match {
-        case Some(matched) => matched.group(1) // Extract the first group which is 'datasetName'
-        case None => throw new RuntimeException("The fileName format is not correct") // Default value or handle error
-      }
-
-      // Extract the file path
-      val filePath = Paths.get(fileName.substring(fileName.indexOf(s"/$datasetName/") + s"/$datasetName/".length))
-      val datasetsOfEnvironment = retrieveDatasetsAndVersions(ctx, uid, eid)
-
-      // Initialize datasetFileDesc as None
-      var datasetFileDesc: Option[DatasetFileDesc] = None
-
-      // Iterate over datasetsOfEnvironment to find a match based on datasetName
-      datasetsOfEnvironment.foreach { datasetAndVersion =>
-        if (datasetAndVersion.dataset.getName == datasetName) {
-          datasetFileDesc = Some(new DatasetFileDesc(
-            filePath,
-            Paths.get(datasetAndVersion.dataset.getStoragePath),
-            datasetAndVersion.version.getVersionHash))
+        // Extract 'datasetName' using the pattern
+        val datasetName = datasetNamePattern.findFirstMatchIn(fileName) match {
+          case Some(matched) => matched.group(1) // Extract the first group which is 'datasetName'
+          case None =>
+            throw new RuntimeException(
+              "The fileName format is not correct"
+            ) // Default value or handle error
         }
-      }
 
-      // Check if datasetFileDesc is set, if not, throw an exception
-      datasetFileDesc.getOrElse(throw new RuntimeException("Given file is not found in the environment"))
-    }
+        // Extract the file path
+        val filePath = Paths.get(
+          fileName.substring(fileName.indexOf(s"/$datasetName/") + s"/$datasetName/".length)
+        )
+        val datasetsOfEnvironment = retrieveDatasetsAndVersions(ctx, uid, eid)
+
+        // Initialize datasetFileDesc as None
+        var datasetFileDesc: Option[DatasetFileDesc] = None
+
+        // Iterate over datasetsOfEnvironment to find a match based on datasetName
+        datasetsOfEnvironment.foreach { datasetAndVersion =>
+          if (datasetAndVersion.dataset.getName == datasetName) {
+            datasetFileDesc = Some(
+              new DatasetFileDesc(
+                filePath,
+                Paths.get(datasetAndVersion.dataset.getStoragePath),
+                datasetAndVersion.version.getVersionHash
+              )
+            )
+          }
+        }
+
+        // Check if datasetFileDesc is set, if not, throw an exception
+        datasetFileDesc.getOrElse(
+          throw new RuntimeException("Given file is not found in the environment")
+        )
+      }
     }
   }
-
 
   private def getEnvironmentByEid(ctx: DSLContext, eid: UInteger): Environment = {
     val environmentDao: EnvironmentDao = new EnvironmentDao(ctx.configuration())

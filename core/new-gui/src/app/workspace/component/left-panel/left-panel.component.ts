@@ -6,7 +6,7 @@ import { environment } from "../../../../environments/environment";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
-import {EnvironmentComponent} from "./environment/environment.component";
+import { EnvironmentComponent } from "./environment/environment.component";
 
 @UntilDestroy()
 @Component({
@@ -35,8 +35,8 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       component: EnvironmentComponent,
       title: "Environment",
       icon: "dashboard",
-      enabled: environment.userSystemEnabled
-    }
+      enabled: environment.userSystemEnabled,
+    },
   ];
   order = [1, 2, 3, 4];
 

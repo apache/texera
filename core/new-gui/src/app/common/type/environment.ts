@@ -1,4 +1,4 @@
-import {Dataset, DatasetVersion} from "./dataset";
+import { Dataset, DatasetVersion } from "./dataset";
 
 export interface Environment {
   eid: number | undefined;

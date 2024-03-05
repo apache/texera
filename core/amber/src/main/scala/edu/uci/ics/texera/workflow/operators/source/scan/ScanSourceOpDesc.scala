@@ -68,8 +68,11 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       //    /datasetName/fileName
       // resolve fileName to be the actual file path.
       // fetch the environment id that workflow is in
-      val environmentEid = WorkflowResource.getEnvironmentEidOfWorkflow(UInteger.valueOf(workflowContext.workflowId.id))
-      val datasetFileDescriptor = getEnvironmentDatasetFilePathAndVersion(getContext.userId.get, environmentEid, fileName.get)
+      val environmentEid = WorkflowResource.getEnvironmentEidOfWorkflow(
+        UInteger.valueOf(workflowContext.workflowId.id)
+      )
+      val datasetFileDescriptor =
+        getEnvironmentDatasetFilePathAndVersion(getContext.userId.get, environmentEid, fileName.get)
       filePath = Some(datasetFileDescriptor.tempFilePath().toString)
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.

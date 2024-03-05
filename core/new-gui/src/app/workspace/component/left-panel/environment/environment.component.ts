@@ -10,7 +10,7 @@ import {
 } from "../../../../common/type/datasetVersionFileTree";
 import { DatasetService } from "../../../../dashboard/user/service/user-dataset/dataset.service";
 import { DashboardDataset } from "../../../../dashboard/user/type/dashboard-dataset.interface";
-import {DatasetOfEnvironmentDetails, Environment} from "../../../../common/type/environment";
+import { DatasetOfEnvironmentDetails, Environment } from "../../../../common/type/environment";
 
 @UntilDestroy()
 @Component({
@@ -59,11 +59,11 @@ export class EnvironmentComponent implements OnInit {
     private notificationService: NotificationService,
     private workflowPersistService: WorkflowPersistService,
     private workflowActionService: WorkflowActionService,
-    private datasetService: DatasetService,
+    private datasetService: DatasetService
   ) {}
 
   ngOnInit(): void {
-  // initialize the environment info
+    // initialize the environment info
     this.wid = this.workflowActionService.getWorkflowMetadata()?.wid;
     if (this.wid) {
       // use wid to fetch the eid first
@@ -138,7 +138,9 @@ export class EnvironmentComponent implements OnInit {
           const didNotExist = newDid && !this.datasetsOfEnvironment.has(newDid);
 
           // Check if the datasetsOfEnvironment does not have the newName
-          const nameNotExist = ![...this.datasetsOfEnvironment.values()].some(([details, _]) => details.dataset.name === newName);
+          const nameNotExist = ![...this.datasetsOfEnvironment.values()].some(
+            ([details, _]) => details.dataset.name === newName
+          );
           return didNotExist && nameNotExist;
         });
 
@@ -188,7 +190,6 @@ export class EnvironmentComponent implements OnInit {
     }
     // console.log(this.filteredLinkingDatasetsName)
   }
-
 
   // controls of dataset details
   get showingDatasetName(): string {

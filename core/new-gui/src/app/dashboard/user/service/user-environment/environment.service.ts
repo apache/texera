@@ -5,9 +5,9 @@ import next from "ajv/dist/vocabularies/next";
 import { Observable, of, throwError } from "rxjs";
 import { catchError, filter, map } from "rxjs/operators";
 import { AppSettings } from "../../../../common/app-setting";
-import {DatasetOfEnvironment, DatasetOfEnvironmentDetails, Environment} from "../../../../common/type/environment";
-import {DashboardDataset} from "../../type/dashboard-dataset.interface";
-import {DATASET_BASE_URL} from "../user-dataset/dataset.service";
+import { DatasetOfEnvironment, DatasetOfEnvironmentDetails, Environment } from "../../../../common/type/environment";
+import { DashboardDataset } from "../../type/dashboard-dataset.interface";
+import { DATASET_BASE_URL } from "../user-dataset/dataset.service";
 
 export const ENVIRONMENT_BASE_URL = "environment";
 export const ENVIRONMENT_CREATE_URL = ENVIRONMENT_BASE_URL + "/create";
@@ -24,9 +24,7 @@ export const ENVIRONMENT_DATASET_REMOVE_URL = ENVIRONMENT_DATASET_RETRIEVAL_URL 
   providedIn: "root",
 })
 export class EnvironmentService {
-  constructor(
-    private http: HttpClient,
-  ) {}
+  constructor(private http: HttpClient) {}
 
   addDatasetToEnvironment(eid: number, did: number): Observable<Response> {
     return this.http.post<Response>(

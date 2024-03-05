@@ -39,7 +39,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       .leftJoin(DATASET_USER_ACCESS)
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
       .where(
-          DATASET_USER_ACCESS.UID.eq(uid)
+        DATASET_USER_ACCESS.UID.eq(uid)
       )
   }
 
