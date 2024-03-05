@@ -1,7 +1,7 @@
 import { EnvironmentService } from "../../../../dashboard/user/service/user-environment/environment.service";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { Component, EventEmitter, Input, OnInit, Output } from "@angular/core";
+import { Component, Input, OnInit } from "@angular/core";
 import { WorkflowPersistService } from "../../../../common/service/workflow-persist/workflow-persist.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import {
@@ -199,7 +199,6 @@ export class EnvironmentComponent implements OnInit {
           did: dataset.dataset.did,
         }));
     }
-    // console.log(this.filteredLinkingDatasetsName)
   }
 
   // controls of dataset details
