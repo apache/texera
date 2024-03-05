@@ -191,8 +191,10 @@ class WorkerSpec
     val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     def mkBatch(start: Int, end: Int): Array[ITuple] = {
-      (start until end).map { x =>
+      for (x <- start until end) {
         (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink).once()
+      }
+      (start until end).map { x =>
         ITuple(x, x, x, x)
       }.toArray
     }
