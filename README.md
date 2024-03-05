@@ -28,6 +28,7 @@
   <img alt="Static Badge" src="https://img.shields.io/badge/Deployments-4-blue">
   <img alt="Static Badge" src="https://img.shields.io/badge/Largest_Deployment-100_nodes,_400_cores-green">
 </p>
+
 <!---
 (Orignal intro paragraph, commented out)
 ## Texera
