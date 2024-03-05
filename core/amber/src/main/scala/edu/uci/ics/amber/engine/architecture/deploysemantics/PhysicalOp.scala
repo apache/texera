@@ -33,15 +33,10 @@ import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable.ArrayBuffer
 
-case object SchemaPropagation {
-
-  private type ScalaSchemaPropagationFunc = Map[PortIdentity, Schema] => Map[PortIdentity, Schema]
+case object SchemaPropagationFunc {
   private type JavaSchemaPropagationFunc =
     java.util.function.Function[Map[PortIdentity, Schema], Map[PortIdentity, Schema]]
       with java.io.Serializable
-
-  def apply(scalaFunc: ScalaSchemaPropagationFunc): SchemaPropagationFunc =
-    SchemaPropagationFunc(scalaFunc)
   def apply(javaFunc: JavaSchemaPropagationFunc): SchemaPropagationFunc =
     SchemaPropagationFunc(inputSchemas => javaFunc.apply(inputSchemas))
 

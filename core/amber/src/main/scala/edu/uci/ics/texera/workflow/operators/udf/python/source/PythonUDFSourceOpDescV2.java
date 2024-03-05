@@ -5,7 +5,7 @@ import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
-import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagation;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.common.AmberUtils;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
@@ -74,7 +74,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     .withOutputPorts(operatorInfo().outputPorts())
                     .withIsOneToManyOp(true)
                     .withPropagateSchema(
-                            SchemaPropagation.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+                            SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
                                 // Initialize a Java HashMap
                                 java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
 
