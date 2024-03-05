@@ -238,6 +238,13 @@ case class PhysicalPlan(
       }
   }
 
+  /**
+   * An link is a bridge if removal of that link would increase the number of (weakly) connected components in the
+   * DAG. Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
+   * a bridge. We can thus use bridges to optimize the process of searching for an optimal physical plan.
+   *
+   * @return All non-blocking links that are not bridges.
+   */
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
     val bridges = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](this.dag).getBridges
       .map { edge =>
@@ -251,7 +258,7 @@ case class PhysicalPlan(
     this.getOriginalNonBlockingLinks.diff(bridges)
   }
 
-  def getOriginalNonBlockingLinks: Set[PhysicalLink] = {
+  private def getOriginalNonBlockingLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
         {
@@ -267,16 +274,26 @@ case class PhysicalPlan(
       }
   }
 
-  def getMaxChains: Set[Set[PhysicalLink]] = {
+  /**
+    * A chain in a physical plan is a path such that each of its operators (except the first and the last operators)
+    * is connected only to operators on the path. Assuming pipelining a link is more desirable than materializations,
+    * and optimal physical plan has at most one link on each chain. We can thus use chains to optimize the process of
+    * searching for an optimal physical plan. A maximal chain is a chain that is not a sub-path of any other chain.
+    * A maximal chain can cover the optimizations of all its sub-chains, so finding only maximal chains is adequate for
+    * optimization purposes. Note the definition of a chain has nothing to do with that of a connected component.
+    *
+    * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
+    */
+  private def getMaxChains: Set[Set[PhysicalLink]] = {
     val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, DefaultEdge](this.dag)
     val chains = this.dag
       .vertexSet()
-      .flatMap { source =>
+      .flatMap { ancestor =>
         {
-          this.dag.getDescendants(source).flatMap { target =>
+          this.dag.getDescendants(ancestor).flatMap { descendant =>
             {
               dijkstra
-                .getAllPaths(source, target, true, Integer.MAX_VALUE)
+                .getAllPaths(ancestor, descendant, true, Integer.MAX_VALUE)
                 .filter(path =>
                   path.getLength > 1 &&
                     path.getVertexList
@@ -301,10 +318,6 @@ case class PhysicalPlan(
         }
       }
     chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
-  }
-
-  def removeLinks(linksToRemove: Set[PhysicalLink]): PhysicalPlan = {
-    this.copy(operators, links.diff(linksToRemove))
   }
 
   def setOperatorUnblockPort(

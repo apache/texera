@@ -53,7 +53,9 @@ class CostBasedRegionPlanGenerator(
       physicalPlan: PhysicalPlan,
       matEdges: Set[PhysicalLink]
   ): Set[Region] = {
-    val matEdgesRemovedDAG = physicalPlan.removeLinks(matEdges)
+    val matEdgesRemovedDAG = matEdges.foldLeft(physicalPlan) { (currentPlan, linkToRemove) =>
+      currentPlan.removeLink(linkToRemove)
+    }
     val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
       matEdgesRemovedDAG.dag
     ).getConnectedComponents.asScala.toSet
@@ -167,7 +169,7 @@ class CostBasedRegionPlanGenerator(
         case Right(_) =>
           val allBlockingEdges = currentState ++ physicalPlan.getOriginalBlockingLinks
           // Generate and enqueue all neighbour states that haven't been visited
-          val edgesInChainWithBlockingEdge = physicalPlan.getMaxChains
+          val edgesInChainWithBlockingEdge = physicalPlan.maxChains
             .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
             .flatten
           val candidateEdges = originalNonBlockingEdges
