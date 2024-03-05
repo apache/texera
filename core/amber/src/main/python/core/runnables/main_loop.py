@@ -166,7 +166,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
                     to,
                     batch,
                 ) in self.context.output_manager.tuple_to_batch(output_tuple):
-                    batch.schema = self.context.operator_manager.get_port().get_schema()
+                    batch.schema = self.context.output_manager.get_port().get_schema()
                     self._output_queue.put(DataElement(tag=to, payload=batch))
 
     def process_tuple_with_udf(self) -> Iterator[Optional[Tuple]]:
