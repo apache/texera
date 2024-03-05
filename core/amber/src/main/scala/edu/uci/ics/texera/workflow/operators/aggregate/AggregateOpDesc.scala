@@ -49,36 +49,11 @@ class AggregateOpDesc extends LogicalOp {
         .withOutputPorts(List(outputPort))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
-            Map(PortIdentity(internal = true) -> {
-              if (
-                aggregations
-                  .exists(agg => agg.resultAttribute == null || agg.resultAttribute.trim.isEmpty)
-              ) {
-                return null
-              }
-              Schema
-                .builder()
-                .add(
-                  Schema
-                    .builder()
-                    .add(
-                      groupByKeys.map(key =>
-                        inputSchemas(operatorInfo.inputPorts.head.id).getAttribute(key)
-                      ): _*
-                    )
-                    .build()
-                )
-                .add(
-                  aggregations.map(agg =>
-                    agg.getAggregationAttribute(
-                      inputSchemas(operatorInfo.inputPorts.head.id)
-                        .getAttribute(agg.attribute)
-                        .getType
-                    )
-                  )
-                )
-                .build()
-            })
+            Map(
+              PortIdentity(internal = true) -> getOutputSchema(
+                operatorInfo.inputPorts.map(port => inputSchemas(port.id)).toArray
+              )
+            )
           )
         )
 
