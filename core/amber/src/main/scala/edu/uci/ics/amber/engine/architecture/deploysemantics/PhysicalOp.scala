@@ -44,6 +44,7 @@ case object SchemaPropagationFunc {
 
 case class SchemaPropagationFunc(func: Map[PortIdentity, Schema] => Map[PortIdentity, Schema])
 
+class SchemaNotAvailableException(message: String) extends Exception(message)
 object PhysicalOp {
 
   /** all source operators should use sourcePhysicalOp to give the following configs:
@@ -174,8 +175,10 @@ case class PhysicalOp(
     derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Option[Schema])] = Map.empty,
-    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Option[Schema])] = Map.empty,
+    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+      Map.empty,
+    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+      Map.empty,
     // input ports that are blocking
     blockingInputs: List[PortIdentity] = List(),
     // schema propagation function
@@ -229,7 +232,12 @@ case class PhysicalOp(
     */
   def withInputPorts(inputs: List[InputPort]): PhysicalOp = {
     this.copy(inputPorts =
-      inputs.map(input => input.id -> (input, List.empty[PhysicalLink], None)).toMap
+      inputs
+        .map(input =>
+          input.id -> (input, List
+            .empty[PhysicalLink], Left(new SchemaNotAvailableException("schema is not available")))
+        )
+        .toMap
     )
   }
 
@@ -243,7 +251,12 @@ case class PhysicalOp(
     */
   def withOutputPorts(outputs: List[OutputPort]): PhysicalOp = {
     this.copy(outputPorts =
-      outputs.map(output => output.id -> (output, List.empty[PhysicalLink], None)).toMap
+      outputs
+        .map(output =>
+          output.id -> (output, List
+            .empty[PhysicalLink], Left(new SchemaNotAvailableException("schema is not available")))
+        )
+        .toMap
     )
   }
 
@@ -294,9 +307,9 @@ case class PhysicalOp(
     * @param schema The new schema to be associated with the port.
     * @return A new instance of PhysicalOp with the updated input port schema.
     */
-  private def withInputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
+  private def withInputSchema(portId: PortIdentity, schema: Schema): PhysicalOp = {
     this.copy(inputPorts = inputPorts.updatedWith(portId) {
-      case Some((port, links, _)) => Some((port, links, schema))
+      case Some((port, links, _)) => Some((port, links, Right(schema)))
       case None                   => None
     })
   }
@@ -308,9 +321,9 @@ case class PhysicalOp(
     * @param schema The new schema to be associated with the port.
     * @return A new instance of PhysicalOp with the updated output port schema.
     */
-  private def withOutputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
+  private def withOutputSchema(portId: PortIdentity, schema: Schema): PhysicalOp = {
     this.copy(outputPorts = outputPorts.updatedWith(portId) {
-      case Some((port, links, _)) => Some((port, links, schema))
+      case Some((port, links, _)) => Some((port, links, Right(schema)))
       case None                   => None
     })
   }
@@ -379,22 +392,20 @@ case class PhysicalOp(
     */
   def propagateSchema(newInputSchema: Option[(PortIdentity, Schema)] = None): PhysicalOp = {
     // Update the input schema if a new one is provided
-    val updatedOp = newInputSchema.foldLeft(this) { (op, inputSchema) =>
-      val (portId, schema) = inputSchema
-      op.withInputSchema(portId, Some(schema))
+    val updatedOp = newInputSchema.foldLeft(this) {
+      case (op, (portId, schema)) => op.withInputSchema(portId, schema)
     }
 
     // Extract input schemas, checking if all are defined
     val inputSchemas = updatedOp.inputPorts.collect {
-      case (portId, (_, _, Some(schema))) => portId -> schema
+      case (portId, (_, _, Right(schema))) => portId -> schema
     }
 
     // Check if we have all input schemas to propagate to output schemas
     if (updatedOp.inputPorts.size == inputSchemas.size) {
       // All input schemas are available, propagate to output schema
-      propagateSchema.func(inputSchemas).foldLeft(updatedOp) { (op, portIdAndSchema) =>
-        val (portId, schema) = portIdAndSchema
-        op.withOutputSchema(portId, Some(schema))
+      propagateSchema.func(inputSchemas).foldLeft(updatedOp) {
+        case (op, (portId, schema)) => op.withOutputSchema(portId, schema)
       }
     } else {
       // Not all input schemas are defined, return the updated operation without changes

@@ -124,7 +124,7 @@ case class PhysicalPlan(
     val newFromOp = formOp.addOutputLink(link)
     val newToOp = getOperator(link.toOpId)
       .addInputLink(link)
-      .propagateSchema(Some(link.toPortId, outputSchema.get))
+      .propagateSchema(outputSchema.toOption.map(schema => (link.toPortId, schema)))
 
     val newOperators = operatorMap +
       (link.fromOpId -> newFromOp) +
