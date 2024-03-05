@@ -272,8 +272,6 @@ class WorkerSpec
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
-    (mockHandler.apply _).expects(*).anyNumberOfTimes()
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
     val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
