@@ -293,13 +293,13 @@ case class PhysicalOp(
   }
 
   /**
-    * Updates the schema of a specified input port.
+    * creates a copy with the schema of a specified input port.
     *
     * @param portId The identity of the port to update.
     * @param schema The new schema to be associated with the port.
     * @return A new instance of PhysicalOp with the updated input port schema.
     */
-  private def setInputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
+  private def withInputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
     this.copy(inputPorts = inputPorts.updatedWith(portId) {
       case Some((port, links, _)) => Some((port, links, schema))
       case None                   => None
@@ -307,13 +307,13 @@ case class PhysicalOp(
   }
 
   /**
-    * Updates the schema of a specified output port.
+    * creates a copy with the schema of a specified output port.
     *
     * @param portId The identity of the port to update.
     * @param schema The new schema to be associated with the port.
     * @return A new instance of PhysicalOp with the updated output port schema.
     */
-  private def setOutputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
+  private def withOutputSchema(portId: PortIdentity, schema: Option[Schema]): PhysicalOp = {
     this.copy(outputPorts = outputPorts.updatedWith(portId) {
       case Some((port, links, _)) => Some((port, links, schema))
       case None                   => None
@@ -444,7 +444,7 @@ case class PhysicalOp(
     // Update the input schema if a new one is provided
     val updatedOp = newInputSchema.foldLeft(this.copy()) { (op, inputSchema) =>
       val (portId, schema) = inputSchema
-      op.setInputSchema(portId, Some(schema))
+      op.withInputSchema(portId, Some(schema))
     }
 
     // Extract input schemas, checking if all are defined
@@ -457,7 +457,7 @@ case class PhysicalOp(
       // All input schemas are available, propagate to output schema
       propagateSchemas.func(inputSchemas).foldLeft(updatedOp) { (op, portIdAndSchema) =>
         val (portId, schema) = portIdAndSchema
-        op.setOutputSchema(portId, Some(schema))
+        op.withOutputSchema(portId, Some(schema))
       }
     } else {
       // Not all input schemas are defined, return the updated operation without changes
