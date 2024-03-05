@@ -320,6 +320,9 @@ case class PhysicalOp(
     })
   }
 
+  /**
+    * creates a copy with the schema propagation function.
+    */
   def withPropagateSchema(func: SchemaPropagationFunc): PhysicalOp = {
     this.copy(propagateSchemas = func)
   }
