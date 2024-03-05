@@ -5,12 +5,24 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfo,
+  OpExecInitInfoWithCode
+}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
+  AddressInfo,
+  LocationPreference,
+  PreferController,
+  RoundRobinPreference
+}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  FaultToleranceConfig,
+  StateRestoreConfig,
+  WorkerReplayInitialization
+}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
@@ -299,10 +311,13 @@ case class PhysicalOp(
     *               A Right value represents a successful schema, while a Left value represents an error (Throwable).
     * @return A new instance of PhysicalOp with the updated input port schema or error information.
     */
-  private def withInputSchema(portId: PortIdentity, schema: Either[Throwable, Schema]): PhysicalOp = {
+  private def withInputSchema(
+      portId: PortIdentity,
+      schema: Either[Throwable, Schema]
+  ): PhysicalOp = {
     this.copy(inputPorts = inputPorts.updatedWith(portId) {
       case Some((port, links, _)) => Some((port, links, schema))
-      case None => None
+      case None                   => None
     })
   }
 
@@ -316,13 +331,15 @@ case class PhysicalOp(
     *               A Right value indicates a successful schema, while a Left value indicates an error (Throwable).
     * @return A new instance of PhysicalOp with the updated output port schema or error information.
     */
-  private def withOutputSchema(portId: PortIdentity, schema: Either[Throwable, Schema]): PhysicalOp = {
+  private def withOutputSchema(
+      portId: PortIdentity,
+      schema: Either[Throwable, Schema]
+  ): PhysicalOp = {
     this.copy(outputPorts = outputPorts.updatedWith(portId) {
       case Some((port, links, _)) => Some((port, links, schema))
-      case None => None
+      case None                   => None
     })
   }
-
 
   /**
     * creates a copy with the schema propagation function.
@@ -402,8 +419,9 @@ case class PhysicalOp(
       val schemaPropagationResult = Try(propagateSchema.func(inputSchemas))
       schemaPropagationResult match {
         case Success(schemaMapping) =>
-          schemaMapping.foldLeft(updatedOp) { case (op, (portId, schema)) =>
-            op.withOutputSchema(portId, Right(schema))
+          schemaMapping.foldLeft(updatedOp) {
+            case (op, (portId, schema)) =>
+              op.withOutputSchema(portId, Right(schema))
           }
         case Failure(exception) =>
           // apply the exception to all output ports in case of failure

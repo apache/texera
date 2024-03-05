@@ -57,8 +57,9 @@ class SchemaPropagationResource extends LazyLogging {
 
     // Prepare the response content by extracting attributes from the schemas,
     // ignoring errors (errors are reported through EditingTimeCompilationRequest)
-    val responseContent = logicalInputSchemas.map { case (logicalOpId, schemas) =>
-      logicalOpId.id -> schemas.map(_.map(_.getAttributes))
+    val responseContent = logicalInputSchemas.map {
+      case (logicalOpId, schemas) =>
+        logicalOpId.id -> schemas.map(_.map(_.getAttributes))
     }
     SchemaPropagationResponse(0, responseContent, null)
 
