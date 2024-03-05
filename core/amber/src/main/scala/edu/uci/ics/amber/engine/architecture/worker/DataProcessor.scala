@@ -18,11 +18,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   WorkerTimerService
 }
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
-  DPOutputIterator,
-  FinalizeOperator,
-  FinalizePort
-}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeOperator, FinalizePort}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
@@ -31,14 +27,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   RUNNING
 }
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  DataFrame,
-  DataPayload,
-  EndOfUpstream,
-  RequireAlignment,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
@@ -52,8 +41,6 @@ import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, Virtu
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-import scala.collection.mutable
-
 object DataProcessor {
 
   case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
@@ -61,33 +48,6 @@ object DataProcessor {
   }
   case class FinalizeOperator() extends SpecialTupleLike {
     override def getFields: Array[Any] = Array("FinalizeOperator")
-  }
-
-  class DPOutputIterator extends Iterator[(TupleLike, Option[PortIdentity])] {
-    val queue = new mutable.Queue[(TupleLike, Option[PortIdentity])]
-    @transient var outputIter: Iterator[(TupleLike, Option[PortIdentity])] = Iterator.empty
-
-    def setTupleOutput(outputIter: Iterator[(TupleLike, Option[PortIdentity])]): Unit = {
-      if (outputIter != null) {
-        this.outputIter = outputIter
-      } else {
-        this.outputIter = Iterator.empty
-      }
-    }
-
-    override def hasNext: Boolean = outputIter.hasNext || queue.nonEmpty
-
-    override def next(): (TupleLike, Option[PortIdentity]) = {
-      if (outputIter.hasNext) {
-        outputIter.next()
-      } else {
-        queue.dequeue()
-      }
-    }
-
-    def appendSpecialTupleToEnd(tuple: TupleLike): Unit = {
-      queue.enqueue((tuple, None))
-    }
   }
 
 }
@@ -119,10 +79,8 @@ class DataProcessor(
     this.operatorConfig = operatorConfig
     this.physicalOp = physicalOp
 
-    this.outputIterator.setTupleOutput(currentOutputIterator)
+    this.outputManager.outputIterator.setTupleOutput(currentOutputIterator)
   }
-
-  var outputIterator: DPOutputIterator = new DPOutputIterator()
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -159,7 +117,7 @@ class DataProcessor(
     */
   private[this] def processInputTuple(tuple: Either[Tuple, InputExhausted]): Unit = {
     try {
-      outputIterator.setTupleOutput(
+      outputManager.outputIterator.setTupleOutput(
         operator.processTupleMultiPort(
           tuple,
           this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
@@ -182,13 +140,13 @@ class DataProcessor(
     adaptiveBatchingMonitor.startAdaptiveBatching()
     var out: (TupleLike, Option[PortIdentity]) = null
     try {
-      out = outputIterator.next()
+      out = outputManager.outputIterator.next()
     } catch safely {
       case e =>
         // invalidate current output tuple
         out = null
         // also invalidate outputIterator
-        outputIterator.setTupleOutput(Iterator.empty)
+        outputManager.outputIterator.setTupleOutput(Iterator.empty)
         // forward input tuple to the user and pause DP thread
         handleOperatorException(e)
     }
@@ -221,11 +179,9 @@ class DataProcessor(
     }
   }
 
-  def hasUnfinishedOutput: Boolean = outputIterator.hasNext
-
   def continueDataProcessing(): Unit = {
     val dataProcessingStartTime = System.nanoTime()
-    if (hasUnfinishedOutput) {
+    if (outputManager.hasUnfinishedOutput) {
       outputOneTuple()
     } else {
       processInputTuple(Left(inputManager.getNextTuple))
@@ -261,15 +217,11 @@ class DataProcessor(
         if (inputManager.isPortCompleted(portId)) {
           inputManager.initBatch(channelId, Array.empty)
           processInputTuple(Right(InputExhausted()))
-          outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
+          outputManager.outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
         if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
-          // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
-          outputManager.getPortIds
-            .foreach(outputPortId =>
-              outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
-            )
-          outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
+          // assuming all the output ports finalize after all input ports are finalized.
+          outputManager.finalizeOutput()
         }
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
@@ -321,17 +273,6 @@ class DataProcessor(
     logger.warn(e.getLocalizedMessage + "\n" + e.getStackTrace.mkString("\n"))
     // invoke a pause in-place
     asyncRPCServer.execute(PauseWorker(), SELF)
-  }
-
-  /**
-    * Called by skewed worker in Reshape when it has received the tuples from the helper
-    * and is ready to output tuples.
-    * The call comes from AcceptMutableStateHandler.
-    *
-    * @param iterator
-    */
-  def setCurrentOutputIterator(iterator: Iterator[TupleLike]): Unit = {
-    outputIterator.setTupleOutput(iterator.map(t => (t, Option.empty)))
   }
 
 }
