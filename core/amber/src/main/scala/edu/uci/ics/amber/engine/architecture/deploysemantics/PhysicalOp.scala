@@ -5,24 +5,12 @@ import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfo,
-  OpExecInitInfoWithCode
-}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
-  AddressInfo,
-  LocationPreference,
-  PreferController,
-  RoundRobinPreference
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfo, OpExecInitInfoWithCode}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{AddressInfo, LocationPreference, PreferController, RoundRobinPreference}
 import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  FaultToleranceConfig,
-  StateRestoreConfig,
-  WorkerReplayInitialization
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{FaultToleranceConfig, StateRestoreConfig, WorkerReplayInitialization}
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
@@ -32,6 +20,7 @@ import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.{Failure, Success, Try}
 
 case object SchemaPropagationFunc {
   private type JavaSchemaPropagationFunc =
@@ -45,6 +34,7 @@ case object SchemaPropagationFunc {
 case class SchemaPropagationFunc(func: Map[PortIdentity, Schema] => Map[PortIdentity, Schema])
 
 class SchemaNotAvailableException(message: String) extends Exception(message)
+
 object PhysicalOp {
 
   /** all source operators should use sourcePhysicalOp to give the following configs:
@@ -301,32 +291,38 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with the schema of a specified input port.
+    * Creates a copy of the PhysicalOp with the schema of a specified input port updated.
+    * The schema can either be a successful schema definition or an error represented as a Throwable.
     *
     * @param portId The identity of the port to update.
-    * @param schema The new schema to be associated with the port.
-    * @return A new instance of PhysicalOp with the updated input port schema.
+    * @param schema The new schema, or error, to be associated with the port, encapsulated within an Either.
+    *               A Right value represents a successful schema, while a Left value represents an error (Throwable).
+    * @return A new instance of PhysicalOp with the updated input port schema or error information.
     */
-  private def withInputSchema(portId: PortIdentity, schema: Schema): PhysicalOp = {
+  private def withInputSchema(portId: PortIdentity, schema: Either[Throwable, Schema]): PhysicalOp = {
     this.copy(inputPorts = inputPorts.updatedWith(portId) {
-      case Some((port, links, _)) => Some((port, links, Right(schema)))
-      case None                   => None
+      case Some((port, links, _)) => Some((port, links, schema))
+      case None => None
     })
   }
 
   /**
-    * creates a copy with the schema of a specified output port.
+    * Creates a copy of the PhysicalOp with the schema of a specified output port updated.
+    * Similar to `withInputSchema`, the schema can either represent a successful schema definition
+    * or an error, encapsulated as an Either type.
     *
     * @param portId The identity of the port to update.
-    * @param schema The new schema to be associated with the port.
-    * @return A new instance of PhysicalOp with the updated output port schema.
+    * @param schema The new schema, or error, to be associated with the port, encapsulated within an Either.
+    *               A Right value indicates a successful schema, while a Left value indicates an error (Throwable).
+    * @return A new instance of PhysicalOp with the updated output port schema or error information.
     */
-  private def withOutputSchema(portId: PortIdentity, schema: Schema): PhysicalOp = {
+  private def withOutputSchema(portId: PortIdentity, schema: Either[Throwable, Schema]): PhysicalOp = {
     this.copy(outputPorts = outputPorts.updatedWith(portId) {
-      case Some((port, links, _)) => Some((port, links, Right(schema)))
-      case None                   => None
+      case Some((port, links, _)) => Some((port, links, schema))
+      case None => None
     })
   }
+
 
   /**
     * creates a copy with the schema propagation function.
@@ -393,7 +389,7 @@ case class PhysicalOp(
   def propagateSchema(newInputSchema: Option[(PortIdentity, Schema)] = None): PhysicalOp = {
     // Update the input schema if a new one is provided
     val updatedOp = newInputSchema.foldLeft(this) {
-      case (op, (portId, schema)) => op.withInputSchema(portId, schema)
+      case (op, (portId, schema)) => op.withInputSchema(portId, Right(schema))
     }
 
     // Extract input schemas, checking if all are defined
@@ -401,11 +397,19 @@ case class PhysicalOp(
       case (portId, (_, _, Right(schema))) => portId -> schema
     }
 
-    // Check if we have all input schemas to propagate to output schemas
     if (updatedOp.inputPorts.size == inputSchemas.size) {
       // All input schemas are available, propagate to output schema
-      propagateSchema.func(inputSchemas).foldLeft(updatedOp) {
-        case (op, (portId, schema)) => op.withOutputSchema(portId, schema)
+      val schemaPropagationResult = Try(propagateSchema.func(inputSchemas))
+      schemaPropagationResult match {
+        case Success(schemaMapping) =>
+          schemaMapping.foldLeft(updatedOp) { case (op, (portId, schema)) =>
+            op.withOutputSchema(portId, Right(schema))
+          }
+        case Failure(exception) =>
+          // apply the exception to all output ports in case of failure
+          updatedOp.outputPorts.keys.foldLeft(updatedOp) { (op, portId) =>
+            op.withOutputSchema(portId, Left(exception))
+          }
       }
     } else {
       // Not all input schemas are defined, return the updated operation without changes
