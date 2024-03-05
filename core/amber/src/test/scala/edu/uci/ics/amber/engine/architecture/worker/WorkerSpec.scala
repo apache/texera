@@ -154,10 +154,11 @@ class WorkerSpec
   }
 
   "Worker" should "process AddPartitioning message correctly" in {
-    val worker = mkWorker
+    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     (mockHandler.apply _).expects(*).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
+    val worker = mkWorker
     sendControlToWorker(worker, Array(invocation))
 
     //wait test to finish
@@ -169,11 +170,10 @@ class WorkerSpec
       inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1)))),
       outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1))))
     )
-    val worker = mkWorker
+    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
+    (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     (mockOutputManager.passTupleToDownstream _).expects(mkTuple(1), mockLink, mkSchema(1)).once()
-    (mockHandler.apply _).expects(*).anyNumberOfTimes()
-    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
     val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
@@ -183,6 +183,7 @@ class WorkerSpec
         mockLink.toPortId
       )
     )
+    val worker = mkWorker
     sendControlToWorker(worker, Array(invocation, addPort, addInputChannel))
     worker ! NetworkMessage(
       3,
@@ -206,7 +207,8 @@ class WorkerSpec
       outputPorts =
         Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1, 1, 1, 1))))
     )
-    val worker = mkWorker
+    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
+    (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     def mkBatch(start: Int, end: Int): Array[Tuple] = {
       (start until end).map { x =>
@@ -219,8 +221,6 @@ class WorkerSpec
     val batch1 = mkBatch(0, 400)
     val batch2 = mkBatch(400, 500)
     val batch3 = mkBatch(500, 800)
-    (mockHandler.apply _).expects(*).anyNumberOfTimes()
-    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
     val addPort = ControlInvocation(1, AssignPort(mockLink.fromPortId, input = true))
     val addInputChannel = ControlInvocation(
@@ -230,6 +230,7 @@ class WorkerSpec
         mockLink.toPortId
       )
     )
+    val worker = mkWorker
     sendControlToWorker(worker, Array(invocation, addPort, addInputChannel))
     worker ! NetworkMessage(
       3,
@@ -268,7 +269,6 @@ class WorkerSpec
       inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1)))),
       outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1))))
     )
-    val worker = mkWorker
     (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
     (mockHandler.apply _).expects(*).anyNumberOfTimes()
     (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
@@ -281,6 +281,7 @@ class WorkerSpec
         mockLink.toPortId
       )
     )
+    val worker = mkWorker
     worker ! NetworkMessage(
       2,
       WorkflowFIFOMessage(
