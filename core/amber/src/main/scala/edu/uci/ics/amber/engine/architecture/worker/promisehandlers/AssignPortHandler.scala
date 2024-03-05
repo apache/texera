@@ -20,7 +20,7 @@ trait AssignPortHandler {
 
   registerHandler { (msg: AssignPort, sender) =>
     if (msg.input) {
-      dp.inputGateway.addPort(msg.portId, msg.schema)
+      dp.inputManager.addPort(msg.portId, msg.schema)
     } else {
       dp.outputManager.addPort(msg.portId, msg.schema)
     }

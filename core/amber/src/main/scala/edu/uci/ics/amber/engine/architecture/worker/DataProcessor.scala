@@ -7,42 +7,20 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerStateUpdatedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
 import edu.uci.ics.amber.engine.architecture.logreplay.ReplayLogManager
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.{InputManager, OutputManager, WorkerTimerService}
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{
-  DPOutputIterator,
-  FinalizeOperator,
-  FinalizePort
-}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{DPOutputIterator, FinalizeOperator, FinalizePort}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
-  COMPLETED,
-  READY,
-  RUNNING
-}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{COMPLETED, READY, RUNNING}
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-import edu.uci.ics.amber.engine.common.ambermessage.{
-  ChannelMarkerPayload,
-  DataFrame,
-  DataPayload,
-  EndOfUpstream,
-  RequireAlignment,
-  WorkflowFIFOMessage
-}
+import edu.uci.ics.amber.engine.common.ambermessage.{ChannelMarkerPayload, DataFrame, DataPayload, EndOfUpstream, RequireAlignment, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
@@ -137,6 +115,7 @@ class DataProcessor(
   private val initializer = new DataProcessorRPCHandlerInitializer(this)
   val pauseManager: PauseManager = wire[PauseManager]
   val stateManager: WorkerStateManager = new WorkerStateManager()
+  val inputManager: InputManager = new InputManager(actorId)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
 
@@ -205,7 +184,7 @@ class DataProcessor(
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         logger.info(
-          s"$operator completed, # of input ports = ${inputGateway.getAllPorts.size}, " +
+          s"$operator completed, # of input ports = ${inputManager.getAllPorts.size}, " +
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
@@ -274,14 +253,14 @@ class DataProcessor(
         val channel = this.inputGateway.getChannel(channelId)
         val portId = channel.getPortId
 
-        this.inputGateway.getPort(portId).channels(channelId) = true
+        this.inputManager.getPort(portId).channels(channelId) = true
 
-        if (inputGateway.isPortCompleted(portId)) {
+        if (inputManager.isPortCompleted(portId)) {
           initBatch(channelId, Array.empty)
           processInputTuple(Right(InputExhausted()))
           outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
-        if (inputGateway.getAllPorts.forall(portId => inputGateway.isPortCompleted(portId))) {
+        if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {
           // TOOPTIMIZE: assuming all the output ports finalize after all input ports are finalized.
           outputManager.getPortIds
             .foreach(outputPortId =>

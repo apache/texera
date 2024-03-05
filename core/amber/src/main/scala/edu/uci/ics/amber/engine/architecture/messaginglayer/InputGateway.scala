@@ -21,11 +21,4 @@ trait InputGateway {
 
   def addEnforcer(enforcer: OrderEnforcer): Unit
 
-  def getAllPorts: Set[PortIdentity]
-
-  def addPort(portId: PortIdentity, schema: Schema): Unit
-
-  def getPort(portId: PortIdentity): WorkerPort
-
-  def isPortCompleted(portId: PortIdentity): Boolean
 }
