@@ -292,7 +292,7 @@ class WorkerSpec
       WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, isControl = true), 0, invocation)
     )
     for (i <- 0 until 100) {
-      (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink, null).once()
+      (mockOutputManager.passTupleToDownstream _).expects(mkTuple(i), mockLink, null).once()
     }
     Random
       .shuffle((0 until 50).map { i =>
