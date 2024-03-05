@@ -29,6 +29,8 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE
   )
 
+  // Notice that this only select those datasets that users have access record.
+  // For those public datasets, need external union to merge them
   override protected def constructFromClause(
       uid: UInteger,
       params: DashboardResource.SearchQueryParams
@@ -37,9 +39,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       .leftJoin(DATASET_USER_ACCESS)
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
       .where(
-        DATASET.IS_PUBLIC
-          .eq(DatasetResource.DATASET_IS_PUBLIC)
-          .or(DATASET_USER_ACCESS.UID.eq(uid))
+          DATASET_USER_ACCESS.UID.eq(uid)
       )
   }
 
