@@ -179,7 +179,7 @@ case class PhysicalOp(
     // input ports that are blocking
     blockingInputs: List[PortIdentity] = List(),
     // schema propagation function
-    propagateSchemas: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
+    propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None
@@ -319,7 +319,7 @@ case class PhysicalOp(
     * creates a copy with the schema propagation function.
     */
   def withPropagateSchema(func: SchemaPropagationFunc): PhysicalOp = {
-    this.copy(propagateSchemas = func)
+    this.copy(propagateSchema = func)
   }
 
   /**
@@ -392,7 +392,7 @@ case class PhysicalOp(
     // Check if we have all input schemas to propagate to output schemas
     if (updatedOp.inputPorts.size == inputSchemas.size) {
       // All input schemas are available, propagate to output schema
-      propagateSchemas.func(inputSchemas).foldLeft(updatedOp) { (op, portIdAndSchema) =>
+      propagateSchema.func(inputSchemas).foldLeft(updatedOp) { (op, portIdAndSchema) =>
         val (portId, schema) = portIdAndSchema
         op.withOutputSchema(portId, Some(schema))
       }
