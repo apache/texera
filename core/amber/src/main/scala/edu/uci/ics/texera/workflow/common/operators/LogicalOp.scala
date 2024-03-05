@@ -1,7 +1,14 @@
 package edu.uci.ics.texera.workflow.common.operators
 
 import com.fasterxml.jackson.annotation.JsonSubTypes.Type
-import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonSubTypes, JsonTypeInfo}
+import com.fasterxml.jackson.annotation.{
+  JsonIgnore,
+  JsonProperty,
+  JsonSubTypes,
+  JsonTypeInfo,
+  JsonPropertyDescription
+}
+import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -15,12 +22,13 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorInfo, PropertyNameCo
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import edu.uci.ics.texera.workflow.common.WorkflowContext
-import edu.uci.ics.texera.workflow.operators.aggregate.SpecializedAggregateOpDesc
+import edu.uci.ics.texera.workflow.operators.aggregate.AggregateOpDesc
 import edu.uci.ics.texera.workflow.operators.cartesianProduct.CartesianProductOpDesc
 import edu.uci.ics.texera.workflow.operators.dictionary.DictionaryMatcherOpDesc
 import edu.uci.ics.texera.workflow.operators.difference.DifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.distinct.DistinctOpDesc
 import edu.uci.ics.texera.workflow.operators.download.BulkDownloaderOpDesc
+import edu.uci.ics.texera.workflow.operators.dummy.DummyOpDesc
 import edu.uci.ics.texera.workflow.operators.filter.SpecializedFilterOpDesc
 import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
@@ -120,7 +128,7 @@ trait StateTransferFunc
     new Type(value = classOf[ProjectionOpDesc], name = "Projection"),
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
-    new Type(value = classOf[SpecializedAggregateOpDesc], name = "Aggregate"),
+    new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
     new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
@@ -162,6 +170,7 @@ trait StateTransferFunc
     new Type(value = classOf[ImageVisualizerOpDesc], name = "ImageVisualizer"),
     new Type(value = classOf[HierarchyChartOpDesc], name = "HierarchyChart"),
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
+    new Type(value = classOf[DummyOpDesc], name = "Dummy"),
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
@@ -244,5 +253,10 @@ abstract class LogicalOp extends PortDescriptor with Serializable {
       "operator " + getClass.getSimpleName + " does not support reconfiguration"
     )
   }
+
+  @JsonProperty
+  @JsonSchemaTitle("Dummy Property List")
+  @JsonPropertyDescription("Add dummy property if needed")
+  var dummyPropertyList: List[DummyProperties] = List()
 
 }

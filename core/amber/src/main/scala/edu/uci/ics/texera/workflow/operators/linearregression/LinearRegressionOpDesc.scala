@@ -36,8 +36,8 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new LinearRegressionOpExec(xAttr, yAttr, learningRate))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(

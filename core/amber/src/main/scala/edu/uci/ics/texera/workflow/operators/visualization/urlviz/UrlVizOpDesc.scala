@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.urlviz
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
@@ -40,8 +40,6 @@ class UrlVizOpDesc extends VisualizationOperator {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val outputSchema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .manyToOnePhysicalOp(
         workflowId,
@@ -49,8 +47,17 @@ class UrlVizOpDesc extends VisualizationOperator {
         operatorIdentifier,
         OpExecInitInfo((_, _, _) => new UrlVizOpExec(urlContentAttrName))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(
+            operatorInfo.outputPorts.head.id -> getOutputSchema(
+              operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
+            )
+          )
+        )
+      )
   }
 
   override def operatorInfo: OperatorInfo =
