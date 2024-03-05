@@ -36,7 +36,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, _) => new RandomKSamplingOpExec(percentage, idx, getSeed))
+        OpExecInitInfo((idx, _) => new RandomKSamplingOpExec(percentage, idx, getSeed))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

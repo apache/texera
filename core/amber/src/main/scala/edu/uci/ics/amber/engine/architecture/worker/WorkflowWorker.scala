@@ -91,12 +91,6 @@ class WorkflowWorker(
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)
-    dp.initOperator(
-      VirtualIdentityUtils.getWorkerIndex(workerConfig.workerId),
-      physicalOp,
-      operatorConfig,
-      currentOutputIterator = Iterator.empty
-    )
     if (replayInitialization.restoreConfOpt.isDefined) {
       context.parent ! ReplayStatusUpdate(actorId, status = true)
       setupReplay(

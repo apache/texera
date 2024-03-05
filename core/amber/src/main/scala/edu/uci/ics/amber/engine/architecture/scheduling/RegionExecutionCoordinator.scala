@@ -3,22 +3,17 @@ package edu.uci.ics.amber.engine.architecture.scheduling
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  WorkflowStatsUpdate
-}
-import edu.uci.ics.amber.engine.architecture.controller.execution.{
-  OperatorExecution,
-  WorkflowExecution
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{WorkerAssignmentUpdate, WorkflowStatsUpdate}
+import edu.uci.ics.amber.engine.architecture.controller.execution.{OperatorExecution, WorkflowExecution}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
@@ -88,7 +83,7 @@ class RegionExecutionCoordinator(
     )
 
     Future(())
-      .flatMap(_ => initExecutors(operatorsToInit))
+      .flatMap(_ => initExecutors(operatorsToInit, resourceConfig))
       .flatMap(_ => assignPorts(region))
       .flatMap(_ => connectChannels(region.getLinks))
       .flatMap(_ => openOperators(operatorsToInit))
@@ -116,12 +111,12 @@ class RegionExecutionCoordinator(
       controllerConfig.faultToleranceConfOpt
     )
   }
-  private def initExecutors(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {
+  private def initExecutors(operators: Set[PhysicalOp], resourceConfig:ResourceConfig): Future[Seq[Unit]] = {
     Future
       .collect(
         // initialize executors in Python
         operators
-          .filter(op => op.isPythonOperator)
+//          .filter(op => op.isPythonOperator)
           .flatMap(op => {
             workflowExecution
               .getRegionExecution(region.id)
@@ -131,10 +126,13 @@ class RegionExecutionCoordinator(
           })
           .map {
             case (workerId, pythonUDFPhysicalOp) =>
+
               asyncRPCClient
                 .send(
                   InitializeOperatorLogic(
-                    pythonUDFPhysicalOp.getPythonCode,
+                    VirtualIdentityUtils.getWorkerIndex(workerId),
+                    resourceConfig.operatorConfigs(VirtualIdentityUtils.getPhysicalOpId(workerId)).workerConfigs.length,
+                    pythonUDFPhysicalOp.opExecInitInfo,
                     pythonUDFPhysicalOp.isSourceOperator
                   ),
                   workerId

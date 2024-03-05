@@ -214,7 +214,7 @@ case class PhysicalOp(
     if (!isPythonOperator) {
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
-    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
+    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
   }
 
   /**

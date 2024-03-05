@@ -104,7 +104,7 @@ class WorkerSpec
       DEFAULT_WORKFLOW_ID,
       DEFAULT_EXECUTION_ID,
       operatorIdentity,
-      OpExecInitInfo((_, _, _) => mockOpExecutor)
+      OpExecInitInfo((_, _) => mockOpExecutor)
     )
 
   private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
@@ -139,7 +139,6 @@ class WorkerSpec
         }
         this.dp.initOperator(
           0,
-          physicalOp,
           OperatorConfig(List(WorkerConfig(identifier1))),
           Iterator.empty
         )

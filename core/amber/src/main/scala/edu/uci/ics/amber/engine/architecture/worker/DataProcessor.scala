@@ -58,27 +58,9 @@ class DataProcessor(
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
-  @transient var workerIdx: Int = 0
-  @transient var operatorConfig: OperatorConfig = _
   @transient var operator: IOperatorExecutor = _
   @transient var serializationCall: () => Unit = _
 
-  def initOperator(
-      workerIdx: Int,
-      physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
-      currentOutputIterator: Iterator[(TupleLike, Option[PortIdentity])]
-  ): Unit = {
-    this.workerIdx = workerIdx
-    this.operator = physicalOp.opExecInitInfo match {
-      case OpExecInitInfoWithCode(codeGen) => ??? // TODO: compile and load java/scala operator here
-      case OpExecInitInfoWithFunc(opGen) =>
-        opGen(workerIdx, physicalOp, operatorConfig)
-    }
-    this.operatorConfig = operatorConfig
-
-    this.outputManager.outputIterator.setTupleOutput(currentOutputIterator)
-  }
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor

@@ -39,7 +39,7 @@ class TwitterSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
+        OpExecInitInfo((_, _) =>
           new TwitterSearchSourceOpExec(
             apiKey,
             apiSecretKey,

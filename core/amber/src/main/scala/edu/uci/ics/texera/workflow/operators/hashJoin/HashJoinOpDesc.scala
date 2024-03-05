@@ -68,7 +68,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "build"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new HashJoinBuildOpExec[K](buildAttributeName))
+          OpExecInitInfo((_, _) => new HashJoinBuildOpExec[K](buildAttributeName))
         )
         .withInputPorts(List(buildInputPort))
         .withOutputPorts(List(buildOutputPort))
@@ -98,7 +98,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "probe"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) =>
+          OpExecInitInfo((_, _) =>
             new HashJoinProbeOpExec[K](
               probeAttributeName,
               joinType
