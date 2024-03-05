@@ -181,16 +181,12 @@ class OutputManager(
 
   }
 
-  def getPortIds: Set[PortIdentity] = {
-    this.ports.keys.toSet
-  }
-
   def getPort(portId: PortIdentity): WorkerPort = ports(portId)
 
   def hasUnfinishedOutput: Boolean = outputIterator.hasNext
 
   def finalizeOutput(): Unit = {
-    getPortIds
+    this.ports.keys
       .foreach(outputPortId =>
         outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
       )
