@@ -216,24 +216,14 @@ class DataProcessor(
         statisticsManager.increaseOutputTupleCount()
         outputPortOpt match {
           case Some(port) =>
-            pushTupleToPort(schemaEnforceable, port)
+            outputManager.passTupleToDownstream(schemaEnforceable, port)
           case None =>
             // push to all output ports if not specified.
             physicalOp.outputPorts.keys.foreach(port => {
-              pushTupleToPort(schemaEnforceable, port)
+              outputManager.passTupleToDownstream(schemaEnforceable, port)
             })
         }
       case other => // skip for now
-    }
-  }
-
-  private def pushTupleToPort(outputTuple: SchemaEnforceable, portId: PortIdentity): Unit = {
-    physicalOp.getOutputLinks(portId).foreach { out =>
-      outputManager.passTupleToDownstream(
-        outputTuple,
-        out,
-        outputManager.getPort(portId).schema
-      )
     }
   }
 

@@ -52,11 +52,11 @@ object OutputManager {
 /** This class is a container of all the transfer partitioners.
   *
   * @param selfID         ActorVirtualIdentity of self.
-  * @param dataOutputPort DataOutputPort
+  * @param outputGateway DataOutputPort
   */
 class OutputManager(
-    selfID: ActorVirtualIdentity,
-    dataOutputPort: NetworkOutputGateway
+                     selfID: ActorVirtualIdentity,
+                     outputGateway: NetworkOutputGateway
 ) {
 
   val partitioners = mutable.HashMap[PhysicalLink, Partitioner]()
@@ -77,9 +77,9 @@ class OutputManager(
     val partitioner = toPartitioner(partitioning)
     partitioners.update(link, partitioner)
     partitioner.allReceivers.foreach(receiver => {
-      val buffer = new NetworkOutputBuffer(receiver, dataOutputPort, getBatchSize(partitioning))
+      val buffer = new NetworkOutputBuffer(receiver, outputGateway, getBatchSize(partitioning))
       networkOutputBuffers.update((link, receiver), buffer)
-      dataOutputPort.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
+      outputGateway.addOutputChannel(ChannelIdentity(selfID, receiver, isControl = false))
     })
   }
 
@@ -89,19 +89,24 @@ class OutputManager(
     * @param tupleLike TupleLike to be passed.
     */
   def passTupleToDownstream(
-      tupleLike: SchemaEnforceable,
-      outputLink: PhysicalLink,
-      schema: Schema
+                             tupleLike: SchemaEnforceable,
+                             outputPortId: PortIdentity
   ): Unit = {
-    val partitioner =
-      partitioners.getOrElse(outputLink, throw new MappingException("output port not found"))
-    val outputTuple: Tuple = tupleLike.enforceSchema(schema)
-    partitioner
-      .getBucketIndex(outputTuple)
-      .foreach(bucketIndex => {
-        val destActor = partitioner.allReceivers(bucketIndex)
-        networkOutputBuffers((outputLink, destActor)).addTuple(outputTuple)
-      })
+    partitioners.filter{
+      case (link, partitioner)=> link.fromPortId == outputPortId
+    }
+      .foreach {
+      case (link, partitioner) =>
+        val outputTuple: Tuple = tupleLike.enforceSchema(getPort(outputPortId).schema)
+        partitioner
+          .getBucketIndex(outputTuple)
+          .foreach(bucketIndex => {
+            val destActor = partitioner.allReceivers(bucketIndex)
+            networkOutputBuffers((link, destActor)).addTuple(outputTuple)
+          })
+      }
+
+
   }
 
   /**
