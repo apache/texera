@@ -153,15 +153,11 @@ class WorkflowService(
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
     var controllerConf = ControllerConfig.default
 
-    // fetch the workflow's environment eid
-    val environmentEid =
-      WorkflowResource.getEnvironmentEidOfWorkflow(UInteger.valueOf(workflowContext.workflowId.id))
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
       workflowContext.userId,
       req.executionName,
-      convertToJson(req.engineVersion),
-      environmentEid
+      convertToJson(req.engineVersion)
     )
 
     if (AmberConfig.isUserSystemEnabled) {
