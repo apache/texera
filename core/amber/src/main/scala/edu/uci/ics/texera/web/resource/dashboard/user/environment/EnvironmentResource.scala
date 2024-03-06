@@ -20,6 +20,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   EnvironmentOfWorkflowDao
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.retrieveDatasetVersionFilePaths
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
   DatasetAccessResource,
   DatasetResource
@@ -48,11 +49,13 @@ import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import java.net.URLDecoder
+import java.nio.file.Paths
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs.core.{MediaType, Response}
 import javax.ws.rs.{GET, POST, Path, PathParam, Produces}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.util.matching.Regex
 
 object EnvironmentResource {
   private val context = SqlServer.createDSLContext()
@@ -92,6 +95,57 @@ object EnvironmentResource {
       .returning()
       .fetchOne()
       .into(classOf[Environment])
+  }
+
+  // return the descriptor of the target file.
+  // The filename is passed from the frontend, the did is contained in the filename in the format of /{dataset-name}/{filepath}
+  def getEnvironmentDatasetFilePathAndVersion(
+      uid: UInteger,
+      eid: UInteger,
+      fileName: String
+  ): DatasetFileDesc = {
+    withTransaction(context) { ctx =>
+      {
+        // Adjust the pattern to match the new fileName format
+        val datasetNamePattern: Regex = """/([^/]+)/.*""".r
+
+        // Extract 'datasetName' using the pattern
+        val datasetName = datasetNamePattern.findFirstMatchIn(fileName) match {
+          case Some(matched) => matched.group(1) // Extract the first group which is 'datasetName'
+          case None =>
+            throw new RuntimeException(
+              "The fileName format is not correct"
+            ) // Default value or handle error
+        }
+
+        // Extract the file path
+        val filePath = Paths.get(
+          fileName.substring(fileName.indexOf(s"/$datasetName/") + s"/$datasetName/".length)
+        )
+        val datasetsOfEnvironment = retrieveDatasetsAndVersions(ctx, uid, eid)
+
+        // Initialize datasetFileDesc as None
+        var datasetFileDesc: Option[DatasetFileDesc] = None
+
+        // Iterate over datasetsOfEnvironment to find a match based on datasetName
+        datasetsOfEnvironment.foreach { datasetAndVersion =>
+          if (datasetAndVersion.dataset.getName == datasetName) {
+            datasetFileDesc = Some(
+              new DatasetFileDesc(
+                filePath,
+                Paths.get(datasetAndVersion.dataset.getStoragePath),
+                datasetAndVersion.version.getVersionHash
+              )
+            )
+          }
+        }
+
+        // Check if datasetFileDesc is set, if not, throw an exception
+        datasetFileDesc.getOrElse(
+          throw new RuntimeException("Given file is not found in the environment")
+        )
+      }
+    }
   }
 
   private def getEnvironmentByEid(ctx: DSLContext, eid: UInteger): Environment = {
@@ -226,7 +280,7 @@ object EnvironmentResource {
       val datasetName = entry.dataset.getName
       val fileList = retrieveDatasetVersionFilePaths(ctx, uid, did, dvid)
       val resList: ListBuffer[String] = new ListBuffer[String]
-      fileList.forEach(file => resList.append(s"/$datasetName-$did/$file"))
+      fileList.forEach(file => resList.append(s"/$datasetName/$file"))
       resList.toList
     })
   }

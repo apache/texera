@@ -34,7 +34,8 @@ object ExecutionsMetadataPersistService extends LazyLogging {
       workflowId: WorkflowIdentity,
       uid: Option[UInteger],
       executionName: String,
-      environmentVersion: String
+      environmentVersion: String,
+      environmentEid: UInteger
   ): ExecutionIdentity = {
     if (!AmberConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
@@ -46,7 +47,9 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     newExecution.setVid(vid)
     newExecution.setUid(uid.orNull)
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
+    // TODO: consider put environment version as a part of the environment
     newExecution.setEnvironmentVersion(environmentVersion)
+    newExecution.setEnvironmentEid(environmentEid)
     workflowExecutionsDao.insert(newExecution)
     ExecutionIdentity(newExecution.getEid.longValue())
   }

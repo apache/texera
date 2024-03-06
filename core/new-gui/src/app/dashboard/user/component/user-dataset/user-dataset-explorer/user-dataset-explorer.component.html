@@ -7,6 +7,14 @@
     <nz-card-meta
       style="padding-top: 20px"
       nzDescription="{{datasetDescription}}"></nz-card-meta>
+    <div style="padding-top: 30px">
+      <nz-switch
+        [ngModel]="datasetIsPublic"
+        (ngModelChange)="onPublicStatusChange($event)"
+        [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+        nzCheckedChildren="public"
+        nzUnCheckedChildren="private"></nz-switch>
+    </div>
   </nz-card>
 </div>
 <nz-layout>
