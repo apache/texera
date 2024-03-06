@@ -1,22 +1,22 @@
-import { AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, ViewChild } from "@angular/core";
-import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
-import { WorkflowVersionService } from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
-import { YText } from "yjs/dist/src/types/YText";
-import { MonacoBinding } from "y-monaco";
-import { Subject } from "rxjs";
-import { takeUntil } from "rxjs/operators";
-import { MonacoLanguageClient } from "monaco-languageclient";
-import { toSocket, WebSocketMessageReader, WebSocketMessageWriter } from "vscode-ws-jsonrpc";
-import { CoeditorPresenceService } from "../../service/workflow-graph/model/coeditor-presence.service";
-import { DomSanitizer, SafeStyle } from "@angular/platform-browser";
-import { Coeditor } from "../../../common/type/user";
-import { YType } from "../../types/shared-editing.interface";
-import { getWebsocketUrl } from "src/app/common/util/url";
-import { isUndefined } from "lodash";
-import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
+import {AfterViewInit, Component, ComponentRef, ElementRef, OnDestroy, ViewChild} from "@angular/core";
+import {UntilDestroy, untilDestroyed} from "@ngneat/until-destroy";
+import {WorkflowActionService} from "../../service/workflow-graph/model/workflow-action.service";
+import {WorkflowVersionService} from "src/app/dashboard/user/service/workflow-version/workflow-version.service";
+import {YText} from "yjs/dist/src/types/YText";
+import {MonacoBinding} from "y-monaco";
+import {Subject} from "rxjs";
+import {takeUntil} from "rxjs/operators";
+import {MonacoLanguageClient} from "monaco-languageclient";
+import {toSocket, WebSocketMessageReader, WebSocketMessageWriter} from "vscode-ws-jsonrpc";
+import {CoeditorPresenceService} from "../../service/workflow-graph/model/coeditor-presence.service";
+import {DomSanitizer, SafeStyle} from "@angular/platform-browser";
+import {Coeditor} from "../../../common/type/user";
+import {YType} from "../../types/shared-editing.interface";
+import {getWebsocketUrl} from "src/app/common/util/url";
+import {isUndefined} from "lodash";
+import {CloseAction, ErrorAction} from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
-import { FormControl } from "@angular/forms";
+import {FormControl} from "@angular/forms";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -33,8 +33,8 @@ import { FormControl } from "@angular/forms";
   styleUrls: ["code-editor.component.scss"],
 })
 export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy {
-  @ViewChild("editor", { static: true }) editorElement!: ElementRef;
-  @ViewChild("container", { static: true }) containerElement!: ElementRef;
+  @ViewChild("editor", {static: true}) editorElement!: ElementRef;
+  @ViewChild("container", {static: true}) containerElement!: ElementRef;
   private code?: YText;
   private editor?: any;
   private languageServerSocket?: WebSocket;
@@ -43,9 +43,9 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public title: string | undefined;
   public formControl!: FormControl;
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
-  public language: string="java";
+  public language: string = "java";
   public languageTitle: string = this.generateLanguageTitle(this.language);
-  public operatorType: string='';
+  public operatorType: string = '';
 
   private generateLanguageTitle(language: string): string {
     return `${language.toUpperCase()} Script`;
@@ -65,23 +65,21 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
   ) {
-    
+
     const currentOperatorId = this.workflowActionService
       .getJointGraphWrapper()
       .getCurrentHighlightedOperatorIDs()[0];
-  
+
     this.operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType
-    if (this.operatorType=="JavaUDF")
-    {
+    if (this.operatorType == "JavaUDF") {
       this.changeLanguage("java")
       this.languageTitle = this.generateLanguageTitle("java");
-    }
-    else
-    {
+    } else {
       this.changeLanguage("python")
       this.languageTitle = this.generateLanguageTitle("python");
     }
   }
+
   ngAfterViewInit() {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.operatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
@@ -184,11 +182,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
             clientOptions: {
               documentSelector: ["python"],
               errorHandler: {
-                error: () => ({ action: ErrorAction.Continue }),
-                closed: () => ({ action: CloseAction.Restart }),
+                error: () => ({action: ErrorAction.Continue}),
+                closed: () => ({action: CloseAction.Restart}),
               },
             },
-            connectionProvider: { get: () => Promise.resolve({ reader, writer }) },
+            connectionProvider: {get: () => Promise.resolve({reader, writer})},
           });
           languageClient.start();
           reader.onClose(() => languageClient.stop());
