@@ -53,7 +53,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   private val testOp =
     PhysicalOp(id = testOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
   private val inputPortId = PortIdentity()
-  private val link = PhysicalLink(upstreamOp.id, PortIdentity(), testOp.id, inputPortId)
+  private val outputPortId = PortIdentity()
+  private val link = PhysicalLink(upstreamOp.id, PortIdentity(), testOp.id, outputPortId)
   private val physicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
@@ -118,6 +119,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(0, OpenOperator())
@@ -165,6 +167,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
+    dp.outputManager.addPort(outputPortId, schema)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
       ControlInvocation(0, OpenOperator())
