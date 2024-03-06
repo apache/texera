@@ -7,7 +7,10 @@ import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttribute
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
-import edu.uci.ics.texera.workflow.operators.visualization.{VisualizationConstants, VisualizationOperator}
+import edu.uci.ics.texera.workflow.operators.visualization.{
+  VisualizationConstants,
+  VisualizationOperator
+}
 
 import java.util
 import scala.jdk.CollectionConverters.CollectionHasAsScala
@@ -57,14 +60,13 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
   @AutofillAttributeName
   var comparedColumnName: String = ""
 
-  @JsonProperty(value="dots", required = false)
+  @JsonProperty(value = "dots", required = false)
   var dots: util.List[DumbbellDotConfig] = _
 
   @JsonProperty(value = "showLegends", required = false)
   @JsonSchemaTitle("Show Legends?")
   @JsonPropertyDescription("whether show legends in the graph")
   var showLegends: Boolean = false;
-
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
@@ -121,7 +123,8 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
       dotColumnNames = dots.asScala
         .map { dot =>
           s"'${dot.dotValue}'"
-        }.mkString(",")
+        }
+        .mkString(",")
     }
 
     s"""
