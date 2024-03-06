@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
-import edu.uci.ics.amber.engine.architecture.messaginglayer.{OutputManager, WorkerTimerService}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
@@ -76,7 +76,6 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   def mkDataProcessor: DataProcessor = {
     val dp: DataProcessor =
       new DataProcessor(testWorkerId, outputHandler) {
-        override val outputManager: OutputManager = mock[OutputManager]
         override val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
       }
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(testWorkerId))), Iterator.empty)
@@ -112,7 +111,6 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       )
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
-    (dp.outputManager.emitEndOfUpstream _).expects().once()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (operator.close _).expects().once()
     dp.inputManager.addPort(inputPortId, schema)
@@ -177,14 +175,12 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       DataFrame(tuples)
     )
     while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
-      (dp.outputManager.flush _).expects(None).once()
       dp.processControlPayload(
         ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
         ControlInvocation(0, FlushNetworkBuffer())
       )
       dp.continueDataProcessing()
     }
-    (dp.outputManager.emitEndOfUpstream _).expects().once()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (operator.close _).expects().once()
     dp.processDataPayload(
