@@ -111,6 +111,7 @@ class AggregateOpDesc extends LogicalOp {
     ) {
       return null
     }
+    if (groupByKeys == null) groupByKeys = List()
     Schema
       .builder()
       .add(
