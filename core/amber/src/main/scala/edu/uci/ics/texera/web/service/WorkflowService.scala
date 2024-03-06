@@ -15,7 +15,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
@@ -153,15 +152,11 @@ class WorkflowService(
     val workflowContext: WorkflowContext = createWorkflowContext(uidOpt)
     var controllerConf = ControllerConfig.default
 
-    // fetch the workflow's environment eid
-    val environmentEid =
-      WorkflowResource.getEnvironmentEidOfWorkflow(UInteger.valueOf(workflowContext.workflowId.id))
     workflowContext.executionId = ExecutionsMetadataPersistService.insertNewExecution(
       workflowContext.workflowId,
       workflowContext.userId,
       req.executionName,
-      convertToJson(req.engineVersion),
-      environmentEid
+      convertToJson(req.engineVersion)
     )
 
     if (AmberConfig.isUserSystemEnabled) {
