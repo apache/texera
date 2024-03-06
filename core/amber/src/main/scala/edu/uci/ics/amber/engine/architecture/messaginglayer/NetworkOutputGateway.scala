@@ -11,8 +11,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 import java.util.concurrent.atomic.AtomicLong
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.SELF
-import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 import scala.collection.mutable
 

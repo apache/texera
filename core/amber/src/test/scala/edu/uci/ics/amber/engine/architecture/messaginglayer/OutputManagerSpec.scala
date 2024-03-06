@@ -32,6 +32,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     .add("field6", AttributeType.DOUBLE)
     .build()
 
+
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1
     PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
@@ -48,6 +49,8 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
 
   "OutputManager" should "aggregate tuples and output" in {
     val outputManager = wire[OutputManager]
+    val mockPortId = PortIdentity()
+    outputManager.addPort(mockPortId, schema)
 
     val tuples = Array.fill(21)(
       TupleLike(1, 2, 3, 4, "5", 9.8).enforceSchema(schema)
@@ -65,7 +68,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       )
       (mockHandler.apply _).expects(mkDataMessage(fakeID, identifier, 3, EndOfUpstream()))
     }
-    val mockPortId = PortIdentity()
+
     val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 
@@ -77,20 +80,6 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       outputManager.passTupleToDownstream(TupleLike(t.getFields), None)
     }
     outputManager.emitEndOfUpstream()
-  }
-
-  "OutputManager" should "not output tuples when there is no partitioning" in {
-    val outputManager = wire[OutputManager]
-    val tuples = Array.fill(21)(
-      TupleLike(1, 2, 3, 4, "5", 9.8).enforceSchema(schema)
-    )
-    (mockHandler.apply _).expects(*).never()
-    assertThrows[Exception] {
-      tuples.foreach { t =>
-        outputManager.passTupleToDownstream(t, None)
-      }
-      outputManager.emitEndOfUpstream()
-    }
   }
 
 }

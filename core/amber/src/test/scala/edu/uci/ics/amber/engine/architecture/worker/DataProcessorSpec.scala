@@ -114,7 +114,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (dp.outputManager.emitEndOfUpstream _).expects().once()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
     (operator.close _).expects().once()
-    dp.inputGateway.addPort(inputPortId, schema)
+    dp.inputManager.addPort(inputPortId, schema)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
@@ -126,14 +126,14 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       DataFrame(tuples)
     )
-    while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
+    while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       EndOfUpstream()
     )
-    while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
+    while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
   }
@@ -161,7 +161,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       .expects(Right(InputExhausted()), 0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
-    dp.inputGateway.addPort(inputPortId, schema)
+    dp.inputManager.addPort(inputPortId, schema)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
       .setPortId(inputPortId)
@@ -173,7 +173,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       DataFrame(tuples)
     )
-    while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
+    while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       (dp.outputManager.flush _).expects(None).once()
       dp.processControlPayload(
         ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
@@ -188,7 +188,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       EndOfUpstream()
     )
-    while (dp.hasUnfinishedInput || dp.hasUnfinishedOutput) {
+    while (dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput) {
       dp.continueDataProcessing()
     }
   }
