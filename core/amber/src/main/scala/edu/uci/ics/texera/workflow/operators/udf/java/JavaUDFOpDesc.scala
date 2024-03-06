@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.java
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
@@ -11,6 +11,7 @@ import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, Oper
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
+
 import scala.util.{Success, Try}
 
 class JavaUDFOpDesc extends LogicalOp {
@@ -72,6 +73,26 @@ class JavaUDFOpDesc extends LogicalOp {
       opInfo.inputPorts.map(_ => None)
     }
 
+    val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
+      //    Preconditions.checkArgument(schemas.length == 1)
+      val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+      val outputSchemaBuilder = Schema.builder()
+      // keep the same schema from input
+      if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
+      // for any pythonUDFType, it can add custom output columns (attributes).
+      if (outputColumns != null) {
+        if (retainInputColumns) { // check if columns are duplicated
+
+          for (column <- outputColumns) {
+            if (inputSchema.containsAttribute(column.getName))
+              throw new RuntimeException("Column name " + column.getName + " already exists!")
+          }
+        }
+        outputSchemaBuilder.add(outputColumns).build()
+      }
+      Map(operatorInfo.outputPorts.head.id -> outputSchemaBuilder.build())
+    }
+
     if (workers > 1)
       PhysicalOp
         .oneToOnePhysicalOp(
@@ -81,12 +102,13 @@ class JavaUDFOpDesc extends LogicalOp {
           OpExecInitInfo(code, "java")
         )
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(true)
         .withSuggestedWorkerNum(workers)
+        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
     else
       PhysicalOp
         .manyToOnePhysicalOp(
@@ -96,11 +118,12 @@ class JavaUDFOpDesc extends LogicalOp {
           OpExecInitInfo(code, "java")
         )
         .withDerivePartition(_ => UnknownPartition())
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withPartitionRequirement(partitionRequirement)
         .withIsOneToManyOp(true)
         .withParallelizable(false)
+        .withPropagateSchema(SchemaPropagationFunc(propagateSchema))
   }
 
   override def operatorInfo: OperatorInfo = {
@@ -127,7 +150,7 @@ class JavaUDFOpDesc extends LogicalOp {
 
     OperatorInfo(
       "Java UDF",
-      "User-defined function operator in Python script",
+      "User-defined function operator in Java script",
       OperatorGroupConstants.UDF_GROUP,
       inputPortInfo,
       outputPortInfo,
