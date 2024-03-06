@@ -32,7 +32,6 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
     .add("field6", AttributeType.DOUBLE)
     .build()
 
-
   def physicalOpId(): PhysicalOpIdentity = {
     counter += 1
     PhysicalOpIdentity(OperatorIdentity("" + counter), "" + counter)
