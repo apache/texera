@@ -10,9 +10,12 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import org.jgrapht.alg.connectivity.BiconnectivityInspector
+import org.jgrapht.alg.shortestpath.AllDirectedPaths
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
+import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `set asScala`}
 import scala.jdk.CollectionConverters.{IteratorHasAsScala, SetHasAsScala}
 
 object PhysicalPlan {
@@ -74,6 +77,8 @@ case class PhysicalPlan(
     links.foreach(l => jgraphtDag.addEdge(l.fromOpId, l.toOpId))
     jgraphtDag
   }
+
+  @transient lazy val maxChains: Set[Set[PhysicalLink]] = this.getMaxChains
 
   def getSourceOperatorIds: Set[PhysicalOpIdentity] =
     operatorMap.keys.filter(op => dag.inDegreeOf(op) == 0).toSet
@@ -215,6 +220,104 @@ case class PhysicalPlan(
       }
 
     this.copy(operators, links.diff(linksToRemove))
+  }
+
+  def getOriginalBlockingLinks: Set[PhysicalLink] = {
+    operators
+      .flatMap { physicalOp =>
+        {
+          getUpstreamPhysicalOpIds(physicalOp.id)
+            .flatMap { upstreamPhysicalOpId =>
+              links
+                .filter(link =>
+                  link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
+                )
+                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
+            }
+        }
+      }
+  }
+
+  /**
+    * A link is a bridge if removal of that link would increase the number of (weakly) connected components in the DAG.
+    * Assuming pipelining a link is more desirable than materializing it, and optimal physical plan always pipelines
+    * a bridge. We can thus use bridges to optimize the process of searching for an optimal physical plan.
+    *
+    * @return All non-blocking links that are not bridges.
+    */
+  def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
+    val bridges = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](this.dag).getBridges
+      .map { edge =>
+        {
+          val fromOpId = this.dag.getEdgeSource(edge)
+          val toOpId = this.dag.getEdgeTarget(edge)
+          links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+        }
+      }
+      .flatMap(_.toList)
+    this.getOriginalNonBlockingLinks.diff(bridges)
+  }
+
+  private def getOriginalNonBlockingLinks: Set[PhysicalLink] = {
+    operators
+      .flatMap { physicalOp =>
+        {
+          getUpstreamPhysicalOpIds(physicalOp.id)
+            .flatMap { upstreamPhysicalOpId =>
+              links
+                .filter(link =>
+                  link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
+                )
+                .filter(link => !getOperator(physicalOp.id).isInputLinkBlocking(link))
+            }
+        }
+      }
+  }
+
+  /**
+    * A chain in a physical plan is a path such that each of its operators (except the first and the last operators)
+    * is connected only to operators on the path. Assuming pipelining a link is more desirable than materializations,
+    * and optimal physical plan has at most one link on each chain. We can thus use chains to optimize the process of
+    * searching for an optimal physical plan. A maximal chain is a chain that is not a sub-path of any other chain.
+    * A maximal chain can cover the optimizations of all its sub-chains, so finding only maximal chains is adequate for
+    * optimization purposes. Note the definition of a chain has nothing to do with that of a connected component.
+    *
+    * @return All the maximal chains of this physical plan, where each chain is represented as a set of links.
+    */
+  private def getMaxChains: Set[Set[PhysicalLink]] = {
+    val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, DefaultEdge](this.dag)
+    val chains = this.dag
+      .vertexSet()
+      .flatMap { ancestor =>
+        {
+          this.dag.getDescendants(ancestor).flatMap { descendant =>
+            {
+              dijkstra
+                .getAllPaths(ancestor, descendant, true, Integer.MAX_VALUE)
+                .filter(path =>
+                  path.getLength > 1 &&
+                    path.getVertexList
+                      .filter(v => v != path.getStartVertex && v != path.getEndVertex)
+                      .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
+                )
+                .map(path =>
+                  path.getEdgeList
+                    .map { edge =>
+                      {
+                        val fromOpId = this.dag.getEdgeSource(edge)
+                        val toOpId = this.dag.getEdgeTarget(edge)
+                        links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+                      }
+                    }
+                    .flatMap(_.toList)
+                    .toSet
+                )
+                .toSet
+            }
+          }
+        }
+      }
+    chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
   }
 
   def setOperatorUnblockPort(

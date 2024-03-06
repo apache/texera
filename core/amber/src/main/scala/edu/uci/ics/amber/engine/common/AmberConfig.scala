@@ -72,6 +72,11 @@ object AmberConfig {
   }
   val isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
 
+  // Region plan generator
+  val enableCostBasedRegionPlanGenerator: Boolean =
+    getConfSource.getBoolean("region-plan-generator.enable-cost-based-region-plan-generator")
+  val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan-generator.use-global-search")
+
   // Storage configuration
   val sinkStorageMode: String = getConfSource.getString("storage.mode")
   val sinkStorageMongoDBConfig: Config = getConfSource.getConfig("storage.mongodb")
