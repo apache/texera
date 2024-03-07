@@ -15,8 +15,7 @@ import org.jgrapht.alg.shortestpath.AllDirectedPaths
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
-import scala.collection.convert.ImplicitConversions.{`collection AsScalaIterable`, `set asScala`}
-import scala.jdk.CollectionConverters.{IteratorHasAsScala, SetHasAsScala}
+import scala.jdk.CollectionConverters.{IteratorHasAsScala, ListHasAsScala, SetHasAsScala}
 
 object PhysicalPlan {
 
@@ -246,15 +245,16 @@ case class PhysicalPlan(
     * @return All non-blocking links that are not bridges.
     */
   def getNonBridgeNonBlockingLinks: Set[PhysicalLink] = {
-    val bridges = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](this.dag).getBridges
-      .map { edge =>
-        {
-          val fromOpId = this.dag.getEdgeSource(edge)
-          val toOpId = this.dag.getEdgeTarget(edge)
-          links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+    val bridges =
+      new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](this.dag).getBridges.asScala
+        .map { edge =>
+          {
+            val fromOpId = this.dag.getEdgeSource(edge)
+            val toOpId = this.dag.getEdgeTarget(edge)
+            links.find(l => l.fromOpId == fromOpId && l.toOpId == toOpId)
+          }
         }
-      }
-      .flatMap(_.toList)
+        .flatMap(_.toList)
     this.getOriginalNonBlockingLinks.diff(bridges)
   }
 
@@ -288,20 +288,22 @@ case class PhysicalPlan(
     val dijkstra = new AllDirectedPaths[PhysicalOpIdentity, DefaultEdge](this.dag)
     val chains = this.dag
       .vertexSet()
+      .asScala
       .flatMap { ancestor =>
         {
-          this.dag.getDescendants(ancestor).flatMap { descendant =>
+          this.dag.getDescendants(ancestor).asScala.flatMap { descendant =>
             {
               dijkstra
                 .getAllPaths(ancestor, descendant, true, Integer.MAX_VALUE)
+                .asScala
                 .filter(path =>
                   path.getLength > 1 &&
-                    path.getVertexList
+                    path.getVertexList.asScala
                       .filter(v => v != path.getStartVertex && v != path.getEndVertex)
                       .forall(v => this.dag.inDegreeOf(v) == 1 && this.dag.outDegreeOf(v) == 1)
                 )
                 .map(path =>
-                  path.getEdgeList
+                  path.getEdgeList.asScala
                     .map { edge =>
                       {
                         val fromOpId = this.dag.getEdgeSource(edge)
