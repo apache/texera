@@ -1,17 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 
-object OpenOperatorHandler {
+object OpenExecutorHandler {
 
-  final case class OpenOperator() extends ControlCommand[Unit]
+  final case class OpenExecutor() extends ControlCommand[Unit]
 }
 
-trait OpenOperatorHandler {
+trait OpenExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
-  registerHandler { (openOperator: OpenOperator, sender) =>
+  registerHandler { (_: OpenExecutor, sender) =>
     dp.executor.open()
   }
 }

@@ -9,7 +9,7 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)
     with AmberLogging
     with InitializeExecutorHandler
-    with OpenOperatorHandler
+    with OpenExecutorHandler
     with PauseHandler
     with AddPartitioningHandler
     with QueryCurrentInputTupleHandler

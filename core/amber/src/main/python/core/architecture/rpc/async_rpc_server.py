@@ -18,7 +18,7 @@ from core.architecture.handlers.control.update_executor_handler import (
     UpdateExecutorHandler,
 )
 from core.architecture.handlers.control.no_op_handler import NoOpHandler
-from core.architecture.handlers.control.open_operator_handler import OpenOperatorHandler
+from core.architecture.handlers.control.open_executor_handler import OpenExecutorHandler
 from core.architecture.handlers.control.pause_worker_handler import PauseWorkerHandler
 from core.architecture.handlers.control.query_current_input_tuple_handler import (
     QueryCurrentInputTupleHandler,
@@ -62,7 +62,7 @@ class AsyncRPCServer:
         self.register(StartWorkerHandler())
         self.register(PauseWorkerHandler())
         self.register(ResumeWorkerHandler())
-        self.register(OpenOperatorHandler())
+        self.register(OpenExecutorHandler())
         self.register(AssignPortHandler())
         self.register(AddPartitioningHandler())
         self.register(AddInputChannelHandler())

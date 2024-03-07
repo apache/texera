@@ -3,7 +3,7 @@ package edu.uci.ics.amber.engine.architecture.worker
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
 import edu.uci.ics.amber.engine.common.{InputExhausted, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream, WorkflowFIFOMessage}
@@ -98,7 +98,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.outputManager.addPort(outputPortId, schema)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-      ControlInvocation(0, OpenOperator())
+      ControlInvocation(0, OpenExecutor())
     )
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
@@ -147,7 +147,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     dp.outputManager.addPort(outputPortId, schema)
     dp.processControlPayload(
       ChannelIdentity(CONTROLLER, testWorkerId, isControl = true),
-      ControlInvocation(0, OpenOperator())
+      ControlInvocation(0, OpenExecutor())
     )
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),

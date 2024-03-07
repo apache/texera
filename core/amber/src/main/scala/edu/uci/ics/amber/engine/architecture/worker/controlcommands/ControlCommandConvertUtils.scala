@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -39,8 +39,8 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
-      case OpenOperator() =>
-        OpenOperatorV2()
+      case OpenExecutor() =>
+        OpenExecutorV2()
       case AssignPort(portId, input, schema) =>
         AssignPortV2(portId, input, schema.toRawSchema)
       case AddPartitioning(tag: PhysicalLink, partitioning: Partitioning) =>
