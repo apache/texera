@@ -24,8 +24,6 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
     "Number of Workers",
   ];
 
-  constructor() {}
-
   ngOnInit(): void {
     if (!this.workflowRuntimeStatistics) {
       return;
