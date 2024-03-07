@@ -41,6 +41,6 @@ class VFSRecordStorage[T >: Null <: AnyRef](vfsLogFolderURI: URI)
 
   override def containsFolder(folderName: String): Boolean = {
     val fileObj = folder.getChild(folderName)
-    fileObj !=null && fileObj.exists() && fileObj.isFolder
+    fileObj != null && fileObj.exists() && fileObj.isFolder
   }
 }
