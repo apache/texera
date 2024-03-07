@@ -41,7 +41,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     0
   )
 
-  private val operator = mock[OperatorExecutor]
+  private val executor = mock[OperatorExecutor]
   private val inputPortId = PortIdentity()
   private val outputPortId = PortIdentity()
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
@@ -64,16 +64,16 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process data messages" in {
     val dp = mkDataProcessor
-    dp.executor = operator
+    dp.executor = executor
     dp.stateManager.transitTo(READY)
     (outputHandler.apply _).expects(*).once()
-    (operator.open _).expects().once()
+    (executor.open _).expects().once()
     tuples.foreach { x =>
       (
           (
               tuple: Either[Tuple, InputExhausted],
               input: Int
-          ) => operator.processTupleMultiPort(tuple, input)
+          ) => executor.processTupleMultiPort(tuple, input)
       )
         .expects(Left(x), 0)
     }
@@ -81,7 +81,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         (
             tuple: Either[Tuple, InputExhausted],
             input: Int
-        ) => operator.processTupleMultiPort(tuple, input)
+        ) => executor.processTupleMultiPort(tuple, input)
     )
       .expects(
         Right(InputExhausted()),
@@ -90,7 +90,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
-    (operator.close _).expects().once()
+    (executor.close _).expects().once()
     dp.inputManager.addPort(inputPortId, schema)
     dp.inputGateway
       .getChannel(ChannelIdentity(senderWorkerId, testWorkerId, isControl = false))
@@ -118,16 +118,16 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process control messages during data processing" in {
     val dp = mkDataProcessor
-    dp.executor = operator
+    dp.executor = executor
     dp.stateManager.transitTo(READY)
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
-    (operator.open _).expects().once()
+    (executor.open _).expects().once()
     tuples.foreach { x =>
       (
           (
               tuple: Either[Tuple, InputExhausted],
               input: Int
-          ) => operator.processTupleMultiPort(tuple, input)
+          ) => executor.processTupleMultiPort(tuple, input)
       )
         .expects(Left(x), 0)
     }
@@ -135,7 +135,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
         (
             tuple: Either[Tuple, InputExhausted],
             input: Int
-        ) => operator.processTupleMultiPort(tuple, input)
+        ) => executor.processTupleMultiPort(tuple, input)
     )
       .expects(Right(InputExhausted()), 0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -161,7 +161,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       dp.continueDataProcessing()
     }
     (adaptiveBatchingMonitor.stopAdaptiveBatching _).expects().once()
-    (operator.close _).expects().once()
+    (executor.close _).expects().once()
     dp.processDataPayload(
       ChannelIdentity(senderWorkerId, testWorkerId, isControl = false),
       EndOfUpstream()
