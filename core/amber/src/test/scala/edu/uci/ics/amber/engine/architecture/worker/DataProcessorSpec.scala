@@ -70,6 +70,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process data messages" in {
     val dp = mkDataProcessor
+    dp.operator = operator
     dp.stateManager.transitTo(READY)
     (outputHandler.apply _).expects(*).once()
     (operator.open _).expects().once()
@@ -123,6 +124,7 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
 
   "data processor" should "process control messages during data processing" in {
     val dp = mkDataProcessor
+    dp.operator = operator
     dp.stateManager.transitTo(READY)
     (outputHandler.apply _).expects(*).anyNumberOfTimes()
     (operator.open _).expects().once()
