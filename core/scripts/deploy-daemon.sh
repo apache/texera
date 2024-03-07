@@ -14,7 +14,10 @@ done
 if  ! $skipCompilation
 then
   echo "${green}Compiling Amber...${reset}"
-  cd amber && sbt clean package
+  cd amber
+  sbt clean dist
+  unzip target/universal/texera-0.1-SNAPSHOT.zip -d target/universal/
+  rm target/universal/texera-0.1-SNAPSHOT.zip
   echo "${green}Amber compiled.${reset}"
   echo
 
