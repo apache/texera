@@ -15,8 +15,6 @@ export class UserAvatarComponent {
   @Input() userName?: string;
   @Input() userColor?: string;
 
-  constructor() {}
-
   /**
    * abbreviates the name under 5 chars
    * @param userName
