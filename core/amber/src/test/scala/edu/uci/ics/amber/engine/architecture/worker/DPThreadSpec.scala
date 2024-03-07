@@ -75,12 +75,9 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
       inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
       outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
     )
+  private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
   private val tuples: Array[Tuple] = (0 until 5000)
-    .map(i =>
-      TupleLike(i).enforceSchema(
-        Schema.builder().add("field1", AttributeType.INTEGER).build()
-      )
-    )
+    .map(i => TupleLike(i).enforceSchema(schema))
     .toArray
   private val logStorage = SequentialRecordStorage.getStorage[ReplayLogRecord](None)
   private val logManager: ReplayLogManager =
@@ -90,7 +87,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dp = new DataProcessor(workerId, x => {})
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputManager.addPort(mockInputPortId, schema)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -114,7 +111,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     assert(dp.pauseManager.isPaused)
     inputQueue.put(TimerBasedControlElement(ControlInvocation(1, ResumeWorker())))
     Thread.sleep(1000)
-    while (dp.hasUnfinishedInput) {
+    while (dp.inputManager.hasUnfinishedInput) {
       Thread.sleep(100)
     }
   }
@@ -123,7 +120,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     val dp = new DataProcessor(workerId, x => {})
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
-    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputManager.addPort(mockInputPortId, schema)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -150,7 +147,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     assert(dp.pauseManager.isPaused)
     inputQueue.put(FIFOMessageElement(resumeControl))
     Thread.sleep(1000)
-    while (dp.hasUnfinishedInput) {
+    while (dp.inputManager.hasUnfinishedInput) {
       Thread.sleep(100)
     }
   }
@@ -160,7 +157,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
-    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputManager.addPort(mockInputPortId, schema)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.inputGateway
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))
@@ -190,7 +187,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     inputQueue.put(FIFOMessageElement(message4))
     inputQueue.put(FIFOMessageElement(message5))
     Thread.sleep(1000)
-    while (dp.hasUnfinishedInput) {
+    while (dp.inputManager.hasUnfinishedInput) {
       Thread.sleep(100)
     }
   }
@@ -200,7 +197,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.initOperator(0, physicalOp, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
-    dp.inputGateway.addPort(mockInputPortId)
+    dp.inputManager.addPort(mockInputPortId, schema)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
     dp.inputGateway
       .getChannel(ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false))

@@ -75,7 +75,7 @@ class DataProcessor(Runnable, Stoppable):
 
     def _set_output_tuple(self, output_tuple):
         if output_tuple is not None:
-            output_tuple.finalize(self._context.operator_manager.operator.output_schema)
+            output_tuple.finalize(self._context.output_manager.get_port().get_schema())
         self._context.tuple_processing_manager.current_output_tuple = output_tuple
 
     def _switch_context(self) -> None:

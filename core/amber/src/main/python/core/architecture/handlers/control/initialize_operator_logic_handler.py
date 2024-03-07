@@ -7,7 +7,5 @@ class InitializeOperatorLogicHandler(ControlHandler):
     cmd = InitializeOperatorLogicV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        context.operator_manager.initialize_operator(
-            command.code, command.is_source, command.output_schema
-        )
+        context.operator_manager.initialize_operator(command.code, command.is_source)
         return None
