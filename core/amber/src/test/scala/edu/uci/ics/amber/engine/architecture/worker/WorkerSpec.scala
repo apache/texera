@@ -158,11 +158,6 @@ class WorkerSpec
         WorkerReplayInitialization(restoreConfOpt = None, faultToleranceConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler)
-        this.dp.initOperator(
-          0,
-          OperatorConfig(List(WorkerConfig(identifier1))),
-          Iterator.empty
-        )
         this.dp.initTimerService(timerService)
         override val dpThread: DPThread =
           new DPThread(

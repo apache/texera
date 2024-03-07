@@ -48,24 +48,8 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
   )
 
   private val operator = mock[OperatorExecutor]
-  private val upstreamOp =
-    PhysicalOp(id = upstreamOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
-  private val testOp =
-    PhysicalOp(id = testOpId, DEFAULT_WORKFLOW_ID, DEFAULT_EXECUTION_ID, opExecInitInfo = null)
   private val inputPortId = PortIdentity()
   private val outputPortId = PortIdentity()
-  private val link = PhysicalLink(upstreamOp.id, PortIdentity(), testOp.id, outputPortId)
-  private val physicalOp =
-    PhysicalOp
-      .oneToOnePhysicalOp(
-        DEFAULT_WORKFLOW_ID,
-        DEFAULT_EXECUTION_ID,
-        testOpId.logicalOpId,
-        OpExecInitInfo((_, _) => operator)
-      )
-      .withInputPorts(List(InputPort()))
-      .withOutputPorts(List(OutputPort()))
-      .addInputLink(link)
   private val outputHandler = mock[Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit]
   private val adaptiveBatchingMonitor = mock[WorkerTimerService]
   private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
@@ -78,7 +62,6 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
       new DataProcessor(testWorkerId, outputHandler) {
         override val asyncRPCClient: AsyncRPCClient = mock[AsyncRPCClient]
       }
-    dp.initOperator(0, OperatorConfig(List(WorkerConfig(testWorkerId))), Iterator.empty)
     dp.initTimerService(adaptiveBatchingMonitor)
     dp
   }

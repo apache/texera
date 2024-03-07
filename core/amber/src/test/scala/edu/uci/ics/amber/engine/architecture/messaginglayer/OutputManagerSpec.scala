@@ -67,7 +67,6 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       )
       (mockHandler.apply _).expects(mkDataMessage(fakeID, identifier, 3, EndOfUpstream()))
     }
-    val mockPortId = PortIdentity()
     val fakeLink = PhysicalLink(physicalOpId(), mockPortId, physicalOpId(), mockPortId)
     val fakeReceiver = Array[ActorVirtualIdentity](fakeID)
 

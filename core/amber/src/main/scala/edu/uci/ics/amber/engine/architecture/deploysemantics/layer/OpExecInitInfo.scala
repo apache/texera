@@ -1,7 +1,5 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 
 object OpExecInitInfo {

@@ -85,7 +85,6 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
   "DP Thread" should "handle pause/resume during processing" in {
     val dp = new DataProcessor(workerId, x => {})
-    dp.initOperator(0, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     dp.inputManager.addPort(mockInputPortId, schema)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
@@ -118,7 +117,6 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
   "DP Thread" should "handle pause/resume using fifo messages" in {
     val dp = new DataProcessor(workerId, x => {})
-    dp.initOperator(0, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     dp.inputManager.addPort(mockInputPortId, schema)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
@@ -154,7 +152,6 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
     val dp = new DataProcessor(workerId, x => {})
-    dp.initOperator(0, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
     dp.inputManager.addPort(mockInputPortId, schema)
@@ -194,7 +191,6 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
   "DP Thread" should "write determinant logs to local storage while processing" in {
     val dp = new DataProcessor(workerId, x => {})
-    dp.initOperator(0, OperatorConfig(List(WorkerConfig(workerId))), Iterator.empty)
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
     dp.inputManager.addPort(mockInputPortId, schema)
