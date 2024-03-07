@@ -30,6 +30,7 @@ describe("MiniMapComponent", () => {
 
   beforeEach(() => {
     fixture = TestBed.createComponent(MiniMapComponent);
+    fixture.componentInstance.minimapDisplay = true;
     TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
   });
