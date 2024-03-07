@@ -116,16 +116,16 @@ class ExecutorManager:
         :param output_schema: the raw mapping of output schema, name -> type_str.
         :return:
         """
-        operator: type(Operator) = self.load_executor_definition(code)
-        self.executor = operator()
+        executor: type(Operator) = self.load_executor_definition(code)
+        self.executor = executor()
         self.executor.is_source = is_source
         assert (
             isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
 
-    def update_operator(self, code: str, is_source: bool) -> None:
+    def update_executor(self, code: str, is_source: bool) -> None:
         """
-        Update the operator logic, preserving its state in the __dict__.
+        Update the executor, preserving its state in the __dict__.
         The user is responsible to make sure the state can be used by the new logic.
 
         :param code: The string version of python code, containing one Operator
@@ -134,8 +134,8 @@ class ExecutorManager:
         :return:
         """
         original_internal_state = self.executor.__dict__
-        operator: type(Operator) = self.load_executor_definition(code)
-        self.executor = operator()
+        executor: type(Operator) = self.load_executor_definition(code)
+        self.executor = executor()
         self.executor.is_source = is_source
         assert (
             isinstance(self.executor, SourceOperator) == self.executor.is_source
