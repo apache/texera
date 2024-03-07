@@ -123,31 +123,21 @@ class RegionExecutionCoordinator(
   ): Future[Seq[Unit]] = {
     Future
       .collect(
-        // initialize executors in Python
         operators
-//          .filter(op => op.isPythonOperator)
-          .flatMap(op => {
-            workflowExecution
-              .getRegionExecution(region.id)
-              .getOperatorExecution(op.id)
-              .getWorkerIds
-              .map(workerId => (workerId, op))
-          })
-          .map {
-            case (workerId, pythonUDFPhysicalOp) =>
+          .flatMap(physicalOp => {
+            val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
+            workerConfigs.map(_.workerId).map { workerId =>
               asyncRPCClient
                 .send(
                   InitializeOperatorLogic(
-                    resourceConfig
-                      .operatorConfigs(VirtualIdentityUtils.getPhysicalOpId(workerId))
-                      .workerConfigs
-                      .length,
-                    pythonUDFPhysicalOp.opExecInitInfo,
-                    pythonUDFPhysicalOp.isSourceOperator
+                    workerConfigs.length,
+                    physicalOp.opExecInitInfo,
+                    physicalOp.isSourceOperator
                   ),
                   workerId
                 )
-          }
+            }
+          })
           .toSeq
       )
   }
