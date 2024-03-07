@@ -7,5 +7,5 @@ class InitializeExecutorHandler(ControlHandler):
     cmd = InitializeExecutorV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        context.operator_manager.initialize_operator(command.code, command.is_source)
+        context.executor_manager.initialize_executor(command.code, command.is_source)
         return None

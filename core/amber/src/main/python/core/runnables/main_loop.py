@@ -68,7 +68,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         # flush the buffered console prints
         self._check_and_report_console_messages(force_flush=True)
-        self.context.operator_manager.operator.close()
+        self.context.executor_manager.executor.close()
         # stop the data processing thread
         self.data_processor.stop()
         self.context.state_manager.transit_to(WorkerState.COMPLETED)
@@ -150,7 +150,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
     def process_input_tuple(self) -> None:
         """
         Process the current input tuple with the current input link. Send all result
-        Tuples to downstream operators.
+        Tuples to downstream workers.
 
         This is being invoked for each Tuple/Marker that are unpacked from the
         DataElement.
@@ -173,7 +173,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         """
         Process the Tuple/InputExhausted with the current link.
 
-        This is a wrapper to invoke processing of the operator.
+        This is a wrapper to invoke processing of the executor.
 
         :return: Iterator[Tuple], iterator of result Tuple(s).
         """
@@ -271,7 +271,7 @@ class MainLoop(StoppableQueueBlockingRunnable):
         # iteration way to iterate through the iterator, instead of the for-each-loop
         # syntax sugar.
         while True:
-            # In Python@3.8 there is a new `:=` operator to simplify this assignment
+            # In Python@3.8 there is a new `:=` executor to simplify this assignment
             # in while-loop. For now we keep it this way to support versions below
             # 3.8.
             try:

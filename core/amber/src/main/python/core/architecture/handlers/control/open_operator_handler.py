@@ -7,5 +7,5 @@ class OpenOperatorHandler(ControlHandler):
     cmd = OpenOperatorV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        context.operator_manager.operator.open()
+        context.executor_manager.executor.open()
         return None

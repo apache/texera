@@ -22,7 +22,7 @@ class Operator(ABC):
     @overrides.final
     def is_source(self) -> bool:
         """
-        Whether the operator is a source operator. Source operators generates output
+        Whether the operator is a source operator. Source operators generate output
         Tuples without having input Tuples.
 
         :return:

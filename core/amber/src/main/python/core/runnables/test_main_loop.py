@@ -590,7 +590,7 @@ class TestMainLoop:
                 )
             ),
         )
-        operator = main_loop.context.operator_manager.operator
+        operator = main_loop.context.executor_manager.executor
         output_data_elements = []
 
         # can process a InputDataFrame
@@ -658,7 +658,7 @@ class TestMainLoop:
             output_data_elements.append(output_queue.get())
 
         # check the batch count
-        assert main_loop.context.operator_manager.operator.count == 8
+        assert main_loop.context.executor_manager.executor.count == 8
 
         assert output_data_elements[0].tag == mock_receiver_actor
         assert isinstance(output_data_elements[0].payload, OutputDataFrame)

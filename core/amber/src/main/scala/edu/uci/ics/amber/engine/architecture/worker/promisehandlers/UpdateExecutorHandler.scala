@@ -41,10 +41,12 @@ trait UpdateExecutorHandler {
   }
 
   registerHandler { (msg: UpdateMultipleExecutors, _) =>
-    msg.executorsToUpdate.find(_.physicalOp.id == dp.getOperatorId).foreach { executorToUpdate =>
-      performUpdateExecutor(executorToUpdate)
-      sendToClient(UpdateExecutorCompleted(this.actorId))
-    }
+    msg.executorsToUpdate
+      .find(_.physicalOp.id == VirtualIdentityUtils.getPhysicalOpId(actorId))
+      .foreach { executorToUpdate =>
+        performUpdateExecutor(executorToUpdate)
+        sendToClient(UpdateExecutorCompleted(this.actorId))
+      }
   }
 
   private def performUpdateExecutor(updateExecutor: UpdateExecutor): Unit = {
