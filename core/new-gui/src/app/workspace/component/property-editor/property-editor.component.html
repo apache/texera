@@ -9,7 +9,8 @@
   [nzMaxHeight]="1200"
   [style.height.px]="propertyHeight"
   [style.width.px]="propertyWidth"
-  (nzResize)="onResize_property($event)">
+  (nzResize)="onResize_property($event)"
+  class="shadow">
   <div
     id="right-panel-content"
     *ngIf="this.propertyDisplay"
@@ -27,7 +28,8 @@
   </div>
   <ul
     nz-menu
-    id="dock">
+    id="dock"
+    [ngClass]="{'shadow':  !propertyDisplay}">
     <li
       nz-menu-item
       (click)="onClose_property()"
