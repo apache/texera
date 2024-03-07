@@ -1,7 +1,7 @@
 import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../types/operator-schema.interface";
-import { BreakpointSchema, PortSchema } from "../../types/workflow-common.interface";
 import { CustomJSONSchema7 } from "../../types/custom-json-schema.interface";
 import { VIEW_RESULT_OP_TYPE } from "../workflow-graph/model/workflow-graph";
+import { PortSchema } from "../../types/workflow-common.interface";
 
 // Exports constants related to operator schema and operator metadata for testing purposes.
 
@@ -292,43 +292,6 @@ export const testJsonSchema: CustomJSONSchema7 = {
   type: "object",
 };
 
-export const mockBreakpointSchema: BreakpointSchema = {
-  jsonSchema: {
-    type: "object",
-    oneOf: [
-      {
-        title: "condition",
-        properties: {
-          column: {
-            type: "string",
-            title: "column",
-          },
-          condition: {
-            type: "string",
-            enum: ["contains", "does not contain", "=", ">", ">=", "<", "<=", "!="],
-            title: "condition",
-          },
-          value: {
-            type: "string",
-            title: "value",
-          },
-        },
-        required: ["column", "condition", "value"],
-      },
-      {
-        title: "count",
-        properties: {
-          count: {
-            type: "integer",
-            title: "count",
-          },
-        },
-        required: ["count"],
-      },
-    ],
-  },
-};
-
 export const mockPortSchema: PortSchema = {
   jsonSchema: {
     type: "object",
@@ -346,14 +309,14 @@ export const mockPortSchema: PortSchema = {
             title: "hash",
             properties: {
               type: { const: "hash" },
-              hashColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              hashAttributeNames: { type: "array", items: { type: "string" }, title: "attribute names" },
             },
           },
           {
             title: "range",
             properties: {
               type: { const: "range" },
-              rangeColumnIndices: { type: "array", items: { type: "integer" }, title: "column indices" },
+              rangeAttributeNames: { type: "array", items: { type: "string" }, title: "attribute names" },
               rangeMin: { type: "integer", title: "range min" },
               rangeMax: { type: "integer", title: "range max" },
             },

@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.dictionary
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
@@ -32,16 +32,23 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
+  ): PhysicalOp = {
+
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new DictionaryMatcherOpExec(this))
+        OpExecInitInfo((_, _) => new DictionaryMatcherOpExec(attribute, dictionary, matchingType))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
+        )
+      )
+  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
@@ -56,6 +63,6 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 1)
     if (resultAttribute == null || resultAttribute.trim.isEmpty) return null
-    Schema.newBuilder.add(schemas(0)).add(resultAttribute, AttributeType.BOOLEAN).build
+    Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.BOOLEAN).build()
   }
 }

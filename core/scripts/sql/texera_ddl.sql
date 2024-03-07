@@ -15,6 +15,12 @@ DROP TABLE IF EXISTS `workflow_of_project`;
 DROP TABLE IF EXISTS `file_of_workflow`;
 DROP TABLE IF EXISTS `file_of_project`;
 DROP TABLE IF EXISTS `workflow_executions`;
+DROP TABLE IF EXISTS `dataset`;
+DROP TABLE IF EXISTS `dataset_user_access`;
+DROP TABLE IF EXISTS `dataset_version`;
+DROP TABLE IF EXISTS `environment`;
+DROP TABLE IF EXISTS `environment_of_workflow`;
+
 
 SET PERSIST time_zone = '+00:00'; -- this line is mandatory
 SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
@@ -161,11 +167,33 @@ CREATE TABLE IF NOT EXISTS file_of_workflow
     FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`)  ON DELETE CASCADE
 ) ENGINE = INNODB;
 
+
+CREATE TABLE IF NOT EXISTS environment
+(
+    `eid`              INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `owner_uid`        INT UNSIGNED NOT NULL,
+    `name`			   VARCHAR(128) NOT NULL DEFAULT 'Untitled Environment',
+    `description`      VARCHAR(1000),
+    `creation_time`    TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`eid`),
+    FOREIGN KEY (`owner_uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS environment_of_workflow
+(
+    `eid`              INT UNSIGNED NOT NULL,
+    `wid`              INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`eid`, `wid`),
+    FOREIGN KEY (`wid`) REFERENCES `workflow` (`wid`) ON DELETE CASCADE,
+    FOREIGN KEY (`eid`) REFERENCES `environment` (`eid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
 CREATE TABLE IF NOT EXISTS workflow_executions
 (
     `eid`                    INT UNSIGNED AUTO_INCREMENT NOT NULL,
     `vid`                    INT UNSIGNED NOT NULL,
     `uid`                    INT UNSIGNED NOT NULL,
+    `environment_eid`        INT UNSIGNED,
     `status`                 TINYINT NOT NULL DEFAULT 1,
     `result`                 TEXT, /* pointer to volume */
     `starting_time`          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -176,7 +204,8 @@ CREATE TABLE IF NOT EXISTS workflow_executions
     `log_location`           TEXT, /* uri to log storage */
     PRIMARY KEY (`eid`),
     FOREIGN KEY (`vid`) REFERENCES `workflow_version` (`vid`) ON DELETE CASCADE,
-    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE,
+    FOREIGN KEY (`environment_eid`) REFERENCES environment(`eid`) ON DELETE SET NULL
 ) ENGINE = INNODB;
 
 CREATE TABLE IF NOT EXISTS public_project
@@ -205,6 +234,52 @@ CREATE TABLE IF NOT EXISTS workflow_runtime_statistics
     FOREIGN KEY (`execution_id`) REFERENCES `workflow_executions` (`eid`) ON DELETE CASCADE
 ) ENGINE = INNODB;
 
+CREATE TABLE IF NOT EXISTS dataset
+(
+    `did`             INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `owner_uid`       INT UNSIGNED NOT NULL,
+    `name`            VARCHAR(128) NOT NULL,
+    `is_public`       TINYINT NOT NULL DEFAULT 1,
+    `storage_path`    VARCHAR(512) NOT NULL,
+    `description`     VARCHAR(512) NOT NULL,
+    `creation_time`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(`did`),
+    FOREIGN KEY (`owner_uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
+    ) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS dataset_user_access
+(
+    `did`             INT UNSIGNED NOT NULL,
+    `uid`             INT UNSIGNED NOT NULL,
+    `privilege`    ENUM('NONE', 'READ', 'WRITE') NOT NULL DEFAULT 'NONE',
+    PRIMARY KEY(`did`, `uid`),
+    FOREIGN KEY (`did`) REFERENCES `dataset` (`did`) ON DELETE CASCADE,
+    FOREIGN KEY (`uid`) REFERENCES `user` (`uid`) ON DELETE CASCADE
+    ) ENGINE = INNODB;
+
+CREATE TABLE IF NOT EXISTS dataset_version
+(
+    `dvid`            INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `did`             INT UNSIGNED NOT NULL,
+    `creator_uid`     INT UNSIGNED NOT NULL,
+    `name`            VARCHAR(128) NOT NULL,
+    `version_hash`    VARCHAR(64) NOT NULL,
+    `creation_time`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY(`dvid`),
+    FOREIGN KEY (`did`) REFERENCES `dataset` (`did`) ON DELETE CASCADE
+    )  ENGINE = INNODB;
+
+
+CREATE TABLE IF NOT EXISTS dataset_of_environment
+(
+    `did`                   INT UNSIGNED NOT NULL,
+    `eid`                   INT UNSIGNED NOT NULL,
+    `dvid`                  INT UNSIGNED NOT NULL,
+    PRIMARY KEY (`did`, `eid`),
+    FOREIGN KEY (`eid`) REFERENCES `environment` (`eid`) ON DELETE CASCADE,
+    FOREIGN KEY (`dvid`) REFERENCES `dataset_version` (`dvid`) ON DELETE CASCADE
+) ENGINE = INNODB;
+
 -- create fulltext search indexes
 
 CREATE FULLTEXT INDEX `idx_workflow_name_description_content` ON `texera_db`.`workflow` (name, description, content);
@@ -214,3 +289,7 @@ CREATE FULLTEXT INDEX `idx_user_name` ON `texera_db`.`user` (name);
 CREATE FULLTEXT INDEX `idx_user_project_name_description` ON `texera_db`.`project` (name, description);
 
 CREATE FULLTEXT INDEX `idx_file_name_description` ON `texera_db`.`file` (name, description);
+
+CREATE FULLTEXT INDEX `idx_dataset_name_description` ON `texera_db`.`dataset` (name, description);
+
+CREATE FULLTEXT INDEX `idx_dataset_version_name` ON `texera_db`.`dataset_version` (name);

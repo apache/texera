@@ -31,17 +31,17 @@ class LimitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, _) => new LimitOpExec(limitPerWorker(idx)))
+        OpExecInitInfo((idx, _) => new LimitOpExec(limitPerWorker(idx)))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Limit",
       "Limit the number of output rows",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort()),
       supportReconfiguration = true

@@ -15,7 +15,11 @@ export class UserFileUploadService {
   // these files won't be uploaded until the user hits the "upload" button
   private filesToBeUploaded: FileUploadItem[] = [];
 
-  constructor(private userService: UserService, private userFileService: UserFileService, private http: HttpClient) {}
+  constructor(
+    private userService: UserService,
+    private userFileService: UserFileService,
+    private http: HttpClient
+  ) {}
 
   private static createFileUploadItem(file: File): FileUploadItem {
     return {
@@ -25,6 +29,35 @@ export class UserFileUploadService {
       uploadProgress: 0,
       isUploadingFlag: false,
     };
+  }
+
+  public static createFileUploadItemWithPath(file: File, relativePath: string): FileUploadItem {
+    return {
+      file: file,
+      name: relativePath,
+      description: "",
+      uploadProgress: 0,
+      isUploadingFlag: false,
+    };
+  }
+
+  /**
+   * Sanitizes each part of a file path without altering the slashes.
+   * @param path
+   */
+  public static sanitizeFilePath(path: string): string {
+    const pathParts = path.split("/").map(part => this.sanitizePathComponent(part));
+    return pathParts.join("/");
+  }
+
+  /**
+   * Sanitizes a single component of a file path.
+   * @param pathComponent
+   */
+  private static sanitizePathComponent(pathComponent: string): string {
+    // Example: Replace spaces with underscores, remove special characters
+    // Adjust this regex according to your requirements
+    return pathComponent.replace(/[^a-zA-Z0-9._-]/g, "_");
   }
 
   /**

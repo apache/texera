@@ -51,6 +51,18 @@
 
       <li
         nz-menu-item
+        nz-tooltip="Look up for datasets"
+        nzMatchRouter="true"
+        nzTooltipPlacement="right"
+        routerLink="/dashboard/dataset">
+        <span
+          nz-icon
+          nzType="database"></span>
+        <span>Datasets</span>
+      </li>
+
+      <li
+        nz-menu-item
         nz-tooltip="Search across the entire site"
         nzMatchRouter="true"
         nzTooltipPlacement="right"
@@ -72,6 +84,7 @@
         <span>Quota</span>
       </li>
       <li
+        *ngIf="displayForum"
         nz-menu-item
         nz-tooltip="Open the discussion forum"
         nzMatchRouter="true"
@@ -82,18 +95,11 @@
           nzType="comment"></span>
         <span>Forum</span>
       </li>
-
       <li
         *ngIf="isAdmin"
-        nz-submenu>
-        <span
-          class="submenu"
-          title>
-          <span
-            nz-icon
-            nzType="tool"></span>
-          <span>Admin</span>
-        </span>
+        nz-submenu
+        nzTitle="Admin"
+        nzIcon="tool">
         <ul>
           <li
             nz-menu-item

@@ -4,6 +4,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.{
@@ -19,6 +20,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val sink = TestOperators.sinkOpDesc()
+    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(headerlessCsvOpDesc, keywordOpDesc, sink),
       List(
@@ -34,23 +36,30 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           sink.operatorIdentifier,
           PortIdentity(0)
         )
-      )
+      ),
+      resultStorage
     )
 
-    assert(workflow.regionPlan.regions.size == 1)
-    workflow.regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
+
+    assert(regionPlan.regions.size == 1)
+    regionPlan.topologicalIterator().zip(Iterator(3)).foreach {
       case (regionId, opCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4)).foreach {
       case (regionId, portCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -59,6 +68,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val headerlessCsvOpDesc2 = TestOperators.headerlessSmallCsvScanOpDesc()
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
+    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
@@ -85,26 +95,33 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           sink.operatorIdentifier,
           PortIdentity()
         )
-      )
+      ),
+      resultStorage
     )
 
-    assert(workflow.regionPlan.regions.size == 2)
-    workflow.regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
+
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(3, 3)).foreach {
       case (regionId, opCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(2, 2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(2, 2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 4)).foreach {
       case (regionId, portCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
 
-    val buildRegion = workflow.regionPlan.regions
+    val buildRegion = regionPlan.regions
       .find(region =>
         region.getOperators
           .map(_.id)
@@ -113,7 +130,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           )
       )
       .get
-    val probeRegion = workflow.regionPlan.regions
+    val probeRegion = regionPlan.regions
       .find(region =>
         region.getOperators
           .map(_.id)
@@ -123,7 +140,9 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
       )
       .get
 
-    assert(workflow.regionPlan.regionLinks.contains(RegionLink(buildRegion.id, probeRegion.id)))
+    assert(
+      regionPlan.regionLinks.contains(RegionLink(buildRegion.id, probeRegion.id))
+    )
 
   }
 
@@ -132,6 +151,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val keywordOpDesc = TestOperators.keywordSearchOpDesc("column-1", "Asia")
     val joinOpDesc = TestOperators.joinOpDesc("column-1", "column-1")
     val sink = TestOperators.sinkOpDesc()
+    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         headerlessCsvOpDesc1,
@@ -164,22 +184,30 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           sink.operatorIdentifier,
           PortIdentity()
         )
-      )
+      ),
+      resultStorage
     )
-    assert(workflow.regionPlan.regions.size == 2)
-    workflow.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
+
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
+
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
       case (regionId, opCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(7, 4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(7, 4)).foreach {
       case (regionId, portCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -189,6 +217,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val hashJoin1 = TestOperators.joinOpDesc("column-1", "Region")
     val hashJoin2 = TestOperators.joinOpDesc("column-2", "Country")
     val sink = TestOperators.sinkOpDesc()
+    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         buildCsv,
@@ -228,22 +257,30 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           sink.operatorIdentifier,
           PortIdentity()
         )
-      )
+      ),
+      resultStorage
     )
-    assert(workflow.regionPlan.regions.size == 2)
-    workflow.regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
+
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
+
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(5, 4)).foreach {
       case (regionId, opCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 3)).foreach {
       case (regionId, linkCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(7, 6)).foreach {
       case (regionId, portCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 
@@ -253,6 +290,7 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
     val training = new PythonUDFOpDescV2()
     val inference = new DualInputPortsPythonUDFOpDescV2()
     val sink = TestOperators.sinkOpDesc()
+    val resultStorage = new OpResultStorage()
     val workflow = buildWorkflow(
       List(
         csv,
@@ -292,22 +330,30 @@ class ExpansionGreedyRegionPlanGeneratorSpec extends AnyFlatSpec with MockFactor
           sink.operatorIdentifier,
           PortIdentity()
         )
-      )
+      ),
+      resultStorage
     )
-    assert(workflow.regionPlan.regions.size == 2)
-    workflow.regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
+
+    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage
+    ).generate()
+
+    assert(regionPlan.regions.size == 2)
+    regionPlan.topologicalIterator().zip(Iterator(5, 3)).foreach {
       case (regionId, opCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getOperators.size == opCount)
+        assert(regionPlan.getRegion(regionId).getOperators.size == opCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(4, 2)).foreach {
       case (regionId, linkCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getLinks.size == linkCount)
+        assert(regionPlan.getRegion(regionId).getLinks.size == linkCount)
     }
 
-    workflow.regionPlan.topologicalIterator().zip(Iterator(8, 4)).foreach {
+    regionPlan.topologicalIterator().zip(Iterator(8, 4)).foreach {
       case (regionId, portCount) =>
-        assert(workflow.regionPlan.getRegion(regionId).getPorts.size == portCount)
+        assert(regionPlan.getRegion(regionId).getPorts.size == portCount)
     }
   }
 

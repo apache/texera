@@ -26,7 +26,7 @@ trait StartHandler {
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
       val dummyInputPortId = PortIdentity()
-      dp.inputGateway.addPort(dummyInputPortId)
+      dp.inputManager.addPort(dummyInputPortId, null)
       dp.inputGateway
         .getChannel(ChannelIdentity(SOURCE_STARTER_ACTOR, actorId, isControl = false))
         .setPortId(dummyInputPortId)

@@ -1,20 +1,35 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
-import edu.uci.ics.amber.engine.architecture.controller.WorkerPortExecution
+import edu.uci.ics.amber.engine.architecture.controller.execution.WorkerPortExecution
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 
 import scala.collection.mutable
 
-// TODO: remove redundant info
-case class WorkerExecution(
-    id: ActorVirtualIdentity,
-    var state: WorkerState,
-    var stats: WorkerStatistics,
-    inputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] = mutable.HashMap(),
-    outputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] = mutable.HashMap()
-) extends Serializable {
+case class WorkerExecution() extends Serializable {
+
+  private val inputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] =
+    mutable.HashMap()
+  private val outputPortExecutions: mutable.HashMap[PortIdentity, WorkerPortExecution] =
+    mutable.HashMap()
+
+  private var state: WorkerState = UNINITIALIZED
+  // TODO: move stats onto ports, and make this as an aggregation func.
+  // TODO: separate state from stats
+  private var stats: WorkerStatistics = WorkerStatistics(UNINITIALIZED, 0, 0, 0, 0, 0)
+
+  def getState: WorkerState = state
+
+  def setState(state: WorkerState): Unit = {
+    this.state = state
+  }
+
+  def getStats: WorkerStatistics = stats
+
+  def setStats(stats: WorkerStatistics): Unit = {
+    this.stats = stats
+  }
 
   def getInputPortExecution(portId: PortIdentity): WorkerPortExecution = {
     if (!inputPortExecutions.contains(portId)) {
@@ -31,4 +46,5 @@ case class WorkerExecution(
     outputPortExecutions(portId)
 
   }
+
 }

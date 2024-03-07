@@ -8,7 +8,10 @@ import { UserService } from "../../../common/service/user/user.service";
  */
 @Injectable()
 export class AdminGuardService implements CanActivate {
-  constructor(private userService: UserService, private router: Router) {}
+  constructor(
+    private userService: UserService,
+    private router: Router
+  ) {}
 
   canActivate(): boolean {
     if (this.userService.isAdmin()) {

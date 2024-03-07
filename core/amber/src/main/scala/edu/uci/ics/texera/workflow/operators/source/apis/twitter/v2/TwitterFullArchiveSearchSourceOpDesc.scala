@@ -6,7 +6,7 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
@@ -49,10 +49,24 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new TwitterFullArchiveSearchSourceOpExec(this))
+        OpExecInitInfo((_, _) =>
+          new TwitterFullArchiveSearchSourceOpExec(
+            apiKey,
+            apiSecretKey,
+            stopWhenRateLimited,
+            searchQuery,
+            limit,
+            fromDateTime,
+            toDateTime,
+            () => sourceSchema()
+          )
+        )
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
 
   override def sourceSchema(): Schema = {
 
@@ -60,7 +74,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
     // we are also currently depending on redouane59/twittered client library to parse tweet fields.
 
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute("id", AttributeType.STRING),
         new Attribute("text", AttributeType.STRING),

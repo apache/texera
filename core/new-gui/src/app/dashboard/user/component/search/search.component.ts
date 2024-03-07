@@ -16,7 +16,7 @@ import { SortMethod } from "../../type/sort-method";
 export class SearchComponent {
   sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
-  private masterFilterList: ReadonlyArray<string> = [];
+  public masterFilterList: ReadonlyArray<string> = [];
   @ViewChild(SearchResultsComponent) searchResultsComponent?: SearchResultsComponent;
   private _filters?: FiltersComponent;
   @ViewChild(FiltersComponent)
@@ -68,6 +68,8 @@ export class SearchComponent {
             return new DashboardEntry(i.project);
           } else if (i.file) {
             return new DashboardEntry(i.file);
+          } else if (i.dataset) {
+            return new DashboardEntry(i.dataset);
           } else {
             throw new Error("Unexpected type in SearchResult.");
           }
