@@ -42,9 +42,13 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     if (width) this.propertyWidth = Number(width);
 
     const height = localStorage.getItem("property-panel-height");
-    if (height) {
-      this.propertyHeight = Number(height);
-    }
+    if (height) this.propertyHeight = Number(height);
+
+    const pWidth = localStorage.getItem("property-panel-prevWidth");
+    if (pWidth) this.prevWidth = Number(pWidth);
+
+    const pHeight = localStorage.getItem("property-panel-prevHeight");
+    if (pHeight) this.prevHeight = Number(pHeight);
 
     const display = localStorage.getItem("property-panel-display");
 
@@ -76,6 +80,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     localStorage.setItem("property-panel-width", String(this.propertyWidth));
     localStorage.setItem("property-panel-height", String(this.propertyHeight));
+    localStorage.setItem("property-panel-prevWidth", String(this.prevWidth));
+    localStorage.setItem("property-panel-prevHeight", String(this.prevHeight));
 
     if (this.propertyDisplay) {
       localStorage.setItem("property-panel-display", "true");
