@@ -46,7 +46,7 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new SentimentAnalysisOpExec(attribute))
+        OpExecInitInfo((_, _) => new SentimentAnalysisOpExec(attribute))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

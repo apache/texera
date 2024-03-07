@@ -97,7 +97,7 @@ class AsterixDBSourceOpDesc extends SQLSourceOpDesc {
         workflowId,
         executionId,
         this.operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
+        OpExecInitInfo((_, _) =>
           new AsterixDBSourceOpExec(
             host,
             port,

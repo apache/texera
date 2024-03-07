@@ -50,13 +50,13 @@ class SortPartitionsOpDesc extends LogicalOp {
         executionId,
         operatorIdentifier,
         OpExecInitInfo(opExecFunc =
-          (idx, _, operatorConfig) =>
+          (idx, workerCount) =>
             new SortPartitionOpExec(
               sortAttributeName,
               idx,
               domainMin,
               domainMax,
-              operatorConfig.workerConfigs.length
+              workerCount
             )
         )
       )

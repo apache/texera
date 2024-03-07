@@ -1,12 +1,17 @@
 package edu.uci.ics.amber.engine.architecture.worker.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
+  OpExecInitInfoWithCode,
+  OpExecInitInfoWithFunc
+}
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
   WorkerModifyLogic,
   WorkerModifyLogicComplete,
   WorkerModifyLogicMultiple
 }
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
@@ -46,12 +51,12 @@ trait ModifyOperatorLogicHandler {
 
   private def performModifyLogic(modifyLogic: WorkerModifyLogic): Unit = {
     val oldOpExecState = dp.operator
-    dp.initOperator(
-      dp.workerIdx,
-      modifyLogic.physicalOp,
-      dp.operatorConfig,
-      dp.outputManager.outputIterator
-    )
+    dp.operator = modifyLogic.physicalOp.opExecInitInfo match {
+      case OpExecInitInfoWithCode(codeGen) =>
+        ??? // TODO: compile and load java/scala operator here
+      case OpExecInitInfoWithFunc(opGen) =>
+        opGen(VirtualIdentityUtils.getWorkerIndex(actorId), 1)
+    }
 
     if (modifyLogic.stateTransferFunc.nonEmpty) {
       modifyLogic.stateTransferFunc.get.apply(oldOpExecState, dp.operator)

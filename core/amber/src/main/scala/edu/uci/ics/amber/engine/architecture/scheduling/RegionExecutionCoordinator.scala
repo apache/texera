@@ -14,8 +14,8 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
@@ -88,7 +88,7 @@ class RegionExecutionCoordinator(
     )
 
     Future(())
-      .flatMap(_ => initExecutors(operatorsToInit))
+      .flatMap(_ => initExecutors(operatorsToInit, resourceConfig))
       .flatMap(_ => assignPorts(region))
       .flatMap(_ => connectChannels(region.getLinks))
       .flatMap(_ => openOperators(operatorsToInit))
@@ -116,30 +116,27 @@ class RegionExecutionCoordinator(
       controllerConfig.faultToleranceConfOpt
     )
   }
-  private def initExecutors(operators: Set[PhysicalOp]): Future[Seq[Unit]] = {
+  private def initExecutors(
+      operators: Set[PhysicalOp],
+      resourceConfig: ResourceConfig
+  ): Future[Seq[Unit]] = {
     Future
       .collect(
-        // initialize executors in Python
         operators
-          .filter(op => op.isPythonOperator)
-          .flatMap(op => {
-            workflowExecution
-              .getRegionExecution(region.id)
-              .getOperatorExecution(op.id)
-              .getWorkerIds
-              .map(workerId => (workerId, op))
-          })
-          .map {
-            case (workerId, pythonUDFPhysicalOp) =>
+          .flatMap(physicalOp => {
+            val workerConfigs = resourceConfig.operatorConfigs(physicalOp.id).workerConfigs
+            workerConfigs.map(_.workerId).map { workerId =>
               asyncRPCClient
                 .send(
                   InitializeOperatorLogic(
-                    pythonUDFPhysicalOp.getPythonCode,
-                    pythonUDFPhysicalOp.isSourceOperator
+                    workerConfigs.length,
+                    physicalOp.opExecInitInfo,
+                    physicalOp.isSourceOperator
                   ),
                   workerId
                 )
-          }
+            }
+          })
           .toSeq
       )
   }

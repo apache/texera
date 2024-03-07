@@ -22,7 +22,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import edu.uci.ics.texera.workflow.operators.sink.SinkOpDesc;
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageReader;
 import scala.Option;
-import scala.Tuple3;
+import scala.Tuple2;
 import scala.collection.immutable.Map;
 
 import java.io.Serializable;
@@ -62,7 +62,7 @@ public class ProgressiveSinkOpDesc extends SinkOpDesc {
                 executionId,
                 operatorIdentifier(),
                 OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                        (Function<Tuple2<Object, Object>, IOperatorExecutor> & java.io.Serializable)
                                 worker -> new ProgressiveSinkOpExec(outputMode, storage.getStorageWriter())
                 )
         )

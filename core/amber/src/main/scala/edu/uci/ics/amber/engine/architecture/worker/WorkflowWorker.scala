@@ -1,32 +1,23 @@
 package edu.uci.ics.amber.engine.architecture.worker
 
 import akka.actor.Props
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker._
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
-import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  ActorCommandElement,
-  DPInputQueueElement,
-  FIFOMessageElement,
-  MainThreadDelegateMessage,
-  TimerBasedControlElement,
-  WorkerReplayInitialization
-}
-import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
+import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
   ChannelIdentity,
   ChannelMarkerIdentity
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
@@ -35,15 +26,11 @@ import scala.collection.mutable
 object WorkflowWorker {
   def props(
       workerConfig: WorkerConfig,
-      physicalOp: PhysicalOp,
-      operatorConfig: OperatorConfig,
       replayInitialization: WorkerReplayInitialization
   ): Props =
     Props(
       new WorkflowWorker(
         workerConfig,
-        physicalOp,
-        operatorConfig,
         replayInitialization
       )
     )
@@ -71,16 +58,11 @@ object WorkflowWorker {
 
 class WorkflowWorker(
     workerConfig: WorkerConfig,
-    physicalOp: PhysicalOp,
-    operatorConfig: OperatorConfig,
     replayInitialization: WorkerReplayInitialization
 ) extends WorkflowActor(replayInitialization.faultToleranceConfOpt, workerConfig.workerId) {
   val inputQueue: LinkedBlockingQueue[DPInputQueueElement] =
     new LinkedBlockingQueue()
-  var dp = new DataProcessor(
-    workerConfig.workerId,
-    logManager.sendCommitted
-  )
+  var dp = new DataProcessor(workerConfig.workerId, logManager.sendCommitted)
   val timerService = new WorkerTimerService(actorService)
 
   val dpThread =
@@ -91,12 +73,6 @@ class WorkflowWorker(
 
   override def initState(): Unit = {
     dp.initTimerService(timerService)
-    dp.initOperator(
-      VirtualIdentityUtils.getWorkerIndex(workerConfig.workerId),
-      physicalOp,
-      operatorConfig,
-      currentOutputIterator = Iterator.empty
-    )
     if (replayInitialization.restoreConfOpt.isDefined) {
       context.parent ! ReplayStatusUpdate(actorId, status = true)
       setupReplay(

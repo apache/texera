@@ -34,7 +34,7 @@ class HtmlVizOpDesc extends VisualizationOperator {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new HtmlVizOpExec(htmlContentAttrName))
+        OpExecInitInfo((_, _) => new HtmlVizOpExec(htmlContentAttrName))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

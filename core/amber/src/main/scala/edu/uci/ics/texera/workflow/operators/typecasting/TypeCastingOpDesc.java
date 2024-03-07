@@ -20,7 +20,7 @@ import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
 
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-import scala.Tuple3;
+import scala.Tuple2;
 import scala.collection.immutable.Map;
 
 import java.io.Serializable;
@@ -45,7 +45,7 @@ public class TypeCastingOpDesc extends MapOpDesc {
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
-                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                (Function<Tuple2<Object, Object>, IOperatorExecutor> & java.io.Serializable)
                                         worker -> new TypeCastingOpExec(typeCastingUnits)
                         )
                 )
