@@ -26,8 +26,6 @@ object OpExecInitInfo {
   */
 sealed trait OpExecInitInfo
 
-// only for Python right now
-// TODO: add language type into this class
 final case class OpExecInitInfoWithCode(
     codeGen: (Int, Int) => (String, String)
 ) extends OpExecInitInfo

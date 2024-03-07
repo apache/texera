@@ -177,7 +177,6 @@ trait StateTransferFunc
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
     new Type(value = classOf[FunnelPlotOpDesc], name = "FunnelPlot"),
-    new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
     new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF")
   )
 )

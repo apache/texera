@@ -1,47 +1,42 @@
 package edu.uci.ics.texera.workflow.operators.udf.java
 
+import edu.uci.ics.texera.workflow.operators.udf.java.JavaRuntimeCompilation.CustomClassLoader
+
 import java.io.ByteArrayOutputStream
 import java.net.URI
 import java.util
 import javax.tools._
 
 object JavaRuntimeCompilation {
+  val compiler: JavaCompiler = ToolProvider.getSystemJavaCompiler
 
   def compileCode(code: String): Class[_] = {
-    val packageName =
-      s"package edu.uci.ics.texera.workflow.operators.udf.java;\n" //to hide it from user we will append the package in the udf code.
-    val codeToCompile = packageName + code
-    val defaultClassName = s"edu.uci.ics.texera.workflow.operators.udf.java.JavaUDFOpExec"
+    val packageName = "edu.uci.ics.texera.workflow.operators.udf.java"
 
-    val compiler = ToolProvider.getSystemJavaCompiler
+    //to hide it from user we will append the package in the udf code.
+    val codeToCompile = s"package $packageName;\n$code"
+    val defaultClassName = s"$packageName.JavaUDFOpExec"
+
+    // TODO: test if we can use the same fileManager across different compilations
     val fileManager: CustomJavaFileManager = new CustomJavaFileManager(
       compiler.getStandardFileManager(null, null, null)
     )
-    val compilationUnits =
-      util.Arrays.asList(new StringJavaFileObject(defaultClassName, codeToCompile))
-    val task = compiler.getTask(null, fileManager, null, null, null, compilationUnits)
-    var compiledClass: Class[_] = null
-//try and catch block used, if the code is not compiled
-    try {
-      task.call()
 
-      val compiledBytes: Array[Byte] = fileManager.getCompiledBytes
-      if (!compiledBytes.isEmpty) { //extra checking for compiled bytes since compiled bytes can be null and we do not want classloader to load it.
-        val classLoader = new CustomClassLoader
-        compiledClass = classLoader.loadClass(defaultClassName, compiledBytes)
-        compiledClass
-      } else {
-        compiledClass
-      }
+    compiler
+      .getTask(
+        null,
+        fileManager,
+        null,
+        null,
+        null,
+        util.Arrays.asList(new StringJavaFileObject(defaultClassName, codeToCompile))
+      )
+      .call()
 
-    } catch {
-      case exception: Exception =>
-        println(s"Exception: $exception")
-        compiledClass
-    }
+    new CustomClassLoader().loadClass(defaultClassName, fileManager.getCompiledBytes)
   }
 
-  class CustomJavaFileManager(fileManager: JavaFileManager)
+  private class CustomJavaFileManager(fileManager: JavaFileManager)
       extends ForwardingJavaFileManager[JavaFileManager](fileManager) {
     private val outputBuffer: ByteArrayOutputStream = new ByteArrayOutputStream()
 
@@ -59,7 +54,7 @@ object JavaRuntimeCompilation {
     }
   }
 
-  class StringJavaFileObject(className: String, code: String)
+  private class StringJavaFileObject(className: String, code: String)
       extends SimpleJavaFileObject(
         URI.create(
           "string:///" + className.replace('.', '/') + JavaFileObject.Kind.SOURCE.extension
@@ -69,7 +64,8 @@ object JavaRuntimeCompilation {
     override def getCharContent(ignoreEncodingErrors: Boolean): CharSequence = code
   }
 
-  class CustomClassLoader extends ClassLoader {
+  private class CustomClassLoader extends ClassLoader {
+
     def loadClass(name: String, classBytes: Array[Byte]): Class[_] =
       defineClass(name, classBytes, 0, classBytes.length)
   }
