@@ -30,7 +30,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   propertyDisplay = true;
   screenWidth = window.innerWidth;
   propertyWidth = 300;
-  propertyHeight = 300;
+  propertyHeight = 200;
   prevHeight = 0;
   prevWidth = 0;
 

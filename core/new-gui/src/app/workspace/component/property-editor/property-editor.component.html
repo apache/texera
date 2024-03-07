@@ -5,7 +5,7 @@
   nz-resizable
   [nzMinWidth]="300"
   [nzMaxWidth]="800"
-  [nzMinHeight]="300"
+  [nzMinHeight]="200"
   [nzMaxHeight]="1200"
   [style.height.px]="propertyHeight"
   [style.width.px]="propertyWidth"
@@ -14,11 +14,11 @@
     id="right-panel-content"
     *ngIf="this.propertyDisplay"
     nz-resizable>
-    <h6
+    <h4
       id="title"
       cdkDragHandle>
       Property
-    </h6>
+    </h4>
     <div class="property-editor">
       <ndc-dynamic
         [ndcDynamicComponent]="frameComponentConfig?.component"
