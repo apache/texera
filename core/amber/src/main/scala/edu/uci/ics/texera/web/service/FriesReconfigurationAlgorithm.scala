@@ -3,9 +3,9 @@ package edu.uci.ics.texera.web.service
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, WorkflowExecutionCoordinator}
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
-  WorkerModifyLogic,
-  WorkerModifyLogicMultiple
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.{
+  UpdateExecutor,
+  UpdateMultipleExecutors
 }
 import edu.uci.ics.amber.engine.common.ambermessage.RequireAlignment
 import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, PhysicalOpIdentity}
@@ -94,10 +94,10 @@ object FriesReconfigurationAlgorithm {
       val componentPlan = mcsPlan.getSubPlan(componentSet)
 
       // generate the reconfiguration command for this component
-      val reconfigCommand = WorkerModifyLogicMultiple(
+      val reconfigCommand = UpdateMultipleExecutors(
         reconfigurations
           .filter(o => component.contains(o._1.id))
-          .map(o => WorkerModifyLogic(o._1, o._2))
+          .map(o => UpdateExecutor(o._1, o._2))
       )
 
       // find the source operators of the component

@@ -12,6 +12,6 @@ object OpenOperatorHandler {
 trait OpenOperatorHandler {
   this: DataProcessorRPCHandlerInitializer =>
   registerHandler { (openOperator: OpenOperator, sender) =>
-    dp.operator.open()
+    dp.executor.open()
   }
 }

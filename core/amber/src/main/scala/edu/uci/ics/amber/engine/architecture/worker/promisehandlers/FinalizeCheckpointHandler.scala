@@ -53,7 +53,7 @@ trait FinalizeCheckpointHandler {
       chkpt.size()
     } else {
       logger.info(s"Checkpoint is estimation-only. report estimated size.")
-      dp.operator match {
+      dp.executor match {
         case support: CheckpointSupport =>
           support.getEstimatedCheckpointCost
         case _ => 0L

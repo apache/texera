@@ -6,62 +6,60 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfoWithFunc
 }
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.{
-  WorkerModifyLogic,
-  WorkerModifyLogicComplete,
-  WorkerModifyLogicMultiple
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.{
+  UpdateExecutor,
+  UpdateExecutorCompleted,
+  UpdateMultipleExecutors
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
 
-object ModifyOperatorLogicHandler {
-  case class WorkerModifyLogic(
+object UpdateExecutorHandler {
+  case class UpdateExecutor(
       physicalOp: PhysicalOp,
       stateTransferFunc: Option[StateTransferFunc]
   ) extends ControlCommand[Unit]
 
-  case class WorkerModifyLogicMultiple(modifyLogicList: List[WorkerModifyLogic])
+  case class UpdateMultipleExecutors(executorsToUpdate: List[UpdateExecutor])
       extends ControlCommand[Unit]
 
-  case class WorkerModifyLogicComplete(workerID: ActorVirtualIdentity) extends ControlCommand[Unit]
+  case class UpdateExecutorCompleted(workerId: ActorVirtualIdentity) extends ControlCommand[Unit]
 }
 
 /** Get queue and other resource usage of this worker
   *
   * possible sender: controller(by ControllerInitiateMonitoring)
   */
-trait ModifyOperatorLogicHandler {
+trait UpdateExecutorHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
-  registerHandler { (msg: WorkerModifyLogic, _) =>
-    performModifyLogic(msg)
-    sendToClient(WorkerModifyLogicComplete(this.actorId))
+  registerHandler { (msg: UpdateExecutor, _) =>
+    performUpdateExecutor(msg)
+    sendToClient(UpdateExecutorCompleted(this.actorId))
   }
 
-  registerHandler { (msg: WorkerModifyLogicMultiple, _) =>
-    val modifyLogic =
-      msg.modifyLogicList.find(o => o.physicalOp.id == dp.getOperatorId)
-    if (modifyLogic.nonEmpty) {
-      performModifyLogic(modifyLogic.get)
-      sendToClient(WorkerModifyLogicComplete(this.actorId))
+  registerHandler { (msg: UpdateMultipleExecutors, _) =>
+    msg.executorsToUpdate.find(_.physicalOp.id == dp.getOperatorId).foreach { executorToUpdate =>
+      performUpdateExecutor(executorToUpdate)
+      sendToClient(UpdateExecutorCompleted(this.actorId))
     }
   }
 
-  private def performModifyLogic(modifyLogic: WorkerModifyLogic): Unit = {
-    val oldOpExecState = dp.operator
-    dp.operator = modifyLogic.physicalOp.opExecInitInfo match {
+  private def performUpdateExecutor(updateExecutor: UpdateExecutor): Unit = {
+    val oldOpExecState = dp.executor
+    dp.executor = updateExecutor.physicalOp.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) =>
         ??? // TODO: compile and load java/scala operator here
       case OpExecInitInfoWithFunc(opGen) =>
         opGen(VirtualIdentityUtils.getWorkerIndex(actorId), 1)
     }
 
-    if (modifyLogic.stateTransferFunc.nonEmpty) {
-      modifyLogic.stateTransferFunc.get.apply(oldOpExecState, dp.operator)
+    if (updateExecutor.stateTransferFunc.nonEmpty) {
+      updateExecutor.stateTransferFunc.get.apply(oldOpExecState, dp.executor)
     }
-    dp.operator.open()
+    dp.executor.open()
   }
 
 }

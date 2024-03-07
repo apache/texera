@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleM
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ModifyOperatorLogicHandler.WorkerModifyLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.UpdateExecutor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.error.ErrorUtils.mkConsoleMessage
 import edu.uci.ics.texera.workflow.common.operators.StateTransferFunc
@@ -36,7 +36,7 @@ trait ModifyLogicHandler {
           isSource = operator.isSourceOperator
         )
       } else {
-        WorkerModifyLogic(msg.newOp, msg.stateTransferFunc)
+        UpdateExecutor(msg.newOp, msg.stateTransferFunc)
       }
       Future
         .collect(opExecution.getWorkerIds.map { worker =>

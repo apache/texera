@@ -52,7 +52,7 @@ class DataProcessor(
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
-  @transient var operator: IOperatorExecutor = _
+  @transient var executor: IOperatorExecutor = _
   @transient var serializationCall: () => Unit = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
@@ -80,7 +80,7 @@ class DataProcessor(
     * @return (input tuple count, output tuple count)
     */
   def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(stateManager.getCurrentState, operator)
+    statisticsManager.getStatistics(stateManager.getCurrentState, executor)
 
   /** process currentInputTuple through operator logic.
     * this function is only called by the DP thread
@@ -90,7 +90,7 @@ class DataProcessor(
   private[this] def processInputTuple(tuple: Either[Tuple, InputExhausted]): Unit = {
     try {
       outputManager.outputIterator.setTupleOutput(
-        operator.processTupleMultiPort(
+        executor.processTupleMultiPort(
           tuple,
           this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
         )
@@ -132,11 +132,11 @@ class DataProcessor(
       case FinalizeOperator() =>
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
-        operator.close() // close operator
+        executor.close() // close operator
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         logger.info(
-          s"$operator completed, # of input ports = ${inputManager.getAllPorts.size}, " +
+          s"$executor completed, # of input ports = ${inputManager.getAllPorts.size}, " +
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
