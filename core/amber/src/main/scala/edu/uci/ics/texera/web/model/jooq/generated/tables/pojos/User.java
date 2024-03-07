@@ -16,7 +16,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User implements IUser {
 
-    private static final long serialVersionUID = 2055626456;
+    private static final long serialVersionUID = -1446129198;
 
     private UInteger uid;
     private String   name;
@@ -24,6 +24,7 @@ public class User implements IUser {
     private String   password;
     private String   googleId;
     private UserRole role;
+    private String   googleAvatar;
 
     public User() {}
 
@@ -34,6 +35,7 @@ public class User implements IUser {
         this.password = value.getPassword();
         this.googleId = value.getGoogleId();
         this.role = value.getRole();
+        this.googleAvatar = value.getGoogleAvatar();
     }
 
     public User(
@@ -42,7 +44,8 @@ public class User implements IUser {
         String   email,
         String   password,
         String   googleId,
-        UserRole role
+        UserRole role,
+        String   googleAvatar
     ) {
         this.uid = uid;
         this.name = name;
@@ -50,6 +53,7 @@ public class User implements IUser {
         this.password = password;
         this.googleId = googleId;
         this.role = role;
+        this.googleAvatar = googleAvatar;
     }
 
     @Override
@@ -113,6 +117,16 @@ public class User implements IUser {
     }
 
     @Override
+    public String getGoogleAvatar() {
+        return this.googleAvatar;
+    }
+
+    @Override
+    public void setGoogleAvatar(String googleAvatar) {
+        this.googleAvatar = googleAvatar;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("User (");
 
@@ -122,6 +136,7 @@ public class User implements IUser {
         sb.append(", ").append(password);
         sb.append(", ").append(googleId);
         sb.append(", ").append(role);
+        sb.append(", ").append(googleAvatar);
 
         sb.append(")");
         return sb.toString();
@@ -139,6 +154,7 @@ public class User implements IUser {
         setPassword(from.getPassword());
         setGoogleId(from.getGoogleId());
         setRole(from.getRole());
+        setGoogleAvatar(from.getGoogleAvatar());
     }
 
     @Override

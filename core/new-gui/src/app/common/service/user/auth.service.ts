@@ -118,6 +118,7 @@ export class AuthService {
       name: this.jwtHelperService.decodeToken(token).sub,
       email: email,
       googleId: this.jwtHelperService.decodeToken(token).googleId,
+      googleAvatar: "https://lh3.googleusercontent.com/a/" + this.jwtHelperService.decodeToken(token).googleAvatar,
       role: role,
     };
   }

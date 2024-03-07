@@ -52,6 +52,7 @@ class GoogleAuthResource {
       val googleId = payload.getSubject
       val googleName = payload.get("name").asInstanceOf[String]
       val googleEmail = payload.getEmail
+      val googleAvatar = payload.get("picture").asInstanceOf[String].split("/").last
       val user = Option(userDao.fetchOneByGoogleId(googleId)) match {
         case Some(user) =>
           if (user.getName != googleName) {
@@ -62,6 +63,10 @@ class GoogleAuthResource {
             user.setEmail(googleEmail)
             userDao.update(user)
           }
+          if (user.getGoogleAvatar != googleAvatar) {
+            user.setGoogleAvatar(googleAvatar)
+            userDao.update(user)
+          }
           user
         case None =>
           Option(userDao.fetchOneByEmail(googleEmail)) match {
@@ -70,6 +75,7 @@ class GoogleAuthResource {
                 user.setName(googleName)
               }
               user.setGoogleId(googleId)
+              user.setGoogleAvatar(googleAvatar)
               userDao.update(user)
               user
             case None =>
@@ -79,6 +85,7 @@ class GoogleAuthResource {
               user.setEmail(googleEmail)
               user.setGoogleId(googleId)
               user.setRole(UserRole.INACTIVE)
+              user.setGoogleAvatar(googleAvatar)
               userDao.insert(user)
               user
           }

@@ -33,7 +33,9 @@ import java.util.Optional
   ): Boolean = {
 
     val principal =
-      Optional.of(new SessionUser(new User(null, "guest", null, null, null, UserRole.REGULAR)))
+      Optional.of(
+        new SessionUser(new User(null, "guest", null, null, null, UserRole.REGULAR, null))
+      )
     val securityContext = requestContext.getSecurityContext
     val secure = securityContext != null && securityContext.isSecure
     requestContext.setSecurityContext(new SecurityContext() {
