@@ -9,6 +9,8 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.texera.workflow.operators.udf.java.JavaRuntimeCompilation
 
 object InitializeOperatorLogicHandler {
   final case class InitializeOperatorLogic(
@@ -25,7 +27,13 @@ trait InitializeOperatorLogicHandler {
     {
       dp.operator = msg.opExecInitInfo match {
         case OpExecInitInfoWithCode(codeGen) =>
-          ??? // TODO: compile and load java/scala operator here
+          val (code, _) =
+            codeGen(VirtualIdentityUtils.getWorkerIndex(actorId), msg.totalWorkerCount)
+          val compiledClass = JavaRuntimeCompilation.compileCode(code)
+          val constructor = compiledClass.getDeclaredConstructor()
+          val instance = constructor.newInstance()
+          instance.asInstanceOf[OperatorExecutor]
+
         case OpExecInitInfoWithFunc(opGen) =>
           opGen(VirtualIdentityUtils.getWorkerIndex(actorId), msg.totalWorkerCount)
       }
