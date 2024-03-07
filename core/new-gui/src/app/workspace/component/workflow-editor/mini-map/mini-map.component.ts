@@ -14,6 +14,7 @@ export class MiniMapComponent implements AfterViewInit, OnInit {
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
+  display = true;
 
   constructor(private workflowActionService: WorkflowActionService) {}
 
@@ -62,5 +63,9 @@ export class MiniMapComponent implements AfterViewInit, OnInit {
       navigator.style.width = (editor.offsetWidth / this.paper.scale().sx) * this.scale + "px";
       navigator.style.height = (editor.offsetHeight / this.paper.scale().sy) * this.scale + "px";
     }
+  }
+
+  public toggle(): void {
+    this.display = !this.display;
   }
 }

@@ -25,7 +25,12 @@
 
 #mini-map-content {
   min-height: 100%;
-  max-height: calc(100vh - 200px);
-  display: inline-block;
   width: 400px;
+}
+
+#minimap-button {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 4;
 }
