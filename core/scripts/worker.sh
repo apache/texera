@@ -1,7 +1,7 @@
 cd amber
 if [ ! -z $1 ] 
 then 
-    sbt "runMain edu.uci.ics.texera.web.TexeraRunWorker --serverAddr $1" 
+    target/universal/texera-0.1-SNAPSHOT/bin/texera-run-worker --serverAddr $1 
 else
-    sbt "runMain edu.uci.ics.texera.web.TexeraRunWorker" 
+    target/universal/texera-0.1-SNAPSHOT/bin/texera-run-worker
 fi
