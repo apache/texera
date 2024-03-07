@@ -69,12 +69,7 @@ object WorkflowVersionResource {
   def updateLatestVersion(patch: String, wid: UInteger): Unit = {
     // get the latest version to update its content
     val vid = getLatestVersion(wid)
-    var workflowVersion = workflowVersionDao.fetchOneByVid(vid)
-    // for backwards compatibility, old constructed versions would follow the old design by not saving the current
-    // version as an empty delta, so should do the check and create one once
-    if (!isPatchEmpty(workflowVersion.getContent)) {
-      workflowVersion = insertNewVersion(wid)
-    }
+    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
     workflowVersion.setContent(patch)
     workflowVersionDao.update(workflowVersion)
   }
