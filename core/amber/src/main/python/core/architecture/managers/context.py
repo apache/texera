@@ -7,8 +7,8 @@ from .operator_manager import OperatorManager
 from .pause_manager import PauseManager
 from .state_manager import StateManager
 from .statistics_manager import StatisticsManager
-from ..packaging.batch_to_tuple_converter import BatchToTupleConverter
-from ..packaging.tuple_to_batch_converter import TupleToBatchConverter
+from ..packaging.input_manager import InputManager
+from ..packaging.output_manager import OutputManager
 from ...models import InternalQueue
 
 
@@ -42,8 +42,8 @@ class Context:
         self.pause_manager = PauseManager(
             self.input_queue, state_manager=self.state_manager
         )
-        self.tuple_to_batch_converter = TupleToBatchConverter()
-        self.batch_to_tuple_converter = BatchToTupleConverter()
+        self.output_manager = OutputManager()
+        self.input_manager = InputManager()
         self.console_message_manager = ConsoleMessageManager()
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition

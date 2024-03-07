@@ -213,7 +213,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new IntervalJoinOpDesc(
       leftKey,
       rightKey,
-      inputSchemas,
       intervalConstant,
       includeLeftBound,
       includeRightBound,

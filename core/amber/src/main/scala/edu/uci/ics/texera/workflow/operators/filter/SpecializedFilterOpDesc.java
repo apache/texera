@@ -15,14 +15,13 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
 
-import scala.Tuple3;
+import scala.Tuple2;
 
 
 import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.*;
 import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
@@ -38,12 +37,12 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
-                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
+                                (Function<Tuple2<Object, Object>, IOperatorExecutor> & java.io.Serializable)
                                         x -> new SpecializedFilterOpExec(this)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
-                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts());
     }
 
     @Override

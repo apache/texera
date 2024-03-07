@@ -417,6 +417,33 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         },
       };
 
+      // Disable dummy operator for user
+      if (mappedField.key === "dummyOperator") {
+        mappedField.expressionProperties = {
+          "templateOptions.disabled": () => true,
+          "templateOptions.readonly": () => true,
+        };
+      }
+
+      // Disable dummy property and value fields for user
+      if (mappedField.key === "dummyProperty" || mappedField.key === "dummyValue") {
+        mappedField.expressionProperties = {
+          "templateOptions.readonly": () => true,
+          "templateOptions.disabled": () => true,
+        };
+      }
+
+      // Disable dummy property list for all operators
+      if (mappedField.key === "dummyPropertyList") {
+        mappedField.hide = true;
+        mappedField.expressionProperties = {
+          "templateOptions.disabled": () => true,
+          "templateOptions.readonly": () => true,
+          "templateOptions.canRemove": () => false,
+          "templateOptions.canAdd": () => false,
+        };
+      }
+
       // if the title is fileName, then change it to custom autocomplete input template
       if (mappedField.key == "fileName") {
         mappedField.type = "inputautocomplete";

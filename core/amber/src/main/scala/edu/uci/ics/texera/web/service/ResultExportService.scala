@@ -88,7 +88,7 @@ class ResultExportService(opResultStorage: OpResultStorage, wId: UInteger) {
     val writer = CSVWriter.open(stream)
     writer.writeRow(headers)
     results.foreach { tuple =>
-      writer.writeRow(tuple.getFields)
+      writer.writeRow(tuple.getFields.toIndexedSeq)
     }
     writer.close()
     val latestVersion =

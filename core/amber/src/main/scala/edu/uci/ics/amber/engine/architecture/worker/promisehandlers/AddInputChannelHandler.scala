@@ -21,7 +21,7 @@ trait AddInputChannelHandler {
   registerHandler { (msg: AddInputChannel, sender) =>
     dp.stateManager.assertState(READY, RUNNING, PAUSED)
     dp.inputGateway.getChannel(msg.channelId).setPortId(msg.portId)
-    dp.inputGateway.getPort(msg.portId).channels(msg.channelId) = false
+    dp.inputManager.getPort(msg.portId).channels(msg.channelId) = false
   }
 
 }

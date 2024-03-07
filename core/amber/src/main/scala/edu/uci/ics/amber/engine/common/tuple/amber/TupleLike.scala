@@ -87,7 +87,7 @@ object TupleLike {
     // Ensure Iterable types do not have an implicit NotAnIterable available
     // This is a way to "exclude" Iterable types by not providing an implicit instance for them
     implicit def iterableIsNotAnIterable[C[_] <: Iterable[A], A]: NotAnIterable[C[A]] =
-      sys.error("Iterable types are not allowed")
+      throw new RuntimeException("Iterable types are not allowed")
   }
 
   def apply(mappings: Map[String, Any]): MapTupleLike = {

@@ -128,9 +128,14 @@ class TestMainLoop:
         return InternalQueue()
 
     @pytest.fixture
-    def mock_assign_input_port(self, mock_controller, mock_link, command_sequence):
+    def mock_assign_input_port(
+        self, mock_raw_schema, mock_controller, mock_link, command_sequence
+    ):
         command = set_one_of(
-            ControlCommandV2, AssignPortV2(port_id=mock_link.to_port_id, input=True)
+            ControlCommandV2,
+            AssignPortV2(
+                port_id=mock_link.to_port_id, input=True, schema=mock_raw_schema
+            ),
         )
         payload = set_one_of(
             ControlPayloadV2,
@@ -139,9 +144,14 @@ class TestMainLoop:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
-    def mock_assign_output_port(self, mock_controller, command_sequence):
+    def mock_assign_output_port(
+        self, mock_raw_schema, mock_controller, command_sequence
+    ):
         command = set_one_of(
-            ControlCommandV2, AssignPortV2(port_id=PortIdentity(id=0), input=False)
+            ControlCommandV2,
+            AssignPortV2(
+                port_id=PortIdentity(id=0), input=False, schema=mock_raw_schema
+            ),
         )
         payload = set_one_of(
             ControlPayloadV2,
@@ -193,7 +203,6 @@ class TestMainLoop:
             InitializeOperatorLogicV2(
                 code="from pytexera import *\n" + inspect.getsource(EchoOperator),
                 is_source=False,
-                output_schema=mock_raw_schema,
             ),
         )
         payload = set_one_of(
@@ -216,7 +225,6 @@ class TestMainLoop:
             InitializeOperatorLogicV2(
                 code="from pytexera import *\n" + inspect.getsource(CountBatchOperator),
                 is_source=False,
-                output_schema=mock_raw_schema,
             ),
         )
         payload = set_one_of(

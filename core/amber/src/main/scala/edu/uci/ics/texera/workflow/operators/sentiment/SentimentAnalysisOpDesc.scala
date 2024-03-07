@@ -1,9 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.sentiment
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
@@ -47,10 +46,15 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new SentimentAnalysisOpExec(attribute))
+        OpExecInitInfo((_, _) => new SentimentAnalysisOpExec(attribute))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
+        )
+      )
   }
 
   override def operatorInfo =
@@ -64,7 +68,6 @@ class SentimentAnalysisOpDesc extends MapOpDesc {
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 1)
     if (resultAttribute == null || resultAttribute.trim.isEmpty)
       return null
     Schema.builder().add(schemas(0)).add(resultAttribute, AttributeType.INTEGER).build()

@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.common.operators.aggregate
+package edu.uci.ics.texera.workflow.operators.aggregate
 
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
