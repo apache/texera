@@ -25,8 +25,6 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetAccessResou
   userOwnDataset
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
-  DATASET_IS_PRIVATE,
-  DATASET_IS_PUBLIC,
   DashboardDataset,
   DashboardDatasetVersion,
   DatasetDescriptionModification,
@@ -41,8 +39,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{
   getDashboardDataset,
   getDatasetByID,
   getDatasetLatestVersion,
-  getDatasetVersionHashByID,
-  retrievePublicDatasets
+  getDatasetVersionHashByID
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.FileNode
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
@@ -76,7 +73,7 @@ import scala.jdk.CollectionConverters._
 
 object DatasetResource {
   val DATASET_IS_PUBLIC: Byte = 1;
-  val DATASET_IS_PRIVATE: Byte = 0;
+
   val FILE_OPERATION_UPLOAD_PREFIX = "file:upload:"
   val FILE_OPERATION_REMOVE_PREFIX = "file:remove"
 
@@ -276,11 +273,6 @@ object DatasetResource {
     FileNode.getAllFileRelativePaths(fileNodes)
   }
 
-  def retrievePublicDatasets(ctx: DSLContext): util.List[Dataset] = {
-    val datasetDao = new DatasetDao(ctx.configuration())
-    datasetDao.fetchByIsPublic(DATASET_IS_PUBLIC)
-  }
-
   case class DashboardDataset(
       dataset: Dataset,
       accessPrivilege: EnumType,
@@ -449,32 +441,6 @@ class DatasetResource {
   }
 
   @POST
-  @Path("/{did}/update/publicity")
-  def toggleDatasetPublicity(
-      @PathParam("did") did: UInteger,
-      @Auth sessionUser: SessionUser
-  ): Response = {
-    withTransaction(context) { ctx =>
-      val datasetDao = new DatasetDao(ctx.configuration())
-      val uid = sessionUser.getUid
-
-      if (!userHasWriteAccess(ctx, did, uid)) {
-        throw new ForbiddenException(ERR_USER_HAS_NO_ACCESS_TO_DATASET_MESSAGE)
-      }
-
-      val existedDataset = getDatasetByID(ctx, did, uid)
-      if (existedDataset.getIsPublic == DATASET_IS_PUBLIC) {
-        existedDataset.setIsPublic(DATASET_IS_PRIVATE)
-      } else {
-        existedDataset.setIsPublic(DATASET_IS_PUBLIC)
-      }
-
-      datasetDao.update(existedDataset)
-      Response.ok().build()
-    }
-  }
-
-  @POST
   @Path("/{did}/version/create")
   @Consumes(Array(MediaType.MULTIPART_FORM_DATA))
   def createDatasetVersion(
@@ -526,22 +492,7 @@ class DatasetResource {
       user,
       SearchQueryParams(resourceType = "dataset")
     )
-    var accessibleDatasets = result.results.map(_.dataset.get)
-    val publicDatasets = retrievePublicDatasets(context)
-
-    publicDatasets.forEach { publicDataset =>
-      if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.getDid)) {
-        // Assuming DashboardDataset has a property did for comparison
-        val dashboardDataset = DashboardDataset(
-          isOwner = false,
-          dataset = publicDataset,
-          accessPrivilege = DatasetUserAccessPrivilege.READ
-        )
-        accessibleDatasets = accessibleDatasets :+ dashboardDataset
-      }
-    }
-
-    accessibleDatasets
+    result.results.map(_.dataset.get)
   }
 
   @GET

@@ -131,39 +131,6 @@ public class GitVersionControlLocalFileStorage {
   }
 
   /**
-   * Creates a temporary file and writes the content of a specific version of a file, identified by its commit hash, into this temporary file.
-   * This method is useful for retrieving and working with specific versions of a file from a Git repository in a temporary and isolated manner.
-   *
-   * The temporary file is created in the system's default temporary-file directory, with a prefix "versionedFile" and a ".tmp" suffix.
-   * The created temporary file is marked for deletion on JVM exit, ensuring no leftover files during runtime, though it's the caller's responsibility to manage the file if it needs to persist longer.
-   *
-   * <p>This method is THREAD SAFE, ensuring safe use across multiple threads without causing data inconsistency or corruption.
-   *
-   * @param baseRepoPath The path to the repository where the file version is to be retrieved from. This should be a valid path to a local repository managed by Git.
-   * @param commitHash The commit hash that identifies the specific version of the file to retrieve. This commit must exist in the repository's history.
-   * @param filePath The path of the file within the repository, relative to the repository's root directory. This file should exist in the commit specified.
-   * @return The {@link Path} to the created temporary file, which contains the content of the specified file version. This path is absolute, ensuring it can be accessed directly.
-   * @throws IOException If an I/O error occurs during file operations, including issues with creating the temporary file or writing to it.
-   * @throws GitAPIException If the operation to retrieve file content from the Git repository fails. This could be due to issues with accessing the repository, the commit hash, or the file path specified.
-   */
-  public static Path writeVersionedFileToTempFile(Path baseRepoPath, String commitHash, Path filePath) throws IOException, GitAPIException {
-    // Generate a temporary file
-    Path tempFile = Files.createTempFile("versionedFile", ".tmp");
-
-    // Ensure the file gets deleted on JVM exit
-    tempFile.toFile().deleteOnExit();
-
-    // Use the retrieveFileContentOfVersion method to write the file content into the temp file
-    try (OutputStream outputStream = Files.newOutputStream(tempFile)) {
-      retrieveFileContentOfVersion(baseRepoPath, commitHash, filePath, outputStream);
-    }
-
-    // Return the absolute path of the temporary file
-    return tempFile.toAbsolutePath();
-  }
-
-
-  /**
    * Check if there is any uncommitted change in the given repo
 
    * This method is THREAD SAFE

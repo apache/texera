@@ -1,5 +1,5 @@
 import { Component, OnInit } from "@angular/core";
-import { ActivatedRoute, Router } from "@angular/router";
+import { ActivatedRoute, NavigationEnd, Router } from "@angular/router";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { DatasetService } from "../../../service/user-dataset/dataset.service";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
@@ -8,7 +8,14 @@ import {
   getFullPathFromFileTreeNode,
 } from "../../../../../common/type/datasetVersionFileTree";
 import { DatasetVersion } from "../../../../../common/type/dataset";
-import { switchMap } from "rxjs/operators";
+import { filter, switchMap } from "rxjs/operators";
+import readXlsxFile from "read-excel-file";
+import * as Papa from "papaparse";
+import { ParseResult } from "papaparse";
+import {
+  MIME_TYPE_SIZE_LIMITS_MB,
+  MIME_TYPES,
+} from "./user-dataset-file-renderer/user-dataset-file-renderer.component";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
 
 @UntilDestroy()
@@ -21,7 +28,6 @@ export class UserDatasetExplorerComponent implements OnInit {
   public datasetName: string = "";
   public datasetDescription: string = "";
   public datasetCreationTime: string = "";
-  public datasetIsPublic: boolean = false;
   public userDatasetAccessLevel: "READ" | "WRITE" | "NONE" = "NONE";
 
   public currentDisplayedFileName: string = "";
@@ -125,28 +131,6 @@ export class UserDatasetExplorerComponent implements OnInit {
     this.renderVersionCreatorSider();
   }
 
-  onPublicStatusChange(checked: boolean): void {
-    // Handle the change in dataset public status
-    if (this.did) {
-      this.datasetService
-        .updateDatasetPublicity(this.did)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: (res: Response) => {
-            this.datasetIsPublic = checked;
-            let state = "public";
-            if (!this.datasetIsPublic) {
-              state = "private";
-            }
-            this.notificationService.success(`Dataset ${this.datasetName} is now ${state}`);
-          },
-          error: (err: unknown) => {
-            this.notificationService.error("Fail to change the dataset publicity");
-          },
-        });
-    }
-  }
-
   retrieveDatasetInfo() {
     if (this.did) {
       this.datasetService
@@ -157,7 +141,6 @@ export class UserDatasetExplorerComponent implements OnInit {
           this.datasetName = dataset.name;
           this.datasetDescription = dataset.description;
           this.userDatasetAccessLevel = dashboardDataset.accessPrivilege;
-          this.datasetIsPublic = dataset.isPublic === 1;
           if (typeof dataset.creationTime === "number") {
             this.datasetCreationTime = new Date(dataset.creationTime).toString();
           }

@@ -56,7 +56,7 @@
         <texera-user-dataset-list-item
           *cdkVirtualFor="let entry of getDatasetArray()"
           [entry]="entry"
-          (deleted)="deleteDataset(entry)"
+          (deleted)="deleteDataset(entry.dataset.did)"
           (refresh)="ngOnInit()"
           [editable]="true"></texera-user-dataset-list-item>
       </nz-list>
