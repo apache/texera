@@ -49,7 +49,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
+        OpExecInitInfo((_, _) =>
           new TwitterFullArchiveSearchSourceOpExec(
             apiKey,
             apiSecretKey,

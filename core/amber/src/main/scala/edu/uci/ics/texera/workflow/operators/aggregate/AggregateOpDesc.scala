@@ -42,7 +42,7 @@ class AggregateOpDesc extends LogicalOp {
           PhysicalOpIdentity(operatorIdentifier, "localAgg"),
           workflowId,
           executionId,
-          OpExecInitInfo((_, _, _) => new AggregateOpExec(aggregations, groupByKeys))
+          OpExecInitInfo((_, _) => new AggregateOpExec(aggregations, groupByKeys))
         )
         .withIsOneToManyOp(true)
         .withInputPorts(List(InputPort(PortIdentity())))
@@ -64,7 +64,7 @@ class AggregateOpDesc extends LogicalOp {
         PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
         workflowId,
         executionId,
-        OpExecInitInfo((_, _, _) =>
+        OpExecInitInfo((_, _) =>
           new AggregateOpExec(aggregations.map(aggr => aggr.getFinal), groupByKeys)
         )
       )

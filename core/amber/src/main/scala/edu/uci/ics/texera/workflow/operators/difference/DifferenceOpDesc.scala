@@ -21,7 +21,7 @@ class DifferenceOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new DifferenceOpExec())
+        OpExecInitInfo((_, _) => new DifferenceOpExec())
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

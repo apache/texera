@@ -18,7 +18,7 @@ class CartesianProductOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new CartesianProductOpExec())
+        OpExecInitInfo((_, _) => new CartesianProductOpExec())
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

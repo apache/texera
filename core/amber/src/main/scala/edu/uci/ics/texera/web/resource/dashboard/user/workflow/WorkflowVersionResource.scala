@@ -66,15 +66,10 @@ object WorkflowVersionResource {
     * @param patch to update latest version
     * @param wid
     */
-  def updateLatestVersion(patch: String, wid: UInteger): Unit = {
+  private def updateLatestVersion(patch: String, wid: UInteger): Unit = {
     // get the latest version to update its content
     val vid = getLatestVersion(wid)
-    var workflowVersion = workflowVersionDao.fetchOneByVid(vid)
-    // for backwards compatibility, old constructed versions would follow the old design by not saving the current
-    // version as an empty delta, so should do the check and create one once
-    if (!isPatchEmpty(workflowVersion.getContent)) {
-      workflowVersion = insertNewVersion(wid)
-    }
+    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
     workflowVersion.setContent(patch)
     workflowVersionDao.update(workflowVersion)
   }
@@ -115,24 +110,12 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function is for testing if the version is following the current design of keeping an empty delta for the
-    * last version for migrating versions that followed the old design to the new design.
-    * This function should be removed after some time (when all versions in the DB follow the new design)
-    * @param patch
-    * @return
+    * This function retrieves the content of versions from a specific workflow in a range
+    * @param lowerBound lower bound of the version search range
+    * @param UpperBound upper bound of the search range
+    * @param wid workflow id
+    * @return a list of contents as strings
     */
-  @deprecated
-  private def isPatchEmpty(patch: String): Boolean = {
-    patch == "[]"
-  }
-
-  /*
-   * This function retrieves the content of versions from a specific workflow in a range
-   * @param lowerBound lower bound of the version search range
-   * @param UpperBound upper bound of the search range
-   * @param wid workflow id
-   * @return a list of contents as strings
-   */
   def isSnapshotInRangeUnimportant(
       lowerBound: UInteger,
       UpperBound: UInteger,

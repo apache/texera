@@ -4,10 +4,9 @@ import akka.actor.{ActorRef, ActorSystem, Props}
 import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   MainThreadDelegateMessage,
@@ -16,6 +15,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -27,12 +27,8 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
@@ -87,28 +83,14 @@ class WorkerSpec
     }
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
-  private val physicalOp1 = PhysicalOp(
-    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
-    workflowId = DEFAULT_WORKFLOW_ID,
-    executionId = DEFAULT_EXECUTION_ID,
-    opExecInitInfo = null
-  )
-  private val physicalOp2 = PhysicalOp(
-    id = PhysicalOpIdentity(operatorIdentity, "2nd-physical-op"),
-    workflowId = DEFAULT_WORKFLOW_ID,
-    executionId = DEFAULT_EXECUTION_ID,
-    opExecInitInfo = null
-  )
+
   private val mockPortId = PortIdentity()
   private val mockLink =
-    PhysicalLink(physicalOp1.id, mockPortId, physicalOp2.id, mockPortId)
-
-  private var physicalOp = PhysicalOp
-    .oneToOnePhysicalOp(
-      DEFAULT_WORKFLOW_ID,
-      DEFAULT_EXECUTION_ID,
-      operatorIdentity,
-      OpExecInitInfo((_, _, _) => mockOpExecutor)
+    PhysicalLink(
+      PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+      mockPortId,
+      PhysicalOpIdentity(operatorIdentity, "2nd-physical-op"),
+      mockPortId
     )
 
   private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
@@ -155,17 +137,9 @@ class WorkerSpec
     val worker = TestActorRef(
       new WorkflowWorker(
         WorkerConfig(identifier1),
-        physicalOp,
-        OperatorConfig(List(WorkerConfig(identifier1))),
         WorkerReplayInitialization(restoreConfOpt = None, faultToleranceConfOpt = None)
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler)
-        this.dp.initOperator(
-          0,
-          physicalOp,
-          OperatorConfig(List(WorkerConfig(identifier1))),
-          Iterator.empty
-        )
         this.dp.initTimerService(timerService)
         override val dpThread: DPThread =
           new DPThread(
@@ -186,15 +160,18 @@ class WorkerSpec
         mockLink.toPortId
       )
     )
-    sendControlToWorker(worker, Array(invocation, addPort1, addPort2, addInputChannel))
+    val initializeOperatorLogic = ControlInvocation(
+      4,
+      InitializeOperatorLogic(1, OpExecInitInfo((_, _) => mockOpExecutor), isSource = false)
+    )
+    sendControlToWorker(
+      worker,
+      Array(invocation, addPort1, addPort2, addInputChannel, initializeOperatorLogic)
+    )
     (worker, completeStatus)
   }
 
   "Worker" should "process data messages correctly" in {
-    physicalOp = physicalOp.copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1)))),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1))))
-    )
     val (worker, future) = mkWorker(Array(mkTuple(1)))
     worker ! NetworkMessage(
       0,
@@ -216,10 +193,7 @@ class WorkerSpec
     ignoreMsg {
       case a => println(a); true
     }
-    physicalOp = physicalOp.copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1)))),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1))))
-    )
+
     def mkBatch(start: Int, end: Int): Array[Tuple] = {
       (start until end).map { x =>
         mkTuple(x)
@@ -262,10 +236,6 @@ class WorkerSpec
     ignoreMsg {
       case a => println(a); true
     }
-    physicalOp = physicalOp.copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), Right(mkSchema(1)))),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), Right(mkSchema(1))))
-    )
     val (worker, future) = mkWorker((0 until 100).map(mkTuple(_)))
     Random
       .shuffle((0 until 50).map { i =>
