@@ -71,7 +71,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           {
             key: "description",
             type: "input",
-            defaultValue: "",
             templateOptions: {
               label: "Description",
             },
@@ -79,7 +78,6 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           {
             key: "versionName",
             type: "input",
-            defaultValue: "v1",
             templateOptions: {
               label: "Initial Version Name",
               required: true,

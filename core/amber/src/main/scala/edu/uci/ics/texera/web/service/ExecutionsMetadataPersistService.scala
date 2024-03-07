@@ -6,7 +6,6 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, Workf
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.WorkflowExecutionsDao
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowExecutions
-import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowVersionResource._
 import edu.uci.ics.texera.workflow.common.WorkflowContext.DEFAULT_EXECUTION_ID
 import org.jooq.types.UInteger
@@ -40,9 +39,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     if (!AmberConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(UInteger.valueOf(workflowId.id))
-    // fetch the workflow's environment eid
-    val environmentEid =
-      WorkflowResource.getEnvironmentEidOfWorkflow(UInteger.valueOf(workflowId.id))
     val newExecution = new WorkflowExecutions()
     if (executionName != "") {
       newExecution.setName(executionName)
@@ -50,9 +46,7 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     newExecution.setVid(vid)
     newExecution.setUid(uid.orNull)
     newExecution.setStartingTime(new Timestamp(System.currentTimeMillis()))
-    // TODO: consider put environment version as a part of the environment
     newExecution.setEnvironmentVersion(environmentVersion)
-    newExecution.setEnvironmentEid(environmentEid)
     workflowExecutionsDao.insert(newExecution)
     ExecutionIdentity(newExecution.getEid.longValue())
   }

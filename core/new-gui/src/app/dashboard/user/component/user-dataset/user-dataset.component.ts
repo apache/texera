@@ -81,10 +81,10 @@ export class UserDatasetComponent implements OnInit {
     return datasetArray;
   }
 
-  public deleteDataset(entry: DashboardDataset) {
-    if (entry.dataset.did) {
+  public deleteDataset(entry: DashboardEntry) {
+    if (entry.dataset.dataset.did) {
       this.datasetService
-        .deleteDatasets([entry.dataset.did])
+        .deleteDatasets([entry.dataset.dataset.did])
         .pipe(untilDestroyed(this))
         .subscribe(_ => {
           this.reloadDashboardDatasetEntries();
