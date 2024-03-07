@@ -5,7 +5,7 @@ from cached_property import cached_property
 
 import fs
 from pathlib import Path
-from typing import Tuple, Optional, Mapping
+from typing import Tuple, Optional
 
 from fs.base import FS
 from loguru import logger
@@ -64,7 +64,7 @@ class OperatorManager:
         with self.fs.open(file_name, "w") as file:
             file.write(code)
         logger.debug(
-            f"A tmp py file is written to "
+            "A tmp py file is written to "
             f"{Path(self.fs.getsyspath('/')).joinpath(file_name)}."
         )
 

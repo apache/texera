@@ -8,7 +8,6 @@ import pandas
 from deprecated import deprecated
 
 from . import InputExhausted, Table, TableLike, Tuple, TupleLike, Batch, BatchLike
-from core.models.schema.schema import Schema
 from .table import all_output_to_tuple
 
 

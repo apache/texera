@@ -87,7 +87,7 @@ class OutputManager(
     outputGateway: NetworkOutputGateway
 ) extends AmberLogging {
 
-  var outputIterator: DPOutputIterator = new DPOutputIterator()
+  val outputIterator: DPOutputIterator = new DPOutputIterator()
   private val partitioners: mutable.Map[PhysicalLink, Partitioner] =
     mutable.HashMap[PhysicalLink, Partitioner]()
 
