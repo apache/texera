@@ -46,7 +46,6 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public language: string = "";
   public languageTitle: string = "";
 
-
   private generateLanguageTitle(language: string): string {
     return `${language.toUpperCase()} Script`;
   }
@@ -63,12 +62,11 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
-    public coeditorPresenceService: CoeditorPresenceService,
+    public coeditorPresenceService: CoeditorPresenceService
   ) {
     const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
     this.changeLanguage(operatorType === "JavaUDF" ? "java" : "python");
-
   }
 
   ngAfterViewInit() {
@@ -153,7 +151,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         this.code,
         editor.getModel()!,
         new Set([editor]),
-        this.workflowActionService.getTexeraGraph().getSharedModelAwareness(),
+        this.workflowActionService.getTexeraGraph().getSharedModelAwareness()
       );
     }
     this.editor = editor;
@@ -199,7 +197,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         ?.content.operators?.filter(
           operator =>
             operator.operatorID ===
-            this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0],
+            this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0]
         )?.[0].operatorProperties.code;
       this.editor.setModel({
         original: monaco.editor.createModel(this.code.toString(), "python"),
