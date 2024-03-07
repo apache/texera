@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, OnInit } from "@angular/core";
+import { AfterViewInit, Component } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
@@ -10,7 +10,7 @@ import * as joint from "jointjs";
   templateUrl: "mini-map.component.html",
   styleUrls: ["mini-map.component.scss"],
 })
-export class MiniMapComponent implements AfterViewInit, OnInit {
+export class MiniMapComponent implements AfterViewInit {
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
@@ -43,8 +43,6 @@ export class MiniMapComponent implements AfterViewInit, OnInit {
         mainPaper.on("resize", () => this.updateNavigator());
       });
   }
-
-  ngOnInit(): void {}
 
   onDrag(event: any) {
     this.paper.translate(
