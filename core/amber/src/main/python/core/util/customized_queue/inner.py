@@ -2,6 +2,7 @@
 This class is taken from https://github.com/sebkeim/inner-class at commit sha
 0856be1feee38710005a7ef27ae998af95dedbf8.
 """
+
 from functools import update_wrapper
 
 

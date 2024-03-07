@@ -58,6 +58,9 @@ class OpenOperatorV2(betterproto.Message):
 class AssignPortV2(betterproto.Message):
     port_id: "__common__.PortIdentity" = betterproto.message_field(1)
     input: bool = betterproto.bool_field(2)
+    schema: Dict[str, str] = betterproto.map_field(
+        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
+    )
 
 
 @dataclass(eq=False, repr=False)
@@ -97,9 +100,6 @@ class LinkOrdinal(betterproto.Message):
 class InitializeOperatorLogicV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
-    output_schema: Dict[str, str] = betterproto.map_field(
-        3, betterproto.TYPE_STRING, betterproto.TYPE_STRING
-    )
 
 
 @dataclass(eq=False, repr=False)

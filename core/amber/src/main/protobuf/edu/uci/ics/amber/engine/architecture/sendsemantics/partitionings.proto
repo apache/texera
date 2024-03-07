@@ -41,7 +41,7 @@ message HashBasedShufflePartitioning{
 message RangeBasedShufflePartitioning {
   int32 batchSize = 1;
   repeated edu.uci.ics.amber.engine.common.ActorVirtualIdentity receivers = 2;
-  repeated int32 rangeColumnIndices = 3;
+  repeated string rangeAttributeNames = 3;
   int64 rangeMin = 4;
   int64 rangeMax = 5;
 }

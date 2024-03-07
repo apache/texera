@@ -135,8 +135,7 @@ class RegionExecutionCoordinator(
                 .send(
                   InitializeOperatorLogic(
                     pythonUDFPhysicalOp.getPythonCode,
-                    pythonUDFPhysicalOp.isSourceOperator,
-                    pythonUDFPhysicalOp.outputPorts.values.head._3
+                    pythonUDFPhysicalOp.isSourceOperator
                   ),
                   workerId
                 )
@@ -149,18 +148,25 @@ class RegionExecutionCoordinator(
     Future.collect(
       region.getOperators
         .flatMap { physicalOp: PhysicalOp =>
-          physicalOp.inputPorts.keys
-            .map(inputPortId => GlobalPortIdentity(physicalOp.id, inputPortId, input = true))
+          physicalOp.inputPorts
+            .map {
+              case (inputPortId, (_, _, Right(schema))) =>
+                GlobalPortIdentity(physicalOp.id, inputPortId, input = true) -> schema
+            }
             .concat(
-              physicalOp.outputPorts.keys
-                .map(outputPortId => GlobalPortIdentity(physicalOp.id, outputPortId, input = false))
+              physicalOp.outputPorts
+                .map {
+                  case (outputPortId, (_, _, Right(schema))) =>
+                    GlobalPortIdentity(physicalOp.id, outputPortId, input = false) -> schema
+                }
             )
         }
-        .flatMap { globalPortId =>
-          {
+        .flatMap {
+          case (globalPortId, schema) => {
             resourceConfig.operatorConfigs(globalPortId.opId).workerConfigs.map(_.workerId).map {
               workerId =>
-                asyncRPCClient.send(AssignPort(globalPortId.portId, globalPortId.input), workerId)
+                asyncRPCClient
+                  .send(AssignPort(globalPortId.portId, globalPortId.input, schema), workerId)
             }
           }
         }

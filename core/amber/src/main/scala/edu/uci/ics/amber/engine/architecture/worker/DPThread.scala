@@ -139,7 +139,9 @@ class DPThread(
       //
       var channelId: ChannelIdentity = null
       var msgOpt: Option[WorkflowFIFOMessage] = None
-      if (dp.hasUnfinishedInput || dp.hasUnfinishedOutput || dp.pauseManager.isPaused) {
+      if (
+        dp.inputManager.hasUnfinishedInput || dp.outputManager.hasUnfinishedOutput || dp.pauseManager.isPaused
+      ) {
         dp.inputGateway.tryPickControlChannel match {
           case Some(channel) =>
             channelId = channel.channelId
@@ -147,7 +149,7 @@ class DPThread(
           case None =>
             // continue processing
             if (!dp.pauseManager.isPaused && !backpressureStatus) {
-              channelId = dp.currentChannelId
+              channelId = dp.inputManager.currentChannelId
             } else {
               waitingForInput = true
             }

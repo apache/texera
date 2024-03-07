@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.json
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.JsonNode
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.Utils.objectMapper
@@ -61,9 +61,12 @@ class JSONLScanSourceOpDesc extends ScanSourceOpDesc {
               )
             })
           )
-          .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-          .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+          .withInputPorts(operatorInfo.inputPorts)
+          .withOutputPorts(operatorInfo.outputPorts)
           .withParallelizable(true)
+          .withPropagateSchema(
+            SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+          )
 
       case None =>
         throw new RuntimeException("File path is not provided.")
