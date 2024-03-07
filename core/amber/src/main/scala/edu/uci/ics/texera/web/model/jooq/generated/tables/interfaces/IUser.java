@@ -77,6 +77,16 @@ public interface IUser extends Serializable {
      */
     public UserRole getRole();
 
+    /**
+     * Setter for <code>texera_db.user.google_avatar</code>.
+     */
+    public void setGoogleAvatar(String value);
+
+    /**
+     * Getter for <code>texera_db.user.google_avatar</code>.
+     */
+    public String getGoogleAvatar();
+
     // -------------------------------------------------------------------------
     // FROM and INTO
     // -------------------------------------------------------------------------

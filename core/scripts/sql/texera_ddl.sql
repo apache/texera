@@ -27,12 +27,13 @@ SET PERSIST sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));
 
 CREATE TABLE IF NOT EXISTS user
 (
-    `uid`        INT UNSIGNED AUTO_INCREMENT NOT NULL,
-    `name`       VARCHAR(256)                NOT NULL,
-    `email`      VARCHAR(256) UNIQUE,
-    `password`   VARCHAR(256),
-    `google_id`  VARCHAR(256) UNIQUE,
-    `role`       ENUM('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN') NOT NULL DEFAULT 'INACTIVE',
+    `uid`           INT UNSIGNED AUTO_INCREMENT NOT NULL,
+    `name`          VARCHAR(256)                NOT NULL,
+    `email`         VARCHAR(256) UNIQUE,
+    `password`      VARCHAR(256),
+    `google_id`     VARCHAR(256) UNIQUE,
+    `role`          ENUM('INACTIVE', 'RESTRICTED', 'REGULAR', 'ADMIN') NOT NULL DEFAULT 'INACTIVE',
+    `google_avatar` VARCHAR(100) null,
     PRIMARY KEY (`uid`),
     CONSTRAINT CK_nulltest
         CHECK (`password` IS NOT NULL OR `google_id` IS NOT NULL)

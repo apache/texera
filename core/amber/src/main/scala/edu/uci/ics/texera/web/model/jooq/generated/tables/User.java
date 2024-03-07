@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row6;
+import org.jooq.Row7;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class User extends TableImpl<UserRecord> {
 
-    private static final long serialVersionUID = 1259931841;
+    private static final long serialVersionUID = 670965342;
 
     /**
      * The reference instance of <code>texera_db.user</code>
@@ -79,6 +79,11 @@ public class User extends TableImpl<UserRecord> {
      * The column <code>texera_db.user.role</code>.
      */
     public final TableField<UserRecord, UserRole> ROLE = createField(DSL.name("role"), org.jooq.impl.SQLDataType.VARCHAR(10).nullable(false).defaultValue(org.jooq.impl.DSL.inline("INACTIVE", org.jooq.impl.SQLDataType.VARCHAR)).asEnumDataType(edu.uci.ics.texera.web.model.jooq.generated.enums.UserRole.class), this, "");
+
+    /**
+     * The column <code>texera_db.user.google_avatar</code>.
+     */
+    public final TableField<UserRecord, String> GOOGLE_AVATAR = createField(DSL.name("google_avatar"), org.jooq.impl.SQLDataType.VARCHAR(100), this, "");
 
     /**
      * Create a <code>texera_db.user</code> table reference
@@ -165,11 +170,11 @@ public class User extends TableImpl<UserRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row6 type methods
+    // Row7 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row6<UInteger, String, String, String, String, UserRole> fieldsRow() {
-        return (Row6) super.fieldsRow();
+    public Row7<UInteger, String, String, String, String, UserRole, String> fieldsRow() {
+        return (Row7) super.fieldsRow();
     }
 }

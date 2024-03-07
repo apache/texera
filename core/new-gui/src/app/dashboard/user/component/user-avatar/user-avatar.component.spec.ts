@@ -17,7 +17,6 @@ describe("UserAvatarComponent", () => {
   beforeEach(() => {
     fixture = TestBed.createComponent(UserAvatarComponent);
     component = fixture.componentInstance;
-    component.googleId = undefined;
     component.userName = "fake Texera user";
     fixture.detectChanges();
   });
