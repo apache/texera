@@ -40,9 +40,6 @@ object ExecutionsMetadataPersistService extends LazyLogging {
     if (!AmberConfig.isUserSystemEnabled) return DEFAULT_EXECUTION_ID
     // first retrieve the latest version of this workflow
     val vid = getLatestVersion(UInteger.valueOf(workflowId.id))
-    // fetch the workflow's environment eid
-    val environmentEid =
-      WorkflowResource.getEnvironmentEidOfWorkflow(UInteger.valueOf(workflowId.id))
     val newExecution = new WorkflowExecutions()
     if (executionName != "") {
       newExecution.setName(executionName)
