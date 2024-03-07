@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandle
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ConsoleMessageHandler.ConsoleMessageTriggered
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ModifyLogicHandler.ModifyLogic
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.UpdatePythonExecutorHandler.UpdatePythonExecutor
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateExecutorHandler.UpdateExecutor
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.error.ErrorUtils.mkConsoleMessage
@@ -31,7 +31,7 @@ trait ModifyLogicHandler {
         .map(_.getOperatorExecution(msg.newOp.id))
         .head
       val workerCommand = if (operator.isPythonOperator) {
-        ModifyPythonOperatorLogic(
+        UpdatePythonExecutor(
           msg.newOp.getPythonCode,
           isSource = operator.isSourceOperator
         )

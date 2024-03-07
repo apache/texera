@@ -11,11 +11,11 @@ from core.architecture.handlers.control.evaluate_expression_handler import (
     EvaluateExpressionHandler,
 )
 from core.architecture.handlers.control.control_handler_base import ControlHandler
-from core.architecture.handlers.control.initialize_operator_logic_handler import (
-    InitializeOperatorLogicHandler,
+from core.architecture.handlers.control.initialize_executor_handler import (
+    InitializeExecutorHandler,
 )
-from core.architecture.handlers.control.modify_operator_logic_handler import (
-    ModifyOperatorLogicHandler,
+from core.architecture.handlers.control.update_executor_handler import (
+    UpdateExecutorHandler,
 )
 from core.architecture.handlers.control.no_op_handler import NoOpHandler
 from core.architecture.handlers.control.open_operator_handler import OpenOperatorHandler
@@ -68,8 +68,8 @@ class AsyncRPCServer:
         self.register(AddInputChannelHandler())
         self.register(QueryStatisticsHandler())
         self.register(QueryCurrentInputTupleHandler())
-        self.register(InitializeOperatorLogicHandler())
-        self.register(ModifyOperatorLogicHandler())
+        self.register(InitializeExecutorHandler())
+        self.register(UpdateExecutorHandler())
         self.register(ReplayCurrentTupleHandler())
         self.register(EvaluateExpressionHandler())
         self.register(SchedulerTimeSlotEventHandler())

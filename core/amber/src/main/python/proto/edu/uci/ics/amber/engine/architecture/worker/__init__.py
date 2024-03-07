@@ -97,13 +97,13 @@ class LinkOrdinal(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class InitializeOperatorLogicV2(betterproto.Message):
+class InitializeExecutorV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
-class ModifyOperatorLogicV2(betterproto.Message):
+class UpdateExecutorV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
 
@@ -169,10 +169,10 @@ class ControlCommandV2(betterproto.Message):
     scheduler_time_slot_event: "SchedulerTimeSlotEventV2" = betterproto.message_field(
         11, group="sealed_value"
     )
-    initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
+    initialize_operator_logic: "InitializeExecutorV2" = betterproto.message_field(
         21, group="sealed_value"
     )
-    modify_operator_logic: "ModifyOperatorLogicV2" = betterproto.message_field(
+    modify_operator_logic: "UpdateExecutorV2" = betterproto.message_field(
         22, group="sealed_value"
     )
     python_console_message: "PythonConsoleMessageV2" = betterproto.message_field(

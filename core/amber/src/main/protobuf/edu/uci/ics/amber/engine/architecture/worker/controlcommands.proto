@@ -58,12 +58,12 @@ message LinkOrdinal {
     int64 port_ordinal = 2;
 }
 
-message InitializeOperatorLogicV2 {
+message InitializeExecutorV2 {
     string code = 1;
     bool is_source = 2;
 }
 
-message ModifyOperatorLogicV2 {
+message UpdateExecutorV2 {
     string code = 1;
     bool is_source = 2;
 }
@@ -123,8 +123,8 @@ message ControlCommandV2 {
 
         SchedulerTimeSlotEventV2 scheduler_time_slot_event = 11;
 
-        InitializeOperatorLogicV2 initialize_operator_logic = 21;
-        ModifyOperatorLogicV2 modify_operator_logic = 22;
+        InitializeExecutorV2 initialize_operator_logic = 21;
+        UpdateExecutorV2 modify_operator_logic = 22;
         PythonConsoleMessageV2 python_console_message = 23;
         ReplayCurrentTupleV2 replay_current_tuple = 24;
         EvaluateExpressionV2 evaluate_expression = 25;

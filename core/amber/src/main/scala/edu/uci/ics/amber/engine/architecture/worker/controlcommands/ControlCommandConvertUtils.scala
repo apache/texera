@@ -6,7 +6,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerEx
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfoWithCode
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.UpdatePythonExecutorHandler.UpdatePythonExecutor
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
@@ -52,14 +52,14 @@ object ControlCommandConvertUtils {
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
       case InitializeExecutor(_, opExecInitInfo, isSource) =>
-        InitializeOperatorLogicV2(
+        InitializeExecutorV2(
           opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0),
           isSource
         )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
-      case ModifyPythonOperatorLogic(code, isSource) =>
-        ModifyOperatorLogicV2(code, isSource)
+      case UpdatePythonExecutor(code, isSource) =>
+        UpdateExecutorV2(code, isSource)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
       case WorkerDebugCommand(cmd) =>
