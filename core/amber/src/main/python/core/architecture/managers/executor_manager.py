@@ -120,7 +120,7 @@ class ExecutorManager:
         self.executor = operator()
         self.executor.is_source = is_source
         assert (
-                isinstance(self.executor, SourceOperator) == self.executor.is_source
+            isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
 
     def update_operator(self, code: str, is_source: bool) -> None:
@@ -138,7 +138,7 @@ class ExecutorManager:
         self.executor = operator()
         self.executor.is_source = is_source
         assert (
-                isinstance(self.executor, SourceOperator) == self.executor.is_source
+            isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
