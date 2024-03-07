@@ -1,7 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.udf.java
 
-import edu.uci.ics.texera.workflow.operators.udf.java.JavaRuntimeCompilation.CustomClassLoader
-
 import java.io.ByteArrayOutputStream
 import java.net.URI
 import java.util
