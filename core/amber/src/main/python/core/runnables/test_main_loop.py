@@ -10,7 +10,7 @@ from core.models import (
     OutputDataFrame,
     EndOfUpstream,
     InternalQueue,
-    Tuple
+    Tuple,
 )
 from core.models.internal_queue import DataElement, ControlElement
 from core.runnables import MainLoop
