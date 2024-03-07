@@ -30,7 +30,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   propertyDisplay = true;
   screenWidth = window.innerWidth;
   propertyWidth = 300;
-  isOperatorSelected: boolean = false;
   propertyHeight = 300;
   prevHeight = 0;
   prevWidth = 0;
@@ -126,19 +125,16 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
           highlightLinks.length === 0 &&
           highlightedPorts.length === 0
         ) {
-          this.isOperatorSelected = true;
           this.switchFrameComponent({
             component: OperatorPropertyEditFrameComponent,
             componentInputs: { currentOperatorId: highlightedOperators[0] },
           });
         } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
-          this.isOperatorSelected = true;
           this.switchFrameComponent({
             component: PortPropertyEditFrameComponent,
             componentInputs: { currentPortID: highlightedPorts[0] },
           });
         } else {
-          this.isOperatorSelected = false;
           this.switchFrameComponent(undefined);
           this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
