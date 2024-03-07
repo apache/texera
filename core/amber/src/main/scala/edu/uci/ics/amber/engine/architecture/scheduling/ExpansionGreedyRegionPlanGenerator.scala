@@ -164,7 +164,7 @@ class ExpansionGreedyRegionPlanGenerator(
               // adding the edge causes cycle. return the link for materialization replacement
               return Some(Set(nextLink))
           }
-        case List(_) | Nil =>
+        case _ =>
       }
     None
   }
