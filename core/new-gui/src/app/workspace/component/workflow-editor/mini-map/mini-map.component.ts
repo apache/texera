@@ -15,10 +15,6 @@ export class MiniMapComponent implements AfterViewInit, OnInit {
   paper!: joint.dia.Paper;
   dragging = false;
 
-  minimapDisplay = false;
-  screenWidth = window.innerWidth;
-  miniMapWidth = 47;
-
   constructor(private workflowActionService: WorkflowActionService) {}
 
   ngAfterViewInit() {
@@ -66,21 +62,5 @@ export class MiniMapComponent implements AfterViewInit, OnInit {
       navigator.style.width = (editor.offsetWidth / this.paper.scale().sx) * this.scale + "px";
       navigator.style.height = (editor.offsetHeight / this.paper.scale().sy) * this.scale + "px";
     }
-  }
-
-  openMiniMapPanel() {
-    if (this.minimapDisplay == false) {
-      this.miniMapWidth = 400;
-    }
-    this.minimapDisplay = true;
-
-    setTimeout(() => {
-      this.ngAfterViewInit();
-    });
-  }
-
-  onClose_minimap(): void {
-    this.minimapDisplay = false;
-    this.miniMapWidth = 47;
   }
 }

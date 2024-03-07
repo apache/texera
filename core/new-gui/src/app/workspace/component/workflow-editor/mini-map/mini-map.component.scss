@@ -13,7 +13,6 @@
   position: fixed;
   bottom: 0;
   right: 0px;
-  width: 50%;
   z-index: 3;
   user-select: none;
   background: white;
@@ -28,15 +27,5 @@
   min-height: 100%;
   max-height: calc(100vh - 200px);
   display: inline-block;
-  width: calc(100% - 47px);
-}
-
-#title {
-  padding: 10px 0 4px 15px;
-}
-
-#dock {
-  display: inline-block;
-  vertical-align: bottom;
-  padding-bottom: 10px;
+  width: 400px;
 }

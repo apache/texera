@@ -1,13 +1,7 @@
 <div
-  id="mini-map-container"
-  [style.width.px]="miniMapWidth">
+  id="mini-map-container">
   <div
-    id="mini-map-content"
-    *ngIf="this.minimapDisplay">
-    <h6
-      id="title">
-      Mini Map
-    </h6>
+    id="mini-map-content">
     <div style="position: relative">
       <div id="mini-map"></div>
       <div
@@ -19,35 +13,4 @@
         (cdkDragEnded)="dragging=false"></div>
     </div>
   </div>
-  <ul
-    nz-menu
-    id="dock">
-    <li
-      nz-menu-item
-      nzSelected="{{this.minimapDisplay}}"
-      (click)="openMiniMapPanel()">
-      <span
-        nz-icon
-        nzType="compass"
-        nzTheme="outline"
-        class="icon-right"></span>
-    </li>
-    <li
-      nz-menu-item
-      (click)="onClose_minimap()"
-      *ngIf="this.minimapDisplay">
-      <span
-        nz-icon
-        nzType="minus"></span>
-    </li>
-    <li
-      nz-menu-item
-      nzSelected="{{!this.minimapDisplay}}"
-      *ngIf="!this.minimapDisplay">
-      <span
-        nz-icon
-        nzType="drag"
-        *ngIf="!this.minimapDisplay"></span>
-    </li>
-  </ul>
 </div>
