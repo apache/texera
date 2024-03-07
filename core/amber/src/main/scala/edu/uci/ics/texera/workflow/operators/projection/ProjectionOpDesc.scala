@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.operators.projection
 
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp.oneToOnePhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -30,30 +30,39 @@ class ProjectionOpDesc extends MapOpDesc {
       workflowId,
       executionId,
       operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new ProjectionOpExec(attributes))
+      OpExecInitInfo((_, _) => new ProjectionOpExec(attributes))
     )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withDerivePartition(derivePartition())
+      .withPropagateSchema(SchemaPropagationFunc(inputSchemas => {
+        if (attributes == null) attributes = List()
+        val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
+        val outputSchema = Schema
+          .builder()
+          .add(
+            attributes
+              .map(attribute =>
+                new Attribute(
+                  attribute.getAlias,
+                  inputSchema.getAttribute(attribute.getOriginalAttribute).getType
+                )
+              )
+          )
+          .build()
+        Map(operatorInfo.outputPorts.head.id -> outputSchema)
+      }))
   }
 
   def derivePartition()(partition: List[PartitionInfo]): PartitionInfo = {
     val inputPartitionInfo = partition.head
 
-    // mapping from original column index to new column index
-    lazy val columnIndicesMapping: Map[Int, Int] = attributes.view
-      .map(attr =>
-        inputPortToSchemaMapping(operatorInfo.inputPorts.head.id)
-          .getIndex(attr.getOriginalAttribute) -> attributes.indexOf(attr)
-      )
-      .toMap
-
     val outputPartitionInfo = inputPartitionInfo match {
       case HashPartition(hashAttributeNames) =>
         if (hashAttributeNames.nonEmpty) HashPartition(hashAttributeNames) else UnknownPartition()
-      case RangePartition(rangeColumnIndices, min, max) =>
-        val newIndices = rangeColumnIndices.flatMap(i => columnIndicesMapping.get(i))
-        if (newIndices.nonEmpty) RangePartition(newIndices, min, max) else UnknownPartition()
+      case RangePartition(rangeAttributeNames, min, max) =>
+        if (rangeAttributeNames.nonEmpty) RangePartition(rangeAttributeNames, min, max)
+        else UnknownPartition()
       case SinglePartition()    => inputPartitionInfo
       case BroadcastPartition() => inputPartitionInfo
       case UnknownPartition()   => inputPartitionInfo

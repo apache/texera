@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.common.tuple.schema
 import com.fasterxml.jackson.annotation.{JsonCreator, JsonIgnore, JsonProperty}
 import com.google.common.base.Preconditions.checkNotNull
 
+import scala.collection.immutable.ListMap
 import scala.collection.mutable
 
 case class Schema @JsonCreator() (
@@ -58,6 +59,14 @@ case class Schema @JsonCreator() (
     Schema(attributeNames.map(name => getAttribute(name)))
   }
 
+  /**
+    * This method converts to a Schema into a raw format, where each pair of attribute name and attribute type
+    * are represented as string. This is for serialization between languages.
+    */
+  def toRawSchema: Map[String, String] =
+    getAttributes.foldLeft(ListMap[String, String]())((list, attr) =>
+      list + (attr.getName -> attr.getType.toString)
+    )
 }
 
 object Schema {

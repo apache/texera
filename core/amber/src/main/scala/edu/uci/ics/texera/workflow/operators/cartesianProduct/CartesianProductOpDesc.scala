@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
-import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
@@ -19,11 +18,23 @@ class CartesianProductOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new CartesianProductOpExec())
+        OpExecInitInfo((_, _) => new CartesianProductOpExec())
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
       .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(
+            operatorInfo.outputPorts.head.id -> getOutputSchema(
+              Array(
+                inputSchemas(operatorInfo.inputPorts.head.id),
+                inputSchemas(operatorInfo.inputPorts.last.id)
+              )
+            )
+          )
+        )
+      )
       // TODO : refactor to parallelize this operator for better performance and scalability:
       //  can consider hash partition on larger input, broadcast smaller table to each partition
       .withParallelizable(false)
@@ -43,9 +54,6 @@ class CartesianProductOpDesc extends LogicalOp {
     *    no longer a duplicate, resulting in dup#@3
     */
   def getOutputSchemaInternal(schemas: Array[Schema]): Schema = {
-    // ensure there are exactly two input port schemas to consider
-    Preconditions.checkArgument(schemas.length == 2)
-
     // merge left / right schemas together, sequentially with left schema first
     val builder = Schema.builder()
     val leftSchema = schemas(0)

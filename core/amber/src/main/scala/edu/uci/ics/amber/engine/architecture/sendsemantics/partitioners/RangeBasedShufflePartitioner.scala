@@ -8,24 +8,22 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
 case class RangeBasedShufflePartitioner(partitioning: RangeBasedShufflePartitioning)
     extends Partitioner {
 
-  val keysPerReceiver =
-    ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length).toLong + 1
+  private val keysPerReceiver =
+    ((partitioning.rangeMax - partitioning.rangeMin) / partitioning.receivers.length) + 1
 
   override def getBucketIndex(tuple: Tuple): Iterator[Int] = {
-    // Do range partitioning only on the first attribute in `rangeColumnIndices`.
-    val fieldType = tuple.getSchema
-      .getAttributes(partitioning.rangeColumnIndices(0))
-      .getType
+    // Do range partitioning only on the first attribute in `rangeAttributeNames`.
+    val attribute = tuple.getSchema.getAttribute(partitioning.rangeAttributeNames.head)
     var fieldVal: Long = -1
-    fieldType match {
+    attribute.getType match {
       case AttributeType.LONG =>
-        fieldVal = tuple.getField[Long](partitioning.rangeColumnIndices(0))
+        fieldVal = tuple.getField[Long](attribute)
       case AttributeType.INTEGER =>
-        fieldVal = tuple.getField[Int](partitioning.rangeColumnIndices(0))
+        fieldVal = tuple.getField[Int](attribute)
       case AttributeType.DOUBLE =>
-        fieldVal = tuple.getField[Double](partitioning.rangeColumnIndices(0)).toLong
+        fieldVal = tuple.getField[Double](attribute).toLong
       case _ =>
-        throw new RuntimeException("unsupported attribute type: " + fieldType.toString())
+        throw new RuntimeException(s"unsupported attribute type: ${attribute.getType}")
     }
 
     if (fieldVal < partitioning.rangeMin) {

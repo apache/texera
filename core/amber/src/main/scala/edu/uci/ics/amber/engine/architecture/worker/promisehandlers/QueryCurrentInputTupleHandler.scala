@@ -13,6 +13,6 @@ trait QueryCurrentInputTupleHandler {
   this: DataProcessorRPCHandlerInitializer =>
 
   registerHandler { (msg: QueryCurrentInputTuple, sender) =>
-    dp.getCurrentInputTuple
+    dp.inputManager.getCurrentTuple
   }
 }
