@@ -45,7 +45,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
   public language: string = "java";
   public languageTitle: string = this.generateLanguageTitle(this.language);
-  public operatorType: string = '';
+  public operatorType: string = "";
 
   private generateLanguageTitle(language: string): string {
     return `${language.toUpperCase()} Script`;
