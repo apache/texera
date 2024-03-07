@@ -43,37 +43,8 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
   private val dataChannelId = ChannelIdentity(senderWorkerId, workerId, isControl = false)
   private val controlChannelId = ChannelIdentity(senderWorkerId, workerId, isControl = true)
   private val operator = mock[OperatorExecutor]
-  private val operatorIdentity = OperatorIdentity("testOperator")
-  private val physicalOp1 = PhysicalOp(
-    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
-    workflowId = DEFAULT_WORKFLOW_ID,
-    executionId = DEFAULT_EXECUTION_ID,
-    opExecInitInfo = null
-  )
-
   private val mockInputPortId = PortIdentity()
-  private val physicalOp2 = PhysicalOp(
-    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
-    workflowId = DEFAULT_WORKFLOW_ID,
-    executionId = DEFAULT_EXECUTION_ID,
-    opExecInitInfo = null
-  ).withInputPorts(List(InputPort()))
-    .withOutputPorts(List(OutputPort()))
 
-  private val mockLink =
-    PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, mockInputPortId)
-
-  private val physicalOp = PhysicalOp
-    .oneToOnePhysicalOp(
-      workflowId = DEFAULT_WORKFLOW_ID,
-      executionId = DEFAULT_EXECUTION_ID,
-      logicalOpId = operatorIdentity,
-      OpExecInitInfo((_, _) => operator)
-    )
-    .copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
-    )
   private val schema: Schema = Schema.builder().add("field1", AttributeType.INTEGER).build()
   private val tuples: Array[Tuple] = (0 until 5000)
     .map(i => TupleLike(i).enforceSchema(schema))
@@ -84,6 +55,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
   "DP Thread" should "handle pause/resume during processing" in {
     val dp = new DataProcessor(workerId, x => {})
+    dp.operator = operator
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     dp.inputManager.addPort(mockInputPortId, schema)
     dp.inputGateway.getChannel(dataChannelId).setPortId(mockInputPortId)
@@ -122,6 +94,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     dp.adaptiveBatchingMonitor = mock[WorkerTimerService]
     (dp.adaptiveBatchingMonitor.resumeAdaptiveBatching _).expects().anyNumberOfTimes()
     val dpThread = new DPThread(workerId, dp, logManager, inputQueue)
+    dp.operator = operator
     dpThread.start()
     tuples.foreach { x =>
       (
@@ -151,6 +124,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
   "DP Thread" should "handle multiple batches from multiple sources" in {
     val dp = new DataProcessor(workerId, x => {})
+    dp.operator = operator
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
     dp.inputManager.addPort(mockInputPortId, schema)
@@ -190,6 +164,7 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
 
   "DP Thread" should "write determinant logs to local storage while processing" in {
     val dp = new DataProcessor(workerId, x => {})
+    dp.operator = operator
     val inputQueue = new LinkedBlockingQueue[DPInputQueueElement]()
     val anotherSenderWorkerId = ActorVirtualIdentity("another")
     dp.inputManager.addPort(mockInputPortId, schema)
