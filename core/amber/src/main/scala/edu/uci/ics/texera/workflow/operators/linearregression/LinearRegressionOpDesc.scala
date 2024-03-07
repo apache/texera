@@ -34,7 +34,7 @@ class LinearRegressionOpDesc extends MLModelOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new LinearRegressionOpExec(xAttr, yAttr, learningRate))
+        OpExecInitInfo((_, _) => new LinearRegressionOpExec(xAttr, yAttr, learningRate))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

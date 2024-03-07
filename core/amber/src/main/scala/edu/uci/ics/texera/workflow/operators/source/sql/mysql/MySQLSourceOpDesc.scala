@@ -21,7 +21,7 @@ class MySQLSourceOpDesc extends SQLSourceOpDesc {
         workflowId,
         executionId,
         this.operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
+        OpExecInitInfo((_, _) =>
           new MySQLSourceOpExec(
             host,
             port,

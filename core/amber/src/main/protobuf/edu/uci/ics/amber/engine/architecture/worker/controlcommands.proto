@@ -31,6 +31,7 @@ message OpenOperatorV2 {}
 message AssignPortV2 {
     common.PortIdentity portId = 1 [(scalapb.field).no_box = true];
     bool input = 2;
+    map<string, string> schema = 3;
 }
 
 message AddInputChannelV2 {
@@ -60,7 +61,6 @@ message LinkOrdinal {
 message InitializeOperatorLogicV2 {
     string code = 1;
     bool is_source = 2;
-    map<string, string> output_schema = 3;
 }
 
 message ModifyOperatorLogicV2 {

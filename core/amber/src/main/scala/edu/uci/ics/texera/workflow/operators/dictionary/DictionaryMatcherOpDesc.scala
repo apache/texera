@@ -39,9 +39,7 @@ class DictionaryMatcherOpDesc extends MapOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
-          new DictionaryMatcherOpExec(attribute, dictionary, matchingType)
-        )
+        OpExecInitInfo((_, _) => new DictionaryMatcherOpExec(attribute, dictionary, matchingType))
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

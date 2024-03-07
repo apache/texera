@@ -22,14 +22,7 @@ import java.util.concurrent.{ExecutorService, Executors}
 import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
-  def props(
-      workerConfig: WorkerConfig
-  ): Props =
-    Props(
-      new PythonWorkflowWorker(
-        workerConfig
-      )
-    )
+  def props(workerConfig: WorkerConfig): Props = Props(new PythonWorkflowWorker(workerConfig))
 }
 
 class PythonWorkflowWorker(

@@ -83,7 +83,7 @@ class IntervalJoinOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
+        OpExecInitInfo((_, _) =>
           new IntervalJoinOpExec(
             leftAttributeName,
             rightAttributeName,
