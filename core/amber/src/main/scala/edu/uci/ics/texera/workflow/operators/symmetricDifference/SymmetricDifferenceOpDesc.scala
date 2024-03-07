@@ -22,7 +22,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new SymmetricDifferenceOpExec())
+        OpExecInitInfo((_, _) => new SymmetricDifferenceOpExec())
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)

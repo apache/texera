@@ -1,23 +1,18 @@
 package edu.uci.ics.amber.engine.architecture.deploysemantics.layer
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.common.IOperatorExecutor
 
 object OpExecInitInfo {
 
-  type OpExecFunc = (Int, PhysicalOp, OperatorConfig) => IOperatorExecutor
+  type OpExecFunc = (Int, Int) => IOperatorExecutor
   type JavaOpExecFunc =
-    java.util.function.Function[(Int, PhysicalOp, OperatorConfig), IOperatorExecutor]
-      with java.io.Serializable
+    java.util.function.Function[(Int, Int), IOperatorExecutor] with java.io.Serializable
 
   def apply(code: String, language: String): OpExecInitInfo =
-    OpExecInitInfoWithCode((_, _, _) => (code, language))
+    OpExecInitInfoWithCode((_, _) => (code, language))
   def apply(opExecFunc: OpExecFunc): OpExecInitInfo = OpExecInitInfoWithFunc(opExecFunc)
   def apply(opExecFunc: JavaOpExecFunc): OpExecInitInfo =
-    OpExecInitInfoWithFunc((idx, physicalOp, operatorConfig) =>
-      opExecFunc.apply(idx, physicalOp, operatorConfig)
-    )
+    OpExecInitInfoWithFunc((idx, totalWorkerCount) => opExecFunc.apply(idx, totalWorkerCount))
 }
 
 /**
@@ -34,8 +29,8 @@ sealed trait OpExecInitInfo
 // only for Python right now
 // TODO: add language type into this class
 final case class OpExecInitInfoWithCode(
-    codeGen: (Int, PhysicalOp, OperatorConfig) => (String, String)
+    codeGen: (Int, Int) => (String, String)
 ) extends OpExecInitInfo
 final case class OpExecInitInfoWithFunc(
-    opGen: (Int, PhysicalOp, OperatorConfig) => IOperatorExecutor
+    opGen: (Int, Int) => IOperatorExecutor
 ) extends OpExecInitInfo

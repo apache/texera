@@ -55,9 +55,11 @@ class replace_print(ContextManager):
                     worker_id=self.worker_id,
                     timestamp=datetime.datetime.now(),
                     msg_type=ConsoleMessageType.PRINT,
-                    source=f"{inspect.currentframe().f_back.f_globals['__name__']}"
-                    f":{inspect.currentframe().f_back.f_code.co_name}"
-                    f":{inspect.currentframe().f_back.f_lineno}",
+                    source=(
+                        f"{inspect.currentframe().f_back.f_globals['__name__']}"
+                        f":{inspect.currentframe().f_back.f_code.co_name}"
+                        f":{inspect.currentframe().f_back.f_lineno}"
+                    ),
                     title=complete_str,
                     message="",
                 )

@@ -44,7 +44,7 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
             workflowId,
             executionId,
             operatorIdentifier,
-            OpExecInitInfo((_, _, _) =>
+            OpExecInitInfo((_, _) =>
               new CSVOldScanSourceOpExec(
                 path,
                 fileEncoding,

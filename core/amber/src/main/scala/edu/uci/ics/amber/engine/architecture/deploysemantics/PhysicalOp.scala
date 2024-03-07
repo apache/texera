@@ -209,7 +209,7 @@ case class PhysicalOp(
   def isPythonOperator: Boolean = {
     opExecInitInfo match {
       case opExecInfo: OpExecInitInfoWithCode =>
-        val (code, language) = opExecInfo.codeGen(0, this, OperatorConfig.empty)
+        val (_, language) = opExecInfo.codeGen(0, 0)
         var isPythonCode = true
         if (language == "java") {
           isPythonCode = false
@@ -225,7 +225,7 @@ case class PhysicalOp(
       throw new RuntimeException("operator " + id + " is not a python operator")
     }
     val (code, language) =
-      opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
+      opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
     code
   }
 
@@ -536,8 +536,6 @@ case class PhysicalOp(
       } else {
         WorkflowWorker.props(
           workerConfig,
-          physicalOp = this,
-          operatorConfig,
           WorkerReplayInitialization(
             stateRestoreConfig,
             replayLoggingConfig
