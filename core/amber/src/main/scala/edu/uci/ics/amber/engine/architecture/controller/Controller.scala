@@ -8,10 +8,8 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.{
   ReplayStatusUpdate,
   WorkflowRecoveryStatus
 }
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkflowPaused,
-  WorkflowStatusUpdate
-}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
+import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
   FaultToleranceConfig,
@@ -25,12 +23,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
-import edu.uci.ics.amber.engine.common.{
-  AmberConfig,
-  CheckpointState,
-  SerializedState,
-  VirtualIdentityUtils
-}
+import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -209,25 +202,23 @@ class Controller(
     cp.outputHandler = logManager.sendCommitted
     initControllerProcessor()
     // revive all workers.
-    val builtPhysicalOps = cp.executionState.getAllBuiltWorkers
-      .map(workerId => VirtualIdentityUtils.getPhysicalOpId(workerId))
-      .toSet
-    builtPhysicalOps.foreach { opId =>
-      val op = workflow.physicalPlan.getOperator(opId)
-      val region =
-        workflow.regionPlan.regions.find(r => r.resourceConfig.get.operatorConfigs.contains(opId))
-      val dummyExecution =
-        new OperatorExecution(workflow.context.workflowId, workflow.context.executionId, opId, 1)
-      op.build(
-        actorService,
-        dummyExecution,
-        region.get.resourceConfig.get.operatorConfigs(opId),
-        controllerConfig.workerRestoreConf,
-        controllerConfig.workerLoggingConf
-      )
+    cp.workflowExecution.getRunningRegionExecutions.foreach { regionExecution =>
+      regionExecution.getAllOperatorExecutions.foreach {
+        case (opId, opExecution) =>
+          val op = physicalPlan.getOperator(opId)
+          op.build(
+            actorService,
+            OperatorExecution(), //use dummy value here
+            regionExecution.region.resourceConfig.get.operatorConfigs(opId),
+            controllerConfig.stateRestoreConfOpt,
+            controllerConfig.faultToleranceConfOpt
+          )
+      }
     }
     outputMessages.foreach(transferService.send)
-    cp.asyncRPCClient.sendToClient(WorkflowStatusUpdate(cp.executionState.getWorkflowStatus))
+    cp.asyncRPCClient.sendToClient(
+      WorkflowStatsUpdate(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap)
+    )
     globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
   }
 }

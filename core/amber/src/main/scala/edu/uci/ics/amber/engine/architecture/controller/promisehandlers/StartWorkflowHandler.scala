@@ -23,14 +23,13 @@ trait StartWorkflowHandler {
     {
       if (cp.workflowExecution.getState.isUninitialized) {
         cp.workflowExecutionCoordinator
-          .executeNextRegions(
-          cp.actorService)
+          .executeNextRegions(cp.actorService)
           .map(_ => {
             cp.controllerTimerService.enableStatusUpdate()
             RUNNING
           })
       } else {
-        Future(cp.executionState.getState)
+        Future(cp.workflowExecution.getState)
       }
     }
   }

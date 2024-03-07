@@ -1,7 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport}
 import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
@@ -20,7 +19,8 @@ class CSVScanSourceOpExec private[csv] (
     customDelimiter: Option[String],
     hasHeader: Boolean,
     schemaFunc: () => Schema
-) extends ISourceOperatorExecutor with CheckpointSupport {
+) extends ISourceOperatorExecutor
+    with CheckpointSupport {
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
   var schema: Schema = _
@@ -98,7 +98,10 @@ class CSVScanSourceOpExec private[csv] (
     }
   }
 
-  override def serializeState(currentIteratorState: Iterator[(ITuple, Option[PortIdentity])], checkpoint: CheckpointState): Iterator[(ITuple, Option[PortIdentity])] = {
+  override def serializeState(
+      currentIteratorState: Iterator[(TupleLike, Option[PortIdentity])],
+      checkpoint: CheckpointState
+  ): Iterator[(TupleLike, Option[PortIdentity])] = {
     checkpoint.save(
       "numOutputRows",
       numRowGenerated
@@ -106,11 +109,13 @@ class CSVScanSourceOpExec private[csv] (
     currentIteratorState
   }
 
-  override def deserializeState(checkpoint: CheckpointState): Iterator[(ITuple, Option[PortIdentity])] = {
+  override def deserializeState(
+      checkpoint: CheckpointState
+  ): Iterator[(TupleLike, Option[PortIdentity])] = {
     open()
     numRowGenerated = checkpoint.load("numOutputRows")
-    var tupleIterator = produceTexeraTuple() .drop(numRowGenerated)
-    if (desc.limit.isDefined) tupleIterator = tupleIterator.take(desc.limit.get - numRowGenerated)
+    var tupleIterator = produceTuple().drop(numRowGenerated)
+    if (limit.isDefined) tupleIterator = tupleIterator.take(limit.get - numRowGenerated)
     tupleIterator.map(tuple => (tuple, Option.empty))
   }
 

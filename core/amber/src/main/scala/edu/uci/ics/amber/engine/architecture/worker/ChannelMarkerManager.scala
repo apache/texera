@@ -27,8 +27,6 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
 
   val checkpoints = new mutable.HashMap[ChannelMarkerIdentity, CheckpointState]()
 
-  val checkpoints = new mutable.HashMap[ChannelMarkerIdentity, CheckpointState]()
-
   /**
     * Determines if an epoch marker is fully received from all relevant senders within its scope.
     * This method checks if the epoch marker, based on its type, has been received from all necessary channels.

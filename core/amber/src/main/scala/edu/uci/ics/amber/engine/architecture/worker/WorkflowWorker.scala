@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErr
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker._
+import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
@@ -66,9 +67,6 @@ class WorkflowWorker(
   val timerService = new WorkerTimerService(actorService)
 
   var dpThread: DPThread = _
-
-  val recordedInputs =
-    new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
 
   val recordedInputs =
     new mutable.HashMap[ChannelMarkerIdentity, mutable.ArrayBuffer[WorkflowFIFOMessage]]()
@@ -152,12 +150,7 @@ class WorkflowWorker(
     dp = dpState // overwrite dp state
     dp.outputHandler = logManager.sendCommitted
     dp.initTimerService(timerService)
-    dp.initOperator(
-      VirtualIdentityUtils.getWorkerIndex(workerConfig.workerId),
-      physicalOp,
-      operatorConfig,
-      Some(chkpt)
-    )
+    // TODO: load operator back from checkpoint
     queuedMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))
     inflightMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))
     outputMessages.foreach(transferService.send)
