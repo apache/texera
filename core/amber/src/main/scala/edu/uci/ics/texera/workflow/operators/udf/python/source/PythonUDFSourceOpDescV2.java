@@ -61,6 +61,15 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         OpExecInitInfo exec = OpExecInitInfo.apply(code);
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
+        SchemaPropagationFunc func = SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+            // Initialize a Java HashMap
+            java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
+
+            javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
+
+            // Convert the Java Map to a Scala immutable Map
+            return AmberUtils.toImmutableMap(javaMap);
+        });
         if (workers > 1) {
             return PhysicalOp.sourcePhysicalOp(
                         workflowId,
@@ -73,17 +82,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     .withInputPorts(operatorInfo().inputPorts())
                     .withOutputPorts(operatorInfo().outputPorts())
                     .withIsOneToManyOp(true)
-                    .withPropagateSchema(
-                            SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
-                                // Initialize a Java HashMap
-                                java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
-
-                                javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
-
-                                // Convert the Java Map to a Scala immutable Map
-                                return AmberUtils.toImmutableMap(javaMap);
-                            })
-                    )
+                    .withPropagateSchema(func)
                     .withLocationPreference(Option.empty());
         } else {
             return PhysicalOp.sourcePhysicalOp(
@@ -96,6 +95,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                     .withInputPorts(operatorInfo().inputPorts())
                     .withOutputPorts(operatorInfo().outputPorts())
                     .withIsOneToManyOp(true)
+                    .withPropagateSchema(func)
                     .withLocationPreference(Option.empty());
         }
 
