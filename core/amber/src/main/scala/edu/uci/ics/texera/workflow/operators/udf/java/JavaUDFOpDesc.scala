@@ -18,27 +18,21 @@ class JavaUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-      "//import edu.uci.ics.texera.workflow.operators.udf.java.JavaUDFOpDesc;\n" +
-        "//import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;\n" +
-        "//import edu.uci.ics.texera.workflow.common.tuple.Tuple;\n" +
-        "//import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;\n" +
-        "//import scala.Function1;\n" +
-        "//import java.io.Serializable;\n" +
-        "//import java.io.IOException;\n" +
-        "//import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;\n" +
-        "//import java.util.*;\n\n" +
-        "//public class JavaUDFOpExec extends MapOpExec {\n" +
-        "//    public JavaUDFOpExec () {\n" +
-        "//        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::processTuple);\n" +
-        "//    }\n" +
-        "//    \n" +
-        "//    public TupleLike processTuple(Tuple t) {\n" +
-        "//        String txt=\"Hello Texera, this is Java UDF!\";\n" +
-        "//        java.util.List<Object> dataList = new ArrayList<>();\n" +
-        "//        dataList.add(txt);\n\n" +
-        "//        return TupleLike.apply(dataList);\n" +
-        "//    }\n" +
-        "//}"
+      "import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;\n" +
+        "import edu.uci.ics.texera.workflow.common.tuple.Tuple;\n" +
+        "import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;\n" +
+        "import scala.Function1;\n" +
+        "import java.io.Serializable;\n" +
+        "\n" +
+        "public class JavaUDFOpExec extends MapOpExec {\n" +
+        "    public JavaUDFOpExec () {\n" +
+        "        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::processTuple);\n" +
+        "    }\n" +
+        "    \n" +
+        "    public TupleLike processTuple(Tuple tuple) {\n" +
+        "        return tuple;\n" +
+        "    }\n" +
+        "}"
   )
   @JsonSchemaTitle("Java UDF script")
   @JsonPropertyDescription("Input your code here")
@@ -74,7 +68,6 @@ class JavaUDFOpDesc extends LogicalOp {
     }
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
-      //    Preconditions.checkArgument(schemas.length == 1)
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
       val outputSchemaBuilder = Schema.builder()
       // keep the same schema from input

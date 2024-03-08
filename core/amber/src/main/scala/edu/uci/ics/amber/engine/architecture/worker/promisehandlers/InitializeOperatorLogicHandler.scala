@@ -29,10 +29,11 @@ trait InitializeOperatorLogicHandler {
         case OpExecInitInfoWithCode(codeGen) =>
           val (code, _) =
             codeGen(VirtualIdentityUtils.getWorkerIndex(actorId), msg.totalWorkerCount)
-          val compiledClass = JavaRuntimeCompilation.compileCode(code)
-          val constructor = compiledClass.getDeclaredConstructor()
-          val instance = constructor.newInstance()
-          instance.asInstanceOf[OperatorExecutor]
+          JavaRuntimeCompilation
+            .compileCode(code)
+            .getDeclaredConstructor()
+            .newInstance()
+            .asInstanceOf[OperatorExecutor]
 
         case OpExecInitInfoWithFunc(opGen) =>
           opGen(VirtualIdentityUtils.getWorkerIndex(actorId), msg.totalWorkerCount)
