@@ -83,6 +83,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.bubbleChart.BubbleCha
 import edu.uci.ics.texera.workflow.operators.visualization.ImageViz.ImageVisualizerOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.hierarchychart.HierarchyChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.dumbbellPlot.DumbbellPlotOpDesc
+import edu.uci.ics.texera.workflow.operators.visualization.histogram.HistogramChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.heatMap.HeatMapOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.lineChart.LineChartOpDesc
 import edu.uci.ics.texera.workflow.operators.visualization.scatter3DChart.Scatter3dChartOpDesc
@@ -172,6 +173,7 @@ trait StateTransferFunc
     new Type(value = classOf[DumbbellPlotOpDesc], name = "DumbbellPlot"),
     new Type(value = classOf[DummyOpDesc], name = "Dummy"),
     new Type(value = classOf[BoxPlotOpDesc], name = "BoxPlot"),
+    new Type(value = classOf[HistogramChartOpDesc], name = "Histogram"),
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
