@@ -26,7 +26,8 @@ trait TakeGlobalCheckpointHandler {
 
   registerHandler { (msg: TakeGlobalCheckpoint, sender) =>
     var estimationOnly = msg.estimationOnly
-    @transient val storage = SequentialRecordStorage.getStorage[CheckpointState](Some(msg.destination))
+    @transient val storage =
+      SequentialRecordStorage.getStorage[CheckpointState](Some(msg.destination))
     if (storage.containsFolder(msg.checkpointId.toString)) {
       logger.info("skip checkpoint since its already taken")
       estimationOnly = true
