@@ -18,7 +18,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-
 import scala.Option;
 import scala.collection.immutable.Map;
 
@@ -70,33 +69,25 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
             // Convert the Java Map to a Scala immutable Map
             return AmberUtils.toImmutableMap(javaMap);
         });
+        PhysicalOp physicalOp = PhysicalOp.sourcePhysicalOp(
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        exec
+                )
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts())
+                .withIsOneToManyOp(true)
+                .withPropagateSchema(func)
+                .withLocationPreference(Option.empty());
+
+
         if (workers > 1) {
-            return PhysicalOp.sourcePhysicalOp(
-                        workflowId,
-                        executionId,
-                        operatorIdentifier(),
-                        exec
-                    )
+            return physicalOp
                     .withParallelizable(true)
-                    .withSuggestedWorkerNum(workers)
-                    .withInputPorts(operatorInfo().inputPorts())
-                    .withOutputPorts(operatorInfo().outputPorts())
-                    .withIsOneToManyOp(true)
-                    .withPropagateSchema(func)
-                    .withLocationPreference(Option.empty());
+                    .withSuggestedWorkerNum(workers);
         } else {
-            return PhysicalOp.sourcePhysicalOp(
-                        workflowId,
-                        executionId,
-                        operatorIdentifier(),
-                        exec
-                    )
-                    .withParallelizable(false)
-                    .withInputPorts(operatorInfo().inputPorts())
-                    .withOutputPorts(operatorInfo().outputPorts())
-                    .withIsOneToManyOp(true)
-                    .withPropagateSchema(func)
-                    .withLocationPreference(Option.empty());
+            return physicalOp.withParallelizable(false);
         }
 
     }
@@ -108,7 +99,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 asScala(new ArrayList<InputPort>()).toList(),
-                asScala(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 true,
