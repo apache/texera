@@ -17,4 +17,5 @@ trait IOperatorExecutor {
       port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])]
 
+  def onFinish(port:Int): Iterator[(TupleLike, Option[PortIdentity])]
 }
