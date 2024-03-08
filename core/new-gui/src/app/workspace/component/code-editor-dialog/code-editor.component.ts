@@ -47,7 +47,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public languageTitle: string = "";
 
   private generateLanguageTitle(language: string): string {
-    return `${language.toUpperCase()} Script`;
+    return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
   }
 
   changeLanguage(newLanguage: string) {

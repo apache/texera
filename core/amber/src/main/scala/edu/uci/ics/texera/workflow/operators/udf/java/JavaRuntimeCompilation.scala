@@ -20,17 +20,32 @@ object JavaRuntimeCompilation {
       compiler.getStandardFileManager(null, null, null)
     )
 
-    compiler
+    // Diagnostic collector is to capture compilation diagnostics (errors, warnings, etc.)
+    val diagnosticCollector = new DiagnosticCollector[JavaFileObject]
+
+    val compilationResult = compiler
       .getTask(
         null,
         fileManager,
-        null,
+        diagnosticCollector,
         null,
         null,
         util.Arrays.asList(new StringJavaFileObject(defaultClassName, codeToCompile))
       )
       .call()
 
+    // Checking if compilation was successful
+    if (!compilationResult) {
+      // Getting the compilation diagnostics (errors and warnings)
+      val diagnostics = diagnosticCollector.getDiagnostics
+      val errorMessageBuilder = new StringBuilder()
+      diagnostics.forEach { diagnostic =>
+        errorMessageBuilder.append(
+          s"Error at line ${diagnostic.getLineNumber}: ${diagnostic.getMessage(null)}\n"
+        )
+      }
+      throw new RuntimeException(errorMessageBuilder.toString())
+    }
     new CustomClassLoader().loadClass(defaultClassName, fileManager.getCompiledBytes)
   }
 

@@ -79,7 +79,7 @@ class JavaUDFOpDesc extends LogicalOp {
       val outputSchemaBuilder = Schema.builder()
       // keep the same schema from input
       if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-      // for any pythonUDFType, it can add custom output columns (attributes).
+      // for any javaUDFType, it can add custom output columns (attributes).
       if (outputColumns != null) {
         if (retainInputColumns) { // check if columns are duplicated
 
@@ -167,7 +167,7 @@ class JavaUDFOpDesc extends LogicalOp {
     val outputSchemaBuilder = Schema.Builder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    // for any pythonUDFType, it can add custom output columns (attributes).
+    // for any javaUDFType, it can add custom output columns (attributes).
     if (outputColumns != null) {
       if (retainInputColumns) { // check if columns are duplicated
 
