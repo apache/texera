@@ -15,10 +15,11 @@ trait SourceOperatorExecutor extends IOperatorExecutor {
 
   def produceTuple(): Iterator[TupleLike]
 
-  def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] =
-    // The input Tuple for source operator will always be InputExhausted.
-    // Source and other operators can share the same processing logic.
-    // produceTuple() will be called only once.
+  def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
+    // We assume there is only one input port for source operators. The current assumption
+    // makes produceTuple to be invoked on each input port finish.
+    // We should move this to onFinishAllPorts later.
     produceTuple().map(t => (t, Option.empty))
+  }
 
 }
