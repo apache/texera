@@ -104,8 +104,8 @@ class DataProcessor(
   }
 
   /**
-    * process InputExhausted with Executor.onFinish
-    * this function is only called by the DP thread
+    * process end of an input port with Executor.onFinish().
+    * this function is only called by the DP thread.
     */
   private[this] def processInputExhausted(): Unit = {
     try {
