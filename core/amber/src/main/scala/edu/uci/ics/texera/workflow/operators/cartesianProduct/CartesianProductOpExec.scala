@@ -25,18 +25,15 @@ class CartesianProductOpExec extends OperatorExecutor {
     * @param port The port number indicating which stream the tuple is from (0 for left, 1 for right).
     * @return An Iterator of TupleLike objects representing the Cartesian product.
     */
-  override def processTuple(tuple: Either[Tuple, InputExhausted], port: Int): Iterator[TupleLike] =
-    tuple match {
-      case Left(tuple) =>
-        if (port == 0) {
-          leftTuples += tuple
-          Iterator.empty
-        } else {
-          leftTuples.map(leftTuple => JoinUtils.joinTuples(leftTuple, tuple)).iterator
-        }
-      case Right(_) =>
-        Iterator.empty
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    if (port == 0) {
+      leftTuples += tuple
+      Iterator.empty
+    } else {
+      leftTuples.map(leftTuple => JoinUtils.joinTuples(leftTuple, tuple)).iterator
     }
+
+  }
 
   override def open(): Unit = {
     leftTuples = ArrayBuffer[Tuple]()

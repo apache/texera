@@ -12,10 +12,8 @@ trait IOperatorExecutor {
 
   def close(): Unit
 
-  def processTupleMultiPort(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[(TupleLike, Option[PortIdentity])]
+  def processTupleMultiPort(tuple: Tuple, port: Int): Iterator[(TupleLike, Option[PortIdentity])]
 
-  def onFinish(port:Int): Iterator[(TupleLike, Option[PortIdentity])]
+  def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])]
+
 }

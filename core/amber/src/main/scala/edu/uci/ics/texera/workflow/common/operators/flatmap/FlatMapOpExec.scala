@@ -9,9 +9,7 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
   * Common operator executor of a map() function
   * A map() function transforms one input tuple to exactly one output tuple.
   */
-class FlatMapOpExec(
-) extends OperatorExecutor
-    with Serializable {
+class FlatMapOpExec extends OperatorExecutor with Serializable {
 
   var flatMapFunc: Tuple => Iterator[TupleLike] = _
 
@@ -27,14 +25,6 @@ class FlatMapOpExec(
 
   override def close(): Unit = {}
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(t)  => flatMapFunc(t)
-      case Right(_) => Iterator()
-    }
-  }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = flatMapFunc(tuple)
 
 }

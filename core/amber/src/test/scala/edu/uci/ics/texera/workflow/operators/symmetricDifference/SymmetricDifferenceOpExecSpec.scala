@@ -72,10 +72,7 @@ class SymmetricDifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assertThrows[IllegalArgumentException] {
       (1 to 100).map(_ => {
         opExec.processTuple(Left(tuple()), 2)
-        opExec.processTuple(
-          Left(commonTuples(Random.nextInt(commonTuples.size))),
-          3
-        )
+        opExec.processTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), 3)
       })
 
       val outputTuples: Set[Tuple] =

@@ -242,10 +242,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         ) < rightOrder(rightIndex))
       ) {
         val result = opExec
-          .processTuple(
-            Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)),
-            left
-          )
+          .processTuple(Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)), left)
           .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(
@@ -254,10 +251,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         leftIndex += 1
       } else if (rightIndex < rightOrder.size) {
         val result = opExec
-          .processTuple(
-            Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)),
-            right
-          )
+          .processTuple(Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)), right)
           .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(

@@ -17,14 +17,8 @@ abstract class FilterOpExec extends OperatorExecutor with Serializable {
 
   override def close(): Unit = {}
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(t)  => if (filterFunc(t)) Iterator(t) else Iterator()
-      case Right(_) => Iterator()
-    }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    if (filterFunc(tuple)) Iterator(tuple) else Iterator()
   }
 
 }

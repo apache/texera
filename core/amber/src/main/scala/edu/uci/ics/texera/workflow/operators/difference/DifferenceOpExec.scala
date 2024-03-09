@@ -13,28 +13,22 @@ class DifferenceOpExec extends OperatorExecutor {
   private val rightHashSet: mutable.HashSet[Tuple] = new mutable.HashSet()
   private var exhaustedCounter: Int = 0
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    if (port >= 2) {
-      throw new IllegalArgumentException("input port should not be more than 2")
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    if (port == 1) { // right input
+      rightHashSet.add(tuple)
+    } else { // left input
+      leftHashSet.add(tuple)
     }
-    tuple match {
-      case Left(t) =>
-        if (port == 1) { // right input
-          rightHashSet.add(t)
-        } else { // left input
-          leftHashSet.add(t)
-        }
-        Iterator()
-      case Right(_) =>
-        exhaustedCounter += 1
-        if (2 == exhaustedCounter) {
-          leftHashSet.diff(rightHashSet).iterator
-        } else {
-          Iterator()
-        }
+    Iterator()
+
+  }
+
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    exhaustedCounter += 1
+    if (2 == exhaustedCounter) {
+      leftHashSet.diff(rightHashSet).iterator
+    } else {
+      Iterator()
     }
   }
 

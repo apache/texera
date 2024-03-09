@@ -73,7 +73,7 @@ class WorkerSpec
     override def close(): Unit = println("closed!")
 
     override def processTupleMultiPort(
-        tuple: Either[Tuple, InputExhausted],
+        tuple: Tuple,
         port: Int
     ): Iterator[(TupleLike, Option[PortIdentity])] = {
       tuple match {

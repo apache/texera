@@ -25,41 +25,39 @@ class AggregateOpExec(
 
   override def close(): Unit = {}
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] =
-    tuple match {
-      case Left(t) =>
-        // Initialize distributedAggregations if it's not yet initialized
-        if (distributedAggregations == null) {
-          distributedAggregations =
-            aggregations.map(agg => agg.getAggFunc(t.getSchema.getAttribute(agg.attribute).getType))
-        }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
-        // Construct the group key
-        val key = groupByKeys.map(t.getField[Object])
-
-        // Get or initialize the partial aggregate for the key
-        val partialAggregates =
-          keyedPartialAggregates.getOrElseUpdate(key, distributedAggregations.map(_.init()))
-
-        // Update the partial aggregates with the current tuple
-        val updatedAggregates = (distributedAggregations zip partialAggregates).map {
-          case (aggregation, partial) => aggregation.iterate(partial, t)
-        }
-
-        keyedPartialAggregates(key) = updatedAggregates
-        Iterator.empty
-
-      case Right(_) =>
-        // Finalize aggregation for all keys and produce the result
-        keyedPartialAggregates.iterator.map {
-          case (key, partials) =>
-            val finalAggregates = partials.zipWithIndex.map {
-              case (partial, index) => distributedAggregations(index).finalAgg(partial)
-            }
-            TupleLike(key ++ finalAggregates)
-        }
+    // Initialize distributedAggregations if it's not yet initialized
+    if (distributedAggregations == null) {
+      distributedAggregations =
+        aggregations.map(agg => agg.getAggFunc(tuple.getSchema.getAttribute(agg.attribute).getType))
     }
+
+    // Construct the group key
+    val key = groupByKeys.map(tuple.getField[Object])
+
+    // Get or initialize the partial aggregate for the key
+    val partialAggregates =
+      keyedPartialAggregates.getOrElseUpdate(key, distributedAggregations.map(_.init()))
+
+    // Update the partial aggregates with the current tuple
+    val updatedAggregates = (distributedAggregations zip partialAggregates).map {
+      case (aggregation, partial) => aggregation.iterate(partial, tuple)
+    }
+
+    keyedPartialAggregates(key) = updatedAggregates
+    Iterator.empty
+
+  }
+
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    // Finalize aggregation for all keys and produce the result
+    keyedPartialAggregates.iterator.map {
+      case (key, partials) =>
+        val finalAggregates = partials.zipWithIndex.map {
+          case (partial, index) => distributedAggregations(index).finalAgg(partial)
+        }
+        TupleLike(key ++ finalAggregates)
+    }
+  }
 }

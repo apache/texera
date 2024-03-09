@@ -10,24 +10,15 @@ class ProgressiveSinkOpExec(
     outputMode: IncrementalOutputMode,
     storage: SinkStorageWriter
 ) extends ISinkOperatorExecutor {
-
-  override def open(): Unit = storage.open()
-
-  override def close(): Unit = storage.close()
-
   override def consume(
-      tuple: Either[Tuple, InputExhausted],
+      tuple: Tuple,
       input: Int
   ): Unit = {
-    tuple match {
-      case Left(t) =>
-        outputMode match {
-          case SET_SNAPSHOT =>
-            updateSetSnapshot(t)
-          case SET_DELTA =>
-            storage.putOne(t)
-        }
-      case Right(_) => // skip
+    outputMode match {
+      case SET_SNAPSHOT =>
+        updateSetSnapshot(tuple)
+      case SET_DELTA =>
+        storage.putOne(tuple)
     }
   }
 

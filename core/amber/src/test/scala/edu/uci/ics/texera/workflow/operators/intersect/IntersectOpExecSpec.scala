@@ -90,10 +90,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assertThrows[IllegalArgumentException] {
       (1 to 100).map(_ => {
         opExec.processTuple(Left(tuple()), 2)
-        opExec.processTuple(
-          Left(commonTuples(Random.nextInt(commonTuples.size))),
-          3
-        )
+        opExec.processTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), 3)
       })
 
       val outputTuples: Set[TupleLike] =
@@ -121,10 +118,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (1 to 100).map(_ => {
       opExec.processTuple(Left(tuple()), input0)
-      opExec.processTuple(
-        Left(commonTuples(Random.nextInt(commonTuples.size))),
-        input0
-      )
+      opExec.processTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), input0)
     })
     assert(opExec.processTuple(Right(InputExhausted()), input0).isEmpty)
 
@@ -141,10 +135,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (1 to 100).map(_ => {
       opExec.processTuple(Left(tuple()), input1)
-      opExec.processTuple(
-        Left(commonTuples(Random.nextInt(commonTuples.size))),
-        input1
-      )
+      opExec.processTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), input1)
     })
     assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
 
@@ -162,10 +153,7 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
     (1 to 100).map(_ => {
       opExec.processTuple(Left(tuple()), input1)
-      opExec.processTuple(
-        Left(commonTuples(Random.nextInt(commonTuples.size))),
-        input1
-      )
+      opExec.processTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), input1)
     })
     assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 
@@ -181,19 +169,13 @@ class IntersectOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (1 to 100).map(_ => {
       opExec.processTuple(Left(tuple()), input1)
-      opExec.processTuple(
-        Left(commonTuples(Random.nextInt(commonTuples.size))),
-        input1
-      )
+      opExec.processTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), input1)
     })
     assert(opExec.processTuple(Right(InputExhausted()), input2).isEmpty)
 
     (1 to 100).map(_ => {
       opExec.processTuple(Left(tuple()), input1)
-      opExec.processTuple(
-        Left(commonTuples(Random.nextInt(commonTuples.size))),
-        input1
-      )
+      opExec.processTuple(Left(commonTuples(Random.nextInt(commonTuples.size))), input1)
     })
     assert(opExec.processTuple(Right(InputExhausted()), input1).isEmpty)
 

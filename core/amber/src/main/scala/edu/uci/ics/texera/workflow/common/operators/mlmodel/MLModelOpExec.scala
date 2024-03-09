@@ -24,17 +24,13 @@ abstract class MLModelOpExec extends OperatorExecutor with Serializable {
 
   override def close(): Unit = {}
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(t) =>
-        allData += t
-        Iterator()
-      case Right(_) =>
-        getIterativeTrainingIterator
-    }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    allData += tuple
+    Iterator()
+  }
+
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    getIterativeTrainingIterator
   }
 
   private def getIterativeTrainingIterator: Iterator[TupleLike] = {

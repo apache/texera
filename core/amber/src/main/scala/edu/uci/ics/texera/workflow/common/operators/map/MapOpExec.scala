@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.common.operators.map
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -26,13 +25,9 @@ abstract class MapOpExec extends OperatorExecutor with Serializable {
 
   override def close(): Unit = {}
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(t)  => Iterator(mapFunc(t))
-      case Right(_) => Iterator()
-    }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+
+    Iterator(mapFunc(tuple))
+
   }
 }

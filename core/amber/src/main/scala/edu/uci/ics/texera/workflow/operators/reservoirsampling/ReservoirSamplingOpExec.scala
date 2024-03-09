@@ -13,24 +13,23 @@ class ReservoirSamplingOpExec(actor: Int, kPerActor: Int => Int, seedFunc: Int =
   private val reservoir: Array[Tuple] = Array.ofDim(kPerActor(actor))
   private val rand: Random = new Random(seedFunc(actor))
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(t) =>
-        if (n < kPerActor(actor)) {
-          reservoir(n) = t
-        } else {
-          val i = rand.nextInt(n)
-          if (i < kPerActor(actor)) {
-            reservoir(i) = t
-          }
-        }
-        n += 1
-        Iterator()
-      case Right(_) => reservoir.iterator
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+
+    if (n < kPerActor(actor)) {
+      reservoir(n) = tuple
+    } else {
+      val i = rand.nextInt(n)
+      if (i < kPerActor(actor)) {
+        reservoir(i) = tuple
+      }
     }
+    n += 1
+    Iterator()
+
+  }
+
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    reservoir.iterator
   }
 
   override def open(): Unit = {}
