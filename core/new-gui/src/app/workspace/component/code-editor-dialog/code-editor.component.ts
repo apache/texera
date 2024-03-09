@@ -43,13 +43,32 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   public title: string | undefined;
   public formControl!: FormControl;
   public componentRef: ComponentRef<CodeEditorComponent> | undefined;
+  public language: string = "";
+  public languageTitle: string = "";
+
+  private generateLanguageTitle(language: string): string {
+    return `${language.charAt(0).toUpperCase()}${language.slice(1)} UDF`;
+  }
+
+  changeLanguage(newLanguage: string) {
+    this.language = newLanguage;
+    if (this.editor) {
+      monaco.editor.setModelLanguage(this.editor.getModel(), newLanguage);
+    }
+    this.languageTitle = this.generateLanguageTitle(newLanguage);
+  }
 
   constructor(
     private sanitizer: DomSanitizer,
     private workflowActionService: WorkflowActionService,
     private workflowVersionService: WorkflowVersionService,
     public coeditorPresenceService: CoeditorPresenceService
-  ) {}
+  ) {
+    const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
+    const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
+    this.changeLanguage(operatorType === "JavaUDF" ? "java" : "python");
+  }
+
   ngAfterViewInit() {
     this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("editingCode", true);
     this.operatorID = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
@@ -121,7 +140,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    */
   private initMonaco() {
     const editor = monaco.editor.create(this.editorElement.nativeElement, {
-      language: "python",
+      language: this.language,
       fontSize: 11,
       theme: "vs-dark",
       automaticLayout: true,

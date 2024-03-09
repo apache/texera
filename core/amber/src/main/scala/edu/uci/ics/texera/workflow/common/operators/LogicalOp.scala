@@ -60,6 +60,7 @@ import edu.uci.ics.texera.workflow.operators.source.sql.postgresql.PostgreSQLSou
 import edu.uci.ics.texera.workflow.operators.split.SplitOpDesc
 import edu.uci.ics.texera.workflow.operators.symmetricDifference.SymmetricDifferenceOpDesc
 import edu.uci.ics.texera.workflow.operators.typecasting.TypeCastingOpDesc
+import edu.uci.ics.texera.workflow.operators.udf.java.JavaUDFOpDesc
 import edu.uci.ics.texera.workflow.operators.udf.python.source.PythonUDFSourceOpDescV2
 import edu.uci.ics.texera.workflow.operators.udf.python.{
   DualInputPortsPythonUDFOpDescV2,
@@ -177,7 +178,8 @@ trait StateTransferFunc
     new Type(value = classOf[ScatterMatrixChartOpDesc], name = "ScatterMatrixChart"),
     new Type(value = classOf[HeatMapOpDesc], name = "HeatMap"),
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
-    new Type(value = classOf[FunnelPlotOpDesc], name = "FunnelPlot")
+    new Type(value = classOf[FunnelPlotOpDesc], name = "FunnelPlot"),
+    new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF")
   )
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {

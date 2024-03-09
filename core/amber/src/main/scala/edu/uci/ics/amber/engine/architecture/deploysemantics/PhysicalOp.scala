@@ -207,14 +207,18 @@ case class PhysicalOp(
   }
 
   def isPythonOperator: Boolean = {
-    isInitWithCode // currently, only Python operators are initialized with code
+    opExecInitInfo match {
+      case opExecInfo: OpExecInitInfoWithCode =>
+        val (_, language) = opExecInfo.codeGen(0, 0)
+        language == "python"
+      case _ => false
+    }
   }
 
   def getPythonCode: String = {
-    if (!isPythonOperator) {
-      throw new RuntimeException("operator " + id + " is not a python operator")
-    }
-    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
+    val (code, _) =
+      opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
+    code
   }
 
   /**

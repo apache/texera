@@ -53,7 +53,7 @@ object ControlCommandConvertUtils {
         QueryCurrentInputTupleV2()
       case InitializeOperatorLogic(_, opExecInitInfo, isSource) =>
         InitializeOperatorLogicV2(
-          opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0),
+          opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)._1,
           isSource
         )
       case ReplayCurrentTuple() =>
