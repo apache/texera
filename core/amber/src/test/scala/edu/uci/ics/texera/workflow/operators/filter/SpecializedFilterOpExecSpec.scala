@@ -47,13 +47,13 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     .build()
 
   it should "open and close" in {
-    val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc())
+    val opExec = new SpecializedFilterOpExec(asList())
     opExec.open()
     opExec.close()
   }
 
   it should "throw when predicates is null" in {
-    val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc())
+    val opExec = new SpecializedFilterOpExec(null)
     opExec.open()
     assertThrows[NullPointerException] {
       opExec.processTuple(allNullTuple, inputPort)
@@ -62,27 +62,25 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "do nothing when predicates is an empty list" in {
-    val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
-      predicates = asList()
-    })
+    val opExec = new SpecializedFilterOpExec(asList())
     opExec.open()
     assert(opExec.processTuple(allNullTuple, inputPort).isEmpty)
     opExec.close()
   }
 
   it should "not have is_null comparisons be affected by values" in {
-    val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
-      predicates = asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
-    })
+    val opExec = new SpecializedFilterOpExec(
+      asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
+    )
     opExec.open()
     assert(!opExec.processTuple(allNullTuple, inputPort).isEmpty)
     opExec.close()
   }
 
   it should "not have is_not_null comparisons be affected by values" in {
-    val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
-      predicates = asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
-    })
+    val opExec = new SpecializedFilterOpExec(
+      asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
+    )
     opExec.open()
     assert(opExec.processTuple(allNullTuple, inputPort).isEmpty)
     opExec.close()
@@ -94,10 +92,9 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         val attributes = nullTuple.getSchema.getAttributes
         assert(attributes.length == 1)
 
-        val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
-          predicates =
-            asList(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NULL, null))
-        })
+        val opExec = new SpecializedFilterOpExec(
+          asList(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NULL, null))
+        )
 
         opExec.open()
         assert(opExec.processTuple(nullTuple, inputPort).nonEmpty)
@@ -106,18 +103,18 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "filter out non null tuples when filtering is_null" in {
-    val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
-      predicates = asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
-    })
+    val opExec = new SpecializedFilterOpExec(
+      asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
+    )
     opExec.open()
     assert(opExec.processTuple(nonNullTuple, inputPort).isEmpty)
     opExec.close()
   }
 
   it should "output non null tuples when filter is_not_null" in {
-    val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
-      predicates = asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
-    })
+    val opExec = new SpecializedFilterOpExec(
+      asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
+    )
     opExec.open()
     assert(opExec.processTuple(nonNullTuple, inputPort).nonEmpty)
     opExec.close()
@@ -129,11 +126,9 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         val attributes = nullTuple.getSchema.getAttributes
         assert(attributes.length == 1)
 
-        val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc() {
-          predicates = asList(
-            new FilterPredicate(attributes(0).getName, ComparisonType.IS_NOT_NULL, null)
-          )
-        })
+        val opExec = new SpecializedFilterOpExec(
+          asList(new FilterPredicate(attributes(0).getName, ComparisonType.IS_NOT_NULL, null))
+        )
 
         opExec.open()
         assert(opExec.processTuple(nullTuple, inputPort).isEmpty)
