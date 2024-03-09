@@ -1,12 +1,10 @@
 package edu.uci.ics.texera.workflow.operators.difference
 
-import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
-
-import scala.util.Random
 
 class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   var input1: Int = 0
