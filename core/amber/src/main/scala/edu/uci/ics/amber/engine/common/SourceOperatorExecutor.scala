@@ -4,17 +4,14 @@ import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-trait ISourceOperatorExecutor extends IOperatorExecutor {
+trait SourceOperatorExecutor extends IOperatorExecutor {
   override def open(): Unit = {}
 
   override def close(): Unit = {}
   override def processTupleMultiPort(
       tuple: Tuple,
       port: Int
-  ): Iterator[(TupleLike, Option[PortIdentity])] = {
-
-    Iterator()
-  }
+  ): Iterator[(TupleLike, Option[PortIdentity])] = Iterator()
 
   def produceTuple(): Iterator[TupleLike]
 

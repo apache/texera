@@ -1,5 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import io.github.redouane59.twitter.TwitterClient
 import io.github.redouane59.twitter.signature.TwitterCredentials
 
@@ -7,7 +7,7 @@ abstract class TwitterSourceOpExec(
     apiKey: String,
     apiSecretKey: String,
     stopWhenRateLimited: Boolean
-) extends ISourceOperatorExecutor {
+) extends SourceOperatorExecutor {
   // batch size for each API request defined by Twitter
   //  500 is the maximum tweets for each request
   val TWITTER_API_BATCH_SIZE_MAX = 500

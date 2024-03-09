@@ -1,14 +1,13 @@
 package edu.uci.ics.texera.workflow.operators.source.fetcher
 
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 import org.apache.commons.io.IOUtils
 
 import java.net.URL
 
-class URLFetcherOpExec(url: String, decodingMethod: DecodingMethod)
-    extends ISourceOperatorExecutor {
+class URLFetcherOpExec(url: String, decodingMethod: DecodingMethod) extends SourceOperatorExecutor {
 
   override def produceTuple(): Iterator[TupleLike] = {
 

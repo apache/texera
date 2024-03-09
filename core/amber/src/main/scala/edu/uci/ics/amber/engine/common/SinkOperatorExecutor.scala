@@ -4,21 +4,20 @@ import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-trait ISinkOperatorExecutor extends IOperatorExecutor {
+trait SinkOperatorExecutor extends IOperatorExecutor {
 
   override def processTupleMultiPort(
       tuple: Tuple,
       port: Int
   ): Iterator[(Tuple, Option[PortIdentity])] = {
-    consume(tuple, port)
+    consumeTuple(tuple, port)
     Iterator.empty
   }
 
-  override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
+  override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] =
     Iterator.empty
-  }
 
-  def consume(tuple: Tuple, input: Int): Unit
+  def consumeTuple(tuple: Tuple, input: Int): Unit
 
   override def open(): Unit = {}
 
