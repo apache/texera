@@ -256,7 +256,7 @@ export const mockJavaUDFSchema: OperatorSchema = {
   additionalMetadata: {
     userFriendlyName: "Java UDF",
     operatorDescription: "custom operator in Java",
-    operatorGroupName: "UDF",
+    operatorGroupName: "Analysis",
     inputPorts: [{}],
     outputPorts: [{}],
   },
