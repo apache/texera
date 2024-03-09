@@ -6,6 +6,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 class UnionOpExec extends OperatorExecutor {
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-     Iterator(tuple)
+    Iterator(tuple)
   }
 }

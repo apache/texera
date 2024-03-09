@@ -22,5 +22,4 @@ trait ISourceOperatorExecutor extends IOperatorExecutor {
     // produceTuple() will be called only once.
     produceTuple().map(t => (t, Option.empty))
 
-
 }
