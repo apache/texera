@@ -5,17 +5,14 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 /**
-  * Common operator executor of a map() function
-  * A map() function transforms one input tuple to exactly one output tuple.
+  * Executes a flatMap() operation.
+  * This operation takes a single input Tuple, flattens it, applies a mapping function to each element,
+  * and produces an output Tuple for each element.
   */
 class FlatMapOpExec extends OperatorExecutor with Serializable {
 
   var flatMapFunc: Tuple => Iterator[TupleLike] = _
 
-  /**
-    * Provides the flatMap function of this executor, it should be called in the constructor
-    * If the operator executor is implemented in Java, `setFlatMapFuncJava` should be used instead.
-    */
   def setFlatMapFunc(func: Tuple => Iterator[TupleLike]): Unit = flatMapFunc = func
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = flatMapFunc(tuple)
