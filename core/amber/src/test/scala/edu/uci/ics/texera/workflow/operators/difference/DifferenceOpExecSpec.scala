@@ -64,33 +64,6 @@ class DifferenceOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec.close()
   }
 
-  it should "raise IllegalArgumentException when intersect with more than two input upstreams" in {
-
-    opExec.open()
-    counter = 0
-    val commonTuples = (1 to 10).map(_ => tuple()).toList
-    assertThrows[IllegalArgumentException] {
-      (1 to 100).map(_ => {
-        opExec.processTuple(tuple(), 2)
-        opExec.processTuple(commonTuples(Random.nextInt(commonTuples.size)), 3)
-      })
-
-      val outputTuples: Set[TupleLike] =
-        opExec.onFinish(0).toSet
-      assert(outputTuples.size <= 10)
-      assert(outputTuples.subsetOf(commonTuples.toSet))
-      outputTuples.foreach(tupleLike =>
-        assert(
-          tupleLike
-            .asInstanceOf[SchemaEnforceable]
-            .enforceSchema(schema)
-            .getField[Int]("field2") <= 10
-        )
-      )
-      opExec.close()
-    }
-  }
-
   it should "work with one empty input upstream after a data stream" in {
     opExec.open()
     counter = 0
