@@ -17,7 +17,8 @@ import edu.uci.ics.amber.engine.common.{
   AmberUtils,
   CheckpointState,
   CheckpointSupport,
-  IOperatorExecutor
+  IOperatorExecutor,
+  ISourceOperatorExecutor
 }
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -92,7 +93,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     chkpt.save(DP_STATE_KEY, dp)
   }
 
-  "Operator" should "be serializable" in {
+  "CSVScanOperator" should "be serializable" in {
     val chkpt = new CheckpointState()
     val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
     val context = new WorkflowContext()
@@ -103,12 +104,14 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       case OpExecInitInfoWithFunc(opGen) =>
         val a = opGen(1, 1)
         a.open()
-        a.asInstanceOf[CheckpointSupport].serializeState(Iterator.empty, chkpt)
+        val b = a.asInstanceOf[ISourceOperatorExecutor].produceTuple().map(t => (t, None))
+        b.next()
+        b.next()
+        a.asInstanceOf[CheckpointSupport].serializeState(b, chkpt)
         chkpt.save("deserialization", opGen)
         val opGen2 = chkpt.load("deserialization").asInstanceOf[(Int, Int) => IOperatorExecutor]
         val op = opGen2.apply(1, 1)
         op.asInstanceOf[CheckpointSupport].deserializeState(chkpt)
-
     }
   }
 
