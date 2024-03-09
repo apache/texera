@@ -37,20 +37,10 @@ import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
-import scala.reflect.runtime.{universe => ru}
 import java.net.URI
 import java.util.UUID
 
 class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
-
-  private val mirror = ru.runtimeMirror(getClass.getClassLoader)
-  def createInstance[T: ru.TypeTag](cls: Class[T]): T = {
-    val classSymbol = ru.typeOf[T].typeSymbol.asClass
-    val classMirror = mirror.reflectClass(classSymbol)
-    val constructorSymbol = ru.typeOf[T].decl(ru.termNames.CONSTRUCTOR).asMethod
-    val constructorMirror = classMirror.reflectConstructor(constructorSymbol)
-    constructorMirror().asInstanceOf[T]
-  }
 
   var system: ActorSystem = _
   override def beforeAll(): Unit = {

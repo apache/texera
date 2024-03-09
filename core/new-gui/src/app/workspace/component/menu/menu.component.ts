@@ -234,8 +234,8 @@ export class MenuComponent implements OnInit {
     this.executeWorkflowService.killWorkflow();
   }
 
-  public handleInteraction(): void {
-    this.executeWorkflowService.addExecutionInteraction();
+  public handleCheckpoint(): void {
+    this.executeWorkflowService.takeGlobalCheckpoint();
   }
 
   /**

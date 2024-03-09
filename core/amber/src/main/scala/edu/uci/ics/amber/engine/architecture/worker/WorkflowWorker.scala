@@ -45,8 +45,6 @@ object WorkflowWorker {
       )
     )
 
-  def getWorkerLogName(id: ActorVirtualIdentity): String = id.name.replace("Worker:", "")
-
   final case class TriggerSend(msg: WorkflowFIFOMessage)
 
   final case class MainThreadDelegateMessage(closure: WorkflowWorker => Unit)

@@ -9,13 +9,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranc
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
-import edu.uci.ics.texera.web.model.websocket.request.{
-  SkipTupleRequest,
-  WorkflowInteractionRequest,
-  WorkflowKillRequest,
-  WorkflowPauseRequest,
-  WorkflowResumeRequest
-}
+import edu.uci.ics.texera.web.model.websocket.request.{SkipTupleRequest, WorkflowCheckpointRequest, WorkflowKillRequest, WorkflowPauseRequest, WorkflowResumeRequest}
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
@@ -76,7 +70,7 @@ class ExecutionRuntimeService(
   }))
 
   // Receive Interaction
-  addSubscription(wsInput.subscribe((req: WorkflowInteractionRequest, uidOpt) => {
+  addSubscription(wsInput.subscribe((req: WorkflowCheckpointRequest, uidOpt) => {
     assert(
       logConf.nonEmpty,
       "Fault tolerance log folder is not established. Unable to take a global checkpoint."
