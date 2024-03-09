@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
@@ -242,7 +241,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         ) < rightOrder(rightIndex))
       ) {
         val result = opExec
-          .processTuple(Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)), left)
+          .processTuple(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType), left)
           .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(
@@ -251,7 +250,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         leftIndex += 1
       } else if (rightIndex < rightOrder.size) {
         val result = opExec
-          .processTuple(Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)), right)
+          .processTuple(newTuple(rightKey, 1, rightInput(rightIndex), dataType), right)
           .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(
@@ -269,8 +268,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       dataType
     )
     assert(outputTuples.size == bruteForceResult)
-    assert(opExec.processTuple(Right(InputExhausted()), left).isEmpty)
-    assert(opExec.processTuple(Right(InputExhausted()), right).isEmpty)
+    assert(opExec.onFinish(left).isEmpty)
+    assert(opExec.onFinish(right).isEmpty)
     if (outputTuples.nonEmpty)
       assert(outputTuples.head.getSchema.getAttributeNames.length == 4)
     opExec.close()
@@ -411,13 +410,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(
-        opExec.processTuple(Left(doubleTuple("point", 1, i)), left).isEmpty
+        opExec.processTuple(doubleTuple("point", 1, i), left).isEmpty
       )
     })
-    assert(opExec.processTuple(Right(InputExhausted()), left).isEmpty)
+    assert(opExec.onFinish(left).isEmpty)
     val rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
     val outputTuples = rangeList
-      .map(i => opExec.processTuple(Left(doubleTuple("range", 1, i)), right))
+      .map(i => opExec.processTuple(doubleTuple("range", 1, i), right))
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
     assert(outputTuples.size == 11)

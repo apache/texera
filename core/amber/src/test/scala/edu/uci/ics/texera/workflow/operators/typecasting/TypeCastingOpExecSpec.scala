@@ -60,7 +60,7 @@ class TypeCastingOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuple =
       typeCastingOpExec
-        .processTuple(Left(tuple), 0)
+        .processTuple(tuple, 0)
         .next()
         .asInstanceOf[SchemaEnforceable]
         .enforceSchema(castToSchema)

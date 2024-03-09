@@ -53,7 +53,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec =
       new DictionaryMatcherOpExec(opDesc.attribute, opDesc.dictionary, MatchingType.SCANBASED)
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       processedTuple.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema).getField("matched")
     )
@@ -63,7 +63,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "match a tuple if present in the given dictionary entry when matching type is SUBSTRING" in {
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       processedTuple.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema).getField("matched")
     )
@@ -73,7 +73,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "match a tuple if present in the given dictionary entry when matching type is CONJUNCTION_INDEXBASED" in {
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       processedTuple.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema).getField("matched")
     )
@@ -87,7 +87,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec =
       new DictionaryMatcherOpExec(opDesc.attribute, dictionaryConjunction, MatchingType.SCANBASED)
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       !processedTuple
         .asInstanceOf[SchemaEnforceable]
@@ -101,7 +101,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictionaryConjunction
     opDesc.matchingType = MatchingType.SUBSTRING
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       !processedTuple
         .asInstanceOf[SchemaEnforceable]
@@ -118,7 +118,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       MatchingType.CONJUNCTION_INDEXBASED
     )
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       processedTuple
         .asInstanceOf[SchemaEnforceable]
@@ -135,7 +135,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec =
       new DictionaryMatcherOpExec(opDesc.attribute, dictionarySubstring, MatchingType.SCANBASED)
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       !processedTuple
         .asInstanceOf[SchemaEnforceable]
@@ -149,7 +149,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc.dictionary = dictionarySubstring
     opDesc.matchingType = MatchingType.CONJUNCTION_INDEXBASED
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       !processedTuple
         .asInstanceOf[SchemaEnforceable]
@@ -163,7 +163,7 @@ class DictionaryMatcherOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opExec =
       new DictionaryMatcherOpExec(opDesc.attribute, dictionarySubstring, MatchingType.SUBSTRING)
     opExec.open()
-    val processedTuple = opExec.processTuple(Left(tuple), 0).next()
+    val processedTuple = opExec.processTuple(tuple, 0).next()
     assert(
       processedTuple
         .asInstanceOf[SchemaEnforceable]

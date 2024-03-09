@@ -51,7 +51,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuple =
       projectionOpExec
-        .processTuple(Left(tuple), 0)
+        .processTuple(tuple, 0)
         .next()
         .asInstanceOf[SchemaEnforceable]
         .enforceSchema(outputSchema)
@@ -79,7 +79,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuple =
       projectionOpExec
-        .processTuple(Left(tuple), 0)
+        .processTuple(tuple, 0)
         .next()
         .asInstanceOf[SchemaEnforceable]
         .enforceSchema(outputSchema)
@@ -98,7 +98,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       )
     )
     assertThrows[RuntimeException] {
-      projectionOpExec.processTuple(Left(tuple), 0).next()
+      projectionOpExec.processTuple(tuple, 0).next()
     }
 
   }
@@ -106,7 +106,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "raise IllegalArgumentException on empty attributes" in {
     val projectionOpExec = new ProjectionOpExec(List())
     assertThrows[IllegalArgumentException] {
-      projectionOpExec.processTuple(Left(tuple), 0).next()
+      projectionOpExec.processTuple(tuple, 0).next()
     }
 
   }
@@ -120,7 +120,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
 
     assertThrows[RuntimeException] {
-      projectionOpExec.processTuple(Left(tuple), 0).next()
+      projectionOpExec.processTuple(tuple, 0).next()
     }
 
   }
@@ -142,7 +142,7 @@ class ProjectionOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
     val outputTuple =
       projectionOpExec
-        .processTuple(Left(tuple), 0)
+        .processTuple(tuple, 0)
         .next()
         .asInstanceOf[SchemaEnforceable]
         .enforceSchema(outputSchema)

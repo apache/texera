@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
@@ -76,10 +76,12 @@ class WorkerSpec
         tuple: Tuple,
         port: Int
     ): Iterator[(TupleLike, Option[PortIdentity])] = {
-      tuple match {
-        case Left(iTuple) => Iterator((iTuple, None))
-        case Right(_)     => Iterator.empty
-      }
+      Iterator((tuple, None))
+    }
+    override def onFinishMultiPort(
+        port: Int
+    ): Iterator[(TupleLike, Option[PortIdentity])] = {
+      Iterator()
     }
   }
   private val operatorIdentity = OperatorIdentity("testOperator")

@@ -56,7 +56,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val opExec = new SpecializedFilterOpExec(new SpecializedFilterOpDesc())
     opExec.open()
     assertThrows[NullPointerException] {
-      opExec.processTuple(Left(allNullTuple), inputPort)
+      opExec.processTuple(allNullTuple, inputPort)
     }
     opExec.close()
   }
@@ -66,7 +66,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList()
     })
     opExec.open()
-    assert(opExec.processTuple(Left(allNullTuple), inputPort).isEmpty)
+    assert(opExec.processTuple(allNullTuple, inputPort).isEmpty)
     opExec.close()
   }
 
@@ -75,7 +75,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
     })
     opExec.open()
-    assert(!opExec.processTuple(Left(allNullTuple), inputPort).isEmpty)
+    assert(!opExec.processTuple(allNullTuple, inputPort).isEmpty)
     opExec.close()
   }
 
@@ -84,7 +84,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
     })
     opExec.open()
-    assert(opExec.processTuple(Left(allNullTuple), inputPort).isEmpty)
+    assert(opExec.processTuple(allNullTuple, inputPort).isEmpty)
     opExec.close()
   }
 
@@ -100,7 +100,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         })
 
         opExec.open()
-        assert(opExec.processTuple(Left(nullTuple), inputPort).nonEmpty)
+        assert(opExec.processTuple(nullTuple, inputPort).nonEmpty)
         opExec.close()
       })
   }
@@ -110,7 +110,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NULL, "value"))
     })
     opExec.open()
-    assert(opExec.processTuple(Left(nonNullTuple), inputPort).isEmpty)
+    assert(opExec.processTuple(nonNullTuple, inputPort).isEmpty)
     opExec.close()
   }
 
@@ -119,7 +119,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       predicates = asList(new FilterPredicate("string", ComparisonType.IS_NOT_NULL, "value"))
     })
     opExec.open()
-    assert(opExec.processTuple(Left(nonNullTuple), inputPort).nonEmpty)
+    assert(opExec.processTuple(nonNullTuple, inputPort).nonEmpty)
     opExec.close()
   }
 
@@ -136,7 +136,7 @@ class SpecializedFilterOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         })
 
         opExec.open()
-        assert(opExec.processTuple(Left(nullTuple), inputPort).isEmpty)
+        assert(opExec.processTuple(nullTuple, inputPort).isEmpty)
         opExec.close()
       })
   }
