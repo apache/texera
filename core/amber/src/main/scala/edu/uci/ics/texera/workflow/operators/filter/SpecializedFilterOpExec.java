@@ -12,9 +12,7 @@ public class SpecializedFilterOpExec extends FilterOpExec {
 
     public SpecializedFilterOpExec(java.util.List<FilterPredicate> predicates) {
         this.predicates = predicates;
-        setFilterFunc(
-                // must cast the lambda function to "(Function & Serializable)" in Java
-                (Function1<Tuple, Boolean> & Serializable) this::filterFunc);
+        setFilterFunc((Function1<Tuple, Boolean> & Serializable) this::filterFunc);
     }
 
     public Boolean filterFunc(Tuple tuple) {
