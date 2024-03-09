@@ -82,10 +82,9 @@ class DataProcessor(
   def collectStatistics(): WorkerStatistics =
     statisticsManager.getStatistics(stateManager.getCurrentState, operator)
 
-  /** process currentInputTuple through operator logic.
-    * this function is only called by the DP thread
-    *
-    * @return an iterator of output tuples
+  /**
+    * process currentInputTuple through executor logic.
+    * this function is only called by the DP thread.
     */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
@@ -104,10 +103,9 @@ class DataProcessor(
     }
   }
 
-  /** process currentInputTuple through operator logic.
+  /**
+    * process InputExhausted with Executor.onFinish
     * this function is only called by the DP thread
-    *
-    * @return an iterator of output tuples
     */
   private[this] def processInputExhausted(): Unit = {
     try {
