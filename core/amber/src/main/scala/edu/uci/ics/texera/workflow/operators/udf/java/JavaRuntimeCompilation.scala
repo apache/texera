@@ -15,7 +15,6 @@ object JavaRuntimeCompilation {
     val codeToCompile = s"package $packageName;\n$code"
     val defaultClassName = s"$packageName.JavaUDFOpExec"
 
-    // TODO: test if we can use the same fileManager across different compilations
     val fileManager: CustomJavaFileManager = new CustomJavaFileManager(
       compiler.getStandardFileManager(null, null, null)
     )
@@ -23,6 +22,9 @@ object JavaRuntimeCompilation {
     // Diagnostic collector is to capture compilation diagnostics (errors, warnings, etc.)
     val diagnosticCollector = new DiagnosticCollector[JavaFileObject]
 
+    /* Compiles the provided source code using the Java Compiler API, utilizing a custom file manager,
+     Collecting compilation diagnostics, and storing the result in 'compilationResult'.
+     */
     val compilationResult = compiler
       .getTask(
         null,
