@@ -18,7 +18,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorDescriptor;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute;
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
-
 import scala.Option;
 import scala.collection.immutable.Map;
 
@@ -61,42 +60,34 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
     public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
         OpExecInitInfo exec = OpExecInitInfo.apply(code, "python");
         Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.");
+        SchemaPropagationFunc func = SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+            // Initialize a Java HashMap
+            java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
+
+            javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
+
+            // Convert the Java Map to a Scala immutable Map
+            return AmberUtils.toImmutableMap(javaMap);
+        });
+        PhysicalOp physicalOp = PhysicalOp.sourcePhysicalOp(
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        exec
+                )
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts())
+                .withIsOneToManyOp(true)
+                .withPropagateSchema(func)
+                .withLocationPreference(Option.empty());
+
+
         if (workers > 1) {
-            return PhysicalOp.sourcePhysicalOp(
-                        workflowId,
-                        executionId,
-                        operatorIdentifier(),
-                        exec
-                    )
+            return physicalOp
                     .withParallelizable(true)
-                    .withSuggestedWorkerNum(workers)
-                    .withInputPorts(operatorInfo().inputPorts())
-                    .withOutputPorts(operatorInfo().outputPorts())
-                    .withIsOneToManyOp(true)
-                    .withPropagateSchema(
-                            SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
-                                // Initialize a Java HashMap
-                                java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
-
-                                javaMap.put(operatorInfo().outputPorts().head().id(), sourceSchema());
-
-                                // Convert the Java Map to a Scala immutable Map
-                                return AmberUtils.toImmutableMap(javaMap);
-                            })
-                    )
-                    .withLocationPreference(Option.empty());
+                    .withSuggestedWorkerNum(workers);
         } else {
-            return PhysicalOp.sourcePhysicalOp(
-                        workflowId,
-                        executionId,
-                        operatorIdentifier(),
-                        exec
-                    )
-                    .withParallelizable(false)
-                    .withInputPorts(operatorInfo().inputPorts())
-                    .withOutputPorts(operatorInfo().outputPorts())
-                    .withIsOneToManyOp(true)
-                    .withLocationPreference(Option.empty());
+            return physicalOp.withParallelizable(false);
         }
 
     }
@@ -108,7 +99,7 @@ public class PythonUDFSourceOpDescV2 extends SourceOperatorDescriptor {
                 "User-defined function operator in Python script",
                 OperatorGroupConstants.UDF_GROUP(),
                 asScala(new ArrayList<InputPort>()).toList(),
-                asScala(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 true,
