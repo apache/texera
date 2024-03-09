@@ -34,10 +34,6 @@ class MemoryStorage extends SinkStorageReader with SinkStorageWriter {
       results.clear()
     }
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
-
   override def getStorageWriter: SinkStorageWriter = this
 
   override def getRange(from: Int, to: Int): Iterable[Tuple] =

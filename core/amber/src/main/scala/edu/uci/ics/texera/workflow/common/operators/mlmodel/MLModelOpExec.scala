@@ -19,10 +19,6 @@ abstract class MLModelOpExec extends OperatorExecutor with Serializable {
 
   def getTotalEpochsCount: Int
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
-
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     allData += tuple
     Iterator()

@@ -10,10 +10,6 @@ import java.net.URL
 class URLFetcherOpExec(url: String, decodingMethod: DecodingMethod)
     extends ISourceOperatorExecutor {
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
-
   override def produceTuple(): Iterator[TupleLike] = {
 
     val urlObj = new URL(url)

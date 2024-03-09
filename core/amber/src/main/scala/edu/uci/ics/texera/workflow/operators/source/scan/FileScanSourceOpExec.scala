@@ -74,7 +74,4 @@ class FileScanSourceOpExec private[scan] (
     }
   }
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }

@@ -27,7 +27,4 @@ class SplitOpExec(
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[Tuple] = ???
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }

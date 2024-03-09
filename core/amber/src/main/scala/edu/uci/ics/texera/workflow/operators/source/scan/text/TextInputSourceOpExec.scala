@@ -29,7 +29,4 @@ class TextInputSourceOpExec private[text] (
     )
   }
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }

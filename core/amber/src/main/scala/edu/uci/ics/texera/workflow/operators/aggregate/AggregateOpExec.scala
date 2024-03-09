@@ -20,10 +20,6 @@ class AggregateOpExec(
   private val keyedPartialAggregates = new mutable.HashMap[List[Object], List[Object]]()
   private var distributedAggregations: List[DistributedAggregation[Object]] = _
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
-
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
     // Initialize distributedAggregations if it's not yet initialized

@@ -31,7 +31,4 @@ class DifferenceOpExec extends OperatorExecutor {
     }
   }
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }

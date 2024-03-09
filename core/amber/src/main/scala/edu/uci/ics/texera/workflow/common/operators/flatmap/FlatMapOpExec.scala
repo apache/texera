@@ -16,13 +16,7 @@ class FlatMapOpExec extends OperatorExecutor with Serializable {
     * Provides the flatMap function of this executor, it should be called in the constructor
     * If the operator executor is implemented in Java, `setFlatMapFuncJava` should be used instead.
     */
-  def setFlatMapFunc(func: Tuple => Iterator[TupleLike]): Unit = {
-    this.flatMapFunc = func
-  }
-
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
+  def setFlatMapFunc(func: Tuple => Iterator[TupleLike]): Unit = flatMapFunc = func
 
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = flatMapFunc(tuple)
 

@@ -24,14 +24,8 @@ class ReservoirSamplingOpExec(actor: Int, kPerActor: Int => Int, seedFunc: Int =
     }
     n += 1
     Iterator()
-
   }
 
-  override def onFinish(port: Int): Iterator[TupleLike] = {
-    reservoir.iterator
-  }
+  override def onFinish(port: Int): Iterator[TupleLike] = reservoir.iterator
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }

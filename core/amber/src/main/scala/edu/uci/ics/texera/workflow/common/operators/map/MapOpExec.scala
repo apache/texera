@@ -17,17 +17,7 @@ abstract class MapOpExec extends OperatorExecutor with Serializable {
     * If the operator executor is implemented in Java, it should be called with:
     * setMapFunc((Function1<Tuple, TupleLike> & Serializable) func)
     */
-  def setMapFunc(func: Tuple => TupleLike): Unit = {
-    mapFunc = func
-  }
+  def setMapFunc(func: Tuple => TupleLike): Unit = mapFunc = func
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator(mapFunc(tuple))
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
-
-  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
-
-    Iterator(mapFunc(tuple))
-
-  }
 }

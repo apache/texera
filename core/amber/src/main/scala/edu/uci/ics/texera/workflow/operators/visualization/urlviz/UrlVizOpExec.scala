@@ -9,10 +9,6 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
   */
 class UrlVizOpExec(urlContentAttrName: String) extends OperatorExecutor {
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
-
   override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
     val iframe =
       s"""<!DOCTYPE html>

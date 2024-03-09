@@ -11,7 +11,4 @@ class CacheSourceOpExec(storage: SinkStorageReader)
 
   override def produceTuple(): Iterator[TupleLike] = storage.getAll.iterator
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }
