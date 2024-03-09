@@ -23,6 +23,7 @@ trait InitializeOperatorLogicHandler {
 
   registerHandler { (msg: InitializeOperatorLogic, sender) =>
     {
+      dp.serializationManager.opInitMsg = msg
       dp.operator = msg.opExecInitInfo match {
         case OpExecInitInfoWithCode(codeGen) =>
           ??? // TODO: compile and load java/scala operator here

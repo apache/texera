@@ -25,7 +25,7 @@ trait PrepareCheckpointHandler {
   registerHandler { (msg: PrepareCheckpoint, sender) =>
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
-      dp.serializationCall = () => {
+      dp.serializationManager.serializationCall = () => {
         serializeWorkerState(msg.checkpointId)
       }
     } else {
