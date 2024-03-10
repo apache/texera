@@ -20,8 +20,7 @@ import edu.uci.ics.amber.engine.common.{
   AmberUtils,
   CheckpointState,
   CheckpointSupport,
-  IOperatorExecutor,
-  ISourceOperatorExecutor
+  IOperatorExecutor
 }
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
