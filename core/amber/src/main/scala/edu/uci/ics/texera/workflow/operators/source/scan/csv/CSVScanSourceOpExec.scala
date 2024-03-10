@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan.csv
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport}
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.FileDecodingMethod
@@ -19,8 +19,7 @@ class CSVScanSourceOpExec private[csv] (
     customDelimiter: Option[String],
     hasHeader: Boolean,
     schemaFunc: () => Schema
-) extends ISourceOperatorExecutor
-    with CheckpointSupport {
+) extends SourceOperatorExecutor with CheckpointSupport {
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
   var schema: Schema = _

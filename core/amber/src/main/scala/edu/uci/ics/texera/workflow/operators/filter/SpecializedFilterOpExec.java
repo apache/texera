@@ -8,18 +8,15 @@ import java.io.Serializable;
 
 public class SpecializedFilterOpExec extends FilterOpExec {
 
-    private final SpecializedFilterOpDesc opDesc;
+    private final java.util.List<FilterPredicate> predicates;
 
-    public SpecializedFilterOpExec(SpecializedFilterOpDesc opDesc) {
-        this.opDesc = opDesc;
-        setFilterFunc(
-                // must cast the lambda function to "(Function & Serializable)" in Java
-                (Function1<Tuple, Boolean> & Serializable) this::filterFunc);
+    public SpecializedFilterOpExec(java.util.List<FilterPredicate> predicates) {
+        this.predicates = predicates;
+        setFilterFunc((Function1<Tuple, Boolean> & Serializable) this::filterFunc);
     }
 
     public Boolean filterFunc(Tuple tuple) {
-        return opDesc.predicates
-                .stream().anyMatch(predicate -> predicate.evaluate(tuple, opDesc.getContext()));
+        return predicates.stream().anyMatch(predicate -> predicate.evaluate(tuple));
     }
 
 }

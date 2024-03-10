@@ -1,4 +1,4 @@
-package edu.uci.ics.texera.workflow.operators.udf.python
+package edu.uci.ics.texera.workflow.operators.udf.java
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
@@ -6,42 +6,35 @@ import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.{LogicalOp, PortDescription, StateTransferFunc}
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, UnknownPartition}
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 
 import scala.util.{Success, Try}
 
-class PythonUDFOpDescV2 extends LogicalOp {
+class JavaUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
     defaultValue =
-      "# Choose from the following templates:\n" +
-        "# \n" +
-        "# from pytexera import *\n" +
-        "# \n" +
-        "# class ProcessTupleOperator(UDFOperatorV2):\n" +
-        "#     \n" +
-        "#     @overrides\n" +
-        "#     def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:\n" +
-        "#         yield tuple_\n" +
-        "# \n" +
-        "# class ProcessBatchOperator(UDFBatchOperator):\n" +
-        "#     BATCH_SIZE = 10 # must be a positive integer\n" +
-        "# \n" +
-        "#     @overrides\n" +
-        "#     def process_batch(self, batch: Batch, port: int) -> Iterator[Optional[BatchLike]]:\n" +
-        "#         yield batch\n" +
-        "# \n" +
-        "# class ProcessTableOperator(UDFTableOperator):\n" +
-        "# \n" +
-        "#     @overrides\n" +
-        "#     def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:\n" +
-        "#         yield table\n"
+      "import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;\n" +
+        "import edu.uci.ics.texera.workflow.common.tuple.Tuple;\n" +
+        "import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;\n" +
+        "import scala.Function1;\n" +
+        "import java.io.Serializable;\n" +
+        "\n" +
+        "public class JavaUDFOpExec extends MapOpExec {\n" +
+        "    public JavaUDFOpExec () {\n" +
+        "        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::processTuple);\n" +
+        "    }\n" +
+        "    \n" +
+        "    public TupleLike processTuple(Tuple tuple) {\n" +
+        "        return tuple;\n" +
+        "    }\n" +
+        "}"
   )
-  @JsonSchemaTitle("Python script")
+  @JsonSchemaTitle("Java UDF script")
   @JsonPropertyDescription("Input your code here")
   var code: String = ""
 
@@ -75,12 +68,11 @@ class PythonUDFOpDescV2 extends LogicalOp {
     }
 
     val propagateSchema = (inputSchemas: Map[PortIdentity, Schema]) => {
-      //    Preconditions.checkArgument(schemas.length == 1)
       val inputSchema = inputSchemas(operatorInfo.inputPorts.head.id)
       val outputSchemaBuilder = Schema.builder()
       // keep the same schema from input
       if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-      // for any pythonUDFType, it can add custom output columns (attributes).
+      // for any javaUDFType, it can add custom output columns (attributes).
       if (outputColumns != null) {
         if (retainInputColumns) { // check if columns are duplicated
 
@@ -100,7 +92,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecInitInfo(code, "java")
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -116,7 +108,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(code, "python")
+          OpExecInitInfo(code, "java")
         )
         .withDerivePartition(_ => UnknownPartition())
         .withInputPorts(operatorInfo.inputPorts)
@@ -150,8 +142,8 @@ class PythonUDFOpDescV2 extends LogicalOp {
     }
 
     OperatorInfo(
-      "Python UDF",
-      "User-defined function operator in Python script",
+      "Java UDF",
+      "User-defined function operator in Java script",
       OperatorGroupConstants.UDF_GROUP,
       inputPortInfo,
       outputPortInfo,
@@ -165,10 +157,10 @@ class PythonUDFOpDescV2 extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     //    Preconditions.checkArgument(schemas.length == 1)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.builder()
+    val outputSchemaBuilder = Schema.Builder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
-    // for any pythonUDFType, it can add custom output columns (attributes).
+    // for any javaUDFType, it can add custom output columns (attributes).
     if (outputColumns != null) {
       if (retainInputColumns) { // check if columns are duplicated
 
@@ -177,7 +169,7 @@ class PythonUDFOpDescV2 extends LogicalOp {
             throw new RuntimeException("Column name " + column.getName + " already exists!")
         }
       }
-      outputSchemaBuilder.add(outputColumns).build()
+      outputSchemaBuilder.add(outputColumns)
     }
     outputSchemaBuilder.build()
   }
