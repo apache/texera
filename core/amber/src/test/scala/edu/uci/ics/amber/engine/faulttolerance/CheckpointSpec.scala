@@ -104,12 +104,13 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     phyOp.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => ???
       case OpExecInitInfoWithFunc(opGen) =>
-        val a = opGen(1, 1)
-        a.open()
-        val b = a.asInstanceOf[SourceOperatorExecutor].produceTuple().map(t => (t, None))
-        b.next()
-        b.next()
-        a.asInstanceOf[CheckpointSupport].serializeState(b, chkpt)
+        val operator = opGen(1, 1)
+        operator.open()
+        val outputIter =
+          operator.asInstanceOf[SourceOperatorExecutor].produceTuple().map(t => (t, None))
+        outputIter.next()
+        outputIter.next()
+        operator.asInstanceOf[CheckpointSupport].serializeState(outputIter, chkpt)
         chkpt.save("deserialization", opGen)
         val opGen2 = chkpt.load("deserialization").asInstanceOf[(Int, Int) => IOperatorExecutor]
         val op = opGen2.apply(1, 1)

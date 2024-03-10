@@ -5,19 +5,10 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.Controller.ReplayStatusUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
 import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker._
-import edu.uci.ics.amber.engine.common.{
-  CheckpointState,
-  CheckpointSupport,
-  SerializedState,
-  VirtualIdentityUtils
-}
+import edu.uci.ics.amber.engine.common.{CheckpointState, SerializedState}
 import edu.uci.ics.amber.engine.common.actormessage.{ActorCommand, Backpressure}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
@@ -159,20 +150,10 @@ class WorkflowWorker(
     dp.outputHandler = logManager.sendCommitted
     dp.initTimerService(timerService)
     logger.info("start re-initialize operator from checkpoint.")
-    dp.serializationManager.opInitMsg.opExecInitInfo match {
-      case OpExecInitInfoWithCode(codeGen) => ???
-      case OpExecInitInfoWithFunc(opGen) =>
-        dp.operator = opGen(
-          VirtualIdentityUtils.getWorkerIndex(actorId),
-          dp.serializationManager.opInitMsg.totalWorkerCount
-        )
-    }
-    logger.info("re-initialize operator from checkpoint done.")
-    dp.operator match {
-      case support: CheckpointSupport =>
-        dp.outputManager.outputIterator.setTupleOutput(support.deserializeState(chkpt))
-      case _ => // skip
-    }
+    val (operator, iter) = dp.serializationManager.restoreOperatorState(chkpt)
+    dp.operator = operator
+    logger.info("re-initialize operator done.")
+    dp.outputManager.outputIterator.setTupleOutput(iter)
     logger.info("set tuple output done.")
     queuedMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))
     inflightMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))

@@ -25,7 +25,7 @@ trait InitializeOperatorLogicHandler {
 
   registerHandler { (msg: InitializeOperatorLogic, sender) =>
     {
-      dp.serializationManager.opInitMsg = msg
+      dp.serializationManager.setOpInitialization(msg)
       dp.operator = msg.opExecInitInfo match {
         case OpExecInitInfoWithCode(codeGen) =>
           val (code, _) =
