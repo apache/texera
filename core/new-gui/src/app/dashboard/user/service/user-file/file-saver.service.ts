@@ -5,8 +5,6 @@ import * as FileSaver from "file-saver";
   providedIn: "root",
 })
 export class FileSaverService {
-  constructor() {}
-
   saveAs(data: Blob | string, filename?: string, options?: FileSaver.FileSaverOptions): void {
     FileSaver.saveAs(data, filename, options);
   }

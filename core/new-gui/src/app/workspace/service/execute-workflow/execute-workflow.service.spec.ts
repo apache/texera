@@ -16,8 +16,6 @@ import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.servic
 import { WorkflowSnapshotService } from "../../../dashboard/user/service/workflow-snapshot/workflow-snapshot.service";
 
 class StubHttpClient {
-  constructor() {}
-
   public post(): Observable<string> {
     return of("a");
   }

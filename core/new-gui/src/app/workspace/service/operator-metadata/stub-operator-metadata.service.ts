@@ -9,8 +9,6 @@ import { shareReplay } from "rxjs/operators";
 export class StubOperatorMetadataService implements IOperatorMetadataService {
   private operatorMetadataObservable = of(mockOperatorMetaData).pipe(shareReplay(1));
 
-  constructor() {}
-
   public getOperatorSchema(operatorType: string): OperatorSchema {
     const operatorSchema = mockOperatorMetaData.operators.find(schema => schema.operatorType === operatorType);
     if (!operatorSchema) {
