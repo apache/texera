@@ -23,11 +23,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  ChannelMarkerIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelIdentity, ChannelMarkerIdentity}
 
 import java.net.URI
 import java.util.concurrent.LinkedBlockingQueue
@@ -148,15 +144,21 @@ class WorkflowWorker(
   }
 
   override def initFromCheckpoint(chkpt: CheckpointState): Unit = {
+    logger.info("start loading from checkpoint.")
     val inflightMessages: mutable.ArrayBuffer[WorkflowFIFOMessage] =
       chkpt.load(SerializedState.IN_FLIGHT_MSG_KEY)
+    logger.info("inflight messages restored.")
     val dpState: DataProcessor = chkpt.load(SerializedState.DP_STATE_KEY)
+    logger.info("dp state restored")
     val queuedMessages: mutable.ArrayBuffer[WorkflowFIFOMessage] =
       chkpt.load(SerializedState.DP_QUEUED_MSG_KEY)
+    logger.info("queued messages restored.")
     val outputMessages: Array[WorkflowFIFOMessage] = chkpt.load(SerializedState.OUTPUT_MSG_KEY)
+    logger.info("output messages restored.")
     dp = dpState // overwrite dp state
     dp.outputHandler = logManager.sendCommitted
     dp.initTimerService(timerService)
+    logger.info("start re-initialize operator from checkpoint.")
     dp.serializationManager.opInitMsg.opExecInitInfo match {
       case OpExecInitInfoWithCode(codeGen) => ???
       case OpExecInitInfoWithFunc(opGen) =>
@@ -165,14 +167,17 @@ class WorkflowWorker(
           dp.serializationManager.opInitMsg.totalWorkerCount
         )
     }
+    logger.info("re-initialize operator from checkpoint done.")
     dp.operator match {
       case support: CheckpointSupport =>
         dp.outputManager.outputIterator.setTupleOutput(support.deserializeState(chkpt))
       case _ => // skip
     }
+    logger.info("set tuple output done.")
     queuedMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))
     inflightMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))
     outputMessages.foreach(transferService.send)
+    logger.info("restored all messages done.")
     context.parent ! ReplayStatusUpdate(actorId, status = false)
   }
 }

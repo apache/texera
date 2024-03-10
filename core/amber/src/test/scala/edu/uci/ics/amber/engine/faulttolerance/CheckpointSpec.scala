@@ -4,7 +4,9 @@ import akka.actor.{ActorSystem, Props}
 import akka.serialization.SerializationExtension
 import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.clustering.SingleNodeListener
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
@@ -12,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfoWithCode,
   OpExecInitInfoWithFunc
 }
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.StateRestoreConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
 import edu.uci.ics.amber.engine.common.{
   AmberUtils,
@@ -38,11 +41,35 @@ import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
 import java.net.URI
-import java.util.UUID
+import java.util.concurrent.{CompletableFuture, TimeUnit}
 
 class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
 
   var system: ActorSystem = _
+
+  val resultStorage = new OpResultStorage()
+  val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
+  val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
+  val sink = TestOperators.sinkOpDesc()
+  val workflow = buildWorkflow(
+    List(csvOpDesc, keywordOpDesc, sink),
+    List(
+      LogicalLink(
+        csvOpDesc.operatorIdentifier,
+        PortIdentity(),
+        keywordOpDesc.operatorIdentifier,
+        PortIdentity()
+      ),
+      LogicalLink(
+        keywordOpDesc.operatorIdentifier,
+        PortIdentity(),
+        sink.operatorIdentifier,
+        PortIdentity()
+      )
+    ),
+    resultStorage
+  )
+
   override def beforeAll(): Unit = {
     system = ActorSystem("Amber", AmberUtils.akkaConfig)
     system.actorOf(Props[SingleNodeListener](), "cluster-info")
@@ -50,21 +77,6 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   }
 
   "Default controller state" should "be serializable" in {
-    val resultStorage = new OpResultStorage()
-    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, sink),
-      List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
-      resultStorage
-    )
     val cp =
       new ControllerProcessor(
         workflow.context,
@@ -105,30 +117,8 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     }
   }
 
-  "Workflow " should "take global checkpoint" in {
-    val resultStorage = new OpResultStorage()
-    val csvOpDesc = TestOperators.mediumCsvScanOpDesc()
-    val keywordOpDesc = TestOperators.keywordSearchOpDesc("Region", "Asia")
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      List(csvOpDesc, keywordOpDesc, sink),
-      List(
-        LogicalLink(
-          csvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          keywordOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
-      resultStorage
-    )
-    val client = new AmberClient(
+  "Workflow " should "take global checkpoint, reload and continue" in {
+    val client1 = new AmberClient(
       system,
       workflow.context,
       workflow.physicalPlan,
@@ -136,15 +126,38 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       ControllerConfig.default,
       error => {}
     )
-    Await.result(client.sendAsync(StartWorkflow()))
+    Await.result(client1.sendAsync(StartWorkflow()))
     Thread.sleep(100)
-    Await.result(client.sendAsync(PauseWorkflow()))
-    val checkpointId = ChannelMarkerIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
-    val uri = new URI("ram:///recovery-logs/tmp")
+    Await.result(client1.sendAsync(PauseWorkflow()))
+    val checkpointId = ChannelMarkerIdentity(s"Checkpoint_test_1")
+    val uri = new URI("ram:///recovery-logs/tmp/")
     Await.result(
-      client.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri)),
+      client1.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri)),
       Duration.fromSeconds(30)
     )
+    client1.shutdown()
+    Thread.sleep(100)
+    var controllerConfig = ControllerConfig.default
+    controllerConfig =
+      controllerConfig.copy(stateRestoreConfOpt = Some(StateRestoreConfig(uri, checkpointId)))
+    val completableFuture = new CompletableFuture[Unit]()
+    val client2 = new AmberClient(
+      system,
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      controllerConfig,
+      error => {}
+    )
+    client2.registerCallback[WorkflowCompleted] { evt =>
+      completableFuture.complete(())
+    }
+    Thread.sleep(100)
+    Await.result(client2.sendAsync(PauseWorkflow()))
+    Await.result(client2.sendAsync(ResumeWorkflow()))
+    completableFuture.get(30000, TimeUnit.MILLISECONDS)
   }
+
+  "Workflow " should "reload checkpoint and continue " in {}
 
 }
