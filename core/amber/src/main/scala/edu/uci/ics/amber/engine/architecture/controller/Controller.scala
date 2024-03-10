@@ -103,7 +103,6 @@ class Controller(
 
   override def initState(): Unit = {
     initControllerProcessor()
-    cp.setupTransferService(transferService)
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
