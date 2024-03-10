@@ -81,6 +81,17 @@ export const mockPresetEnabledPredicate: OperatorPredicate = {
   showAdvanced: true,
 };
 
+export const mockJavaUDFPredicate: OperatorPredicate = {
+  operatorID: "6",
+  operatorType: "JavaUDF",
+  operatorVersion: "p1",
+  operatorProperties: {},
+  inputPorts: [{ portID: "input-0" }],
+  outputPorts: [{ portID: "output-0" }],
+  showAdvanced: false,
+  isDisabled: false,
+};
+
 export const mockScanResultLink: OperatorLink = {
   linkID: "link-1",
   source: {

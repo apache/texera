@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.download
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -9,10 +8,10 @@ import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.operators.source.fetcher.URLFetchUtil.getInputStreamFromURL
 
 import java.net.URL
-import scala.concurrent.{Await, Future}
+import scala.collection.mutable
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
-import scala.collection.mutable
+import scala.concurrent.{Await, Future}
 
 class BulkDownloaderOpExec(
     workflowContext: WorkflowContext,
@@ -36,22 +35,15 @@ class BulkDownloaderOpExec(
     }
   }
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(t) =>
-        downloading.enqueue(Future { downloadTuple(t) })
-        new DownloadResultIterator(false)
-      case Right(_) =>
-        new DownloadResultIterator(true)
-    }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+
+    downloading.enqueue(Future { downloadTuple(tuple) })
+    new DownloadResultIterator(false)
   }
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    new DownloadResultIterator(true)
+  }
 
   private def downloadTuple(tuple: Tuple): TupleLike = {
     TupleLike(tuple.getFields ++ Seq(downloadUrl(tuple.getField(urlAttribute))))

@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -46,14 +45,14 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "output in order" in {
 
     opExec.open()
-    opExec.processTuple(Left(tuple(3)), 0)
-    opExec.processTuple(Left(tuple(1)), 0)
-    opExec.processTuple(Left(tuple(2)), 0)
-    opExec.processTuple(Left(tuple(5)), 0)
+    opExec.processTuple(tuple(3), 0)
+    opExec.processTuple(tuple(1), 0)
+    opExec.processTuple(tuple(2), 0)
+    opExec.processTuple(tuple(5), 0)
 
     val outputTuples: List[Tuple] =
       opExec
-        .processTuple(Right(InputExhausted()), 0)
+        .onFinish(0)
         .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(tupleSchema))
         .toList
     assert(outputTuples.size == 4)

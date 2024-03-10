@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.cartesianProduct
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -56,21 +55,21 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     (1 to numLeftTuples).map(value => {
       assert(
         opExec
-          .processTuple(Left(generate_tuple(leftSchema, Some(value))), leftPort)
+          .processTuple(generate_tuple(leftSchema, Some(value)), leftPort)
           .isEmpty
       )
     })
-    assert(opExec.processTuple(Right(InputExhausted()), leftPort).isEmpty)
+    assert(opExec.onFinish(leftPort).isEmpty)
 
     // process 5 right tuples
     val outputTuples: List[TupleLike] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
       .map(value =>
         opExec
-          .processTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort)
+          .processTuple(generate_tuple(rightSchema, Some(value)), rightPort)
       )
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
-    assert(opExec.processTuple(Right(InputExhausted()), rightPort).isEmpty)
+    assert(opExec.onFinish(rightPort).isEmpty)
 
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)
@@ -137,21 +136,21 @@ class CartesianProductOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     (1 to numLeftTuples).map(value => {
       assert(
         opExec
-          .processTuple(Left(generate_tuple(leftSchema, Some(value))), leftPort)
+          .processTuple(generate_tuple(leftSchema, Some(value)), leftPort)
           .isEmpty
       )
     })
-    assert(opExec.processTuple(Right(InputExhausted()), leftPort).isEmpty)
+    assert(opExec.onFinish(leftPort).isEmpty)
 
     // process 3 right tuples
     val outputTuples: List[TupleLike] = (numLeftTuples + 1 to numLeftTuples + numRightTuples)
       .map(value =>
         opExec
-          .processTuple(Left(generate_tuple(rightSchema, Some(value))), rightPort)
+          .processTuple(generate_tuple(rightSchema, Some(value)), rightPort)
       )
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
-    assert(opExec.processTuple(Right(InputExhausted()), rightPort).isEmpty)
+    assert(opExec.onFinish(rightPort).isEmpty)
 
     // verify correct output size
     assert(outputTuples.size == numLeftTuples * numRightTuples)

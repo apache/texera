@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.WorkerTimerService
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.READY
-import edu.uci.ics.amber.engine.common.{InputExhausted, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, EndOfUpstream, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -71,20 +71,18 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     tuples.foreach { x =>
       (
           (
-              tuple: Either[Tuple, InputExhausted],
+              tuple: Tuple,
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )
-        .expects(Left(x), 0)
+        .expects(x, 0)
     }
     (
         (
-            tuple: Either[Tuple, InputExhausted],
-            input: Int
-        ) => operator.processTupleMultiPort(tuple, input)
+          input: Int
+        ) => operator.onFinishMultiPort(input)
     )
       .expects(
-        Right(InputExhausted()),
         0
       )
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
@@ -125,19 +123,18 @@ class DataProcessorSpec extends AnyFlatSpec with MockFactory with BeforeAndAfter
     tuples.foreach { x =>
       (
           (
-              tuple: Either[Tuple, InputExhausted],
+              tuple: Tuple,
               input: Int
           ) => operator.processTupleMultiPort(tuple, input)
       )
-        .expects(Left(x), 0)
+        .expects(x, 0)
     }
     (
         (
-            tuple: Either[Tuple, InputExhausted],
-            input: Int
-        ) => operator.processTupleMultiPort(tuple, input)
+          input: Int
+        ) => operator.onFinishMultiPort(input)
     )
-      .expects(Right(InputExhausted()), 0)
+      .expects(0)
     (adaptiveBatchingMonitor.startAdaptiveBatching _).expects().anyNumberOfTimes()
     (dp.asyncRPCClient.send[Unit] _).expects(*, *).anyNumberOfTimes()
     dp.inputManager.addPort(inputPortId, schema)

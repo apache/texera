@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, ISinkOperatorExecutor}
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, SinkOperatorExecutor}
 
 class StatisticsManager {
   // DataProcessor
@@ -18,7 +18,7 @@ class StatisticsManager {
     // sink operator doesn't output to downstream so internal count is 0
     // but for user-friendliness we show its input count as output count
     val displayOut = operator match {
-      case sink: ISinkOperatorExecutor =>
+      case sink: SinkOperatorExecutor =>
         inputTupleCount
       case _ =>
         outputTupleCount
