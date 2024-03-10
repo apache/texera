@@ -20,7 +20,8 @@ import edu.uci.ics.amber.engine.common.{
   AmberUtils,
   CheckpointState,
   CheckpointSupport,
-  IOperatorExecutor
+  IOperatorExecutor,
+  SourceOperatorExecutor
 }
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -105,7 +106,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       case OpExecInitInfoWithFunc(opGen) =>
         val a = opGen(1, 1)
         a.open()
-        val b = a.asInstanceOf[ISourceOperatorExecutor].produceTuple().map(t => (t, None))
+        val b = a.asInstanceOf[SourceOperatorExecutor].produceTuple().map(t => (t, None))
         b.next()
         b.next()
         a.asInstanceOf[CheckpointSupport].serializeState(b, chkpt)
@@ -156,7 +157,5 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     Await.result(client2.sendAsync(ResumeWorkflow()))
     completableFuture.get(30000, TimeUnit.MILLISECONDS)
   }
-
-  "Workflow " should "reload checkpoint and continue " in {}
 
 }

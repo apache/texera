@@ -19,7 +19,8 @@ class CSVScanSourceOpExec private[csv] (
     customDelimiter: Option[String],
     hasHeader: Boolean,
     schemaFunc: () => Schema
-) extends SourceOperatorExecutor with CheckpointSupport {
+) extends SourceOperatorExecutor
+    with CheckpointSupport {
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
   var schema: Schema = _
