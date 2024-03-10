@@ -1,10 +1,9 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpDesc.HASH_JOIN_INTERNAL_KEY_NAME
 
 import scala.collection.mutable
 import scala.collection.mutable.ListBuffer
@@ -49,47 +48,43 @@ class HashJoinProbeOpExec[K](
 
   var buildTableHashMap: mutable.HashMap[K, (ListBuffer[Tuple], Boolean)] = _
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] =
-    tuple match {
-      case Left(tuple) if port == 0 =>
-        // Load build hash map
-        val key = tuple.getField[K](HASH_JOIN_INTERNAL_KEY_NAME)
-        buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))._1 += tuple
-          .getPartialTuple(
-            tuple.getSchema.getAttributeNames.filterNot(n => n == HASH_JOIN_INTERNAL_KEY_NAME)
-          )
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] =
+    if (port == 0) {
+      // Load build hash map
+      val key = tuple.getField[K](HASH_JOIN_INTERNAL_KEY_NAME)
+      buildTableHashMap.getOrElseUpdate(key, (new ListBuffer[Tuple](), false))._1 += tuple
+        .getPartialTuple(
+          tuple.getSchema.getAttributeNames.filterNot(n => n == HASH_JOIN_INTERNAL_KEY_NAME)
+        )
+      Iterator.empty
+    } else {
+      // Probe phase
+      val key = tuple.getField(probeAttributeName).asInstanceOf[K]
+      val (matchedTuples, joined) =
+        buildTableHashMap.getOrElse(key, (new ListBuffer[Tuple](), false))
+
+      if (matchedTuples.nonEmpty) {
+        // Join match found
+        buildTableHashMap.put(key, (matchedTuples, true))
+        performJoin(tuple, matchedTuples)
+      } else if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
+        // Handle right and full outer joins without a match
+        performRightAntiJoin(tuple)
+      } else {
+        // No match found
         Iterator.empty
-
-      case Left(tuple) =>
-        // Probe phase
-        val key = tuple.getField(probeAttributeName).asInstanceOf[K]
-        val (matchedTuples, joined) =
-          buildTableHashMap.getOrElse(key, (new ListBuffer[Tuple](), false))
-
-        if (matchedTuples.nonEmpty) {
-          // Join match found
-          buildTableHashMap.put(key, (matchedTuples, true))
-          performJoin(tuple, matchedTuples)
-        } else if (joinType == JoinType.RIGHT_OUTER || joinType == JoinType.FULL_OUTER) {
-          // Handle right and full outer joins without a match
-          performRightAntiJoin(tuple)
-        } else {
-          // No match found
-          Iterator.empty
-        }
-
-      case Right(_)
-          if port != 0 && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER) =>
-        // Handle left and full outer joins after input is exhausted
-        performLeftAntiJoin
-
-      case _ =>
-        // Default case for all other conditions
-        Iterator.empty
+      }
     }
+
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    if (port == 1 && (joinType == JoinType.LEFT_OUTER || joinType == JoinType.FULL_OUTER)) {
+      // Handle left and full outer joins after input is exhausted
+      performLeftAntiJoin
+    } else {
+      Iterator.empty
+    }
+
+  }
 
   private def performLeftAntiJoin: Iterator[TupleLike] = {
     buildTableHashMap.valuesIterator

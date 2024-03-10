@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.hashJoin
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -54,12 +53,12 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (0 to 7).map(i => {
       assert(
-        buildOpExec.processTuple(Left(tuple("build", 1, Some(i))), build).isEmpty
+        buildOpExec.processTuple(tuple("build", 1, Some(i)), build).isEmpty
       )
     })
 
     val buildOpOutputIterator =
-      buildOpExec.processTuple(Right(InputExhausted()), build)
+      buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
@@ -72,28 +71,26 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       assert(
         probeOpExec
           .processTuple(
-            Left(
-              buildOpOutputIterator
-                .next()
-                .asInstanceOf[SchemaEnforceable]
-                .enforceSchema(getInternalHashTableSchema(inputSchemas.head))
-            ),
+            buildOpOutputIterator
+              .next()
+              .asInstanceOf[SchemaEnforceable]
+              .enforceSchema(getInternalHashTableSchema(inputSchemas.head)),
             build
           )
           .isEmpty
       )
     }
-    assert(probeOpExec.processTuple(Right(InputExhausted()), build).isEmpty)
+    assert(probeOpExec.onFinish(build).isEmpty)
 
     buildOpExec.close()
 
     val outputTuples = (5 to 9)
-      .map(i => probeOpExec.processTuple(Left(tuple("probe", 1, Some(i))), probe))
+      .map(i => probeOpExec.processTuple(tuple("probe", 1, Some(i)), probe))
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
       .toList
 
-    assert(probeOpExec.processTuple(Right(InputExhausted()), probe).isEmpty)
+    assert(probeOpExec.onFinish(probe).isEmpty)
 
     assert(outputTuples.size == 3)
     assert(outputTuples.head.getFields.length == 3)
@@ -114,11 +111,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (0 to 7).map(i => {
       assert(
-        buildOpExec.processTuple(Left(tuple("same", 1, Some(i))), build).isEmpty
+        buildOpExec.processTuple(tuple("same", 1, Some(i)), build).isEmpty
       )
     })
     val buildOpOutputIterator =
-      buildOpExec.processTuple(Right(InputExhausted()), build)
+      buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
@@ -132,28 +129,26 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       assert(
         probeOpExec
           .processTuple(
-            Left(
-              buildOpOutputIterator
-                .next()
-                .asInstanceOf[SchemaEnforceable]
-                .enforceSchema(getInternalHashTableSchema(inputSchemas.head))
-            ),
+            buildOpOutputIterator
+              .next()
+              .asInstanceOf[SchemaEnforceable]
+              .enforceSchema(getInternalHashTableSchema(inputSchemas.head)),
             build
           )
           .isEmpty
       )
     }
-    assert(probeOpExec.processTuple(Right(InputExhausted()), build).isEmpty)
+    assert(probeOpExec.onFinish(build).isEmpty)
 
     buildOpExec.close()
 
     val outputTuples = (5 to 9)
-      .map(i => probeOpExec.processTuple(Left(tuple("same", n = 2, Some(i))), probe))
+      .map(i => probeOpExec.processTuple(tuple("same", n = 2, Some(i)), probe))
       .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
       .toList
 
-    assert(probeOpExec.processTuple(Right(InputExhausted()), probe).isEmpty)
+    assert(probeOpExec.onFinish(probe).isEmpty)
 
     assert(outputTuples.size == 3)
     assert(outputTuples.head.getFields.length == 3)
@@ -173,11 +168,11 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
 
     (0 to 7).map(i => {
       assert(
-        buildOpExec.processTuple(Left(tuple("same", 1, Some(i))), build).isEmpty
+        buildOpExec.processTuple(tuple("same", 1, Some(i)), build).isEmpty
       )
     })
     val buildOpOutputIterator =
-      buildOpExec.processTuple(Right(InputExhausted()), build)
+      buildOpExec.onFinish(build)
     assert(buildOpOutputIterator.hasNext)
 
     probeOpExec = new HashJoinProbeOpExec[String](
@@ -191,32 +186,30 @@ class HashJoinOpSpec extends AnyFlatSpec with BeforeAndAfter {
       assert(
         probeOpExec
           .processTuple(
-            Left(
-              buildOpOutputIterator
-                .next()
-                .asInstanceOf[SchemaEnforceable]
-                .enforceSchema(getInternalHashTableSchema(inputSchemas.head))
-            ),
+            buildOpOutputIterator
+              .next()
+              .asInstanceOf[SchemaEnforceable]
+              .enforceSchema(getInternalHashTableSchema(inputSchemas.head)),
             build
           )
           .isEmpty
       )
     }
-    assert(probeOpExec.processTuple(Right(InputExhausted()), build).isEmpty)
+    assert(probeOpExec.onFinish(build).isEmpty)
 
     buildOpExec.close()
 
     assert(
       (5 to 9)
         .map(_ => {
-          probeOpExec.processTuple(Left(tuple("same", n = 2, None)), probe)
+          probeOpExec.processTuple(tuple("same", n = 2, None), probe)
         })
         .foldLeft(Iterator[TupleLike]())(_ ++ _)
         .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
         .size == 5
     )
 
-    assert(probeOpExec.processTuple(Right(InputExhausted()), probe).size == 8)
+    assert(probeOpExec.onFinish(probe).size == 8)
 
     probeOpExec.close()
   }

@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.sql
 
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
@@ -30,7 +30,7 @@ abstract class SQLSourceOpExec(
     keywordSearchByColumn: String,
     keywords: String,
     schemaFunc: () => Schema
-) extends ISourceOperatorExecutor {
+) extends SourceOperatorExecutor {
 
   // connection and query related
   var schema: Schema = _

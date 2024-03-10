@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
@@ -17,7 +17,7 @@ class ParallelCSVScanSourceOpExec private[csv] (
     startOffset: Long,
     endOffset: Long,
     schemaFunc: () => Schema
-) extends ISourceOperatorExecutor {
+) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var reader: BufferedBlockReader = _
 

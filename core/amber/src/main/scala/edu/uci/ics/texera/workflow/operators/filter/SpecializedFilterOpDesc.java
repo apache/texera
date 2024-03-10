@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
@@ -14,9 +13,7 @@ import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
-
 import scala.Tuple2;
-
 
 import java.util.ArrayList;
 import java.util.function.Function;
@@ -38,7 +35,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
                                 (Function<Tuple2<Object, Object>, IOperatorExecutor> & java.io.Serializable)
-                                        x -> new SpecializedFilterOpExec(this)
+                                        x -> new SpecializedFilterOpExec(this.predicates)
                         )
                 )
                 .withInputPorts(operatorInfo().inputPorts())

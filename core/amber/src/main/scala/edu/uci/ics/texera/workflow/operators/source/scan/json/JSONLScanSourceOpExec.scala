@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.json
 
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
@@ -19,7 +19,7 @@ class JSONLScanSourceOpExec private[json] (
     endOffset: Int,
     flatten: Boolean,
     schemaFunc: () => Schema
-) extends ISourceOperatorExecutor {
+) extends SourceOperatorExecutor {
   private var schema: Schema = _
   private var rows: Iterator[String] = _
   private var reader: BufferedReader = _
