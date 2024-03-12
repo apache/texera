@@ -3,11 +3,14 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ChannelMarkerHandler.PropagateChannelMarker
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ChannelMarkerType}
+import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
+import edu.uci.ics.amber.engine.common.ambermessage.ChannelMarkerType
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
+import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
+  ChannelIdentity,
   ChannelMarkerIdentity,
   PhysicalOpIdentity
 }
@@ -29,13 +32,15 @@ object ChannelMarkerHandler {
 trait ChannelMarkerHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: PropagateChannelMarker, sender) =>
+  registerHandler[PropagateChannelMarker, Seq[(ActorVirtualIdentity, _)]] { (msg, sender) =>
     {
       // step1: create separate control commands for each target actor.
       val inputSet = msg.targetOps.flatMap { target =>
-        cp.executionState.getOperatorExecution(target).getBuiltWorkerIds.map { worker =>
-          worker -> createInvocation(msg.markerCommand)
-        }
+        cp.workflowExecution.getRunningRegionExecutions
+          .map(_.getOperatorExecution(target))
+          .flatMap(_.getWorkerIds.map { worker =>
+            worker -> createInvocation(msg.markerCommand)
+          })
       }
       // step 2: packing all control commands into one compound command.
       val cmdMapping: Map[ActorVirtualIdentity, ControlInvocation] = inputSet.map {
@@ -45,20 +50,46 @@ trait ChannelMarkerHandler {
         case (workerId, (_, future)) => future.map(ret => (workerId, ret))
       }
 
-      // step 3: start prop, send marker through control channel with the compound command from sources.
-      msg.sourceOpToStartProp.foreach { source =>
-        cp.executionState.getOperatorExecution(source).getBuiltWorkerIds.foreach { worker =>
-          sendChannelMarker(
-            msg.id,
-            msg.markerType,
-            msg.scope,
-            cmdMapping,
-            ChannelID(actorId, worker, isControl = true)
+      // step 3: convert scope DAG to channels.
+      val channelScope = cp.workflowExecution.getRunningRegionExecutions
+        .flatMap(regionExecution =>
+          regionExecution.getAllLinkExecutions
+            .map(_._2)
+            .flatMap(linkExecution => linkExecution.getAllChannelExecutions.map(_._1))
+        )
+        .filter(channelId => {
+          msg.scope.operators
+            .map(_.id)
+            .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.fromWorkerId)) &&
+            msg.scope.operators
+              .map(_.id)
+              .contains(VirtualIdentityUtils.getPhysicalOpId(channelId.toWorkerId))
+        })
+      val controlChannels = msg.sourceOpToStartProp.flatMap { source =>
+        cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.flatMap { worker =>
+          Seq(
+            ChannelIdentity(CONTROLLER, worker, isControl = true),
+            ChannelIdentity(worker, CONTROLLER, isControl = true)
           )
         }
       }
 
-      // step 4: wait for the marker propagation.
+      val finalScope = channelScope ++ controlChannels
+
+      // step 4: start prop, send marker through control channel with the compound command from sources.
+      msg.sourceOpToStartProp.foreach { source =>
+        cp.workflowExecution.getLatestOperatorExecution(source).getWorkerIds.foreach { worker =>
+          sendChannelMarker(
+            msg.id,
+            msg.markerType,
+            finalScope.toSet,
+            cmdMapping,
+            ChannelIdentity(actorId, worker, isControl = true)
+          )
+        }
+      }
+
+      // step 5: wait for the marker propagation.
       Future.collect(futures.toList).map { ret =>
         cp.logManager.markAsReplayDestination(msg.id)
         ret

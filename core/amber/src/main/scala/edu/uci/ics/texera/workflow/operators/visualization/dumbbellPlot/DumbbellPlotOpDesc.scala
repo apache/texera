@@ -5,17 +5,15 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
 }
+
+import java.util
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 
 //type constraint: measurementColumnName can only be a numeric column
 @JsonSchemaInject(json = """
@@ -40,15 +38,15 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
   @AutofillAttributeName
   var categoryColumnName: String = ""
 
-  @JsonProperty(value = "startValue", required = true)
-  @JsonSchemaTitle("Start Value")
+  @JsonProperty(value = "dumbbellStartValue", required = true)
+  @JsonSchemaTitle("Dumbbell Start Value")
   @JsonPropertyDescription("the start point value of each dumbbell")
-  var startValue: String = ""
+  var dumbbellStartValue: String = ""
 
-  @JsonProperty(value = "endValue", required = true)
-  @JsonSchemaTitle("End Value")
+  @JsonProperty(value = "dumbbellEndValue", required = true)
+  @JsonSchemaTitle("Dumbbell End Value")
   @JsonPropertyDescription("the end value of each dumbbell")
-  var endValue: String = ""
+  var dumbbellEndValue: String = ""
 
   @JsonProperty(value = "measurementColumnName", required = true)
   @JsonSchemaTitle("Measurement Column Name")
@@ -62,8 +60,16 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
   @AutofillAttributeName
   var comparedColumnName: String = ""
 
+  @JsonProperty(value = "dots", required = false)
+  var dots: util.List[DumbbellDotConfig] = _
+
+  @JsonProperty(value = "showLegends", required = false)
+  @JsonSchemaTitle("Show Legends?")
+  @JsonPropertyDescription("whether show legends in the graph")
+  var showLegends: Boolean = false;
+
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def operatorInfo: OperatorInfo =
@@ -75,37 +81,73 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
       outputPorts = List(OutputPort())
     )
 
-  def createPlotlyFigure(): String = {
-    val dumbbellValues = startValue + ", " + endValue
-
+  def createPlotlyDumbbellLineFigure(): String = {
+    val dumbbellValues = dumbbellStartValue + ", " + dumbbellEndValue
+    var showLegendsOption = "showlegend=False"
+    if (showLegends) {
+      showLegendsOption = "showlegend=True"
+    }
     s"""
      |
      |        entityNames = list(table['${comparedColumnName}'].unique())
+     |        entityNames = sorted(entityNames, reverse=True)
      |        categoryValues = [${dumbbellValues}]
      |        filtered_table = table[(table['${comparedColumnName}'].isin(entityNames)) &
      |                    (table['${categoryColumnName}'].isin(categoryValues))]
      |
-     |        # Create the dumbbell plot using Plotly
+     |        # Create the dumbbell line using Plotly
      |        fig = go.Figure()
-     |
+     |        color = 'black'
      |        for entity in entityNames:
      |          entity_data = filtered_table[filtered_table['${comparedColumnName}'] == entity]
      |          fig.add_trace(go.Scatter(x=entity_data['${measurementColumnName}'],
-     |                             y=[entity]*2,
-     |                             mode='lines+markers+text',
+     |                             y=[entity]*len(entity_data),
+     |                             mode='lines',
      |                             name=entity,
-     |                             text=entity_data['${categoryColumnName}'],
-     |                             textposition='top center',
-     |                             marker=dict(size=10)))
+     |                             line=dict(color=color)))
      |
      |          fig.update_layout(title="${title}",
      |                  xaxis_title="${measurementColumnName}",
      |                  yaxis_title="${comparedColumnName}",
-     |                  yaxis=dict(categoryorder='array', categoryarray=entityNames))
+     |                  yaxis=dict(categoryorder='array', categoryarray=entityNames),
+     |                  ${showLegendsOption},
+     |                  height=20 * len(entityNames)
+     |                  )
      |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  def addPlotlyDots(): String = {
+
+    var dotColumnNames = ""
+    if (dots != null && dots.size() != 0) {
+      dotColumnNames = dots.asScala
+        .map { dot =>
+          s"'${dot.dotValue}'"
+        }
+        .mkString(",")
+    }
+
+    s"""
+       |        dotColumnNames = [${dotColumnNames}]
+       |        print("dot column: ", filtered_table)
+       |        print("column names: ", dotColumnNames)
+       |        if len(dotColumnNames) > 0:
+       |          for dotColumn in dotColumnNames:
+       |              # Extract dot data for each entity
+       |              for entity in entityNames:
+       |                  entity_dot_data = filtered_table[filtered_table['${comparedColumnName}'] == entity]
+       |                  # Extract X and Y values for the dot
+       |                  x_values = entity_dot_data[dotColumn].values
+       |                  y_values = [entity] * len(x_values)
+       |                  # Add scatter plot for dots
+       |                  fig.add_trace(go.Scatter(x=x_values, y=y_values,
+       |                                         mode='markers',
+       |                                         name=entity + ' ' + dotColumn,
+       |                                         marker=dict(color='black', size=5)))  # Customize color and size as needed
+       |""".stripMargin
+  }
+
+  override def generatePythonCode(): String = {
     s"""
      |from pytexera import *
      |
@@ -125,7 +167,8 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
      |        if table.empty:
      |           yield {'html-content': self.render_error("input table is empty.")}
      |           return
-     |        ${createPlotlyFigure()}
+     |        ${createPlotlyDumbbellLineFigure()}
+     |        ${addPlotlyDots()}
      |        # convert fig to html content
      |        html = plotly.io.to_html(fig, include_plotlyjs='cdn', auto_play=False)
      |        yield {'html-content': html}

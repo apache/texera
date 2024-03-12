@@ -2,11 +2,12 @@ package edu.uci.ics.texera.workflow.operators.typecasting;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
-import com.google.common.base.Preconditions;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
+import edu.uci.ics.amber.engine.architecture.deploysemantics.SchemaPropagationFunc;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
+import edu.uci.ics.amber.engine.common.AmberUtils;
 import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
@@ -17,17 +18,17 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpDesc;
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils;
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo;
+
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
+import scala.Tuple2;
+import scala.collection.immutable.Map;
 
-import scala.Tuple3;
-import scala.collection.immutable.List;
-
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.asScalaBuffer;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class TypeCastingOpDesc extends MapOpDesc {
 
@@ -37,17 +38,36 @@ public class TypeCastingOpDesc extends MapOpDesc {
     public java.util.List<TypeCastingUnit> typeCastingUnits = new ArrayList<>();
 
     @Override
-    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId, OperatorSchemaInfo operatorSchemaInfo) {
-        Preconditions.checkArgument(!typeCastingUnits.isEmpty());
+    public PhysicalOp getPhysicalOp(WorkflowIdentity workflowId, ExecutionIdentity executionId) {
+        if (typeCastingUnits==null) typeCastingUnits = new ArrayList<>();
         return PhysicalOp.oneToOnePhysicalOp(
-                workflowId,
-                executionId,
-                operatorIdentifier(),
-                OpExecInitInfo.apply(
-                        (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                worker -> new TypeCastingOpExec(operatorSchemaInfo.outputSchemas()[0])
+                        workflowId,
+                        executionId,
+                        operatorIdentifier(),
+                        OpExecInitInfo.apply(
+                                (Function<Tuple2<Object, Object>, IOperatorExecutor> & java.io.Serializable)
+                                        worker -> new TypeCastingOpExec(typeCastingUnits)
+                        )
                 )
-        );
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts())
+                .withPropagateSchema(
+                        SchemaPropagationFunc.apply((Function<Map<PortIdentity, Schema>, Map<PortIdentity, Schema>> & Serializable) inputSchemas -> {
+                            // Initialize a Java HashMap
+                            java.util.Map<PortIdentity, Schema> javaMap = new java.util.HashMap<>();
+                            Schema outputSchema = inputSchemas.values().head();
+                            if (typeCastingUnits != null) {
+                                for (TypeCastingUnit unit : typeCastingUnits) {
+                                    outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
+                                }
+                            }
+
+                            javaMap.put(operatorInfo().outputPorts().head().id(), outputSchema);
+
+                            // Convert the Java Map to a Scala immutable Map
+                            return AmberUtils.toImmutableMap(javaMap);
+                        })
+                );
     }
 
     @Override
@@ -55,9 +75,9 @@ public class TypeCastingOpDesc extends MapOpDesc {
         return new OperatorInfo(
                 "Type Casting",
                 "Cast between types",
-                OperatorGroupConstants.UTILITY_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false ), ""))).toList(),
+                OperatorGroupConstants.CLEANING_GROUP(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 false,
@@ -67,10 +87,11 @@ public class TypeCastingOpDesc extends MapOpDesc {
 
     @Override
     public Schema getOutputSchema(Schema[] schemas) {
-        Preconditions.checkArgument(schemas.length == 1);
         Schema outputSchema = schemas[0];
-        for (TypeCastingUnit unit : typeCastingUnits) {
-            outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
+        if (typeCastingUnits != null) {
+            for (TypeCastingUnit unit : typeCastingUnits) {
+                outputSchema = AttributeTypeUtils.SchemaCasting(outputSchema, unit.attribute, unit.resultType);
+            }
         }
         return outputSchema;
     }

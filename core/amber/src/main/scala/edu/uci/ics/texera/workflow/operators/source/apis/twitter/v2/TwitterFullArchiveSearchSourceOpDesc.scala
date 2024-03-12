@@ -6,16 +6,11 @@ import com.kjetland.jackson.jsonSchema.annotations.{
   JsonSchemaInject,
   JsonSchemaTitle
 }
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.UIWidget
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpDesc
 
 class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
@@ -46,8 +41,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp =
     // TODO: use multiple workers
     PhysicalOp
@@ -55,12 +49,24 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
-          new TwitterFullArchiveSearchSourceOpExec(this, operatorSchemaInfo)
+        OpExecInitInfo((_, _) =>
+          new TwitterFullArchiveSearchSourceOpExec(
+            apiKey,
+            apiSecretKey,
+            stopWhenRateLimited,
+            searchQuery,
+            limit,
+            fromDateTime,
+            toDateTime,
+            () => sourceSchema()
+          )
         )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
 
   override def sourceSchema(): Schema = {
 
@@ -68,7 +74,7 @@ class TwitterFullArchiveSearchSourceOpDesc extends TwitterSourceOpDesc {
     // we are also currently depending on redouane59/twittered client library to parse tweet fields.
 
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute("id", AttributeType.STRING),
         new Attribute("text", AttributeType.STRING),

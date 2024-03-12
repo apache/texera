@@ -3,9 +3,8 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { AdminExecutionService } from "../../service/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
-
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
-import { NgbdModalWorkflowExecutionsComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/ngbd-modal-workflow-executions.component";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { WorkflowExecutionModalComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-modal.component";
 import { Workflow } from "../../../../common/type/workflow";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
@@ -61,7 +60,10 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
       });
   }, 1000); // 1 second interval
 
-  constructor(private adminExecutionService: AdminExecutionService, private modalService: NgbModal) {}
+  constructor(
+    private adminExecutionService: AdminExecutionService,
+    private modalService: NzModalService
+  ) {}
 
   ngOnInit() {
     this.adminExecutionService
@@ -106,7 +108,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     for (let i = 0; i < this.listOfExecutions.length; i++) {
       const execution = this.listOfExecutions[i];
       let tempWorkflow: Workflow = {
-        content: { operators: [], operatorPositions: {}, links: [], groups: [], breakpoints: {}, commentBoxes: [] },
+        content: { operators: [], operatorPositions: {}, links: [], groups: [], commentBoxes: [] },
         name: execution.workflowName,
         wid: execution.workflowId,
         description: "",
@@ -220,8 +222,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = seconds % 60;
 
-    const formattedTime = `${this.padZero(hours)}:${this.padZero(minutes)}:${this.padZero(remainingSeconds)}`;
-    return formattedTime;
+    return `${this.padZero(hours)}:${this.padZero(minutes)}:${this.padZero(remainingSeconds)}`;
   }
 
   /**
@@ -238,21 +239,25 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
   };
 
   clickToViewHistory(workflowId: number) {
-    const modalRef = this.modalService.open(NgbdModalWorkflowExecutionsComponent, {
-      size: "xl",
-      modalDialogClass: "modal-dialog-centered",
-    });
-
+    let wid!: number;
+    let name!: string;
     for (let i = 0; i < this.workflows.length; i++) {
       const workflow = this.workflows[i];
       if (workflow.wid == workflowId) {
-        let currentWorkflow: Workflow = workflow;
-        modalRef.componentInstance.workflow = currentWorkflow;
-        modalRef.componentInstance.workflowName = currentWorkflow.name;
-
+        wid = workflow.wid;
+        name = workflow.name;
         break;
       }
     }
+
+    this.modalService.create({
+      nzContent: WorkflowExecutionModalComponent,
+      nzData: { wid: wid },
+      nzTitle: "Execution results of Workflow: " + name,
+      nzFooter: null,
+      nzWidth: "80%",
+      nzCentered: true,
+    });
   }
 
   /**

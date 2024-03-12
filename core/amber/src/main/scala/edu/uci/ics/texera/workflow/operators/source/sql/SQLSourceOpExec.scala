@@ -1,23 +1,21 @@
 package edu.uci.ics.texera.workflow.operators.source.sql
 
-import edu.uci.ics.texera.workflow.common.operators.source.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType._
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.{
   parseField,
   parseTimestamp
 }
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 
 import java.sql._
-import scala.collection.Iterator
 import scala.collection.mutable.ArrayBuffer
-import scala.jdk.CollectionConverters._
 import scala.util.control.Breaks.{break, breakable}
 
 abstract class SQLSourceOpExec(
     // source configs
-    schema: Schema,
     table: String,
     var curLimit: Option[Long],
     var curOffset: Option[Long],
@@ -30,49 +28,50 @@ abstract class SQLSourceOpExec(
     // filter conditions:
     keywordSearch: Boolean,
     keywordSearchByColumn: String,
-    keywords: String
+    keywords: String,
+    schemaFunc: () => Schema
 ) extends SourceOperatorExecutor {
 
   // connection and query related
+  var schema: Schema = _
   val tableNames: ArrayBuffer[String] = ArrayBuffer()
-  val batchByAttribute: Option[Attribute] =
-    if (progressive.getOrElse(false)) Option(schema.getAttribute(batchByColumn.get)) else None
+  var batchByAttribute: Option[Attribute] = None
   var connection: Connection = _
-  var curQuery: Option[PreparedStatement] = None
-  var curResultSet: Option[ResultSet] = None
-  var curLowerBound: Number = _
-  var upperBound: Number = _
+  private var curQuery: Option[PreparedStatement] = None
+  private var curResultSet: Option[ResultSet] = None
+  private var curLowerBound: Number = _
+  private var upperBound: Number = _
   var cachedTuple: Option[Tuple] = None
-  var querySent: Boolean = false
+  private var querySent: Boolean = false
 
   /**
-    * A generator of a Texera.Tuple, which converted from a SQL row
-    * @return Iterator[Tuple]
+    * A generator of a Tuple, which converted from a SQL row
+    * @return Iterator[TupleLike]
     */
-  override def produceTexeraTuple(): Iterator[Tuple] = {
-    new Iterator[Tuple]() {
+  override def produceTuple(): Iterator[TupleLike] = {
+    new Iterator[TupleLike]() {
       override def hasNext: Boolean = {
         cachedTuple match {
           // if existing Tuple in cache, means there exist next Tuple.
           case Some(_) => true
           case None    =>
             // cache the next Tuple
-            cachedTuple = Option(next)
+            cachedTuple = Option(next())
             cachedTuple.isDefined
         }
 
       }
 
       /**
-        * Fetch the next row from resultSet, parse it into Texera.Tuple and return.
+        * Fetch the next row from resultSet, parse it into Tuple and return.
         * - If resultSet is exhausted, send the next query until no more queries are available.
         * - If no more queries, return null.
         *
         * @throws SQLException all possible exceptions from JDBC
-        * @return Texera.Tuple
+        * @return Tuple
         */
       @throws[SQLException]
-      override def next: Tuple = {
+      override def next(): Tuple = {
 
         // if has the next Tuple in cache, return it and clear the cache
         cachedTuple.foreach(tuple => {
@@ -93,15 +92,15 @@ abstract class SQLSourceOpExec(
                   curOffset.foreach(offset => {
                     if (offset > 0) {
                       curOffset = Option(offset - 1)
-                      break
+                      break()
                     }
                   })
 
-                  // construct Texera.Tuple from the next result.
+                  // construct Tuple from the next result.
                   val tuple = buildTupleFromRow
 
                   if (tuple == null)
-                    break
+                    break()
 
                   // update the limit in order to adapt to progressive batches
                   curLimit.foreach(limit => {
@@ -116,14 +115,14 @@ abstract class SQLSourceOpExec(
                   curQuery.foreach(query => query.close())
                   curResultSet = None
                   curQuery = None
-                  break
+                  break()
                 }
               case None =>
                 curQuery = getNextQuery
                 curQuery match {
                   case Some(query) =>
                     curResultSet = Option(query.executeQuery)
-                    break
+                    break()
                   case None =>
                     curResultSet = None
                     return null
@@ -147,6 +146,9 @@ abstract class SQLSourceOpExec(
     */
   @throws[SQLException]
   override def open(): Unit = {
+    schema = schemaFunc()
+    batchByAttribute =
+      if (progressive.getOrElse(false)) Option(schema.getAttribute(batchByColumn.get)) else None
     connection = establishConn()
 
     // load user table names from the given database
@@ -173,16 +175,16 @@ abstract class SQLSourceOpExec(
   }
 
   /**
-    * Build a Texera.Tuple from a row of curResultSet
+    * Build a Tuple from a row of curResultSet
     *
-    * @return the new Texera.Tuple
+    * @return the new Tuple
     * @throws SQLException all possible exceptions from JDBC
     */
   @throws[SQLException]
   protected def buildTupleFromRow: Tuple = {
-    val tupleBuilder = Tuple.newBuilder(schema)
+    val tupleBuilder = Tuple.builder(schema)
 
-    for (attr <- schema.getAttributes.asScala) {
+    for (attr <- schema.getAttributes) {
 
       breakable {
         val columnName = attr.getName
@@ -192,7 +194,7 @@ abstract class SQLSourceOpExec(
         if (value == null) {
           // add the field as null
           tupleBuilder.add(attr, null)
-          break
+          break()
         }
 
         // otherwise, transform the type of the value
@@ -200,7 +202,7 @@ abstract class SQLSourceOpExec(
 
       }
     }
-    tupleBuilder.build
+    tupleBuilder.build()
   }
 
   /**

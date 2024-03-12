@@ -12,7 +12,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
 
-  constructor(public workflowActionService: WorkflowActionService, public operatorMenu: OperatorMenuService) {
+  constructor(
+    public workflowActionService: WorkflowActionService,
+    public operatorMenu: OperatorMenuService
+  ) {
     this.registerWorkflowModifiableChangedHandler();
   }
 

@@ -1,16 +1,6 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
-
-case class ChannelID(
-    from: ActorVirtualIdentity,
-    to: ActorVirtualIdentity,
-    isControl: Boolean
-) {
-  override def toString: String = {
-    s"Channel(${from.name},${to.name},${if (isControl) "control" else "data"})"
-  }
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
 case object WorkflowMessage {
   def getInMemSize(msg: WorkflowMessage): Long = {
@@ -28,7 +18,7 @@ case object WorkflowMessage {
 sealed trait WorkflowMessage extends Serializable
 
 case class WorkflowFIFOMessage(
-    channel: ChannelID,
+    channelId: ChannelIdentity,
     sequenceNumber: Long,
     payload: WorkflowFIFOMessagePayload
 ) extends WorkflowMessage

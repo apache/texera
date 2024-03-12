@@ -1,11 +1,8 @@
 package edu.uci.ics.amber.engine.common
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-
-case class InputExhausted()
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 trait IOperatorExecutor {
 
@@ -13,13 +10,8 @@ trait IOperatorExecutor {
 
   def close(): Unit
 
-  def processTuple(
-      tuple: Either[ITuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
-  ): Iterator[(ITuple, Option[PortIdentity])]
+  def processTupleMultiPort(tuple: Tuple, port: Int): Iterator[(TupleLike, Option[PortIdentity])]
 
-  def getParam(query: String): String = { null }
+  def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])]
 
 }

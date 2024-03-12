@@ -10,46 +10,53 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.{
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelMarkerPayload,
+  ControlPayload,
+  WorkflowFIFOMessage
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.concurrent.duration.DurationInt
 
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
-      monitoringIntervalMs = Option(AmberConfig.monitoringIntervalInMs),
-      skewDetectionIntervalMs = Option(AmberConfig.reshapeSkewDetectionIntervalInMs),
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
-      workerRestoreConfMapping = _ => None,
-      workerLoggingConfMapping = _ => None
+      stateRestoreConfOpt = None,
+      faultToleranceConfOpt = None
     )
 }
 
 final case class ControllerConfig(
-    monitoringIntervalMs: Option[Long],
-    skewDetectionIntervalMs: Option[Long],
     statusUpdateIntervalMs: Option[Long],
-    workerRestoreConfMapping: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
-    workerLoggingConfMapping: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
+    stateRestoreConfOpt: Option[StateRestoreConfig],
+    faultToleranceConfOpt: Option[FaultToleranceConfig]
 )
 
 object Controller {
 
   def props(
-      workflow: Workflow,
+      workflowContext: WorkflowContext,
+      physicalPlan: PhysicalPlan,
+      opResultStorage: OpResultStorage,
       controllerConfig: ControllerConfig = ControllerConfig.default
   ): Props =
     Props(
       new Controller(
-        workflow,
+        workflowContext,
+        physicalPlan,
+        opResultStorage,
         controllerConfig
       )
     )
@@ -59,17 +66,20 @@ object Controller {
 }
 
 class Controller(
-    val workflow: Workflow,
-    val controllerConfig: ControllerConfig
+    workflowContext: WorkflowContext,
+    physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage,
+    controllerConfig: ControllerConfig
 ) extends WorkflowActor(
-      controllerConfig.workerLoggingConfMapping(CONTROLLER),
+      controllerConfig.faultToleranceConfOpt,
       CONTROLLER
     ) {
 
   actorRefMappingService.registerActorRef(CLIENT, context.parent)
   val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
   val cp = new ControllerProcessor(
-    workflow,
+    workflowContext,
+    opResultStorage,
     controllerConfig,
     actorId,
     logManager.sendCommitted
@@ -91,10 +101,12 @@ class Controller(
 
   override def initState(): Unit = {
     cp.setupActorService(actorService)
+    cp.workflowScheduler.updateSchedule(physicalPlan)
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
     cp.setupLogManager(logManager)
-    val controllerRestoreConf = controllerConfig.workerRestoreConfMapping(CONTROLLER)
+    cp.setupTransferService(transferService)
+    val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
       setupReplay(
@@ -109,9 +121,9 @@ class Controller(
   }
 
   override def handleInputMessage(id: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
-    val channel = cp.inputGateway.getChannel(workflowMsg.channel)
+    val channel = cp.inputGateway.getChannel(workflowMsg.channelId)
     channel.acceptMessage(workflowMsg)
-    sender ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channel))
+    sender() ! NetworkAck(id, getInMemSize(workflowMsg), getQueuedCredit(workflowMsg.channelId))
     processMessages()
   }
 
@@ -121,10 +133,12 @@ class Controller(
       cp.inputGateway.tryPickChannel match {
         case Some(channel) =>
           val msg = channel.take
-          logManager.withFaultTolerant(msg.channel, Some(msg)) {
+          val msgToLog = Some(msg).filter(_.payload.isInstanceOf[ControlPayload])
+          logManager.withFaultTolerant(msg.channelId, msgToLog) {
             msg.payload match {
-              case payload: ControlPayload => cp.processControlPayload(msg.channel, payload)
-              case p                       => throw new RuntimeException(s"controller cannot handle $p")
+              case payload: ControlPayload      => cp.processControlPayload(msg.channelId, payload)
+              case marker: ChannelMarkerPayload => // skip marker
+              case p                            => throw new RuntimeException(s"controller cannot handle $p")
             }
           }
         case None =>
@@ -136,12 +150,12 @@ class Controller(
   def handleDirectInvocation: Receive = {
     case c: ControlInvocation =>
       // only client and self can send direction invocations
-      val source = if (sender == self) {
+      val source = if (sender() == self) {
         SELF
       } else {
         CLIENT
       }
-      val controlChannelId = ChannelID(source, SELF, isControl = true)
+      val controlChannelId = ChannelIdentity(source, SELF, isControl = true)
       val channel = cp.inputGateway.getChannel(controlChannelId)
       channel.acceptMessage(
         WorkflowFIFOMessage(controlChannelId, channel.getCurrentSeq, c)
@@ -159,7 +173,7 @@ class Controller(
   }
 
   /** flow-control */
-  override def getQueuedCredit(channelID: ChannelID): Long = {
+  override def getQueuedCredit(channelId: ChannelIdentity): Long = {
     0 // no queued credit for controller
   }
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
@@ -168,7 +182,7 @@ class Controller(
   override val supervisorStrategy: SupervisorStrategy =
     AllForOneStrategy(maxNrOfRetries = 0, withinTimeRange = 1.minute) {
       case e: Throwable =>
-        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender)
+        val failedWorker = actorRefMappingService.findActorVirtualIdentity(sender())
         logger.error(s"Encountered fatal error from $failedWorker, amber is shutting done.", e)
         cp.asyncRPCServer.execute(FatalError(e, failedWorker), actorId)
         Stop

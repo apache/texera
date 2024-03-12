@@ -4,11 +4,10 @@ import akka.actor.Deploy
 import akka.remote.RemoteScope
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
-import edu.uci.ics.amber.engine.architecture.controller.OperatorExecution
+import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
   OpExecInitInfo,
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
+  OpExecInitInfoWithCode
 }
 import edu.uci.ics.amber.engine.architecture.deploysemantics.locationpreference.{
   AddressInfo,
@@ -20,20 +19,33 @@ import edu.uci.ics.amber.engine.architecture.pythonworker.PythonWorkflowWorker
 import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayInitialization,
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig,
+  WorkerReplayInitialization
 }
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
 import edu.uci.ics.amber.engine.common.virtualidentity._
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow._
-import edu.uci.ics.texera.workflow.operators.hashJoin.HashJoinOpExec
 import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
 import org.jgrapht.traverse.TopologicalOrderIterator
 
 import scala.collection.mutable.ArrayBuffer
+import scala.util.{Failure, Success, Try}
+
+case object SchemaPropagationFunc {
+  private type JavaSchemaPropagationFunc =
+    java.util.function.Function[Map[PortIdentity, Schema], Map[PortIdentity, Schema]]
+      with java.io.Serializable
+  def apply(javaFunc: JavaSchemaPropagationFunc): SchemaPropagationFunc =
+    SchemaPropagationFunc(inputSchemas => javaFunc.apply(inputSchemas))
+
+}
+
+case class SchemaPropagationFunc(func: Map[PortIdentity, Schema] => Map[PortIdentity, Schema])
+
+class SchemaNotAvailableException(message: String) extends Exception(message)
 
 object PhysicalOp {
 
@@ -143,39 +155,6 @@ object PhysicalOp {
     manyToOnePhysicalOp(physicalOpId, workflowId, executionId, opExecInitInfo)
       .withLocationPreference(Option(new PreferController()))
   }
-
-  def hashPhysicalOp(
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      logicalOpId: OperatorIdentity,
-      opExec: OpExecInitInfo,
-      hashColumnIndices: List[Int]
-  ): PhysicalOp =
-    hashPhysicalOp(
-      PhysicalOpIdentity(logicalOpId, "main"),
-      workflowId,
-      executionId,
-      opExec,
-      hashColumnIndices
-    )
-
-  def hashPhysicalOp(
-      physicalOpId: PhysicalOpIdentity,
-      workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      opExecInitInfo: OpExecInitInfo,
-      hashColumnIndices: List[Int]
-  ): PhysicalOp = {
-    PhysicalOp(
-      physicalOpId,
-      workflowId,
-      executionId,
-      opExecInitInfo,
-      partitionRequirement = List(Option(HashPartition(hashColumnIndices))),
-      derivePartition = _ => HashPartition(hashColumnIndices)
-    )
-  }
-
 }
 
 case class PhysicalOp(
@@ -189,8 +168,6 @@ case class PhysicalOp(
     opExecInitInfo: OpExecInitInfo,
     // preference of parallelism
     parallelizable: Boolean = true,
-    // input/output schemas
-    schemaInfo: Option[OperatorSchemaInfo] = None,
     // preference of worker placement
     locationPreference: Option[LocationPreference] = None,
     // requirement of partition policy (hash/range/single/none) on inputs
@@ -200,10 +177,14 @@ case class PhysicalOp(
     derivePartition: List[PartitionInfo] => PartitionInfo = inputParts => inputParts.head,
     // input/output ports of the physical operator
     // for operators with multiple input/output ports: must set these variables properly
-    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink])] = Map.empty,
-    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink])] = Map.empty,
+    inputPorts: Map[PortIdentity, (InputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+      Map.empty,
+    outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
+      Map.empty,
     // input ports that are blocking
     blockingInputs: List[PortIdentity] = List(),
+    // schema propagation function
+    propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
     // hint for number of workers
     suggestedWorkerNum: Option[Int] = None
@@ -212,7 +193,7 @@ case class PhysicalOp(
   // all the "dependee" links are also blocking inputs
   private lazy val realBlockingInputs: List[PortIdentity] =
     (blockingInputs ++ inputPorts.values.flatMap({
-      case (port, _) => port.dependencies
+      case (port, _, _) => port.dependencies
     })).distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
@@ -225,34 +206,19 @@ case class PhysicalOp(
     inputPorts.isEmpty
   }
 
-  def isSinkOperator: Boolean = {
-    outputPorts.isEmpty
-  }
-
   def isPythonOperator: Boolean = {
-    isInitWithCode // currently, only Python operators are initialized with code
-  }
-
-  def isHashJoinOperator: Boolean = {
     opExecInitInfo match {
-      case OpExecInitInfoWithCode(codeGen) => false
-      case OpExecInitInfoWithFunc(opGen) =>
-        opGen(0, this, OperatorConfig.empty).isInstanceOf[HashJoinOpExec[_]]
+      case opExecInfo: OpExecInitInfoWithCode =>
+        val (_, language) = opExecInfo.codeGen(0, 0)
+        language == "python"
+      case _ => false
     }
   }
 
   def getPythonCode: String = {
-    if (!isPythonOperator) {
-      throw new RuntimeException("operator " + id + " is not a python operator")
-    }
-    opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, this, OperatorConfig.empty)
-  }
-
-  def getOutputSchema: Schema = {
-    if (!isPythonOperator) {
-      throw new RuntimeException("operator " + id + " is not a python operator")
-    }
-    schemaInfo.get.outputSchemas.head
+    val (code, _) =
+      opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)
+    code
   }
 
   /**
@@ -263,17 +229,41 @@ case class PhysicalOp(
   }
 
   /**
-    * creates a copy with the input ports
+    * Creates a copy of the PhysicalOp with the specified input ports. Each input port is associated
+    * with an empty list of links and a None schema, reflecting the absence of predefined connections
+    * and schema information.
+    *
+    * @param inputs A list of InputPort instances to set as the new input ports.
+    * @return A new instance of PhysicalOp with the input ports updated.
     */
   def withInputPorts(inputs: List[InputPort]): PhysicalOp = {
-    this.copy(inputPorts = inputs.map(input => input.id -> (input, List())).toMap)
+    this.copy(inputPorts =
+      inputs
+        .map(input =>
+          input.id -> (input, List
+            .empty[PhysicalLink], Left(new SchemaNotAvailableException("schema is not available")))
+        )
+        .toMap
+    )
   }
 
   /**
-    * creates a copy with the output ports
+    * Creates a copy of the PhysicalOp with the specified output ports. Each output port is
+    * initialized with an empty list of links and a None schema, indicating
+    * the absence of outbound connections and schema details at this stage.
+    *
+    * @param outputs A list of OutputPort instances to set as the new output ports.
+    * @return A new instance of PhysicalOp with the output ports updated.
     */
   def withOutputPorts(outputs: List[OutputPort]): PhysicalOp = {
-    this.copy(outputPorts = outputs.map(output => output.id -> (output, List())).toMap)
+    this.copy(outputPorts =
+      outputs
+        .map(output =>
+          output.id -> (output, List
+            .empty[PhysicalLink], Left(new SchemaNotAvailableException("schema is not available")))
+        )
+        .toMap
+    )
   }
 
   /**
@@ -282,11 +272,6 @@ case class PhysicalOp(
   def withSuggestedWorkerNum(workerNum: Int): PhysicalOp = {
     this.copy(suggestedWorkerNum = Some(workerNum))
   }
-
-  /**
-    * creates a copy with the new id
-    */
-  def withId(id: PhysicalOpIdentity): PhysicalOp = this.copy(id = id)
 
   /**
     * creates a copy with the partition requirements
@@ -315,16 +300,56 @@ case class PhysicalOp(
     this.copy(isOneToManyOp = isOneToManyOp)
 
   /**
-    * creates a copy with the schema information
-    */
-  def withOperatorSchemaInfo(schemaInfo: OperatorSchemaInfo): PhysicalOp =
-    this.copy(schemaInfo = Some(schemaInfo))
-
-  /**
     * creates a copy with the blocking input port indices
     */
   def withBlockingInputs(blockingInputs: List[PortIdentity]): PhysicalOp = {
     this.copy(blockingInputs = blockingInputs)
+  }
+
+  /**
+    * Creates a copy of the PhysicalOp with the schema of a specified input port updated.
+    * The schema can either be a successful schema definition or an error represented as a Throwable.
+    *
+    * @param portId The identity of the port to update.
+    * @param schema The new schema, or error, to be associated with the port, encapsulated within an Either.
+    *               A Right value represents a successful schema, while a Left value represents an error (Throwable).
+    * @return A new instance of PhysicalOp with the updated input port schema or error information.
+    */
+  private def withInputSchema(
+      portId: PortIdentity,
+      schema: Either[Throwable, Schema]
+  ): PhysicalOp = {
+    this.copy(inputPorts = inputPorts.updatedWith(portId) {
+      case Some((port, links, _)) => Some((port, links, schema))
+      case None                   => None
+    })
+  }
+
+  /**
+    * Creates a copy of the PhysicalOp with the schema of a specified output port updated.
+    * Similar to `withInputSchema`, the schema can either represent a successful schema definition
+    * or an error, encapsulated as an Either type.
+    *
+    * @param portId The identity of the port to update.
+    * @param schema The new schema, or error, to be associated with the port, encapsulated within an Either.
+    *               A Right value indicates a successful schema, while a Left value indicates an error (Throwable).
+    * @return A new instance of PhysicalOp with the updated output port schema or error information.
+    */
+  private def withOutputSchema(
+      portId: PortIdentity,
+      schema: Either[Throwable, Schema]
+  ): PhysicalOp = {
+    this.copy(outputPorts = outputPorts.updatedWith(portId) {
+      case Some((port, links, _)) => Some((port, links, schema))
+      case None                   => None
+    })
+  }
+
+  /**
+    * creates a copy with the schema propagation function.
+    */
+  def withPropagateSchema(func: SchemaPropagationFunc): PhysicalOp = {
+    this.copy(propagateSchema = func)
   }
 
   /**
@@ -333,10 +358,10 @@ case class PhysicalOp(
   def addInputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.toOpId == id)
     assert(inputPorts.contains(link.toPortId))
-    val (port, existingLinks) = inputPorts(link.toPortId)
+    val (port, existingLinks, schema) = inputPorts(link.toPortId)
     val newLinks = existingLinks :+ link
     this.copy(
-      inputPorts = inputPorts + (link.toPortId -> (port, newLinks))
+      inputPorts = inputPorts + (link.toPortId -> (port, newLinks, schema))
     )
   }
 
@@ -346,10 +371,10 @@ case class PhysicalOp(
   def addOutputLink(link: PhysicalLink): PhysicalOp = {
     assert(link.fromOpId == id)
     assert(outputPorts.contains(link.fromPortId))
-    val (port, existingLinks) = outputPorts(link.fromPortId)
+    val (port, existingLinks, schema) = outputPorts(link.fromPortId)
     val newLinks = existingLinks :+ link
     this.copy(
-      outputPorts = outputPorts + (link.fromPortId -> (port, newLinks))
+      outputPorts = outputPorts + (link.fromPortId -> (port, newLinks, schema))
     )
   }
 
@@ -358,10 +383,10 @@ case class PhysicalOp(
     */
   def removeInputLink(linkToRemove: PhysicalLink): PhysicalOp = {
     val portId = linkToRemove.toPortId
-    val (port, existingLinks) = inputPorts(portId)
+    val (port, existingLinks, schema) = inputPorts(portId)
     this.copy(
       inputPorts =
-        inputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove)))
+        inputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove), schema))
     )
   }
 
@@ -370,26 +395,58 @@ case class PhysicalOp(
     */
   def removeOutputLink(linkToRemove: PhysicalLink): PhysicalOp = {
     val portId = linkToRemove.fromPortId
-    val (port, existingLinks) = outputPorts(portId)
+    val (port, existingLinks, schema) = outputPorts(portId)
     this.copy(
       outputPorts =
-        outputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove)))
+        outputPorts + (portId -> (port, existingLinks.filter(link => link != linkToRemove), schema))
     )
+  }
+
+  /**
+    * creates a copy with an input schema updated, and if all input schemas are available, propagate
+    * the schema change to output schemas.
+    * @param newInputSchema optionally provide a schema for an input port.
+    */
+  def propagateSchema(newInputSchema: Option[(PortIdentity, Schema)] = None): PhysicalOp = {
+    // Update the input schema if a new one is provided
+    val updatedOp = newInputSchema.foldLeft(this) {
+      case (op, (portId, schema)) => op.withInputSchema(portId, Right(schema))
+    }
+
+    // Extract input schemas, checking if all are defined
+    val inputSchemas = updatedOp.inputPorts.collect {
+      case (portId, (_, _, Right(schema))) => portId -> schema
+    }
+
+    if (updatedOp.inputPorts.size == inputSchemas.size) {
+      // All input schemas are available, propagate to output schema
+      val schemaPropagationResult = Try(propagateSchema.func(inputSchemas))
+      schemaPropagationResult match {
+        case Success(schemaMapping) =>
+          schemaMapping.foldLeft(updatedOp) {
+            case (op, (portId, schema)) =>
+              op.withOutputSchema(portId, Right(schema))
+          }
+        case Failure(exception) =>
+          // apply the exception to all output ports in case of failure
+          updatedOp.outputPorts.keys.foldLeft(updatedOp) { (op, portId) =>
+            op.withOutputSchema(portId, Left(exception))
+          }
+      }
+    } else {
+      // Not all input schemas are defined, return the updated operation without changes
+      updatedOp
+    }
   }
 
   /**
     * returns all output links. Optionally, if a specific portId is provided, returns the links connected to that portId.
     */
-  def getOutputLinks(portIdOpt: Option[PortIdentity] = None): List[PhysicalLink] = {
+  def getOutputLinks(portId: PortIdentity): List[PhysicalLink] = {
     outputPorts.values
       .flatMap(_._2)
+      .filter(link => link.fromPortId == portId)
       .toList
-      .filter(link =>
-        portIdOpt match {
-          case Some(portId) => link.fromPortId == portId
-          case None         => true
-        }
-      )
   }
 
   /**
@@ -450,10 +507,10 @@ case class PhysicalOp(
 
   def build(
       controllerActorService: AkkaActorService,
-      opExecution: OperatorExecution,
+      operatorExecution: OperatorExecution,
       operatorConfig: OperatorConfig,
-      stateRestoreConfigGen: ActorVirtualIdentity => Option[WorkerStateRestoreConfig],
-      replayLoggingConfigGen: ActorVirtualIdentity => Option[WorkerReplayLoggingConfig]
+      stateRestoreConfig: Option[StateRestoreConfig],
+      replayLoggingConfig: Option[FaultToleranceConfig]
   ): Unit = {
     val addressInfo = AddressInfo(
       controllerActorService.getClusterNodeAddresses,
@@ -471,11 +528,9 @@ case class PhysicalOp(
       } else {
         WorkflowWorker.props(
           workerConfig,
-          physicalOp = this,
-          operatorConfig,
           WorkerReplayInitialization(
-            stateRestoreConfigGen(workerId),
-            replayLoggingConfigGen(workerId)
+            stateRestoreConfig,
+            replayLoggingConfig
           )
         )
       }
@@ -484,7 +539,7 @@ case class PhysicalOp(
       controllerActorService.actorOf(
         workflowWorker.withDeploy(Deploy(scope = RemoteScope(preferredAddress)))
       )
-      opExecution.initializeWorkerInfo(workerId)
+      operatorExecution.initWorkerExecution(workerId)
     })
   }
 }

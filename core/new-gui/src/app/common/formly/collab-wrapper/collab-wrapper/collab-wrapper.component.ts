@@ -1,5 +1,5 @@
 import { AfterContentInit, Component, ElementRef, ViewChild } from "@angular/core";
-import { FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
+import { FieldTypeConfig, FieldWrapper, FormlyFieldConfig } from "@ngx-formly/core";
 import { WorkflowActionService } from "../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import { merge } from "lodash";
 import Quill from "quill";
@@ -48,13 +48,13 @@ Quill.register("modules/cursors", QuillCursors);
   templateUrl: "./collab-wrapper.component.html",
   styleUrls: ["./collab-wrapper.component.css"],
 })
-export class CollabWrapperComponent extends FieldWrapper implements AfterContentInit {
+export class CollabWrapperComponent extends FieldWrapper<FieldTypeConfig> implements AfterContentInit {
   private quill?: Quill;
   private currentOperatorId: string = "";
   private operatorType: string = "";
   private quillBinding?: QuillBinding;
   private sharedText?: Y.Text;
-  @ViewChild("editor", { static: true }) divEditor: ElementRef | undefined;
+  @ViewChild("editor", { static: true }) divEditor?: ElementRef;
 
   constructor(private workflowActionService: WorkflowActionService) {
     super();
@@ -72,13 +72,13 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
 
   private setUpYTextEditor() {
     setTimeout(() => {
-      if (this.field.key === undefined || this.field.templateOptions === undefined) {
+      if (this.field.key === undefined || this.field.props === undefined) {
         throw Error(
           `form collab-wrapper field ${this.field} doesn't contain necessary .key and .templateOptions.presetKey attributes`
         );
       } else {
-        this.currentOperatorId = this.field.templateOptions.currentOperatorId;
-        this.operatorType = this.field.templateOptions.operatorType;
+        this.currentOperatorId = this.field.props.currentOperatorId;
+        this.operatorType = this.field.props.operatorType;
         let parents = [this.field.key];
         let parent = this.field.parent;
         while (parent?.key !== undefined) {
@@ -199,7 +199,7 @@ export class CollabWrapperComponent extends FieldWrapper implements AfterContent
       wrappers: includePresetWrapper
         ? ["form-field", "preset-wrapper", "collab-wrapper"]
         : ["form-field", "collab-wrapper"],
-      templateOptions: {
+      props: {
         operatorType: operatorType,
         currentOperatorId: currentOperatorId,
       },

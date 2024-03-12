@@ -35,34 +35,6 @@ object AmberConfig {
   val numWorkerPerOperatorByDefault: Int = getConfSource.getInt("constants.num-worker-per-operator")
   val getStatusUpdateIntervalInMs: Long = getConfSource.getLong("constants.status-update-interval")
 
-  // Monitoring and reshape related configuration
-  val monitoringEnabled: Boolean =
-    getConfSource.getBoolean("monitoring.monitoring-enabled")
-  val monitoringIntervalInMs: Int =
-    getConfSource.getInt("monitoring.monitoring-interval-ms")
-  val reshapeSkewHandlingEnabled: Boolean =
-    getConfSource.getBoolean("reshape.skew-handling-enabled")
-  val reshapeSkewDetectionInitialDelayInMs: Int =
-    getConfSource.getInt("reshape.skew-detection-initial-delay-ms")
-  val reshapeSkewDetectionIntervalInMs: Int =
-    getConfSource.getInt("reshape.skew-detection-interval-ms")
-  val reshapeEtaThreshold: Int =
-    getConfSource.getInt("reshape.eta-threshold")
-  val reshapeTauThreshold: Int =
-    getConfSource.getInt("reshape.tau-threshold")
-  val reshapeHelperOverloadThreshold: Int =
-    getConfSource.getInt("reshape.helper-overload-threshold")
-  val reshapeMaxWorkloadSamplesInController: Int =
-    getConfSource.getInt("reshape.max-workload-samples-controller")
-  val reshapeMaxWorkloadSamplesInWorker: Int =
-    getConfSource.getInt("reshape.max-workload-samples-worker")
-  val reshapeWorkloadSampleSize: Int =
-    getConfSource.getInt("reshape.workload-sample-size")
-  val reshapeFirstPhaseSharingNumerator: Int =
-    getConfSource.getInt("reshape.first-phase-sharing-numerator")
-  val reshapeFirstPhaseSharingDenominator: Int =
-    getConfSource.getInt("reshape.first-phase-sharing-denominator")
-
   // Flow control related configuration
   def maxCreditAllowedInBytesPerChannel: Long = {
     val maxCredit = getConfSource.getLong("flow-control.max-credit-allowed-in-bytes-per-channel")
@@ -70,11 +42,6 @@ object AmberConfig {
   }
   val creditPollingIntervalInMs: Int =
     getConfSource.getInt("flow-control.credit-poll-interval-in-ms")
-
-  // Scheduling related configuration
-  val schedulingPolicyName: String = getConfSource.getString("scheduling.policy-name")
-  val timeSlotExpirationDurationInMs: Int =
-    getConfSource.getInt("scheduling.time-slot-expiration-duration-ms")
 
   // Network buffering configuration
   def defaultBatchSize: Int = getConfSource.getInt("network-buffering.default-batch-size")
@@ -91,14 +58,24 @@ object AmberConfig {
   val faultToleranceLogFlushIntervalInMs: Long =
     getConfSource.getLong("fault-tolerance.log-flush-interval-ms")
   val faultToleranceLogRootFolder: Option[URI] = {
-    val locationStr = getConfSource.getString("fault-tolerance.log-storage-uri")
-    if (locationStr.trim.isEmpty) {
+    var locationStr = getConfSource.getString("fault-tolerance.log-storage-uri").trim
+    if (locationStr.isEmpty) {
       None
     } else {
+      if (locationStr.contains("$AMBER_FOLDER")) {
+        assert(locationStr.startsWith("file"))
+        locationStr =
+          locationStr.replace("$AMBER_FOLDER", Utils.amberHomePath.toAbsolutePath.toString)
+      }
       Some(new URI(locationStr))
     }
   }
   val isFaultToleranceEnabled: Boolean = faultToleranceLogRootFolder.nonEmpty
+
+  // Region plan generator
+  val enableCostBasedRegionPlanGenerator: Boolean =
+    getConfSource.getBoolean("region-plan-generator.enable-cost-based-region-plan-generator")
+  val useGlobalSearch: Boolean = getConfSource.getBoolean("region-plan-generator.use-global-search")
 
   // Storage configuration
   val sinkStorageMode: String = getConfSource.getString("storage.mode")

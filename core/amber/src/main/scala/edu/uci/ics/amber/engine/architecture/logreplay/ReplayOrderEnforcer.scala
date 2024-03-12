@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 
 import scala.collection.mutable
 
@@ -10,7 +10,7 @@ class ReplayOrderEnforcer(
     startStep: Long,
     private var onComplete: () => Unit
 ) extends OrderEnforcer {
-  private var currentChannelID: ChannelID = _
+  private var currentChannelId: ChannelIdentity = _
 
   private def triggerOnComplete(): Unit = {
     if (!isCompleted) {
@@ -34,14 +34,16 @@ class ReplayOrderEnforcer(
   private def forwardNext(): Unit = {
     if (channelStepOrder.nonEmpty) {
       val nextStep = channelStepOrder.dequeue()
-      currentChannelID = nextStep.channelID
+      currentChannelId = nextStep.channelId
     }
   }
 
-  def canProceed(channelID: ChannelID): Boolean = {
+  def canProceed(channelId: ChannelIdentity): Boolean = {
     val step = logManager.getStep
     // release the next log record if the step matches
-    if (channelStepOrder.nonEmpty && channelStepOrder.head.step == step) {
+    // Note: To remove duplicate step orders caused by checkpoints
+    // sending out a MainThreadDelegateMessage, we use a while loop.
+    while (channelStepOrder.nonEmpty && channelStepOrder.head.step == step) {
       forwardNext()
     }
     // To terminate replay:
@@ -51,6 +53,6 @@ class ReplayOrderEnforcer(
       triggerOnComplete()
     }
     // only proceed if the current channel ID matches the channel ID of the log record
-    currentChannelID == channelID
+    currentChannelId == channelId
   }
 }

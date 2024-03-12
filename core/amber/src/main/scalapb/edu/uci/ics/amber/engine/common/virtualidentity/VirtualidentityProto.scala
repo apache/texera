@@ -14,6 +14,7 @@ object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
       edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity,
+      edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity,
       edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
@@ -23,11 +24,15 @@ object VirtualidentityProto extends _root_.scalapb.GeneratedFileObject {
   """CjVlZHUvdWNpL2ljcy9hbWJlci9lbmdpbmUvY29tbW9uL3ZpcnR1YWxpZGVudGl0eS5wcm90bxIfZWR1LnVjaS5pY3MuYW1iZ
   XIuZW5naW5lLmNvbW1vbhoVc2NhbGFwYi9zY2FsYXBiLnByb3RvIisKEFdvcmtmbG93SWRlbnRpdHkSFwoCaWQYASABKANCB+I/B
   BICaWRSAmlkIiwKEUV4ZWN1dGlvbklkZW50aXR5EhcKAmlkGAEgASgDQgfiPwQSAmlkUgJpZCI1ChRBY3RvclZpcnR1YWxJZGVud
-  Gl0eRIdCgRuYW1lGAEgASgJQgniPwYSBG5hbWVSBG5hbWUiKwoQT3BlcmF0b3JJZGVudGl0eRIXCgJpZBgBIAEoCUIH4j8EEgJpZ
-  FICaWQirAEKElBoeXNpY2FsT3BJZGVudGl0eRJoCgtsb2dpY2FsT3BJZBgBIAEoCzIxLmVkdS51Y2kuaWNzLmFtYmVyLmVuZ2luZ
-  S5jb21tb24uT3BlcmF0b3JJZGVudGl0eUIT4j8QEgtsb2dpY2FsT3BJZPABAVILbG9naWNhbE9wSWQSLAoJbGF5ZXJOYW1lGAIgA
-  SgJQg7iPwsSCWxheWVyTmFtZVIJbGF5ZXJOYW1lIjAKFUNoYW5uZWxNYXJrZXJJZGVudGl0eRIXCgJpZBgBIAEoCUIH4j8EEgJpZ
-  FICaWRCCeI/BkgAWAB4AWIGcHJvdG8z"""
+  Gl0eRIdCgRuYW1lGAEgASgJQgniPwYSBG5hbWVSBG5hbWUimwIKD0NoYW5uZWxJZGVudGl0eRJvCgxmcm9tV29ya2VySWQYASABK
+  AsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjdG9yVmlydHVhbElkZW50aXR5QhTiPxESDGZyb21Xb3JrZXJJZ
+  PABAVIMZnJvbVdvcmtlcklkEmkKCnRvV29ya2VySWQYAiABKAsyNS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLkFjd
+  G9yVmlydHVhbElkZW50aXR5QhLiPw8SCnRvV29ya2VySWTwAQFSCnRvV29ya2VySWQSLAoJaXNDb250cm9sGAMgASgIQg7iPwsSC
+  WlzQ29udHJvbFIJaXNDb250cm9sIisKEE9wZXJhdG9ySWRlbnRpdHkSFwoCaWQYASABKAlCB+I/BBICaWRSAmlkIqwBChJQaHlza
+  WNhbE9wSWRlbnRpdHkSaAoLbG9naWNhbE9wSWQYASABKAsyMS5lZHUudWNpLmljcy5hbWJlci5lbmdpbmUuY29tbW9uLk9wZXJhd
+  G9ySWRlbnRpdHlCE+I/EBILbG9naWNhbE9wSWTwAQFSC2xvZ2ljYWxPcElkEiwKCWxheWVyTmFtZRgCIAEoCUIO4j8LEglsYXllc
+  k5hbWVSCWxheWVyTmFtZSIwChVDaGFubmVsTWFya2VySWRlbnRpdHkSFwoCaWQYASABKAlCB+I/BBICaWRSAmlkQgniPwZIAFgAe
+  AFiBnByb3RvMw=="""
       ).mkString)
   lazy val scalaDescriptor: _root_.scalapb.descriptors.FileDescriptor = {
     val scalaProto = com.google.protobuf.descriptor.FileDescriptorProto.parseFrom(ProtoBytes)

@@ -6,8 +6,7 @@
       "options": {
         "cacheableOperations": [
           "build",
-          "lint",
-          "e2e"
+          "lint"
         ],
         "runtimeCacheInputs": [
           "node -v",

@@ -3,8 +3,8 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
@@ -20,25 +20,25 @@ object LinkWorkersHandler {
 trait LinkWorkersHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
-  registerHandler { (msg: LinkWorkers, sender) =>
+  registerHandler[LinkWorkers, Unit] { (msg, sender) =>
     {
-      val linkConfig = cp.workflow.regionPlan
-        .getRegionOfPhysicalLink(msg.link)
-        .get
-        .config
-        .get
-        .linkConfigs(msg.link)
-
+      val region = cp.workflowExecutionCoordinator.getRegionOfLink(msg.link)
+      val resourceConfig = region.resourceConfig.get
+      val linkConfig = resourceConfig.linkConfigs(msg.link)
+      val linkExecution =
+        cp.workflowExecution.getRegionExecution(region.id).initLinkExecution(msg.link)
       val futures = linkConfig.channelConfigs
-        .flatMap(channelConfig =>
+        .map(_.channelId)
+        .flatMap(channelId => {
+          linkExecution.initChannelExecution(channelId)
           Seq(
-            send(AddPartitioning(msg.link, linkConfig.partitioning), channelConfig.fromWorkerId),
+            send(AddPartitioning(msg.link, linkConfig.partitioning), channelId.fromWorkerId),
             send(
-              UpdateInputLinking(channelConfig.fromWorkerId, msg.link),
-              channelConfig.toWorkerId
+              AddInputChannel(channelId, msg.link.toPortId),
+              channelId.toWorkerId
             )
           )
-        )
+        })
 
       Future.collect(futures).map { _ =>
         // returns when all has completed

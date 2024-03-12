@@ -14,9 +14,7 @@
       [nzValue]="option"
       [nzLabel]="option.additionalMetadata.userFriendlyName"
       [nzDisabled]="! canModify">
-      <texera-operator-label
-        [fromSearchBox]="true"
-        [operator]="option"></texera-operator-label>
+      <texera-operator-label [operator]="option"></texera-operator-label>
     </nz-auto-option>
   </nz-autocomplete>
 </div>
@@ -36,9 +34,7 @@
         *ngFor="let operatorSchema of operatorGroupMap.get(groupName)"
         class="texera-operator-label"
         nz-menu-item>
-        <texera-operator-label
-          [fromSearchBox]="false"
-          [operator]="operatorSchema"></texera-operator-label>
+        <texera-operator-label [operator]="operatorSchema"></texera-operator-label>
       </li>
     </ul>
   </nz-collapse-panel>

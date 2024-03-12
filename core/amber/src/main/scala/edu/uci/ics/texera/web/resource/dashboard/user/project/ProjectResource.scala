@@ -11,20 +11,22 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   WorkflowOfProjectDao
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource
+import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.SearchQueryParams
 import edu.uci.ics.texera.web.resource.dashboard.user.file.UserFileResource.DashboardFile
 import edu.uci.ics.texera.web.resource.dashboard.user.project.ProjectResource._
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource.DashboardWorkflow
-
 import io.dropwizard.auth.Auth
 import org.apache.commons.lang3.StringUtils
 import org.jooq.types.UInteger
+
 import java.sql.Timestamp
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
   * This file handles various request related to projects.
@@ -80,7 +82,7 @@ object ProjectResource {
       if (pidMap.size() == 1) {
         s"and added to project: ${pidMap.values().toArray()(0)}"
       } else {
-        s"and added to projects: ${pidMap.values().mkString(", ")}"
+        s"and added to projects: ${pidMap.values().asScala.mkString(", ")}"
       }
     } else { // workflow does not belong to a project
       ""
@@ -161,33 +163,11 @@ class ProjectResource {
       @PathParam("pid") pid: UInteger,
       @Auth user: SessionUser
   ): List[DashboardWorkflow] = {
-    context
-      .select()
-      .from(WORKFLOW_OF_PROJECT)
-      .join(WORKFLOW)
-      .on(WORKFLOW.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(WORKFLOW_USER_ACCESS)
-      .on(WORKFLOW_USER_ACCESS.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(WORKFLOW_OF_USER)
-      .on(WORKFLOW_OF_USER.WID.eq(WORKFLOW_OF_PROJECT.WID))
-      .join(USER)
-      .on(USER.UID.eq(WORKFLOW_OF_USER.UID))
-      .where(WORKFLOW_OF_PROJECT.PID.eq(pid))
-      .fetch()
-      .map(workflowRecord =>
-        DashboardWorkflow(
-          workflowRecord.into(WORKFLOW_OF_USER).getUid.eq(user.getUid),
-          workflowRecord
-            .into(WORKFLOW_USER_ACCESS)
-            .into(classOf[WorkflowUserAccess])
-            .getPrivilege
-            .toString,
-          workflowRecord.into(USER).getName,
-          workflowRecord.into(WORKFLOW).into(classOf[Workflow]),
-          List()
-        )
-      )
-      .toList
+    val result = DashboardResource.searchAllResources(
+      user,
+      SearchQueryParams(resourceType = "workflow", projectIds = util.Arrays.asList(pid))
+    )
+    result.results.map(_.workflow.get)
   }
 
   /**
@@ -217,6 +197,7 @@ class ProjectResource {
           fileRecord.into(FILE).into(classOf[File])
         )
       )
+      .asScala
       .toList
   }
 

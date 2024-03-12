@@ -6,30 +6,35 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
+import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 class SymmetricDifferenceOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp.hashPhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((_, _, _) => new SymmetricDifferenceOpExec()),
-      operatorSchemaInfo.inputSchemas(0).getAttributes.toArray.indices.toList
-    )
+
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _) => new SymmetricDifferenceOpExec())
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(List(Option(HashPartition(List()))))
+      .withDerivePartition(_ => HashPartition(List()))
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "SymmetricDifference",
       "find the symmetric difference (the set of elements which are in either of the sets, but not in their intersection) of two inputs",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))),
       outputPorts = List(OutputPort())
     )

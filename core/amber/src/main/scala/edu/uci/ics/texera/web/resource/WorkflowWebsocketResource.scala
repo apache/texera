@@ -25,7 +25,7 @@ import edu.uci.ics.texera.workflow.common.workflow.WorkflowCompiler
 import java.time.Instant
 import javax.websocket._
 import javax.websocket.server.ServerEndpoint
-import scala.jdk.CollectionConverters.mapAsScalaMapConverter
+import scala.jdk.CollectionConverters.MapHasAsScala
 
 @ServerEndpoint(
   value = "/wsapi/workflow-websocket",

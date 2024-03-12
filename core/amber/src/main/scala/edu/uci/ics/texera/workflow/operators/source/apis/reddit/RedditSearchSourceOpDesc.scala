@@ -9,7 +9,6 @@ import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo
 import edu.uci.ics.texera.workflow.common.operators.source.PythonSourceOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.Attribute
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 
 class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
@@ -38,7 +37,7 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
   @JsonPropertyDescription("The sorting method, hot, new, etc.")
   var sorting: RedditSourceOperatorFunction = _
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     val clientIdReal = this.clientId.replace("\n", "").trim
     val clientSecretReal = this.clientSecret.replace("\n", "").trim
     val queryReal = this.query.replace("\n", "").trim
@@ -108,13 +107,14 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
     OperatorInfo(
       "Reddit Search",
       "Search for recent posts with python-wrapped Reddit API, PRAW",
-      OperatorGroupConstants.SOURCE_GROUP,
+      OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )
   override def asSource() = true
   override def sourceSchema(): Schema =
-    Schema.newBuilder
+    Schema
+      .builder()
       .add(
         new Attribute("id", AttributeType.STRING),
         new Attribute("name", AttributeType.STRING),
@@ -134,5 +134,5 @@ class RedditSearchSourceOpDesc extends PythonSourceOperatorDescriptor {
         new Attribute("author_name", AttributeType.STRING),
         new Attribute("subreddit", AttributeType.STRING)
       )
-      .build
+      .build()
 }

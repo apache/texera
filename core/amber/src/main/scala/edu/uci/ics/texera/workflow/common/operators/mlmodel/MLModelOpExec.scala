@@ -1,52 +1,40 @@
 package edu.uci.ics.texera.workflow.common.operators.mlmodel
 
-import edu.uci.ics.amber.engine.architecture.worker.PauseManager
-import edu.uci.ics.amber.engine.common.InputExhausted
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 import scala.collection.mutable.ListBuffer
 
-abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
+abstract class MLModelOpExec extends OperatorExecutor with Serializable {
 
-  var allData: ListBuffer[Tuple] = ListBuffer()
+  private val allData: ListBuffer[Tuple] = ListBuffer()
 
   var currentEpoch: Int = 0
-  var nextMiniBatchStartIdx: Int = 0
-  var miniBatch: Array[Tuple] = _
-  var MINI_BATCH_SIZE: Int = 1000
-  var nextOperation: String = "predict"
-  var hasMoreIterations: Boolean = true
+  private var nextMiniBatchStartIdx: Int = 0
+  private var miniBatch: Array[Tuple] = _
+  private val MINI_BATCH_SIZE: Int = 1000
+  private var nextOperation: String = "predict"
+  private var hasMoreIterations: Boolean = true
 
   def getTotalEpochsCount: Int
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
-
-  override def processTexeraTuple(
-      tuple: Either[Tuple, InputExhausted],
-      input: Int,
-      pauseManager: PauseManager,
-      asyncRPCClient: AsyncRPCClient
-  ): Iterator[Tuple] = {
-    tuple match {
-      case Left(t) =>
-        allData += t
-        Iterator()
-      case Right(_) =>
-        getIterativeTrainingIterator
-    }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    allData += tuple
+    Iterator()
   }
 
-  def getIterativeTrainingIterator: Iterator[Tuple] = {
-    new Iterator[Tuple] {
-      override def hasNext(): Boolean = {
+  override def onFinish(port: Int): Iterator[TupleLike] = {
+    getIterativeTrainingIterator
+  }
+
+  private def getIterativeTrainingIterator: Iterator[TupleLike] = {
+    new Iterator[TupleLike] {
+      override def hasNext: Boolean = {
         hasMoreIterations
       }
 
-      override def next(): Tuple = {
+      override def next(): TupleLike = {
         if (nextOperation.equalsIgnoreCase("predict")) {
           // set the miniBatch
           if (nextMiniBatchStartIdx + MINI_BATCH_SIZE <= allData.size) {
@@ -80,7 +68,7 @@ abstract class MLModelOpExec() extends OperatorExecutor with Serializable {
             hasMoreIterations = false
           }
         }
-        return null
+        null
       }
     }
   }
