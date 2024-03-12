@@ -267,21 +267,14 @@ class MainLoop(StoppableQueueBlockingRunnable):
         if self.context.tuple_processing_manager.current_input_tuple_iter is None:
             return
         # here the self.context.processing_manager.current_input_tuple_iter
-        # could be modified during iteration, thus we are using the try-while-stop_
-        # iteration way to iterate through the iterator, instead of the for-each-loop
+        # could be modified during iteration, thus we are using the while :=
+        # way to iterate through the iterator, instead of the for-each-loop
         # syntax sugar.
-        while True:
-            # In Python@3.8 there is a new `:=` executor to simplify this assignment
-            # in while-loop. For now we keep it this way to support versions below
-            # 3.8.
-            try:
-                element = next(
-                    self.context.tuple_processing_manager.current_input_tuple_iter
-                )
-            except StopIteration:
-                # StopIteration is the standard way for an iterator to end, we handle
-                # it and terminate the loop.
-                break
+        while (
+            element := next(
+                self.context.tuple_processing_manager.current_input_tuple_iter, None
+            )
+        ) is not None:
             try:
                 match(
                     element,
