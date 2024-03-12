@@ -68,9 +68,9 @@ export class MiniMapComponent implements AfterViewInit {
   public toggle(): void {
     const map = document.getElementById("mini-map-content")!;
     if (map.style.width == "400px") {
-      map.style.width = 0 +"px";
+      map.style.width = 0 + "px";
     } else {
-      map.style.width = 400 +"px";
+      map.style.width = 400 + "px";
     }
   }
 }
