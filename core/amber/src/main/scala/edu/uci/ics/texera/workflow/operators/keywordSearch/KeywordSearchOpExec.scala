@@ -12,7 +12,7 @@ class KeywordSearchOpExec(attributeName: String, keyword: String) extends Filter
   @transient lazy val query: Query = new QueryParser(attributeName, analyzer).parse(keyword)
   @transient private lazy val memoryIndex: MemoryIndex = new MemoryIndex()
 
-  this.setFilterFunc(this.findKeyword)
+  this.setFilterFunc(findKeyword)
   private def findKeyword(tuple: Tuple): Boolean = {
     Option[Any](tuple.getField(attributeName)).map(_.toString).exists { fieldValue =>
       memoryIndex.addField(attributeName, fieldValue, analyzer)

@@ -9,7 +9,6 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
@@ -55,11 +54,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[Tuple, InputExhausted],
+              tuple: Tuple,
               input: Int
           ) => executor.processTupleMultiPort(tuple, input)
       )
-        .expects(Left(x), 0)
+        .expects(x, 0)
     }
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
     inputQueue.put(FIFOMessageElement(message))
@@ -88,11 +87,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[Tuple, InputExhausted],
+              tuple: Tuple,
               input: Int
           ) => executor.processTupleMultiPort(tuple, input)
       )
-        .expects(Left(x), 0)
+        .expects(x, 0)
     }
     val message = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples))
     val pauseControl = WorkflowFIFOMessage(controlChannelId, 0, ControlInvocation(0, PauseWorker()))
@@ -128,11 +127,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[Tuple, InputExhausted],
+              tuple: Tuple,
               input: Int
           ) => executor.processTupleMultiPort(tuple, input)
       )
-        .expects(Left(x), 0)
+        .expects(x, 0)
     }
     val dataChannelID2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
     val message1 = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples.slice(0, 100)))
@@ -174,11 +173,11 @@ class DPThreadSpec extends AnyFlatSpec with MockFactory {
     tuples.foreach { x =>
       (
           (
-              tuple: Either[Tuple, InputExhausted],
+              tuple: Tuple,
               input: Int
           ) => executor.processTupleMultiPort(tuple, input)
       )
-        .expects(Left(x), 0)
+        .expects(x, 0)
     }
     val dataChannelId2 = ChannelIdentity(anotherSenderWorkerId, workerId, isControl = false)
     val message1 = WorkflowFIFOMessage(dataChannelId, 0, DataFrame(tuples.slice(0, 100)))

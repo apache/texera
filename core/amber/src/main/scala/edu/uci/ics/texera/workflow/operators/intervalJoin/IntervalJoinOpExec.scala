@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
@@ -27,60 +26,50 @@ class IntervalJoinOpExec(
   var leftTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
   var rightTable: ListBuffer[Tuple] = new ListBuffer[Tuple]()
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(currentTuple) =>
-        if (port == 0) {
-          leftTable += currentTuple
-          if (rightTable.nonEmpty) {
-            removeTooSmallTupleInRightCache(leftTable.head)
-            rightTable
-              .filter(rightTableTuple => {
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
 
-                intervalCompare(
-                  currentTuple.getField(leftAttributeName),
-                  rightTableTuple.getField(rightAttributeName),
-                  rightTableTuple.getSchema
-                    .getAttribute(rightAttributeName)
-                    .getType
-                ) == 0
-              })
-              .map(rightTuple => JoinUtils.joinTuples(currentTuple, rightTuple))
-              .iterator
-          } else {
-            Iterator()
-          }
-        } else {
-          rightTable += currentTuple
-          if (leftTable.nonEmpty) {
-            removeTooSmallTupleInLeftCache(rightTable.head)
-            leftTable
-              .filter(leftTableTuple => {
-                intervalCompare(
-                  leftTableTuple.getField(leftAttributeName),
-                  currentTuple.getField(rightAttributeName),
-                  leftTableTuple.getSchema
-                    .getAttribute(leftAttributeName)
-                    .getType
-                ) == 0
-              })
-              .map(leftTuple => JoinUtils.joinTuples(leftTuple, currentTuple))
-              .iterator
-          } else {
-            Iterator()
-          }
-        }
-      case Right(_) =>
+    if (port == 0) {
+      leftTable += tuple
+      if (rightTable.nonEmpty) {
+        removeTooSmallTupleInRightCache(leftTable.head)
+        rightTable
+          .filter(rightTableTuple => {
+
+            intervalCompare(
+              tuple.getField(leftAttributeName),
+              rightTableTuple.getField(rightAttributeName),
+              rightTableTuple.getSchema
+                .getAttribute(rightAttributeName)
+                .getType
+            ) == 0
+          })
+          .map(rightTuple => JoinUtils.joinTuples(tuple, rightTuple))
+          .iterator
+      } else {
         Iterator()
+      }
+    } else {
+      rightTable += tuple
+      if (leftTable.nonEmpty) {
+        removeTooSmallTupleInLeftCache(rightTable.head)
+        leftTable
+          .filter(leftTableTuple => {
+            intervalCompare(
+              leftTableTuple.getField(leftAttributeName),
+              tuple.getField(rightAttributeName),
+              leftTableTuple.getSchema
+                .getAttribute(leftAttributeName)
+                .getType
+            ) == 0
+          })
+          .map(leftTuple => JoinUtils.joinTuples(leftTuple, tuple))
+          .iterator
+      } else {
+        Iterator()
+      }
     }
+
   }
-
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 
   //if right table has tuple smaller than smallest tuple in left table, delete it
   private def removeTooSmallTupleInRightCache(leftTableSmallestTuple: Tuple): Unit = {

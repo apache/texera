@@ -4,7 +4,7 @@ import edu.uci.ics.amber.engine.architecture.worker.DataProcessorRPCHandlerIniti
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{READY, RUNNING}
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
 import edu.uci.ics.amber.engine.common.ambermessage.EndOfUpstream
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
@@ -21,7 +21,7 @@ trait StartHandler {
 
   registerHandler { (msg: StartWorker, sender) =>
     logger.info("Starting the worker.")
-    if (dp.executor.isInstanceOf[ISourceOperatorExecutor]) {
+    if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
