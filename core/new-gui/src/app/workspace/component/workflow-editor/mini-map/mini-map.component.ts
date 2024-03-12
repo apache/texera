@@ -41,6 +41,8 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
         mainPaper.on("resize", () => this.updateNavigator());
+
+        document.getElementById("mini-map-content")!.style.width = 0 + "px";
       });
   }
 
@@ -64,6 +66,11 @@ export class MiniMapComponent implements AfterViewInit {
   }
 
   public toggle(): void {
-    this.display = !this.display;
+    const map = document.getElementById("mini-map-content")!;
+    if (map.style.width == "400px") {
+      map.style.width = 0 +"px";
+    } else {
+      map.style.width = 400 +"px";
+    }
   }
 }
