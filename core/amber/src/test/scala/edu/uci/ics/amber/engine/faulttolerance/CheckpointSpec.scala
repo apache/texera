@@ -34,6 +34,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
@@ -154,7 +155,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       completableFuture.complete(())
     }
     Thread.sleep(100)
-    Await.result(client2.sendAsync(PauseWorkflow()))
+    assert(Await.result(client2.sendAsync(StartWorkflow())) == PAUSED)
     Await.result(client2.sendAsync(ResumeWorkflow()))
     completableFuture.get(30000, TimeUnit.MILLISECONDS)
   }

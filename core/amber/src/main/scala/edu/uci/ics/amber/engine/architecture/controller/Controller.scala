@@ -103,6 +103,7 @@ class Controller(
 
   override def initState(): Unit = {
     initControllerProcessor()
+    cp.workflowScheduler.updateSchedule(physicalPlan)
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
       globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = true)
@@ -187,7 +188,6 @@ class Controller(
 
   private def initControllerProcessor(): Unit = {
     cp.setupActorService(actorService)
-    cp.workflowScheduler.updateSchedule(physicalPlan)
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
     cp.setupLogManager(logManager)
