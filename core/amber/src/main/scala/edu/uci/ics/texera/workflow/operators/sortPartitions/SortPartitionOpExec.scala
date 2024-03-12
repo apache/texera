@@ -1,6 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
-import edu.uci.ics.amber.engine.common.InputExhausted
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -20,18 +19,12 @@ class SortPartitionOpExec(
 
   private def sortTuples(): Iterator[TupleLike] = unorderedTuples.sortWith(compareTuples).iterator
 
-  override def processTuple(
-      tuple: Either[Tuple, InputExhausted],
-      port: Int
-  ): Iterator[TupleLike] = {
-    tuple match {
-      case Left(t) =>
-        unorderedTuples.append(t)
-        Iterator()
-      case Right(_) =>
-        sortTuples()
-    }
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = {
+    unorderedTuples.append(tuple)
+    Iterator()
   }
+
+  override def onFinish(port: Int): Iterator[TupleLike] = sortTuples()
 
   private def compareTuples(t1: Tuple, t2: Tuple): Boolean = {
     val attributeType = t1.getSchema.getAttribute(sortAttributeName).getType
