@@ -156,5 +156,5 @@ class PythonWorkflowWorker(
     ).run(BasicIO.standard(false))
   }
 
-  override def initFromCheckpoint(chkpt: CheckpointState): Unit = ???
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ???
 }

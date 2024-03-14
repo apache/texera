@@ -134,7 +134,7 @@ class WorkflowWorker(
     inputQueue.put(ActorCommandElement(Backpressure(isBackpressured)))
   }
 
-  override def initFromCheckpoint(chkpt: CheckpointState): Unit = {
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {
     logger.info("start loading from checkpoint.")
     val inflightMessages: mutable.ArrayBuffer[WorkflowFIFOMessage] =
       chkpt.load(SerializedState.IN_FLIGHT_MSG_KEY)

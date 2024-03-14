@@ -102,7 +102,7 @@ class Controller(
   )
 
   override def initState(): Unit = {
-    initControllerProcessor()
+    attachRuntimeServicesToCPState()
     cp.workflowScheduler.updateSchedule(physicalPlan)
     val controllerRestoreConf = controllerConfig.stateRestoreConfOpt
     if (controllerRestoreConf.isDefined) {
@@ -186,7 +186,7 @@ class Controller(
         Stop
     }
 
-  private def initControllerProcessor(): Unit = {
+  private def attachRuntimeServicesToCPState(): Unit = {
     cp.setupActorService(actorService)
     cp.setupTimerService(controllerTimerService)
     cp.setupActorRefService(actorRefMappingService)
@@ -194,12 +194,12 @@ class Controller(
     cp.setupTransferService(transferService)
   }
 
-  override def initFromCheckpoint(chkpt: CheckpointState): Unit = {
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {
     val cpState: ControllerProcessor = chkpt.load(SerializedState.CP_STATE_KEY)
     val outputMessages: Array[WorkflowFIFOMessage] = chkpt.load(SerializedState.OUTPUT_MSG_KEY)
     cp = cpState
     cp.outputHandler = logManager.sendCommitted
-    initControllerProcessor()
+    attachRuntimeServicesToCPState()
     // revive all workers.
     cp.workflowExecution.getRunningRegionExecutions.foreach { regionExecution =>
       regionExecution.getAllOperatorExecutions.foreach {

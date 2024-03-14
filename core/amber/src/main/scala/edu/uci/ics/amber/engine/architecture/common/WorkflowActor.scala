@@ -174,7 +174,7 @@ abstract class WorkflowActor(
   //
   def initState(): Unit
 
-  def initFromCheckpoint(chkpt: CheckpointState): Unit
+  def loadFromCheckpoint(chkpt: CheckpointState): Unit
 
   def setupReplay(
       amberProcessor: AmberProcessor,
@@ -190,7 +190,7 @@ abstract class WorkflowActor(
         Some(stateRestoreConf.readFrom.resolve(replayTo.toString))
       )
       val chkpt = chkptStorage.getReader(getLogName).mkRecordIterator().next()
-      initFromCheckpoint(chkpt)
+      loadFromCheckpoint(chkpt)
     } else {
       // do replay from scratch
       val (processSteps, messages) =

@@ -49,5 +49,5 @@ class TrivialControlTester(
 
   override def initState(): Unit = {}
 
-  override def initFromCheckpoint(chkpt: CheckpointState): Unit = {}
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {}
 }
