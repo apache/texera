@@ -20,17 +20,9 @@ WORKDIR /core/amber
 COPY core/amber .
 RUN sbt clean package
 RUN apt-get update
-RUN apt-get install -y python3-pip
+RUN apt-get install -y netcat unzip python3-pip
 RUN pip3 install python-lsp-server python-lsp-server[websockets]
 RUN pip3 install -r requirements.txt
-RUN pip3 install scikit-learn
-RUN pip3 install tensorflow
-RUN pip3 install keras
-RUN pip3 install matplotlib
-
-
-
-
 
 WORKDIR /core
 COPY core/scripts ./scripts
@@ -38,6 +30,8 @@ COPY core/scripts ./scripts
 COPY .git ../.git
 COPY --from=gui /new-gui/dist ./new-gui/dist
 
-CMD [ "scripts/deploy-docker.sh" ]
+RUN scripts/build.sh
+
+CMD ["scripts/deploy-docker.sh"]
 
 EXPOSE 8080
