@@ -8,6 +8,11 @@ import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageWriter
 
 class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStorageWriter)
     extends SinkOperatorExecutor {
+
+  override def open(): Unit = {
+    storage.open()
+  }
+
   override def consumeTuple(
       tuple: Tuple,
       input: Int
@@ -26,6 +31,10 @@ class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStor
     } else {
       storage.removeOne(tupleValue)
     }
+  }
+
+  override def close(): Unit = {
+    storage.close()
   }
 
 }
