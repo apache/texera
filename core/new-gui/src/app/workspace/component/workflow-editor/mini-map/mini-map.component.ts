@@ -14,7 +14,7 @@ export class MiniMapComponent implements AfterViewInit {
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
-  display = true;
+  width = 300;
 
   constructor(private workflowActionService: WorkflowActionService) {}
 
@@ -41,9 +41,9 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
         mainPaper.on("resize", () => this.updateNavigator());
-
-        document.getElementById("mini-map-content")!.style.width = 0 + "px";
+        document.getElementById("mini-map-container")!.style.width = 0 + "px";
       });
+    this.width = 0;
   }
 
   onDrag(event: any) {
@@ -62,15 +62,6 @@ export class MiniMapComponent implements AfterViewInit {
       navigator.style.top = (point.y - MAIN_CANVAS.yMin) * this.scale + "px";
       navigator.style.width = (editor.offsetWidth / this.paper.scale().sx) * this.scale + "px";
       navigator.style.height = (editor.offsetHeight / this.paper.scale().sy) * this.scale + "px";
-    }
-  }
-
-  public toggle(): void {
-    const map = document.getElementById("mini-map-content")!;
-    if (map.style.width == "400px") {
-      map.style.width = 0 + "px";
-    } else {
-      map.style.width = 400 + "px";
     }
   }
 }

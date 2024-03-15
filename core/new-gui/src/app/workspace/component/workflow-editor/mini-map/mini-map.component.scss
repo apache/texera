@@ -1,3 +1,10 @@
+#minimap-button {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 4;
+}
+
 #mini-map {
   height: 200px;
 }
@@ -7,30 +14,4 @@
   position: absolute;
   cursor: move;
   z-index: 1;
-}
-
-#mini-map-container {
-  // position: fixed;
-  // bottom: 0;
-  // right: 0px;
-  // z-index: 3;
-  // user-select: none;
-  // background: white;
-  // border-radius: 3px;
-  // box-shadow:
-  //   0 3px 1px -2px #0003,
-  //   0 2px 2px #00000024,
-  //   0 1px 5px #0000001f;
-}
-
-#mini-map-content {
-  min-height: 100%;
-  width: 400px;
-}
-
-#minimap-button {
-  position: fixed;
-  bottom: 0;
-  right: 0;
-  z-index: 4;
 }

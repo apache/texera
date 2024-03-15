@@ -1,22 +1,19 @@
-<div id="mini-map-content">
-  <div style="position: relative">
-    <div id="mini-map"></div>
-    <div
-      id="mini-map-navigator"
-      cdkDrag
-      cdkDragBoundary="texera-mini-map"
-      (cdkDragMoved)="onDrag($event)"
-      (cdkDragStarted)="dragging=true"
-      (cdkDragEnded)="dragging=false"></div>
-  </div>
-</div>
 <button
   nz-button
   id="minimap-button"
-  nzType="default"
-  nzSize="large"
-  (click)="toggle()">
+  (click)="this.width = this.width ? 0 : 300">
   <span
     nz-icon
-    nzType="compass"></span>
+    nzType="{{this.width ? 'minus' : 'compass'}}"></span>
 </button>
+
+<div [style.width.px]="width">
+  <div id="mini-map"></div>
+  <div
+    id="mini-map-navigator"
+    cdkDrag
+    cdkDragBoundary="texera-mini-map"
+    (cdkDragMoved)="onDrag($event)"
+    (cdkDragStarted)="dragging=true"
+    (cdkDragEnded)="dragging=false"></div>
+</div>
