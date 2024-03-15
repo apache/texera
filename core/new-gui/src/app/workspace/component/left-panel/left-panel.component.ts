@@ -14,14 +14,14 @@ import { TimeTravelComponent } from "./time-travel/time-travel.component";
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent implements OnDestroy, OnInit {
-  currentComponent: Type<any> = null as any;
+  currentComponent: Type<any> | null = null;
   title = "Operators";
   screenWidth = window.innerWidth;
   width = 240;
   id = -1;
   currentIndex = 0;
   items = [
-    { component: null as any, title: "", icon: "", enabled: true },
+    { component: null, title: "", icon: "", enabled: true },
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
     { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
     {
@@ -65,7 +65,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   }
 
   onClose() {
-    this.currentComponent = null as any;
+    this.currentComponent = null;
     this.width = 0;
     this.currentIndex = 0;
   }

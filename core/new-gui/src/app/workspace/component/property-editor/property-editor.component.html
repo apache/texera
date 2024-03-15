@@ -1,5 +1,5 @@
 <div
-  [hidden]="!frameComponentConfig"
+  [hidden]="!currentComponent"
   cdkDrag
   cdkDragBoundary="texera-workspace"
   id="property-editor-container"
@@ -22,9 +22,7 @@
       Property
     </h4>
     <div class="property-editor">
-      <ndc-dynamic
-        [ndcDynamicComponent]="frameComponentConfig?.component"
-        [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
+      <ng-container *ngComponentOutlet="currentComponent;inputs: componentInput"></ng-container>
     </div>
   </div>
   <ul

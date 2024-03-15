@@ -1,17 +1,11 @@
-import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, OnDestroy, HostListener, Type } from "@angular/core";
 import { merge } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
-import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { PortPropertyEditFrameComponent } from "./port-property-edit-frame/port-property-edit-frame.component";
 import { NzResizeEvent } from "ng-zorro-antd/resizable";
-
-export type PropertyEditFrameComponent = OperatorPropertyEditFrameComponent | PortPropertyEditFrameComponent;
-
-export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameComponent>;
-
 /**
  * PropertyEditorComponent is the panel that allows user to edit operator properties.
  * Depending on the highlighted operator or link, it displays OperatorPropertyEditFrameComponent
@@ -25,7 +19,8 @@ export type PropertyEditFrameConfig = DynamicComponentConfig<PropertyEditFrameCo
   styleUrls: ["property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
-  frameComponentConfig?: PropertyEditFrameConfig;
+  currentComponent: Type<any> | null = null;
+  componentInput = {};
 
   propertyDisplay = true;
   screenWidth = window.innerWidth;
@@ -63,17 +58,6 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     this.registerHighlightEventsHandler();
     const style = localStorage.getItem("property-panel-style");
     if (style) document.getElementById("property-editor-container")!.style.cssText = style;
-  }
-
-  switchFrameComponent(targetConfig?: PropertyEditFrameConfig) {
-    if (
-      this.frameComponentConfig?.component === targetConfig?.component &&
-      this.frameComponentConfig?.componentInputs === targetConfig?.componentInputs
-    ) {
-      return;
-    }
-
-    this.frameComponentConfig = targetConfig;
   }
 
   @HostListener("window:beforeunload")
@@ -131,17 +115,14 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
           highlightLinks.length === 0 &&
           highlightedPorts.length === 0
         ) {
-          this.switchFrameComponent({
-            component: OperatorPropertyEditFrameComponent,
-            componentInputs: { currentOperatorId: highlightedOperators[0] },
-          });
+          this.currentComponent = OperatorPropertyEditFrameComponent;
+          this.componentInput = { currentOperatorId: highlightedOperators[0] };
         } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
-          this.switchFrameComponent({
-            component: PortPropertyEditFrameComponent,
-            componentInputs: { currentPortID: highlightedPorts[0] },
-          });
+          this.currentComponent = PortPropertyEditFrameComponent;
+          this.componentInput = { currentPortID: highlightedPorts[0] };
         } else {
-          this.switchFrameComponent(undefined);
+          this.currentComponent = null;
+          this.componentInput = {};
           this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
         this.changeDetectorRef.detectChanges();

@@ -74,14 +74,6 @@
   position: relative;
 }
 
-texera-menu {
-  width: 100%;
-  z-index: 1;
-  position: fixed;
-  top: 0;
-  left: 0;
-}
-
 /**
 * this style specifies that the workflow editor in the middle
 * will occupy the all columns and use the second row (middle)
@@ -118,6 +110,14 @@ texera-menu {
   font-size: 0.4em;
   color: gray;
   z-index: 5;
+}
+
+texera-menu {
+  width: 100%;
+  z-index: 1;
+  position: fixed;
+  top: 0;
+  left: 0;
 }
 
 texera-mini-map {

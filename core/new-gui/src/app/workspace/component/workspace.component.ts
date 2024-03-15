@@ -1,14 +1,5 @@
 import { Location } from "@angular/common";
-import {
-  AfterViewInit,
-  OnInit,
-  Component,
-  OnDestroy,
-  ViewChild,
-  ViewContainerRef,
-  HostListener,
-  Type,
-} from "@angular/core";
+import { AfterViewInit, OnInit, Component, OnDestroy, ViewChild, ViewContainerRef, HostListener } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { environment } from "../../../environments/environment";
 import { UserService } from "../../common/service/user/user.service";
@@ -50,9 +41,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
   userSystemEnabled = environment.userSystemEnabled;
-
-  screenWidth = window.innerWidth;
-
   @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
   constructor(
     private userService: UserService,
