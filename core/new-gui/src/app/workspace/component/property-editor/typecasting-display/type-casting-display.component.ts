@@ -21,7 +21,6 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
   @Input() currentOperatorId: string | undefined;
 
   schemaToDisplay: Partial<SchemaAttribute>[] = [];
-  columnNamesToDisplay: string[] = ["attributeName", "attributeType"];
   displayTypeCastingSchemaInformation: boolean = false;
 
   constructor(
