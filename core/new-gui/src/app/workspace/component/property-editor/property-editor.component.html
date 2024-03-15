@@ -5,9 +5,9 @@
     cdkDragBoundary="body"
     id="property-editor-container"
     nz-resizable
-    [nzMinWidth]="300"
+    [nzMinWidth]="280"
     [nzMinHeight]="400"
-    [nzMaxWidth]="800"
+    [nzMaxWidth]="screenWidth/2"
     [nzMaxHeight]="1200"
     [style.width.px]="width"
     (nzResize)="onResize($event)"
@@ -50,7 +50,7 @@
         cdkDragHandle>
         Property
       </h4>
-      <div class="property-editor">
+      <div id="property-editor">
         <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
       </div>
     </div>

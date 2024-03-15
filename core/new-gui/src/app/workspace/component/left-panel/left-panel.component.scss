@@ -1,7 +1,3 @@
-#title {
-  padding: 10px 0 4px 15px;
-}
-
 #left-panel-container {
   position: fixed;
   top: 90px;
@@ -11,12 +7,14 @@
   background: white;
 }
 
-#left-panel-content {
-  min-height: 100%;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
-  display: inline-block;
-  width: calc(100% - 50px);
+#title {
+  position: fixed;
+  top: 0;
+  padding: 10px 0 8px 15px;
+  border-bottom: 1px solid #e0e0e0;
+  background: white;
+  width: calc(100% - 47px);
+  z-index: 2;
 }
 
 #left-dock {
@@ -25,8 +23,13 @@
   padding-bottom: 10px;
 }
 
-#divider {
-  margin: 0;
+#left-panel-content {
+  min-height: 100%;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  display: inline-block;
+  width: calc(100% - 50px);
+  padding-top: 40px;
 }
 
 .ant-menu-item {

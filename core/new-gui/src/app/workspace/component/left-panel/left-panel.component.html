@@ -32,9 +32,6 @@
           nz-icon
           nzType="drag"></span>
       </li>
-      <li
-        nz-menu-divider
-        id="divider"></li>
       <ng-container *ngFor="let i of order">
         <li
           nz-menu-item
@@ -50,7 +47,7 @@
         </li>
       </ng-container>
     </ul>
-    <div id="left-panel-content">
+    <div id="left-panel-content" [hidden]="!currentComponent">
       <h4
         id="title"
         cdkDragHandle>
@@ -58,6 +55,7 @@
       </h4>
       <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
     </div>
+
     <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
   </div>
 </div>
