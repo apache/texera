@@ -1,13 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
+<<<<<<< HEAD
 import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.SinkOperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+=======
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, SinkOperatorExecutor}
+>>>>>>> 9576fa08d (initial version of port statistics)
+
+import scala.collection.mutable
 
 class StatisticsManager {
   // DataProcessor
-  private var inputTupleCount: Long = 0
-  private var outputTupleCount: Long = 0
+  private var inputTupleCount: mutable.Map[Int, Long] = mutable.Map()
+  private var outputTupleCount: mutable.Map[Int, Long] = mutable.Map()
   private var dataProcessingTime: Long = 0
   private var totalExecutionTime: Long = 0
   private var workerStartTime: Long = 0
@@ -15,7 +22,7 @@ class StatisticsManager {
   // AmberProcessor
   private var controlProcessingTime: Long = 0
 
-  def getStatistics(workerState: WorkerState, operator: OperatorExecutor): WorkerStatistics = {
+  def getStatistics(operator: IOperatorExecutor): WorkerStatistics = {
     // sink operator doesn't output to downstream so internal count is 0
     // but for user-friendliness we show its input count as output count
     val displayOut = operator match {
@@ -25,25 +32,26 @@ class StatisticsManager {
         outputTupleCount
     }
     WorkerStatistics(
-      workerState,
-      inputTupleCount,
-      displayOut,
+      inputTupleCount.toMap,
+      displayOut.toMap,
       dataProcessingTime,
       controlProcessingTime,
       totalExecutionTime - dataProcessingTime - controlProcessingTime
     )
   }
 
-  def getInputTupleCount: Long = inputTupleCount
+  def getInputTupleCount: Long = inputTupleCount.values.sum
 
-  def getOutputTupleCount: Long = outputTupleCount
+  def getOutputTupleCount: Long = outputTupleCount.values.sum
 
-  def increaseInputTupleCount(): Unit = {
-    inputTupleCount += 1
+  def increaseInputTupleCount(portId: Int): Unit = {
+    inputTupleCount.getOrElseUpdate(portId, 0)
+    inputTupleCount(portId) += 1
   }
 
-  def increaseOutputTupleCount(): Unit = {
-    outputTupleCount += 1
+  def increaseOutputTupleCount(portId: Int): Unit = {
+    outputTupleCount.getOrElseUpdate(portId, 0)
+    outputTupleCount(portId) += 1
   }
 
   def increaseDataProcessingTime(time: Long): Unit = {

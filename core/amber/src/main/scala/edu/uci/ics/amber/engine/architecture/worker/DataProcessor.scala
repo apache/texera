@@ -21,7 +21,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
   RUNNING
 }
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
@@ -69,12 +69,11 @@ class DataProcessor(
     inputGateway.getChannel(channelId).getQueuedCredit
   }
 
-  /** provide API for actor to get stats of this executor
-    *
-    * @return (input tuple count, output tuple count)
+  /**
+    * provide API for actor to get stats of this operator
     */
-  def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(stateManager.getCurrentState, executor)
+  def collectStatistics(): (WorkerState, WorkerStatistics) =
+    (stateManager.getCurrentState, statisticsManager.getStatistics(operator))
 
   /**
     * process currentInputTuple through executor logic.
@@ -82,13 +81,14 @@ class DataProcessor(
     */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
+      val portId: Int = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,
-          this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
+          portId
         )
       )
-      statisticsManager.increaseInputTupleCount()
+      statisticsManager.increaseInputTupleCount(portId)
 
     } catch safely {
       case e =>
@@ -154,8 +154,7 @@ class DataProcessor(
       case FinalizePort(portId, input) =>
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case schemaEnforceable: SchemaEnforceable =>
-        statisticsManager.increaseOutputTupleCount()
-        outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
+        outputManager.passTupleToDownstream(schemaEnforceable, statisticsManager, outputPortOpt)
 
       case other => // skip for now
     }
