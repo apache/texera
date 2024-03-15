@@ -1,19 +1,23 @@
 import typing
 
+from proto.edu.uci.ics.amber.engine.common import PortIdentity
+
 
 class StatisticsManager:
     def __init__(self):
-        self._input_tuple_count = 0
-        self._output_tuple_count = 0
+        self._input_tuple_count = {}
+        self._output_tuple_count = {}
         self._data_processing_time = 0
         self._control_processing_time = 0
         self._total_execution_time = 0
         self._worker_start_time = 0
 
-    def get_statistics(self) -> typing.Tuple[int, int]:
+    def get_statistics(self) -> typing.Tuple[list, list, int, int, int]:
+        input_tuple_count_list = list(self._input_tuple_count.items())
+        output_tuple_count_list = list(self._output_tuple_count.items())
         return (
-            self._input_tuple_count,
-            self._output_tuple_count,
+            input_tuple_count_list,
+            output_tuple_count_list,
             self._data_processing_time,
             self._control_processing_time,
             self._total_execution_time
@@ -21,11 +25,26 @@ class StatisticsManager:
             - self._control_processing_time,
         )
 
-    def increase_input_tuple_count(self) -> None:
-        self._input_tuple_count += 1
+    def increase_input_tuple_count(self, port_id: PortIdentity) -> None:
+        if port_id is None:
+            port = 0
+        else:
+            port = port_id.id
 
-    def increase_output_tuple_count(self) -> None:
-        self._output_tuple_count += 1
+        if port not in self._input_tuple_count:
+            self._input_tuple_count[port] = 0
+        self._input_tuple_count[port] += 1
+
+    def increase_output_tuple_count(self, port_id: PortIdentity = None) -> None:
+        # Currently, the number of output ports is fixed to 1
+        if port_id is None:
+            port = 0
+        else:
+            port = port_id.id
+
+        if port not in self._output_tuple_count:
+            self._output_tuple_count[port] = 0
+        self._output_tuple_count[port] += 1
 
     def increase_data_processing_time(self, time) -> None:
         self._data_processing_time += time

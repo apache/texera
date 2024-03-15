@@ -87,7 +87,6 @@ case class RegionExecution(region: Region) {
   def getAllLinkExecutions: Iterable[(PhysicalLink, LinkExecution)] = linkExecutions
 
   def getStats: Map[String, OperatorRuntimeStats] = {
-    // TODO: fix the aggregation here. The stats should be on port level.
     operatorExecutions.map {
       case (physicalOpId, operatorExecution) =>
         physicalOpId.logicalOpId.id -> operatorExecution.getStats
