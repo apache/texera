@@ -1,9 +1,9 @@
 <div>
   <div
     cdkDrag
-    cdkDragBoundary="texera-workspace"
+    cdkDragBoundary="body"
     id="left-panel-container"
-    class="shadow"
+    class="box"
     nz-resizable
     [nzMinWidth]="240"
     [nzMaxWidth]="screenWidth*0.5"
@@ -18,7 +18,7 @@
       <li
         nz-menu-item
         (click)="onClose()"
-        *ngIf="this.width">
+        *ngIf="width">
         <span
           nz-icon
           nzType="minus"></span>
@@ -27,11 +27,10 @@
         nz-menu-item
         nzSelected
         cdkDragHandle
-        *ngIf="!this.width">
+        *ngIf="!width">
         <span
           nz-icon
-          nzType="drag"
-          *ngIf="!this.width"></span>
+          nzType="drag"></span>
       </li>
       <li
         nz-menu-divider
@@ -41,13 +40,13 @@
           nz-menu-item
           cdkDrag
           nzTooltipPlacement="right"
-          nz-tooltip="{{this.items[i].title}}"
-          nzSelected="{{this.currentComponent === this.items[i].component}}"
-          *ngIf="this.items[i].enabled"
+          nz-tooltip="{{items[i].title}}"
+          nzSelected="{{currentComponent === items[i].component}}"
+          *ngIf="items[i].enabled"
           (click)="openFrame(i)">
           <span
             nz-icon
-            nzType="{{this.items[i].icon}}"></span>
+            nzType="{{items[i].icon}}"></span>
         </li>
       </ng-container>
     </ul>

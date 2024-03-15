@@ -1,7 +1,7 @@
 <div
   [hidden]="!currentComponent"
   cdkDrag
-  cdkDragBoundary="texera-workspace"
+  cdkDragBoundary="body"
   id="property-editor-container"
   nz-resizable
   [nzMinWidth]="300"
@@ -11,7 +11,7 @@
   [style.height.px]="propertyHeight"
   [style.width.px]="propertyWidth"
   (nzResize)="onResize_property($event)"
-  class="shadow">
+  class="box">
   <div
     id="right-panel-content"
     *ngIf="this.propertyDisplay"
