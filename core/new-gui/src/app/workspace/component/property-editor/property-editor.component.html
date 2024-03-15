@@ -12,9 +12,39 @@
     [style.width.px]="width"
     (nzResize)="onResize($event)"
     class="box">
+    <ul
+      nz-menu
+      id="property-buttons"
+      [ngClass]="{'shadow':  hidden}">
+      <li
+        nz-menu-item
+        (click)="hidden = true"
+        *ngIf="!hidden">
+        <span
+          nz-icon
+          nzType="minus"></span>
+      </li>
+      <li
+        nz-menu-item
+        nzSelected="{{hidden}}"
+        cdkDragHandle
+        *ngIf="hidden">
+        <span
+          nz-icon
+          nzType="drag"></span>
+      </li>
+      <li
+        nz-menu-item
+        (click)="hidden=false"
+        *ngIf="hidden">
+        <span
+          nz-icon
+          nzType="form"></span>
+      </li>
+    </ul>
     <div
       id="right-panel-content"
-      *ngIf="this.propertyDisplay">
+      [hidden]="hidden">
       <h4
         id="title"
         cdkDragHandle>
@@ -24,39 +54,6 @@
         <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
       </div>
     </div>
-    <ul
-      nz-menu
-      id="dock"
-      [ngClass]="{'shadow':  !propertyDisplay}">
-      <li
-        nz-menu-item
-        (click)="onClose_property()"
-        *ngIf="this.propertyDisplay">
-      <span
-        nz-icon
-        nzType="minus"></span>
-      </li>
-      <li
-        nz-menu-item
-        nzSelected="{{!this.propertyDisplay}}"
-        cdkDragHandle
-        *ngIf="!this.propertyDisplay">
-      <span
-        nz-icon
-        nzType="drag"
-        *ngIf="!this.propertyDisplay"></span>
-      </li>
-      <li
-        nz-menu-item
-        nzSelected="{{this.propertyDisplay}}"
-        (click)="openPropertyPanel()">
-      <span
-        nz-icon
-        nzType="form"
-        nzTheme="outline"
-        class="icon-right"></span>
-      </li>
-    </ul>
     <nz-resize-handles></nz-resize-handles>
   </div>
 </div>

@@ -22,6 +22,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   id = -1;
   width = 300;
   height = 400;
+  hidden = false;
 
   currentComponent: Type<any> | null = null;
   componentInputs = {};
