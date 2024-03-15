@@ -1,13 +1,13 @@
 <button
   nz-button
   id="minimap-button"
-  (click)="this.width = this.width ? 0 : 300">
+  (click)="hidden = !hidden">
   <span
     nz-icon
-    nzType="{{this.width ? 'minus' : 'compass'}}"></span>
+    nzType="{{hidden ? 'compass' : 'minus'}}"></span>
 </button>
 
-<div [style.width.px]="width">
+<div [hidden]="hidden">
   <div id="mini-map"></div>
   <div
     id="mini-map-navigator"

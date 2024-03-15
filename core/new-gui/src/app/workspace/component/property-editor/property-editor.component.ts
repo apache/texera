@@ -20,7 +20,7 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
   currentComponent: Type<any> | null = null;
-  componentInput = {};
+  componentInputs = {};
 
   propertyDisplay = true;
   screenWidth = window.innerWidth;
@@ -47,11 +47,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
 
     const display = localStorage.getItem("property-panel-display");
 
-    if (display === "true") {
-      this.propertyDisplay = true;
-    } else {
-      this.propertyDisplay = false;
-    }
+    this.propertyDisplay = display === "true";
   }
 
   ngOnInit(): void {
@@ -116,13 +112,13 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
           highlightedPorts.length === 0
         ) {
           this.currentComponent = OperatorPropertyEditFrameComponent;
-          this.componentInput = { currentOperatorId: highlightedOperators[0] };
+          this.componentInputs = { currentOperatorId: highlightedOperators[0] };
         } else if (highlightedPorts.length === 1 && highlightedGroups.length === 0 && highlightLinks.length === 0) {
           this.currentComponent = PortPropertyEditFrameComponent;
-          this.componentInput = { currentPortID: highlightedPorts[0] };
+          this.componentInputs = { currentPortID: highlightedPorts[0] };
         } else {
           this.currentComponent = null;
-          this.componentInput = {};
+          this.componentInputs = {};
           this.workflowActionService.getTexeraGraph().updateSharedModelAwareness("currentlyEditing", undefined);
         }
         this.changeDetectorRef.detectChanges();
@@ -130,7 +126,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   }
 
   openPropertyPanel() {
-    if (this.propertyDisplay == false) {
+    if (!this.propertyDisplay) {
       this.propertyWidth = 300;
     }
     this.propertyDisplay = true;

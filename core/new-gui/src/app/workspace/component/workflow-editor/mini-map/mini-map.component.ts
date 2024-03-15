@@ -14,7 +14,7 @@ export class MiniMapComponent implements AfterViewInit {
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
-  width = 300;
+  hidden = false;
 
   constructor(private workflowActionService: WorkflowActionService) {}
 
@@ -36,6 +36,7 @@ export class MiniMapComponent implements AfterViewInit {
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
+        this.hidden = true;
         this.paper = mainPaper;
         this.updateNavigator();
         mainPaper.on("translate", () => this.updateNavigator());
@@ -43,7 +44,6 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("resize", () => this.updateNavigator());
         document.getElementById("mini-map-container")!.style.width = 0 + "px";
       });
-    this.width = 0;
   }
 
   onDrag(event: any) {

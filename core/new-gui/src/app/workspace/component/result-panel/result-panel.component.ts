@@ -26,7 +26,7 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
   styleUrls: ["./result-panel.component.scss"],
 })
 export class ResultPanelComponent implements OnInit {
-  frameComponentConfigs: Map<string, { component: Type<any>; inputs: {} }> = new Map();
+  frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -180,14 +180,14 @@ export class ResultPanelComponent implements OnInit {
   displayConsole(operatorId: string, consoleInputEnabled: boolean) {
     this.frameComponentConfigs.set("Console", {
       component: ConsoleFrameComponent,
-      inputs: { operatorId, consoleInputEnabled },
+      componentInputs: { operatorId, consoleInputEnabled },
     });
   }
 
   displayError(operatorId: string | undefined) {
     this.frameComponentConfigs.set("Static Error", {
       component: ErrorFrameComponent,
-      inputs: { operatorId },
+      componentInputs: { operatorId },
     });
   }
 
@@ -198,13 +198,13 @@ export class ResultPanelComponent implements OnInit {
       // display table result if it has paginated results
       this.frameComponentConfigs.set("Result", {
         component: ResultTableFrameComponent,
-        inputs: { operatorId },
+        componentInputs: { operatorId },
       });
     } else if (resultService) {
       // display visualization result
       this.frameComponentConfigs.set("Result", {
         component: VisualizationFrameComponent,
-        inputs: { operatorId },
+        componentInputs: { operatorId },
       });
     }
   }
