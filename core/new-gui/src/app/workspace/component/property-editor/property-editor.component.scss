@@ -4,20 +4,19 @@
 
 #property-editor-container {
   position: fixed;
-  top: 80px;
-  right: 0;
-  width: 50%;
+  top: 90px;
+  right: 15px;
   z-index: 3;
   user-select: none;
   background: white;
-  border-radius: 3px;
 }
 
 #right-panel-content {
+  min-height: 100%;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
   display: inline-block;
-  overflow: auto;
-  width: calc(100% - 47px);
-  height: calc(100%);
+  width: 100%;
 }
 
 #title {

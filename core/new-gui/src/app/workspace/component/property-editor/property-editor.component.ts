@@ -19,6 +19,10 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
   styleUrls: ["property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
+  id = -1;
+  width = 300;
+  height = 400;
+
   currentComponent: Type<any> | null = null;
   componentInputs = {};
 
@@ -140,14 +144,12 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     }
   }
 
-  onResize_property(event: NzResizeEvent): void {
-    if (event.width) {
-      this.propertyWidth = event.width;
-    }
-
-    if (event.height) {
-      this.propertyHeight = event.height;
-    }
+  onResize({ width, height }: NzResizeEvent) {
+    cancelAnimationFrame(this.id);
+    this.id = requestAnimationFrame(() => {
+      this.width = width!;
+      this.height = height!;
+    });
   }
 
   onClose_property(): void {

@@ -1,62 +1,62 @@
-<div
-  [hidden]="!currentComponent"
-  cdkDrag
-  cdkDragBoundary="body"
-  id="property-editor-container"
-  nz-resizable
-  [nzMinWidth]="300"
-  [nzMaxWidth]="800"
-  [nzMinHeight]="200"
-  [nzMaxHeight]="1200"
-  [style.height.px]="propertyHeight"
-  [style.width.px]="propertyWidth"
-  (nzResize)="onResize_property($event)"
-  class="box">
+<div>
   <div
-    id="right-panel-content"
-    *ngIf="this.propertyDisplay"
-    nz-resizable>
-    <h4
-      id="title"
-      cdkDragHandle>
-      Property
-    </h4>
-    <div class="property-editor">
-      <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
-    </div>
-  </div>
-  <ul
-    nz-menu
-    id="dock"
-    [ngClass]="{'shadow':  !propertyDisplay}">
-    <li
-      nz-menu-item
-      (click)="onClose_property()"
+    [hidden]="!currentComponent"
+    cdkDrag
+    cdkDragBoundary="body"
+    id="property-editor-container"
+    nz-resizable
+    [nzMinWidth]="300"
+    [nzMinHeight]="400"
+    [nzMaxWidth]="800"
+    [nzMaxHeight]="1200"
+    [style.width.px]="width"
+    (nzResize)="onResize($event)"
+    class="box">
+    <div
+      id="right-panel-content"
       *ngIf="this.propertyDisplay">
+      <h4
+        id="title"
+        cdkDragHandle>
+        Property
+      </h4>
+      <div class="property-editor">
+        <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
+      </div>
+    </div>
+    <ul
+      nz-menu
+      id="dock"
+      [ngClass]="{'shadow':  !propertyDisplay}">
+      <li
+        nz-menu-item
+        (click)="onClose_property()"
+        *ngIf="this.propertyDisplay">
       <span
         nz-icon
         nzType="minus"></span>
-    </li>
-    <li
-      nz-menu-item
-      nzSelected="{{!this.propertyDisplay}}"
-      cdkDragHandle
-      *ngIf="!this.propertyDisplay">
+      </li>
+      <li
+        nz-menu-item
+        nzSelected="{{!this.propertyDisplay}}"
+        cdkDragHandle
+        *ngIf="!this.propertyDisplay">
       <span
         nz-icon
         nzType="drag"
         *ngIf="!this.propertyDisplay"></span>
-    </li>
-    <li
-      nz-menu-item
-      nzSelected="{{this.propertyDisplay}}"
-      (click)="openPropertyPanel()">
+      </li>
+      <li
+        nz-menu-item
+        nzSelected="{{this.propertyDisplay}}"
+        (click)="openPropertyPanel()">
       <span
         nz-icon
         nzType="form"
         nzTheme="outline"
         class="icon-right"></span>
-    </li>
-  </ul>
-  <nz-resize-handles [nzDirections]="['left', 'bottom']"></nz-resize-handles>
+      </li>
+    </ul>
+    <nz-resize-handles></nz-resize-handles>
+  </div>
 </div>
