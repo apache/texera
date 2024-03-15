@@ -10,10 +10,10 @@
 #title {
   position: fixed;
   top: 0;
-  padding: 10px 0 8px 15px;
+  padding: 4px 15px;
   border-bottom: 1px solid #e0e0e0;
   background: white;
-  width: calc(100% - 47px);
+  width: calc(100% - 33px);
   z-index: 2;
 }
 
@@ -28,12 +28,15 @@
   max-height: calc(100vh - 200px);
   overflow-y: auto;
   display: inline-block;
-  width: calc(100% - 50px);
-  padding-top: 40px;
+  width: calc(100% - 33px);
+  margin-top: 32px;
 }
 
 .ant-menu-item {
   margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
 }
 
 .shadow {

@@ -1,13 +1,13 @@
 #search-box {
   border-bottom: 1px solid #e0e0e0;
   position: fixed;
-  top: 41px;
+  top: 32px;
   z-index: 1;
   background: white;
-  width: 100%;
+  width: calc(100% - 33px);
   input {
     border: none;
-    padding: 5px;
+    padding: 5px 15px;
   }
 }
 
@@ -25,5 +25,5 @@
 }
 
 #operator-menu {
-  padding-top: 35px;
+  margin-top: 32px;
 }
