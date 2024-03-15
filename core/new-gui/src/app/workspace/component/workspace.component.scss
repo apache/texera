@@ -9,11 +9,6 @@
   height: 100%;
 }
 
-.disabled {
-  pointer-events: none; /* disable click */
-  color: #ccc; /* change color to inform */
-}
-
 .texera-workspace {
   --header-height: 40px;
   --resultbar-height: 25px;
@@ -23,11 +18,6 @@
   &.user-system-enabled {
     --header-height: 76px;
   }
-}
-
-texera-property-editor {
-  grid-row: 1/5;
-  grid-column: 1/4;
 }
 
 /**
@@ -133,7 +123,7 @@ texera-menu {
 texera-mini-map {
   position: fixed;
   bottom: 0;
-  right: 0px;
+  right: 0;
   z-index: 3;
   user-select: none;
   border-radius: 3px;
