@@ -213,7 +213,7 @@ case class PhysicalPlan(
                 .filter(link =>
                   link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
                 )
-                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
+                .filter(link => getOperator(physicalOp.id).isLinkBlocking(link))
             }
         }
       }
@@ -231,7 +231,7 @@ case class PhysicalPlan(
                 .filter(link =>
                   link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
                 )
-                .filter(link => getOperator(physicalOp.id).isInputLinkBlocking(link))
+                .filter(link => getOperator(physicalOp.id).isLinkBlocking(link))
             }
         }
       }
@@ -268,7 +268,7 @@ case class PhysicalPlan(
                 .filter(link =>
                   link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
                 )
-                .filter(link => !getOperator(physicalOp.id).isInputLinkBlocking(link))
+                .filter(link => !getOperator(physicalOp.id).isLinkBlocking(link))
             }
         }
       }
@@ -336,7 +336,7 @@ case class PhysicalPlan(
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {
     val upstreamPhysicalLinkIds = getUpstreamPhysicalLinks(physicalOpId)
     upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
-      getOperator(physicalOpId).isInputLinkBlocking(upstreamPhysicalLinkId)
+      getOperator(physicalOpId).isLinkBlocking(upstreamPhysicalLinkId)
     }
   }
 

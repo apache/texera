@@ -95,7 +95,7 @@ abstract class RegionPlanGenerator(
         upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-            .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
+            .filter(link => physicalPlan.getOperator(physicalOpId).isLinkBlocking(link))
         }
       }
       .toSet

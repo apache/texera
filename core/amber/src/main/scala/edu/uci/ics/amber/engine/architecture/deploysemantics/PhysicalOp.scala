@@ -183,6 +183,8 @@ case class PhysicalOp(
       Map.empty,
     // input ports that are blocking
     blockingInputs: List[PortIdentity] = List(),
+    // output ports that are blocking
+    blockingOutputs: List[PortIdentity] = List(),
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
@@ -304,6 +306,10 @@ case class PhysicalOp(
     */
   def withBlockingInputs(blockingInputs: List[PortIdentity]): PhysicalOp = {
     this.copy(blockingInputs = blockingInputs)
+  }
+
+  def withBlockingOutputs(blockingOutputs: List[PortIdentity]): PhysicalOp = {
+    this.copy(blockingOutputs = blockingOutputs)
   }
 
   /**
@@ -468,8 +474,10 @@ case class PhysicalOp(
     * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
     * outputs all its tuples
     */
-  def isInputLinkBlocking(link: PhysicalLink): Boolean = {
-    val blockingLinks = realBlockingInputs.flatMap(portId => getInputLinks(Some(portId)))
+  def isLinkBlocking(link: PhysicalLink): Boolean = {
+    val blockingLinks = realBlockingInputs.flatMap(portId =>
+      getInputLinks(Some(portId))
+    ) ++ blockingOutputs.flatMap(portId => getOutputLinks(portId))
     blockingLinks.contains(link)
   }
 

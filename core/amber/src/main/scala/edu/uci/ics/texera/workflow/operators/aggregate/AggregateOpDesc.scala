@@ -47,6 +47,7 @@ class AggregateOpDesc extends LogicalOp {
         .withIsOneToManyOp(true)
         .withInputPorts(List(InputPort(PortIdentity())))
         .withOutputPorts(List(outputPort))
+        .withBlockingOutputs(List(outputPort.id))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
             Map(
@@ -58,6 +59,8 @@ class AggregateOpDesc extends LogicalOp {
         )
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
+
+    val finalOutputPort = OutputPort(PortIdentity(0))
 
     val finalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
@@ -71,7 +74,8 @@ class AggregateOpDesc extends LogicalOp {
       .withParallelizable(false)
       .withIsOneToManyOp(true)
       .withInputPorts(List(inputPort))
-      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+      .withOutputPorts(List(finalOutputPort))
+      .withBlockingOutputs(List(finalOutputPort.id))
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>
           Map(operatorInfo.outputPorts.head.id -> {
