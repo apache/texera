@@ -81,7 +81,9 @@
     [model]="formData"
     [options]="formlyOptions">
   </formly-form>
-  <texera-type-casting-display *ngIf="isTypeCasting" currentOperatorId = "{{this.currentOperatorId}}"></texera-type-casting-display>
+  <texera-type-casting-display
+    *ngIf="isTypeCasting"
+    currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
 </form>
 
 <button
