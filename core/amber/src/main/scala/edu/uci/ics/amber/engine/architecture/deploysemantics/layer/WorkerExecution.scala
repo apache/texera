@@ -44,5 +44,4 @@ case class WorkerExecution() extends Serializable {
     outputPortExecutions(portId)
 
   }
-
 }

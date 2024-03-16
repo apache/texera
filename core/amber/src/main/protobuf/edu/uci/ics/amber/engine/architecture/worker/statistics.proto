@@ -21,10 +21,9 @@ enum WorkerState {
 }
 
 message WorkerStatistics {
-    WorkerState worker_state = 1 [(scalapb.field).no_box = true];
-    map<int32, int64> input_tuple_count = 2;
-    map<int32, int64> output_tuple_count = 3;
-    int64 data_processing_time = 4;
-    int64 control_processing_time = 5;
-    int64 idle_time = 6;
+    map<int32, int64> input_tuple_count = 1;
+    map<int32, int64> output_tuple_count = 2;
+    int64 data_processing_time = 3;
+    int64 control_processing_time = 4;
+    int64 idle_time = 5;
 }

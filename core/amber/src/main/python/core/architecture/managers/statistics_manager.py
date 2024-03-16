@@ -12,12 +12,10 @@ class StatisticsManager:
         self._total_execution_time = 0
         self._worker_start_time = 0
 
-    def get_statistics(self) -> typing.Tuple[list, list, int, int, int]:
-        input_tuple_count_list = list(self._input_tuple_count.items())
-        output_tuple_count_list = list(self._output_tuple_count.items())
+    def get_statistics(self):
         return (
-            input_tuple_count_list,
-            output_tuple_count_list,
+            self._input_tuple_count,
+            self._output_tuple_count,
             self._data_processing_time,
             self._control_processing_time,
             self._total_execution_time
