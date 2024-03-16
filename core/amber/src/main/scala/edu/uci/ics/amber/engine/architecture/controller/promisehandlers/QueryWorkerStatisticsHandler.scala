@@ -41,8 +41,8 @@ trait QueryWorkerStatisticsHandler {
             cp.workflowExecution
               .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
               .getWorkerExecution(workerId)
-          workerExecution.setState(stats._1)
-          workerExecution.setStats(stats._2)
+          workerExecution.setState(stats.workerState)
+          workerExecution.setStats(stats)
         })
       )
       .toSeq

@@ -21,7 +21,7 @@ import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   READY,
   RUNNING
 }
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
@@ -72,8 +72,8 @@ class DataProcessor(
   /**
     * provide API for actor to get stats of this operator
     */
-  def collectStatistics(): (WorkerState, WorkerStatistics) =
-    (stateManager.getCurrentState, statisticsManager.getStatistics(operator))
+  def collectStatistics(): WorkerStatistics =
+    statisticsManager.getStatistics(stateManager.getCurrentState, operator)
 
   /**
     * process currentInputTuple through executor logic.
