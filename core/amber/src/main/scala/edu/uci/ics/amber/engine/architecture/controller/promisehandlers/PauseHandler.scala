@@ -56,7 +56,7 @@ trait PauseHandler {
                             // get the stats and current input tuple from the worker
                             .map {
                               case (stats, tuple) =>
-                                workerExecution.setStats(stats._2)
+                                workerExecution.setStats(stats)
                                 buffer.append((tuple, worker))
                             }
                         }

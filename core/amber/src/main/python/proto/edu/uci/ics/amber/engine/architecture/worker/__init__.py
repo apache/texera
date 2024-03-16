@@ -202,15 +202,16 @@ class ControlCommandV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WorkerStatistics(betterproto.Message):
+    worker_state: "WorkerState" = betterproto.enum_field(1)
     input_tuple_count: Dict[int, int] = betterproto.map_field(
-        1, betterproto.TYPE_INT32, betterproto.TYPE_INT64
-    )
-    output_tuple_count: Dict[int, int] = betterproto.map_field(
         2, betterproto.TYPE_INT32, betterproto.TYPE_INT64
     )
-    data_processing_time: int = betterproto.int64_field(3)
-    control_processing_time: int = betterproto.int64_field(4)
-    idle_time: int = betterproto.int64_field(5)
+    output_tuple_count: Dict[int, int] = betterproto.map_field(
+        3, betterproto.TYPE_INT32, betterproto.TYPE_INT64
+    )
+    data_processing_time: int = betterproto.int64_field(4)
+    control_processing_time: int = betterproto.int64_field(5)
+    idle_time: int = betterproto.int64_field(6)
 
 
 @dataclass(eq=False, repr=False)
