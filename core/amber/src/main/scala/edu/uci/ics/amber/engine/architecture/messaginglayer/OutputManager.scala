@@ -123,7 +123,6 @@ class OutputManager(
     */
   def passTupleToDownstream(
       tupleLike: SchemaEnforceable,
-      statisticsManager: StatisticsManager,
       outputPortId: Option[PortIdentity] = None
   ): Unit = {
     (outputPortId match {
@@ -136,7 +135,6 @@ class OutputManager(
         partitioner.getBucketIndex(tuple).foreach { bucketIndex =>
           networkOutputBuffers((link, partitioner.allReceivers(bucketIndex))).addTuple(tuple)
         }
-        statisticsManager.increaseOutputTupleCount(link.fromPortId.id)
     }
   }
 
