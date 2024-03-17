@@ -1,13 +1,13 @@
 #search-box {
   border-bottom: 1px solid #e0e0e0;
   position: fixed;
-  top: 32px;
+  top: 33px;
   z-index: 1;
   background: white;
   width: calc(100% - 33px);
   input {
     border: none;
-    padding: 5px 15px;
+    padding: 4px 9px;
   }
 }
 
@@ -22,6 +22,8 @@
 .texera-operator-label {
   padding-left: 10px;
   padding-right: 0;
+  margin: 0;
+  height: 32px;
 }
 
 #operator-menu {

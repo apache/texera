@@ -10,7 +10,7 @@
 #title {
   position: fixed;
   top: 0;
-  padding: 4px 15px;
+  padding: 5px 9px;
   border-bottom: 1px solid #e0e0e0;
   background: white;
   width: calc(100% - 33px);
@@ -21,6 +21,7 @@
   display: inline-block;
   vertical-align: top;
   padding-bottom: 10px;
+  border: none;
 }
 
 #left-panel-content {
@@ -30,6 +31,7 @@
   display: inline-block;
   width: calc(100% - 33px);
   margin-top: 32px;
+  border-left: 1px solid #f0f0f0;
 }
 
 .ant-menu-item {
@@ -45,4 +47,8 @@
           0 3px 1px -2px #0003,
           0 2px 2px #00000024,
           0 1px 5px #0000001f;
+}
+
+#divider {
+  margin: 0;
 }
