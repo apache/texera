@@ -1,3 +1,8 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
 #property-editor-container {
   position: fixed;
   top: 90px;
@@ -17,11 +22,8 @@
 }
 
 #right-panel-content {
-  min-height: 100%;
-  max-height: calc(100vh - 200px);
+  height: 100%;
   overflow-y: auto;
-  display: inline-block;
-  width: 100%;
 }
 
 #property-editor{
@@ -29,7 +31,7 @@
 }
 
 #property-buttons {
-  position: fixed;
+  position: absolute;
   top: 0;
   right: 0;
   z-index: 4;

@@ -1,62 +1,61 @@
-<div>
+<div
+  [hidden]="!currentComponent"
+  cdkDrag
+  cdkDragBoundary="body"
+  id="property-editor-container"
+  nz-resizable
+  [nzMinWidth]="280"
+  [nzMinHeight]="400"
+  [nzMaxWidth] ="screenWidth/2"
+  [nzMaxHeight]="1200"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)"
+  class="box">
+  <ul
+    nz-menu
+    id="property-buttons"
+    [ngClass]="{'shadow':  hidden}">
+    <li
+      nz-menu-item
+      (click)="hidden = true"
+      *ngIf="!hidden">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+    <li
+      nz-menu-item
+      nzSelected="{{hidden}}"
+      cdkDragHandle
+      *ngIf="hidden">
+      <span
+        nz-icon
+        nzType="drag"></span>
+    </li>
+    <li
+      nz-menu-divider
+      id="divider"></li>
+    <li
+      nz-menu-item
+      (click)="hidden=false"
+      *ngIf="hidden">
+      <span
+        nz-icon
+        nzType="form"></span>
+    </li>
+  </ul>
   <div
-    [hidden]="!currentComponent"
-    cdkDrag
-    cdkDragBoundary="body"
-    id="property-editor-container"
-    nz-resizable
-    [nzMinWidth]="280"
-    [nzMinHeight]="400"
-    [nzMaxWidth]="screenWidth/2"
-    [nzMaxHeight]="1200"
-    [style.width.px]="width"
-    (nzResize)="onResize($event)"
-    class="box">
-    <ul
-      nz-menu
-      id="property-buttons"
-      [ngClass]="{'shadow':  hidden}">
-      <li
-        nz-menu-item
-        (click)="hidden = true"
-        *ngIf="!hidden">
-        <span
-          nz-icon
-          nzType="minus"></span>
-      </li>
-      <li
-        nz-menu-item
-        nzSelected="{{hidden}}"
-        cdkDragHandle
-        *ngIf="hidden">
-        <span
-          nz-icon
-          nzType="drag"></span>
-      </li>
-      <li
-        nz-menu-divider
-        id="divider"></li>
-      <li
-        nz-menu-item
-        (click)="hidden=false"
-        *ngIf="hidden">
-        <span
-          nz-icon
-          nzType="form"></span>
-      </li>
-    </ul>
-    <div
-      id="right-panel-content"
-      [hidden]="hidden">
-      <h4
-        id="title"
-        cdkDragHandle>
-        Property
-      </h4>
-      <div id="property-editor">
-        <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
-      </div>
+    id="right-panel-content"
+    [hidden]="hidden">
+    <h4
+      id="title"
+      cdkDragHandle>
+      Property
+    </h4>
+    <div id="property-editor">
+      <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
     </div>
-    <nz-resize-handles></nz-resize-handles>
   </div>
+  <nz-resize-handles></nz-resize-handles>
 </div>

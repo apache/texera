@@ -97,8 +97,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);
     this.id = requestAnimationFrame(() => {
-      console.log(height);
       this.width = width!;
+      this.height = height!;
     });
   }
 }
