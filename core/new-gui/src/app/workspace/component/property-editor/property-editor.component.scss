@@ -7,16 +7,21 @@
   background: white;
 }
 
+#title {
+  padding: 5px 9px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+#divider {
+  margin: 0;
+}
+
 #right-panel-content {
   min-height: 100%;
   max-height: calc(100vh - 200px);
   overflow-y: auto;
   display: inline-block;
   width: 100%;
-}
-
-#title {
-  padding: 10px 15px 5px 15px;
 }
 
 #property-editor{
@@ -28,6 +33,13 @@
   top: 0;
   right: 0;
   z-index: 4;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
 }
 
 .shadow {

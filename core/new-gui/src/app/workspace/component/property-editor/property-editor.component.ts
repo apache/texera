@@ -23,58 +23,23 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   width = 280;
   height = 400;
   hidden = false;
-
   currentComponent: Type<any> | null = null;
   componentInputs = {};
-
-  propertyDisplay = true;
   screenWidth = window.innerWidth;
-  propertyWidth = 300;
-  propertyHeight = 200;
-  prevHeight = 0;
   prevWidth = 0;
 
   constructor(
     public workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef
-  ) {
-    const width = localStorage.getItem("property-panel-width");
-    if (width) this.propertyWidth = Number(width);
-
-    const height = localStorage.getItem("property-panel-height");
-    if (height) this.propertyHeight = Number(height);
-
-    const pWidth = localStorage.getItem("property-panel-prevWidth");
-    if (pWidth) this.prevWidth = Number(pWidth);
-
-    const pHeight = localStorage.getItem("property-panel-prevHeight");
-    if (pHeight) this.prevHeight = Number(pHeight);
-
-    const display = localStorage.getItem("property-panel-display");
-
-    this.propertyDisplay = display === "true";
-  }
+  ) {}
 
   ngOnInit(): void {
     this.registerHighlightEventsHandler();
-    const style = localStorage.getItem("property-panel-style");
-    if (style) document.getElementById("property-editor-container")!.style.cssText = style;
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    localStorage.setItem("property-panel-width", String(this.propertyWidth));
-    localStorage.setItem("property-panel-height", String(this.propertyHeight));
     localStorage.setItem("property-panel-prevWidth", String(this.prevWidth));
-    localStorage.setItem("property-panel-prevHeight", String(this.prevHeight));
-
-    if (this.propertyDisplay) {
-      localStorage.setItem("property-panel-display", "true");
-    } else {
-      localStorage.setItem("property-panel-display", "false");
-    }
-
-    localStorage.setItem("property-panel-style", document.getElementById("property-editor-container")!.style.cssText);
   }
 
   /**
@@ -132,8 +97,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);
     this.id = requestAnimationFrame(() => {
+      console.log(height);
       this.width = width!;
-      this.height = height!;
     });
   }
 }
