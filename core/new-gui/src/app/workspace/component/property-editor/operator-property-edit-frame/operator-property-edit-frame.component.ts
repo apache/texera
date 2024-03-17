@@ -23,46 +23,32 @@ import {
   AttributeTypeEnumRule,
   AttributeTypeRuleSet,
   CustomJSONSchema7,
-  hideTypes,
 } from "../../../types/custom-json-schema.interface";
 import { isDefined } from "../../../../common/util/predicate";
 import { ExecutionState, OperatorState, OperatorStatistics } from "src/app/workspace/types/execute-workflow.interface";
 import { DynamicSchemaService } from "../../../service/dynamic-schema/dynamic-schema.service";
 import {
-  PortInputSchema,
   AttributeType,
+  PortInputSchema,
   SchemaPropagationService,
 } from "../../../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import {
   createOutputFormChangeEventStream,
-  createShouldHideFieldFunc,
   setChildTypeDependency,
   setHideExpression,
 } from "src/app/common/formly/formly-utils";
-import {
-  TYPE_CASTING_OPERATOR_TYPE,
-  TypeCastingDisplayComponent,
-} from "../typecasting-display/type-casting-display.component";
-import { DynamicComponentConfig } from "../../../../common/type/dynamic-component-config";
+import { TYPE_CASTING_OPERATOR_TYPE } from "../typecasting-display/type-casting-display.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { filter } from "rxjs/operators";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 import { PresetWrapperComponent } from "src/app/common/formly/preset-wrapper/preset-wrapper.component";
 import { environment } from "src/environments/environment";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
-import { UserFileService } from "../../../../dashboard/user/service/user-file/user-file.service";
-import { ShareAccess } from "../../../../dashboard/user/type/share-access.interface";
-import { ShareAccessService } from "../../../../dashboard/user/service/share-access/share-access.service";
 import { QuillBinding } from "y-quill";
 import Quill from "quill";
 import QuillCursors from "quill-cursors";
 import * as Y from "yjs";
-import { CollabWrapperComponent } from "../../../../common/formly/collab-wrapper/collab-wrapper/collab-wrapper.component";
 import { OperatorSchema } from "src/app/workspace/types/operator-schema.interface";
-
-export type PropertyDisplayComponent = TypeCastingDisplayComponent;
-
-export type PropertyDisplayComponentConfig = DynamicComponentConfig<PropertyDisplayComponent>;
 
 Quill.register("modules/cursors", QuillCursors);
 
@@ -131,9 +117,9 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
   // used to fill in default values in json schema to initialize new operator
   ajv = new Ajv({ useDefaults: true, strict: false });
 
+  isTypeCasting: boolean = false;
+
   // for display component of some extra information
-  extraDisplayComponentConfig?: PropertyDisplayComponentConfig;
-  public allUserWorkflowAccess: ReadonlyArray<ShareAccess> = [];
   public operatorVersion: string = "";
   quillBinding?: QuillBinding;
   quill!: Quill;
@@ -149,8 +135,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
     private notificationService: NotificationService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowVersionService: WorkflowVersionService,
-    private userFileService: UserFileService,
-    private workflowGrantAccessService: ShareAccessService,
     private workflowStatusSerivce: WorkflowStatusService
   ) {}
 
@@ -164,17 +148,6 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
   ngAfterViewChecked(): void {
     this.changeDetectorRef.detectChanges();
-  }
-
-  switchDisplayComponent(targetConfig?: PropertyDisplayComponentConfig) {
-    if (
-      this.extraDisplayComponentConfig?.component === targetConfig?.component &&
-      this.extraDisplayComponentConfig?.component === targetConfig?.componentInputs
-    ) {
-      return;
-    }
-
-    this.extraDisplayComponentConfig = targetConfig;
   }
 
   ngOnInit(): void {
@@ -252,20 +225,10 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
 
     // manually trigger a form change event because default value might be filled in
     this.onFormChanges(this.formData);
-
-    if (
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperator(this.currentOperatorId)
-        .operatorType.includes(TYPE_CASTING_OPERATOR_TYPE)
-    ) {
-      this.switchDisplayComponent({
-        component: TypeCastingDisplayComponent,
-        componentInputs: { currentOperatorId: this.currentOperatorId },
-      });
-    } else {
-      this.switchDisplayComponent(undefined);
-    }
+    this.isTypeCasting = this.workflowActionService
+      .getTexeraGraph()
+      .getOperator(this.currentOperatorId)
+      .operatorType.includes(TYPE_CASTING_OPERATOR_TYPE);
     // execute set interactivity immediately in another task because of a formly bug
     // whenever the form model is changed, formly can only disable it after the UI is rendered
     setTimeout(() => {

@@ -9427,13 +9427,6 @@ next-tick@^1.1.0:
   resolved "https://registry.npmjs.org/next-tick/-/next-tick-1.1.0.tgz"
   integrity sha512-CXdUiJembsNjuToQvxayPZF9Vqht7hewsvy2sOWafLvi2awflj9mOC6bHIg50orX8IJvWKY9wYQ/zB2kogPslQ==
 
-ng-dynamic-component@10.7.0:
-  version "10.7.0"
-  resolved "https://registry.npmjs.org/ng-dynamic-component/-/ng-dynamic-component-10.7.0.tgz"
-  integrity sha512-shkht4L2nA632qo5GNendZdQXoHUBuKz6SLLh20qi5oESBm3b5AWyhHu0fb/7tb+f+zAcwtVVe1M0819/bnK9A==
-  dependencies:
-    tslib "^2.0.0"
-
 ng-zorro-antd@16.2.2:
   version "16.2.2"
   resolved "https://registry.npmjs.org/ng-zorro-antd/-/ng-zorro-antd-16.2.2.tgz"
