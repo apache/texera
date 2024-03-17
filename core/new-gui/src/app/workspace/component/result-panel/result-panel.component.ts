@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, Type } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
@@ -10,19 +10,10 @@ import { WorkflowResultService } from "../../service/workflow-result/workflow-re
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
-
-export type ResultFrameComponent =
-  | ResultTableFrameComponent
-  | ErrorFrameComponent
-  | VisualizationFrameComponent
-  | ConsoleFrameComponent;
-
-export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameComponent>;
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -35,7 +26,7 @@ export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameCompo
   styleUrls: ["./result-panel.component.scss"],
 })
 export class ResultPanelComponent implements OnInit {
-  frameComponentConfigs: Map<string, ResultFrameComponentConfig> = new Map();
+  frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;

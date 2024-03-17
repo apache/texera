@@ -5,10 +5,6 @@ import {
   mockPoint,
   mockResultPredicate,
   mockScanPredicate,
-  mockScanResultLink,
-  mockScanSentimentLink,
-  mockSentimentPredicate,
-  mockSentimentResultLink,
 } from "../../service/workflow-graph/model/mock-workflow-data";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorPropertyEditFrameComponent } from "./operator-property-edit-frame/operator-property-edit-frame.component";
@@ -58,8 +54,8 @@ describe("PropertyEditorComponent", () => {
 
     fixture.detectChanges();
 
-    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.componentInputs).toEqual({
       currentOperatorId: mockScanPredicate.operatorID,
     });
 
@@ -70,7 +66,7 @@ describe("PropertyEditorComponent", () => {
 
     // check if the clearPropertyEditor called after the operator
     //  is unhighlighted has correctly updated the variables
-    expect(component.frameComponentConfig).toBeUndefined();
+    expect(component.currentComponent).toBeNull();
   });
 
   it("should clear and hide the property editor panel correctly when multiple operators are highlighted", () => {
@@ -92,7 +88,7 @@ describe("PropertyEditorComponent", () => {
     fixture.detectChanges();
 
     // expect that the property editor is cleared
-    expect(component.frameComponentConfig).toBeUndefined();
+    expect(component.currentComponent).toBeNull();
   });
 
   it("should switch the content of property editor to another operator from the former operator correctly", () => {
@@ -107,8 +103,8 @@ describe("PropertyEditorComponent", () => {
     fixture.detectChanges();
 
     // check the variables
-    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.componentInputs).toEqual({
       currentOperatorId: mockScanPredicate.operatorID,
     });
 
@@ -116,14 +112,14 @@ describe("PropertyEditorComponent", () => {
     jointGraphWrapper.unhighlightOperators(mockScanPredicate.operatorID);
     fixture.detectChanges();
 
-    expect(component.frameComponentConfig).toBeUndefined();
+    expect(component.currentComponent).toBeNull();
 
     // highlight the second operator
     jointGraphWrapper.highlightOperators(mockResultPredicate.operatorID);
     fixture.detectChanges();
 
-    expect(component.frameComponentConfig?.component).toBe(OperatorPropertyEditFrameComponent);
-    expect(component.frameComponentConfig?.componentInputs).toEqual({
+    expect(component.currentComponent).toBe(OperatorPropertyEditFrameComponent);
+    expect(component.componentInputs).toEqual({
       currentOperatorId: mockResultPredicate.operatorID,
     });
   });

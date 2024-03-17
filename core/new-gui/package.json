@@ -55,7 +55,6 @@
     "marked": "^4.3.0",
     "monaco-editor": "0.36.1",
     "monaco-languageclient": "5.0.1",
-    "ng-dynamic-component": "10.7.0",
     "ng-zorro-antd": "16.2.2",
     "ng2-file-upload": "5.0.0",
     "ngx-color-picker": "12.0.1",

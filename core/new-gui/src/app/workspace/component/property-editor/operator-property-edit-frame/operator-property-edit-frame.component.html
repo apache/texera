@@ -81,9 +81,9 @@
     [model]="formData"
     [options]="formlyOptions">
   </formly-form>
-  <ndc-dynamic
-    [ndcDynamicComponent]="extraDisplayComponentConfig?.component"
-    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
+  <texera-type-casting-display
+    *ngIf="isTypeCasting"
+    currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
 </form>
 
 <button

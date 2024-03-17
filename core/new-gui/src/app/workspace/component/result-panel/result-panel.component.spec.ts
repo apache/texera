@@ -2,31 +2,27 @@ import { async, ComponentFixture, TestBed } from "@angular/core/testing";
 
 import { ResultPanelComponent } from "./result-panel.component";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { By } from "@angular/platform-browser";
-
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
-import { NzModalModule, NzModalService } from "ng-zorro-antd/modal";
+import { NzModalModule } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
-import { DynamicModule } from "ng-dynamic-component";
 import { mockPoint, mockResultPredicate } from "../../service/workflow-graph/model/mock-workflow-data";
 
 describe("ResultPanelComponent", () => {
   let component: ResultPanelComponent;
   let fixture: ComponentFixture<ResultPanelComponent>;
   let executeWorkflowService: ExecuteWorkflowService;
-  let nzModalService: NzModalService;
   let workflowActionService: WorkflowActionService;
   let resultPanelToggleService: ResultPanelToggleService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
       declarations: [ResultPanelComponent],
-      imports: [DynamicModule, HttpClientTestingModule, NzModalModule],
+      imports: [HttpClientTestingModule, NzModalModule],
       providers: [
         WorkflowActionService,
         ExecuteWorkflowService,
@@ -44,7 +40,6 @@ describe("ResultPanelComponent", () => {
     component = fixture.componentInstance;
     executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
     resultPanelToggleService = TestBed.inject(ResultPanelToggleService);
-    nzModalService = TestBed.inject(NzModalService);
     workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
   });

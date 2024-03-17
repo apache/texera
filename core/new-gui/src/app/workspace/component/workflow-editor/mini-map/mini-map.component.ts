@@ -14,7 +14,10 @@ export class MiniMapComponent implements AfterViewInit {
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
+  hidden = false;
+
   constructor(private workflowActionService: WorkflowActionService) {}
+
   ngAfterViewInit() {
     const map = document.getElementById("mini-map")!;
     this.scale = map.offsetWidth / (MAIN_CANVAS.xMax - MAIN_CANVAS.xMin);
@@ -33,6 +36,7 @@ export class MiniMapComponent implements AfterViewInit {
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
+        this.hidden = true;
         this.paper = mainPaper;
         this.updateNavigator();
         mainPaper.on("translate", () => this.updateNavigator());

@@ -1,22 +1,12 @@
-<texera-menu [pid]="pid"></texera-menu>
-<texera-left-panel></texera-left-panel>
-<span id="git-commit-id">Version 0.5.3 <br />Git hash: {{ gitCommitHash }}</span>
-<ng-template #codeEditor></ng-template>
-<div
-  [ngClass]="{
-		'grid-container': true,
-		'texera-workspace': true,
-		'texera-original-workspace-grid-container': !this.showResultPanel,
-		'texera-workspace-grid-container': this.showResultPanel,
-		'user-system-enabled': this.userSystemEnabled
-	}">
-  <div class="texera-property-editor-grid-container grid-container">
-    <div class="texera-right-side-bar-split-editor-minimap">
-      <texera-property-editor style="overflow: auto"> </texera-property-editor>
-      <texera-mini-map> </texera-mini-map>
-    </div>
-  </div>
-  <texera-workflow-editor class="texera-workflow-editor-grid-container grid-container"> </texera-workflow-editor>
-  <texera-result-panel-toggle class="texera-result-panel-toggle-grid-container"> </texera-result-panel-toggle>
-  <texera-result-panel class="texera-result-panel-grid-container grid-container"> </texera-result-panel>
+<div id="result">
+  <texera-result-panel-toggle></texera-result-panel-toggle>
+  <texera-result-panel [hidden]="!this.showResultPanel"></texera-result-panel>
 </div>
+
+<texera-workflow-editor></texera-workflow-editor>
+<texera-menu [pid]="pid"></texera-menu>
+<span id="git-commit-id">Git hash: {{ gitCommitHash }}</span>
+<texera-mini-map class="box"></texera-mini-map>
+<texera-left-panel></texera-left-panel>
+<texera-property-editor></texera-property-editor>
+<ng-template #codeEditor></ng-template>
