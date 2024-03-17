@@ -2,12 +2,12 @@
   [hidden]="!currentComponent"
   cdkDrag
   cdkDragBoundary="body"
-  id="property-editor-container"
+  id="right-container"
   nz-resizable
   [nzMinWidth]="280"
   [nzMinHeight]="400"
-  [nzMaxWidth] ="screenWidth/2"
-  [nzMaxHeight]="1200"
+  [nzMaxWidth] ="window.innerWidth/2"
+  [nzMaxHeight]="window.innerWidth*0.85"
   [style.width.px]="width"
   [style.height.px]="height"
   (nzResize)="onResize($event)"
@@ -15,20 +15,20 @@
   <ul
     nz-menu
     id="property-buttons"
-    [ngClass]="{'shadow':  hidden}">
+    [ngClass]="{'shadow':  !width}">
     <li
       nz-menu-item
-      (click)="hidden = true"
-      *ngIf="!hidden">
+      (click)="width = 0;"
+      *ngIf="width">
       <span
         nz-icon
         nzType="minus"></span>
     </li>
     <li
       nz-menu-item
-      nzSelected="{{hidden}}"
+      nzSelected="{{!width}}"
       cdkDragHandle
-      *ngIf="hidden">
+      *ngIf="!width">
       <span
         nz-icon
         nzType="drag"></span>
@@ -38,16 +38,14 @@
       id="divider"></li>
     <li
       nz-menu-item
-      (click)="hidden=false"
-      *ngIf="hidden">
+      (click)="width = 280;"
+      *ngIf="!width">
       <span
         nz-icon
         nzType="form"></span>
     </li>
   </ul>
-  <div
-    id="right-panel-content"
-    [hidden]="hidden">
+  <div id="content">
     <h4
       id="title"
       cdkDragHandle>
@@ -57,5 +55,5 @@
       <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
     </div>
   </div>
-  <nz-resize-handles></nz-resize-handles>
+  <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
 </div>

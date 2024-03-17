@@ -19,27 +19,31 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
   styleUrls: ["property-editor.component.scss"],
 })
 export class PropertyEditorComponent implements OnInit, OnDestroy {
+  protected readonly window = window;
   id = -1;
   width = 280;
   height = 400;
-  hidden = false;
   currentComponent: Type<any> | null = null;
   componentInputs = {};
-  screenWidth = window.innerWidth;
-  prevWidth = 0;
-
   constructor(
     public workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef
-  ) {}
+  ) {
+    this.width = Number(localStorage.getItem("right-panel-width")) || this.width;
+    this.height = Number(localStorage.getItem("right-panel-height")) || this.height;
+  }
 
   ngOnInit(): void {
+    const style = localStorage.getItem("right-panel-style");
+    if (style) document.getElementById("right-container")!.style.cssText = style;
     this.registerHighlightEventsHandler();
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    localStorage.setItem("property-panel-prevWidth", String(this.prevWidth));
+    localStorage.setItem("right-panel-width", String(this.width));
+    localStorage.setItem("right-panel-height", String(this.height));
+    localStorage.setItem("right-panel-style", document.getElementById("right-container")!.style.cssText);
   }
 
   /**

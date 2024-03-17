@@ -1,4 +1,9 @@
-#left-panel-container {
+:host {
+  display: block;
+  height: 100%;
+}
+
+#left-container {
   position: fixed;
   top: 90px;
   left: 15px;
@@ -8,34 +13,33 @@
 }
 
 #title {
-  position: fixed;
-  top: 0;
   padding: 5px 9px;
   border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
   background: white;
   width: calc(100% - 33px);
   z-index: 2;
 }
 
-#divider {
-  margin: 0;
-}
-
-#left-dock {
+#dock {
   display: inline-block;
   vertical-align: top;
   padding-bottom: 10px;
   border: none;
 }
 
-#left-panel-content {
-  min-height: 100%;
-  max-height: calc(100vh - 200px);
-  overflow-y: auto;
-  display: inline-block;
+#content {
   width: calc(100% - 33px);
+  height: calc(100% - 32px);
   margin-top: 32px;
+  display: inline-block;
+  overflow-y: auto;
   border-left: 1px solid #f0f0f0;
+}
+
+#divider {
+  margin: 0;
 }
 
 .ant-menu-item {

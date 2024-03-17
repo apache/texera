@@ -3,7 +3,7 @@
   height: 100%;
 }
 
-#property-editor-container {
+#right-container {
   position: fixed;
   top: 90px;
   right: 15px;
@@ -17,11 +17,7 @@
   border-bottom: 1px solid #e0e0e0;
 }
 
-#divider {
-  margin: 0;
-}
-
-#right-panel-content {
+#content {
   height: 100%;
   overflow-y: auto;
 }
@@ -35,6 +31,10 @@
   top: 0;
   right: 0;
   z-index: 4;
+}
+
+#divider {
+  margin: 0;
 }
 
 .ant-menu-item {
