@@ -42,7 +42,6 @@ export class MiniMapComponent implements AfterViewInit {
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
         mainPaper.on("resize", () => this.updateNavigator());
-        document.getElementById("mini-map-container")!.style.width = 0 + "px";
       });
   }
 
