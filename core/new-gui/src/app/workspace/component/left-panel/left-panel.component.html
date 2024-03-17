@@ -6,7 +6,7 @@
   nz-resizable
   [nzMinWidth]="230"
   [nzMinHeight]="500"
-  [nzMaxWidth] ="window.innerWidth/2"
+  [nzMaxWidth]="window.innerWidth/2"
   [nzMaxHeight]="window.innerWidth*0.85"
   [style.width.px]="width"
   [style.height.px]="height"
@@ -52,7 +52,9 @@
       </li>
     </ng-container>
   </ul>
-  <div id="content" [hidden]="!currentComponent">
+  <div
+    id="content"
+    [hidden]="!currentComponent">
     <h4
       id="title"
       cdkDragHandle>

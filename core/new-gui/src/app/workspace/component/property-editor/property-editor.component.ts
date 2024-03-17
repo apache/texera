@@ -29,7 +29,8 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
     public workflowActionService: WorkflowActionService,
     private changeDetectorRef: ChangeDetectorRef
   ) {
-    this.width = Number(localStorage.getItem("right-panel-width")) || this.width;
+    const width = localStorage.getItem("right-panel-width");
+    if (width) this.width = Number(width);
     this.height = Number(localStorage.getItem("right-panel-height")) || this.height;
   }
 
