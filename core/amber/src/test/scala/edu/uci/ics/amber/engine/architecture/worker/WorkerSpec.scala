@@ -8,10 +8,7 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInf
 import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegateMessage,
-  WorkerReplayInitialization
-}
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{MainThreadDelegateMessage, WorkerReplayInitialization}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
@@ -21,14 +18,9 @@ import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  OperatorIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity, OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
@@ -67,7 +59,7 @@ class WorkerSpec
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
-  private val mockOpExecutor = new IOperatorExecutor {
+  private val mockOpExecutor = new OperatorExecutor {
     override def open(): Unit = println("opened!")
 
     override def close(): Unit = println("closed!")
@@ -83,6 +75,8 @@ class WorkerSpec
     ): Iterator[(TupleLike, Option[PortIdentity])] = {
       Iterator()
     }
+
+    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = ???
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
 

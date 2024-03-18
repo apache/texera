@@ -10,32 +10,20 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHa
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{OpExecInitInfoWithCode, OpExecInitInfoWithFunc}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.StateRestoreConfig
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor
-import edu.uci.ics.amber.engine.common.{
-  AmberUtils,
-  CheckpointState,
-  CheckpointSupport,
-  IOperatorExecutor,
-  SourceOperatorExecutor
-}
+import edu.uci.ics.amber.engine.common.{AmberUtils, CheckpointState, CheckpointSupport, SourceOperatorExecutor}
 import edu.uci.ics.amber.engine.common.SerializedState.{CP_STATE_KEY, DP_STATE_KEY}
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ChannelMarkerIdentity,
-  ExecutionIdentity,
-  WorkflowIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ChannelMarkerIdentity, ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
 import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
 import org.scalatest.BeforeAndAfterAll
@@ -113,7 +101,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
         outputIter.next()
         operator.asInstanceOf[CheckpointSupport].serializeState(outputIter, chkpt)
         chkpt.save("deserialization", opGen)
-        val opGen2 = chkpt.load("deserialization").asInstanceOf[(Int, Int) => IOperatorExecutor]
+        val opGen2 = chkpt.load("deserialization").asInstanceOf[(Int, Int) => OperatorExecutor]
         val op = opGen2.apply(1, 1)
         op.asInstanceOf[CheckpointSupport].deserializeState(chkpt)
     }

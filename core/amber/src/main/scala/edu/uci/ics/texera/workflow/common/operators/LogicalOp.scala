@@ -10,7 +10,6 @@ import com.fasterxml.jackson.annotation.{
 }
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
   OperatorIdentity,
@@ -97,7 +96,7 @@ import scala.collection.mutable
 import scala.util.Try
 
 trait StateTransferFunc
-    extends ((IOperatorExecutor, IOperatorExecutor) => Unit)
+    extends ((OperatorExecutor, OperatorExecutor) => Unit)
     with java.io.Serializable
 
 @JsonTypeInfo(
