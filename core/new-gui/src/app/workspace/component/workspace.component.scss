@@ -1,143 +1,41 @@
-/**
-  * this css forces the texera user-interface
-  * to cover the entire browser window
-  **/
-.grid-container {
-  min-width: 100%;
+#result {
+  position: absolute;
+  bottom: 0;
   width: 100%;
-  min-height: 100%;
-  height: 100%;
-}
-
-.texera-workspace {
-  --header-height: 40px;
-  --resultbar-height: 25px;
-  --result-panel-height: 280px;
-  min-width: 630px;
-
-  &.user-system-enabled {
-    --header-height: 76px;
-  }
-}
-
-/**
-  * this style is used by all the sub-components
-  * to utilize the entire area specified to them by the css grids
-  **/
-.texera-workflow-component-body {
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
-}
-
-/**
-  * this css is used for creating a 3x4 grid area for the 5
-  * sub-components. The percentages define the size of each
-  * column and row. $header-height is the default height
-  * set for the navigation bar. The function calc() calculates
-  * the row percentage used for workflow-editor and result-panel. We
-  * need to use calc() because when we are using auto or percentage, the
-  * size will be based on the child component. Using auto and percentage
-  * with a fixed px (header-height) will crash.
-  */
-
-.texera-workspace-grid-container {
-  display: grid;
-  grid-template-columns: 200px auto 350px;
-  grid-template-rows:
-    var(--header-height)
-    calc((100% - var(--header-height) - var(--resultbar-height) - var(--result-panel-height)))
-    0px
-    var(--resultbar-height)
-    var(--result-panel-height);
-  position: relative;
-}
-
-/**
- * this css is used for creating a 3x4 grid area for the 5 sub-components.
- * ResultPanelToggleComponent uses all three columns and the third row.
- * ResultPanel component uses all three columns and the fourth row,
- * and the height of fourth row is 0px.
- * this original css style is used before any operations
- */
-
-.texera-original-workspace-grid-container {
-  display: grid;
-  grid-template-columns: 200px auto 350px;
-  grid-template-rows:
-    var(--header-height)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.6)
-    calc((100% - var(--header-height) - var(--resultbar-height)) * 0.4)
-    var(--resultbar-height)
-    0px;
-  position: relative;
-}
-
-texera-menu {
-  width: 100%;
-  z-index: 1;
-  position: fixed;
-  top: 0;
-  left: 0;
-}
-
-/**
-  * this style specifies that the property editor for the operators
-  * on the right will occupy the 3rd (last) column and use second and third
-  * rows. Overflow auto creates a scrollbar when the content exceeds the size
-  * of the grid
-  */
-.texera-property-editor-grid-container {
-  grid-column: 3/4;
-  grid-row: 2/6;
-  overflow: auto;
-}
-
-.texera-right-side-bar-split-editor-minimap {
-  height: calc(100vh - var(--header-height) - 10px);
-  display: grid;
-  grid-template-rows: 1fr auto;
-}
-
-/**
-* this style specifies that the workflow editor in the middle
-* will occupy the 2nd (middle) columm and use the second row (middle)
-**/
-.texera-workflow-editor-grid-container {
-  grid-column: 1/3;
-  grid-row: 2/4;
-}
-
-/**
-  * this style specifies that the result panel in the middle
-  * will occupy the 2nd (middle) column and use the last row (middle). It will
-  * be right under the workflow-editor
-  */
-.texera-result-panel-grid-container {
-  grid-column: 1/3;
-  grid-row: 5/6;
-  overflow: auto;
-  transition: height 1s;
   z-index: 1;
   background: white;
 }
 
-.texera-result-panel-toggle-grid-container {
-  grid-column: 1/3;
-  grid-row: 4/5;
-  z-index: 1;
-}
-
 #git-commit-id {
-  position: absolute;
+  position: fixed;
   left: 5px;
   bottom: 5px;
   font-size: 0.4em;
   color: gray;
+  z-index: 5;
+}
+
+texera-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
   z-index: 1;
+  width: 100%;
+  background-color: white;
 }
 
 texera-mini-map {
-  position: relative;
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 3;
+  user-select: none;
+}
+
+texera-workflow-editor {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
 }
