@@ -2,7 +2,12 @@ package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState, CheckpointSupport, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.{
+  AmberLogging,
+  CheckpointState,
+  CheckpointSupport,
+  VirtualIdentityUtils
+}
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
