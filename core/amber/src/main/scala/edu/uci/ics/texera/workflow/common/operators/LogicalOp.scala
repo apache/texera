@@ -35,7 +35,6 @@ import edu.uci.ics.texera.workflow.operators.intersect.IntersectOpDesc
 import edu.uci.ics.texera.workflow.operators.intervalJoin.IntervalJoinOpDesc
 import edu.uci.ics.texera.workflow.operators.keywordSearch.KeywordSearchOpDesc
 import edu.uci.ics.texera.workflow.operators.limit.LimitOpDesc
-import edu.uci.ics.texera.workflow.operators.linearregression.LinearRegressionOpDesc
 import edu.uci.ics.texera.workflow.operators.projection.ProjectionOpDesc
 import edu.uci.ics.texera.workflow.operators.randomksampling.RandomKSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
@@ -131,7 +130,6 @@ trait StateTransferFunc
     new Type(value = classOf[UnionOpDesc], name = "Union"),
     new Type(value = classOf[KeywordSearchOpDesc], name = "KeywordSearch"),
     new Type(value = classOf[AggregateOpDesc], name = "Aggregate"),
-    new Type(value = classOf[LinearRegressionOpDesc], name = "LinearRegression"),
     new Type(value = classOf[LineChartOpDesc], name = "LineChart"),
     new Type(value = classOf[BarChartOpDesc], name = "BarChart"),
     new Type(value = classOf[PieChartOpDesc], name = "PieChart"),
