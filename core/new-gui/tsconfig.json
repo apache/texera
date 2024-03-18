@@ -12,11 +12,12 @@
     "moduleResolution": "node",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "target": "es2019",
+    "target": "ES2022",
     "typeRoots": ["node_modules/@types"],
-    "lib": ["es2019", "dom"],
+    "lib": ["ES2022", "dom"],
     "module": "esnext",
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "useDefineForClassFields": false,
   },
   "angularCompilerOptions": {
     "strictTemplates": true
