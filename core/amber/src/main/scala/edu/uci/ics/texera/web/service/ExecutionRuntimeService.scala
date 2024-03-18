@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.web.model.websocket.request.{
   SkipTupleRequest,
-  WorkflowInteractionRequest,
+  WorkflowCheckpointRequest,
   WorkflowKillRequest,
   WorkflowPauseRequest,
   WorkflowResumeRequest
@@ -76,7 +76,7 @@ class ExecutionRuntimeService(
   }))
 
   // Receive Interaction
-  addSubscription(wsInput.subscribe((req: WorkflowInteractionRequest, uidOpt) => {
+  addSubscription(wsInput.subscribe((req: WorkflowCheckpointRequest, uidOpt) => {
     assert(
       logConf.nonEmpty,
       "Fault tolerance log folder is not established. Unable to take a global checkpoint."

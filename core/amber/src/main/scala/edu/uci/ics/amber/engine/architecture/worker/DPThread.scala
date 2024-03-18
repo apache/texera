@@ -196,10 +196,7 @@ class DPThread(
       // is often not what we want. Thus, we have this one-time
       // additional serializationCall assigned inside the checkpoint
       // handler.
-      if (dp.serializationCall != null) {
-        dp.serializationCall()
-        dp.serializationCall = null
-      }
+      dp.serializationManager.applySerialization()
 
       dp.statisticsManager.updateTotalExecutionTime(System.nanoTime())
       // End of Main loop
