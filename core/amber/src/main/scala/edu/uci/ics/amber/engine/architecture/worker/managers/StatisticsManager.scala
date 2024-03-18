@@ -45,13 +45,9 @@ class StatisticsManager {
     inputTupleCount(portId) += 1
   }
 
-  def increaseOutputTupleCount(portId: Option[PortIdentity]): Unit = {
-    var port: Int = 0
-    if (portId.isDefined) {
-      port = portId.get.id
-    }
-    outputTupleCount.getOrElseUpdate(port, 0)
-    outputTupleCount(port) += 1
+  def increaseOutputTupleCount(portId: Int): Unit = {
+    outputTupleCount.getOrElseUpdate(portId, 0)
+    outputTupleCount(portId) += 1
   }
 
   def increaseDataProcessingTime(time: Long): Unit = {

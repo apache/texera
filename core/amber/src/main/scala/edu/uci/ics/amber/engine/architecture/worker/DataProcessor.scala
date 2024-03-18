@@ -81,14 +81,17 @@ class DataProcessor(
     */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
-      val portId: Int = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
+      val portIdentity: PortIdentity = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,
-          portId
+          portIdentity.id
         )
       )
-      statisticsManager.increaseInputTupleCount(portId)
+
+      if (!portIdentity.internal) {
+        statisticsManager.increaseInputTupleCount(portIdentity.id)
+      }
 
     } catch safely {
       case e =>
@@ -154,7 +157,11 @@ class DataProcessor(
       case FinalizePort(portId, input) =>
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case schemaEnforceable: SchemaEnforceable =>
-        statisticsManager.increaseOutputTupleCount(outputPortOpt)
+        if (outputPortOpt.isEmpty && !outputManager.getSingleOutputPortIdentity.internal) {
+          statisticsManager.increaseOutputTupleCount(0)
+        } else if (outputPortOpt.isDefined && !outputPortOpt.get.internal) {
+          statisticsManager.increaseOutputTupleCount(outputPortOpt.get.id)
+        }
         outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
 
       case other => // skip for now
