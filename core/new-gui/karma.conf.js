@@ -18,13 +18,7 @@ module.exports = function(config) {
         random: false // disable the random running order
       }
     },
-    coverageReporter: {
-      dir: "build/reports/coverage",
-      reporters: [
-        { type: "lcov", subdir: "report-lcov" }
-      ]
-    },
-    reporters: ["progress", "kjhtml", "coverage"],
+    reporters: ["progress", "kjhtml"],
     port: 9876,
     colors: true,
     logLevel: config.LOG_INFO,
