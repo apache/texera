@@ -31,8 +31,8 @@
 
 #content {
   width: calc(100% - 33px);
-  height: calc(100% - 32px);
-  margin-top: 32px;
+  height: 100%;
+  padding-top: 32px;
   display: inline-block;
   overflow-y: auto;
   border-left: 1px solid #f0f0f0;

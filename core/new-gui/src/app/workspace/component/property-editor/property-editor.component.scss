@@ -1,13 +1,15 @@
 :host {
   display: block;
   height: 100%;
+  width: 100%;
+  position: fixed;
+  z-index: 3;
 }
 
 #right-container {
   position: fixed;
   top: 90px;
   right: 15px;
-  z-index: 3;
   user-select: none;
   background: white;
 }
@@ -15,11 +17,17 @@
 #title {
   padding: 5px 9px;
   border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  background: white;
+  width: 100%;
+  z-index: 2;
 }
 
 #content {
   height: 100%;
   overflow-y: auto;
+  padding-top: 38px;
 }
 
 #property-editor {
