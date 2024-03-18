@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeOperator, FinalizePort}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -53,7 +54,6 @@ class DataProcessor(
     with Serializable {
 
   @transient var operator: IOperatorExecutor = _
-  @transient var serializationCall: () => Unit = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -70,7 +70,7 @@ class DataProcessor(
   val inputManager: InputManager = new InputManager(actorId)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
-
+  val serializationManager: SerializationManager = new SerializationManager(actorId)
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
   }
