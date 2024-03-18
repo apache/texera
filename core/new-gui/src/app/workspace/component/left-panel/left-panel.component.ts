@@ -18,7 +18,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   currentComponent: Type<any> | null = null;
   title = "Operators";
   width = 230;
-  height = 500;
+  height = 300;
   id = -1;
   currentIndex = 0;
   items = [

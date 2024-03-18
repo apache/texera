@@ -21,8 +21,8 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
 export class PropertyEditorComponent implements OnInit, OnDestroy {
   protected readonly window = window;
   id = -1;
-  width = 280;
-  height = 400;
+  width = 260;
+  height = 300;
   currentComponent: Type<any> | null = null;
   componentInputs = {};
   constructor(
