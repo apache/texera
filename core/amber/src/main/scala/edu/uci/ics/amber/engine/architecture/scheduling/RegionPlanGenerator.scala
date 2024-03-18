@@ -130,7 +130,6 @@ abstract class RegionPlanGenerator(
 
     var newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
-      .setOperatorUnblockPort(toOp.id, toPortId)
 
     // create cache writer and link
     val matWriterPhysicalOp: PhysicalOp =

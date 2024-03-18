@@ -72,6 +72,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
         )
         .withInputPorts(List(buildInputPort))
         .withOutputPorts(List(buildOutputPort))
+        .withBlockingOutputs(List(buildOutputPort.id))
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>

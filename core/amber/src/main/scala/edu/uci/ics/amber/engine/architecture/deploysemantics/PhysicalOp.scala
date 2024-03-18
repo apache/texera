@@ -181,8 +181,6 @@ case class PhysicalOp(
       Map.empty,
     outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
       Map.empty,
-    // input ports that are blocking
-    blockingInputs: List[PortIdentity] = List(),
     // output ports that are blocking
     blockingOutputs: List[PortIdentity] = List(),
     // schema propagation function
@@ -193,10 +191,13 @@ case class PhysicalOp(
 ) extends LazyLogging {
 
   // all the "dependee" links are also blocking inputs
-  private lazy val realBlockingInputs: List[PortIdentity] =
-    (blockingInputs ++ inputPorts.values.flatMap({
-      case (port, _, _) => port.dependencies
-    })).distinct
+  private lazy val dependeeInputs: List[PortIdentity] =
+    inputPorts.values
+      .flatMap({
+        case (port, _, _) => port.dependencies
+      })
+      .toList
+      .distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
@@ -300,13 +301,6 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
-
-  /**
-    * creates a copy with the blocking input port indices
-    */
-  def withBlockingInputs(blockingInputs: List[PortIdentity]): PhysicalOp = {
-    this.copy(blockingInputs = blockingInputs)
-  }
 
   def withBlockingOutputs(blockingOutputs: List[PortIdentity]): PhysicalOp = {
     this.copy(blockingOutputs = blockingOutputs)
@@ -475,7 +469,7 @@ case class PhysicalOp(
     * outputs all its tuples
     */
   def isLinkBlocking(link: PhysicalLink): Boolean = {
-    val blockingLinks = realBlockingInputs.flatMap(portId =>
+    val blockingLinks = dependeeInputs.flatMap(portId =>
       getInputLinks(Some(portId))
     ) ++ blockingOutputs.flatMap(portId => getOutputLinks(portId))
     blockingLinks.contains(link)

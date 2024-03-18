@@ -8,7 +8,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jgrapht.alg.connectivity.BiconnectivityInspector
 import org.jgrapht.alg.shortestpath.AllDirectedPaths
@@ -320,17 +320,6 @@ case class PhysicalPlan(
         }
       }
     chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
-  }
-
-  def setOperatorUnblockPort(
-      physicalOpId: PhysicalOpIdentity,
-      portIdToRemove: PortIdentity
-  ): PhysicalPlan = {
-    val physicalOp = getOperator(physicalOpId)
-    physicalOp.copy(blockingInputs =
-      physicalOp.blockingInputs.filter(port => port != portIdToRemove)
-    )
-    this.copy(operators = operators ++ Set(physicalOp))
   }
 
   def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {

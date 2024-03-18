@@ -62,6 +62,7 @@ class SortPartitionsOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .withBlockingOutputs(List(operatorInfo.outputPorts.head.id))
       .withPartitionRequirement(
         List(Option(RangePartition(List(sortAttributeName), domainMin, domainMax)))
       )
