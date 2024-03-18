@@ -1,5 +1,4 @@
 {
-  "defaultProject": "texera-gui",
   "tasksRunnerOptions": {
     "default": {
       "runner": "@nrwl/nx-cloud",
