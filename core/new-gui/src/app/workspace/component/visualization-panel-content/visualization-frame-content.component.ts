@@ -32,8 +32,10 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
       .getResultUpdateStream()
       .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS))
       .pipe(untilDestroyed(this))
-      .subscribe(() => {
-        this.drawChart();
+      .subscribe(rec => {
+        if (this.operatorId !== undefined && rec[this.operatorId] !== undefined) {
+          this.drawChart();
+        }
       });
   }
   drawChart() {
