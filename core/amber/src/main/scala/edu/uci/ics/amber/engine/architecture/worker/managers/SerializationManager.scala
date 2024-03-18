@@ -1,9 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.{
-  OpExecInitInfoWithCode,
-  OpExecInitInfoWithFunc
-}
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
 import edu.uci.ics.amber.engine.common.{
   AmberLogging,
@@ -27,14 +24,11 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
   def restoreOperatorState(
       chkpt: CheckpointState
   ): (IOperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
-    val operator = opInitMsg.opExecInitInfo match {
-      case OpExecInitInfoWithCode(codeGen) => ???
-      case OpExecInitInfoWithFunc(opGen) =>
-        opGen(
-          VirtualIdentityUtils.getWorkerIndex(actorId),
-          opInitMsg.totalWorkerCount
-        )
-    }
+    val operator = generateJavaOpExec(
+      opInitMsg.opExecInitInfo,
+      VirtualIdentityUtils.getWorkerIndex(actorId),
+      opInitMsg.totalWorkerCount
+    )
     val iter = operator match {
       case support: CheckpointSupport =>
         support.deserializeState(chkpt)
