@@ -10,18 +10,12 @@ class QueryStatisticsHandler(ControlHandler):
     cmd = QueryStatisticsV2
 
     def __call__(self, context: Context, command: QueryStatisticsV2, *args, **kwargs):
-        (
-            input_count,
-            output_count,
-            data_processing_time,
-            control_processing_time,
-            idle_time,
-        ) = context.statistics_manager.get_statistics()
+        stats = context.statistics_manager.get_statistics()
         return WorkerStatistics(
             worker_state=context.state_manager.get_current_state(),
-            input_tuple_count=input_count,
-            output_tuple_count=output_count,
-            data_processing_time=data_processing_time,
-            control_processing_time=control_processing_time,
-            idle_time=idle_time,
+            input_tuple_count=stats[0],
+            output_tuple_count=stats[1],
+            data_processing_time=stats[2],
+            control_processing_time=stats[3],
+            idle_time=stats[4],
         )
