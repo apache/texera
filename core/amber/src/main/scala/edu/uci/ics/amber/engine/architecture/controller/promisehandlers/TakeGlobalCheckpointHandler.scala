@@ -25,7 +25,13 @@ trait TakeGlobalCheckpointHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
 
   registerHandler { (msg: TakeGlobalCheckpoint, sender) =>
-    val estimationOnly = msg.estimationOnly
+    var estimationOnly = msg.estimationOnly
+    @transient val storage =
+      SequentialRecordStorage.getStorage[CheckpointState](Some(msg.destination))
+    if (storage.containsFolder(msg.checkpointId.toString)) {
+      logger.info("skip checkpoint since its already taken")
+      estimationOnly = true
+    }
     val uri = msg.destination.resolve(msg.checkpointId.toString)
     var totalSize = 0L
     val physicalOpIdsToTakeCheckpoint = cp.workflowScheduler.physicalPlan.operators.map(_.id)

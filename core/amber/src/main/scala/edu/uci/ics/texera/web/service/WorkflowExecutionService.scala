@@ -13,11 +13,11 @@ import edu.uci.ics.texera.web.model.websocket.event.{
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
   COMPLETED,
   FAILED,
-  READY,
-  RUNNING
+  READY
 }
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WebsocketInput}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -104,12 +104,12 @@ class WorkflowExecutionService(
     executionStateStore.statsStore.updateState(stats =>
       stats.withStartTimeStamp(System.currentTimeMillis())
     )
-    client.sendAsyncWithCallback[Unit](
+    client.sendAsyncWithCallback[WorkflowAggregatedState](
       StartWorkflow(),
-      _ =>
+      state =>
         executionStateStore.metadataStore.updateState(metadataStore =>
           if (metadataStore.state != FAILED) {
-            updateWorkflowState(RUNNING, metadataStore)
+            updateWorkflowState(state, metadataStore)
           } else {
             metadataStore
           }

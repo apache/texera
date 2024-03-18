@@ -17,7 +17,7 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   private val ofoMap = new mutable.HashMap[Long, WorkflowFIFOMessage]
   private var current = 0L
   private var enabled = true
-  private val fifoQueue = new mutable.Queue[WorkflowFIFOMessage]
+  private val fifoQueue = new mutable.ListBuffer[WorkflowFIFOMessage]
   private val holdCredit = new AtomicLong()
   private var portId: Option[PortIdentity] = None
 
@@ -48,12 +48,12 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   }
 
   private def enforceFIFO(data: WorkflowFIFOMessage): Unit = {
-    fifoQueue.enqueue(data)
+    fifoQueue.append(data)
     holdCredit.getAndAdd(getInMemSize(data))
     current += 1
     while (ofoMap.contains(current)) {
       val msg = ofoMap(current)
-      fifoQueue.enqueue(msg)
+      fifoQueue.append(msg)
       holdCredit.getAndAdd(getInMemSize(msg))
       ofoMap.remove(current)
       current += 1
@@ -61,7 +61,7 @@ class AmberFIFOChannel(val channelId: ChannelIdentity) extends AmberLogging {
   }
 
   def take: WorkflowFIFOMessage = {
-    val msg = fifoQueue.dequeue()
+    val msg = fifoQueue.remove(0)
     holdCredit.getAndAdd(-getInMemSize(msg))
     msg
   }

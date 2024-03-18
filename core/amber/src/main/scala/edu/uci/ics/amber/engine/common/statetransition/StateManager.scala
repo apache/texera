@@ -6,8 +6,6 @@ import edu.uci.ics.amber.engine.common.statetransition.StateManager.{
   InvalidTransitionException
 }
 
-import scala.collection.mutable
-
 object StateManager {
 
   case class InvalidStateException(message: String) extends WorkflowRuntimeException(message)
@@ -17,10 +15,7 @@ object StateManager {
 
 class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) extends Serializable {
 
-  private val stateStack = mutable.Stack[T]()
   private var currentState: T = initialState
-
-  stateStack.push(initialState)
 
   def assertState(state: T): Unit = {
     if (currentState != state) {
@@ -49,28 +44,16 @@ class StateManager[T](stateTransitionGraph: Map[T, Set[T]], initialState: T) ext
 
   def confirmState(states: T*): Boolean = states.contains(getCurrentState)
 
-  def transitTo(state: T, discardOldStates: Boolean = true): Unit = {
+  def transitTo(state: T): Unit = {
     if (state == currentState) {
       return
       // throw InvalidTransitionException(s"current state is already $currentState")
     }
-    if (discardOldStates) {
-      stateStack.clear()
-    }
-
-    stateStack.push(state)
 
     if (!stateTransitionGraph.getOrElse(currentState, Set()).contains(state)) {
       throw InvalidTransitionException(s"cannot transit from $currentState to $state")
     }
     currentState = state
-  }
-
-  def backToPreviousState(): Unit = {
-    if (stateStack.isEmpty) {
-      throw InvalidTransitionException(s"there is no previous state for $currentState")
-    }
-    currentState = stateStack.pop()
   }
 
 }

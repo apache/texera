@@ -23,7 +23,7 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
     extends AmberLogging {
 
   private val markerReceived =
-    new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelIdentity]]().withDefaultValue(Set())
+    new mutable.HashMap[ChannelMarkerIdentity, Set[ChannelIdentity]]()
 
   val checkpoints = new mutable.HashMap[ChannelMarkerIdentity, CheckpointState]()
 
@@ -41,6 +41,9 @@ class ChannelMarkerManager(val actorId: ActorVirtualIdentity, inputGateway: Inpu
       marker: ChannelMarkerPayload
   ): Boolean = {
     val markerId = marker.id
+    if (!markerReceived.contains(markerId)) {
+      markerReceived(markerId) = Set()
+    }
     markerReceived.update(markerId, markerReceived(markerId) + from)
     // check if the epoch marker is completed
     val markerReceivedFromAllChannels =

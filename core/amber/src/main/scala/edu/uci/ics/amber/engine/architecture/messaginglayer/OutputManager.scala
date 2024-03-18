@@ -50,7 +50,7 @@ object OutputManager {
   }
 
   class DPOutputIterator extends Iterator[(TupleLike, Option[PortIdentity])] {
-    val queue = new mutable.Queue[(TupleLike, Option[PortIdentity])]
+    val queue = new mutable.ListBuffer[(TupleLike, Option[PortIdentity])]
     @transient var outputIter: Iterator[(TupleLike, Option[PortIdentity])] = Iterator.empty
 
     def setTupleOutput(outputIter: Iterator[(TupleLike, Option[PortIdentity])]): Unit = {
@@ -67,12 +67,12 @@ object OutputManager {
       if (outputIter.hasNext) {
         outputIter.next()
       } else {
-        queue.dequeue()
+        queue.remove(0)
       }
     }
 
     def appendSpecialTupleToEnd(tuple: TupleLike): Unit = {
-      queue.enqueue((tuple, None))
+      queue.append((tuple, None))
     }
   }
 }

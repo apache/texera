@@ -55,6 +55,3 @@ class TestStateManager:
 
         with pytest.raises(InvalidStateException):
             state_manager.assert_state(WorkerState.COMPLETED)
-
-    def test_i(self, state_manager):
-        state_manager.back_to_previous_state()

@@ -324,15 +324,15 @@
         </button>
         <button
           *ngIf="userSystemEnabled"
-          (click)="handleInteraction()"
-          title="add interaction"
+          (click)="handleCheckpoint()"
+          title="take checkpoint"
           [disabled]="!userSystemEnabled || executionState !== ExecutionState.Paused"
-          id="interaction-button"
+          id="checkpoint-button"
           nz-button
           nzType="primary">
           <i
             nz-icon
-            nzType="audit"></i>
+            nzType="database"></i>
         </button>
         <ng-template #execution_name>
           <input

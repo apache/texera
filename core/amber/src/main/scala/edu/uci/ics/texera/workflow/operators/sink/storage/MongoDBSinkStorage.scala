@@ -15,15 +15,14 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
   val commitBatchSize: Int = AmberConfig.sinkStorageMongoDBConfig.getInt("commit-batch-size")
   MongoDatabaseManager.dropCollection(id)
-  val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
+  @transient lazy val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
 
   class MongoDBSinkStorageWriter(bufferSize: Int) extends SinkStorageWriter {
     var uncommittedInsertions: mutable.ArrayBuffer[Tuple] = _
-    var collection: MongoCollectionManager = _
+    @transient lazy val collection: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
 
     override def open(): Unit = {
       uncommittedInsertions = new mutable.ArrayBuffer[Tuple]()
-      collection = MongoDatabaseManager.getCollection(id)
     }
 
     override def close(): Unit = {

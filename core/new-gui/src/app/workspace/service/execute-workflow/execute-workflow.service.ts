@@ -225,14 +225,14 @@ export class ExecuteWorkflowService {
     this.workflowWebsocketService.send("WorkflowKillRequest", {});
   }
 
-  public addExecutionInteraction(): void {
+  public takeGlobalCheckpoint(): void {
     if (
       this.currentState.state === ExecutionState.Uninitialized ||
       this.currentState.state === ExecutionState.Completed
     ) {
-      throw new Error("cannot add interaction to workflow, the current execution state is " + this.currentState.state);
+      throw new Error("cannot take checkpoint, the current execution state is " + this.currentState.state);
     }
-    this.workflowWebsocketService.send("WorkflowInteractionRequest", {});
+    this.workflowWebsocketService.send("WorkflowCheckpointRequest", {});
   }
 
   public resumeWorkflow(): void {

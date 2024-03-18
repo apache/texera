@@ -41,6 +41,8 @@ class ReplaySpec
       }
 
     override def deleteStorage(): Unit = ???
+
+    override def containsFolder(folderName: String): Boolean = ???
   }
 
   private val actorId = ActorVirtualIdentity("test")
