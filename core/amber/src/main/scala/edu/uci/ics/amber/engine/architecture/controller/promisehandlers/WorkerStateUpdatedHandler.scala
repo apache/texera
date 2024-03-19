@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerStateUpdatedHandler.WorkerStateUpdated
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -29,7 +29,7 @@ trait WorkerStateUpdatedHandler {
           operatorExecution.getWorkerExecution(sender).setState(msg.state)
         )
       sendToClient(
-        WorkflowStatsUpdate(
+        ExecutionStatsUpdate(
           cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
         )
       )

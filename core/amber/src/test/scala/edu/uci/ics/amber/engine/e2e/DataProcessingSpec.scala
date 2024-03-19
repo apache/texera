@@ -6,7 +6,7 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
@@ -63,20 +64,22 @@ class DataProcessingSpec
     })
 
     client
-      .registerCallback[WorkflowCompleted](evt => {
-        results = workflow.logicalPlan.getTerminalOperatorIds
-          .map(sinkOpId =>
-            (sinkOpId, workflow.logicalPlan.getUpstreamOps(sinkOpId).head.operatorIdentifier)
-          )
-          .filter {
-            case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
-          }
-          .map {
-            case (sinkOpId, upstreamOpId) =>
-              (sinkOpId, resultStorage.get(upstreamOpId).getAll.toList)
-          }
-          .toMap
-        completion.setDone()
+      .registerCallback[ExecutionStateUpdate](evt => {
+        if (evt.state == COMPLETED) {
+          results = workflow.logicalPlan.getTerminalOperatorIds
+            .map(sinkOpId =>
+              (sinkOpId, workflow.logicalPlan.getUpstreamOps(sinkOpId).head.operatorIdentifier)
+            )
+            .filter {
+              case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
+            }
+            .map {
+              case (sinkOpId, upstreamOpId) =>
+                (sinkOpId, resultStorage.get(upstreamOpId).getAll.toList)
+            }
+            .toMap
+          completion.setDone()
+        }
       })
     Await.result(client.sendAsync(StartWorkflow()))
     Await.result(completion, Duration.fromMinutes(1))

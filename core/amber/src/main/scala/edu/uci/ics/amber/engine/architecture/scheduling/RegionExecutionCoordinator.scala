@@ -5,7 +5,7 @@ import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
-  WorkflowStatsUpdate
+  ExecutionStatsUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
@@ -62,7 +62,7 @@ class RegionExecutionCoordinator(
     })
 
     // update UI
-    asyncRPCClient.sendToClient(WorkflowStatsUpdate(regionExecution.getStats))
+    asyncRPCClient.sendToClient(ExecutionStatsUpdate(regionExecution.getStats))
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         region.getOperators
@@ -194,7 +194,7 @@ class RegionExecutionCoordinator(
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
     asyncRPCClient.sendToClient(
-      WorkflowStatsUpdate(workflowExecution.getRegionExecution(region.id).getStats)
+      ExecutionStatsUpdate(workflowExecution.getRegionExecution(region.id).getStats)
     )
     Future.collect(
       region.getSourceOperators

@@ -7,12 +7,13 @@ import com.twitter.util.{Await, Promise}
 import com.typesafe.scalalogging.Logger
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
@@ -56,8 +57,10 @@ class PauseSpec
       )
     val completion = Promise[Unit]()
     client
-      .registerCallback[WorkflowCompleted](evt => {
-        completion.setDone()
+      .registerCallback[ExecutionStateUpdate](evt => {
+        if (evt.state == COMPLETED) {
+          completion.setDone()
+        }
       })
     Await.result(client.sendAsync(StartWorkflow()))
     Await.result(client.sendAsync(PauseWorkflow()))
