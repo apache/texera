@@ -1065,16 +1065,18 @@ export class WorkflowGraph {
   }
 
   /**
-   * Retrieves a subgraph (subDAG) from the workflow graph. This method can operate in two modes:
+   * Retrieves a subgraph (subDAG) from the workflow graph. This method excludes disabled operators and links.
+   *
+   * This method can operate in two modes:
    * 1. If a `targetOperatorId` is provided, it performs a depth-first search (DFS) starting from
    *    the specified operator to construct the subDAG.
-   * 2. If no `targetOperatorId` is provided, it starts from all sink operators (operators with no
+   * 2. If no `targetOperatorId` is provided, it starts from all terminal operators (operators with no
    *    outgoing links) and aggregates the paths from these sinks to construct the subDAG, potentially
    *    covering the entire DAG if all paths are interconnected.
    *
    * @param targetOperatorId - The unique identifier of the operator from which to start the DFS.
    *                           This parameter is optional. If omitted, the search starts from all
-   *                           sink operators within the graph.
+   *                           terminal operators within the graph.
    * @returns An object containing two arrays: `operators` and `links`. The `operators` array
    *          includes all operator objects that are part of the subDAG, and the `links` array
    *          contains all the operator links that connect these operators within the subDAG.
@@ -1108,7 +1110,7 @@ export class WorkflowGraph {
     if (targetOperatorId !== undefined) {
       dfs(targetOperatorId, this);
     } else {
-      // When no target operator ID is provided, start DFS from all sink operators
+      // When no target operator ID is provided, start DFS from all terminal operators
       const allOperators = this.getAllOperators();
       const allLinks = this.getAllEnabledLinks();
       const terminalOperators = allOperators.filter(

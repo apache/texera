@@ -370,13 +370,11 @@ export class ExecuteWorkflowService {
 
     const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
 
-    const opsToViewResult: string[] = Array.from(
-      intersection(operatorIds, workflowGraph.getOperatorsToViewResult())
-    ).filter(op => !workflowGraph.isOperatorDisabled(op));
+    const opsToViewResult: string[] = Array.from(intersection(operatorIds, workflowGraph.getOperatorsToViewResult()));
 
     const opsToReuseResult: string[] = Array.from(
       intersection(operatorIds, workflowGraph.getOperatorsMarkedForReuseResult())
-    ).filter(op => !workflowGraph.isOperatorDisabled(op));
+    );
 
     return { operators, links, opsToViewResult, opsToReuseResult };
   }
