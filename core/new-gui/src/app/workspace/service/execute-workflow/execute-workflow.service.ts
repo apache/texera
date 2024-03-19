@@ -347,9 +347,9 @@ export class ExecuteWorkflowService {
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
     };
-    const subDag = workflowGraph.getSubDag(targetOperatorId);
+    const subDAG = workflowGraph.getSubDAG(targetOperatorId);
 
-    const operators: LogicalOperator[] = subDag.operators.map(op => ({
+    const operators: LogicalOperator[] = subDAG.operators.map(op => ({
       ...op.operatorProperties,
       operatorID: op.operatorID,
       operatorType: op.operatorType,
@@ -357,7 +357,7 @@ export class ExecuteWorkflowService {
       outputPorts: op.outputPorts,
     }));
 
-    const links: LogicalLink[] = subDag.links.map(link => {
+    const links: LogicalLink[] = subDAG.links.map(link => {
       const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
       const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
       return {
@@ -368,7 +368,7 @@ export class ExecuteWorkflowService {
       };
     });
 
-    const operatorIds = new Set(subDag.operators.map(op => op.operatorID));
+    const operatorIds = new Set(subDAG.operators.map(op => op.operatorID));
 
     const opsToViewResult: string[] = Array.from(
       intersection(operatorIds, workflowGraph.getOperatorsToViewResult())

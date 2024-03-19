@@ -1064,7 +1064,23 @@ export class WorkflowGraph {
     }
   }
 
-  public getSubDag(targetOperatorId?: string) {
+  /**
+   * Retrieves a subgraph (subDAG) from the workflow graph. This method can operate in two modes:
+   * 1. If a `targetOperatorId` is provided, it performs a depth-first search (DFS) starting from
+   *    the specified operator to construct the subDAG.
+   * 2. If no `targetOperatorId` is provided, it starts from all sink operators (operators with no
+   *    outgoing links) and aggregates the paths from these sinks to construct the subDAG, potentially
+   *    covering the entire DAG if all paths are interconnected.
+   *
+   * @param targetOperatorId - The unique identifier of the operator from which to start the DFS.
+   *                           This parameter is optional. If omitted, the search starts from all
+   *                           sink operators within the graph.
+   * @returns An object containing two arrays: `operators` and `links`. The `operators` array
+   *          includes all operator objects that are part of the subDAG, and the `links` array
+   *          contains all the operator links that connect these operators within the subDAG.
+   *
+   */
+  public getSubDAG(targetOperatorId?: string) {
     const visited: Set<string> = new Set();
     const subDagOperators: OperatorPredicate[] = [];
     const subDagLinks: OperatorLink[] = [];
