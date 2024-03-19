@@ -286,15 +286,12 @@ export class OperatorMenuService {
     // get the highlighted operatorId. This feature supports one and only one selected operator.
     const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
     if (highlightedOperatorIds.length !== 1) {
+      this.notificationService.error("Can only execute to exactly one target operator.");
       return;
     }
 
     const targetOperatorId = highlightedOperatorIds[0];
-    if (environment.amberEngineEnabled) {
-      this.executeWorkflowService.executeWorkflowAmberTexera("", targetOperatorId);
-    } else {
-      throw new Error("old texera engine not supported");
-    }
+    this.executeWorkflowService.executeWorkflow("", targetOperatorId);
   }
 
   public performPasteOperation() {
