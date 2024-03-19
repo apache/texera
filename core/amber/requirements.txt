@@ -2,7 +2,7 @@ wheel
 numpy
 pandas
 flake8
-black
+black==23.12.1
 iniconfig==1.1.1
 loguru==0.7.0
 pyarrow==14.0.1

@@ -6,15 +6,9 @@
 /dist-server
 /tmp
 /out-tsc
-/multi-target/dist
 src/environments/version.ts
-
-# cypress output
-/e2e/cypress_log
 
 # dependencies
 /node_modules
-/multi-target/node_modules
-
 
 .angular

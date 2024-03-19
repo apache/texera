@@ -1,19 +1,18 @@
 import { Observable, Subject } from "rxjs";
 import {
-  Breakpoint,
   Comment,
-  PortDescription,
   CommentBox,
-  OperatorLink,
   LogicalPort,
+  OperatorLink,
   OperatorPredicate,
   PartitionInfo,
+  PortDescription,
   PortProperty,
 } from "../../../types/workflow-common.interface";
 import { isEqual } from "lodash-es";
 import { SharedModel } from "./shared-model";
-import { User, CoeditorState } from "../../../../common/type/user";
-import { createYTypeFromObject, YType, updateYTypeFromObject } from "../../../types/shared-editing.interface";
+import { CoeditorState, User } from "../../../../common/type/user";
+import { createYTypeFromObject, updateYTypeFromObject, YType } from "../../../types/shared-editing.interface";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
@@ -571,8 +570,7 @@ export class WorkflowGraph {
       throw new Error(`operator ${operatorID} does not exist`);
     }
     const yoperator = this.sharedModel.operatorIDMap.get(operatorID) as YType<OperatorPredicate>;
-    const operator = yoperator.toJSON();
-    return operator;
+    return yoperator.toJSON();
   }
 
   /**
@@ -694,8 +692,6 @@ export class WorkflowGraph {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(linkID);
   }
 
   /**
@@ -711,8 +707,6 @@ export class WorkflowGraph {
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(link.linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(link.linkID);
   }
 
   /**
@@ -817,11 +811,14 @@ export class WorkflowGraph {
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const previousProperty = this.getSharedOperatorType(operatorID).get(
-      "operatorProperties"
-    ) as YType<OperatorPropertiesType>;
+    //
+    // const previousProperty = this.getSharedOperatorType(operatorID).get(
+    //   "operatorProperties"
+    // ) as YType<OperatorPropertiesType>;
     // set the new copy back to the operator ID map
-    updateYTypeFromObject(previousProperty, newProperty);
+    // TODO: we temporarily disable this due to Yjs update causing issues in Formly.
+    this.getSharedOperatorType(operatorID).set("operatorProperties", createYTypeFromObject(newProperty));
+    // updateYTypeFromObject(previousProperty, newProperty);
   }
 
   public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
@@ -836,54 +833,10 @@ export class WorkflowGraph {
     );
     portDescriptionSharedType.set(
       "dependencies",
-      createYTypeFromObject<Array<number>>((newProperty as PortProperty).dependencies) as unknown as Y.Array<number>
+      createYTypeFromObject<Array<{ id: number; internal: boolean }>>(
+        (newProperty as PortProperty).dependencies
+      ) as unknown as Y.Array<number>
     );
-  }
-
-  /**
-   * set the breakpoint property of a link to be newBreakpoint
-   * Throws an error if link doesn't exist
-   *
-   * @param linkID linkID
-   * @param breakpoint
-   */
-  public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint | undefined): void {
-    this.assertLinkWithIDExists(linkID);
-    if (breakpoint === undefined || Object.keys(breakpoint).length === 0) {
-      this.sharedModel.linkBreakpointMap.delete(linkID);
-    } else {
-      this.sharedModel.linkBreakpointMap.set(linkID, breakpoint);
-    }
-  }
-
-  /**
-   * get the breakpoint property of a link
-   * returns an empty object if the link has no property
-   *
-   * @param linkID
-   */
-  public getLinkBreakpoint(linkID: string): Breakpoint | undefined {
-    return this.sharedModel.linkBreakpointMap.get(linkID);
-  }
-
-  /**
-   * Returns all link breakpoints as a readonly map. This returns the internal YMap directly.
-   */
-  public getAllLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    return this.sharedModel.linkBreakpointMap;
-  }
-
-  /**
-   * Returns breakpoints filtered by enabled status. This returns a new map from the internal YMap.
-   */
-  public getAllEnabledLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    const enabledBreakpoints = new Map();
-    this.sharedModel.linkBreakpointMap.forEach((breakpoint, linkID) => {
-      if (this.isLinkEnabled(linkID)) {
-        enabledBreakpoints.set(linkID, breakpoint);
-      }
-    });
-    return enabledBreakpoints;
   }
 
   /**

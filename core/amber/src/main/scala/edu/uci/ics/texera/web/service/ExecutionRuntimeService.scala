@@ -1,13 +1,17 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowPaused
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
+import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.FaultToleranceConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.web.model.websocket.request.{
   SkipTupleRequest,
+  WorkflowCheckpointRequest,
   WorkflowKillRequest,
   WorkflowPauseRequest,
   WorkflowResumeRequest
@@ -16,12 +20,14 @@ import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
+import java.util.UUID
+
 class ExecutionRuntimeService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
     wsInput: WebsocketInput,
-    breakpointService: ExecutionBreakpointService,
-    reconfigurationService: ExecutionReconfigurationService
+    reconfigurationService: ExecutionReconfigurationService,
+    logConf: Option[FaultToleranceConfig]
 ) extends SubscriptionManager
     with LazyLogging {
 
@@ -30,11 +36,15 @@ class ExecutionRuntimeService(
     throw new RuntimeException("skipping tuple is temporarily disabled")
   }))
 
-  // Receive Paused from Amber
-  addSubscription(client.registerCallback[WorkflowPaused]((evt: WorkflowPaused) => {
+  // Receive execution state update from Amber
+  addSubscription(client.registerCallback[ExecutionStateUpdate]((evt: ExecutionStateUpdate) => {
     stateStore.metadataStore.updateState(metadataStore =>
-      updateWorkflowState(PAUSED, metadataStore)
+      updateWorkflowState(evt.state, metadataStore)
     )
+    if (evt.state == COMPLETED) {
+      client.shutdown()
+      stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
+    }
   }))
 
   // Receive Pause
@@ -47,7 +57,6 @@ class ExecutionRuntimeService(
 
   // Receive Resume
   addSubscription(wsInput.subscribe((req: WorkflowResumeRequest, uidOpt) => {
-    breakpointService.clearTriggeredBreakpoints()
     reconfigurationService.performReconfigurationOnResume()
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(RESUMING, metadataStore)
@@ -68,6 +77,17 @@ class ExecutionRuntimeService(
     stateStore.metadataStore.updateState(metadataStore =>
       updateWorkflowState(KILLED, metadataStore)
     )
+  }))
+
+  // Receive Interaction
+  addSubscription(wsInput.subscribe((req: WorkflowCheckpointRequest, uidOpt) => {
+    assert(
+      logConf.nonEmpty,
+      "Fault tolerance log folder is not established. Unable to take a global checkpoint."
+    )
+    val checkpointId = ChannelMarkerIdentity(s"Checkpoint_${UUID.randomUUID().toString}")
+    val uri = logConf.get.writeTo.resolve(checkpointId.toString)
+    client.sendAsync(TakeGlobalCheckpoint(estimationOnly = false, checkpointId, uri))
   }))
 
 }

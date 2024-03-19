@@ -1,6 +1,6 @@
 <div
   [hidden]="!showResultPanel"
-  class="texera-workspace-result-panel-body texera-workflow-component-body">
+  class="texera-workspace-result-panel-body">
   <nz-tabset
     [nzSize]="'small'"
     [nzTabPosition]="'left'">
@@ -14,9 +14,7 @@
 
     <div *ngFor="let config of frameComponentConfigs | keyvalue">
       <nz-tab nzTitle="{{config.key}}">
-        <ndc-dynamic
-          [ndcDynamicComponent]="config.value.component"
-          [ndcDynamicInputs]="config.value.componentInputs ?? {}"></ndc-dynamic>
+        <ng-container *ngComponentOutlet="config.value.component;inputs: config.value.componentInputs"></ng-container>
       </nz-tab>
     </div>
   </nz-tabset>

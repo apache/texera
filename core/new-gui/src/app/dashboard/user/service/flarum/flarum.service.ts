@@ -7,7 +7,10 @@ import { AppSettings } from "../../../../common/app-setting";
   providedIn: "root",
 })
 export class FlarumService {
-  constructor(private http: HttpClient, private userService: UserService) {}
+  constructor(
+    private http: HttpClient,
+    private userService: UserService
+  ) {}
   public register() {
     return this.http.put(`${AppSettings.getApiEndpoint()}/discussion/register`, {});
   }

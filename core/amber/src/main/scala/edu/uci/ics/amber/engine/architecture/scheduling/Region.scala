@@ -1,38 +1,68 @@
 package edu.uci.ics.amber.engine.architecture.scheduling
 
-import edu.uci.ics.amber.engine.architecture.scheduling.config.RegionConfig
+import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.scheduling.config.ResourceConfig
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import org.jgrapht.graph.{DefaultEdge, DirectedAcyclicGraph}
+import org.jgrapht.traverse.TopologicalOrderIterator
 
-import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
+import scala.jdk.CollectionConverters.IteratorHasAsScala
 
-case class RegionLink(fromRegion: Region, toRegion: Region)
+case class RegionLink(fromRegionId: RegionIdentity, toRegionId: RegionIdentity)
 
-case class RegionIdentity(id: String)
+case class RegionIdentity(id: Long)
 
-// A (pipelined) region can have a single source. A source is an operator with
-// only blocking inputs or no inputs at all.
+case class GlobalPortIdentity(opId: PhysicalOpIdentity, portId: PortIdentity, input: Boolean)
 case class Region(
     id: RegionIdentity,
-    physicalOpIds: Set[PhysicalOpIdentity],
-    physicalLinkIds: Set[PhysicalLinkIdentity],
-    config: Option[RegionConfig] = None,
-    // operators whose all inputs are from upstream region.
-    sourcePhysicalOpIds: Set[PhysicalOpIdentity] = Set.empty,
-    // links to downstream regions, where this region generates blocking output.
-    downstreamLinkIds: Set[PhysicalLinkIdentity] = Set.empty
+    physicalOps: Set[PhysicalOp],
+    physicalLinks: Set[PhysicalLink],
+    resourceConfig: Option[ResourceConfig] = None
 ) {
 
-  /**
-    * Return all PhysicalOpIds that this region may affect.
-    * This includes:
-    *   1) operators in this region;
-    *   2) operators not in this region but blocked by this region (connected by the downstream links).
-    */
-  def getEffectiveOperators: Set[PhysicalOpIdentity] = {
-    physicalOpIds ++ downstreamLinkIds.map(linkId => linkId.to)
+  private val operators: Map[PhysicalOpIdentity, PhysicalOp] =
+    getOperators.map(op => op.id -> op).toMap
+
+  @transient lazy val dag: DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge] = {
+    val jgraphtDag = new DirectedAcyclicGraph[PhysicalOpIdentity, DefaultEdge](classOf[DefaultEdge])
+    getOperators.foreach(op => jgraphtDag.addVertex(op.id))
+    getLinks.foreach(link => jgraphtDag.addEdge(link.fromOpId, link.toOpId))
+    jgraphtDag
+  }
+  def topologicalIterator(): Iterator[PhysicalOpIdentity] = {
+    new TopologicalOrderIterator(dag).asScala
+  }
+  def getOperators: Set[PhysicalOp] = physicalOps
+
+  def getLinks: Set[PhysicalLink] = physicalLinks
+
+  def getPorts: Set[GlobalPortIdentity] =
+    getLinks
+      .flatMap(link =>
+        List(
+          GlobalPortIdentity(link.fromOpId, link.fromPortId, input = false),
+          GlobalPortIdentity(link.toOpId, link.toPortId, input = true)
+        )
+      )
+
+  def getOperator(physicalOpId: PhysicalOpIdentity): PhysicalOp = {
+    operators(physicalOpId)
   }
 
-  def getEffectiveLinks: Set[PhysicalLinkIdentity] = {
-    physicalLinkIds ++ downstreamLinkIds
+  /**
+    * Effective source operators in a region.
+    * The effective source contains operators that have 0 input links in this region.
+    */
+  def getSourceOperators: Set[PhysicalOp] = {
+    getOperators
+      .filter(physicalOp =>
+        physicalOp
+          .getInputLinks()
+          .map(link => link.fromOpId)
+          .forall(upstreamOpId => !getOperators.map(_.id).contains(upstreamOpId))
+      )
+
   }
 
 }

@@ -17,7 +17,6 @@ export const testWorkflowContent = (operatorTypes: string[]): WorkflowContent =>
     outputPorts: [],
     showAdvanced: false,
   })),
-  breakpoints: {},
   commentBoxes: [],
   groups: [],
   links: [],

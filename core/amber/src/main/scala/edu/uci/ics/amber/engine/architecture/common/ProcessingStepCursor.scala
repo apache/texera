@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
 import edu.uci.ics.amber.engine.architecture.common.ProcessingStepCursor.INIT_STEP
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 
 object ProcessingStepCursor {
   // step value before processing any incoming message
@@ -11,15 +11,15 @@ object ProcessingStepCursor {
 
 class ProcessingStepCursor {
   private var currentStepCounter: Long = INIT_STEP
-  private var currentChannel: ChannelID = _
+  private var currentChannel: ChannelIdentity = _
 
-  def setCurrentChannel(channel: ChannelID): Unit = {
-    currentChannel = channel
+  def setCurrentChannel(channelId: ChannelIdentity): Unit = {
+    currentChannel = channelId
   }
 
   def getStep: Long = currentStepCounter
 
-  def getChannel: ChannelID = currentChannel
+  def getChannel: ChannelIdentity = currentChannel
 
   def stepIncrement(): Unit = {
     currentStepCounter += 1

@@ -1,22 +1,18 @@
-.texera-mini-map-wrapper {
+#minimap-button {
+  position: fixed;
+  bottom: 0;
+  right: 0;
+  z-index: 4;
 }
 
-.texera-mini-map-square-container {
-  width: 100%;
-  // position: relative; // component-body's position: absolute requires this to be the first positioned ancestor element
-  pointer-events: none;
+#mini-map {
+  height: 200px;
+  width: 300px;
 }
 
-.texera-mini-map-navigator {
+#mini-map-navigator {
   border: 1px solid #797a79;
   position: absolute;
-  pointer-events: all;
   cursor: move;
-  z-index: 2;
-}
-
-.texera-mini-map-button-shown {
-  position: absolute;
-  top: 0px;
-  right: 0px;
+  z-index: 1;
 }

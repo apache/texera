@@ -24,25 +24,25 @@ case object LinkConfig {
       partitionInfo: PartitionInfo
   ): Partitioning = {
     partitionInfo match {
-      case HashPartition(hashColumnIndices) =>
+      case HashPartition(hashAttributeNames) =>
         HashBasedShufflePartitioning(
           defaultBatchSize,
           toWorkerIds,
-          hashColumnIndices
+          hashAttributeNames
         )
 
-      case RangePartition(rangeColumnIndices, rangeMin, rangeMax) =>
+      case RangePartition(rangeAttributeNames, rangeMin, rangeMax) =>
         RangeBasedShufflePartitioning(
           defaultBatchSize,
           toWorkerIds,
-          rangeColumnIndices,
+          rangeAttributeNames,
           rangeMin,
           rangeMax
         )
 
       case SinglePartition() =>
         assert(toWorkerIds.size == 1)
-        OneToOnePartitioning(defaultBatchSize, Array(toWorkerIds.head))
+        OneToOnePartitioning(defaultBatchSize, Seq(toWorkerIds.head).toSeq)
 
       case BroadcastPartition() =>
         BroadcastPartitioning(defaultBatchSize, toWorkerIds)

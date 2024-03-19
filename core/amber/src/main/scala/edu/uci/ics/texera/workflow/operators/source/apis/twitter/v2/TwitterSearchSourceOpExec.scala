@@ -1,11 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2
 
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.TwitterSourceOpExec
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.TwitterUtils.tweetDataToTuple
 import io.github.redouane59.twitter.dto.endpoints.AdditionalParameters
@@ -13,23 +10,20 @@ import io.github.redouane59.twitter.dto.tweet.TweetList
 import io.github.redouane59.twitter.dto.tweet.TweetV2.TweetData
 import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
 import scala.collection.mutable.ListBuffer
 import scala.collection.{Iterator, mutable}
-import scala.jdk.CollectionConverters.asScalaBufferConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class TwitterSearchSourceOpExec(
-    desc: TwitterSearchSourceOpDesc,
-    operatorSchemaInfo: OperatorSchemaInfo
-) extends TwitterSourceOpExec(desc.apiKey, desc.apiSecretKey, desc.stopWhenRateLimited) {
-  val outputSchemaAttributes: Array[AttributeType] = operatorSchemaInfo
-    .outputSchemas(0)
-    .getAttributes
-    .map((attribute: Attribute) => {
-      attribute.getType
-    })
-    .toArray
-  var curLimit: Int = desc.limit
+    apiKey: String,
+    apiSecretKey: String,
+    stopWhenRateLimited: Boolean,
+    searchQuery: String,
+    limit: Int,
+    schemaFunc: () => Schema
+) extends TwitterSourceOpExec(apiKey, apiSecretKey, stopWhenRateLimited) {
+  val outputSchema: Schema = schemaFunc()
+  var curLimit: Int = limit
   // nextToken is used to retrieve next page of results, if exists.
   var nextToken: String = _
   // contains tweets from the previous request.
@@ -38,15 +32,15 @@ class TwitterSearchSourceOpExec(
   var hasNextRequest: Boolean = curLimit > 0
   var lastQueryTime: Long = 0
 
-  override def produceTexeraTuple(): Iterator[Tuple] =
-    new Iterator[Tuple]() {
+  override def produceTuple(): Iterator[TupleLike] =
+    new Iterator[TupleLike]() {
       override def hasNext: Boolean = (hasNextRequest || tweetCache.nonEmpty) && curLimit > 0
 
-      override def next: Tuple = {
+      override def next(): Tuple = {
         // if the current cache is exhausted, query for the next response
         if (tweetCache.isEmpty && hasNextRequest) {
           queryForNextBatch(
-            desc.searchQuery,
+            searchQuery,
             curLimit.min(TWITTER_API_BATCH_SIZE_MAX)
           )
         }
@@ -66,7 +60,7 @@ class TwitterSearchSourceOpExec(
 
         val user = userCache.get(tweet.getAuthorId)
 
-        tweetDataToTuple(tweet, user, operatorSchemaInfo.outputSchemas(0))
+        tweetDataToTuple(tweet, user, outputSchema)
       }
     }
 
@@ -122,7 +116,7 @@ class TwitterSearchSourceOpExec(
 
     userCache =
       if (response != null && response.getIncludes != null && response.getIncludes.getUsers != null)
-        response.getIncludes.getUsers
+        response.getIncludes.getUsers.asScala
           .map((userData: UserData) => userData.getId -> userData)
           .toMap
       else Map()

@@ -4,20 +4,14 @@ import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferSchemaFromRows
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
 import java.io.{File, FileInputStream, IOException, InputStreamReader}
-import scala.jdk.CollectionConverters.asJavaIterableConverter
 
 class CSVScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -37,21 +31,36 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
   @throws[IOException]
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     // fill in default values
     if (customDelimiter.isEmpty || customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
     filePath match {
-      case Some(_) =>
-        PhysicalOp.sourcePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecInitInfo((_, _, _) => new CSVScanSourceOpExec(this))
-        )
+      case Some(path) =>
+        PhysicalOp
+          .sourcePhysicalOp(
+            workflowId,
+            executionId,
+            operatorIdentifier,
+            OpExecInitInfo((_, _) =>
+              new CSVScanSourceOpExec(
+                path,
+                fileEncoding,
+                limit,
+                offset,
+                customDelimiter,
+                hasHeader,
+                schemaFunc = () => sourceSchema()
+              )
+            )
+          )
+          .withInputPorts(operatorInfo.inputPorts)
+          .withOutputPorts(operatorInfo.outputPorts)
+          .withPropagateSchema(
+            SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+          )
       case None =>
         throw new RuntimeException("File path is not provided.")
     }
@@ -97,15 +106,15 @@ class CSVScanSourceOpDesc extends ScanSourceOpDesc {
     inputReader.close()
 
     val attributeTypeList: Array[AttributeType] = inferSchemaFromRows(
-      data.iterator.asInstanceOf[Iterator[Array[Object]]]
+      data.iterator.asInstanceOf[Iterator[Array[Any]]]
     )
     val header: Array[String] =
       if (hasHeader) parser.getContext.headers()
       else (1 to attributeTypeList.length).map(i => "column-" + i).toArray
 
     Schema
-      .newBuilder()
-      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))).asJava)
+      .builder()
+      .add(header.indices.map(i => new Attribute(header(i), attributeTypeList(i))))
       .build()
   }
 

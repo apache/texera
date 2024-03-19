@@ -35,8 +35,7 @@ import scala.collection.mutable
 class ExecutionConsoleService(
     client: AmberClient,
     stateStore: ExecutionStateStore,
-    wsInput: WebsocketInput,
-    breakpointService: ExecutionBreakpointService
+    wsInput: WebsocketInput
 ) extends SubscriptionManager {
   registerCallbackOnPythonConsoleMessage()
 

@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.logreplay
 
-import edu.uci.ics.amber.engine.common.ambermessage.ChannelID
+import edu.uci.ics.amber.engine.common.virtualidentity.ChannelIdentity
 
 import scala.collection.mutable
 
@@ -8,10 +8,9 @@ class ReplayOrderEnforcer(
     logManager: ReplayLogManager,
     channelStepOrder: mutable.Queue[ProcessingStep],
     startStep: Long,
-    replayTo: Long,
     private var onComplete: () => Unit
 ) extends OrderEnforcer {
-  private var currentChannelID: ChannelID = _
+  private var currentChannelId: ChannelIdentity = _
 
   private def triggerOnComplete(): Unit = {
     if (!isCompleted) {
@@ -28,31 +27,32 @@ class ReplayOrderEnforcer(
     forwardNext()
   }
 
-  var isCompleted: Boolean = startStep >= replayTo || channelStepOrder.isEmpty
+  var isCompleted: Boolean = channelStepOrder.isEmpty
 
   triggerOnComplete()
 
   private def forwardNext(): Unit = {
     if (channelStepOrder.nonEmpty) {
       val nextStep = channelStepOrder.dequeue()
-      currentChannelID = nextStep.channelID
+      currentChannelId = nextStep.channelId
     }
   }
 
-  def canProceed(channelID: ChannelID): Boolean = {
+  def canProceed(channelId: ChannelIdentity): Boolean = {
     val step = logManager.getStep
     // release the next log record if the step matches
-    if (channelStepOrder.nonEmpty && channelStepOrder.head.step == step) {
+    // Note: To remove duplicate step orders caused by checkpoints
+    // sending out a MainThreadDelegateMessage, we use a while loop.
+    while (channelStepOrder.nonEmpty && channelStepOrder.head.step == step) {
       forwardNext()
     }
-    // two cases to terminate replay:
-    // 1. no next log record with step > current step, which means further processing is not logged.
-    // 2. current step == replayTo, no need to continue.
-    if (channelStepOrder.isEmpty || step == replayTo) {
+    // To terminate replay:
+    // no next log record with step > current step, which means further processing is not logged.
+    if (channelStepOrder.isEmpty) {
       isCompleted = true
       triggerOnComplete()
     }
     // only proceed if the current channel ID matches the channel ID of the log record
-    currentChannelID == channelID
+    currentChannelId == channelId
   }
 }

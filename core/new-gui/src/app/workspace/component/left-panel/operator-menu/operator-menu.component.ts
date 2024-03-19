@@ -5,7 +5,6 @@ import { GroupInfo, OperatorMetadata, OperatorSchema } from "../../../types/oper
 import { DragDropService } from "../../../service/drag-drop/drag-drop.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowUtilService } from "../../../service/workflow-graph/util/workflow-util.service";
-import { OperatorLabelComponent } from "./operator-label/operator-label.component";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
 
@@ -26,10 +25,6 @@ import { NzAutocompleteOptionComponent } from "ng-zorro-antd/auto-complete";
   selector: "texera-operator-menu",
   templateUrl: "operator-menu.component.html",
   styleUrls: ["operator-menu.component.scss"],
-  providers: [
-    // uncomment this line for manual testing without opening backend server
-    // { provide: OperatorMetadataService, useClass: StubOperatorMetadataService }
-  ],
 })
 export class OperatorMenuComponent implements OnInit {
   // a list of all operator's schema
@@ -63,15 +58,10 @@ export class OperatorMenuComponent implements OnInit {
     private dragDropService: DragDropService
   ) {
     // clear the search box if an operator is dropped from operator search box
-    this.dragDropService
-      .getOperatorDropStream()
-      .pipe(untilDestroyed(this))
-      .subscribe(event => {
-        if (OperatorLabelComponent.isOperatorLabelElementFromSearchBox(event.dragElementID)) {
-          this.searchInputValue = "";
-          this.autocompleteOptions = [];
-        }
-      });
+    this.dragDropService.operatorDropStream.pipe(untilDestroyed(this)).subscribe(() => {
+      this.searchInputValue = "";
+      this.autocompleteOptions = [];
+    });
     this.workflowActionService
       .getWorkflowModificationEnabledStream()
       .pipe(untilDestroyed(this))

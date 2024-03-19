@@ -2,7 +2,7 @@ name := "util"
 organization := "edu.uci.ics"
 version := "0.1-SNAPSHOT"
 
-scalaVersion := "2.12.8"
+scalaVersion := "2.13.12"
 
 lazy val util = project
   .in(file("."))

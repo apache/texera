@@ -17,11 +17,12 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions implements IWorkflowExecutions {
 
-    private static final long serialVersionUID = -379967912;
+    private static final long serialVersionUID = 1253486979;
 
     private UInteger  eid;
     private UInteger  vid;
     private UInteger  uid;
+    private UInteger  environmentEid;
     private Byte      status;
     private String    result;
     private Timestamp startingTime;
@@ -37,6 +38,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.eid = value.getEid();
         this.vid = value.getVid();
         this.uid = value.getUid();
+        this.environmentEid = value.getEnvironmentEid();
         this.status = value.getStatus();
         this.result = value.getResult();
         this.startingTime = value.getStartingTime();
@@ -51,6 +53,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         UInteger  eid,
         UInteger  vid,
         UInteger  uid,
+        UInteger  environmentEid,
         Byte      status,
         String    result,
         Timestamp startingTime,
@@ -63,6 +66,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         this.eid = eid;
         this.vid = vid;
         this.uid = uid;
+        this.environmentEid = environmentEid;
         this.status = status;
         this.result = result;
         this.startingTime = startingTime;
@@ -101,6 +105,16 @@ public class WorkflowExecutions implements IWorkflowExecutions {
     @Override
     public void setUid(UInteger uid) {
         this.uid = uid;
+    }
+
+    @Override
+    public UInteger getEnvironmentEid() {
+        return this.environmentEid;
+    }
+
+    @Override
+    public void setEnvironmentEid(UInteger environmentEid) {
+        this.environmentEid = environmentEid;
     }
 
     @Override
@@ -190,6 +204,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         sb.append(eid);
         sb.append(", ").append(vid);
         sb.append(", ").append(uid);
+        sb.append(", ").append(environmentEid);
         sb.append(", ").append(status);
         sb.append(", ").append(result);
         sb.append(", ").append(startingTime);
@@ -212,6 +227,7 @@ public class WorkflowExecutions implements IWorkflowExecutions {
         setEid(from.getEid());
         setVid(from.getVid());
         setUid(from.getUid());
+        setEnvironmentEid(from.getEnvironmentEid());
         setStatus(from.getStatus());
         setResult(from.getResult());
         setStartingTime(from.getStartingTime());

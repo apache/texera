@@ -4,11 +4,10 @@ import akka.actor.Cancellable
 import com.fasterxml.jackson.annotation.{JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode.{SET_DELTA, SET_SNAPSHOT}
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -25,7 +24,12 @@ import edu.uci.ics.texera.web.storage.{
   WorkflowStateStore
 }
 import edu.uci.ics.texera.web.workflowruntimestate.ExecutionMetadataStore
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.RUNNING
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{
+  COMPLETED,
+  FAILED,
+  KILLED,
+  RUNNING
+}
 import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication}
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -44,10 +48,10 @@ object ExecutionResultService {
   // convert Tuple from engine's format to JSON format
   def webDataFromTuple(
       mode: WebOutputMode,
-      table: List[ITuple],
+      table: List[Tuple],
       chartType: Option[String]
   ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
+    val tableInJson = table.map(t => t.asKeyValuePairJson())
     WebDataUpdate(mode, tableInJson, chartType)
   }
 
@@ -56,10 +60,10 @@ object ExecutionResultService {
     */
   private def tuplesToWebData(
       mode: WebOutputMode,
-      table: List[ITuple],
+      table: List[Tuple],
       chartType: Option[String]
   ): WebDataUpdate = {
-    val tableInJson = table.map(t => t.asInstanceOf[Tuple].asKeyValuePairJson())
+    val tableInJson = table.map(t => t.asKeyValuePairJson())
     WebDataUpdate(mode, tableInJson, chartType)
   }
 
@@ -202,11 +206,13 @@ class ExecutionResultService(
 
     addSubscription(
       client
-        .registerCallback[WorkflowCompleted](_ => {
-          logger.info("Workflow execution completed.")
-          if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
-            // immediately perform final update
-            onResultUpdate()
+        .registerCallback[ExecutionStateUpdate](evt => {
+          if (evt.state == COMPLETED || evt.state == FAILED || evt.state == KILLED) {
+            logger.info("Workflow execution terminated. Stop update results.")
+            if (resultUpdateCancellable.cancel() || resultUpdateCancellable.isCancelled) {
+              // immediately perform final update
+              onResultUpdate()
+            }
           }
         })
     )

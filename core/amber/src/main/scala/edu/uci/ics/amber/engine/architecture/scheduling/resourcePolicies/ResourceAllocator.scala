@@ -7,9 +7,10 @@ import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig.gene
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{
   LinkConfig,
   OperatorConfig,
-  RegionConfig
+  ResourceConfig
 }
-import edu.uci.ics.amber.engine.common.virtualidentity.{PhysicalLinkIdentity, PhysicalOpIdentity}
+import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.workflow.{PartitionInfo, PhysicalPlan, UnknownPartition}
 
 import scala.collection.mutable
@@ -22,11 +23,11 @@ class DefaultResourceAllocator(
     executionClusterInfo: ExecutionClusterInfo
 ) extends ResourceAllocator {
 
-  // a map of an operator to its output partition info
-  private val outputPartitionInfos = new mutable.HashMap[PhysicalOpIdentity, PartitionInfo]()
+  // a map of a physical link to the partition info of the upstream/downstream of this link
+  private val linkPartitionInfos = new mutable.HashMap[PhysicalLink, PartitionInfo]()
 
   private val operatorConfigs = new mutable.HashMap[PhysicalOpIdentity, OperatorConfig]()
-  private val linkConfigs = new mutable.HashMap[PhysicalLinkIdentity, LinkConfig]()
+  private val linkConfigs = new mutable.HashMap[PhysicalLink, LinkConfig]()
 
   /**
     * Allocates resources for a given region and its operators.
@@ -38,8 +39,8 @@ class DefaultResourceAllocator(
     *
     * @param region The region for which to allocate resources.
     * @return A tuple containing:
-    *         1) A new Region instance with new configuration.
-    *         2) An estimated cost of the workflow with the new configuration,
+    *         1) A new Region instance with new resource configuration.
+    *         2) An estimated cost of the workflow with the new resource configuration,
     *         represented as a Double value (currently set to 0, but will be
     *         updated in the future).
     */
@@ -47,8 +48,7 @@ class DefaultResourceAllocator(
       region: Region
   ): (Region, Double) = {
 
-    val opToOperatorConfigMapping = region.getEffectiveOperators
-      .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+    val opToOperatorConfigMapping = region.getOperators
       .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
       .toMap
 
@@ -56,25 +56,26 @@ class DefaultResourceAllocator(
 
     propagatePartitionRequirement(region)
 
-    val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLinkId =>
-      physicalLinkId -> LinkConfig(
+    val linkToLinkConfigMapping = region.getLinks.map { physicalLink =>
+      physicalLink -> LinkConfig(
         generateChannelConfigs(
-          operatorConfigs(physicalLinkId.from).workerConfigs.map(_.workerId),
-          operatorConfigs(physicalLinkId.to).workerConfigs.map(_.workerId),
-          outputPartitionInfos(physicalLinkId.from)
+          operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
+          operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          toPortId = physicalLink.toPortId,
+          linkPartitionInfos(physicalLink)
         ),
         toPartitioning(
-          operatorConfigs(physicalLinkId.to).workerConfigs.map(_.workerId),
-          outputPartitionInfos(physicalLinkId.from)
+          operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          linkPartitionInfos(physicalLink)
         )
       )
     }.toMap
 
     linkConfigs ++= linkToLinkConfigMapping
 
-    val config = RegionConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
+    val resourceConfig = ResourceConfig(opToOperatorConfigMapping, linkToLinkConfigMapping)
 
-    (region.copy(config = Some(config)), 0)
+    (region.copy(resourceConfig = Some(resourceConfig)), 0)
   }
 
   /**
@@ -86,39 +87,36 @@ class DefaultResourceAllocator(
     *     A ->
     *           HJ
     *     B ->
-    * The link A->HJ will be propagated in the first region. The link B->HJ will be propagate in the second region.
+    * The link A->HJ will be propagated in the first region. The link B->HJ will be propagated in the second region.
     * The output partition info of HJ will be derived after both links are propagated, which is in the second region.
-    *
-    * This method also applies the following optimization:
-    *  - if the upstream of the link has the same partitioning requirement as that of the downstream, and their
-    *  number of workers are equal, then the partitioning on this link can be optimized to OneToOne.
     */
   private def propagatePartitionRequirement(region: Region): Unit = {
-    physicalPlan
+    region
       .topologicalIterator()
-      .filter(physicalOpId => region.getEffectiveOperators.contains(physicalOpId))
       .foreach(physicalOpId => {
-        val physicalOp = physicalPlan.getOperator(physicalOpId)
+        val physicalOp = region.getOperator(physicalOpId)
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
-          val inputPartitionInfos = physicalOp.inputPorts.indices.toList
-            .flatMap((portIdx: Int) =>
+          val inputPartitionInfos = physicalOp.inputPorts.keys
+            .flatMap((portId: PortIdentity) => {
               physicalOp
-                .getLinksOnInputPort(portIdx)
-                .filter(linkId => region.getEffectiveLinks.contains(linkId))
-                .map(linkId => {
-                  val upstreamInputPartitionInfo = outputPartitionInfos(linkId.from)
-                  val upstreamOutputPartitionInfo = physicalPlan.getOutputPartitionInfo(
-                    linkId,
-                    upstreamInputPartitionInfo,
+                .getInputLinks(Some(portId))
+                .filter(link => region.getLinks.contains(link))
+                .map(link => {
+                  val previousLinkPartitionInfo =
+                    linkPartitionInfos.getOrElse(link, UnknownPartition())
+                  val updatedLinkPartitionInfo = physicalPlan.getOutputPartitionInfo(
+                    link,
+                    previousLinkPartitionInfo,
                     operatorConfigs.map {
                       case (opId, operatorConfig) => opId -> operatorConfig.workerConfigs.length
                     }.toMap
                   )
-                  (linkId.toPort, upstreamOutputPartitionInfo)
+                  linkPartitionInfos.put(link, updatedLinkPartitionInfo)
+                  (link.toPortId, updatedLinkPartitionInfo)
                 })
-            )
+            })
             // group upstream partition infos by input port of this physicalOp
             .groupBy(_._1)
             .values
@@ -134,8 +132,14 @@ class DefaultResourceAllocator(
           }
 
         }
+
         if (outputPartitionInfo.isDefined) {
-          outputPartitionInfos.put(physicalOpId, outputPartitionInfo.get)
+          physicalOp.outputPorts.keys
+            .flatMap(physicalOp.getOutputLinks)
+            .foreach(link =>
+              // by default, a link's partition info comes from its input, unless updated to match its output.
+              linkPartitionInfos.put(link, outputPartitionInfo.get)
+            )
         }
       })
   }

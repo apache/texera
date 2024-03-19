@@ -3,19 +3,10 @@ package edu.uci.ics.texera.workflow.operators.visualization.barChart
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  Attribute,
-  AttributeType,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.operators.visualization.{
   VisualizationConstants,
   VisualizationOperator
@@ -50,13 +41,19 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
   @AutofillAttributeName
   var fields: String = ""
 
+  @JsonProperty(defaultValue = "No Selection", required = false)
+  @JsonSchemaTitle("Category Column")
+  @JsonPropertyDescription("Optional - Select a column to Color Code the Categories")
+  @AutofillAttributeName
+  var categoryColumn: String = ""
+
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Horizontal Orientation")
   @JsonPropertyDescription("Orientation Style")
-  var orientation: Boolean = _
+  var horizontalOrientation: Boolean = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def operatorInfo: OperatorInfo =
@@ -76,9 +73,16 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
        |""".stripMargin
   }
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
-    var truthy = ""
-    if (orientation) truthy = "True"
+  override def generatePythonCode(): String = {
+
+    var isHorizontalOrientation = "False"
+    if (horizontalOrientation)
+      isHorizontalOrientation = "True"
+
+    var isCategoryColumn = "False"
+    if (categoryColumn != "No Selection")
+      isCategoryColumn = "True"
+
     val finalCode = s"""
                         |from pytexera import *
                         |
@@ -102,10 +106,10 @@ class BarChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor
                         |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
                         |        ${manipulateTable()}
                         |        if not table.empty and '$fields' != '$value':
-                        |           if ($truthy):
-                        |              fig = go.Figure(px.bar(table, y='$fields', x='$value', orientation = 'h', title='$title'))
+                        |           if $isHorizontalOrientation:
+                        |               fig = go.Figure(px.bar(table, y='$fields', x='$value', color="$categoryColumn" if $isCategoryColumn else None, orientation = 'h', title='$title'))
                         |           else:
-                        |              fig = go.Figure(px.bar(table, y='$value', x='$fields', title='$title'))
+                        |               fig = go.Figure(px.bar(table, y='$value', x='$fields', color="$categoryColumn" if $isCategoryColumn else None, title='$title'))
                         |           html = plotly.io.to_html(fig, include_plotlyjs = 'cdn', auto_play = False)
                         |           # use latest plotly lib in html
                         |           #html = html.replace('https://cdn.plot.ly/plotly-2.3.1.min.js', 'https://cdn.plot.ly/plotly-2.18.2.min.js')

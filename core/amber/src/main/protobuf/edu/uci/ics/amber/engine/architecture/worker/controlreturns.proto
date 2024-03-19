@@ -3,7 +3,6 @@ syntax = "proto3";
 package edu.uci.ics.amber.engine.architecture.worker;
 
 import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
-import "edu/uci/ics/amber/engine/architecture/worker/workloadmetrics.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -40,7 +39,6 @@ message ControlReturnV2 {
     WorkerState worker_state = 3;
     CurrentInputTupleInfo current_input_tuple_info = 4;
     EvaluatedValue evaluated_value = 5;
-    SelfWorkloadReturn self_workload_return = 6;
   }
 }
 

@@ -1,13 +1,11 @@
 {
-  "defaultProject": "texera-gui",
   "tasksRunnerOptions": {
     "default": {
       "runner": "@nrwl/nx-cloud",
       "options": {
         "cacheableOperations": [
           "build",
-          "lint",
-          "e2e"
+          "lint"
         ],
         "runtimeCacheInputs": [
           "node -v",

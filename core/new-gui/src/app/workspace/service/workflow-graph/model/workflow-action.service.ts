@@ -6,7 +6,6 @@ import { Workflow, WorkflowContent } from "../../../../common/type/workflow";
 import { mapToRecord, recordToMap } from "../../../../common/util/map";
 import { WorkflowMetadata } from "../../../../dashboard/user/type/workflow-metadata.interface";
 import {
-  Breakpoint,
   Comment,
   CommentBox,
   OperatorLink,
@@ -233,7 +232,13 @@ export class WorkflowActionService {
       portID = prefix + suffix;
     }
 
-    const port: PortDescription = { portID, displayName: portID, allowMultiInputs, isDynamicPort: true };
+    const port: PortDescription = {
+      portID,
+      displayName: portID,
+      allowMultiInputs,
+      isDynamicPort: true,
+      dependencies: [],
+    };
 
     if (!operator.dynamicInputPorts && isInput) {
       throw new Error(`operator ${operatorID} does not have dynamic input ports`);
@@ -287,7 +292,6 @@ export class WorkflowActionService {
     operatorsAndPositions: readonly { op: OperatorPredicate; pos: Point }[],
     links?: readonly OperatorLink[],
     groups?: readonly Group[],
-    breakpoints?: ReadonlyMap<string, Breakpoint>,
     commentBoxes?: ReadonlyArray<CommentBox>
   ): void {
     // remember currently highlighted operators and groups
@@ -302,9 +306,6 @@ export class WorkflowActionService {
       if (links) {
         for (let i = 0; i < links.length; i++) {
           this.addLink(links[i]);
-        }
-        if (breakpoints !== undefined) {
-          breakpoints.forEach((breakpoint, linkID) => this.setLinkBreakpoint(linkID, breakpoint));
         }
       }
       if (isDefined(commentBoxes)) {
@@ -442,26 +443,6 @@ export class WorkflowActionService {
   public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
     this.texeraGraph.bundleActions(() => {
       this.texeraGraph.setPortProperty(operatorPortID, newProperty);
-    });
-  }
-
-  /**
-   * set a given link's breakpoint properties to specific values
-   */
-  public setLinkBreakpoint(linkID: string, newBreakpoint: Breakpoint | undefined): void {
-    this.texeraGraph.bundleActions(() => {
-      this.texeraGraph.setLinkBreakpoint(linkID, newBreakpoint);
-    });
-  }
-
-  /**
-   * Set the link's breakpoint property to empty to remove the breakpoint
-   *
-   * @param linkID
-   */
-  public removeLinkBreakpoint(linkID: string): void {
-    this.texeraGraph.bundleActions(() => {
-      this.setLinkBreakpoint(linkID, undefined);
     });
   }
 
@@ -639,7 +620,7 @@ export class WorkflowActionService {
 
       const workflowContent: WorkflowContent = workflow.content;
 
-      const operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
+      let operatorsAndPositions: { op: OperatorPredicate; pos: Point }[] = [];
       workflowContent.operators.forEach(op => {
         const opPosition = workflowContent.operatorPositions[op.operatorID];
         if (!opPosition) {
@@ -661,11 +642,11 @@ export class WorkflowActionService {
         };
       });
 
-      const breakpoints = new Map(Object.entries(workflowContent.breakpoints));
-
       const commentBoxes = workflowContent.commentBoxes;
 
-      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, breakpoints, commentBoxes);
+      operatorsAndPositions = this.updateOperatorVersions(operatorsAndPositions);
+
+      this.addOperatorsAndLinks(operatorsAndPositions, links, groups, commentBoxes);
 
       // restore the view point
       this.getJointGraphWrapper().restoreDefaultZoomAndOffset();
@@ -750,9 +731,6 @@ export class WorkflowActionService {
           collapsed: group.collapsed,
         };
       });
-    const breakpointsMap = texeraGraph.getAllLinkBreakpoints();
-    const breakpoints: Record<string, Breakpoint> = {};
-    breakpointsMap.forEach((value, key) => (breakpoints[key] = value));
     texeraGraph
       .getAllOperators()
       .forEach(
@@ -766,7 +744,6 @@ export class WorkflowActionService {
       operatorPositions,
       links,
       groups,
-      breakpoints,
       commentBoxes,
     };
   }
@@ -884,5 +861,16 @@ export class WorkflowActionService {
           }
         });
       });
+  }
+
+  private updateOperatorVersions(operatorsAndPositions: { op: OperatorPredicate; pos: Point }[]) {
+    const updatedOperators: { op: OperatorPredicate; pos: Point }[] = [];
+    for (const operatorsAndPosition of operatorsAndPositions) {
+      updatedOperators.push({
+        op: this.workflowUtilService.updateOperatorVersion(operatorsAndPosition.op),
+        pos: operatorsAndPosition.pos,
+      });
+    }
+    return updatedOperators;
   }
 }

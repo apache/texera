@@ -1,0 +1,42 @@
+<nz-table
+  id="execution-list"
+  nzSize="small"
+  [nzSimple]="true"
+  [nzFrontPagination]="false"
+  nzTableLayout="auto"
+  *ngIf="executionList"
+  [nzData]="executionList">
+  <thead>
+    <tr>
+      <th nzAlign="center">EID</th>
+      <th nzAlign="center">Starting Time</th>
+      <!-- New column header for timestamp -->
+    </tr>
+  </thead>
+  <tbody>
+    <ng-container *ngFor="let execution of executionList">
+      <!-- Main row for each execution -->
+      <tr (click)="toggleRow(execution.eId)">
+        <td>{{ execution.eId }}</td>
+        <td>{{ execution.startingTime | date:'short' }}</td>
+        <!-- Display timestamp -->
+      </tr>
+      <!-- Collapsible row for interaction history -->
+      <tr *ngIf="expandedRows.has(execution.eId)">
+        <td colspan="2">
+          <!-- Adjust the colspan to match the number of columns -->
+          <div class="interaction-container">
+            <ng-container *ngFor="let interaction of interactionHistories[execution.eId]">
+              <button
+                [disabled]="execution.eId === revertedToInteraction?.eid && interaction === revertedToInteraction?.interaction"
+                (click)="onInteractionClick(execution.vId, execution.eId, interaction)"
+                class="interaction-item">
+                {{ interaction }}
+              </button>
+            </ng-container>
+          </div>
+        </td>
+      </tr>
+    </ng-container>
+  </tbody>
+</nz-table>

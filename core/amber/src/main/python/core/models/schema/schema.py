@@ -108,17 +108,18 @@ class Schema:
         """
         return [(k, v) for k, v in self._name_type_mapping.items()]
 
-    def get_partial_schema(self, indices: List[int]) -> "Schema":
+    def get_partial_schema(self, attribute_names: List[str]) -> "Schema":
         """
-        Create a partial Schema with fields specified by the indices.
-        :param indices: A list of index values.
-        :return: A new Schema with the selected fields, with the same order specified
-        by the indices.
+        Creates a partial Schema with fields specified by the attribute names.
+
+        :param attribute_names: A list of attribute names for which to create the
+                                partial schema.
+        :return: A new Schema instance containing only the specified fields, preserving
+                the order specified by the attribute names.
         """
         raw_schema = OrderedDict()
-        for index, (key, value) in enumerate(self.as_key_value_pairs(), 0):
-            if index in indices:
-                raw_schema[key] = RAW_TYPE_MAPPING.inverse[value]
+        for name in attribute_names:
+            raw_schema[name] = RAW_TYPE_MAPPING.inverse[self.get_attr_type(name)]
         return Schema(raw_schema=raw_schema)
 
     def __eq__(self, other: object) -> bool:

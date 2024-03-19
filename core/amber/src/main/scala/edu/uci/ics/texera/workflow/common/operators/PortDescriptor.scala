@@ -9,7 +9,7 @@ case class PortDescription(
     allowMultiInputs: Boolean,
     isDynamicPort: Boolean,
     partitionRequirement: PartitionInfo,
-    dependencies: List[Int]
+    dependencies: List[Int] = List.empty
 )
 
 trait PortDescriptor {

@@ -1,91 +1,61 @@
-@import "../workspace.component.scss";
-
-// CSS properties to make drop-down menu display long text in multiple lines
-// solution from https://stackoverflow.com/questions/52832889/not-enough-space-in-mat-select-how-to-add-multiple-line-mat-option
-// !important is used to override Angular's default styles
-
-// the following styles are for dropdown menu
-::ng-deep .mat-select-panel mat-option.mat-option {
-  height: unset !important;
-  padding-top: 0.5em !important;
-  padding-bottom: 0.5em !important;
-}
-
-::ng-deep .mat-option-text.mat-option-text {
-  white-space: normal !important;
-  line-height: 1.5em !important;
-}
-
-// the following styles are for selected value
-::ng-deep .mat-select-value {
-  height: unset !important;
-}
-
-::ng-deep .mat-select-value-text {
-  white-space: normal !important;
-  line-height: 1.4em !important;
-}
-
-.texera-workspace-property-editor-body {
-  padding: 16px;
-  padding-right: 24px;
-}
-
-.box {
-  width: 500px;
-  height: 100px;
-  background-color: white;
-  margin-top: 10px;
-  left: 30px;
-}
-
-.container {
+:host {
+  display: block;
   height: 100%;
-  text-align: left;
-  padding: 0;
+  width: 100%;
+  position: fixed;
+  z-index: 3;
 }
 
-// sets the style for the popup tooltips,
-// ::ng-deep is needed to force the style down to all the tooltip windows
-.texera-workspace-property-editor-body ::ng-deep {
-  .tooltip-inner {
-    // color: black;
-    background: white;
-    max-width: 500px;
-    width: 400px;
-    // border: 5px solid black;
-    padding: 0;
-  }
+#right-container {
+  position: fixed;
+  top: 90px;
+  right: 15px;
+  user-select: none;
+  background: white;
+}
 
-  .tooltip {
-    height: 35%;
-    overflow: auto;
-    border: 1px solid black;
-    padding: 0;
-    border-radius: 4px;
-    background-color: grey;
-    opacity: 1;
-  }
+#title {
+  padding: 5px 9px;
+  border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  background: white;
+  width: 100%;
+  z-index: 2;
+}
 
-  .property-detail-title {
-    background-color: grey;
-    color: white;
-    padding: 5px;
-  }
+#content {
+  height: 100%;
+  overflow-y: auto;
+  padding-top: 38px;
+}
 
-  .property-detail-description {
-    background-color: white;
-    color: black;
-    padding: 5px;
-  }
+#property-editor {
+  padding: 0 15px;
+}
 
-  .btn {
-    width: 20px;
-    height: 20px;
-    font-size: 8px;
-  }
+#property-buttons {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 4;
+}
 
-  div.attribute-title {
-    font-size: 16px;
-  }
+#divider {
+  margin: 0;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
+}
+
+.shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
 }

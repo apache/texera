@@ -13,7 +13,7 @@ object ConsoleMessageHandler {
 
 trait ConsoleMessageHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler { (msg: ConsoleMessageTriggered, sender) =>
+  registerHandler[ConsoleMessageTriggered, Unit] { (msg, sender) =>
     {
       if (msg.consoleMessage.msgType.isError) {
         // if its an error message, pause the workflow

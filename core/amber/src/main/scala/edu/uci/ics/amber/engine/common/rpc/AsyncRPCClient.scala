@@ -6,10 +6,18 @@ import edu.uci.ics.amber.engine.architecture.worker.controlreturns.ControlExcept
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.amberexception.WorkflowRuntimeException
-import edu.uci.ics.amber.engine.common.ambermessage.{ChannelID, ControlPayload}
+import edu.uci.ics.amber.engine.common.ambermessage.{
+  ChannelMarkerPayload,
+  ChannelMarkerType,
+  ControlPayload
+}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
+import edu.uci.ics.amber.engine.common.virtualidentity.{
+  ActorVirtualIdentity,
+  ChannelIdentity,
+  ChannelMarkerIdentity
+}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
 
 import scala.collection.mutable
@@ -56,7 +64,7 @@ class AsyncRPCClient(
     val actorId: ActorVirtualIdentity
 ) extends AmberLogging {
 
-  private val unfulfilledPromises = mutable.LongMap[WorkflowPromise[_]]()
+  private val unfulfilledPromises = mutable.HashMap[Long, WorkflowPromise[_]]()
   private var promiseID = 0L
 
   def send[T](cmd: ControlCommand[T], to: ActorVirtualIdentity): Future[T] = {
@@ -64,6 +72,25 @@ class AsyncRPCClient(
     logger.debug(s"send request: $cmd to $to (controlID: $id)")
     outputGateway.sendTo(to, ControlInvocation(id, cmd))
     p
+  }
+
+  def sendChannelMarker(
+      markerId: ChannelMarkerIdentity,
+      markerType: ChannelMarkerType,
+      scope: Set[ChannelIdentity],
+      cmdMapping: Map[ActorVirtualIdentity, ControlInvocation],
+      channelId: ChannelIdentity
+  ): Unit = {
+    logger.debug(s"send marker: $markerId to $channelId")
+    outputGateway.sendTo(
+      channelId,
+      ChannelMarkerPayload(markerId, markerType, scope, cmdMapping)
+    )
+  }
+
+  def createInvocation[T](cmd: ControlCommand[T]): (ControlInvocation, Future[T]) = {
+    val (p, id) = createPromise[T]()
+    (ControlInvocation(id, cmd), p)
   }
 
   def sendToClient(cmd: ControlCommand[_]): Unit = {
@@ -80,7 +107,6 @@ class AsyncRPCClient(
   def fulfillPromise(ret: ReturnInvocation): Unit = {
     if (unfulfilledPromises.contains(ret.originalCommandID)) {
       val p = unfulfilledPromises(ret.originalCommandID)
-
       ret.controlReturn match {
         case error: Throwable =>
           p.setException(error)
@@ -94,7 +120,7 @@ class AsyncRPCClient(
     }
   }
 
-  def logControlReply(ret: ReturnInvocation, channel: ChannelID): Unit = {
+  def logControlReply(ret: ReturnInvocation, channelId: ChannelIdentity): Unit = {
     if (ret.originalCommandID == AsyncRPCClient.IgnoreReplyAndDoNotLog) {
       return
     }
@@ -103,16 +129,16 @@ class AsyncRPCClient(
         return
       }
       logger.debug(
-        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channel (controlID: ${ret.originalCommandID})"
+        s"receive reply: ${ret.controlReturn.getClass.getSimpleName} from $channelId (controlID: ${ret.originalCommandID})"
       )
       ret.controlReturn match {
         case throwable: Throwable =>
-          logger.error(s"received error from $channel", throwable)
+          logger.error(s"received error from $channelId", throwable)
         case _ =>
       }
     } else {
       logger.info(
-        s"receive reply: null from $channel (controlID: ${ret.originalCommandID})"
+        s"receive reply: null from $channelId (controlID: ${ret.originalCommandID})"
       )
     }
   }

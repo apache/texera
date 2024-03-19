@@ -2,18 +2,10 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
-import edu.uci.ics.texera.workflow.common.tuple.schema.{
-  AttributeTypeUtils,
-  OperatorSchemaInfo,
-  Schema
-}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
 
 class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
   @JsonSchemaTitle("Add/Modify column(s)")
@@ -23,7 +15,7 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     // keep the same schema from input
     outputSchemaBuilder.add(inputSchema)
     // add new attributes
@@ -58,9 +50,8 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
       supportReconfiguration = true
     )
 
-  override def generatePythonCode(operatorSchemaInfo: OperatorSchemaInfo): String = {
+  override def generatePythonCode(): String = {
     // build the python udf code
-    val inputSchema = operatorSchemaInfo.inputSchemas.apply(0)
     var code: String =
       "from pytexera import *\n" +
         "class ProcessTupleOperator(UDFOperatorV2):\n" +

@@ -33,19 +33,12 @@ export const mockLogicalPlan_scan_result: LogicalPlan = {
   ],
   links: [
     {
-      origin: {
-        operatorID: mockScanPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
-      destination: {
-        operatorID: mockResultPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
+      fromOpId: mockScanPredicate.operatorID,
+      fromPortId: { id: 0, internal: false },
+      toOpId: mockResultPredicate.operatorID,
+      toPortId: { id: 0, internal: false },
     },
   ],
-  breakpoints: [],
   opsToViewResult: [],
   opsToReuseResult: [],
 };
@@ -75,31 +68,18 @@ export const mockLogicalPlan_scan_sentiment_result: LogicalPlan = {
   ],
   links: [
     {
-      origin: {
-        operatorID: mockScanPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
-      destination: {
-        operatorID: mockSentimentPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
+      fromOpId: mockScanPredicate.operatorID,
+      fromPortId: { id: 0, internal: false },
+      toOpId: mockSentimentPredicate.operatorID,
+      toPortId: { id: 0, internal: false },
     },
     {
-      origin: {
-        operatorID: mockSentimentPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
-      destination: {
-        operatorID: mockResultPredicate.operatorID,
-        portOrdinal: 0,
-        portName: "",
-      },
+      fromOpId: mockSentimentPredicate.operatorID,
+      fromPortId: { id: 0, internal: false },
+      toOpId: mockResultPredicate.operatorID,
+      toPortId: { id: 0, internal: false },
     },
   ],
-  breakpoints: [],
   opsToViewResult: [],
   opsToReuseResult: [],
 };

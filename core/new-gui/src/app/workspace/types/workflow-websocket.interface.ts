@@ -1,5 +1,4 @@
 import {
-  BreakpointInfo,
   ExecutionState,
   LogicalOperator,
   LogicalPlan,
@@ -8,7 +7,7 @@ import {
   OperatorStatsUpdate,
 } from "./execute-workflow.interface";
 import { IndexableObject } from "./result-table.interface";
-import { BreakpointFaultedTuple, BreakpointTriggerInfo, ConsoleUpdateEvent } from "./workflow-common.interface";
+import { ConsoleUpdateEvent } from "./workflow-common.interface";
 
 /**
  *  @fileOverview Type Definitions of WebSocket (Ws) API
@@ -33,6 +32,12 @@ export interface WorkflowExecuteRequest
     executionName: string;
     engineVersion: string;
     logicalPlan: LogicalPlan;
+  }> {}
+
+export interface ReplayExecutionInfo
+  extends Readonly<{
+    eid: number;
+    interaction: string;
   }> {}
 
 export interface RegisterWIdEvent
@@ -175,7 +180,6 @@ export type WorkflowStateInfo = Readonly<{
 
 export type TexeraWebsocketRequestTypeMap = {
   RegisterWorkflowIdRequest: RegisterWorkflowIdRequest;
-  AddBreakpointRequest: BreakpointInfo;
   EditingTimeCompilationRequest: LogicalPlan;
   HeartBeatRequest: {};
   ModifyLogicRequest: ModifyOperatorLogic;
@@ -186,6 +190,7 @@ export type TexeraWebsocketRequestTypeMap = {
   WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
+  WorkflowCheckpointRequest: {};
   WorkflowResumeRequest: {};
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
   DebugCommandRequest: DebugCommandRequest;
@@ -199,7 +204,6 @@ export type TexeraWebsocketEventTypeMap = {
   WebResultUpdateEvent: WorkflowResultUpdateEvent;
   RecoveryStartedEvent: {};
   WorkflowErrorEvent: WorkflowErrorEvent;
-  BreakpointTriggeredEvent: BreakpointTriggerInfo;
   ConsoleUpdateEvent: ConsoleUpdateEvent;
   OperatorCurrentTuplesUpdateEvent: OperatorCurrentTuples;
   PaginatedResultEvent: PaginatedResultEvent;

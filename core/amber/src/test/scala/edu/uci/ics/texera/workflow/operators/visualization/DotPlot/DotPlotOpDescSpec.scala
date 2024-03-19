@@ -62,8 +62,7 @@ class DotPlotOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
          |        yield {'html-content': html}
          |""".stripMargin
 
-    val generatedPythonCode =
-      opDesc.generatePythonCode(null) // null value for OperatorSchemaInfo for simplicity
+    val generatedPythonCode = opDesc.generatePythonCode()
 
     assert(generatedPythonCode === expectedPythonCode)
   }

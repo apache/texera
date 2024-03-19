@@ -18,8 +18,8 @@ export interface LogicalPort
   }> {}
 
 export type PartitionInfo =
-  | Readonly<{ type: "hash"; hashColumnIndices: number[] }>
-  | Readonly<{ type: "range"; rangeColumnIndices: number[]; rangeMin: number; rangeMax: number }>
+  | Readonly<{ type: "hash"; hashAttributeNames: string[] }>
+  | Readonly<{ type: "range"; rangeAttributeNames: string[]; rangeMin: number; rangeMax: number }>
   | Readonly<{ type: "single" }>
   | Readonly<{ type: "broadcast" }>
   | Readonly<{ type: "none" }>;
@@ -29,7 +29,8 @@ export interface PortSchema
     jsonSchema: Readonly<JSONSchema7>;
   }> {}
 
-export interface PortProperty extends Readonly<{ partitionInfo: PartitionInfo; dependencies: number[] }> {}
+export interface PortProperty
+  extends Readonly<{ partitionInfo: PartitionInfo; dependencies: { id: number; internal: boolean }[] }> {}
 
 export interface PortDescription
   extends Readonly<{
@@ -38,7 +39,7 @@ export interface PortDescription
     allowMultiInputs?: boolean;
     isDynamicPort?: boolean;
     partitionRequirement?: PartitionInfo;
-    dependencies?: number[];
+    dependencies?: { id: number; internal: boolean }[];
   }> {}
 
 export interface OperatorPredicate
@@ -78,43 +79,6 @@ export interface OperatorLink
     source: LogicalPort;
     target: LogicalPort;
   }> {}
-
-export interface BreakpointSchema
-  extends Readonly<{
-    jsonSchema: Readonly<JSONSchema7>;
-  }> {}
-
-type ConditionBreakpoint = Readonly<{
-  column: number;
-  condition: "=" | ">" | ">=" | "<" | "<=" | "!=" | "contains" | "does not contain";
-  value: string;
-}>;
-
-type CountBreakpoint = Readonly<{
-  count: number;
-}>;
-
-export type Breakpoint = ConditionBreakpoint | CountBreakpoint;
-
-export type BreakpointRequest =
-  | Readonly<{ type: "ConditionBreakpoint" } & ConditionBreakpoint>
-  | Readonly<{ type: "CountBreakpoint" } & CountBreakpoint>;
-
-export type BreakpointFaultedTuple = Readonly<{
-  tuple: ReadonlyArray<string>;
-  id: number;
-  isInput: boolean;
-}>;
-
-export type BreakpointFault = Readonly<{
-  workerName: string;
-  faultedTuple: BreakpointFaultedTuple;
-}>;
-
-export type BreakpointTriggerInfo = Readonly<{
-  report: ReadonlyArray<BreakpointFault>;
-  operatorID: string;
-}>;
 
 /**
  * refer to src/main/scalapb/edu/uci/ics/texera/web/workflowruntimestate/ConsoleMessage.scala

@@ -19,7 +19,10 @@ export class UserConfigService {
   private dictionaryChangedSubject = new Subject<void>();
   private localUserDictionary: UserConfig = {};
 
-  constructor(private http: HttpClient, private userService: UserService) {
+  constructor(
+    private http: HttpClient,
+    private userService: UserService
+  ) {
     if (this.userService.isLogin()) {
       this.fetchAll();
     }

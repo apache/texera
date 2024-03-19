@@ -1,20 +1,12 @@
 package edu.uci.ics.amber.engine.common.ambermessage
 
-import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 sealed trait DataPayload extends WorkflowFIFOMessagePayload {}
 
-final case class EpochMarker(
-    id: String,
-    scope: PhysicalPlan,
-    command: Option[ControlCommand[_]]
-) extends DataPayload
-
 final case class EndOfUpstream() extends DataPayload
 
-final case class DataFrame(frame: Array[ITuple]) extends DataPayload {
+final case class DataFrame(frame: Array[Tuple]) extends DataPayload {
   val inMemSize: Long = {
     frame.map(_.inMemSize).sum
   }

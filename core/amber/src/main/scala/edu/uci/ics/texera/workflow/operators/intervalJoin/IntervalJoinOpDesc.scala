@@ -2,23 +2,18 @@ package edu.uci.ics.texera.workflow.operators.intervalJoin
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize
-import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PortIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.{
   AutofillAttributeName,
   AutofillAttributeNameOnPort1
 }
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, Schema}
 import edu.uci.ics.texera.workflow.common.workflow.HashPartition
 
 /** This Operator have two assumptions:
@@ -76,12 +71,11 @@ class IntervalJoinOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
     val partitionRequirement = List(
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(0).getIndex(leftAttributeName)))),
-      Option(HashPartition(List(operatorSchemaInfo.inputSchemas(1).getIndex(rightAttributeName))))
+      Option(HashPartition(List(leftAttributeName))),
+      Option(HashPartition(List(rightAttributeName)))
     )
 
     PhysicalOp
@@ -89,13 +83,33 @@ class IntervalJoinOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new IntervalJoinOpExec(operatorSchemaInfo, this))
+        OpExecInitInfo((_, _) =>
+          new IntervalJoinOpExec(
+            leftAttributeName,
+            rightAttributeName,
+            includeLeftBound,
+            includeRightBound,
+            constant,
+            timeIntervalType
+          )
+        )
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingInputs(List(0))
+      .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(
+            operatorInfo.outputPorts.head.id -> getOutputSchema(
+              Array(
+                inputSchemas(operatorInfo.inputPorts.head.id),
+                inputSchemas(operatorInfo.inputPorts.last.id)
+              )
+            )
+          )
+        )
+      )
       .withPartitionRequirement(partitionRequirement)
-      .withDependencies(Map(1 -> 0))
   }
 
   override def operatorInfo: OperatorInfo =
@@ -103,14 +117,20 @@ class IntervalJoinOpDesc extends LogicalOp {
       "Interval Join",
       "Join two inputs with left table join key in the range of [right table join key, right table join key + constant value]",
       OperatorGroupConstants.JOIN_GROUP,
-      inputPorts = List(InputPort("left table"), InputPort("right table")),
+      inputPorts = List(
+        InputPort(PortIdentity(), displayName = "left table"),
+        InputPort(
+          PortIdentity(1),
+          displayName = "right table",
+          dependencies = List(PortIdentity(0))
+        )
+      ),
       outputPorts = List(OutputPort())
     )
 
   def this(
       leftTableAttributeName: String,
       rightTableAttributeName: String,
-      schemas: Array[Schema],
       constant: Long,
       includeLeftBound: Boolean,
       includeRightBound: Boolean,
@@ -126,12 +146,11 @@ class IntervalJoinOpDesc extends LogicalOp {
   }
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Preconditions.checkArgument(schemas.length == 2)
-    val builder: Schema.Builder = Schema.newBuilder()
-    var leftTableSchema: Schema = schemas(0)
-    var rightTableSchema: Schema = schemas(1)
+    val builder: Schema.Builder = Schema.builder()
+    val leftTableSchema: Schema = schemas(0)
+    val rightTableSchema: Schema = schemas(1)
     builder.add(leftTableSchema)
-    rightTableSchema.getAttributesScala
+    rightTableSchema.getAttributes
       .map(attr => {
         if (leftTableSchema.containsAttribute(attr.getName)) {
           builder.add(new Attribute(s"${attr.getName}#@1", attr.getType))

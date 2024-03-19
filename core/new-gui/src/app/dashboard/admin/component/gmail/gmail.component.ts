@@ -11,7 +11,10 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class GmailComponent implements OnInit {
   public validateForm!: FormGroup;
   public email: String | undefined;
-  constructor(private gmailAuthService: GmailService, private formBuilder: FormBuilder) {}
+  constructor(
+    private gmailAuthService: GmailService,
+    private formBuilder: FormBuilder
+  ) {}
 
   ngOnInit(): void {
     this.validateForm = this.formBuilder.group({

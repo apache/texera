@@ -6,15 +6,11 @@ import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchema
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.workflow.RangePartition
 
 @JsonSchemaInject(json = """
@@ -46,46 +42,36 @@ class SortPartitionsOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
-  ): PhysicalOp = {
-    val partitionRequirement = List(
-      Option(
-        RangePartition(
-          List(operatorSchemaInfo.inputSchemas(0).getIndex(sortAttributeName)),
-          domainMin,
-          domainMax
-        )
-      )
-    )
-
+      executionId: ExecutionIdentity
+  ): PhysicalOp =
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, operatorConfig) => {
-          new SortPartitionOpExec(
-            sortAttributeName,
-            operatorSchemaInfo,
-            idx,
-            domainMin,
-            domainMax,
-            operatorConfig.workerConfigs.length
-          )
-        })
+        OpExecInitInfo(opExecFunc =
+          (idx, workerCount) =>
+            new SortPartitionOpExec(
+              sortAttributeName,
+              idx,
+              domainMin,
+              domainMax,
+              workerCount
+            )
+        )
       )
-      .copy(
-        partitionRequirement = partitionRequirement
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPartitionRequirement(
+        List(Option(RangePartition(List(sortAttributeName), domainMin, domainMax)))
       )
-  }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Sort Partitions",
       "Sort Partitions",
-      OperatorGroupConstants.UTILITY_GROUP,
-      inputPorts = List(InputPort("")),
+      OperatorGroupConstants.SORT_GROUP,
+      inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
     )
 

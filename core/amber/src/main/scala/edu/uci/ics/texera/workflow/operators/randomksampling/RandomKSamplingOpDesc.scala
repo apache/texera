@@ -5,14 +5,9 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc
-import edu.uci.ics.texera.workflow.common.tuple.schema.OperatorSchemaInfo
 
 import scala.util.Random
 
@@ -23,7 +18,7 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
   // Therefore the seeds have to be stored.
   @JsonIgnore
   private val seeds: Array[Int] =
-    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
+    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt())
 
   @JsonProperty(value = "random k sample percentage", required = true)
   @JsonPropertyDescription("random k sampling with given percentage")
@@ -34,15 +29,17 @@ class RandomKSamplingOpDesc extends FilterOpDesc {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp.oneToOnePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((idx, _, _) => new RandomKSamplingOpExec(idx, this))
-    )
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((idx, _) => new RandomKSamplingOpExec(percentage, idx, getSeed))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =

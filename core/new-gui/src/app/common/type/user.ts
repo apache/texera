@@ -1,4 +1,3 @@
-import { NumberValue } from "d3";
 import { Point } from "../../workspace/types/workflow-common.interface";
 
 /**
@@ -23,6 +22,7 @@ export interface User
     googleId?: string;
     role: Role;
     color?: string;
+    googleAvatar?: string;
   }> {}
 
 export interface File

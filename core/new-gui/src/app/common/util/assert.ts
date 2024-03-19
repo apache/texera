@@ -33,8 +33,8 @@ type AnyType = { new (...args: any[]): any } | keyof Primitives;
 type GuardedType<T extends AnyType> = T extends { new (...args: any[]): infer U }
   ? U
   : T extends keyof Primitives
-  ? Primitives[T]
-  : never;
+    ? Primitives[T]
+    : never;
 
 export function isType<T extends AnyType>(val: any, type: T): val is GuardedType<T> {
   const interfaceType: AnyType = type;

@@ -6,14 +6,10 @@ import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
-import edu.uci.ics.texera.workflow.common.metadata.{
-  InputPort,
-  OperatorGroupConstants,
-  OperatorInfo,
-  OutputPort
-}
+import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.LogicalOp
-import edu.uci.ics.texera.workflow.common.tuple.schema.{OperatorSchemaInfo, Schema}
+import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.operators.util.OperatorDescriptorUtils.equallyPartitionGoal
 
 import scala.util.Random
@@ -32,7 +28,7 @@ class ReservoirSamplingOpDesc extends LogicalOp {
   // Therefore the seeds have to be stored.
   @JsonIgnore
   private val seeds: Array[Int] =
-    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
+    Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt())
 
   @JsonProperty(value = "number of item sampled in reservoir sampling", required = true)
   @JsonPropertyDescription("reservoir sampling with k items being kept randomly")
@@ -48,15 +44,17 @@ class ReservoirSamplingOpDesc extends LogicalOp {
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
-      executionId: ExecutionIdentity,
-      operatorSchemaInfo: OperatorSchemaInfo
+      executionId: ExecutionIdentity
   ): PhysicalOp = {
-    PhysicalOp.oneToOnePhysicalOp(
-      workflowId,
-      executionId,
-      operatorIdentifier,
-      OpExecInitInfo((idx, _, _) => new ReservoirSamplingOpExec(idx, this))
-    )
+    PhysicalOp
+      .oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((idx, _) => new ReservoirSamplingOpExec(idx, getKForActor, getSeed))
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo = {

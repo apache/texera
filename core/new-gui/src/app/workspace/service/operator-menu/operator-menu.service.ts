@@ -3,7 +3,7 @@ import { environment } from "src/environments/environment";
 import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
 import { isSink } from "../workflow-graph/model/workflow-graph";
 import { BehaviorSubject, merge } from "rxjs";
-import { Breakpoint, OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
+import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/workflow-common.interface";
 import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
@@ -11,10 +11,6 @@ import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.ser
 
 type OperatorPositions = {
   [key: string]: Point;
-};
-
-type BreakpointWithLinkID = {
-  [key: string]: Breakpoint;
 };
 
 // this type associates the old link ID with the new link
@@ -28,7 +24,6 @@ type SerializedString = {
   operatorPositions: OperatorPositions;
   links: OperatorLink[];
   groups: [];
-  breakpoints: BreakpointWithLinkID;
   commentBoxes: CommentBox[];
 };
 
@@ -222,7 +217,6 @@ export class OperatorMenuService {
       operatorPositions: {},
       links: [],
       groups: [],
-      breakpoints: {},
       commentBoxes: [],
     };
 
@@ -230,7 +224,6 @@ export class OperatorMenuService {
     const operatorsCopy: OperatorPredicate[] = [];
     const operatorPositionsCopy: OperatorPositions = {};
     const linksCopy: OperatorLink[] = [];
-    const breakpointsCopy: BreakpointWithLinkID = {};
     const commentBoxesCopy: CommentBox[] = [];
 
     // fill in the operators copy with all the currently highlighted operators for sorting later (the original highlighted operator IDs is a readonly string array, so it can't be sorted)
@@ -258,10 +251,6 @@ export class OperatorMenuService {
     const highlighghtedLinkIDs = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedLinkIDs();
     highlighghtedLinkIDs.forEach(linkID => {
       linksCopy.push(this.workflowActionService.getTexeraGraph().getLinkWithID(linkID));
-      const breakpoint = this.workflowActionService.getTexeraGraph().getLinkBreakpoint(linkID);
-      if (breakpoint != undefined) {
-        breakpointsCopy[linkID] = breakpoint;
-      }
     });
     linksCopy.sort(
       (first, second) =>
@@ -270,7 +259,6 @@ export class OperatorMenuService {
     );
 
     serializedString.links = linksCopy;
-    serializedString.breakpoints = breakpointsCopy;
 
     //get all the highlighted comment boxes, and sort them by their layers
     const highlightedCommentBoxIDs = this.workflowActionService
@@ -324,7 +312,6 @@ export class OperatorMenuService {
             !elementsInClipboard.has("operatorPositions") &&
             !elementsInClipboard.has("links") &&
             !elementsInClipboard.has("groups") &&
-            !elementsInClipboard.has("breakpoints") &&
             !elementsInClipboard.has("commentBoxes")
           ) {
             throw new Error("You haven't copied any element yet.");
@@ -348,11 +335,6 @@ export class OperatorMenuService {
         ) as OperatorPositions;
         // get all the operators from the clipboard, which are already sorted by their layers
         let copiedOps: OperatorPredicate[] = elementsInClipboard.get("operators") as OperatorPredicate[];
-
-        // get all the breakpoints for later when adding the breakpoints for the pasted new links
-        let breakpointsInClipboard: BreakpointWithLinkID = elementsInClipboard.get(
-          "breakpoints"
-        ) as BreakpointWithLinkID;
 
         let linksCopy: LinkWithID = {};
         copiedOps.forEach(copiedOperator => {
@@ -409,16 +391,11 @@ export class OperatorMenuService {
 
         // actually add all operators, links, groups to the workflow
         try {
-          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups, new Map());
+          this.workflowActionService.addOperatorsAndLinks(operatorsAndPositions, links, groups);
         } catch (e) {
           this.notificationService.info(
             "Some of the links that you selected don't have operators attached to both ends of them. These links won't be pasted, since links can't exist without operators."
           );
-        }
-
-        // add breakpoints for the newly pasted links
-        for (let oldLinkID in linksCopy) {
-          this.workflowActionService.setLinkBreakpoint(linksCopy[oldLinkID].linkID, breakpointsInClipboard[oldLinkID]);
         }
 
         //add copied comment boxes and calculate new positions for the pasted comment boxes
