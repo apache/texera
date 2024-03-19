@@ -1,14 +1,15 @@
 <div
   #container
   id="code-editor-container"
+  class="box"
   cdkDrag
-  cdkDragBoundary="texera-workspace"
+  cdkDragBoundary="body"
   (focusin)="onFocus()">
   <h5
     id="title"
     (focus)="onFocus()"
     cdkDragHandle>
-    Python Script: {{ title }}
+    {{languageTitle}} : {{ title }}
     <button
       nz-button
       nzType="text"

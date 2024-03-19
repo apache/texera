@@ -14,14 +14,15 @@ import { TimeTravelComponent } from "./time-travel/time-travel.component";
   styleUrls: ["left-panel.component.scss"],
 })
 export class LeftPanelComponent implements OnDestroy, OnInit {
-  currentComponent: Type<any> = null as any;
+  protected readonly window = window;
+  currentComponent: Type<any> | null = null;
   title = "Operators";
-  screenWidth = window.innerWidth;
-  width = 240;
+  width = 230;
+  height = 300;
   id = -1;
   currentIndex = 0;
   items = [
-    { component: null as any, title: "", icon: "", enabled: true },
+    { component: null, title: "", icon: "", enabled: true },
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
     { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
     {
@@ -34,28 +35,29 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   order = [1, 2, 3];
 
   constructor() {
-    const order = localStorage.getItem("left-panel-order");
-    if (order) this.order = order.split(",").map(Number);
+    this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
     this.openFrame(Number(localStorage.getItem("left-panel-index") || "1"));
-    const width = localStorage.getItem("left-panel-width");
-    if (width) this.width = Number(width);
+    this.width = Number(localStorage.getItem("left-panel-width")) || this.width;
+    this.height = Number(localStorage.getItem("left-panel-height")) || this.height;
   }
 
   ngOnInit(): void {
     const style = localStorage.getItem("left-panel-style");
-    if (style) document.getElementById("left-panel-container")!.style.cssText = style;
+    if (style) document.getElementById("left-container")!.style.cssText = style;
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
     localStorage.setItem("left-panel-width", String(this.width));
+    localStorage.setItem("left-panel-height", String(this.height));
     localStorage.setItem("left-panel-order", String(this.order));
     localStorage.setItem("left-panel-index", String(this.currentIndex));
-    localStorage.setItem("left-panel-style", document.getElementById("left-panel-container")!.style.cssText);
+    localStorage.setItem("left-panel-style", document.getElementById("left-container")!.style.cssText);
   }
 
   openFrame(i: number) {
-    if (!this.width) this.width = 240;
+    if (!i) this.width = 0;
+    else if (!this.width) this.width = 230;
     this.title = this.items[i].title;
     this.currentComponent = this.items[i].component;
     this.currentIndex = i;
@@ -63,16 +65,11 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   onDrop(event: CdkDragDrop<string[]>) {
     moveItemInArray(this.order, event.previousIndex, event.currentIndex);
   }
-
-  onClose() {
-    this.currentComponent = null as any;
-    this.width = 0;
-    this.currentIndex = 0;
-  }
-  onResize({ width }: NzResizeEvent) {
+  onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);
     this.id = requestAnimationFrame(() => {
       this.width = width!;
+      this.height = height!;
     });
   }
 }

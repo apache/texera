@@ -14,6 +14,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeOperator, FinalizePort}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -31,7 +32,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted, VirtualIdentityUtils}
+import edu.uci.ics.amber.engine.common.{IOperatorExecutor, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
@@ -53,7 +54,6 @@ class DataProcessor(
     with Serializable {
 
   @transient var operator: IOperatorExecutor = _
-  @transient var serializationCall: () => Unit = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
@@ -70,7 +70,7 @@ class DataProcessor(
   val inputManager: InputManager = new InputManager(actorId)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
-
+  val serializationManager: SerializationManager = new SerializationManager(actorId)
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
   }
@@ -82,12 +82,11 @@ class DataProcessor(
   def collectStatistics(): WorkerStatistics =
     statisticsManager.getStatistics(stateManager.getCurrentState, operator)
 
-  /** process currentInputTuple through operator logic.
-    * this function is only called by the DP thread
-    *
-    * @return an iterator of output tuples
+  /**
+    * process currentInputTuple through executor logic.
+    * this function is only called by the DP thread.
     */
-  private[this] def processInputTuple(tuple: Either[Tuple, InputExhausted]): Unit = {
+  private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
       outputManager.outputIterator.setTupleOutput(
         operator.processTupleMultiPort(
@@ -95,9 +94,26 @@ class DataProcessor(
           this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
         )
       )
-      if (tuple.isLeft) {
-        statisticsManager.increaseInputTupleCount()
-      }
+      statisticsManager.increaseInputTupleCount()
+
+    } catch safely {
+      case e =>
+        // forward input tuple to the user and pause DP thread
+        handleOperatorException(e)
+    }
+  }
+
+  /**
+    * process end of an input port with Executor.onFinish().
+    * this function is only called by the DP thread.
+    */
+  private[this] def processInputExhausted(): Unit = {
+    try {
+      outputManager.outputIterator.setTupleOutput(
+        operator.onFinishMultiPort(
+          this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
+        )
+      )
     } catch safely {
       case e =>
         // forward input tuple to the user and pause DP thread
@@ -156,7 +172,7 @@ class DataProcessor(
     if (outputManager.hasUnfinishedOutput) {
       outputOneTuple()
     } else {
-      processInputTuple(Left(inputManager.getNextTuple))
+      processInputTuple(inputManager.getNextTuple)
     }
     statisticsManager.increaseDataProcessingTime(System.nanoTime() - dataProcessingStartTime)
   }
@@ -179,7 +195,7 @@ class DataProcessor(
           }
         )
         inputManager.initBatch(channelId, tuples)
-        processInputTuple(Left(inputManager.getNextTuple))
+        processInputTuple(inputManager.getNextTuple)
       case EndOfUpstream() =>
         val channel = this.inputGateway.getChannel(channelId)
         val portId = channel.getPortId
@@ -188,7 +204,7 @@ class DataProcessor(
 
         if (inputManager.isPortCompleted(portId)) {
           inputManager.initBatch(channelId, Array.empty)
-          processInputTuple(Right(InputExhausted()))
+          processInputExhausted()
           outputManager.outputIterator.appendSpecialTupleToEnd(FinalizePort(portId, input = true))
         }
         if (inputManager.getAllPorts.forall(portId => inputManager.isPortCompleted(portId))) {

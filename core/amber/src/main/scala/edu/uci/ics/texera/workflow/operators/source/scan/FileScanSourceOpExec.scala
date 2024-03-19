@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.source.scan
 
-import edu.uci.ics.amber.engine.common.ISourceOperatorExecutor
+import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
@@ -18,7 +18,7 @@ class FileScanSourceOpExec private[scan] (
     outputFileName: Boolean,
     fileScanLimit: Option[Int] = None,
     fileScanOffset: Option[Int] = None
-) extends ISourceOperatorExecutor {
+) extends SourceOperatorExecutor {
 
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
@@ -74,7 +74,4 @@ class FileScanSourceOpExec private[scan] (
     }
   }
 
-  override def open(): Unit = {}
-
-  override def close(): Unit = {}
 }

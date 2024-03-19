@@ -26,7 +26,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       htmlVizOpExec
-        .processTuple(Left(tuple()), 0)
+        .processTuple(tuple(), 0)
         .next()
         .asInstanceOf[SchemaEnforceable]
         .enforceSchema(outputSchema)
@@ -41,7 +41,7 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     htmlVizOpExec.open()
     val processedTuple: Tuple =
       htmlVizOpExec
-        .processTuple(Left(tuple()), 0)
+        .processTuple(tuple(), 0)
         .next()
         .asInstanceOf[SchemaEnforceable]
         .enforceSchema(outputSchema)

@@ -1,64 +1,66 @@
-<div>
+<div
+  cdkDrag
+  cdkDragBoundary="body"
+  id="left-container"
+  class="box"
+  nz-resizable
+  [nzMinWidth]="230"
+  [nzMinHeight]="300"
+  [nzMaxWidth]="window.innerWidth/2"
+  [nzMaxHeight]="window.innerWidth*0.85"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)">
+  <ul
+    nz-menu
+    id="dock"
+    [ngClass]="{'shadow':  !width}"
+    cdkDropList
+    (cdkDropListDropped)="onDrop($event)">
+    <li
+      nz-menu-item
+      (click)="openFrame(0)"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+    <li
+      nz-menu-item
+      nzSelected
+      cdkDragHandle
+      *ngIf="!width">
+      <span
+        nz-icon
+        nzType="drag"></span>
+    </li>
+    <li
+      nz-menu-divider
+      id="divider"></li>
+    <ng-container *ngFor="let i of order">
+      <li
+        nz-menu-item
+        cdkDrag
+        nzTooltipPlacement="right"
+        nz-tooltip="{{items[i].title}}"
+        nzSelected="{{currentComponent === items[i].component}}"
+        *ngIf="items[i].enabled"
+        (click)="openFrame(i)">
+        <span
+          nz-icon
+          nzType="{{items[i].icon}}"></span>
+      </li>
+    </ng-container>
+  </ul>
   <div
-    cdkDrag
-    cdkDragBoundary="texera-workspace"
-    id="left-panel-container"
-    class="shadow"
-    nz-resizable
-    [nzMinWidth]="240"
-    [nzMaxWidth]="screenWidth*0.5"
-    [style.width.px]="width"
-    (nzResize)="onResize($event)">
-    <ul
-      nz-menu
-      id="left-dock"
-      [ngClass]="{'shadow':  !width}"
-      cdkDropList
-      (cdkDropListDropped)="onDrop($event)">
-      <li
-        nz-menu-item
-        (click)="onClose()"
-        *ngIf="this.width">
-        <span
-          nz-icon
-          nzType="minus"></span>
-      </li>
-      <li
-        nz-menu-item
-        nzSelected
-        cdkDragHandle
-        *ngIf="!this.width">
-        <span
-          nz-icon
-          nzType="drag"
-          *ngIf="!this.width"></span>
-      </li>
-      <li
-        nz-menu-divider
-        id="divider"></li>
-      <ng-container *ngFor="let i of order">
-        <li
-          nz-menu-item
-          cdkDrag
-          nzTooltipPlacement="right"
-          nz-tooltip="{{this.items[i].title}}"
-          nzSelected="{{this.currentComponent === this.items[i].component}}"
-          *ngIf="this.items[i].enabled"
-          (click)="openFrame(i)">
-          <span
-            nz-icon
-            nzType="{{this.items[i].icon}}"></span>
-        </li>
-      </ng-container>
-    </ul>
-    <div id="left-panel-content">
-      <h4
-        id="title"
-        cdkDragHandle>
-        {{title}}
-      </h4>
-      <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
-    </div>
-    <nz-resize-handles [nzDirections]="['right']"></nz-resize-handles>
+    id="content"
+    [hidden]="!currentComponent">
+    <h4
+      id="title"
+      cdkDragHandle>
+      {{title}}
+    </h4>
+    <ng-container *ngComponentOutlet="currentComponent;"></ng-container>
   </div>
+  <nz-resize-handles [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
 </div>

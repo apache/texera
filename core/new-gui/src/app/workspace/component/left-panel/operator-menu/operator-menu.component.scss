@@ -1,6 +1,14 @@
 #search-box {
-  padding: 0 5px 5px 5px;
   border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 33px;
+  z-index: 1;
+  background: white;
+  width: calc(100% - 33px);
+  input {
+    border: none;
+    padding: 4px 9px;
+  }
 }
 
 .operator-submenu-title {
@@ -12,6 +20,12 @@
 }
 
 .texera-operator-label {
-  padding-left: 10px;
+  padding-left: 30px;
   padding-right: 0;
+  margin: 0 !important;
+  height: 32px;
+}
+
+#operator-menu {
+  margin-top: 32px;
 }
