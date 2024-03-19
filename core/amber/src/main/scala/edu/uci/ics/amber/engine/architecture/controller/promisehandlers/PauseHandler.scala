@@ -3,8 +3,8 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   ReportCurrentProcessingTuple,
-  WorkflowPaused,
-  WorkflowStatsUpdate
+  ExecutionStatsUpdate,
+  ExecutionStateUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
@@ -74,11 +74,11 @@ trait PauseHandler {
         .map { _ =>
           // update frontend workflow status
           sendToClient(
-            WorkflowStatsUpdate(
+            ExecutionStatsUpdate(
               cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
             )
           )
-          sendToClient(WorkflowPaused())
+          sendToClient(ExecutionStateUpdate(cp.workflowExecution.getState))
           logger.info(s"workflow paused")
         }
         .unit

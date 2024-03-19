@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.web.service
 
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowPaused
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.TakeGlobalCheckpointHandler.TakeGlobalCheckpoint
@@ -11,7 +11,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ChannelMarkerIdentity
 import edu.uci.ics.texera.web.{SubscriptionManager, WebsocketInput}
 import edu.uci.ics.texera.web.model.websocket.request.{
   SkipTupleRequest,
-  WorkflowInteractionRequest,
+  WorkflowCheckpointRequest,
   WorkflowKillRequest,
   WorkflowPauseRequest,
   WorkflowResumeRequest
@@ -36,11 +36,15 @@ class ExecutionRuntimeService(
     throw new RuntimeException("skipping tuple is temporarily disabled")
   }))
 
-  // Receive Paused from Amber
-  addSubscription(client.registerCallback[WorkflowPaused]((evt: WorkflowPaused) => {
+  // Receive execution state update from Amber
+  addSubscription(client.registerCallback[ExecutionStateUpdate]((evt: ExecutionStateUpdate) => {
     stateStore.metadataStore.updateState(metadataStore =>
-      updateWorkflowState(PAUSED, metadataStore)
+      updateWorkflowState(evt.state, metadataStore)
     )
+    if (evt.state == COMPLETED) {
+      client.shutdown()
+      stateStore.statsStore.updateState(stats => stats.withEndTimeStamp(System.currentTimeMillis()))
+    }
   }))
 
   // Receive Pause
@@ -76,7 +80,7 @@ class ExecutionRuntimeService(
   }))
 
   // Receive Interaction
-  addSubscription(wsInput.subscribe((req: WorkflowInteractionRequest, uidOpt) => {
+  addSubscription(wsInput.subscribe((req: WorkflowCheckpointRequest, uidOpt) => {
     assert(
       logConf.nonEmpty,
       "Fault tolerance log folder is not established. Unable to take a global checkpoint."

@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.QueryWorkerStatisticsHandler.ControllerInitiateQueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.common.VirtualIdentityUtils
@@ -52,8 +52,8 @@ trait QueryWorkerStatisticsHandler {
       .collect(requests)
       .map(_ =>
         sendToClient(
-          WorkflowStatsUpdate(
-            cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+          ExecutionStatsUpdate(
+            cp.workflowExecution.getAllRegionExecutions.flatMap(_.getStats).toMap
           )
         )
       )
