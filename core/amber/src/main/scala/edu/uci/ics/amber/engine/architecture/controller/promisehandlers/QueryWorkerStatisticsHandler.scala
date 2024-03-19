@@ -53,7 +53,7 @@ trait QueryWorkerStatisticsHandler {
       .map(_ =>
         sendToClient(
           WorkflowStatsUpdate(
-            cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+            cp.workflowExecution.getAllRegionExecutions.flatMap(_.getStats).toMap
           )
         )
       )
