@@ -228,15 +228,21 @@ class ExecutionResultService(
     addSubscription(
       workflowStateStore.resultStore.registerDiffHandler((oldState, newState) => {
         val buf = mutable.HashMap[String, WebResultUpdate]()
-        newState.resultInfo.foreach {
-          case (opId, info) =>
-            val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
-            buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
-              sinkOperators(opId),
-              oldInfo.tupleCount,
-              info.tupleCount
-            )
-        }
+        newState.resultInfo
+          .filter(info => {
+            // only update those operators with changing tuple count.
+            !oldState.resultInfo
+              .contains(info._1) || oldState.resultInfo(info._1).tupleCount != info._2.tupleCount
+          })
+          .foreach {
+            case (opId, info) =>
+              val oldInfo = oldState.resultInfo.getOrElse(opId, OperatorResultMetadata())
+              buf(opId.id) = ExecutionResultService.convertWebResultUpdate(
+                sinkOperators(opId),
+                oldInfo.tupleCount,
+                info.tupleCount
+              )
+          }
         Iterable(WebResultUpdateEvent(buf.toMap))
       })
     )
