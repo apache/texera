@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Props}
 import akka.serialization.SerializationExtension
 import com.twitter.util.{Await, Duration}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PauseHandler.PauseWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, ControllerProcessor}
@@ -34,7 +34,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestOperators
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.PAUSED
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, PAUSED}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalLink
@@ -151,8 +151,10 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
       controllerConfig,
       error => {}
     )
-    client2.registerCallback[WorkflowCompleted] { evt =>
-      completableFuture.complete(())
+    client2.registerCallback[ExecutionStateUpdate] { evt =>
+      if (evt.state == COMPLETED) {
+        completableFuture.complete(())
+      }
     }
     Thread.sleep(100)
     assert(Await.result(client2.sendAsync(StartWorkflow())) == PAUSED)

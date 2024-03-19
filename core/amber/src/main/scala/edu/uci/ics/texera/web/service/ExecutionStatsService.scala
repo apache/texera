@@ -5,8 +5,7 @@ import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate,
-  WorkflowCompleted,
-  WorkflowStatsUpdate
+  ExecutionStatsUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
@@ -32,7 +31,7 @@ import edu.uci.ics.texera.web.workflowruntimestate.{
   WorkflowAggregatedState,
   WorkflowFatalError
 }
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.FAILED
 
 import java.time.Instant
 import edu.uci.ics.texera.workflow.common.WorkflowContext
@@ -156,14 +155,13 @@ class ExecutionStatsService(
     registerCallbackOnWorkflowStatsUpdate()
     registerCallbackOnWorkerAssignedUpdate()
     registerCallbackOnWorkflowRecoveryUpdate()
-    registerCallbackOnWorkflowComplete()
     registerCallbackOnFatalError()
   }
 
   private[this] def registerCallbackOnWorkflowStatsUpdate(): Unit = {
     addSubscription(
       client
-        .registerCallback[WorkflowStatsUpdate]((evt: WorkflowStatsUpdate) => {
+        .registerCallback[ExecutionStatsUpdate]((evt: ExecutionStatsUpdate) => {
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorStatistics)
           }
@@ -222,21 +220,6 @@ class ExecutionStatsService(
           stateStore.metadataStore.updateState { metadataStore =>
             metadataStore.withIsRecovering(evt.isRecovering)
           }
-        })
-    )
-  }
-
-  private[this] def registerCallbackOnWorkflowComplete(): Unit = {
-    addSubscription(
-      client
-        .registerCallback[WorkflowCompleted]((evt: WorkflowCompleted) => {
-          client.shutdown()
-          stateStore.statsStore.updateState(stats =>
-            stats.withEndTimeStamp(System.currentTimeMillis())
-          )
-          stateStore.metadataStore.updateState(metadataStore =>
-            updateWorkflowState(COMPLETED, metadataStore)
-          )
         })
     )
   }
