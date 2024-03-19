@@ -1064,7 +1064,7 @@ export class WorkflowGraph {
     }
   }
 
-  public getSubDag(targetOperatorId: string) {
+  public getSubDag(targetOperatorId?: string) {
     const visited: Set<string> = new Set();
     const subDagOperators: OperatorPredicate[] = [];
     const subDagLinks: OperatorLink[] = [];
@@ -1077,18 +1077,31 @@ export class WorkflowGraph {
       visited.add(currentOperatorId);
 
       const currentOperator = graph.getOperator(currentOperatorId);
-      if (currentOperator) {
+      if (currentOperator && !currentOperator.isDisabled) {
         subDagOperators.push(currentOperator);
 
         // Find links connected to the current operator
-        const connectedLinks = graph.getAllLinks().filter(link => link.target.operatorID === currentOperatorId);
+        const connectedLinks = graph.getAllEnabledLinks().filter(link => link.target.operatorID === currentOperatorId);
         connectedLinks.forEach(link => {
           subDagLinks.push(link);
           dfs(link.source.operatorID, graph);
         });
       }
     }
-    dfs(targetOperatorId, this);
+
+    if (targetOperatorId !== undefined) {
+      dfs(targetOperatorId, this);
+    } else {
+      // When no target operator ID is provided, start DFS from all sink operators
+      const allOperators = this.getAllOperators();
+      const allLinks = this.getAllEnabledLinks();
+      const terminalOperators = allOperators.filter(
+        operator => !allLinks.some(link => link.source.operatorID === operator.operatorID)
+      );
+
+      terminalOperators.forEach(terminalOperator => dfs(terminalOperator.operatorID, this));
+    }
+
     return { operators: subDagOperators, links: subDagLinks };
   }
 }

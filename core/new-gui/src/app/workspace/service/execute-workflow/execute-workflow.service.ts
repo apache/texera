@@ -25,6 +25,7 @@ import { NotificationService } from "src/app/common/service/notification/notific
 import { exhaustiveGuard } from "../../../common/util/switch";
 import { WorkflowStatusService } from "../workflow-status/workflow-status.service";
 import { isDefined } from "../../../common/util/predicate";
+import { intersection } from "../../../common/util/set";
 
 // TODO: change this declaration
 export const FORM_DEBOUNCE_TIME_MS = 150;
@@ -163,8 +164,11 @@ export class ExecuteWorkflowService {
     return [];
   }
 
-  public executeWorkflow(executionName: string, targetOperatorId: string | undefined = undefined): void {
-    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph(), targetOperatorId);
+  public executeWorkflow(executionName: string, targetOperatorId?: string): void {
+    const logicalPlan = ExecuteWorkflowService.getLogicalPlanRequest(
+      this.workflowActionService.getTexeraGraph(),
+      targetOperatorId
+    );
     this.resetExecutionState();
     this.workflowStatusService.resetStatus();
     this.sendExecutionRequest(executionName, logicalPlan);
@@ -335,10 +339,7 @@ export class ExecuteWorkflowService {
    * @param workflowGraph
    * @param targetOperatorId
    */
-  public static getLogicalPlanRequest(
-    workflowGraph: WorkflowGraphReadonly,
-    targetOperatorId: string | undefined = undefined
-  ): LogicalPlan {
+  public static getLogicalPlanRequest(workflowGraph: WorkflowGraphReadonly, targetOperatorId?: string): LogicalPlan {
     const getInputPortOrdinal = (operatorID: string, inputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).inputPorts.findIndex(port => port.portID === inputPortID);
     };
@@ -346,29 +347,17 @@ export class ExecuteWorkflowService {
     const getOutputPortOrdinal = (operatorID: string, outputPortID: string): number => {
       return workflowGraph.getOperator(operatorID).outputPorts.findIndex(port => port.portID === outputPortID);
     };
+    const subDag = workflowGraph.getSubDag(targetOperatorId);
 
-    const subDag = isDefined(targetOperatorId) ? workflowGraph.getSubDag(targetOperatorId) : undefined;
+    const operators: LogicalOperator[] = subDag.operators.map(op => ({
+      ...op.operatorProperties,
+      operatorID: op.operatorID,
+      operatorType: op.operatorType,
+      inputPorts: op.inputPorts,
+      outputPorts: op.outputPorts,
+    }));
 
-    const operators: LogicalOperator[] = (
-      isDefined(subDag) ? subDag.operators : workflowGraph.getAllEnabledOperators()
-    ).map(op => {
-      let logicalOp: LogicalOperator = {
-        ...op.operatorProperties,
-        operatorID: op.operatorID,
-        operatorType: op.operatorType,
-      };
-      logicalOp = {
-        ...logicalOp,
-        inputPorts: op.inputPorts,
-      };
-      logicalOp = {
-        ...logicalOp,
-        outputPorts: op.outputPorts,
-      };
-      return logicalOp;
-    });
-
-    const links: LogicalLink[] = (isDefined(subDag) ? subDag.links : workflowGraph.getAllEnabledLinks()).map(link => {
+    const links: LogicalLink[] = subDag.links.map(link => {
       const outputPortIdx = getOutputPortOrdinal(link.source.operatorID, link.source.portID);
       const inputPortIdx = getInputPortOrdinal(link.target.operatorID, link.target.portID);
       return {
@@ -379,17 +368,16 @@ export class ExecuteWorkflowService {
       };
     });
 
-    const opsToViewResult: string[] = Array.from(workflowGraph.getOperatorsToViewResult()).filter(op =>
-      isDefined(subDag)
-        ? subDag.operators.map(operator => operator.operatorID).includes(op)
-        : !workflowGraph.isOperatorDisabled(op)
-    );
+    const operatorIds = new Set(subDag.operators.map(op => op.operatorID));
 
-    const opsToReuseResult: string[] = Array.from(workflowGraph.getOperatorsMarkedForReuseResult()).filter(op =>
-      isDefined(subDag)
-        ? subDag.operators.map(operator => operator.operatorID).includes(op)
-        : !workflowGraph.isOperatorDisabled(op)
-    );
+    const opsToViewResult: string[] = Array.from(
+      intersection(operatorIds, workflowGraph.getOperatorsToViewResult())
+    ).filter(op => !workflowGraph.isOperatorDisabled(op));
+
+    const opsToReuseResult: string[] = Array.from(
+      intersection(operatorIds, workflowGraph.getOperatorsMarkedForReuseResult())
+    ).filter(op => !workflowGraph.isOperatorDisabled(op));
+
     return { operators, links, opsToViewResult, opsToReuseResult };
   }
 
