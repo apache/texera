@@ -1,7 +1,7 @@
 import { AfterContentInit, Component, inject } from "@angular/core";
 import { DomSanitizer } from "@angular/platform-browser";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
-import { auditTime } from "rxjs/operators";
+import { auditTime, filter } from "rxjs/operators";
 import { untilDestroyed, UntilDestroy } from "@ngneat/until-destroy";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
@@ -31,11 +31,10 @@ export class VisualizationFrameContentComponent implements AfterContentInit {
     this.workflowResultService
       .getResultUpdateStream()
       .pipe(auditTime(VisualizationFrameContentComponent.UPDATE_INTERVAL_MS))
+      .pipe(filter(rec => this.operatorId !== undefined && rec[this.operatorId] !== undefined))
       .pipe(untilDestroyed(this))
-      .subscribe(rec => {
-        if (this.operatorId !== undefined && rec[this.operatorId] !== undefined) {
-          this.drawChart();
-        }
+      .subscribe(() => {
+        this.drawChart();
       });
   }
   drawChart() {
