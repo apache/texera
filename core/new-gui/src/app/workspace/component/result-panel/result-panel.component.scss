@@ -1,5 +1,6 @@
 .texera-workspace-result-panel-body {
-  min-height: 35vh;
+  height: 35vh;
+  overflow-y: auto;
   .result-table {
     padding: 1px;
   }
