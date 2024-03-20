@@ -55,7 +55,6 @@ class DataProcessor(
     with Serializable {
 
   @transient var operator: OperatorExecutor = _
-  @transient var serializationCall: () => Unit = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
