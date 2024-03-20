@@ -8,7 +8,6 @@ import edu.uci.ics.amber.engine.architecture.controller.Controller.{
   ReplayStatusUpdate,
   WorkflowRecoveryStatus
 }
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -21,6 +20,7 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   WorkflowFIFOMessage
 }
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
@@ -216,7 +216,9 @@ class Controller(
     }
     outputMessages.foreach(transferService.send)
     cp.asyncRPCClient.sendToClient(
-      WorkflowStatsUpdate(cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap)
+      ExecutionStatsUpdate(
+        cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+      )
     )
     globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
   }
