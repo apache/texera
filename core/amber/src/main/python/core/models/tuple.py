@@ -20,11 +20,9 @@ from .schema.schema import Schema
 
 @runtime_checkable
 class TupleLike(Protocol):
-    def __getitem__(self, item: typing.Union[str, int]) -> Field:
-        ...
+    def __getitem__(self, item: typing.Union[str, int]) -> Field: ...
 
-    def __setitem__(self, key: typing.Union[str, int], value: Field) -> None:
-        ...
+    def __setitem__(self, key: typing.Union[str, int], value: Field) -> None: ...
 
 
 @dataclass

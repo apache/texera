@@ -5,8 +5,8 @@ import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.PortComp
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.WorkerExecutionCompletedHandler.WorkerExecutionCompleted
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfoWithCode
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.EvaluateExpressionHandler.EvaluateExpression
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
-import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ModifyPythonOperatorLogicHandler.ModifyPythonOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
+import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.UpdatePythonExecutorHandler.UpdatePythonExecutor
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.ReplayCurrentTupleHandler.ReplayCurrentTuple
 import edu.uci.ics.amber.engine.architecture.pythonworker.promisehandlers.WorkerDebugCommandHandler.WorkerDebugCommand
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.Partitioning
@@ -18,7 +18,7 @@ import edu.uci.ics.amber.engine.architecture.worker.controlreturns.{
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrentInputTupleHandler.QueryCurrentInputTuple
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
@@ -39,8 +39,8 @@ object ControlCommandConvertUtils {
         PauseWorkerV2()
       case ResumeWorker() =>
         ResumeWorkerV2()
-      case OpenOperator() =>
-        OpenOperatorV2()
+      case OpenExecutor() =>
+        OpenExecutorV2()
       case AssignPort(portId, input, schema) =>
         AssignPortV2(portId, input, schema.toRawSchema)
       case AddPartitioning(tag: PhysicalLink, partitioning: Partitioning) =>
@@ -51,15 +51,15 @@ object ControlCommandConvertUtils {
         QueryStatisticsV2()
       case QueryCurrentInputTuple() =>
         QueryCurrentInputTupleV2()
-      case InitializeOperatorLogic(_, opExecInitInfo, isSource) =>
-        InitializeOperatorLogicV2(
+      case InitializeExecutor(_, opExecInitInfo, isSource) =>
+        InitializeExecutorV2(
           opExecInitInfo.asInstanceOf[OpExecInitInfoWithCode].codeGen(0, 0)._1,
           isSource
         )
       case ReplayCurrentTuple() =>
         ReplayCurrentTupleV2()
-      case ModifyPythonOperatorLogic(code, isSource) =>
-        ModifyOperatorLogicV2(code, isSource)
+      case UpdatePythonExecutor(code, isSource) =>
+        UpdateExecutorV2(code, isSource)
       case EvaluateExpression(expression) =>
         EvaluateExpressionV2(expression)
       case WorkerDebugCommand(cmd) =>

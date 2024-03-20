@@ -85,21 +85,21 @@ class ScalaPbOptions(betterproto.Message):
     # Enable java conversions for this file.
     java_conversions: bool = betterproto.bool_field(23)
     # List of message options to apply to some messages.
-    aux_message_options: List[
-        "ScalaPbOptionsAuxMessageOptions"
-    ] = betterproto.message_field(18)
+    aux_message_options: List["ScalaPbOptionsAuxMessageOptions"] = (
+        betterproto.message_field(18)
+    )
     # List of message options to apply to some fields.
-    aux_field_options: List[
-        "ScalaPbOptionsAuxFieldOptions"
-    ] = betterproto.message_field(19)
+    aux_field_options: List["ScalaPbOptionsAuxFieldOptions"] = (
+        betterproto.message_field(19)
+    )
     # List of message options to apply to some enums.
     aux_enum_options: List["ScalaPbOptionsAuxEnumOptions"] = betterproto.message_field(
         20
     )
     # List of enum value options to apply to some enum values.
-    aux_enum_value_options: List[
-        "ScalaPbOptionsAuxEnumValueOptions"
-    ] = betterproto.message_field(22)
+    aux_enum_value_options: List["ScalaPbOptionsAuxEnumValueOptions"] = (
+        betterproto.message_field(22)
+    )
     # List of preprocessors to apply.
     preprocessors: List[str] = betterproto.string_field(24)
     field_transformations: List["FieldTransformation"] = betterproto.message_field(25)

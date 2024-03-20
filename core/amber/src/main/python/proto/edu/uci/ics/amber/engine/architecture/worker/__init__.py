@@ -50,7 +50,7 @@ class SchedulerTimeSlotEventV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class OpenOperatorV2(betterproto.Message):
+class OpenExecutorV2(betterproto.Message):
     pass
 
 
@@ -97,13 +97,13 @@ class LinkOrdinal(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class InitializeOperatorLogicV2(betterproto.Message):
+class InitializeExecutorV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
 
 
 @dataclass(eq=False, repr=False)
-class ModifyOperatorLogicV2(betterproto.Message):
+class UpdateExecutorV2(betterproto.Message):
     code: str = betterproto.string_field(1)
     is_source: bool = betterproto.bool_field(2)
 
@@ -162,17 +162,17 @@ class ControlCommandV2(betterproto.Message):
     query_current_input_tuple: "QueryCurrentInputTupleV2" = betterproto.message_field(
         8, group="sealed_value"
     )
-    open_operator: "OpenOperatorV2" = betterproto.message_field(9, group="sealed_value")
+    open_executor: "OpenExecutorV2" = betterproto.message_field(9, group="sealed_value")
     port_completed: "PortCompletedV2" = betterproto.message_field(
         10, group="sealed_value"
     )
     scheduler_time_slot_event: "SchedulerTimeSlotEventV2" = betterproto.message_field(
         11, group="sealed_value"
     )
-    initialize_operator_logic: "InitializeOperatorLogicV2" = betterproto.message_field(
+    initialize_executor: "InitializeExecutorV2" = betterproto.message_field(
         21, group="sealed_value"
     )
-    modify_operator_logic: "ModifyOperatorLogicV2" = betterproto.message_field(
+    update_executor: "UpdateExecutorV2" = betterproto.message_field(
         22, group="sealed_value"
     )
     python_console_message: "PythonConsoleMessageV2" = betterproto.message_field(

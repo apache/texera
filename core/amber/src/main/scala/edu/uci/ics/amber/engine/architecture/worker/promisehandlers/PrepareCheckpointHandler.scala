@@ -41,7 +41,7 @@ trait PrepareCheckpointHandler {
     dp.channelMarkerManager.checkpoints(checkpointId) = chkpt
     logger.info("Serialized DP state")
     // 2. serialize operator state
-    dp.operator match {
+    dp.executor match {
       case support: CheckpointSupport =>
         dp.outputManager.outputIterator.setTupleOutput(
           support.serializeState(dp.outputManager.outputIterator.outputIter, chkpt)

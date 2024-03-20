@@ -21,7 +21,7 @@ trait StartHandler {
 
   registerHandler { (msg: StartWorker, sender) =>
     logger.info("Starting the worker.")
-    if (dp.operator.isInstanceOf[SourceOperatorExecutor]) {
+    if (dp.executor.isInstanceOf[SourceOperatorExecutor]) {
       dp.stateManager.assertState(READY)
       dp.stateManager.transitTo(RUNNING)
       // for source operator: add a virtual input channel just for kicking off the execution
