@@ -1,17 +1,16 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-trait OperatorExecutor extends IOperatorExecutor {
+trait OperatorExecutor {
 
-  override def open(): Unit = {}
+  def open(): Unit = {}
 
-  override def close(): Unit = {}
+  def close(): Unit = {}
 
-  override def processTupleMultiPort(
+  def processTupleMultiPort(
       tuple: Tuple,
       port: Int
   ): Iterator[(TupleLike, Option[PortIdentity])] = {
@@ -20,7 +19,7 @@ trait OperatorExecutor extends IOperatorExecutor {
 
   def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike]
 
-  override def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
+  def onFinishMultiPort(port: Int): Iterator[(TupleLike, Option[PortIdentity])] = {
     onFinish(port).map(t => (t, None))
   }
   def onFinish(port: Int): Iterator[TupleLike] = Iterator.empty
