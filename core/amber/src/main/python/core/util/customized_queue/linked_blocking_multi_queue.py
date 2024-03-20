@@ -224,9 +224,9 @@ class LinkedBlockingMultiQueue(IKeyedQueue):
         def __init__(
             self, priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]]
         ):
-            self.priority_groups: List[
-                LinkedBlockingMultiQueue.PriorityGroup[T]
-            ] = priority_groups
+            self.priority_groups: List[LinkedBlockingMultiQueue.PriorityGroup[T]] = (
+                priority_groups
+            )
 
         def get_next(self) -> Optional[LinkedBlockingMultiQueue.SubQueue[T]]:
             for pg in self.priority_groups:
