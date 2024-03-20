@@ -15,7 +15,7 @@ class StartWorkerHandler(ControlHandler):
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
         logger.info("Starting the worker.")
-        if context.operator_manager.operator.is_source:
+        if context.executor_manager.executor.is_source:
             context.state_manager.transit_to(WorkerState.RUNNING)
             context.input_queue.put(
                 DataElement(tag=InputManager.SOURCE_STARTER, payload=None)

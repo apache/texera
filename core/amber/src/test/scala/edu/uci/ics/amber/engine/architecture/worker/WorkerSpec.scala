@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -165,7 +165,7 @@ class WorkerSpec
     )
     val initializeOperatorLogic = ControlInvocation(
       4,
-      InitializeOperatorLogic(1, OpExecInitInfo((_, _) => mockOpExecutor), isSource = false)
+      InitializeExecutor(1, OpExecInitInfo((_, _) => mockOpExecutor), isSource = false)
     )
     sendControlToWorker(
       worker,

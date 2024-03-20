@@ -14,10 +14,10 @@ import edu.uci.ics.amber.engine.architecture.controller.execution.{
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.LinkWorkersHandler.LinkWorkers
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
 import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, ResourceConfig}
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenOperatorHandler.OpenOperator
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.OpenExecutorHandler.OpenExecutor
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
@@ -128,7 +128,7 @@ class RegionExecutionCoordinator(
             workerConfigs.map(_.workerId).map { workerId =>
               asyncRPCClient
                 .send(
-                  InitializeOperatorLogic(
+                  InitializeExecutor(
                     workerConfigs.length,
                     physicalOp.opExecInitInfo,
                     physicalOp.isSourceOperator
@@ -186,7 +186,7 @@ class RegionExecutionCoordinator(
             workflowExecution.getRegionExecution(region.id).getOperatorExecution(opId).getWorkerIds
           )
           .map { workerId =>
-            asyncRPCClient.send(OpenOperator(), workerId)
+            asyncRPCClient.send(OpenExecutor(), workerId)
           }
           .toSeq
       )

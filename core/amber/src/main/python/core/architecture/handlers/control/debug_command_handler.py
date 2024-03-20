@@ -32,7 +32,7 @@ class WorkerDebugCommandHandler(ControlHandler):
         :return:
         """
         debug_command, *debug_args = command.cmd.strip().split()
-        module_name = context.operator_manager.operator_module_name
+        module_name = context.executor_manager.operator_module_name
         if debug_command in ["b", "break"] and len(debug_args) > 0:
             # b(reak) ([filename:]lineno | function) [, condition]¶
             translated_command = (

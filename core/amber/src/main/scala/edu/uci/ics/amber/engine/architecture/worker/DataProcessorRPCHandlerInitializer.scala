@@ -8,8 +8,8 @@ import edu.uci.ics.amber.engine.common.AmberLogging
 class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     extends AsyncRPCHandlerInitializer(dp.asyncRPCClient, dp.asyncRPCServer)
     with AmberLogging
-    with InitializeOperatorLogicHandler
-    with OpenOperatorHandler
+    with InitializeExecutorHandler
+    with OpenExecutorHandler
     with PauseHandler
     with AddPartitioningHandler
     with QueryCurrentInputTupleHandler
@@ -20,7 +20,7 @@ class DataProcessorRPCHandlerInitializer(val dp: DataProcessor)
     with AddInputChannelHandler
     with ShutdownDPThreadHandler
     with FlushNetworkBufferHandler
-    with ModifyOperatorLogicHandler
+    with UpdateExecutorHandler
     with RetrieveStateHandler
     with PrepareCheckpointHandler
     with FinalizeCheckpointHandler {

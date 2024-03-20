@@ -26,7 +26,7 @@ message SchedulerTimeSlotEventV2 {
     bool time_slot_expired = 1;
 }
 
-message OpenOperatorV2 {}
+message OpenExecutorV2 {}
 
 message AssignPortV2 {
     common.PortIdentity portId = 1 [(scalapb.field).no_box = true];
@@ -58,12 +58,12 @@ message LinkOrdinal {
     int64 port_ordinal = 2;
 }
 
-message InitializeOperatorLogicV2 {
+message InitializeExecutorV2 {
     string code = 1;
     bool is_source = 2;
 }
 
-message ModifyOperatorLogicV2 {
+message UpdateExecutorV2 {
     string code = 1;
     bool is_source = 2;
 }
@@ -118,13 +118,13 @@ message ControlCommandV2 {
         QueryStatisticsV2 query_statistics = 7;
         QueryCurrentInputTupleV2 query_current_input_tuple = 8;
 
-        OpenOperatorV2 open_operator = 9;
+        OpenExecutorV2 open_executor = 9;
         PortCompletedV2 port_completed = 10;
 
         SchedulerTimeSlotEventV2 scheduler_time_slot_event = 11;
 
-        InitializeOperatorLogicV2 initialize_operator_logic = 21;
-        ModifyOperatorLogicV2 modify_operator_logic = 22;
+        InitializeExecutorV2 initialize_executor = 21;
+        UpdateExecutorV2 update_executor = 22;
         PythonConsoleMessageV2 python_console_message = 23;
         ReplayCurrentTupleV2 replay_current_tuple = 24;
         EvaluateExpressionV2 evaluate_expression = 25;

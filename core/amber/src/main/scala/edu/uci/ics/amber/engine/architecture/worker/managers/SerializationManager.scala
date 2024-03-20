@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo.generateJavaOpExec
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
 import edu.uci.ics.amber.engine.common.{
   AmberLogging,
   CheckpointState,
@@ -16,25 +16,25 @@ import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
 
   @transient private var serializationCall: () => Unit = _
-  private var opInitMsg: InitializeOperatorLogic = _
-  def setOpInitialization(msg: InitializeOperatorLogic): Unit = {
-    opInitMsg = msg
+  private var execInitMsg: InitializeExecutor = _
+  def setOpInitialization(msg: InitializeExecutor): Unit = {
+    execInitMsg = msg
   }
 
-  def restoreOperatorState(
+  def restoreExecutorState(
       chkpt: CheckpointState
   ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
-    val operator = generateJavaOpExec(
-      opInitMsg.opExecInitInfo,
+    val executor = generateJavaOpExec(
+      execInitMsg.opExecInitInfo,
       VirtualIdentityUtils.getWorkerIndex(actorId),
-      opInitMsg.totalWorkerCount
+      execInitMsg.totalWorkerCount
     )
-    val iter = operator match {
+    val iter = executor match {
       case support: CheckpointSupport =>
         support.deserializeState(chkpt)
       case _ => Iterator.empty
     }
-    (operator, iter)
+    (executor, iter)
   }
 
   def registerSerialization(call: () => Unit): Unit = {

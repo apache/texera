@@ -12,11 +12,11 @@ from loguru import logger
 from core.models import Operator, SourceOperator
 
 
-class OperatorManager:
+class ExecutorManager:
     def __init__(self):
-        self.operator: Optional[Operator] = None
+        self.executor: Optional[Operator] = None
         self.operator_module_name: Optional[str] = None
-        self.operator_version: int = 0  # incremental only
+        self.executor_version: int = 0  # incremental only
 
     @cached_property
     def fs(self) -> FS:
@@ -47,16 +47,16 @@ class OperatorManager:
         Generate a UUID to be used as udf source code file.
         :return Tuple[str, str]: the pair of module_name and file_name.
         """
-        self.operator_version += 1
-        module_name = f"udf-v{self.operator_version}"
+        self.executor_version += 1
+        module_name = f"udf-v{self.executor_version}"
         file_name = f"{module_name}.py"
         return module_name, file_name
 
-    def load_operator(self, code: str) -> type(Operator):
+    def load_executor_definition(self, code: str) -> type(Operator):
         """
-        Load the given operator code in string into a class definition
+        Load the given executor code in string into a class definition
         :param code: str, python code that defines an Operator, should contain one
-                and only one Operator definition.
+                and only one Executor definition.
         :return: an Operator sub-class definition
         """
         module_name, file_name = self.gen_module_file_name()
@@ -69,19 +69,19 @@ class OperatorManager:
         )
 
         if module_name in sys.modules:
-            operator_module = importlib.import_module(module_name)
-            operator_module.__dict__.clear()
-            operator_module.__dict__["__name__"] = module_name
-            operator_module = importlib.reload(operator_module)
+            executor_module = importlib.import_module(module_name)
+            executor_module.__dict__.clear()
+            executor_module.__dict__["__name__"] = module_name
+            executor_module = importlib.reload(executor_module)
         else:
-            operator_module = importlib.import_module(module_name)
+            executor_module = importlib.import_module(module_name)
         self.operator_module_name = module_name
 
-        operators = list(
-            filter(self.is_concrete_operator, operator_module.__dict__.values())
+        executors = list(
+            filter(self.is_concrete_operator, executor_module.__dict__.values())
         )
-        assert len(operators) == 1, "There should be one and only one Operator defined"
-        return operators[0]
+        assert len(executors) == 1, "There should be one and only one Operator defined"
+        return executors[0]
 
     def close(self) -> None:
         """
@@ -105,9 +105,9 @@ class OperatorManager:
             and not inspect.isabstract(cls)
         )
 
-    def initialize_operator(self, code: str, is_source: bool) -> None:
+    def initialize_executor(self, code: str, is_source: bool) -> None:
         """
-        Initialize the operator logic with the given code. The output schema is
+        Initialize the executor with the given code. The output schema is
         decided by the user.
 
         :param code: The string version of python code, containing one Operator
@@ -116,16 +116,16 @@ class OperatorManager:
         :param output_schema: the raw mapping of output schema, name -> type_str.
         :return:
         """
-        operator: type(Operator) = self.load_operator(code)
-        self.operator = operator()
-        self.operator.is_source = is_source
+        executor: type(Operator) = self.load_executor_definition(code)
+        self.executor = executor()
+        self.executor.is_source = is_source
         assert (
-            isinstance(self.operator, SourceOperator) == self.operator.is_source
+            isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
 
-    def update_operator(self, code: str, is_source: bool) -> None:
+    def update_executor(self, code: str, is_source: bool) -> None:
         """
-        Update the operator logic, preserving its state in the __dict__.
+        Update the executor, preserving its state in the __dict__.
         The user is responsible to make sure the state can be used by the new logic.
 
         :param code: The string version of python code, containing one Operator
@@ -133,15 +133,15 @@ class OperatorManager:
         :param is_source: Indicating if the operator is used as a source operator.
         :return:
         """
-        original_internal_state = self.operator.__dict__
-        operator: type(Operator) = self.load_operator(code)
-        self.operator = operator()
-        self.operator.is_source = is_source
+        original_internal_state = self.executor.__dict__
+        executor: type(Operator) = self.load_executor_definition(code)
+        self.executor = executor()
+        self.executor.is_source = is_source
         assert (
-            isinstance(self.operator, SourceOperator) == self.operator.is_source
+            isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
-        self.operator.__dict__ = original_internal_state
+        self.executor.__dict__ = original_internal_state
         # TODO:
         #   it may be an interesting idea to preserve versions of code and versions
         #   of states whenever the operator logic is being updated.

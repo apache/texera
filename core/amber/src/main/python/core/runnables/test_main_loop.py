@@ -29,7 +29,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     WorkerState,
     WorkerStatistics,
     PortCompletedV2,
-    InitializeOperatorLogicV2,
+    InitializeExecutorV2,
     PauseWorkerV2,
     ResumeWorkerV2,
     AssignPortV2,
@@ -190,7 +190,7 @@ class TestMainLoop:
         return {"test-1": "string", "test-2": "integer"}
 
     @pytest.fixture
-    def mock_initialize_operator_logic(
+    def mock_initialize_executor(
         self,
         mock_controller,
         mock_sender_actor,
@@ -200,7 +200,7 @@ class TestMainLoop:
     ):
         command = set_one_of(
             ControlCommandV2,
-            InitializeOperatorLogicV2(
+            InitializeExecutorV2(
                 code="from pytexera import *\n" + inspect.getsource(EchoOperator),
                 is_source=False,
             ),
@@ -212,7 +212,7 @@ class TestMainLoop:
         return ControlElement(tag=mock_controller, payload=payload)
 
     @pytest.fixture
-    def mock_initialize_batch_count_operator_logic(
+    def mock_initialize_batch_count_executor(
         self,
         mock_controller,
         mock_sender_actor,
@@ -222,7 +222,7 @@ class TestMainLoop:
     ):
         command = set_one_of(
             ControlCommandV2,
-            InitializeOperatorLogicV2(
+            InitializeExecutorV2(
                 code="from pytexera import *\n" + inspect.getsource(CountBatchOperator),
                 is_source=False,
             ),
@@ -299,7 +299,7 @@ class TestMainLoop:
 
     @staticmethod
     def check_batch_rank_sum(
-        operator,
+        executor,
         input_queue,
         mock_batch_data_elements,
         output_data_elements,
@@ -318,7 +318,7 @@ class TestMainLoop:
             output_data_elements.append(output_queue.get())
             rank_sum_real += output_data_elements[i].payload.frame[0]["test-2"]
             rank_sum_suppose += mock_batch[i]["test-2"]
-        assert operator.count == count
+        assert executor.count == count
         assert rank_sum_real == rank_sum_suppose
 
     @pytest.mark.timeout(2)
@@ -340,7 +340,7 @@ class TestMainLoop:
         mock_assign_output_port,
         mock_add_input_channel,
         mock_add_partitioning,
-        mock_initialize_operator_logic,
+        mock_initialize_executor,
         mock_end_of_upstream,
         mock_query_statistics,
         mock_tuple,
@@ -396,8 +396,8 @@ class TestMainLoop:
             ),
         )
 
-        # can process InitializeOperatorLogic
-        input_queue.put(mock_initialize_operator_logic)
+        # can process InitializeExecutor
+        input_queue.put(mock_initialize_executor)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -524,7 +524,7 @@ class TestMainLoop:
         mock_add_partitioning,
         mock_pause,
         mock_resume,
-        mock_initialize_batch_count_operator_logic,
+        mock_initialize_batch_count_executor,
         mock_batch,
         mock_batch_data_elements,
         mock_end_of_upstream,
@@ -579,8 +579,8 @@ class TestMainLoop:
             ),
         )
 
-        # can process InitializeOperatorLogic
-        input_queue.put(mock_initialize_batch_count_operator_logic)
+        # can process InitializeExecutor
+        input_queue.put(mock_initialize_batch_count_executor)
         assert output_queue.get() == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -590,11 +590,11 @@ class TestMainLoop:
                 )
             ),
         )
-        operator = main_loop.context.operator_manager.operator
+        executor = main_loop.context.executor_manager.executor
         output_data_elements = []
 
         # can process a InputDataFrame
-        operator.BATCH_SIZE = 10
+        executor.BATCH_SIZE = 10
         for i in range(13):
             input_queue.put(mock_batch_data_elements[i])
         for i in range(10):
@@ -604,8 +604,8 @@ class TestMainLoop:
             command_sequence, input_queue, mock_controller, mock_pause, output_queue
         )
         # input queue 13, output queue 10, batch_buffer 3
-        assert operator.count == 1
-        operator.BATCH_SIZE = 20
+        assert executor.count == 1
+        executor.BATCH_SIZE = 20
         self.send_resume(
             command_sequence, input_queue, mock_controller, mock_resume, output_queue
         )
@@ -619,8 +619,8 @@ class TestMainLoop:
             command_sequence, input_queue, mock_controller, mock_pause, output_queue
         )
         # input queue 41, output queue 30, batch_buffer 11
-        assert operator.count == 2
-        operator.BATCH_SIZE = 5
+        assert executor.count == 2
+        executor.BATCH_SIZE = 5
         self.send_resume(
             command_sequence, input_queue, mock_controller, mock_resume, output_queue
         )
@@ -634,7 +634,7 @@ class TestMainLoop:
             command_sequence, input_queue, mock_controller, mock_pause, output_queue
         )
         # input queue 43, output queue 40, batch_buffer 3
-        assert operator.count == 4
+        assert executor.count == 4
         self.send_resume(
             command_sequence, input_queue, mock_controller, mock_resume, output_queue
         )
@@ -648,7 +648,7 @@ class TestMainLoop:
             command_sequence, input_queue, mock_controller, mock_pause, output_queue
         )
         # input queue 57, output queue 55, batch_buffer 2
-        assert operator.count == 7
+        assert executor.count == 7
         self.send_resume(
             command_sequence, input_queue, mock_controller, mock_resume, output_queue
         )
@@ -658,7 +658,7 @@ class TestMainLoop:
             output_data_elements.append(output_queue.get())
 
         # check the batch count
-        assert main_loop.context.operator_manager.operator.count == 8
+        assert main_loop.context.executor_manager.executor.count == 8
 
         assert output_data_elements[0].tag == mock_receiver_actor
         assert isinstance(output_data_elements[0].payload, OutputDataFrame)

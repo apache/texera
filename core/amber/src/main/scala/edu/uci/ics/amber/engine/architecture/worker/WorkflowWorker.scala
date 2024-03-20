@@ -149,10 +149,10 @@ class WorkflowWorker(
     dp = dpState // overwrite dp state
     dp.outputHandler = logManager.sendCommitted
     dp.initTimerService(timerService)
-    logger.info("start re-initialize operator from checkpoint.")
-    val (operator, iter) = dp.serializationManager.restoreOperatorState(chkpt)
-    dp.operator = operator
-    logger.info("re-initialize operator done.")
+    logger.info("start re-initialize executor from checkpoint.")
+    val (executor, iter) = dp.serializationManager.restoreExecutorState(chkpt)
+    dp.executor = executor
+    logger.info("re-initialize executor done.")
     dp.outputManager.outputIterator.setTupleOutput(iter)
     logger.info("set tuple output done.")
     queuedMessages.foreach(msg => inputQueue.put(FIFOMessageElement(msg)))
