@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
@@ -67,7 +67,7 @@ class WorkerSpec
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
-  private val mockOpExecutor = new IOperatorExecutor {
+  private val mockOpExecutor = new OperatorExecutor {
     override def open(): Unit = println("opened!")
 
     override def close(): Unit = println("closed!")
@@ -83,6 +83,8 @@ class WorkerSpec
     ): Iterator[(TupleLike, Option[PortIdentity])] = {
       Iterator()
     }
+
+    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = ???
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
 

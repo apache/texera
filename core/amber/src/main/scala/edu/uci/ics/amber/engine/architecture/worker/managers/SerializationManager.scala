@@ -6,12 +6,12 @@ import edu.uci.ics.amber.engine.common.{
   AmberLogging,
   CheckpointState,
   CheckpointSupport,
-  IOperatorExecutor,
   VirtualIdentityUtils
 }
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 
 class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLogging {
 
@@ -23,7 +23,7 @@ class SerializationManager(val actorId: ActorVirtualIdentity) extends AmberLoggi
 
   def restoreOperatorState(
       chkpt: CheckpointState
-  ): (IOperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
+  ): (OperatorExecutor, Iterator[(TupleLike, Option[PortIdentity])]) = {
     val operator = generateJavaOpExec(
       opInitMsg.opExecInitInfo,
       VirtualIdentityUtils.getWorkerIndex(actorId),

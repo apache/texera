@@ -2,9 +2,10 @@ package edu.uci.ics.amber.engine.common
 
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
-trait SinkOperatorExecutor extends IOperatorExecutor {
+trait SinkOperatorExecutor extends OperatorExecutor {
 
   override def processTupleMultiPort(
       tuple: Tuple,
