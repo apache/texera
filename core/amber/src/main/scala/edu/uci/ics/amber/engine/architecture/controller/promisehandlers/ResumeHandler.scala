@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller.promisehandlers
 
 import com.twitter.util.Future
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowStatsUpdate
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.ResumeHandler.ResumeWorkflow
 import edu.uci.ics.amber.engine.architecture.controller.ControllerAsyncRPCHandlerInitializer
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
@@ -42,7 +42,7 @@ trait ResumeHandler {
         .map { _ =>
           // update frontend status
           sendToClient(
-            WorkflowStatsUpdate(
+            ExecutionStatsUpdate(
               cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
             )
           )

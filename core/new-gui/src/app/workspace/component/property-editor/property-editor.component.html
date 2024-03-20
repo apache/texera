@@ -4,8 +4,8 @@
   cdkDragBoundary="body"
   id="right-container"
   nz-resizable
-  [nzMinWidth]="280"
-  [nzMinHeight]="400"
+  [nzMinWidth]="260"
+  [nzMinHeight]="300"
   [nzMaxWidth]="window.innerWidth/2"
   [nzMaxHeight]="window.innerWidth*0.85"
   [style.width.px]="width"
@@ -48,12 +48,15 @@
   <div id="content">
     <h4
       id="title"
-      cdkDragHandle>
+      cdkDragHandle
+      *ngIf="width">
       Property
     </h4>
     <div id="property-editor">
       <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
     </div>
   </div>
-  <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
+  <nz-resize-handles
+    *ngIf="width"
+    [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
 </div>

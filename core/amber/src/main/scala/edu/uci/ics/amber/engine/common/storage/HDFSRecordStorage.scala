@@ -49,4 +49,8 @@ class HDFSRecordStorage[T >: Null <: AnyRef](hdfsLogFolderURI: URI)
     }
   }
 
+  override def containsFolder(folderName: String): Boolean = {
+    val path = folderPath.suffix("/" + folderName)
+    fileSystem.exists(path) && fileSystem.getFileStatus(path).isDirectory
+  }
 }
