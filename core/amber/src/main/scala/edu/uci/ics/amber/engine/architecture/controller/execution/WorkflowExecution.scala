@@ -90,15 +90,16 @@ case class WorkflowExecution() {
     if (regionStates.forall(_ == COMPLETED)) {
       return WorkflowAggregatedState.COMPLETED
     }
-    if (regionStates.exists(_ == RUNNING)) {
-      return WorkflowAggregatedState.RUNNING
-    }
-    val unCompletedOpStates = regionStates.filter(_ != COMPLETED)
-    val runningOpStates = unCompletedOpStates.filter(_ != UNINITIALIZED)
+    val unCompletedOpStates = regionExecutions.values
+      .flatMap(_.getAllOperatorExecutions.map(_._2.getState))
+      .filter(_ != COMPLETED)
     if (unCompletedOpStates.forall(_ == UNINITIALIZED)) {
       return WorkflowAggregatedState.UNINITIALIZED
     }
-    if (runningOpStates.forall(_ == PAUSED)) {
+    val runningOpStates = unCompletedOpStates.filter(_ != UNINITIALIZED)
+    if (runningOpStates.exists(_ == RUNNING)) {
+      WorkflowAggregatedState.RUNNING
+    } else if (runningOpStates.forall(_ == PAUSED)) {
       WorkflowAggregatedState.PAUSED
     } else if (runningOpStates.forall(_ == READY)) {
       WorkflowAggregatedState.READY

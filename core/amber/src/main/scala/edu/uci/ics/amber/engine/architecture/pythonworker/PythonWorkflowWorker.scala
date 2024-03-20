@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
@@ -154,4 +155,6 @@ class PythonWorkflowWorker(
       )
     ).run(BasicIO.standard(false))
   }
+
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ???
 }

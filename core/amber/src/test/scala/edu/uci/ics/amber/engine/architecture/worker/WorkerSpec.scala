@@ -143,13 +143,12 @@ class WorkerSpec
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler)
         this.dp.initTimerService(timerService)
-        override val dpThread: DPThread =
-          new DPThread(
-            actorId,
-            dp,
-            logManager,
-            inputQueue
-          )
+        dpThread = new DPThread(
+          actorId,
+          dp,
+          logManager,
+          inputQueue
+        )
       }
     )
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))

@@ -1,6 +1,8 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.csv
 
 import com.univocity.parsers.csv.{CsvFormat, CsvParser, CsvParserSettings}
+import edu.uci.ics.amber.engine.common.workflow.PortIdentity
+import edu.uci.ics.amber.engine.common.{CheckpointState, CheckpointSupport}
 import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeTypeUtils, Schema}
@@ -17,11 +19,13 @@ class CSVScanSourceOpExec private[csv] (
     customDelimiter: Option[String],
     hasHeader: Boolean,
     schemaFunc: () => Schema
-) extends SourceOperatorExecutor {
+) extends SourceOperatorExecutor
+    with CheckpointSupport {
   var inputReader: InputStreamReader = _
   var parser: CsvParser = _
   var schema: Schema = _
   var nextRow: Array[String] = _
+  var numRowGenerated = 0
 
   override def produceTuple(): Iterator[TupleLike] = {
 
@@ -36,6 +40,7 @@ class CSVScanSourceOpExec private[csv] (
 
       override def next(): Array[String] = {
         val ret = nextRow
+        numRowGenerated += 1
         nextRow = null
         ret
       }
@@ -92,4 +97,27 @@ class CSVScanSourceOpExec private[csv] (
       inputReader.close()
     }
   }
+
+  override def serializeState(
+      currentIteratorState: Iterator[(TupleLike, Option[PortIdentity])],
+      checkpoint: CheckpointState
+  ): Iterator[(TupleLike, Option[PortIdentity])] = {
+    checkpoint.save(
+      "numOutputRows",
+      numRowGenerated
+    )
+    currentIteratorState
+  }
+
+  override def deserializeState(
+      checkpoint: CheckpointState
+  ): Iterator[(TupleLike, Option[PortIdentity])] = {
+    open()
+    numRowGenerated = checkpoint.load("numOutputRows")
+    var tupleIterator = produceTuple().drop(numRowGenerated)
+    if (limit.isDefined) tupleIterator = tupleIterator.take(limit.get - numRowGenerated)
+    tupleIterator.map(tuple => (tuple, Option.empty))
+  }
+
+  override def getEstimatedCheckpointCost: Long = 0L
 }

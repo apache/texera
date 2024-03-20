@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.control.utils
 
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.common.{AmberProcessor, WorkflowActor}
+import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
@@ -47,4 +48,6 @@ class TrivialControlTester(
   override def handleBackpressure(isBackpressured: Boolean): Unit = {}
 
   override def initState(): Unit = {}
+
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = {}
 }

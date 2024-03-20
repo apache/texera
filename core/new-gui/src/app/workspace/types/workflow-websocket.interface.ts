@@ -190,7 +190,7 @@ export type TexeraWebsocketRequestTypeMap = {
   WorkflowExecuteRequest: WorkflowExecuteRequest;
   WorkflowKillRequest: {};
   WorkflowPauseRequest: {};
-  WorkflowInteractionRequest: {};
+  WorkflowCheckpointRequest: {};
   WorkflowResumeRequest: {};
   PythonExpressionEvaluateRequest: PythonExpressionEvaluateRequest;
   DebugCommandRequest: DebugCommandRequest;
