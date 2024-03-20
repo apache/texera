@@ -56,5 +56,7 @@
       <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
     </div>
   </div>
-  <nz-resize-handles [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
+  <nz-resize-handles
+    *ngIf="width"
+    [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
 </div>
