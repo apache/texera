@@ -1,5 +1,62 @@
-<div class="property-editor">
-  <ndc-dynamic
-    [ndcDynamicComponent]="frameComponentConfig?.component"
-    [ndcDynamicInputs]="frameComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
+<div
+  [hidden]="!currentComponent"
+  cdkDrag
+  cdkDragBoundary="body"
+  id="right-container"
+  nz-resizable
+  [nzMinWidth]="260"
+  [nzMinHeight]="300"
+  [nzMaxWidth]="window.innerWidth/2"
+  [nzMaxHeight]="window.innerWidth*0.85"
+  [style.width.px]="width"
+  [style.height.px]="height"
+  (nzResize)="onResize($event)"
+  class="box">
+  <ul
+    nz-menu
+    id="property-buttons"
+    [ngClass]="{'shadow':  !width}">
+    <li
+      nz-menu-item
+      (click)="width = 0;"
+      *ngIf="width">
+      <span
+        nz-icon
+        nzType="minus"></span>
+    </li>
+    <li
+      nz-menu-item
+      nzSelected="{{!width}}"
+      cdkDragHandle
+      *ngIf="!width">
+      <span
+        nz-icon
+        nzType="drag"></span>
+    </li>
+    <li
+      nz-menu-divider
+      id="divider"></li>
+    <li
+      nz-menu-item
+      (click)="width = 280;"
+      *ngIf="!width">
+      <span
+        nz-icon
+        nzType="form"></span>
+    </li>
+  </ul>
+  <div id="content">
+    <h4
+      id="title"
+      cdkDragHandle
+      *ngIf="width">
+      Property
+    </h4>
+    <div id="property-editor">
+      <ng-container *ngComponentOutlet="currentComponent;inputs: componentInputs"></ng-container>
+    </div>
+  </div>
+  <nz-resize-handles
+    *ngIf="width"
+    [nzDirections]="['left', 'bottom', 'bottomLeft']"></nz-resize-handles>
 </div>

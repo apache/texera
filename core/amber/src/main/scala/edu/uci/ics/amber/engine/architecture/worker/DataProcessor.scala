@@ -12,8 +12,9 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
   OutputManager,
   WorkerTimerService
 }
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeOperator, FinalizePort}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.MainThreadDelegateMessage
+import edu.uci.ics.amber.engine.architecture.worker.managers.SerializationManager
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.PauseHandler.PauseWorker
 import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.{
   COMPLETED,
@@ -25,14 +26,10 @@ import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.statetransition.WorkerStateManager
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, SpecialTupleLike, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.util.{CONTROLLER, SELF}
-import edu.uci.ics.amber.engine.common.virtualidentity.{
-  ActorVirtualIdentity,
-  ChannelIdentity,
-  PhysicalOpIdentity
-}
+import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, VirtualIdentityUtils}
 import edu.uci.ics.amber.error.ErrorUtils.{mkConsoleMessage, safely}
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 
 object DataProcessor {
@@ -40,8 +37,8 @@ object DataProcessor {
   case class FinalizePort(portId: PortIdentity, input: Boolean) extends SpecialTupleLike {
     override def getFields: Array[Any] = Array("FinalizePort")
   }
-  case class FinalizeOperator() extends SpecialTupleLike {
-    override def getFields: Array[Any] = Array("FinalizeOperator")
+  case class FinalizeExecutor() extends SpecialTupleLike {
+    override def getFields: Array[Any] = Array("FinalizeExecutor")
   }
 
 }
@@ -52,16 +49,13 @@ class DataProcessor(
 ) extends AmberProcessor(actorId, outputHandler)
     with Serializable {
 
-  @transient var operator: IOperatorExecutor = _
-  @transient var serializationCall: () => Unit = _
+  @transient var executor: OperatorExecutor = _
 
   def initTimerService(adaptiveBatchingMonitor: WorkerTimerService): Unit = {
     this.adaptiveBatchingMonitor = adaptiveBatchingMonitor
   }
 
   @transient var adaptiveBatchingMonitor: WorkerTimerService = _
-
-  def getOperatorId: PhysicalOpIdentity = VirtualIdentityUtils.getPhysicalOpId(actorId)
 
   // inner dependencies
   private val initializer = new DataProcessorRPCHandlerInitializer(this)
@@ -70,17 +64,17 @@ class DataProcessor(
   val inputManager: InputManager = new InputManager(actorId)
   val outputManager: OutputManager = new OutputManager(actorId, outputGateway)
   val channelMarkerManager: ChannelMarkerManager = new ChannelMarkerManager(actorId, inputGateway)
-
+  val serializationManager: SerializationManager = new SerializationManager(actorId)
   def getQueuedCredit(channelId: ChannelIdentity): Long = {
     inputGateway.getChannel(channelId).getQueuedCredit
   }
 
-  /** provide API for actor to get stats of this operator
+  /** provide API for actor to get stats of this executor
     *
     * @return (input tuple count, output tuple count)
     */
   def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(stateManager.getCurrentState, operator)
+    statisticsManager.getStatistics(stateManager.getCurrentState, executor)
 
   /**
     * process currentInputTuple through executor logic.
@@ -89,7 +83,7 @@ class DataProcessor(
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
       outputManager.outputIterator.setTupleOutput(
-        operator.processTupleMultiPort(
+        executor.processTupleMultiPort(
           tuple,
           this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
         )
@@ -99,7 +93,7 @@ class DataProcessor(
     } catch safely {
       case e =>
         // forward input tuple to the user and pause DP thread
-        handleOperatorException(e)
+        handleExecutorException(e)
     }
   }
 
@@ -110,14 +104,14 @@ class DataProcessor(
   private[this] def processInputExhausted(): Unit = {
     try {
       outputManager.outputIterator.setTupleOutput(
-        operator.onFinishMultiPort(
+        executor.onFinishMultiPort(
           this.inputGateway.getChannel(inputManager.currentChannelId).getPortId.id
         )
       )
     } catch safely {
       case e =>
         // forward input tuple to the user and pause DP thread
-        handleOperatorException(e)
+        handleExecutorException(e)
     }
   }
 
@@ -136,7 +130,7 @@ class DataProcessor(
         // also invalidate outputIterator
         outputManager.outputIterator.setTupleOutput(Iterator.empty)
         // forward input tuple to the user and pause DP thread
-        handleOperatorException(e)
+        handleExecutorException(e)
     }
     if (out == null) return
 
@@ -145,14 +139,14 @@ class DataProcessor(
     if (outputTuple == null) return
 
     outputTuple match {
-      case FinalizeOperator() =>
+      case FinalizeExecutor() =>
         outputManager.emitEndOfUpstream()
         // Send Completed signal to worker actor.
-        operator.close() // close operator
+        executor.close()
         adaptiveBatchingMonitor.stopAdaptiveBatching()
         stateManager.transitTo(COMPLETED)
         logger.info(
-          s"$operator completed, # of input ports = ${inputManager.getAllPorts.size}, " +
+          s"$executor completed, # of input ports = ${inputManager.getAllPorts.size}, " +
             s"input tuple count = ${statisticsManager.getInputTupleCount}, " +
             s"output tuple count = ${statisticsManager.getOutputTupleCount}"
         )
@@ -233,7 +227,7 @@ class DataProcessor(
       if (command.isDefined) {
         asyncRPCServer.receive(command.get, channelId.fromWorkerId)
       }
-      // if this operator is not the final destination of the marker, pass it downstream
+      // if this worker is not the final destination of the marker, pass it downstream
       val downstreamChannelsInScope = marker.scope.filter(_.fromWorkerId == actorId)
       if (downstreamChannelsInScope.nonEmpty) {
         outputManager.flush(Some(downstreamChannelsInScope))
@@ -253,7 +247,7 @@ class DataProcessor(
     }
   }
 
-  private[this] def handleOperatorException(e: Throwable): Unit = {
+  private[this] def handleExecutorException(e: Throwable): Unit = {
     asyncRPCClient.send(
       ConsoleMessageTriggered(mkConsoleMessage(actorId, e)),
       CONTROLLER

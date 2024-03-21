@@ -15,7 +15,7 @@ import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeOperatorLogicHandler.InitializeOperatorLogic
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
 import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
@@ -28,7 +28,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   PhysicalOpIdentity
 }
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.common.IOperatorExecutor
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
@@ -67,7 +67,7 @@ class WorkerSpec
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
-  private val mockOpExecutor = new IOperatorExecutor {
+  private val mockOpExecutor = new OperatorExecutor {
     override def open(): Unit = println("opened!")
 
     override def close(): Unit = println("closed!")
@@ -83,6 +83,8 @@ class WorkerSpec
     ): Iterator[(TupleLike, Option[PortIdentity])] = {
       Iterator()
     }
+
+    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = ???
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
 
@@ -143,13 +145,12 @@ class WorkerSpec
       ) {
         this.dp = new DataProcessor(identifier1, mockHandler)
         this.dp.initTimerService(timerService)
-        override val dpThread: DPThread =
-          new DPThread(
-            actorId,
-            dp,
-            logManager,
-            inputQueue
-          )
+        dpThread = new DPThread(
+          actorId,
+          dp,
+          logManager,
+          inputQueue
+        )
       }
     )
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
@@ -164,7 +165,7 @@ class WorkerSpec
     )
     val initializeOperatorLogic = ControlInvocation(
       4,
-      InitializeOperatorLogic(1, OpExecInitInfo((_, _) => mockOpExecutor), isSource = false)
+      InitializeExecutor(1, OpExecInitInfo((_, _) => mockOpExecutor), isSource = false)
     )
     sendControlToWorker(
       worker,

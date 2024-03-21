@@ -29,11 +29,11 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddInputChannel => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenExecutor => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PortCompleted => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SchedulerTimeSlotEvent => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic => __v.value
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeExecutor => __v.value
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateExecutor => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonConsoleMessage => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple => __v.value
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression => __v.value
@@ -51,11 +51,11 @@ object ControlCommandV2 {
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddInputChannel(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenExecutor(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PortCompleted(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SchedulerTimeSlotEvent(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(__v)
-      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeExecutor(__v)
+      case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateExecutor(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonConsoleMessage(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(__v)
       case __v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2 => edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(__v)
@@ -106,8 +106,8 @@ final case class ControlCommandV2Message(
         val __value = sealedValue.queryCurrentInputTuple.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.openOperator.isDefined) {
-        val __value = sealedValue.openOperator.get
+      if (sealedValue.openExecutor.isDefined) {
+        val __value = sealedValue.openExecutor.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.portCompleted.isDefined) {
@@ -118,12 +118,12 @@ final case class ControlCommandV2Message(
         val __value = sealedValue.schedulerTimeSlotEvent.get
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.initializeOperatorLogic.isDefined) {
-        val __value = sealedValue.initializeOperatorLogic.get
+      if (sealedValue.initializeExecutor.isDefined) {
+        val __value = sealedValue.initializeExecutor.get
         __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
-      if (sealedValue.modifyOperatorLogic.isDefined) {
-        val __value = sealedValue.modifyOperatorLogic.get
+      if (sealedValue.updateExecutor.isDefined) {
+        val __value = sealedValue.updateExecutor.get
         __size += 2 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       };
       if (sealedValue.pythonConsoleMessage.isDefined) {
@@ -209,7 +209,7 @@ final case class ControlCommandV2Message(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.openOperator.foreach { __v =>
+      sealedValue.openExecutor.foreach { __v =>
         val __m = __v
         _output__.writeTag(9, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -227,13 +227,13 @@ final case class ControlCommandV2Message(
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.initializeOperatorLogic.foreach { __v =>
+      sealedValue.initializeExecutor.foreach { __v =>
         val __m = __v
         _output__.writeTag(21, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
-      sealedValue.modifyOperatorLogic.foreach { __v =>
+      sealedValue.updateExecutor.foreach { __v =>
         val __m = __v
         _output__.writeTag(22, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
@@ -292,16 +292,16 @@ final case class ControlCommandV2Message(
     def withQueryStatistics(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(__v))
     def getQueryCurrentInputTuple: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2 = sealedValue.queryCurrentInputTuple.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2.defaultInstance)
     def withQueryCurrentInputTuple(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(__v))
-    def getOpenOperator: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2 = sealedValue.openOperator.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2.defaultInstance)
-    def withOpenOperator(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(__v))
+    def getOpenExecutor: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2 = sealedValue.openExecutor.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2.defaultInstance)
+    def withOpenExecutor(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenExecutor(__v))
     def getPortCompleted: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2 = sealedValue.portCompleted.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2.defaultInstance)
     def withPortCompleted(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PortCompleted(__v))
     def getSchedulerTimeSlotEvent: edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2 = sealedValue.schedulerTimeSlotEvent.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2.defaultInstance)
     def withSchedulerTimeSlotEvent(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SchedulerTimeSlotEvent(__v))
-    def getInitializeOperatorLogic: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = sealedValue.initializeOperatorLogic.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2.defaultInstance)
-    def withInitializeOperatorLogic(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(__v))
-    def getModifyOperatorLogic: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2 = sealedValue.modifyOperatorLogic.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2.defaultInstance)
-    def withModifyOperatorLogic(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(__v))
+    def getInitializeExecutor: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2 = sealedValue.initializeExecutor.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2.defaultInstance)
+    def withInitializeExecutor(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeExecutor(__v))
+    def getUpdateExecutor: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2 = sealedValue.updateExecutor.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2.defaultInstance)
+    def withUpdateExecutor(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateExecutor(__v))
     def getPythonConsoleMessage: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2 = sealedValue.pythonConsoleMessage.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2.defaultInstance)
     def withPythonConsoleMessage(__v: edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2): ControlCommandV2Message = copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonConsoleMessage(__v))
     def getReplayCurrentTuple: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2 = sealedValue.replayCurrentTuple.getOrElse(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2.defaultInstance)
@@ -326,11 +326,11 @@ final case class ControlCommandV2Message(
         case 6 => sealedValue.addInputChannel.orNull
         case 7 => sealedValue.queryStatistics.orNull
         case 8 => sealedValue.queryCurrentInputTuple.orNull
-        case 9 => sealedValue.openOperator.orNull
+        case 9 => sealedValue.openExecutor.orNull
         case 10 => sealedValue.portCompleted.orNull
         case 11 => sealedValue.schedulerTimeSlotEvent.orNull
-        case 21 => sealedValue.initializeOperatorLogic.orNull
-        case 22 => sealedValue.modifyOperatorLogic.orNull
+        case 21 => sealedValue.initializeExecutor.orNull
+        case 22 => sealedValue.updateExecutor.orNull
         case 23 => sealedValue.pythonConsoleMessage.orNull
         case 24 => sealedValue.replayCurrentTuple.orNull
         case 25 => sealedValue.evaluateExpression.orNull
@@ -350,11 +350,11 @@ final case class ControlCommandV2Message(
         case 6 => sealedValue.addInputChannel.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 7 => sealedValue.queryStatistics.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 8 => sealedValue.queryCurrentInputTuple.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 9 => sealedValue.openOperator.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 9 => sealedValue.openExecutor.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 10 => sealedValue.portCompleted.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 11 => sealedValue.schedulerTimeSlotEvent.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 21 => sealedValue.initializeOperatorLogic.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
-        case 22 => sealedValue.modifyOperatorLogic.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 21 => sealedValue.initializeExecutor.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 22 => sealedValue.updateExecutor.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 23 => sealedValue.pythonConsoleMessage.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 24 => sealedValue.replayCurrentTuple.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
         case 25 => sealedValue.evaluateExpression.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
@@ -395,15 +395,15 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
         case 66 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(__sealedValue.queryCurrentInputTuple.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 74 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(__sealedValue.openOperator.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenExecutor(__sealedValue.openExecutor.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 82 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PortCompleted(__sealedValue.portCompleted.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 90 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SchedulerTimeSlotEvent(__sealedValue.schedulerTimeSlotEvent.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 170 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(__sealedValue.initializeOperatorLogic.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeExecutor(__sealedValue.initializeExecutor.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 178 =>
-          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(__sealedValue.modifyOperatorLogic.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateExecutor(__sealedValue.updateExecutor.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 186 =>
           __sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonConsoleMessage(__sealedValue.pythonConsoleMessage.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 194 =>
@@ -435,11 +435,11 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddInputChannel(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(7).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(8).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(9).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(9).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenExecutor(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(10).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PortCompleted(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(11).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SchedulerTimeSlotEvent(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(21).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(_)))
-            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(22).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(21).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeExecutor(_)))
+            .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(22).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateExecutor(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(23).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonConsoleMessage(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(24).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(_)))
             .orElse[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue](__fieldsMap.get(scalaDescriptor.findFieldByNumber(25).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2]]).map(edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(_)))
@@ -463,11 +463,11 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       case 6 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2
       case 7 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2
       case 8 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2
-      case 9 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2
+      case 9 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2
       case 10 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2
       case 11 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2
-      case 21 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2
-      case 22 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2
+      case 21 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2
+      case 22 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2
       case 23 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2
       case 24 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2
       case 25 => __out = edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2
@@ -493,11 +493,11 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def isAddInputChannel: _root_.scala.Boolean = false
     def isQueryStatistics: _root_.scala.Boolean = false
     def isQueryCurrentInputTuple: _root_.scala.Boolean = false
-    def isOpenOperator: _root_.scala.Boolean = false
+    def isOpenExecutor: _root_.scala.Boolean = false
     def isPortCompleted: _root_.scala.Boolean = false
     def isSchedulerTimeSlotEvent: _root_.scala.Boolean = false
-    def isInitializeOperatorLogic: _root_.scala.Boolean = false
-    def isModifyOperatorLogic: _root_.scala.Boolean = false
+    def isInitializeExecutor: _root_.scala.Boolean = false
+    def isUpdateExecutor: _root_.scala.Boolean = false
     def isPythonConsoleMessage: _root_.scala.Boolean = false
     def isReplayCurrentTuple: _root_.scala.Boolean = false
     def isEvaluateExpression: _root_.scala.Boolean = false
@@ -512,11 +512,11 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def addInputChannel: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2] = _root_.scala.None
     def queryStatistics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = _root_.scala.None
     def queryCurrentInputTuple: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2] = _root_.scala.None
-    def openOperator: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] = _root_.scala.None
+    def openExecutor: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2] = _root_.scala.None
     def portCompleted: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2] = _root_.scala.None
     def schedulerTimeSlotEvent: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2] = _root_.scala.None
-    def initializeOperatorLogic: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = _root_.scala.None
-    def modifyOperatorLogic: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] = _root_.scala.None
+    def initializeExecutor: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2] = _root_.scala.None
+    def updateExecutor: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2] = _root_.scala.None
     def pythonConsoleMessage: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2] = _root_.scala.None
     def replayCurrentTuple: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2] = _root_.scala.None
     def evaluateExpression: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2] = _root_.scala.None
@@ -591,10 +591,10 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 8
     }
     @SerialVersionUID(0L)
-    final case class OpenOperator(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2
-      override def isOpenOperator: _root_.scala.Boolean = true
-      override def openOperator: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] = Some(value)
+    final case class OpenExecutor(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2
+      override def isOpenExecutor: _root_.scala.Boolean = true
+      override def openExecutor: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2] = Some(value)
       override def number: _root_.scala.Int = 9
     }
     @SerialVersionUID(0L)
@@ -612,17 +612,17 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
       override def number: _root_.scala.Int = 11
     }
     @SerialVersionUID(0L)
-    final case class InitializeOperatorLogic(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2
-      override def isInitializeOperatorLogic: _root_.scala.Boolean = true
-      override def initializeOperatorLogic: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = Some(value)
+    final case class InitializeExecutor(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2
+      override def isInitializeExecutor: _root_.scala.Boolean = true
+      override def initializeExecutor: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2] = Some(value)
       override def number: _root_.scala.Int = 21
     }
     @SerialVersionUID(0L)
-    final case class ModifyOperatorLogic(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
-      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2
-      override def isModifyOperatorLogic: _root_.scala.Boolean = true
-      override def modifyOperatorLogic: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] = Some(value)
+    final case class UpdateExecutor(value: edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2) extends edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue {
+      type ValueType = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2
+      override def isUpdateExecutor: _root_.scala.Boolean = true
+      override def updateExecutor: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2] = Some(value)
       override def number: _root_.scala.Int = 22
     }
     @SerialVersionUID(0L)
@@ -677,11 +677,11 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
     def addInputChannel: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.AddInputChannelV2] = field(_.getAddInputChannel)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.AddInputChannel(f_)))
     def queryStatistics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryStatisticsV2] = field(_.getQueryStatistics)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryStatistics(f_)))
     def queryCurrentInputTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.QueryCurrentInputTupleV2] = field(_.getQueryCurrentInputTuple)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.QueryCurrentInputTuple(f_)))
-    def openOperator: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] = field(_.getOpenOperator)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenOperator(f_)))
+    def openExecutor: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2] = field(_.getOpenExecutor)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.OpenExecutor(f_)))
     def portCompleted: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PortCompletedV2] = field(_.getPortCompleted)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PortCompleted(f_)))
     def schedulerTimeSlotEvent: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.SchedulerTimeSlotEventV2] = field(_.getSchedulerTimeSlotEvent)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.SchedulerTimeSlotEvent(f_)))
-    def initializeOperatorLogic: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = field(_.getInitializeOperatorLogic)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeOperatorLogic(f_)))
-    def modifyOperatorLogic: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] = field(_.getModifyOperatorLogic)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ModifyOperatorLogic(f_)))
+    def initializeExecutor: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2] = field(_.getInitializeExecutor)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.InitializeExecutor(f_)))
+    def updateExecutor: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2] = field(_.getUpdateExecutor)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.UpdateExecutor(f_)))
     def pythonConsoleMessage: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.PythonConsoleMessageV2] = field(_.getPythonConsoleMessage)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.PythonConsoleMessage(f_)))
     def replayCurrentTuple: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ReplayCurrentTupleV2] = field(_.getReplayCurrentTuple)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.ReplayCurrentTuple(f_)))
     def evaluateExpression: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.EvaluateExpressionV2] = field(_.getEvaluateExpression)((c_, f_) => c_.copy(sealedValue = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2Message.SealedValue.EvaluateExpression(f_)))
@@ -698,11 +698,11 @@ object ControlCommandV2Message extends scalapb.GeneratedMessageCompanion[edu.uci
   final val ADD_INPUT_CHANNEL_FIELD_NUMBER = 6
   final val QUERY_STATISTICS_FIELD_NUMBER = 7
   final val QUERY_CURRENT_INPUT_TUPLE_FIELD_NUMBER = 8
-  final val OPEN_OPERATOR_FIELD_NUMBER = 9
+  final val OPEN_EXECUTOR_FIELD_NUMBER = 9
   final val PORT_COMPLETED_FIELD_NUMBER = 10
   final val SCHEDULER_TIME_SLOT_EVENT_FIELD_NUMBER = 11
-  final val INITIALIZE_OPERATOR_LOGIC_FIELD_NUMBER = 21
-  final val MODIFY_OPERATOR_LOGIC_FIELD_NUMBER = 22
+  final val INITIALIZE_EXECUTOR_FIELD_NUMBER = 21
+  final val UPDATE_EXECUTOR_FIELD_NUMBER = 22
   final val PYTHON_CONSOLE_MESSAGE_FIELD_NUMBER = 23
   final val REPLAY_CURRENT_TUPLE_FIELD_NUMBER = 24
   final val EVALUATE_EXPRESSION_FIELD_NUMBER = 25
@@ -1547,21 +1547,21 @@ object QueryCurrentInputTupleV2 extends scalapb.GeneratedMessageCompanion[edu.uc
 }
 
 @SerialVersionUID(0L)
-final case class OpenOperatorV2(
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[OpenOperatorV2] {
+final case class OpenExecutorV2(
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[OpenExecutorV2] {
     final override def serializedSize: _root_.scala.Int = 0
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
     }
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = throw new MatchError(__fieldNumber)
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = throw new MatchError(__field)
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.OpenOperatorV2])
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.OpenExecutorV2])
 }
 
-object OpenOperatorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2 = {
+object OpenExecutorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2 = {
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -1570,13 +1570,13 @@ object OpenOperatorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2(
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2(
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2(
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2(
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -1585,14 +1585,14 @@ object OpenOperatorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.ambe
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2(
   )
-  implicit class OpenOperatorV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2](_l) {
+  implicit class OpenExecutorV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2](_l) {
   }
   def of(
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenOperatorV2(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.OpenExecutorV2(
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.OpenOperatorV2])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.OpenExecutorV2])
 }
 
 @SerialVersionUID(0L)
@@ -1832,10 +1832,10 @@ object SchedulerTimeSlotEventV2 extends scalapb.GeneratedMessageCompanion[edu.uc
 }
 
 @SerialVersionUID(0L)
-final case class InitializeOperatorLogicV2(
+final case class InitializeExecutorV2(
     code: _root_.scala.Predef.String,
     isSource: _root_.scala.Boolean
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[InitializeOperatorLogicV2] {
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[InitializeExecutorV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
@@ -1878,8 +1878,8 @@ final case class InitializeOperatorLogicV2(
         }
       };
     }
-    def withCode(__v: _root_.scala.Predef.String): InitializeOperatorLogicV2 = copy(code = __v)
-    def withIsSource(__v: _root_.scala.Boolean): InitializeOperatorLogicV2 = copy(isSource = __v)
+    def withCode(__v: _root_.scala.Predef.String): InitializeExecutorV2 = copy(code = __v)
+    def withIsSource(__v: _root_.scala.Boolean): InitializeExecutorV2 = copy(isSource = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -1900,13 +1900,13 @@ final case class InitializeOperatorLogicV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.InitializeOperatorLogicV2])
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.InitializeExecutorV2])
 }
 
-object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = {
+object InitializeExecutorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2 = {
     var __code: _root_.scala.Predef.String = ""
     var __isSource: _root_.scala.Boolean = false
     var _done__ = false
@@ -1921,15 +1921,15 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2(
         code = __code,
         isSource = __isSource
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2(
         code = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
@@ -1940,11 +1940,11 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2(
     code = "",
     isSource = false
   )
-  implicit class InitializeOperatorLogicV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2](_l) {
+  implicit class InitializeExecutorV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2](_l) {
     def code: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.code)((c_, f_) => c_.copy(code = f_))
     def isSource: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isSource)((c_, f_) => c_.copy(isSource = f_))
   }
@@ -1953,18 +1953,18 @@ object InitializeOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.u
   def of(
     code: _root_.scala.Predef.String,
     isSource: _root_.scala.Boolean
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeOperatorLogicV2(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.InitializeExecutorV2(
     code,
     isSource
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.InitializeOperatorLogicV2])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.InitializeExecutorV2])
 }
 
 @SerialVersionUID(0L)
-final case class ModifyOperatorLogicV2(
+final case class UpdateExecutorV2(
     code: _root_.scala.Predef.String,
     isSource: _root_.scala.Boolean
-    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[ModifyOperatorLogicV2] {
+    ) extends scalapb.GeneratedMessage with edu.uci.ics.amber.engine.architecture.worker.controlcommands.ControlCommandV2.NonEmpty with scalapb.lenses.Updatable[UpdateExecutorV2] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
@@ -2007,8 +2007,8 @@ final case class ModifyOperatorLogicV2(
         }
       };
     }
-    def withCode(__v: _root_.scala.Predef.String): ModifyOperatorLogicV2 = copy(code = __v)
-    def withIsSource(__v: _root_.scala.Boolean): ModifyOperatorLogicV2 = copy(isSource = __v)
+    def withCode(__v: _root_.scala.Predef.String): UpdateExecutorV2 = copy(code = __v)
+    def withIsSource(__v: _root_.scala.Boolean): UpdateExecutorV2 = copy(isSource = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -2029,13 +2029,13 @@ final case class ModifyOperatorLogicV2(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.ModifyOperatorLogicV2])
+    def companion = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.UpdateExecutorV2])
 }
 
-object ModifyOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2 = {
+object UpdateExecutorV2 extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2 = {
     var __code: _root_.scala.Predef.String = ""
     var __isSource: _root_.scala.Boolean = false
     var _done__ = false
@@ -2050,15 +2050,15 @@ object ModifyOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.i
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2(
+    edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2(
         code = __code,
         isSource = __isSource
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2(
+      edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2(
         code = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
         isSource = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
@@ -2069,11 +2069,11 @@ object ModifyOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.i
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2(
     code = "",
     isSource = false
   )
-  implicit class ModifyOperatorLogicV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2](_l) {
+  implicit class UpdateExecutorV2Lens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2](_l) {
     def code: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.code)((c_, f_) => c_.copy(code = f_))
     def isSource: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.isSource)((c_, f_) => c_.copy(isSource = f_))
   }
@@ -2082,11 +2082,11 @@ object ModifyOperatorLogicV2 extends scalapb.GeneratedMessageCompanion[edu.uci.i
   def of(
     code: _root_.scala.Predef.String,
     isSource: _root_.scala.Boolean
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.ModifyOperatorLogicV2(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2 = _root_.edu.uci.ics.amber.engine.architecture.worker.controlcommands.UpdateExecutorV2(
     code,
     isSource
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.ModifyOperatorLogicV2])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.UpdateExecutorV2])
 }
 
 @SerialVersionUID(0L)

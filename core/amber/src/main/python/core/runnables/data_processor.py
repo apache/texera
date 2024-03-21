@@ -36,20 +36,20 @@ class DataProcessor(Runnable, Stoppable):
         finished_current = self._context.tuple_processing_manager.finished_current
         while not finished_current.is_set():
             try:
-                operator = self._context.operator_manager.operator
+                executor = self._context.executor_manager.executor
                 tuple_ = self._context.tuple_processing_manager.current_input_tuple
                 port_id = self._context.tuple_processing_manager.current_input_port_id
                 port: int
                 if port_id is None:
-                    # no upstream, special case for source operator.
+                    # no upstream, special case for source executor.
                     port = 0
                 else:
                     port = port_id.id
 
                 output_iterator = (
-                    operator.process_tuple(tuple_, port)
+                    executor.process_tuple(tuple_, port)
                     if isinstance(tuple_, Tuple)
-                    else operator.on_finish(port)
+                    else executor.on_finish(port)
                 )
                 with replace_print(
                     self._context.worker_id,

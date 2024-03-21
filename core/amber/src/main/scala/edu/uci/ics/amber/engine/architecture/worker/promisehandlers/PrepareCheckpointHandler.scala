@@ -25,9 +25,9 @@ trait PrepareCheckpointHandler {
   registerHandler { (msg: PrepareCheckpoint, sender) =>
     logger.info("Start to take checkpoint")
     if (!msg.estimationOnly) {
-      dp.serializationCall = () => {
+      dp.serializationManager.registerSerialization(() => {
         serializeWorkerState(msg.checkpointId)
-      }
+      })
     } else {
       logger.info(s"Checkpoint is estimation-only. do nothing.")
     }
@@ -41,7 +41,7 @@ trait PrepareCheckpointHandler {
     dp.channelMarkerManager.checkpoints(checkpointId) = chkpt
     logger.info("Serialized DP state")
     // 2. serialize operator state
-    dp.operator match {
+    dp.executor match {
       case support: CheckpointSupport =>
         dp.outputManager.outputIterator.setTupleOutput(
           support.serializeState(dp.outputManager.outputIterator.outputIter, chkpt)

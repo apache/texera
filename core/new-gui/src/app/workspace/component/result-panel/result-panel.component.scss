@@ -1,6 +1,6 @@
-@import "../workspace.component.scss";
-
 .texera-workspace-result-panel-body {
+  height: 35vh;
+  overflow-y: auto;
   .result-table {
     padding: 1px;
   }

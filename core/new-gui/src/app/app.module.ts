@@ -65,7 +65,6 @@ import { NzAvatarModule } from "ng-zorro-antd/avatar";
 import { BlobErrorHttpInterceptor } from "./common/service/blob-error-http-interceptor.service";
 import { ConsoleFrameComponent } from "./workspace/component/result-panel/console-frame/console-frame.component";
 import { ResultTableFrameComponent } from "./workspace/component/result-panel/result-table-frame/result-table-frame.component";
-import { DynamicModule } from "ng-dynamic-component";
 import { RowModalComponent } from "./workspace/component/result-panel/result-panel-modal.component";
 import { OperatorPropertyEditFrameComponent } from "./workspace/component/property-editor/operator-property-edit-frame/operator-property-edit-frame.component";
 import { NzTabsModule } from "ng-zorro-antd/tabs";
@@ -259,7 +258,6 @@ registerLocaleData(en);
     NzTagModule,
     NzPopconfirmModule,
     NzAvatarModule,
-    DynamicModule,
     NzTabsModule,
     NzPaginationModule,
     NzCommentModule,

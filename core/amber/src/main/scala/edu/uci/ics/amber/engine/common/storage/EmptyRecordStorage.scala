@@ -30,4 +30,5 @@ class EmptyRecordStorage[T >: Null <: AnyRef] extends SequentialRecordStorage[T]
     // empty
   }
 
+  override def containsFolder(folderName: String): Boolean = false
 }

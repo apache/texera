@@ -7,7 +7,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.{
 }
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitioners._
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings._
-import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeOperator, FinalizePort}
+import edu.uci.ics.amber.engine.architecture.worker.DataProcessor.{FinalizeExecutor, FinalizePort}
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
@@ -50,7 +50,7 @@ object OutputManager {
   }
 
   class DPOutputIterator extends Iterator[(TupleLike, Option[PortIdentity])] {
-    val queue = new mutable.Queue[(TupleLike, Option[PortIdentity])]
+    val queue = new mutable.ListBuffer[(TupleLike, Option[PortIdentity])]
     @transient var outputIter: Iterator[(TupleLike, Option[PortIdentity])] = Iterator.empty
 
     def setTupleOutput(outputIter: Iterator[(TupleLike, Option[PortIdentity])]): Unit = {
@@ -67,12 +67,12 @@ object OutputManager {
       if (outputIter.hasNext) {
         outputIter.next()
       } else {
-        queue.dequeue()
+        queue.remove(0)
       }
     }
 
     def appendSpecialTupleToEnd(tuple: TupleLike): Unit = {
-      queue.enqueue((tuple, None))
+      queue.append((tuple, None))
     }
   }
 }
@@ -190,7 +190,7 @@ class OutputManager(
       .foreach(outputPortId =>
         outputIterator.appendSpecialTupleToEnd(FinalizePort(outputPortId, input = false))
       )
-    outputIterator.appendSpecialTupleToEnd(FinalizeOperator())
+    outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
   }
 
 }
