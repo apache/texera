@@ -190,7 +190,7 @@ case class PhysicalOp(
     suggestedWorkerNum: Option[Int] = None
 ) extends LazyLogging {
 
-  // all the "dependee" links are also blocking inputs
+  // all the "dependee" links are also blocking
   private lazy val dependeeInputs: List[PortIdentity] =
     inputPorts.values
       .flatMap({
