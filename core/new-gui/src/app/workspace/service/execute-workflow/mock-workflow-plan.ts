@@ -17,18 +17,18 @@ export const mockWorkflowPlan_scan_result: WorkflowGraph = new WorkflowGraph(
 export const mockLogicalPlan_scan_result: LogicalPlan = {
   operators: [
     {
-      ...mockScanPredicate.operatorProperties,
-      operatorID: mockScanPredicate.operatorID,
-      operatorType: mockScanPredicate.operatorType,
-      inputPorts: mockScanPredicate.inputPorts,
-      outputPorts: mockScanPredicate.outputPorts,
-    },
-    {
       ...mockResultPredicate.operatorProperties,
       operatorID: mockResultPredicate.operatorID,
       operatorType: mockResultPredicate.operatorType,
       inputPorts: mockResultPredicate.inputPorts,
       outputPorts: mockResultPredicate.outputPorts,
+    },
+    {
+      ...mockScanPredicate.operatorProperties,
+      operatorID: mockScanPredicate.operatorID,
+      operatorType: mockScanPredicate.operatorType,
+      inputPorts: mockScanPredicate.inputPorts,
+      outputPorts: mockScanPredicate.outputPorts,
     },
   ],
   links: [
