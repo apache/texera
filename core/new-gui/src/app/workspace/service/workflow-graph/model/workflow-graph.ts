@@ -1063,4 +1063,63 @@ export class WorkflowGraph {
           on input ports of the target operator ${link.target.operatorID}`);
     }
   }
+
+  /**
+   * Retrieves a subgraph (subDAG) from the workflow graph. This method excludes disabled operators and links.
+   *
+   * This method can operate in two modes:
+   * 1. If a `targetOperatorId` is provided, it performs a depth-first search (DFS) starting from
+   *    the specified operator to construct the subDAG.
+   * 2. If no `targetOperatorId` is provided, it starts from all terminal operators (operators with no
+   *    outgoing links) and aggregates the paths from these sinks to construct the subDAG, potentially
+   *    covering the entire DAG if all paths are interconnected.
+   *
+   * @param targetOperatorId - The unique identifier of the operator from which to start the DFS.
+   *                           This parameter is optional. If omitted, the search starts from all
+   *                           terminal operators within the graph.
+   * @returns An object containing two arrays: `operators` and `links`. The `operators` array
+   *          includes all operator objects that are part of the subDAG, and the `links` array
+   *          contains all the operator links that connect these operators within the subDAG.
+   *
+   */
+  public getSubDAG(targetOperatorId?: string) {
+    const visited: Set<string> = new Set();
+    const subDagOperators: OperatorPredicate[] = [];
+    const subDagLinks: OperatorLink[] = [];
+
+    function dfs(currentOperatorId: string, graph: WorkflowGraph) {
+      if (visited.has(currentOperatorId)) {
+        return;
+      }
+
+      visited.add(currentOperatorId);
+
+      const currentOperator = graph.getOperator(currentOperatorId);
+      if (currentOperator && !currentOperator.isDisabled) {
+        subDagOperators.push(currentOperator);
+
+        // Find links connected to the current operator
+        const connectedLinks = graph.getAllEnabledLinks().filter(link => link.target.operatorID === currentOperatorId);
+        connectedLinks.forEach(link => {
+          subDagLinks.push(link);
+          dfs(link.source.operatorID, graph);
+        });
+      }
+    }
+
+    if (targetOperatorId !== undefined) {
+      dfs(targetOperatorId, this);
+    } else {
+      // When no target operator ID is provided, start DFS from all terminal operators
+      const allOperators = this.getAllOperators();
+      const allLinks = this.getAllEnabledLinks();
+      const terminalOperators = allOperators.filter(
+        operator => !allLinks.some(link => link.source.operatorID === operator.operatorID)
+      );
+
+      terminalOperators.forEach(terminalOperator => dfs(terminalOperator.operatorID, this));
+    }
+
+    return { operators: subDagOperators, links: subDagLinks };
+  }
 }

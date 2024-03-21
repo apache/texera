@@ -7,6 +7,7 @@ import { OperatorLink, OperatorPredicate, Point, CommentBox } from "../../types/
 import { Group } from "../workflow-graph/model/operator-group";
 import { WorkflowUtilService } from "../workflow-graph/util/workflow-util.service";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
+import { ExecuteWorkflowService } from "../execute-workflow/execute-workflow.service";
 
 type OperatorPositions = {
   [key: string]: Point;
@@ -55,7 +56,8 @@ export class OperatorMenuService {
   constructor(
     private workflowActionService: WorkflowActionService,
     private workflowUtilService: WorkflowUtilService,
-    private notificationService: NotificationService
+    private notificationService: NotificationService,
+    private executeWorkflowService: ExecuteWorkflowService
   ) {
     this.handleDisableOperatorStatusChange();
     this.handleViewResultOperatorStatusChange();
@@ -278,6 +280,18 @@ export class OperatorMenuService {
       // although if the current tab is active, permission shouldn't be needed
       this.notificationService.error("Copy failed. You don't have the permission to write to the clipboard.");
     });
+  }
+
+  public executeUpToOperator() {
+    // get the highlighted operatorId. This feature supports one and only one selected operator.
+    const highlightedOperatorIds = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs();
+    if (highlightedOperatorIds.length !== 1) {
+      this.notificationService.error("Can only execute to exactly one target operator.");
+      return;
+    }
+
+    const targetOperatorId = highlightedOperatorIds[0];
+    this.executeWorkflowService.executeWorkflow("", targetOperatorId);
   }
 
   public performPasteOperation() {
