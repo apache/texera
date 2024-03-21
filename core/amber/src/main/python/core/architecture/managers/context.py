@@ -3,7 +3,7 @@ from .console_message_manager import ConsoleMessageManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
 from .tuple_processing_manager import TupleProcessingManager
-from .operator_manager import OperatorManager
+from .executor_manager import ExecutorManager
 from .pause_manager import PauseManager
 from .state_manager import StateManager
 from .statistics_manager import StatisticsManager
@@ -24,7 +24,7 @@ class Context:
     def __init__(self, worker_id, input_queue):
         self.worker_id = worker_id
         self.input_queue: InternalQueue = input_queue
-        self.operator_manager = OperatorManager()
+        self.executor_manager = ExecutorManager()
         self.tuple_processing_manager = TupleProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
@@ -50,4 +50,4 @@ class Context:
         )
 
     def close(self):
-        self.operator_manager.close()
+        self.executor_manager.close()

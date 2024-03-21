@@ -14,17 +14,17 @@ export class ContextMenuComponent {
 
   constructor(
     public workflowActionService: WorkflowActionService,
-    public operatorMenu: OperatorMenuService
+    public operatorMenuService: OperatorMenuService
   ) {
     this.registerWorkflowModifiableChangedHandler();
   }
 
   public onCopy(): void {
-    this.operatorMenu.saveHighlightedElements();
+    this.operatorMenuService.saveHighlightedElements();
   }
 
   public onPaste(): void {
-    this.operatorMenu.performPasteOperation();
+    this.operatorMenuService.performPasteOperation();
   }
 
   public onCut(): void {
