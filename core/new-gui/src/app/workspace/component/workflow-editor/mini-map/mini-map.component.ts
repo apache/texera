@@ -1,4 +1,4 @@
-import { AfterViewInit, Component } from "@angular/core";
+import { AfterViewInit, Component, HostListener, OnDestroy } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { MAIN_CANVAS } from "../workflow-editor.component";
@@ -10,7 +10,7 @@ import * as joint from "jointjs";
   templateUrl: "mini-map.component.html",
   styleUrls: ["mini-map.component.scss"],
 })
-export class MiniMapComponent implements AfterViewInit {
+export class MiniMapComponent implements AfterViewInit, OnDestroy {
   scale = 0;
   paper!: joint.dia.Paper;
   dragging = false;
@@ -36,13 +36,18 @@ export class MiniMapComponent implements AfterViewInit {
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
-        this.hidden = true;
+        this.hidden = Boolean(localStorage.getItem("mini-map")) || false;
         this.paper = mainPaper;
         this.updateNavigator();
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
         mainPaper.on("resize", () => this.updateNavigator());
       });
+  }
+
+  @HostListener("window:beforeunload")
+  ngOnDestroy(): void {
+    localStorage.setItem("mini-map", String(this.hidden));
   }
 
   onDrag(event: any) {
