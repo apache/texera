@@ -503,4 +503,6 @@ export class MenuComponent implements OnInit {
       .pipe(untilDestroyed(this))
       .subscribe(metadata => (this.workflowId = metadata.wid));
   }
+
+  protected readonly environment = environment;
 }
