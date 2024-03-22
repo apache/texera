@@ -64,6 +64,7 @@ class InputPort(betterproto.Message):
 class OutputPort(betterproto.Message):
     id: "PortIdentity" = betterproto.message_field(1)
     display_name: str = betterproto.string_field(2)
+    blocking: bool = betterproto.bool_field(3)
 
 
 @dataclass(eq=False, repr=False)
@@ -83,8 +84,8 @@ class ControlInvocationV2(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ReturnInvocationV2(betterproto.Message):
     original_command_id: int = betterproto.int64_field(1)
-    control_return: "_architecture_worker__.ControlReturnV2" = (
-        betterproto.message_field(2)
+    control_return: "_architecture_worker__.ControlReturnV2" = betterproto.message_field(
+        2
     )
 
 

@@ -84,23 +84,27 @@ abstract class RegionPlanGenerator(
       .toSet
   }
 
-  def populateDownstreamLinks(
+  def populateDependeeLinks(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
   ): DirectedAcyclicGraph[Region, RegionLink] = {
 
-    val blockingLinks = physicalPlan
+    val dependeeLinks = physicalPlan
       .topologicalIterator()
       .flatMap { physicalOpId =>
         val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
         upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-            .filter(link => physicalPlan.getOperator(physicalOpId).isLinkBlocking(link))
+            .filter(link =>
+              !physicalPlan.getOperator(physicalOpId).isSinkOperator && (physicalPlan
+                .getOperator(physicalOpId)
+                .isInputLinkDependee(link))
+            )
         }
       }
       .toSet
 
-    blockingLinks
+    dependeeLinks
       .flatMap { link => getRegions(link.fromOpId, regionDAG).map(region => region -> link) }
       .groupBy(_._1)
       .view

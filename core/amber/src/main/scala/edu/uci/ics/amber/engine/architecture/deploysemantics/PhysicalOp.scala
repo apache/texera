@@ -181,8 +181,6 @@ case class PhysicalOp(
       Map.empty,
     outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
       Map.empty,
-    // output ports that are blocking
-    blockingOutputs: List[PortIdentity] = List(),
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
@@ -207,6 +205,13 @@ case class PhysicalOp(
 
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
+  }
+
+  /**
+    * Helper function used to determine whether the input link is a materialized link.
+    */
+  def isSinkOperator: Boolean = {
+    outputPorts.forall(port => port._2._2.isEmpty)
   }
 
   def isPythonOperator: Boolean = {
@@ -301,10 +306,6 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
-
-  def withBlockingOutputs(blockingOutputs: List[PortIdentity]): PhysicalOp = {
-    this.copy(blockingOutputs = blockingOutputs)
-  }
 
   /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.
@@ -465,14 +466,18 @@ case class PhysicalOp(
   }
 
   /**
-    * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
-    * outputs all its tuples
+    * Tells whether the input port the link connects to is depended by another input .
     */
-  def isLinkBlocking(link: PhysicalLink): Boolean = {
-    val blockingLinks = dependeeInputs.flatMap(portId =>
-      getInputLinks(Some(portId))
-    ) ++ blockingOutputs.flatMap(portId => getOutputLinks(portId))
-    blockingLinks.contains(link)
+  def isInputLinkDependee(link: PhysicalLink): Boolean = {
+    dependeeInputs.contains(link.toPortId)
+  }
+
+  /**
+    * Tells whether the output on this link is blocking i.e. the operator doesn't output anything till this link
+    * outputs all its tuples.
+    */
+  def isOutputLinkBlocking(link: PhysicalLink): Boolean = {
+    this.outputPorts(link.fromPortId)._1.blocking
   }
 
   /**

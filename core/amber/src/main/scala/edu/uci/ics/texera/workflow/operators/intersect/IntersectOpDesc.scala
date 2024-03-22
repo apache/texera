@@ -25,7 +25,6 @@ class IntersectOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingOutputs(List(operatorInfo.outputPorts.head.id))
       .withPartitionRequirement(List(Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
   }
@@ -36,7 +35,7 @@ class IntersectOpDesc extends LogicalOp {
       "Take the intersect of two inputs",
       OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity()), InputPort(PortIdentity(1))),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

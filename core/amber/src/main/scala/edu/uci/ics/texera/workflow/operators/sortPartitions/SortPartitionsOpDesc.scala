@@ -62,7 +62,6 @@ class SortPartitionsOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingOutputs(List(operatorInfo.outputPorts.head.id))
       .withPartitionRequirement(
         List(Option(RangePartition(List(sortAttributeName), domainMin, domainMax)))
       )
@@ -73,7 +72,7 @@ class SortPartitionsOpDesc extends LogicalOp {
       "Sort Partitions",
       OperatorGroupConstants.SORT_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

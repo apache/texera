@@ -8,7 +8,8 @@ package edu.uci.ics.amber.engine.common.workflow
 @SerialVersionUID(0L)
 final case class OutputPort(
     id: edu.uci.ics.amber.engine.common.workflow.PortIdentity = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
-    displayName: _root_.scala.Predef.String = ""
+    displayName: _root_.scala.Predef.String = "",
+    blocking: _root_.scala.Boolean = false
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OutputPort] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -26,6 +27,13 @@ final case class OutputPort(
         val __value = displayName
         if (!__value.isEmpty) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeStringSize(2, __value)
+        }
+      };
+      
+      {
+        val __value = blocking
+        if (__value != false) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeBoolSize(3, __value)
         }
       };
       __size
@@ -53,9 +61,16 @@ final case class OutputPort(
           _output__.writeString(2, __v)
         }
       };
+      {
+        val __v = blocking
+        if (__v != false) {
+          _output__.writeBool(3, __v)
+        }
+      };
     }
     def withId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): OutputPort = copy(id = __v)
     def withDisplayName(__v: _root_.scala.Predef.String): OutputPort = copy(displayName = __v)
+    def withBlocking(__v: _root_.scala.Boolean): OutputPort = copy(blocking = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -66,6 +81,10 @@ final case class OutputPort(
           val __t = displayName
           if (__t != "") __t else null
         }
+        case 3 => {
+          val __t = blocking
+          if (__t != false) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -73,6 +92,7 @@ final case class OutputPort(
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => id.toPMessage
         case 2 => _root_.scalapb.descriptors.PString(displayName)
+        case 3 => _root_.scalapb.descriptors.PBoolean(blocking)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -85,6 +105,7 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.common.workflow.OutputPort = {
     var __id: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity] = _root_.scala.None
     var __displayName: _root_.scala.Predef.String = ""
+    var __blocking: _root_.scala.Boolean = false
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -94,12 +115,15 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
           __id = _root_.scala.Some(__id.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PortIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 18 =>
           __displayName = _input__.readStringRequireUtf8()
+        case 24 =>
+          __blocking = _input__.readBool()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.common.workflow.OutputPort(
         id = __id.getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
-        displayName = __displayName
+        displayName = __displayName,
+        blocking = __blocking
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.common.workflow.OutputPort] = _root_.scalapb.descriptors.Reads{
@@ -107,7 +131,8 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.common.workflow.OutputPort(
         id = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PortIdentity]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
-        displayName = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse("")
+        displayName = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Predef.String]).getOrElse(""),
+        blocking = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Boolean]).getOrElse(false)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -124,20 +149,25 @@ object OutputPort extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.common.workflow.OutputPort(
     id = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
-    displayName = ""
+    displayName = "",
+    blocking = false
   )
   implicit class OutputPortLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.OutputPort]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.common.workflow.OutputPort](_l) {
     def id: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PortIdentity] = field(_.id)((c_, f_) => c_.copy(id = f_))
     def displayName: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Predef.String] = field(_.displayName)((c_, f_) => c_.copy(displayName = f_))
+    def blocking: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Boolean] = field(_.blocking)((c_, f_) => c_.copy(blocking = f_))
   }
   final val ID_FIELD_NUMBER = 1
   final val DISPLAYNAME_FIELD_NUMBER = 2
+  final val BLOCKING_FIELD_NUMBER = 3
   def of(
     id: edu.uci.ics.amber.engine.common.workflow.PortIdentity,
-    displayName: _root_.scala.Predef.String
+    displayName: _root_.scala.Predef.String,
+    blocking: _root_.scala.Boolean
   ): _root_.edu.uci.ics.amber.engine.common.workflow.OutputPort = _root_.edu.uci.ics.amber.engine.common.workflow.OutputPort(
     id,
-    displayName
+    displayName,
+    blocking
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.common.OutputPort])
 }

@@ -60,7 +60,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
   ): PhysicalPlan = {
 
     val buildInputPort = operatorInfo.inputPorts.head
-    val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
+    val buildOutputPort = OutputPort(PortIdentity(0, internal = true), blocking = true)
 
     val buildPhysicalOp =
       PhysicalOp
@@ -72,7 +72,6 @@ class HashJoinOpDesc[K] extends LogicalOp {
         )
         .withInputPorts(List(buildInputPort))
         .withOutputPorts(List(buildOutputPort))
-        .withBlockingOutputs(List(buildOutputPort.id))
         .withPartitionRequirement(List(Option(HashPartition(List(buildAttributeName)))))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>

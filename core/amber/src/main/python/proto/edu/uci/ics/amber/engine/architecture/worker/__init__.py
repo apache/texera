@@ -187,8 +187,8 @@ class ControlCommandV2(betterproto.Message):
     worker_debug_command: "WorkerDebugCommandV2" = betterproto.message_field(
         81, group="sealed_value"
     )
-    worker_execution_completed: "WorkerExecutionCompletedV2" = (
-        betterproto.message_field(101, group="sealed_value")
+    worker_execution_completed: "WorkerExecutionCompletedV2" = betterproto.message_field(
+        101, group="sealed_value"
     )
     no_op: "NoOpV2" = betterproto.message_field(9999, group="sealed_value")
 

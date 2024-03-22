@@ -200,28 +200,11 @@ case class PhysicalPlan(
     }
   }
 
-  /**
-    * create a DAG similar to the physical DAG but with all blocking links removed.
-    */
-  def removeBlockingLinks(): PhysicalPlan = {
-    val linksToRemove = operators
-      .flatMap { physicalOp =>
-        {
-          getUpstreamPhysicalOpIds(physicalOp.id)
-            .flatMap { upstreamPhysicalOpId =>
-              links
-                .filter(link =>
-                  link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
-                )
-                .filter(link => getOperator(physicalOp.id).isLinkBlocking(link))
-            }
-        }
-      }
-
-    this.copy(operators, links.diff(linksToRemove))
+  private def isMaterializedLink(link: PhysicalLink): Boolean = {
+    getOperator(link.toOpId).isSinkOperator
   }
 
-  def getOriginalBlockingLinks: Set[PhysicalLink] = {
+  def getNonMaterializedBlockingAndDependeeLinks: Set[PhysicalLink] = {
     operators
       .flatMap { physicalOp =>
         {
@@ -231,10 +214,37 @@ case class PhysicalPlan(
                 .filter(link =>
                   link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
                 )
-                .filter(link => getOperator(physicalOp.id).isLinkBlocking(link))
+                .filter(link =>
+                  !isMaterializedLink(link) && (getOperator(physicalOp.id).isInputLinkDependee(
+                    link
+                  ) || getOperator(upstreamPhysicalOpId).isOutputLinkBlocking(link))
+                )
             }
         }
       }
+  }
+
+  def getDependeeLinks: Set[PhysicalLink] = {
+    operators
+      .flatMap { physicalOp =>
+        {
+          getUpstreamPhysicalOpIds(physicalOp.id)
+            .flatMap { upstreamPhysicalOpId =>
+              links
+                .filter(link =>
+                  link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
+                )
+                .filter(link => getOperator(physicalOp.id).isInputLinkDependee(link))
+            }
+        }
+      }
+  }
+
+  /**
+    * create a DAG similar to the physical DAG but with all dependee links removed.
+    */
+  def getDependeeLinksRemovedDAG: PhysicalPlan = {
+    this.copy(operators, links.diff(getDependeeLinks))
   }
 
   /**
@@ -255,23 +265,7 @@ case class PhysicalPlan(
           }
         }
         .flatMap(_.toList)
-    this.getOriginalNonBlockingLinks.diff(bridges)
-  }
-
-  private def getOriginalNonBlockingLinks: Set[PhysicalLink] = {
-    operators
-      .flatMap { physicalOp =>
-        {
-          getUpstreamPhysicalOpIds(physicalOp.id)
-            .flatMap { upstreamPhysicalOpId =>
-              links
-                .filter(link =>
-                  link.fromOpId == upstreamPhysicalOpId && link.toOpId == physicalOp.id
-                )
-                .filter(link => !getOperator(physicalOp.id).isLinkBlocking(link))
-            }
-        }
-      }
+    this.links.diff(getNonMaterializedBlockingAndDependeeLinks).diff(bridges)
   }
 
   /**
@@ -320,13 +314,6 @@ case class PhysicalPlan(
         }
       }
     chains.filter(s1 => chains.forall(s2 => s1 == s2 || !s1.subsetOf(s2))).toSet
-  }
-
-  def areAllInputBlocking(physicalOpId: PhysicalOpIdentity): Boolean = {
-    val upstreamPhysicalLinkIds = getUpstreamPhysicalLinks(physicalOpId)
-    upstreamPhysicalLinkIds.nonEmpty && upstreamPhysicalLinkIds.forall { upstreamPhysicalLinkId =>
-      getOperator(physicalOpId).isLinkBlocking(upstreamPhysicalLinkId)
-    }
   }
 
 }

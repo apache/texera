@@ -26,7 +26,6 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingOutputs(List(operatorInfo.outputPorts.head.id))
       .withPartitionRequirement(List(Option(HashPartition(List()))))
       .withDerivePartition(_ => HashPartition(List()))
   }
@@ -37,7 +36,7 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       "find the symmetric difference (the set of elements which are in either of the sets, but not in their intersection) of two inputs",
       OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity(0)), InputPort(PortIdentity(1))),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

@@ -49,7 +49,7 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                 "Performs a filter operation",
                 OperatorGroupConstants.CLEANING_GROUP(),
                 asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
-                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), "", false))).toList(),
                 false,
                 false,
                 true,

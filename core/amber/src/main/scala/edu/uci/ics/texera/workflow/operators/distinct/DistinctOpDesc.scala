@@ -25,7 +25,6 @@ class DistinctOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withBlockingOutputs(List(operatorInfo.outputPorts.head.id))
       .withPartitionRequirement(List(Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
   }
@@ -36,7 +35,7 @@ class DistinctOpDesc extends LogicalOp {
       "Remove duplicate tuples",
       OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
