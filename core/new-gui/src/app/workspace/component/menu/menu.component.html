@@ -43,7 +43,7 @@
           (click)="revertToVersion()">
           Restore this version
         </button>
-        {{autoSaveState}}
+        <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
       </div>
 
       <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
