@@ -323,7 +323,7 @@
           <span> {{ runButtonText }} </span>
         </button>
         <button
-          *ngIf="userSystemEnabled"
+          *ngIf="userSystemEnabled && environment.timetravelEnabled"
           (click)="handleCheckpoint()"
           title="take checkpoint"
           [disabled]="!userSystemEnabled || executionState !== ExecutionState.Paused"
