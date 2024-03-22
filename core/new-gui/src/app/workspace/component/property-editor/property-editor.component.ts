@@ -22,7 +22,7 @@ export class PropertyEditorComponent implements OnInit, OnDestroy {
   protected readonly window = window;
   id = -1;
   width = 260;
-  height = 300;
+  height = Math.max(300, window.innerHeight * 0.6);
   currentComponent: Type<any> | null = null;
   componentInputs = {};
   constructor(
