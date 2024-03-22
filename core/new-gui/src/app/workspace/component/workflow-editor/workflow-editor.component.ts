@@ -69,7 +69,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
   editorWrapper!: HTMLElement;
   paper!: joint.dia.Paper;
   private interactive: boolean = true;
-  private gridOn: boolean = true;
+  private gridOn: boolean = false;
   private _onProcessKeyboardActionObservable: Subject<void> = new Subject();
   private wrapper;
 
@@ -211,7 +211,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
         name: "fixedDot",
         args: { color: "black", scaleFactor: 8, thickness: 1.2 },
       },
-      gridSize: 2,
+      gridSize: 1,
       // use approximate z-index sorting, this is a workaround of a bug in async rendering mode
       // see https://github.com/clientIO/joint/issues/1320
       sorting: joint.dia.Paper.sorting.APPROX,
