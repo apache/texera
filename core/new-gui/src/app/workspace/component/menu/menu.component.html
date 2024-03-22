@@ -1,6 +1,6 @@
 <div id="menu-container">
   <div id="logo">
-    <a href="/">
+    <a href="{{userSystemEnabled?'/dashboard/workflow':'/'}}">
       <img
         alt="Texera"
         height="{{userSystemEnabled?75:38}}"
@@ -315,7 +315,7 @@
           <span> {{ runButtonText }} </span>
         </button>
         <button
-          *ngIf="userSystemEnabled"
+          *ngIf="userSystemEnabled && environment.timetravelEnabled"
           (click)="handleCheckpoint()"
           title="take checkpoint"
           [disabled]="!userSystemEnabled || executionState !== ExecutionState.Paused"
