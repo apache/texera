@@ -44,14 +44,14 @@ case class OperatorExecution() {
   def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys.asScala.toSet
 
   def getState: WorkflowAggregatedState = {
-    val workerStates = workerExecutions.values.asScala.map(_.getState).toArray
+    val workerStates = workerExecutions.values.asScala.map(_.getState)
     if (workerStates.isEmpty) {
       return WorkflowAggregatedState.UNINITIALIZED
     }
     if (workerStates.forall(_ == COMPLETED)) {
       return WorkflowAggregatedState.COMPLETED
     }
-    if (workerStates.contains(RUNNING)) {
+    if (workerStates.exists(_ == RUNNING)) {
       return WorkflowAggregatedState.RUNNING
     }
     val unCompletedWorkerStates = workerStates.filter(_ != COMPLETED)

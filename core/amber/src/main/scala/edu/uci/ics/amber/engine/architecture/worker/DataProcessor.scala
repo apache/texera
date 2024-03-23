@@ -73,7 +73,7 @@ class DataProcessor(
     * provide API for actor to get stats of this operator
     */
   def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(stateManager.getCurrentState, operator)
+    statisticsManager.getStatistics(stateManager.getCurrentState, executor)
 
   /**
     * process currentInputTuple through executor logic.
