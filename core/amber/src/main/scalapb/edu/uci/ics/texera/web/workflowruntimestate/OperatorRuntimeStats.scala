@@ -9,7 +9,11 @@ package edu.uci.ics.texera.web.workflowruntimestate
 final case class OperatorRuntimeStats(
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
     inputCount: _root_.scala.Long = 0L,
-    outputCount: _root_.scala.Long = 0L
+    outputCount: _root_.scala.Long = 0L,
+    numWorkers: _root_.scala.Int = 0,
+    dataProcessingTime: _root_.scala.Long = 0L,
+    controlProcessingTime: _root_.scala.Long = 0L,
+    idleTime: _root_.scala.Long = 0L
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorRuntimeStats] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
@@ -34,6 +38,34 @@ final case class OperatorRuntimeStats(
         val __value = outputCount
         if (__value != 0L) {
           __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(3, __value)
+        }
+      };
+      
+      {
+        val __value = numWorkers
+        if (__value != 0) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(4, __value)
+        }
+      };
+      
+      {
+        val __value = dataProcessingTime
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(5, __value)
+        }
+      };
+      
+      {
+        val __value = controlProcessingTime
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(6, __value)
+        }
+      };
+      
+      {
+        val __value = idleTime
+        if (__value != 0L) {
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(7, __value)
         }
       };
       __size
@@ -65,10 +97,38 @@ final case class OperatorRuntimeStats(
           _output__.writeInt64(3, __v)
         }
       };
+      {
+        val __v = numWorkers
+        if (__v != 0) {
+          _output__.writeInt32(4, __v)
+        }
+      };
+      {
+        val __v = dataProcessingTime
+        if (__v != 0L) {
+          _output__.writeInt64(5, __v)
+        }
+      };
+      {
+        val __v = controlProcessingTime
+        if (__v != 0L) {
+          _output__.writeInt64(6, __v)
+        }
+      };
+      {
+        val __v = idleTime
+        if (__v != 0L) {
+          _output__.writeInt64(7, __v)
+        }
+      };
     }
     def withState(__v: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState): OperatorRuntimeStats = copy(state = __v)
     def withInputCount(__v: _root_.scala.Long): OperatorRuntimeStats = copy(inputCount = __v)
     def withOutputCount(__v: _root_.scala.Long): OperatorRuntimeStats = copy(outputCount = __v)
+    def withNumWorkers(__v: _root_.scala.Int): OperatorRuntimeStats = copy(numWorkers = __v)
+    def withDataProcessingTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(dataProcessingTime = __v)
+    def withControlProcessingTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(controlProcessingTime = __v)
+    def withIdleTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(idleTime = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -83,6 +143,22 @@ final case class OperatorRuntimeStats(
           val __t = outputCount
           if (__t != 0L) __t else null
         }
+        case 4 => {
+          val __t = numWorkers
+          if (__t != 0) __t else null
+        }
+        case 5 => {
+          val __t = dataProcessingTime
+          if (__t != 0L) __t else null
+        }
+        case 6 => {
+          val __t = controlProcessingTime
+          if (__t != 0L) __t else null
+        }
+        case 7 => {
+          val __t = idleTime
+          if (__t != 0L) __t else null
+        }
       }
     }
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
@@ -91,6 +167,10 @@ final case class OperatorRuntimeStats(
         case 1 => _root_.scalapb.descriptors.PEnum(state.scalaValueDescriptor)
         case 2 => _root_.scalapb.descriptors.PLong(inputCount)
         case 3 => _root_.scalapb.descriptors.PLong(outputCount)
+        case 4 => _root_.scalapb.descriptors.PInt(numWorkers)
+        case 5 => _root_.scalapb.descriptors.PLong(dataProcessingTime)
+        case 6 => _root_.scalapb.descriptors.PLong(controlProcessingTime)
+        case 7 => _root_.scalapb.descriptors.PLong(idleTime)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
@@ -104,6 +184,10 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     var __state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED
     var __inputCount: _root_.scala.Long = 0L
     var __outputCount: _root_.scala.Long = 0L
+    var __numWorkers: _root_.scala.Int = 0
+    var __dataProcessingTime: _root_.scala.Long = 0L
+    var __controlProcessingTime: _root_.scala.Long = 0L
+    var __idleTime: _root_.scala.Long = 0L
     var _done__ = false
     while (!_done__) {
       val _tag__ = _input__.readTag()
@@ -115,13 +199,25 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
           __inputCount = _input__.readInt64()
         case 24 =>
           __outputCount = _input__.readInt64()
+        case 32 =>
+          __numWorkers = _input__.readInt32()
+        case 40 =>
+          __dataProcessingTime = _input__.readInt64()
+        case 48 =>
+          __controlProcessingTime = _input__.readInt64()
+        case 56 =>
+          __idleTime = _input__.readInt64()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
         state = __state,
         inputCount = __inputCount,
-        outputCount = __outputCount
+        outputCount = __outputCount,
+        numWorkers = __numWorkers,
+        dataProcessingTime = __dataProcessingTime,
+        controlProcessingTime = __controlProcessingTime,
+        idleTime = __idleTime
     )
   }
   implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats] = _root_.scalapb.descriptors.Reads{
@@ -130,7 +226,11 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
         state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
         inputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        outputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
+        outputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        numWorkers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Int]).getOrElse(0),
+        dataProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        controlProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        idleTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(7).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -146,24 +246,44 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
     state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
     inputCount = 0L,
-    outputCount = 0L
+    outputCount = 0L,
+    numWorkers = 0,
+    dataProcessingTime = 0L,
+    controlProcessingTime = 0L,
+    idleTime = 0L
   )
   implicit class OperatorRuntimeStatsLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats](_l) {
     def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
     def inputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.inputCount)((c_, f_) => c_.copy(inputCount = f_))
     def outputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.outputCount)((c_, f_) => c_.copy(outputCount = f_))
+    def numWorkers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.numWorkers)((c_, f_) => c_.copy(numWorkers = f_))
+    def dataProcessingTime: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.dataProcessingTime)((c_, f_) => c_.copy(dataProcessingTime = f_))
+    def controlProcessingTime: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.controlProcessingTime)((c_, f_) => c_.copy(controlProcessingTime = f_))
+    def idleTime: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.idleTime)((c_, f_) => c_.copy(idleTime = f_))
   }
   final val STATE_FIELD_NUMBER = 1
   final val INPUT_COUNT_FIELD_NUMBER = 2
   final val OUTPUT_COUNT_FIELD_NUMBER = 3
+  final val NUM_WORKERS_FIELD_NUMBER = 4
+  final val DATA_PROCESSING_TIME_FIELD_NUMBER = 5
+  final val CONTROL_PROCESSING_TIME_FIELD_NUMBER = 6
+  final val IDLE_TIME_FIELD_NUMBER = 7
   def of(
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState,
     inputCount: _root_.scala.Long,
-    outputCount: _root_.scala.Long
+    outputCount: _root_.scala.Long,
+    numWorkers: _root_.scala.Int,
+    dataProcessingTime: _root_.scala.Long,
+    controlProcessingTime: _root_.scala.Long,
+    idleTime: _root_.scala.Long
   ): _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats = _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
     state,
     inputCount,
-    outputCount
+    outputCount,
+    numWorkers,
+    dataProcessingTime,
+    controlProcessingTime,
+    idleTime
   )
   // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.OperatorRuntimeStats])
 }

@@ -1,10 +1,11 @@
 package edu.uci.ics.texera.web.service
 
+import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig
 }
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -15,8 +16,11 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
-import edu.uci.ics.texera.web.storage.WorkflowStateStore
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.COMPLETED
+import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
+import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
+import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
 import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
@@ -27,8 +31,9 @@ import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
 import java.util.concurrent.ConcurrentHashMap
-import scala.collection.JavaConverters._
 import java.net.URI
+import java.time.Instant
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object WorkflowService {
   private val workflowServiceMapping = new ConcurrentHashMap[String, WorkflowService]()
@@ -158,14 +163,14 @@ class WorkflowService(
       // enable only if we have mysql
       if (AmberConfig.faultToleranceLogRootFolder.isDefined) {
         val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
-          workflowContext.workflowId + "/" + workflowContext.executionId
+          s"${workflowContext.workflowId}/${workflowContext.executionId}/"
         )
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)
         }
-        controllerConf = controllerConf.copy(workerLoggingConfMapping = { _ =>
-          Some(WorkerReplayLoggingConfig(writeTo = writeLocation))
-        })
+        controllerConf = controllerConf.copy(faultToleranceConfOpt =
+          Some(FaultToleranceConfig(writeTo = writeLocation))
+        )
       }
       if (req.replayFromExecution.isDefined) {
         val replayInfo = req.replayFromExecution.get
@@ -173,31 +178,56 @@ class WorkflowService(
           .tryGetExistingExecution(ExecutionIdentity(replayInfo.eid))
           .foreach { execution =>
             val readLocation = new URI(execution.getLogLocation)
-            controllerConf = controllerConf.copy(workerRestoreConfMapping = { _ =>
+            controllerConf = controllerConf.copy(stateRestoreConfOpt =
               Some(
-                WorkerStateRestoreConfig(
+                StateRestoreConfig(
                   readFrom = readLocation,
                   replayDestination = ChannelMarkerIdentity(replayInfo.interaction)
                 )
               )
-            })
+            )
           }
       }
     }
 
-    val execution = new WorkflowExecutionService(
-      controllerConf,
-      workflowContext,
-      resultService,
-      req,
-      lastCompletedLogicalPlan
-    )
-
-    lifeCycleManager.registerCleanUpOnStateChange(execution.executionStateStore)
-    executionService.onNext(execution)
-    if (execution.executionStateStore.metadataStore.getState.fatalErrors.isEmpty) {
-      execution.startWorkflow()
+    val executionStateStore = new ExecutionStateStore()
+    val errorHandler: Throwable => Unit = { t =>
+      {
+        logger.error("error during execution", t)
+        executionStateStore.statsStore.updateState(stats =>
+          stats.withEndTimeStamp(System.currentTimeMillis())
+        )
+        executionStateStore.metadataStore.updateState { metadataStore =>
+          updateWorkflowState(FAILED, metadataStore).addFatalErrors(
+            WorkflowFatalError(
+              EXECUTION_FAILURE,
+              Timestamp(Instant.now),
+              t.toString,
+              t.getStackTrace.mkString("\n"),
+              "unknown operator"
+            )
+          )
+        }
+      }
     }
+
+    try {
+      val execution = new WorkflowExecutionService(
+        controllerConf,
+        workflowContext,
+        resultService,
+        req,
+        executionStateStore,
+        errorHandler,
+        lastCompletedLogicalPlan
+      )
+      lifeCycleManager.registerCleanUpOnStateChange(executionStateStore)
+      executionService.onNext(execution)
+      execution.startWorkflow()
+    } catch {
+      case e: Throwable => errorHandler(e)
+    }
+
   }
 
   def convertToJson(frontendVersion: String): String = {

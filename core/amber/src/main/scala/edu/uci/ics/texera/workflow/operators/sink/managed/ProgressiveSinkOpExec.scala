@@ -1,42 +1,32 @@
 package edu.uci.ics.texera.workflow.operators.sink.managed
 
-import edu.uci.ics.amber.engine.common.tuple.ITuple
-import edu.uci.ics.amber.engine.common.{ISinkOperatorExecutor, InputExhausted}
+import edu.uci.ics.amber.engine.common.SinkOperatorExecutor
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.texera.workflow.common.IncrementalOutputMode._
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema
 import edu.uci.ics.texera.workflow.common.{IncrementalOutputMode, ProgressiveUtils}
 import edu.uci.ics.texera.workflow.operators.sink.storage.SinkStorageWriter
 
-class ProgressiveSinkOpExec(
-    val outputMode: IncrementalOutputMode,
-    val storage: SinkStorageWriter,
-    val inputSchema: Schema
-) extends ISinkOperatorExecutor {
+class ProgressiveSinkOpExec(outputMode: IncrementalOutputMode, storage: SinkStorageWriter)
+    extends SinkOperatorExecutor {
 
-  override def open(): Unit = storage.open()
+  override def open(): Unit = {
+    storage.open()
+  }
 
-  override def close(): Unit = storage.close()
-
-  override def consume(
-      tuple: Either[ITuple, InputExhausted],
+  override def consumeTuple(
+      tuple: Tuple,
       input: Int
   ): Unit = {
-    tuple match {
-      case Left(t) =>
-        outputMode match {
-          case SET_SNAPSHOT =>
-            updateSetSnapshot(t.asInstanceOf[Tuple])
-          case SET_DELTA =>
-            storage.putOne(t.asInstanceOf[Tuple])
-        }
-      case Right(_) => // skip
+    outputMode match {
+      case SET_SNAPSHOT => updateSetSnapshot(tuple)
+      case SET_DELTA    => storage.putOne(tuple)
     }
   }
 
   private def updateSetSnapshot(deltaUpdate: Tuple): Unit = {
-    val (isInsertion, tupleValue) =
-      ProgressiveUtils.getTupleFlagAndValue(deltaUpdate, inputSchema)
+    val (isInsertion, tupleValue) = ProgressiveUtils.getTupleFlagAndValue(deltaUpdate)
+
     if (isInsertion) {
       storage.putOne(tupleValue)
     } else {
@@ -44,4 +34,9 @@ class ProgressiveSinkOpExec(
     }
   }
 
+  override def close(): Unit = {
+    storage.close()
+  }
+
+  override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = Iterator.empty
 }

@@ -11,6 +11,7 @@ import edu.uci.ics.amber.engine.architecture.messaginglayer.{
 }
 import edu.uci.ics.amber.engine.architecture.pythonworker.WorkerBatchInternalQueue.DataElement
 import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
+import edu.uci.ics.amber.engine.common.CheckpointState
 import edu.uci.ics.amber.engine.common.actormessage.{Backpressure, CreditUpdate}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.ambermessage._
@@ -22,14 +23,7 @@ import java.util.concurrent.{ExecutorService, Executors}
 import scala.sys.process.{BasicIO, Process}
 
 object PythonWorkflowWorker {
-  def props(
-      workerConfig: WorkerConfig
-  ): Props =
-    Props(
-      new PythonWorkflowWorker(
-        workerConfig
-      )
-    )
+  def props(workerConfig: WorkerConfig): Props = Props(new PythonWorkflowWorker(workerConfig))
 }
 
 class PythonWorkflowWorker(
@@ -57,7 +51,10 @@ class PythonWorkflowWorker(
   private val networkInputGateway = new NetworkInputGateway(workerConfig.workerId)
   private val networkOutputGateway = new NetworkOutputGateway(
     workerConfig.workerId,
-    logManager.sendCommitted
+    // handler for output messages
+    msg => {
+      logManager.sendCommitted(Right(msg))
+    }
   )
 
   override def handleInputMessage(messageId: Long, workflowMsg: WorkflowFIFOMessage): Unit = {
@@ -73,7 +70,7 @@ class PythonWorkflowWorker(
         case p => logger.error(s"unhandled control payload: $p")
       }
     }
-    sender ! NetworkAck(
+    sender() ! NetworkAck(
       messageId,
       getInMemSize(workflowMsg),
       getQueuedCredit(workflowMsg.channelId)
@@ -83,7 +80,7 @@ class PythonWorkflowWorker(
   override def receiveCreditMessages: Receive = {
     case WorkflowActor.CreditRequest(channel) =>
       pythonProxyClient.enqueueActorCommand(CreditUpdate())
-      sender ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
+      sender() ! WorkflowActor.CreditResponse(channel, getQueuedCredit(channel))
     case WorkflowActor.CreditResponse(channel, credit) =>
       transferService.updateChannelCreditFromReceiver(channel, credit)
   }
@@ -158,4 +155,6 @@ class PythonWorkflowWorker(
       )
     ).run(BasicIO.standard(false))
   }
+
+  override def loadFromCheckpoint(chkpt: CheckpointState): Unit = ???
 }

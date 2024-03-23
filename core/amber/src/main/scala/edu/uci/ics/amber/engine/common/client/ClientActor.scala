@@ -10,7 +10,7 @@ import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
   NetworkMessage
 }
 import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
-import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.{Controller, ControllerConfig}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowMessage.getInMemSize
 import edu.uci.ics.amber.engine.common.AmberLogging
 import edu.uci.ics.amber.engine.common.ambermessage.{
@@ -28,12 +28,20 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.{ControlInvocation, ReturnInvocation}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
+import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 
 import scala.collection.mutable
 
 // TODO: Rename or refactor it since it has mixed duties (send/receive messages, execute callbacks)
 private[client] object ClientActor {
-  case class InitializeRequest(workflow: Workflow, controllerConfig: ControllerConfig)
+  case class InitializeRequest(
+      workflowContext: WorkflowContext,
+      physicalPlan: PhysicalPlan,
+      opResultStorage: OpResultStorage,
+      controllerConfig: ControllerConfig
+  )
   case class ObservableRequest(pf: PartialFunction[Any, Unit])
   case class ClosureRequest[T](closure: () => T)
   case class CommandRequest(command: ControlCommand[_], promise: Promise[Any])
@@ -57,18 +65,20 @@ private[client] class ClientActor extends Actor with AmberLogging {
   }
 
   override def receive: Receive = {
-    case InitializeRequest(workflow, controllerConfig) =>
+    case InitializeRequest(workflowContext, physicalPlan, opResultStorage, controllerConfig) =>
       assert(controller == null)
-      controller = context.actorOf(Controller.props(workflow, controllerConfig))
-      sender ! Ack
+      controller = context.actorOf(
+        Controller.props(workflowContext, physicalPlan, opResultStorage, controllerConfig)
+      )
+      sender() ! Ack
     case CreditRequest(channelId: ChannelIdentity) =>
-      sender ! CreditResponse(channelId, getQueuedCredit(channelId))
+      sender() ! CreditResponse(channelId, getQueuedCredit(channelId))
     case ClosureRequest(closure) =>
       try {
-        sender ! closure()
+        sender() ! closure()
       } catch {
         case e: Throwable =>
-          sender ! e
+          sender() ! e
       }
     case commandRequest: CommandRequest =>
       controller ! ControlInvocation(controlId, commandRequest.command)
@@ -76,12 +86,12 @@ private[client] class ClientActor extends Actor with AmberLogging {
       controlId += 1
     case req: ObservableRequest =>
       handlers = req.pf orElse handlers
-      sender ! scala.runtime.BoxedUnit.UNIT
+      sender() ! scala.runtime.BoxedUnit.UNIT
     case NetworkMessage(
           mId,
           fifoMsg @ WorkflowFIFOMessage(_, _, payload)
         ) =>
-      sender ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channelId))
+      sender() ! NetworkAck(mId, getInMemSize(fifoMsg), getQueuedCredit(fifoMsg.channelId))
       payload match {
         case payload: ControlPayload =>
           payload match {
@@ -103,7 +113,7 @@ private[client] class ClientActor extends Actor with AmberLogging {
         case _              => ???
       }
     case x: WorkflowRecoveryMessage =>
-      sender ! Ack
+      sender() ! Ack
       controller ! x
     case x: WorkflowRecoveryStatus =>
       handleControl(x)

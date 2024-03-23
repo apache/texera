@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, Type } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
@@ -10,19 +10,10 @@ import { WorkflowResultService } from "../../service/workflow-result/workflow-re
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { DynamicComponentConfig } from "../../../common/type/dynamic-component-config";
 import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow-graph";
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
-
-export type ResultFrameComponent =
-  | ResultTableFrameComponent
-  | ErrorFrameComponent
-  | VisualizationFrameComponent
-  | ConsoleFrameComponent;
-
-export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameComponent>;
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -35,7 +26,7 @@ export type ResultFrameComponentConfig = DynamicComponentConfig<ResultFrameCompo
   styleUrls: ["./result-panel.component.scss"],
 })
 export class ResultPanelComponent implements OnInit {
-  frameComponentConfigs: Map<string, ResultFrameComponentConfig> = new Map();
+  frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
@@ -76,15 +67,6 @@ export class ResultPanelComponent implements OnInit {
         const currentlyHighlighted = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        // display panel on breakpoint hits and highlight breakpoint operator
-        if (event.current.state === ExecutionState.BreakpointTriggered) {
-          const breakpointOperator = this.executeWorkflowService.getBreakpointTriggerInfo()?.operatorID;
-          if (breakpointOperator) {
-            this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
-            this.workflowActionService.getJointGraphWrapper().highlightOperators(breakpointOperator);
-          }
-          this.resultPanelToggleService.openResultPanel();
-        }
         // display panel on abort (to show possible error messages)
         if (event.current.state === ExecutionState.Failed) {
           this.resultPanelToggleService.openResultPanel();
@@ -191,11 +173,6 @@ export class ResultPanelComponent implements OnInit {
     }
   }
 
-  hasErrorOrBreakpoint(): boolean {
-    const executionState = this.executeWorkflowService.getExecutionState();
-    return [ExecutionState.Paused, ExecutionState.BreakpointTriggered].includes(executionState.state);
-  }
-
   clearResultPanel(): void {
     this.frameComponentConfigs.clear();
   }
@@ -223,7 +200,7 @@ export class ResultPanelComponent implements OnInit {
         component: ResultTableFrameComponent,
         componentInputs: { operatorId },
       });
-    } else if (resultService && resultService.getChartType()) {
+    } else if (resultService) {
       // display visualization result
       this.frameComponentConfigs.set("Result", {
         component: VisualizationFrameComponent,
@@ -238,10 +215,6 @@ export class ResultPanelComponent implements OnInit {
   }): boolean {
     // transitioning from any state to failed state
     if (event.current.state === ExecutionState.Failed) {
-      return true;
-    }
-    // transitioning from any state to breakpoint triggered state
-    if (event.current.state === ExecutionState.BreakpointTriggered) {
       return true;
     }
 

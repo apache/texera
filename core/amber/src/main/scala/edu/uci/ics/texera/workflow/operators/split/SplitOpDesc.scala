@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.split
 
 import com.fasterxml.jackson.annotation.{JsonIgnore, JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.AmberConfig
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
@@ -21,7 +21,7 @@ class SplitOpDesc extends LogicalOp {
 
   // Store random seeds for each executor to satisfy the fault tolerance requirement.
   @JsonIgnore
-  val seeds: Array[Int] = Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt)
+  val seeds: Array[Int] = Array.fill(AmberConfig.numWorkerPerOperatorByDefault)(Random.nextInt())
 
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
@@ -32,17 +32,25 @@ class SplitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _, _) => new SplitOpExec(idx, this))
+        OpExecInitInfo((idx, _) => new SplitOpExec(k, idx, seeds.apply))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          operatorInfo.outputPorts
+            .map(_.id)
+            .map(id => id -> inputSchemas(operatorInfo.inputPorts.head.id))
+            .toMap
+        )
+      )
   }
 
   override def operatorInfo: OperatorInfo = {
     OperatorInfo(
       userFriendlyName = "Training/Testing Split",
       operatorDescription = "Split training and testing data to two different ports",
-      operatorGroupName = OperatorGroupConstants.UTILITY_GROUP,
+      operatorGroupName = OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(
         OutputPort(PortIdentity(), displayName = "training"),

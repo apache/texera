@@ -20,11 +20,12 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayOrderEnforcer
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  MainThreadDelegateMessage,
   TriggerSend,
-  WorkerReplayLoggingConfig,
-  WorkerStateRestoreConfig
+  FaultToleranceConfig,
+  StateRestoreConfig
 }
-import edu.uci.ics.amber.engine.common.AmberLogging
+import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
@@ -64,7 +65,7 @@ object WorkflowActor {
 }
 
 abstract class WorkflowActor(
-    replayLogConfOpt: Option[WorkerReplayLoggingConfig],
+    replayLogConfOpt: Option[FaultToleranceConfig],
     val actorId: ActorVirtualIdentity
 ) extends Actor
     with Stash
@@ -99,9 +100,14 @@ abstract class WorkflowActor(
 
   def getLogName: String = actorId.name.replace("Worker:", "")
 
-  def sendMessageFromLogWriterToActor(msg: WorkflowFIFOMessage): Unit = {
+  def sendMessageFromLogWriterToActor(
+      msg: Either[MainThreadDelegateMessage, WorkflowFIFOMessage]
+  ): Unit = {
     // limitation: TriggerSend will be processed after input messages before it.
-    self ! TriggerSend(msg)
+    msg match {
+      case Left(value)  => self ! value
+      case Right(value) => self ! TriggerSend(value)
+    }
   }
 
   def handleTriggerSend: Receive = {
@@ -119,7 +125,7 @@ abstract class WorkflowActor(
   // actor behavior for FIFO messages
   def receiveMessageAndAck: Receive = {
     case NetworkMessage(id, workflowMsg @ WorkflowFIFOMessage(channel, _, _)) =>
-      actorRefMappingService.registerActorRef(channel.fromWorkerId, sender)
+      actorRefMappingService.registerActorRef(channel.fromWorkerId, sender())
       try {
         handleInputMessage(id, workflowMsg)
       } catch {
@@ -133,7 +139,7 @@ abstract class WorkflowActor(
 
   def receiveCreditMessages: Receive = {
     case CreditRequest(channel) =>
-      sender ! CreditResponse(channel, getQueuedCredit(channel))
+      sender() ! CreditResponse(channel, getQueuedCredit(channel))
     case CreditResponse(channel, credit) =>
       transferService.updateChannelCreditFromReceiver(channel, credit)
   }
@@ -168,33 +174,45 @@ abstract class WorkflowActor(
   //
   def initState(): Unit
 
+  def loadFromCheckpoint(chkpt: CheckpointState): Unit
+
   def setupReplay(
       amberProcessor: AmberProcessor,
-      replayConf: WorkerStateRestoreConfig,
+      stateRestoreConf: StateRestoreConfig,
       onComplete: () => Unit
   ): Unit = {
     val logStorageToRead =
-      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(replayConf.readFrom))
-    val replayTo = replayConf.replayDestination
-    val (processSteps, messages) =
-      ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
-    logger.info(
-      s"setting up replay, " +
-        s"read from ${replayConf.readFrom} " +
-        s"current step = ${logManager.getStep} " +
-        s"target step = $replayTo " +
-        s"# of log record to replay = ${processSteps.size}"
-    )
-    val orderEnforcer = new ReplayOrderEnforcer(
-      logManager,
-      processSteps,
-      startStep = logManager.getStep,
-      onComplete
-    )
-    amberProcessor.inputGateway.addEnforcer(orderEnforcer)
-    messages.foreach(message =>
-      amberProcessor.inputGateway.getChannel(message.channelId).acceptMessage(message)
-    )
+      SequentialRecordStorage.getStorage[ReplayLogRecord](Some(stateRestoreConf.readFrom))
+    val replayTo = stateRestoreConf.replayDestination
+    if (logStorageToRead.containsFolder(replayTo.toString)) {
+      // checkpoint found
+      val chkptStorage = SequentialRecordStorage.getStorage[CheckpointState](
+        Some(stateRestoreConf.readFrom.resolve(replayTo.toString))
+      )
+      val chkpt = chkptStorage.getReader(getLogName).mkRecordIterator().next()
+      loadFromCheckpoint(chkpt)
+    } else {
+      // do replay from scratch
+      val (processSteps, messages) =
+        ReplayLogGenerator.generate(logStorageToRead, getLogName, replayTo)
+      logger.info(
+        s"setting up replay, " +
+          s"read from ${stateRestoreConf.readFrom} " +
+          s"current step = ${logManager.getStep} " +
+          s"target step = $replayTo " +
+          s"# of log record to replay = ${processSteps.size}"
+      )
+      val orderEnforcer = new ReplayOrderEnforcer(
+        logManager,
+        processSteps,
+        startStep = logManager.getStep,
+        onComplete
+      )
+      amberProcessor.inputGateway.addEnforcer(orderEnforcer)
+      messages.foreach(message =>
+        amberProcessor.inputGateway.getChannel(message.channelId).acceptMessage(message)
+      )
+    }
   }
 
   override def preStart(): Unit = {

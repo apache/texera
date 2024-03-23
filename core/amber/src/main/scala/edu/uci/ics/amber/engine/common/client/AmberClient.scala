@@ -4,7 +4,7 @@ import akka.actor.{ActorSystem, Address, PoisonPill, Props}
 import akka.pattern._
 import akka.util.Timeout
 import com.twitter.util.{Future, Promise}
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
+import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.common.FutureBijection._
 import edu.uci.ics.amber.engine.common.ambermessage.{NotifyFailedNode, WorkflowRecoveryMessage}
 import edu.uci.ics.amber.engine.common.client.ClientActor.{
@@ -15,6 +15,8 @@ import edu.uci.ics.amber.engine.common.client.ClientActor.{
 }
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CLIENT
+import edu.uci.ics.texera.workflow.common.WorkflowContext
+import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
@@ -27,7 +29,9 @@ import scala.reflect.ClassTag
 
 class AmberClient(
     system: ActorSystem,
-    workflow: Workflow,
+    workflowContext: WorkflowContext,
+    physicalPlan: PhysicalPlan,
+    opResultStorage: OpResultStorage,
     controllerConfig: ControllerConfig,
     errorHandler: Throwable => Unit
 ) {
@@ -37,7 +41,15 @@ class AmberClient(
   private val registeredObservables = new mutable.HashMap[Class[_], Observable[_]]()
   @volatile private var isActive = true
 
-  Await.result(clientActor ? InitializeRequest(workflow, controllerConfig), 10.seconds)
+  Await.result(
+    clientActor ? InitializeRequest(
+      workflowContext,
+      physicalPlan,
+      opResultStorage,
+      controllerConfig
+    ),
+    10.seconds
+  )
 
   def shutdown(): Unit = {
     if (isActive) {
@@ -50,7 +62,7 @@ class AmberClient(
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      val promise = Promise[Any]
+      val promise = Promise[Any]()
       clientActor ! CommandRequest(controlCommand, promise)
       promise.map(ret => ret.asInstanceOf[T])
     }
@@ -60,7 +72,7 @@ class AmberClient(
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      val promise = Promise[Any]
+      val promise = Promise[Any]()
       clientActor ! CommandRequest(controlCommand, promise)
       promise.map(ret => ret.asInstanceOf[T])
     }
@@ -70,7 +82,7 @@ class AmberClient(
     if (!isActive) {
       Future.exception(new RuntimeException("amber runtime environment is not active"))
     } else {
-      val promise = Promise[Any]
+      val promise = Promise[Any]()
       promise.onSuccess { value =>
         callback(value.asInstanceOf[T])
       }

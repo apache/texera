@@ -36,27 +36,20 @@ class DataProcessor(Runnable, Stoppable):
         finished_current = self._context.tuple_processing_manager.finished_current
         while not finished_current.is_set():
             try:
-                operator = self._context.operator_manager.operator
+                executor = self._context.executor_manager.executor
                 tuple_ = self._context.tuple_processing_manager.current_input_tuple
-                link = self._context.tuple_processing_manager.current_input_link
+                port_id = self._context.tuple_processing_manager.current_input_port_id
                 port: int
-                if link is None:
-                    # no upstream, special case for source operator.
-                    port = -1
-
-                elif link in self._context.tuple_processing_manager.input_link_map:
-                    port = self._context.tuple_processing_manager.input_link_map[link]
-
+                if port_id is None:
+                    # no upstream, special case for source executor.
+                    port = 0
                 else:
-                    raise Exception(
-                        f"Unexpected input link {link}, not in input mapping "
-                        f"{self._context.tuple_processing_manager.input_link_map}"
-                    )
+                    port = port_id.id
 
                 output_iterator = (
-                    operator.process_tuple(tuple_, port)
+                    executor.process_tuple(tuple_, port)
                     if isinstance(tuple_, Tuple)
-                    else operator.on_finish(port)
+                    else executor.on_finish(port)
                 )
                 with replace_print(
                     self._context.worker_id,
@@ -82,7 +75,7 @@ class DataProcessor(Runnable, Stoppable):
 
     def _set_output_tuple(self, output_tuple):
         if output_tuple is not None:
-            output_tuple.finalize(self._context.operator_manager.operator.output_schema)
+            output_tuple.finalize(self._context.output_manager.get_port().get_schema())
         self._context.tuple_processing_manager.current_output_tuple = output_tuple
 
     def _switch_context(self) -> None:

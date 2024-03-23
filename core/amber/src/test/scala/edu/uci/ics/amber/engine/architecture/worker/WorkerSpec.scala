@@ -5,17 +5,21 @@ import akka.testkit.{ImplicitSender, TestActorRef, TestKit}
 import edu.uci.ics.amber.clustering.SingleNodeListener
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkMessage
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
-import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager
-import edu.uci.ics.amber.engine.architecture.scheduling.config.{OperatorConfig, WorkerConfig}
+import edu.uci.ics.amber.engine.architecture.messaginglayer.OutputManager.FlushNetworkBuffer
+import edu.uci.ics.amber.engine.architecture.scheduling.config.WorkerConfig
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.WorkerReplayInitialization
+import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
+  MainThreadDelegateMessage,
+  WorkerReplayInitialization
+}
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddInputChannelHandler.AddInputChannel
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AddPartitioningHandler.AddPartitioning
-import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.UpdateInputLinkingHandler.UpdateInputLinking
-import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, WorkflowFIFOMessage}
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.AssignPortHandler.AssignPort
+import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.InitializeExecutorHandler.InitializeExecutor
+import edu.uci.ics.amber.engine.common.ambermessage.{DataFrame, DataPayload, WorkflowFIFOMessage}
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
-import edu.uci.ics.amber.engine.common.tuple.ITuple
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.util.CONTROLLER
 import edu.uci.ics.amber.engine.common.virtualidentity.{
   ActorVirtualIdentity,
@@ -23,16 +27,17 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   OperatorIdentity,
   PhysicalOpIdentity
 }
-import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort, PhysicalLink, PortIdentity}
-import edu.uci.ics.amber.engine.common.{IOperatorExecutor, InputExhausted}
-import edu.uci.ics.texera.workflow.common.WorkflowContext.{
-  DEFAULT_EXECUTION_ID,
-  DEFAULT_WORKFLOW_ID
-}
+import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
+import edu.uci.ics.texera.workflow.common.tuple.Tuple
+import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.flatspec.AnyFlatSpecLike
 
+import java.util.concurrent.CompletableFuture
+import scala.collection.mutable
+import scala.concurrent.duration.MILLISECONDS
 import scala.util.Random
 
 class WorkerSpec
@@ -42,63 +47,57 @@ class WorkerSpec
     with BeforeAndAfterAll
     with MockFactory {
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
+  def mkSchema(fields: Any*): Schema = {
+    val schemaBuilder = Schema.builder()
+    fields.indices.foreach { i =>
+      schemaBuilder.add(new Attribute("field" + i, AttributeType.ANY))
+    }
+    schemaBuilder.build()
   }
-  override def afterAll: Unit = {
+  def mkTuple(fields: Any*): Tuple = {
+    Tuple.builder(mkSchema(fields: _*)).addSequentially(fields.toArray).build()
+  }
+
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
+  }
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
   }
   private val identifier1 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-1")
   private val identifier2 = ActorVirtualIdentity("Worker:WF1-E1-op-layer-2")
 
-  private val mockOpExecutor = new IOperatorExecutor {
+  private val mockOpExecutor = new OperatorExecutor {
     override def open(): Unit = println("opened!")
 
     override def close(): Unit = println("closed!")
 
-    override def processTuple(
-        tuple: Either[ITuple, InputExhausted],
-        input: Int,
-        pauseManager: PauseManager,
-        asyncRPCClient: AsyncRPCClient
-    ): Iterator[(ITuple, Option[PortIdentity])] = {
-      if (tuple.isLeft) {
-        Iterator((tuple.left.get, None))
-      } else {
-        Iterator.empty
-      }
+    override def processTupleMultiPort(
+        tuple: Tuple,
+        port: Int
+    ): Iterator[(TupleLike, Option[PortIdentity])] = {
+      Iterator((tuple, None))
     }
+    override def onFinishMultiPort(
+        port: Int
+    ): Iterator[(TupleLike, Option[PortIdentity])] = {
+      Iterator()
+    }
+
+    override def processTuple(tuple: Tuple, port: Int): Iterator[TupleLike] = ???
   }
   private val operatorIdentity = OperatorIdentity("testOperator")
-  private val physicalOp1 = PhysicalOp(
-    id = PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
-    workflowId = DEFAULT_WORKFLOW_ID,
-    executionId = DEFAULT_EXECUTION_ID,
-    opExecInitInfo = null
-  )
-  private val physicalOp2 = PhysicalOp(
-    id = PhysicalOpIdentity(operatorIdentity, "2nd-physical-op"),
-    workflowId = DEFAULT_WORKFLOW_ID,
-    executionId = DEFAULT_EXECUTION_ID,
-    opExecInitInfo = null
-  )
+
+  private val mockPortId = PortIdentity()
   private val mockLink =
-    PhysicalLink(physicalOp1.id, PortIdentity(), physicalOp2.id, PortIdentity())
-  private val physicalOp = PhysicalOp
-    .oneToOnePhysicalOp(
-      DEFAULT_WORKFLOW_ID,
-      DEFAULT_EXECUTION_ID,
-      operatorIdentity,
-      OpExecInitInfo((_, _, _) => mockOpExecutor)
-    )
-    .copy(
-      inputPorts = Map(PortIdentity() -> (InputPort(), List(mockLink), null)),
-      outputPorts = Map(PortIdentity() -> (OutputPort(), List(mockLink), null))
+    PhysicalLink(
+      PhysicalOpIdentity(operatorIdentity, "1st-physical-op"),
+      mockPortId,
+      PhysicalOpIdentity(operatorIdentity, "2nd-physical-op"),
+      mockPortId
     )
 
-  private val mockPolicy = OneToOnePartitioning(10, Array(identifier2))
-  private val mockHandler = mock[WorkflowFIFOMessage => Unit]
-  private val mockOutputManager = mock[OutputManager]
+  private val mockPolicy = OneToOnePartitioning(10, Seq(identifier2))
 
   def sendControlToWorker(
       worker: ActorRef,
@@ -115,87 +114,98 @@ class WorkerSpec
     }
   }
 
-  def mkWorker: ActorRef = {
-    TestActorRef(
+  def mkWorker(expectedOutput: Iterable[TupleLike]): (ActorRef, CompletableFuture[Boolean]) = {
+    val expected = mutable.Queue.from(expectedOutput)
+    val completeStatus = new CompletableFuture[Boolean]()
+    val mockHandler: Either[MainThreadDelegateMessage, WorkflowFIFOMessage] => Unit = {
+      case Left(value) => ???
+      case Right(value) =>
+        value match {
+          case WorkflowFIFOMessage(_, _, payload) =>
+            payload match {
+              case payload: DataPayload =>
+                payload.asInstanceOf[DataFrame].frame.foreach { item =>
+                  val expectedOutput = expected.dequeue()
+                  if (expectedOutput != item) {
+                    completeStatus.complete(false)
+                  } else {
+                    if (expected.isEmpty) {
+                      completeStatus.complete(true)
+                    }
+                  }
+                }
+              case _ => //skip
+            }
+        }
+    }
+    val worker = TestActorRef(
       new WorkflowWorker(
         WorkerConfig(identifier1),
-        physicalOp,
-        OperatorConfig(List(WorkerConfig(identifier1))),
-        WorkerReplayInitialization(restoreConfOpt = None, replayLogConfOpt = None)
+        WorkerReplayInitialization(restoreConfOpt = None, faultToleranceConfOpt = None)
       ) {
-        this.dp = new DataProcessor(identifier1, mockHandler) {
-          override val outputManager: OutputManager = mockOutputManager
-        }
-        this.dp.initOperator(
-          0,
-          physicalOp,
-          OperatorConfig(List(WorkerConfig(identifier1))),
-          Iterator.empty
-        )
+        this.dp = new DataProcessor(identifier1, mockHandler)
         this.dp.initTimerService(timerService)
-        override val dpThread: DPThread =
-          new DPThread(
-            actorId,
-            dp,
-            logManager,
-            inputQueue
-          )
+        dpThread = new DPThread(
+          actorId,
+          dp,
+          logManager,
+          inputQueue
+        )
       }
     )
-  }
-
-  "Worker" should "process AddPartitioning message correctly" in {
-    val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockHandler.apply _).expects(*).once()
     val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    sendControlToWorker(worker, Array(invocation))
-
-    //wait test to finish
-    Thread.sleep(3000)
+    val addPort1 = ControlInvocation(1, AssignPort(mockPortId, input = true, mkSchema(1)))
+    val addPort2 = ControlInvocation(2, AssignPort(mockPortId, input = false, mkSchema(1)))
+    val addInputChannel = ControlInvocation(
+      3,
+      AddInputChannel(
+        ChannelIdentity(identifier2, identifier1, isControl = false),
+        mockLink.toPortId
+      )
+    )
+    val initializeOperatorLogic = ControlInvocation(
+      4,
+      InitializeExecutor(1, OpExecInitInfo((_, _) => mockOpExecutor), isSource = false)
+    )
+    sendControlToWorker(
+      worker,
+      Array(invocation, addPort1, addPort2, addInputChannel, initializeOperatorLogic)
+    )
+    (worker, completeStatus)
   }
 
   "Worker" should "process data messages correctly" in {
-    val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockOutputManager.passTupleToDownstream _).expects(ITuple(1), mockLink).once()
-    (mockHandler.apply _).expects(*).anyNumberOfTimes()
-    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val (worker, future) = mkWorker(Array(mkTuple(1)))
     worker ! NetworkMessage(
-      3,
+      0,
       WorkflowFIFOMessage(
         ChannelIdentity(identifier2, identifier1, isControl = false),
         0,
-        DataFrame(Array(ITuple(1)))
+        DataFrame(Array(mkTuple(1)))
       )
     )
+    worker ! ControlInvocation(
+      AsyncRPCClient.IgnoreReplyAndDoNotLog,
+      FlushNetworkBuffer()
+    )
     //wait test to finish
-    Thread.sleep(3000)
+    assert(future.get(3000, MILLISECONDS))
   }
 
   "Worker" should "process batches correctly" in {
     ignoreMsg {
       case a => println(a); true
     }
-    val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    def mkBatch(start: Int, end: Int): Array[ITuple] = {
+
+    def mkBatch(start: Int, end: Int): Array[Tuple] = {
       (start until end).map { x =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(x, x, x, x), mockLink).once()
-        ITuple(x, x, x, x)
+        mkTuple(x)
       }.toArray
     }
     val batch1 = mkBatch(0, 400)
     val batch2 = mkBatch(400, 500)
     val batch3 = mkBatch(500, 800)
-    (mockHandler.apply _).expects(*).anyNumberOfTimes()
-    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
-    sendControlToWorker(worker, Array(invocation, updateInputLinking))
+    val (worker, future) = mkWorker(mkBatch(0, 800))
     worker ! NetworkMessage(
       3,
       WorkflowFIFOMessage(
@@ -222,40 +232,22 @@ class WorkerSpec
       )
     )
     //wait test to finish
-    Thread.sleep(3000)
+    assert(future.get(3000, MILLISECONDS))
   }
 
   "Worker" should "accept messages in fifo order" in {
     ignoreMsg {
       case a => println(a); true
     }
-    val worker = mkWorker
-    (mockOutputManager.addPartitionerWithPartitioning _).expects(mockLink, mockPolicy).once()
-    (mockHandler.apply _).expects(*).anyNumberOfTimes()
-    (mockOutputManager.flush _).expects(None).anyNumberOfTimes()
-    val invocation = ControlInvocation(0, AddPartitioning(mockLink, mockPolicy))
-    val updateInputLinking = ControlInvocation(1, UpdateInputLinking(identifier2, mockLink))
-    worker ! NetworkMessage(
-      1,
-      WorkflowFIFOMessage(
-        ChannelIdentity(CONTROLLER, identifier1, isControl = true),
-        1,
-        updateInputLinking
-      )
-    )
-    worker ! NetworkMessage(
-      0,
-      WorkflowFIFOMessage(ChannelIdentity(CONTROLLER, identifier1, isControl = true), 0, invocation)
-    )
+    val (worker, future) = mkWorker((0 until 100).map(mkTuple(_)))
     Random
       .shuffle((0 until 50).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
             ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
-            DataFrame(Array(ITuple(i)))
+            DataFrame(Array(mkTuple(i)))
           )
         )
       })
@@ -265,13 +257,12 @@ class WorkerSpec
     Thread.sleep(1000)
     Random
       .shuffle((50 until 100).map { i =>
-        (mockOutputManager.passTupleToDownstream _).expects(ITuple(i), mockLink).once()
         NetworkMessage(
           i + 2,
           WorkflowFIFOMessage(
             ChannelIdentity(identifier2, identifier1, isControl = false),
             i,
-            DataFrame(Array(ITuple(i)))
+            DataFrame(Array(mkTuple(i)))
           )
         )
       })
@@ -279,7 +270,7 @@ class WorkerSpec
         worker ! x
       }
     //wait test to finish
-    Thread.sleep(3000)
+    assert(future.get(3000, MILLISECONDS))
   }
 
 }

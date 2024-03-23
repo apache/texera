@@ -2,7 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source.fetcher
 
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
@@ -28,7 +28,7 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
 
   def sourceSchema(): Schema = {
     Schema
-      .newBuilder()
+      .builder()
       .add(
         "URL content",
         if (decodingMethod == DecodingMethod.UTF_8) { AttributeType.STRING }
@@ -43,30 +43,25 @@ class URLFetcherOpDesc extends SourceOperatorDescriptor {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val outputSchema: Schema =
-      operatorInfo.outputPorts.map(outputPort => outputPortToSchemaMapping(outputPort.id)).head
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) =>
-          new URLFetcherOpExec(
-            url,
-            decodingMethod,
-            outputSchema
-          )
-        )
+        OpExecInitInfo((_, _) => new URLFetcherOpExec(url, decodingMethod))
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> sourceSchema()))
+      )
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       userFriendlyName = "URL fetcher",
       operatorDescription = "Fetch the content of a single url",
-      operatorGroupName = OperatorGroupConstants.SOURCE_GROUP,
+      operatorGroupName = OperatorGroupConstants.API_GROUP,
       inputPorts = List.empty,
       outputPorts = List(OutputPort())
     )

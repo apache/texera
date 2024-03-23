@@ -15,7 +15,7 @@ class PythonLambdaFunctionOpDesc extends PythonOperatorDescriptor {
     Preconditions.checkArgument(schemas.length == 1)
     Preconditions.checkArgument(lambdaAttributeUnits.nonEmpty)
     val inputSchema = schemas(0)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     // keep the same schema from input
     outputSchemaBuilder.add(inputSchema)
     // add new attributes

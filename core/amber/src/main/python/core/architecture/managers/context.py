@@ -3,12 +3,12 @@ from .console_message_manager import ConsoleMessageManager
 from .debug_manager import DebugManager
 from .exception_manager import ExceptionManager
 from .tuple_processing_manager import TupleProcessingManager
-from .operator_manager import OperatorManager
+from .executor_manager import ExecutorManager
 from .pause_manager import PauseManager
 from .state_manager import StateManager
 from .statistics_manager import StatisticsManager
-from ..packaging.batch_to_tuple_converter import BatchToTupleConverter
-from ..packaging.tuple_to_batch_converter import TupleToBatchConverter
+from ..packaging.input_manager import InputManager
+from ..packaging.output_manager import OutputManager
 from ...models import InternalQueue
 
 
@@ -24,7 +24,7 @@ class Context:
     def __init__(self, worker_id, input_queue):
         self.worker_id = worker_id
         self.input_queue: InternalQueue = input_queue
-        self.operator_manager = OperatorManager()
+        self.executor_manager = ExecutorManager()
         self.tuple_processing_manager = TupleProcessingManager()
         self.exception_manager = ExceptionManager()
         self.state_manager = StateManager(
@@ -42,12 +42,12 @@ class Context:
         self.pause_manager = PauseManager(
             self.input_queue, state_manager=self.state_manager
         )
-        self.tuple_to_batch_converter = TupleToBatchConverter()
-        self.batch_to_tuple_converter = BatchToTupleConverter()
+        self.output_manager = OutputManager()
+        self.input_manager = InputManager()
         self.console_message_manager = ConsoleMessageManager()
         self.debug_manager = DebugManager(
             self.tuple_processing_manager.context_switch_condition
         )
 
     def close(self):
-        self.operator_manager.close()
+        self.executor_manager.close()

@@ -2,8 +2,7 @@ package edu.uci.ics.texera.workflow.common.workflow
 
 import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
-import edu.uci.ics.amber.engine.architecture.controller.{ControllerConfig, Workflow}
-import edu.uci.ics.amber.engine.architecture.scheduling.ExpansionGreedyRegionPlanGenerator
+import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
@@ -56,7 +55,7 @@ class WorkflowCompiler(
           )
       }
       executionStateStore.metadataStore.updateState(metadataStore =>
-        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors: _*)
+        updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors.toSeq: _*)
       )
     }
     logicalPlan
@@ -66,8 +65,7 @@ class WorkflowCompiler(
       logicalPlanPojo: LogicalPlanPojo,
       opResultStorage: OpResultStorage,
       lastCompletedExecutionLogicalPlan: Option[LogicalPlan] = Option.empty,
-      executionStateStore: ExecutionStateStore,
-      controllerConfig: ControllerConfig
+      executionStateStore: ExecutionStateStore
   ): Workflow = {
 
     // generate an original LogicalPlan. The logical plan is the injected with all necessary sinks
@@ -87,31 +85,11 @@ class WorkflowCompiler(
     // the PhysicalPlan with topology expanded.
     val physicalPlan = PhysicalPlan(context, rewrittenLogicalPlan)
 
-    // generate an RegionPlan with regions.
-    //  currently, ExpansionGreedyRegionPlanGenerator is the only RegionPlan generator.
-    val (regionPlan, updatedPhysicalPlan) = new ExpansionGreedyRegionPlanGenerator(
-      rewrittenLogicalPlan,
-      physicalPlan,
-      opResultStorage
-    ).generate(context)
-
-    // validate the plan
-    // TODO: generalize validation to each plan
-    // the updated physical plan's all source operators should have 0 input ports
-    updatedPhysicalPlan.getSourceOperatorIds.foreach { sourcePhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sourcePhysicalOpId).inputPorts.isEmpty)
-    }
-    // the updated physical plan's all sink operators should have 1 output ports
-    updatedPhysicalPlan.getSinkOperatorIds.foreach { sinkPhysicalOpId =>
-      assert(updatedPhysicalPlan.getOperator(sinkPhysicalOpId).outputPorts.size == 1)
-    }
-
     Workflow(
       context,
       originalLogicalPlan,
       rewrittenLogicalPlan,
-      updatedPhysicalPlan,
-      regionPlan
+      physicalPlan
     )
 
   }

@@ -69,9 +69,11 @@
   (keyup.enter)="disconnectQuillFromText()"></div>
 
 <form
+  nz-form
+  [nzLayout]="'vertical'"
   *ngIf="formlyFields && formlyFormGroup"
   [formGroup]="formlyFormGroup"
-  class="texera-workspace-property-editor-form">
+  class="property-editor-form">
   <formly-form
     (modelChange)="onFormChanges($event)"
     [fields]="formlyFields"
@@ -79,9 +81,9 @@
     [model]="formData"
     [options]="formlyOptions">
   </formly-form>
-  <ndc-dynamic
-    [ndcDynamicComponent]="extraDisplayComponentConfig?.component"
-    [ndcDynamicInputs]="extraDisplayComponentConfig?.componentInputs ?? {}"></ndc-dynamic>
+  <texera-type-casting-display
+    *ngIf="isTypeCasting"
+    currentOperatorId="{{this.currentOperatorId}}"></texera-type-casting-display>
 </form>
 
 <button
@@ -89,10 +91,8 @@
   *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
-			ExecutionState.Paused ||
-			this.executeWorkflowService.getExecutionState().state ===
-				ExecutionState.BreakpointTriggered) &&
-		this.interactive === false"
+			ExecutionState.Paused) &&
+		!this.interactive"
   nz-button
   nz-tooltip="Unlock the operator to change logic"
   nzTooltipPlacement="bottom"
@@ -112,10 +112,8 @@
   *ngIf="
 		currentOperatorId !== undefined &&
 		(this.executeWorkflowService.getExecutionState().state ===
-			ExecutionState.Paused ||
-			this.executeWorkflowService.getExecutionState().state ===
-				ExecutionState.BreakpointTriggered) &&
-		this.interactive === true"
+			ExecutionState.Paused) &&
+		this.interactive"
   nz-button
   nz-tooltip="Confirm change and modify the operator runtime"
   nzTooltipPlacement="bottom">

@@ -7,59 +7,47 @@ import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.sentiment.SentimentCoreAnnotations;
 import edu.stanford.nlp.trees.Tree;
 import edu.stanford.nlp.util.CoreMap;
+import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike;
 import edu.uci.ics.texera.workflow.common.operators.map.MapOpExec;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
-import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType;
-import edu.uci.ics.texera.workflow.common.tuple.schema.Schema;
 import scala.Function1;
-import scala.Serializable;
 
-import java.util.Properties;
+import java.io.Serializable;
+import java.util.*;
 
 public class SentimentAnalysisOpExec extends MapOpExec {
-
-    private final SentimentAnalysisOpDesc opDesc;
+    private final String attributeName;
     private final StanfordCoreNLPWrapper coreNlp;
 
-    private final Schema outputSchema;
-
-    public SentimentAnalysisOpExec(SentimentAnalysisOpDesc opDesc, Schema outputSchema) {
-        this.opDesc = opDesc;
-        this.outputSchema = outputSchema;
+    public SentimentAnalysisOpExec(String attributeName) {
+        this.attributeName = attributeName;
         Properties props = new Properties();
         props.setProperty("annotators", "tokenize, ssplit, parse, sentiment");
         coreNlp = new StanfordCoreNLPWrapper(props);
-        this.setMapFunc(
-                // must cast the lambda function to "(Function & Serializable)" in Java
-                (Function1<Tuple, Tuple> & Serializable) this::processTuple);
+        this.setMapFunc((Function1<Tuple, TupleLike> & Serializable) this::sentimentAnalysis);
     }
 
-    public Tuple processTuple(Tuple t) {
-        String text = t.getField(opDesc.attribute()).toString();
+    public TupleLike sentimentAnalysis(Tuple t) {
+        String text = t.getField(attributeName).toString();
         Annotation documentAnnotation = new Annotation(text);
         coreNlp.get().annotate(documentAnnotation);
-        // mainSentiment is calculated by the sentiment class of the longest sentence
-        int mainSentiment = 0;
-        int longestSentenceLength = 0;
-        for (CoreMap sentence : documentAnnotation.get(CoreAnnotations.SentencesAnnotation.class)) {
-            Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
-            int sentiment = RNNCoreAnnotations.getPredictedClass(tree);
-            String sentenceText = sentence.toString();
-            if (sentenceText.length() > longestSentenceLength) {
-                mainSentiment = sentiment;
-                longestSentenceLength = sentenceText.length();
-            }
-        }
-        Integer sentiment;
-        if (mainSentiment > 2) {
-            sentiment = 1;
-        } else if (mainSentiment == 2) {
-            sentiment = 0;
-        } else {
-            sentiment = -1;
-        }
 
-        return Tuple.newBuilder(outputSchema).add(t).add(opDesc.resultAttribute(), AttributeType.INTEGER, sentiment).build();
+        Optional<CoreMap> longestSentence = documentAnnotation.get(CoreAnnotations.SentencesAnnotation.class)
+                .stream()
+                .max(Comparator.comparingInt(s -> s.toString().length()));
+
+        int sentimentScore = longestSentence
+                .map(sentence -> {
+                    Tree tree = sentence.get(SentimentCoreAnnotations.SentimentAnnotatedTree.class);
+                    return RNNCoreAnnotations.getPredictedClass(tree);
+                })
+                .orElse(0);
+
+        int normalizedSentimentScore = Integer.compare(sentimentScore, 2);
+        ArrayList<Object> tupleFields = new ArrayList<>(Arrays.asList(t.getFields()));
+        tupleFields.add(normalizedSentimentScore);
+
+        return TupleLike.apply(tupleFields);
     }
 
 

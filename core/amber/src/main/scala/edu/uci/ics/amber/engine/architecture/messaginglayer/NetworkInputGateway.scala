@@ -14,7 +14,7 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
   private val inputChannels =
     new mutable.HashMap[ChannelIdentity, AmberFIFOChannel]()
 
-  private val enforcers = mutable.ListBuffer[OrderEnforcer]()
+  @transient lazy private val enforcers = mutable.ListBuffer[OrderEnforcer]()
 
   def tryPickControlChannel: Option[AmberFIFOChannel] = {
     val ret = inputChannels
@@ -66,4 +66,5 @@ class NetworkInputGateway(val actorId: ActorVirtualIdentity)
   override def addEnforcer(enforcer: OrderEnforcer): Unit = {
     enforcers += enforcer
   }
+
 }

@@ -24,6 +24,7 @@ class NetworkOutputGateway(
     val handler: WorkflowFIFOMessage => Unit
 ) extends AmberLogging
     with Serializable {
+
   private val idToSequenceNums = new mutable.HashMap[ChannelIdentity, AtomicLong]()
 
   def addOutputChannel(channelId: ChannelIdentity): Unit = {

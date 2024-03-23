@@ -12,7 +12,7 @@ import edu.uci.ics.texera.workflow.operators.visualization.{
 }
 
 import java.util
-import scala.jdk.CollectionConverters.iterableAsScalaIterableConverter
+import scala.jdk.CollectionConverters.ListHasAsScala
 
 class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescriptor {
 
@@ -35,7 +35,7 @@ class LineChartOpDesc extends VisualizationOperator with PythonOperatorDescripto
   var lines: util.List[LineConfig] = _
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
-    Schema.newBuilder.add(new Attribute("html-content", AttributeType.STRING)).build
+    Schema.builder().add(new Attribute("html-content", AttributeType.STRING)).build()
   }
 
   override def operatorInfo: OperatorInfo =

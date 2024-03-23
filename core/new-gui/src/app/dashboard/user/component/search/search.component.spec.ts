@@ -19,6 +19,8 @@ import { ScrollingModule } from "@angular/cdk/scrolling";
 import { NoopAnimationsModule } from "@angular/platform-browser/animations";
 import { DashboardEntry } from "../../type/dashboard-entry";
 import { SearchResultsComponent } from "../search-results/search-results.component";
+import { UserService } from "../../../../common/service/user/user.service";
+import { StubUserService } from "../../../../common/service/user/stub-user.service";
 
 describe("SearchComponent", () => {
   let component: SearchComponent;
@@ -35,6 +37,7 @@ describe("SearchComponent", () => {
             ...testUserProjects.map(i => new DashboardEntry(i)),
           ]),
         },
+        { provide: UserService, useClass: StubUserService },
         { provide: OperatorMetadataService, useClass: StubOperatorMetadataService },
         { provide: UserProjectService, useClass: StubUserProjectService },
         { provide: WorkflowPersistService, useValue: new StubWorkflowPersistService(testWorkflowEntries) },

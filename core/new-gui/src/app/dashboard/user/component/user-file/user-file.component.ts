@@ -1,5 +1,5 @@
 import { Component, OnInit } from "@angular/core";
-import { NgbModal } from "@ng-bootstrap/ng-bootstrap";
+import { NzModalService } from "ng-zorro-antd/modal";
 import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { DashboardFile, SortMethod } from "../../type/dashboard-file.interface";
@@ -31,7 +31,7 @@ export class UserFileComponent implements OnInit {
   public uid: number | undefined;
 
   constructor(
-    private modalService: NgbModal,
+    private modalService: NzModalService,
     private userFileService: UserFileService,
     private userService: UserService
   ) {
@@ -43,11 +43,12 @@ export class UserFileComponent implements OnInit {
   }
 
   public openFileAddComponent() {
-    const modalRef = this.modalService.open(NgbdModalFileAddComponent);
-
-    modalRef.dismissed.pipe(untilDestroyed(this)).subscribe(_ => {
-      this.refreshDashboardFileEntries();
+    const modalRef = this.modalService.create({
+      nzContent: NgbdModalFileAddComponent,
+      nzFooter: null,
+      nzTitle: "Add Files",
     });
+    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refreshDashboardFileEntries());
   }
 
   public searchInputOnChange(value: string): void {

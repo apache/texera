@@ -10,7 +10,6 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.{AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
 import org.scalatest.flatspec.AnyFlatSpec
 
-import scala.collection.convert.ImplicitConversions.`list asScalaBuffer`
 class CSVScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
 
   val workflowContext = new WorkflowContext()

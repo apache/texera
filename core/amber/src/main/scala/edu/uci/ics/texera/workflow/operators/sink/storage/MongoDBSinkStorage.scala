@@ -15,15 +15,14 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
   val commitBatchSize: Int = AmberConfig.sinkStorageMongoDBConfig.getInt("commit-batch-size")
   MongoDatabaseManager.dropCollection(id)
-  val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
+  @transient lazy val collectionMgr: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
 
   class MongoDBSinkStorageWriter(bufferSize: Int) extends SinkStorageWriter {
     var uncommittedInsertions: mutable.ArrayBuffer[Tuple] = _
-    var collection: MongoCollectionManager = _
+    @transient lazy val collection: MongoCollectionManager = MongoDatabaseManager.getCollection(id)
 
     override def open(): Unit = {
       uncommittedInsertions = new mutable.ArrayBuffer[Tuple]()
-      collection = MongoDatabaseManager.getCollection(id)
     }
 
     override def close(): Unit = {
@@ -55,7 +54,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
     new Iterator[Tuple] {
       override def hasNext: Boolean = cursor.hasNext
       override def next(): Tuple = document2Tuple(cursor.next(), schema)
-    }.toIterable
+    }.iterator.to(Iterable)
   }
 
   override def getAll: Iterable[Tuple] = {
@@ -63,7 +62,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
     mkTupleIterable(cursor)
   }
 
-  override def getStorageWriter(): SinkStorageWriter =
+  override def getStorageWriter: SinkStorageWriter =
     new MongoDBSinkStorageWriter(commitBatchSize)
 
   override def clear(): Unit = {
@@ -93,7 +92,7 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
 
   override def setSchema(schema: Schema): Unit = {
     // For backward compatibility of old mongoDB(version < 5)
-    schema.getAttributeNames.stream.forEach(name =>
+    schema.getAttributeNames.foreach(name =>
       assert(!name.matches(".*[\\$\\.].*"), s"illegal attribute name '$name' for mongo DB")
     )
     this.schema = schema

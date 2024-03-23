@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.sortPartitions
 
-import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -8,15 +8,15 @@ import org.scalatest.flatspec.AnyFlatSpec
 
 class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   val tupleSchema: Schema = Schema
-    .newBuilder()
+    .builder()
     .add(new Attribute("field1", AttributeType.STRING))
     .add(new Attribute("field2", AttributeType.INTEGER))
     .add(new Attribute("field3", AttributeType.BOOLEAN))
     .build()
 
-  val tuple: (Int) => Tuple = (i) =>
+  val tuple: Int => Tuple = i =>
     Tuple
-      .newBuilder(tupleSchema)
+      .builder(tupleSchema)
       .add(new Attribute("field1", AttributeType.STRING), "hello")
       .add(new Attribute("field2", AttributeType.INTEGER), i)
       .add(
@@ -45,13 +45,16 @@ class SortPartitionsOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   it should "output in order" in {
 
     opExec.open()
-    opExec.processTexeraTuple(Left(tuple(3)), 0, null, null)
-    opExec.processTexeraTuple(Left(tuple(1)), 0, null, null)
-    opExec.processTexeraTuple(Left(tuple(2)), 0, null, null)
-    opExec.processTexeraTuple(Left(tuple(5)), 0, null, null)
+    opExec.processTuple(tuple(3), 0)
+    opExec.processTuple(tuple(1), 0)
+    opExec.processTuple(tuple(2), 0)
+    opExec.processTuple(tuple(5), 0)
 
     val outputTuples: List[Tuple] =
-      opExec.processTexeraTuple(Right(InputExhausted()), 0, null, null).toList
+      opExec
+        .onFinish(0)
+        .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(tupleSchema))
+        .toList
     assert(outputTuples.size == 4)
     assert(outputTuples(0).equals(tuple(1)))
     assert(outputTuples(1).equals(tuple(2)))

@@ -45,7 +45,7 @@ class ClusterListener extends Actor with AmberLogging {
       logger.info(s"received member event = $evt")
       updateClusterStatus(evt)
     case ClusterListener.GetAvailableNodeAddresses() =>
-      sender ! getAllAddressExcludingMaster.toArray
+      sender() ! getAllAddressExcludingMaster.toArray
     case other =>
       println(other)
   }
@@ -81,7 +81,7 @@ class ClusterListener extends Actor with AmberLogging {
     evt match {
       case MemberRemoved(member, status) =>
         logger.info("Cluster node " + member + " is down!")
-        val futures = new ArrayBuffer[Future[Any]]
+        val futures = new ArrayBuffer[Future[_]]
         WorkflowService.getAllWorkflowServices.foreach { workflow =>
           val executionService = workflow.executionService.getValue
           if (
@@ -96,7 +96,7 @@ class ClusterListener extends Actor with AmberLogging {
               } catch {
                 case t: Throwable =>
                   logger.warn(
-                    s"execution ${executionService.workflow.context.executionId.id} cannot recover! forcing it to stop"
+                    s"execution ${executionService.workflowContext.executionId.id} cannot recover! forcing it to stop"
                   )
                   forcefullyStop(executionService, t)
               }
@@ -111,7 +111,7 @@ class ClusterListener extends Actor with AmberLogging {
             }
           }
         }
-        Await.all(futures: _*)
+        Await.all(futures.toSeq: _*)
       case other => //skip
     }
 

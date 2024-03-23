@@ -6,7 +6,7 @@
       "files": ["*.ts"],
       "parser": "@typescript-eslint/parser",
       "parserOptions": {
-        "project": ["tsconfig.json", "e2e/tsconfig.json"],
+        "project": ["tsconfig.json"],
         "createDefaultProgram": true
       },
       "extends": [
@@ -37,20 +37,6 @@
           "off",
           {
             "accessibility": "explicit"
-          }
-        ],
-        "@typescript-eslint/no-inferrable-types": [
-          "error",
-          {
-            "ignoreParameters": true,
-            "ignoreProperties": true
-          }
-        ],
-        "@typescript-eslint/quotes": [
-          "error",
-          "double",
-          {
-            "allowTemplateLiterals": true
           }
         ],
         "brace-style": ["error", "1tbs"],

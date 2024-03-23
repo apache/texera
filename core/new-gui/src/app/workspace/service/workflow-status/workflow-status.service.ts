@@ -1,8 +1,7 @@
 import { Injectable } from "@angular/core";
 import { Observable, Subject } from "rxjs";
 import { environment } from "../../../../environments/environment";
-import { OperatorStatistics } from "../../types/execute-workflow.interface";
-import { WorkflowActionService } from "../workflow-graph/model/workflow-action.service";
+import { OperatorState, OperatorStatistics } from "../../types/execute-workflow.interface";
 import { WorkflowWebsocketService } from "../workflow-websocket/workflow-websocket.service";
 
 @Injectable({
@@ -13,10 +12,7 @@ export class WorkflowStatusService {
   private statusSubject = new Subject<Record<string, OperatorStatistics>>();
   private currentStatus: Record<string, OperatorStatistics> = {};
 
-  constructor(
-    private workflowActionService: WorkflowActionService,
-    private workflowWebsocketService: WorkflowWebsocketService
-  ) {
+  constructor(private workflowWebsocketService: WorkflowWebsocketService) {
     if (!environment.executionStatusEnabled) {
       return;
     }
@@ -36,5 +32,20 @@ export class WorkflowStatusService {
 
   public getCurrentStatus(): Record<string, OperatorStatistics> {
     return this.currentStatus;
+  }
+
+  public resetStatus(): void {
+    const initStatus: Record<string, OperatorStatistics> = Object.keys(this.currentStatus).reduce(
+      (accumulator, operatorId) => {
+        accumulator[operatorId] = {
+          operatorState: OperatorState.Uninitialized,
+          aggregatedInputRowCount: 0,
+          aggregatedOutputRowCount: 0,
+        };
+        return accumulator;
+      },
+      {} as Record<string, OperatorStatistics>
+    );
+    this.statusSubject.next(initStatus);
   }
 }

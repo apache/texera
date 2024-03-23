@@ -4,7 +4,6 @@ import java.lang.annotation.Annotation
 import java.util
 import java.util.function.Supplier
 import java.util.{Optional, List => JList}
-
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription, JsonSubTypes, JsonTypeInfo, JsonTypeName}
 import com.fasterxml.jackson.core.JsonParser.NumberType
 import com.fasterxml.jackson.databind._
@@ -16,16 +15,19 @@ import com.fasterxml.jackson.databind.node.{ArrayNode, JsonNodeFactory, ObjectNo
 import com.fasterxml.jackson.databind.util.ClassUtil
 import com.kjetland.jackson.jsonSchema.annotations._
 import io.github.classgraph.{ClassGraph, ScanResult}
+
 import javax.validation.constraints._
 import javax.validation.groups.Default
 import org.slf4j.LoggerFactory
+
+import scala.jdk.CollectionConverters.{CollectionHasAsScala, MapHasAsScala}
 
 object JsonSchemaGenerator {
 }
 
 object JsonSchemaConfig {
 
-  val vanillaJsonSchemaDraft4 = JsonSchemaConfig(
+  val vanillaJsonSchemaDraft4: JsonSchemaConfig = JsonSchemaConfig(
     autoGenerateTitleForProperties = false,
     defaultArrayFormat = None,
     useOneOfForOption = false,
@@ -50,7 +52,7 @@ object JsonSchemaConfig {
     * autoGenerateTitleForProperties - If property is named "someName", we will add {"title": "Some Name"}
     * defaultArrayFormat - this will result in a better gui than te default one.
     */
-  val html5EnabledSchema = JsonSchemaConfig(
+  val html5EnabledSchema: JsonSchemaConfig = JsonSchemaConfig(
     autoGenerateTitleForProperties = true,
     defaultArrayFormat = Some("table"),
     useOneOfForOption = true,
@@ -132,8 +134,6 @@ object JsonSchemaConfig {
               javaxValidationGroups:java.util.List[Class[_]]
             ):JsonSchemaConfig = {
 
-    import scala.collection.JavaConverters._
-
     JsonSchemaConfig(
       autoGenerateTitleForProperties,
       Option(defaultArrayFormat.orElse(null)),
@@ -171,7 +171,6 @@ case class SubclassesResolverImpl
   packagesToScan:List[String] = List(),
   classesToScan:List[String] = List()
 ) extends SubclassesResolver {
-  import scala.collection.JavaConverters._
 
   def this() = this(None, List(), List())
 
@@ -211,12 +210,12 @@ case class SubclassesResolverImpl
 
     if (packagesToScan.nonEmpty) {
       classGraphConfigured = true
-      _classGraph.whitelistPackages( packagesToScan:_* )
+      _classGraph.acceptClasses( packagesToScan:_* )
     }
 
     if ( classesToScan.nonEmpty ) {
       classGraphConfigured = true
-      _classGraph.whitelistClasses( classesToScan:_* )
+      _classGraph.acceptClasses( classesToScan:_* )
     }
 
     if ( !classGraphConfigured ) {
@@ -299,8 +298,6 @@ class JsonSchemaGenerator
 
   // Java API
   def this(rootObjectMapper: ObjectMapper, config:JsonSchemaConfig) = this(rootObjectMapper, false, config)
-
-  import scala.collection.JavaConverters._
 
   val log = LoggerFactory.getLogger(getClass)
 

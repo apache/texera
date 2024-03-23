@@ -12,16 +12,19 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 export class ContextMenuComponent {
   public isWorkflowModifiable: boolean = false;
 
-  constructor(public workflowActionService: WorkflowActionService, public operatorMenu: OperatorMenuService) {
+  constructor(
+    public workflowActionService: WorkflowActionService,
+    public operatorMenuService: OperatorMenuService
+  ) {
     this.registerWorkflowModifiableChangedHandler();
   }
 
   public onCopy(): void {
-    this.operatorMenu.saveHighlightedElements();
+    this.operatorMenuService.saveHighlightedElements();
   }
 
   public onPaste(): void {
-    this.operatorMenu.performPasteOperation();
+    this.operatorMenuService.performPasteOperation();
   }
 
   public onCut(): void {

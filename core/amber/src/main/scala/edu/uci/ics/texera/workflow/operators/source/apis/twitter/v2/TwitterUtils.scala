@@ -7,13 +7,13 @@ import io.github.redouane59.twitter.dto.user.UserV2.UserData
 
 import java.time.{ZoneId, ZoneOffset}
 import java.time.format.DateTimeFormatter
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object TwitterUtils {
 
   def tweetDataToTuple(tweetData: TweetData, user: Option[UserData], tweetSchema: Schema): Tuple = {
     val fields = AttributeTypeUtils.parseFields(
-      Array[Object](
+      Array[Any](
         tweetData.getId,
         tweetData.getText,
         // given the fact that the redouane59/twittered library is using LocalDateTime as the API parameter,
@@ -36,16 +36,20 @@ object TwitterUtils {
         java.lang.Long.valueOf(tweetData.getReplyCount),
         java.lang.Long.valueOf(tweetData.getRetweetCount),
         Option(tweetData.getEntities)
-          .map(e => Option(e.getHashtags).map(_.map(x => x.getText).mkString(",")).orNull)
+          .map(e => Option(e.getHashtags).map(_.asScala.map(x => x.getText).mkString(",")).orNull)
           .orNull,
         Option(tweetData.getEntities)
-          .map(e => Option(e.getSymbols).map(_.map(x => x.getText).mkString(",")).orNull)
+          .map(e => Option(e.getSymbols).map(_.asScala.map(x => x.getText).mkString(",")).orNull)
           .orNull,
         Option(tweetData.getEntities)
-          .map(e => Option(e.getUrls).map(_.map(x => x.getExpandedUrl).mkString(",")).orNull)
+          .map(e =>
+            Option(e.getUrls).map(_.asScala.map(x => x.getExpandedUrl).mkString(",")).orNull
+          )
           .orNull,
         Option(tweetData.getEntities)
-          .map(e => Option(e.getUserMentions).map(_.map(x => x.getText).mkString(",")).orNull)
+          .map(e =>
+            Option(e.getUserMentions).map(_.asScala.map(x => x.getText).mkString(",")).orNull
+          )
           .orNull,
         user.get.getId,
         user.get.getCreatedAt,
@@ -74,6 +78,6 @@ object TwitterUtils {
       ),
       tweetSchema.getAttributes.map((attribute: Attribute) => { attribute.getType }).toArray
     )
-    Tuple.newBuilder(tweetSchema).addSequentially(fields).build
+    Tuple.builder(tweetSchema).addSequentially(fields).build()
   }
 }

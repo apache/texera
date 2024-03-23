@@ -123,7 +123,7 @@ export class TimeTravelComponent implements OnInit, OnDestroy {
         let replayExecutionInfo = { eid: eid, interaction: interaction };
         this.revertedToInteraction = replayExecutionInfo;
         this.notificationService.info(`start replay to interaction ${interaction} at execution ${eid}`);
-        this.executeWorkflowService.executeWorkflowAmberTexeraWithReplay(replayExecutionInfo);
+        this.executeWorkflowService.executeWorkflowWithReplay(replayExecutionInfo);
       });
   }
 

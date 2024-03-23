@@ -19,7 +19,7 @@ import org.jooq.Identity;
 import org.jooq.Index;
 import org.jooq.Name;
 import org.jooq.Record;
-import org.jooq.Row11;
+import org.jooq.Row12;
 import org.jooq.Schema;
 import org.jooq.Table;
 import org.jooq.TableField;
@@ -35,7 +35,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
-    private static final long serialVersionUID = -2101880159;
+    private static final long serialVersionUID = -408740655;
 
     /**
      * The reference instance of <code>texera_db.workflow_executions</code>
@@ -64,6 +64,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
      * The column <code>texera_db.workflow_executions.uid</code>.
      */
     public final TableField<WorkflowExecutionsRecord, UInteger> UID = createField(DSL.name("uid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED.nullable(false), this, "");
+
+    /**
+     * The column <code>texera_db.workflow_executions.environment_eid</code>.
+     */
+    public final TableField<WorkflowExecutionsRecord, UInteger> ENVIRONMENT_EID = createField(DSL.name("environment_eid"), org.jooq.impl.SQLDataType.INTEGERUNSIGNED, this, "");
 
     /**
      * The column <code>texera_db.workflow_executions.status</code>.
@@ -145,7 +150,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<Index> getIndexes() {
-        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID);
+        return Arrays.<Index>asList(Indexes.WORKFLOW_EXECUTIONS_ENVIRONMENT_EID, Indexes.WORKFLOW_EXECUTIONS_PRIMARY, Indexes.WORKFLOW_EXECUTIONS_UID, Indexes.WORKFLOW_EXECUTIONS_VID);
     }
 
     @Override
@@ -165,7 +170,7 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     @Override
     public List<ForeignKey<WorkflowExecutionsRecord, ?>> getReferences() {
-        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+        return Arrays.<ForeignKey<WorkflowExecutionsRecord, ?>>asList(Keys.WORKFLOW_EXECUTIONS_IBFK_1, Keys.WORKFLOW_EXECUTIONS_IBFK_2, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
     }
 
     public WorkflowVersion workflowVersion() {
@@ -174,6 +179,10 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
 
     public User user() {
         return new User(this, Keys.WORKFLOW_EXECUTIONS_IBFK_2);
+    }
+
+    public Environment environment() {
+        return new Environment(this, Keys.WORKFLOW_EXECUTIONS_IBFK_3);
     }
 
     @Override
@@ -203,11 +212,11 @@ public class WorkflowExecutions extends TableImpl<WorkflowExecutionsRecord> {
     }
 
     // -------------------------------------------------------------------------
-    // Row11 type methods
+    // Row12 type methods
     // -------------------------------------------------------------------------
 
     @Override
-    public Row11<UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String, String> fieldsRow() {
-        return (Row11) super.fieldsRow();
+    public Row12<UInteger, UInteger, UInteger, UInteger, Byte, String, Timestamp, Timestamp, Byte, String, String, String> fieldsRow() {
+        return (Row12) super.fieldsRow();
     }
 }

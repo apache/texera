@@ -1,6 +1,5 @@
 import { Observable, Subject } from "rxjs";
 import {
-  Breakpoint,
   Comment,
   CommentBox,
   LogicalPort,
@@ -693,8 +692,6 @@ export class WorkflowGraph {
       throw new Error(`link with ID ${linkID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(linkID);
   }
 
   /**
@@ -710,8 +707,6 @@ export class WorkflowGraph {
         to ${target.operatorID}.${target.portID} doesn't exist`);
     }
     this.sharedModel.operatorLinkMap.delete(link.linkID);
-    // delete its breakpoint
-    this.sharedModel.linkBreakpointMap.delete(link.linkID);
   }
 
   /**
@@ -816,11 +811,14 @@ export class WorkflowGraph {
     if (!this.hasOperator(operatorID)) {
       throw new Error(`operator with ID ${operatorID} doesn't exist`);
     }
-    const previousProperty = this.getSharedOperatorType(operatorID).get(
-      "operatorProperties"
-    ) as YType<OperatorPropertiesType>;
+    //
+    // const previousProperty = this.getSharedOperatorType(operatorID).get(
+    //   "operatorProperties"
+    // ) as YType<OperatorPropertiesType>;
     // set the new copy back to the operator ID map
-    updateYTypeFromObject(previousProperty, newProperty);
+    // TODO: we temporarily disable this due to Yjs update causing issues in Formly.
+    this.getSharedOperatorType(operatorID).set("operatorProperties", createYTypeFromObject(newProperty));
+    // updateYTypeFromObject(previousProperty, newProperty);
   }
 
   public setPortProperty(operatorPortID: LogicalPort, newProperty: object) {
@@ -839,52 +837,6 @@ export class WorkflowGraph {
         (newProperty as PortProperty).dependencies
       ) as unknown as Y.Array<number>
     );
-  }
-
-  /**
-   * set the breakpoint property of a link to be newBreakpoint
-   * Throws an error if link doesn't exist
-   *
-   * @param linkID linkID
-   * @param breakpoint
-   */
-  public setLinkBreakpoint(linkID: string, breakpoint: Breakpoint | undefined): void {
-    this.assertLinkWithIDExists(linkID);
-    if (breakpoint === undefined || Object.keys(breakpoint).length === 0) {
-      this.sharedModel.linkBreakpointMap.delete(linkID);
-    } else {
-      this.sharedModel.linkBreakpointMap.set(linkID, breakpoint);
-    }
-  }
-
-  /**
-   * get the breakpoint property of a link
-   * returns an empty object if the link has no property
-   *
-   * @param linkID
-   */
-  public getLinkBreakpoint(linkID: string): Breakpoint | undefined {
-    return this.sharedModel.linkBreakpointMap.get(linkID);
-  }
-
-  /**
-   * Returns all link breakpoints as a readonly map. This returns the internal YMap directly.
-   */
-  public getAllLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    return this.sharedModel.linkBreakpointMap;
-  }
-
-  /**
-   * Returns breakpoints filtered by enabled status. This returns a new map from the internal YMap.
-   */
-  public getAllEnabledLinkBreakpoints(): ReadonlyMap<string, Breakpoint> {
-    const enabledBreakpoints = new Map();
-    this.sharedModel.linkBreakpointMap.forEach((breakpoint, linkID) => {
-      if (this.isLinkEnabled(linkID)) {
-        enabledBreakpoints.set(linkID, breakpoint);
-      }
-    });
-    return enabledBreakpoints;
   }
 
   /**
@@ -1110,5 +1062,64 @@ export class WorkflowGraph {
       throw new Error(`link's target port ${link.target.portID} doesn't exist
           on input ports of the target operator ${link.target.operatorID}`);
     }
+  }
+
+  /**
+   * Retrieves a subgraph (subDAG) from the workflow graph. This method excludes disabled operators and links.
+   *
+   * This method can operate in two modes:
+   * 1. If a `targetOperatorId` is provided, it performs a depth-first search (DFS) starting from
+   *    the specified operator to construct the subDAG.
+   * 2. If no `targetOperatorId` is provided, it starts from all terminal operators (operators with no
+   *    outgoing links) and aggregates the paths from these sinks to construct the subDAG, potentially
+   *    covering the entire DAG if all paths are interconnected.
+   *
+   * @param targetOperatorId - The unique identifier of the operator from which to start the DFS.
+   *                           This parameter is optional. If omitted, the search starts from all
+   *                           terminal operators within the graph.
+   * @returns An object containing two arrays: `operators` and `links`. The `operators` array
+   *          includes all operator objects that are part of the subDAG, and the `links` array
+   *          contains all the operator links that connect these operators within the subDAG.
+   *
+   */
+  public getSubDAG(targetOperatorId?: string) {
+    const visited: Set<string> = new Set();
+    const subDagOperators: OperatorPredicate[] = [];
+    const subDagLinks: OperatorLink[] = [];
+
+    function dfs(currentOperatorId: string, graph: WorkflowGraph) {
+      if (visited.has(currentOperatorId)) {
+        return;
+      }
+
+      visited.add(currentOperatorId);
+
+      const currentOperator = graph.getOperator(currentOperatorId);
+      if (currentOperator && !currentOperator.isDisabled) {
+        subDagOperators.push(currentOperator);
+
+        // Find links connected to the current operator
+        const connectedLinks = graph.getAllEnabledLinks().filter(link => link.target.operatorID === currentOperatorId);
+        connectedLinks.forEach(link => {
+          subDagLinks.push(link);
+          dfs(link.source.operatorID, graph);
+        });
+      }
+    }
+
+    if (targetOperatorId !== undefined) {
+      dfs(targetOperatorId, this);
+    } else {
+      // When no target operator ID is provided, start DFS from all terminal operators
+      const allOperators = this.getAllOperators();
+      const allLinks = this.getAllEnabledLinks();
+      const terminalOperators = allOperators.filter(
+        operator => !allLinks.some(link => link.source.operatorID === operator.operatorID)
+      );
+
+      terminalOperators.forEach(terminalOperator => dfs(terminalOperator.operatorID, this));
+    }
+
+    return { operators: subDagOperators, links: subDagLinks };
   }
 }

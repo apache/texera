@@ -15,7 +15,10 @@ export class OperatorLabelComponent implements AfterContentInit {
   @Input() operator?: OperatorSchema;
   public draggable = true;
 
-  constructor(private dragDropService: DragDropService, private workflowActionService: WorkflowActionService) {}
+  constructor(
+    private dragDropService: DragDropService,
+    private workflowActionService: WorkflowActionService
+  ) {}
 
   ngAfterContentInit(): void {
     this.workflowActionService

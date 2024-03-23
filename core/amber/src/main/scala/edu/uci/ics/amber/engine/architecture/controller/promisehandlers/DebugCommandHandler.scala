@@ -12,7 +12,7 @@ object DebugCommandHandler {
 
 trait DebugCommandHandler {
   this: ControllerAsyncRPCHandlerInitializer =>
-  registerHandler { (msg: DebugCommand, sender) =>
+  registerHandler[DebugCommand, Unit] { (msg, sender) =>
     {
       send(WorkerDebugCommand(msg.cmd), ActorVirtualIdentity(msg.workerId))
     }

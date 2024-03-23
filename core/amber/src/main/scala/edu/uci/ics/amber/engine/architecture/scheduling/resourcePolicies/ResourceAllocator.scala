@@ -48,8 +48,7 @@ class DefaultResourceAllocator(
       region: Region
   ): (Region, Double) = {
 
-    val opToOperatorConfigMapping = region.getEffectiveOperators
-      .map(physicalOpId => physicalPlan.getOperator(physicalOpId))
+    val opToOperatorConfigMapping = region.getOperators
       .map(physicalOp => physicalOp.id -> OperatorConfig(generateWorkerConfigs(physicalOp)))
       .toMap
 
@@ -57,11 +56,12 @@ class DefaultResourceAllocator(
 
     propagatePartitionRequirement(region)
 
-    val linkToLinkConfigMapping = region.getEffectiveLinks.map { physicalLink =>
+    val linkToLinkConfigMapping = region.getLinks.map { physicalLink =>
       physicalLink -> LinkConfig(
         generateChannelConfigs(
           operatorConfigs(physicalLink.fromOpId).workerConfigs.map(_.workerId),
           operatorConfigs(physicalLink.toOpId).workerConfigs.map(_.workerId),
+          toPortId = physicalLink.toPortId,
           linkPartitionInfos(physicalLink)
         ),
         toPartitioning(
@@ -91,11 +91,10 @@ class DefaultResourceAllocator(
     * The output partition info of HJ will be derived after both links are propagated, which is in the second region.
     */
   private def propagatePartitionRequirement(region: Region): Unit = {
-    physicalPlan
+    region
       .topologicalIterator()
-      .filter(physicalOpId => region.getEffectiveOperators.contains(physicalOpId))
       .foreach(physicalOpId => {
-        val physicalOp = physicalPlan.getOperator(physicalOpId)
+        val physicalOp = region.getOperator(physicalOpId)
         val outputPartitionInfo = if (physicalPlan.getSourceOperatorIds.contains(physicalOpId)) {
           Some(physicalOp.partitionRequirement.headOption.flatten.getOrElse(UnknownPartition()))
         } else {
@@ -103,7 +102,7 @@ class DefaultResourceAllocator(
             .flatMap((portId: PortIdentity) => {
               physicalOp
                 .getInputLinks(Some(portId))
-                .filter(link => region.getEffectiveLinks.contains(link))
+                .filter(link => region.getLinks.contains(link))
                 .map(link => {
                   val previousLinkPartitionInfo =
                     linkPartitionInfos.getOrElse(link, UnknownPartition())
@@ -135,8 +134,8 @@ class DefaultResourceAllocator(
         }
 
         if (outputPartitionInfo.isDefined) {
-          physicalOp
-            .getOutputLinks()
+          physicalOp.outputPorts.keys
+            .flatMap(physicalOp.getOutputLinks)
             .foreach(link =>
               // by default, a link's partition info comes from its input, unless updated to match its output.
               linkPartitionInfos.put(link, outputPartitionInfo.get)

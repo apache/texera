@@ -10,7 +10,7 @@ import org.jooq.types.UInteger
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
   * This file handles various request related to saved-executions.
@@ -89,7 +89,8 @@ class AdminExecutionResource {
 
     workflowEntries
       .map(workflowRecord => {
-        val startingTime = workflowRecord.get(WORKFLOW_EXECUTIONS.STARTING_TIME).getTime
+        val startingTime =
+          workflowRecord.get(WORKFLOW_EXECUTIONS.STARTING_TIME).getTime
 
         var lastUpdateTime: Long = 0
         if (workflowRecord.get(WORKFLOW_EXECUTIONS.LAST_UPDATE_TIME) == null) {
@@ -114,6 +115,7 @@ class AdminExecutionResource {
           hasAccess
         )
       })
+      .asScala
       .toList
   }
 }

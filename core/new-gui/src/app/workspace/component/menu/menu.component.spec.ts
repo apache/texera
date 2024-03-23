@@ -69,7 +69,6 @@
 //     undoRedoService = TestBed.get(UndoRedoService);
 //     validationWorkflowService = TestBed.get(ValidationWorkflowService);
 //     fixture.detectChanges();
-//     environment.pauseResumeEnabled = true;
 //   });
 
 //   it('should create', () => {

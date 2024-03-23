@@ -1,5 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.visualization.htmlviz
 
+import edu.uci.ics.amber.engine.common.tuple.amber.SchemaEnforceable
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import org.scalatest.BeforeAndAfter
@@ -16,15 +17,19 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def tuple(): Tuple =
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(Array("hello", "<html></html>"))
       .build()
 
   it should "process a target field" in {
-    val htmlVizOpExec = new HtmlVizOpExec("field1", outputSchema)
+    val htmlVizOpExec = new HtmlVizOpExec("field1")
     htmlVizOpExec.open()
     val processedTuple: Tuple =
-      htmlVizOpExec.processTexeraTuple(Left(tuple()), 0, null, null).next()
+      htmlVizOpExec
+        .processTuple(tuple(), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(outputSchema)
 
     assert(processedTuple.getField("html-content").asInstanceOf[String] == "hello")
 
@@ -32,10 +37,14 @@ class HtmlVizOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   it should "process another target field" in {
 
-    val htmlVizOpExec = new HtmlVizOpExec("field2", outputSchema)
+    val htmlVizOpExec = new HtmlVizOpExec("field2")
     htmlVizOpExec.open()
     val processedTuple: Tuple =
-      htmlVizOpExec.processTexeraTuple(Left(tuple()), 0, null, null).next()
+      htmlVizOpExec
+        .processTuple(tuple(), 0)
+        .next()
+        .asInstanceOf[SchemaEnforceable]
+        .enforceSchema(outputSchema)
 
     assert(processedTuple.getField("html-content").asInstanceOf[String] == "<html></html>")
 

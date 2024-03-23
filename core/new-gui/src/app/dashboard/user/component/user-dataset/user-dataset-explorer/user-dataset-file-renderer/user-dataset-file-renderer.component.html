@@ -1,0 +1,85 @@
+<div
+  [ngStyle]="!isMaximized ? {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '80%', 'overflow-x': 'auto', 'overflow-y': 'auto'}:
+                                {'padding-top': '15px', 'margin-left': '30px', 'width': '95%', 'height': '100%', 'overflow-x': 'auto', 'overflow-y': 'auto'}">
+  <div class="file-display-area">
+    <div *ngIf="isLoading">
+      <nz-spin nzTip="Loading...">
+        <nz-alert
+          nzType="info"
+          nzMessage="File content is loading"></nz-alert>
+      </nz-spin>
+    </div>
+    <div *ngIf="isFileLoadingError">
+      <nz-alert
+        nzType="error"
+        nzMessage="File loading encounter error."
+        nzDescription="Ops, There is something wrong when loading the file you are requesting."></nz-alert>
+    </div>
+    <div *ngIf="isFileSizeUnloadable">
+      <nz-alert
+        nzType="warning"
+        nzMessage="File is too large to preview"></nz-alert>
+    </div>
+    <div *ngIf="isFileTypePreviewUnsupported">
+      <nz-alert
+        nzType="warning"
+        nzMessage="Preview of the file type is currently not supported"></nz-alert>
+    </div>
+
+    <nz-table
+      *ngIf="displayCSV || displayXlsx"
+      #basicTable
+      [nzData]="tableContent">
+      <thead>
+        <tr>
+          <th *ngFor="let column of tableDataHeader">{{ column }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let row of basicTable.data">
+          <td *ngFor="let cell of row">{{ cell }}</td>
+        </tr>
+      </tbody>
+    </nz-table>
+
+    <div *ngIf="displayImage && safeFileURL">
+      <img
+        [src]="safeFileURL"
+        alt="{{filePath}}"
+        (click)="toggleImageModal()"
+        style="width: 50%; height: 70%; margin: auto" />
+    </div>
+
+    <!-- Full-size image modal -->
+    <div
+      *ngIf="showImageModal"
+      class="image-modal"
+      (click)="toggleImageModal()">
+      <img
+        [src]="safeFileURL"
+        alt="{{filePath}}"
+        class="full-size-image" />
+    </div>
+    <div *ngIf="displayMarkdown">
+      <markdown [data]="textContent"></markdown>
+    </div>
+    <div *ngIf="displayJson">
+      <ngx-json-viewer [json]="textContent"></ngx-json-viewer>
+    </div>
+    <div *ngIf="displayMP4 && safeFileURL">
+      <video
+        controls
+        [src]="safeFileURL">
+        Your browser does not support the video tag.
+      </video>
+    </div>
+    <div *ngIf="displayMP3 && safeFileURL">
+      <audio
+        controls
+        [src]="safeFileURL">
+        Your browser does not support the audio element.
+      </audio>
+    </div>
+    <div *ngIf="displayPlainText">{{ textContent }}</div>
+  </div>
+</div>

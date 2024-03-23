@@ -35,26 +35,17 @@ sealed abstract class PartitionInfo {
 
 }
 
-object HashPartition {
-  def apply(hashColumnIndices: List[Int]): PartitionInfo = {
-    if (hashColumnIndices.nonEmpty)
-      new HashPartition(hashColumnIndices)
-    else
-      UnknownPartition()
-  }
-}
-
 /**
-  * Represents an input stream is partitioned on multiple nodes
-  * according to a hash function on the specified column indices.
+  * Defines a partitioning strategy where an input stream is distributed across
+  * multiple nodes based on a hash function applied to specified attribute names.
+  * If the list of attribute names is empty, hashing is applied to all attributes.
   */
-final case class HashPartition(hashColumnIndices: List[Int]) extends PartitionInfo
-
+final case class HashPartition(hashAttributeNames: List[String] = List.empty) extends PartitionInfo
 object RangePartition {
 
-  def apply(rangeColumnIndices: List[Int], rangeMin: Long, rangeMax: Long): PartitionInfo = {
-    if (rangeColumnIndices.nonEmpty)
-      new RangePartition(rangeColumnIndices, rangeMin, rangeMax)
+  def apply(rangeAttributeNames: List[String], rangeMin: Long, rangeMax: Long): PartitionInfo = {
+    if (rangeAttributeNames.nonEmpty)
+      new RangePartition(rangeAttributeNames, rangeMin, rangeMax)
     else
       UnknownPartition()
   }
@@ -66,7 +57,7 @@ object RangePartition {
   * and each node contains data fit in a specific range.
   * The data within each node is also sorted.
   */
-final case class RangePartition(rangeColumnIndices: List[Int], rangeMin: Long, rangeMax: Long)
+final case class RangePartition(rangeAttributeNames: List[String], rangeMin: Long, rangeMax: Long)
     extends PartitionInfo {
 
   // if two streams of input with the same range partition are merged (without another sort),

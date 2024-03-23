@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.common.operators
 
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
@@ -17,22 +17,40 @@ trait PythonOperatorDescriptor extends LogicalOp {
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(generatedCode)
+          OpExecInitInfo(generatedCode, "python")
         )
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withParallelizable(parallelizable())
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(
+              operatorInfo.outputPorts.head.id -> getOutputSchema(
+                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
+              )
+            )
+          )
+        )
     } else {
       PhysicalOp
         .oneToOnePhysicalOp(
           workflowId,
           executionId,
           operatorIdentifier,
-          OpExecInitInfo(generatedCode)
+          OpExecInitInfo(generatedCode, "python")
         )
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withParallelizable(parallelizable())
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(
+              operatorInfo.outputPorts.head.id -> getOutputSchema(
+                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
+              )
+            )
+          )
+        )
     }
   }
 

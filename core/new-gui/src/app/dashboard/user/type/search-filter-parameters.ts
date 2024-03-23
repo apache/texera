@@ -18,7 +18,7 @@ export const toQueryStrings = (
   params: SearchFilterParameters,
   start?: number,
   count?: number,
-  type?: "workflow" | "project" | "file" | null,
+  type?: "workflow" | "project" | "file" | "dataset" | null,
   orderBy?: SortMethod
 ): string => {
   function* getQueryParameters(): Iterable<[name: string, value: string]> {
@@ -54,7 +54,7 @@ export const toQueryStrings = (
       ...(start ? [["start", start.toString()]] : []),
       ...(count ? [["count", count.toString()]] : []),
       ["resourceType", type ? type.toString() : ""],
-      ...(orderBy ? [["orderBy", SortMethod[orderBy]]] : []),
+      ...(orderBy != null ? [["orderBy", SortMethod[orderBy]]] : []),
     ]
       .filter(q => q[1])
       .map(([name, value]) => name + "=" + encodeURIComponent(value))
@@ -67,7 +67,7 @@ export const searchTestEntries = (
   keywords: string[],
   params: SearchFilterParameters,
   testEntries: DashboardEntry[],
-  type: "workflow" | "project" | "file" | null
+  type: "workflow" | "project" | "file" | "dataset" | null
 ): DashboardEntry[] => {
   const endOfDay = (date: Date) => {
     date.setHours(23);

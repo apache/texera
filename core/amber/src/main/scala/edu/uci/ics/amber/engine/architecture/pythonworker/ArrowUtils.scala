@@ -27,8 +27,7 @@ import org.apache.arrow.vector.{
 
 import java.nio.charset.StandardCharsets
 import java.util
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
-import scala.jdk.CollectionConverters.asJavaIterableConverter
+import scala.jdk.CollectionConverters.CollectionHasAsScala
 import scala.language.implicitConversions
 
 object ArrowUtils extends LazyLogging {
@@ -55,9 +54,9 @@ object ArrowUtils extends LazyLogging {
     val schema = toTexeraSchema(arrowSchema)
 
     Tuple
-      .newBuilder(schema)
+      .builder(schema)
       .addSequentially(
-        vectorSchemaRoot.getFieldVectors
+        vectorSchemaRoot.getFieldVectors.asScala
           .map((fieldVector: FieldVector) => {
             val value: AnyRef = fieldVector.getObject(rowIndex)
             try {
@@ -73,7 +72,6 @@ object ArrowUtils extends LazyLogging {
 
           })
           .toArray
-          .asInstanceOf[Array[AnyRef]]
       )
       .build()
 
@@ -87,11 +85,10 @@ object ArrowUtils extends LazyLogging {
     */
   def toTexeraSchema(arrowSchema: org.apache.arrow.vector.types.pojo.Schema): Schema =
     Schema
-      .newBuilder()
+      .builder()
       .add(
-        arrowSchema.getFields.toIterable
+        arrowSchema.getFields.asScala
           .map(field => new Attribute(field.getName, toAttributeType(field.getType)))
-          .asJava
       )
       .build()
 
@@ -152,11 +149,11 @@ object ArrowUtils extends LazyLogging {
     */
   def setTexeraTuple(tuple: Tuple, index: Int, vectorSchemaRoot: VectorSchemaRoot): Unit = {
     val arrowSchema = vectorSchemaRoot.getSchema
-    val arrowFields = arrowSchema.getFields.toList
+    val arrowFields = arrowSchema.getFields.asScala.toList
 
     for (i <- arrowFields.indices) {
       val vector: FieldVector = vectorSchemaRoot.getVector(i)
-      val value = tuple.get(i)
+      val value = tuple.getField[AnyRef](i)
       val isNull = value == null
       arrowFields.apply(i).getFieldType.getType match {
         case _: ArrowType.Int =>
@@ -189,7 +186,10 @@ object ArrowUtils extends LazyLogging {
               index,
               !isNull,
               if (isNull) 0L
-              else AttributeTypeUtils.parseField(value, AttributeType.LONG).asInstanceOf[Long]
+              else
+                AttributeTypeUtils
+                  .parseField(value, AttributeType.LONG)
+                  .asInstanceOf[Long]
             )
 
         case _: ArrowType.Utf8 =>

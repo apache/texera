@@ -1,8 +1,9 @@
-import { Component, Input, OnInit } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { UntilDestroy } from "@ngneat/until-destroy";
 import { WorkflowRuntimeStatistics } from "src/app/dashboard/user/type/workflow-runtime-statistics";
-import * as Plotly from "plotly.js-dist-min";
-import { MatTabChangeEvent } from "@angular/material/tabs";
+import * as Plotly from "plotly.js-basic-dist-min";
+import { NzTabChangeEvent } from "ng-zorro-antd/tabs";
+import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 
 @UntilDestroy()
 @Component({
@@ -11,13 +12,17 @@ import { MatTabChangeEvent } from "@angular/material/tabs";
   styleUrls: ["./workflow-runtime-statistics.component.scss"],
 })
 export class WorkflowRuntimeStatisticsComponent implements OnInit {
-  @Input()
-  workflowRuntimeStatistics?: WorkflowRuntimeStatistics[];
+  readonly workflowRuntimeStatistics: WorkflowRuntimeStatistics[] = inject(NZ_MODAL_DATA).workflowRuntimeStatistics;
 
   private groupedStats?: Record<string, WorkflowRuntimeStatistics[]>;
-  public metrics: string[] = ["Input Tuple Count", "Output Tuple Count"];
-
-  constructor() {}
+  public metrics: string[] = [
+    "Input Tuple Count",
+    "Output Tuple Count",
+    "Total Data Processing Time (s)",
+    "Total Control Processing Time (s)",
+    "Total Idle Time (s)",
+    "Number of Workers",
+  ];
 
   ngOnInit(): void {
     if (!this.workflowRuntimeStatistics) {
@@ -30,10 +35,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   /**
    * Create a new line chart corresponding to the change of a tab
-   * @param selection of a certain metric
    */
-  onTabChanged(event: MatTabChangeEvent): void {
-    this.createChart(event.index);
+  onTabChanged(event: NzTabChangeEvent): void {
+    this.createChart(event.index!);
   }
 
   /**
@@ -52,6 +56,9 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
       if (lastStat) {
         stat.inputTupleCount += lastStat.inputTupleCount;
         stat.outputTupleCount += lastStat.outputTupleCount;
+        stat.dataProcessingTime = stat.dataProcessingTime / 1000000000 + lastStat.dataProcessingTime;
+        stat.controlProcessingTime = stat.controlProcessingTime / 1000000000 + lastStat.controlProcessingTime;
+        stat.idleTime = stat.idleTime / 1000000000 + lastStat.idleTime;
       }
 
       stat.timestamp -= beginTimestamp;
@@ -66,7 +73,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
    * 1. Shorten the operator ID
    * 2. Remove sink operator
    * 3. Contain only a certain metric given a metric idx
-   * @param selection of a certain metric
+   * @param metric_idx
    */
   private createDataset(metric_idx: number): any[] {
     if (!this.groupedStats) {
@@ -78,11 +85,25 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
         const operatorName = operatorId.split("-")[0];
         const uuidLast6Digits = operatorId.slice(-6);
 
-        if (operatorName === "sink ") {
+        if (operatorName.startsWith("sink")) {
           return null;
         }
 
-        const yValues = metric_idx === 0 ? "inputTupleCount" : "outputTupleCount";
+        let yValues = "";
+        if (metric_idx === 0) {
+          yValues = "inputTupleCount";
+        } else if (metric_idx === 1) {
+          yValues = "outputTupleCount";
+        } else if (metric_idx === 2) {
+          yValues = "dataProcessingTime";
+        } else if (metric_idx === 3) {
+          yValues = "controlProcessingTime";
+        } else if (metric_idx === 4) {
+          yValues = "idleTime";
+        } else {
+          yValues = "numWorkers";
+        }
+
         if (!this.groupedStats) {
           return null;
         }
@@ -100,7 +121,7 @@ export class WorkflowRuntimeStatisticsComponent implements OnInit {
 
   /**
    * Create a line chart using plotly
-   * @param selection of a certain metric
+   * @param metric_idx
    */
   private createChart(metric_idx: number): void {
     const dataset = this.createDataset(metric_idx);

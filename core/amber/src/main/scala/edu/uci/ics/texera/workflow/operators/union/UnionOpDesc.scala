@@ -20,17 +20,17 @@ class UnionOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((_, _, _) => new UnionOpExec())
+        OpExecInitInfo((_, _) => new UnionOpExec())
       )
-      .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-      .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
   }
 
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Union",
       "Unions the output rows from multiple input operators",
-      OperatorGroupConstants.UTILITY_GROUP,
+      OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity(0), allowMultiLinks = true)),
       outputPorts = List(OutputPort())
     )

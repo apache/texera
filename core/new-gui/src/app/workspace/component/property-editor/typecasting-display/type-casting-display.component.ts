@@ -15,13 +15,11 @@ export const TYPE_CASTING_OPERATOR_TYPE = "TypeCasting";
 @Component({
   selector: "texera-type-casting-display",
   templateUrl: "./type-casting-display.component.html",
-  styleUrls: ["./type-casting-display.component.scss"],
 })
 export class TypeCastingDisplayComponent implements OnInit, OnChanges {
   @Input() currentOperatorId: string | undefined;
 
   schemaToDisplay: Partial<SchemaAttribute>[] = [];
-  columnNamesToDisplay: string[] = ["attributeName", "attributeType"];
   displayTypeCastingSchemaInformation: boolean = false;
 
   constructor(
@@ -70,12 +68,14 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
     this.schemaToDisplay = [];
     const inputSchema = this.schemaPropagationService.getOperatorInputSchema(this.currentOperatorId);
 
-    const castTypeMap = op.operatorProperties["typeCastingUnits"].reduce(
-      (map_: { [x: string]: any }, castTo: { attribute: string; resultType: string }) => (
-        (map_[castTo.attribute] = castTo.resultType), map_
-      ),
-      {}
-    );
+    const castTypeMap =
+      op.operatorProperties["typeCastingUnits"] ??
+      [].reduce(
+        (map_: { [x: string]: any }, castTo: { attribute: string; resultType: string }) => (
+          (map_[castTo.attribute] = castTo.resultType), map_
+        ),
+        {}
+      );
 
     inputSchema?.forEach(schema =>
       schema?.forEach(attr => {

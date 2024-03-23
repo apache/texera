@@ -20,7 +20,7 @@ export class StubSearchService {
     params: SearchFilterParameters,
     start: number,
     count: number,
-    type: "workflow" | "project" | "file" | null,
+    type: "workflow" | "project" | "file" | "dataset" | null,
     orderBy: SortMethod
   ): Observable<SearchResult> {
     // Igoring start count and orderBy as they are not tested in the unit tests.

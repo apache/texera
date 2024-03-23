@@ -4,8 +4,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp;
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo;
-import edu.uci.ics.amber.engine.architecture.scheduling.config.OperatorConfig;
-import edu.uci.ics.amber.engine.common.IOperatorExecutor;
 import edu.uci.ics.amber.engine.common.virtualidentity.ExecutionIdentity;
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity;
 import edu.uci.ics.amber.engine.common.workflow.InputPort;
@@ -13,16 +11,15 @@ import edu.uci.ics.amber.engine.common.workflow.OutputPort;
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorGroupConstants;
 import edu.uci.ics.texera.workflow.common.metadata.OperatorInfo;
+import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor;
 import edu.uci.ics.texera.workflow.common.operators.filter.FilterOpDesc;
+import scala.Tuple2;
 
-import scala.Tuple3;
-import scala.collection.immutable.List;
-
-
+import java.util.ArrayList;
 import java.util.function.Function;
 
 import static java.util.Collections.singletonList;
-import static scala.collection.JavaConverters.*;
+import static scala.jdk.javaapi.CollectionConverters.asScala;
 
 public class SpecializedFilterOpDesc extends FilterOpDesc {
 
@@ -37,12 +34,12 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
                         executionId,
                         operatorIdentifier(),
                         OpExecInitInfo.apply(
-                                (Function<Tuple3<Object, PhysicalOp, OperatorConfig>, IOperatorExecutor> & java.io.Serializable)
-                                        x -> new SpecializedFilterOpExec(this)
+                                (Function<Tuple2<Object, Object>, OperatorExecutor> & java.io.Serializable)
+                                        x -> new SpecializedFilterOpExec(this.predicates)
                         )
                 )
-                .withInputPorts(operatorInfo().inputPorts(), inputPortToSchemaMapping())
-                .withOutputPorts(operatorInfo().outputPorts(), outputPortToSchemaMapping());
+                .withInputPorts(operatorInfo().inputPorts())
+                .withOutputPorts(operatorInfo().outputPorts());
     }
 
     @Override
@@ -50,9 +47,9 @@ public class SpecializedFilterOpDesc extends FilterOpDesc {
         return new OperatorInfo(
                 "Filter",
                 "Performs a filter operation",
-                OperatorGroupConstants.SEARCH_GROUP(),
-                asScalaBuffer(singletonList(new InputPort(new PortIdentity(0, false), "", false, List.empty()))).toList(),
-                asScalaBuffer(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
+                OperatorGroupConstants.CLEANING_GROUP(),
+                asScala(singletonList(new InputPort(new PortIdentity(0, false), "", false, asScala(new ArrayList<PortIdentity>()).toSeq()))).toList(),
+                asScala(singletonList(new OutputPort(new PortIdentity(0, false), ""))).toList(),
                 false,
                 false,
                 true,

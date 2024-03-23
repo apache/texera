@@ -5,13 +5,11 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { OperatorLabelComponent } from "./operator-label.component";
 import { OperatorMetadataService } from "../../../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../../../service/operator-metadata/stub-operator-metadata.service";
-import { CustomNgMaterialModule } from "../../../../../common/custom-ng-material.module";
 import { mockScanSourceSchema } from "../../../../service/operator-metadata/mock-operator-metadata.data";
 import { By } from "@angular/platform-browser";
 import { WorkflowActionService } from "../../../../service/workflow-graph/model/workflow-action.service";
 import { UndoRedoService } from "../../../../service/undo-redo/undo-redo.service";
 import { RouterTestingModule } from "@angular/router/testing";
-import { NgbModule } from "@ng-bootstrap/ng-bootstrap";
 
 describe("OperatorLabelComponent", () => {
   const mockOperatorData = mockScanSourceSchema;
@@ -21,7 +19,7 @@ describe("OperatorLabelComponent", () => {
   beforeEach(waitForAsync(() => {
     TestBed.configureTestingModule({
       declarations: [OperatorLabelComponent],
-      imports: [CustomNgMaterialModule, RouterTestingModule.withRoutes([]), NgbModule],
+      imports: [RouterTestingModule.withRoutes([])],
       providers: [
         DragDropService,
         JointUIService,

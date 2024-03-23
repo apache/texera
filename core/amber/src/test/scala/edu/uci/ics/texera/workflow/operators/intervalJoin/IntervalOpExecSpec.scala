@@ -1,6 +1,6 @@
 package edu.uci.ics.texera.workflow.operators.intervalJoin
 
-import edu.uci.ics.amber.engine.common.InputExhausted
+import edu.uci.ics.amber.engine.common.tuple.amber.{SchemaEnforceable, TupleLike}
 import edu.uci.ics.amber.engine.common.virtualidentity.{OperatorIdentity, PhysicalOpIdentity}
 import edu.uci.ics.amber.engine.common.workflow.{PhysicalLink, PortIdentity}
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
@@ -34,7 +34,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def newTuple[T](name: String, n: Int = 1, i: T, attributeType: AttributeType): Tuple = {
     Tuple
-      .newBuilder(schema(name, attributeType, n))
+      .builder(schema(name, attributeType, n))
       .add(new Attribute(name, attributeType), i)
       .add(new Attribute(name + "_" + 1, attributeType), i)
       .build()
@@ -42,7 +42,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def integerTuple(name: String, n: Int = 1, i: Int): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.INTEGER, n))
+      .builder(schema(name, AttributeType.INTEGER, n))
       .add(new Attribute(name, AttributeType.INTEGER), i)
       .add(new Attribute(name + "_" + 1, AttributeType.INTEGER), i)
       .build()
@@ -50,7 +50,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def doubleTuple(name: String, n: Int = 1, i: Double): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.DOUBLE, n))
+      .builder(schema(name, AttributeType.DOUBLE, n))
       .add(new Attribute(name, AttributeType.DOUBLE), i)
       .add(new Attribute(name + "_" + 1, AttributeType.DOUBLE), i)
       .build()
@@ -58,7 +58,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def schema(name: String, attributeType: AttributeType, n: Int = 1): Schema = {
     Schema
-      .newBuilder()
+      .builder()
       .add(
         new Attribute(name, attributeType),
         new Attribute(name + "_" + n, attributeType)
@@ -68,7 +68,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def longTuple(name: String, n: Int = 1, i: Long): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.LONG, n))
+      .builder(schema(name, AttributeType.LONG, n))
       .add(new Attribute(name, AttributeType.LONG), i)
       .add(new Attribute(name + "_" + 1, AttributeType.LONG), i)
       .build()
@@ -76,7 +76,7 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
 
   def timeStampTuple(name: String, n: Int = 1, i: Timestamp): Tuple = {
     Tuple
-      .newBuilder(schema(name, AttributeType.TIMESTAMP, n))
+      .builder(schema(name, AttributeType.TIMESTAMP, n))
       .add(new Attribute(name, AttributeType.TIMESTAMP), i)
       .add(new Attribute(name + "_" + 1, AttributeType.TIMESTAMP), i)
       .build()
@@ -212,7 +212,6 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     opDesc = new IntervalJoinOpDesc(
       leftKey,
       rightKey,
-      inputSchemas,
       intervalConstant,
       includeLeftBound,
       includeRightBound,
@@ -220,17 +219,19 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     )
     val outputSchema = opDesc.getOutputSchema(inputSchemas)
     val opExec = new IntervalJoinOpExec(
-      opDesc,
-      inputSchemas(0),
-      inputSchemas(1),
-      outputSchema
+      leftAttributeName = leftKey,
+      rightAttributeName = rightKey,
+      includeLeftBound = includeLeftBound,
+      includeRightBound = includeRightBound,
+      constant = intervalConstant,
+      timeIntervalType = Some(timeIntervalType)
     )
     opExec.open()
     counter = 0
     var leftIndex: Int = 0
     var rightIndex: Int = 0
-    val leftOrder = Stream.continually(nextInt(10)).take(leftInput.length).toList
-    val rightOrder = Stream.continually(nextInt(10)).take(rightInput.length).toList
+    val leftOrder = LazyList.continually(nextInt(10)).take(leftInput.length).toList
+    val rightOrder = LazyList.continually(nextInt(10)).take(rightInput.length).toList
     val outputTuples: ArrayBuffer[Tuple] = new ArrayBuffer[Tuple]
 
     while (leftIndex < leftOrder.size || rightIndex < rightOrder.size) {
@@ -240,12 +241,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         ) < rightOrder(rightIndex))
       ) {
         val result = opExec
-          .processTexeraTuple(
-            Left(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType)),
-            left,
-            null,
-            null
-          )
+          .processTuple(newTuple[T](leftKey, 1, leftInput(leftIndex), dataType), left)
+          .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(
           result
@@ -253,12 +250,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
         leftIndex += 1
       } else if (rightIndex < rightOrder.size) {
         val result = opExec
-          .processTexeraTuple(
-            Left(newTuple(rightKey, 1, rightInput(rightIndex), dataType)),
-            right,
-            null,
-            null
-          )
+          .processTuple(newTuple(rightKey, 1, rightInput(rightIndex), dataType), right)
+          .map(tupleLike => tupleLike.asInstanceOf[SchemaEnforceable].enforceSchema(outputSchema))
           .toBuffer
         outputTuples.appendAll(
           result
@@ -275,10 +268,10 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
       dataType
     )
     assert(outputTuples.size == bruteForceResult)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), left, null, null).isEmpty)
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), right, null, null).isEmpty)
+    assert(opExec.onFinish(left).isEmpty)
+    assert(opExec.onFinish(right).isEmpty)
     if (outputTuples.nonEmpty)
-      assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
+      assert(outputTuples.head.getSchema.getAttributeNames.length == 4)
     opExec.close()
   }
 
@@ -403,24 +396,13 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "work with Double value int [] interval" in {
-    val inputSchemas =
-      Array(schema("point", AttributeType.DOUBLE), schema("range", AttributeType.DOUBLE))
-
-    val opDesc = new IntervalJoinOpDesc(
-      "point_1",
-      "range_1",
-      inputSchemas,
-      3,
+    val opExec = new IntervalJoinOpExec(
+      leftAttributeName = "point_1",
+      rightAttributeName = "range_1",
       includeLeftBound = true,
       includeRightBound = true,
-      timeIntervalType = TimeIntervalType.DAY
-    )
-    val outputSchema = opDesc.getOutputSchema(inputSchemas)
-    val opExec = new IntervalJoinOpExec(
-      opDesc,
-      inputSchemas(0),
-      inputSchemas(1),
-      outputSchema
+      constant = 3,
+      timeIntervalType = Option(TimeIntervalType.DAY)
     )
 
     opExec.open()
@@ -428,17 +410,17 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
     val pointList: Array[Double] = Array(1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1)
     pointList.foreach(i => {
       assert(
-        opExec.processTexeraTuple(Left(doubleTuple("point", 1, i)), left, null, null).isEmpty
+        opExec.processTuple(doubleTuple("point", 1, i), left).isEmpty
       )
     })
-    assert(opExec.processTexeraTuple(Right(InputExhausted()), left, null, null).isEmpty)
+    assert(opExec.onFinish(left).isEmpty)
     val rangeList: Array[Double] = Array(1.1, 5.1, 8.1)
     val outputTuples = rangeList
-      .map(i => opExec.processTexeraTuple(Left(doubleTuple("range", 1, i)), right, null, null))
-      .foldLeft(Iterator[Tuple]())(_ ++ _)
+      .map(i => opExec.processTuple(doubleTuple("range", 1, i), right))
+      .foldLeft(Iterator[TupleLike]())(_ ++ _)
       .toList
     assert(outputTuples.size == 11)
-    assert(outputTuples.head.getSchema.getAttributeNames.size() == 4)
+    assert(outputTuples.head.getFields.length == 4)
     opExec.close()
   }
 
@@ -493,8 +475,8 @@ class IntervalOpExecSpec extends AnyFlatSpec with BeforeAndAfter {
   }
 
   it should "test larger dataset(1k)" in {
-    val pointList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
-    val rangeList: Array[Long] = Stream.continually(nextLong()).take(1000).toArray
+    val pointList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
+    val rangeList: Array[Long] = LazyList.continually(nextLong()).take(1000).toArray
     testJoin[Long](
       "point",
       "range",

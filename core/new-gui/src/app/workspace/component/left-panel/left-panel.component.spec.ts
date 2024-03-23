@@ -6,6 +6,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("LeftPanelComponent", () => {
   let component: LeftPanelComponent;
@@ -15,7 +16,7 @@ describe("LeftPanelComponent", () => {
 
   beforeEach(async () => {
     await TestBed.configureTestingModule({
-      imports: [HttpClientTestingModule],
+      imports: [HttpClientTestingModule, RouterTestingModule.withRoutes([])],
       providers: [
         {
           provide: OperatorMetadataService,
@@ -51,7 +52,7 @@ describe("LeftPanelComponent", () => {
     expect(workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs().length).toBe(1);
 
     // click on versions display
-    component.openVersionsFrame();
+    component.openFrame(2);
     fixture.detectChanges();
 
     // all the elements shall be un-highlighted

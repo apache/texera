@@ -27,7 +27,9 @@ import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
   */
 object AsyncRPCServer {
 
-  trait ControlCommand[T]
+  trait ControlCommand[T] {
+    type ReturnType = T
+  }
 
 }
 

@@ -6,15 +6,15 @@ import akka.util.Timeout
 import ch.vorburger.mariadb4j.DB
 import com.twitter.util.{Await, Duration, Promise}
 import edu.uci.ics.amber.clustering.SingleNodeListener
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.WorkflowCompleted
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStateUpdate
 import edu.uci.ics.amber.engine.architecture.controller._
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.StartWorkflowHandler.StartWorkflow
 import edu.uci.ics.amber.engine.common.client.AmberClient
-import edu.uci.ics.amber.engine.common.tuple.ITuple
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.amber.engine.e2e.TestUtils.buildWorkflow
+import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.COMPLETED
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.tuple.Tuple
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeType
@@ -39,38 +39,47 @@ class DataProcessingSpec
 
   val resultStorage = new OpResultStorage()
 
-  override def beforeAll: Unit = {
-    system.actorOf(Props[SingleNodeListener], "cluster-info")
+  override def beforeAll(): Unit = {
+    system.actorOf(Props[SingleNodeListener](), "cluster-info")
   }
-  override def afterAll: Unit = {
+  override def afterAll(): Unit = {
     TestKit.shutdownActorSystem(system)
     resultStorage.close()
   }
 
-  def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[ITuple]] = {
-    var results: Map[OperatorIdentity, List[ITuple]] = null
-    val client = new AmberClient(system, workflow, ControllerConfig.default, error => {})
-    val completion = Promise[Unit]
+  def executeWorkflow(workflow: Workflow): Map[OperatorIdentity, List[Tuple]] = {
+    var results: Map[OperatorIdentity, List[Tuple]] = null
+    val client = new AmberClient(
+      system,
+      workflow.context,
+      workflow.physicalPlan,
+      resultStorage,
+      ControllerConfig.default,
+      error => {}
+    )
+    val completion = Promise[Unit]()
     client.registerCallback[FatalError](evt => {
       completion.setException(evt.e)
       client.shutdown()
     })
 
     client
-      .registerCallback[WorkflowCompleted](evt => {
-        results = workflow.logicalPlan.getTerminalOperatorIds
-          .map(sinkOpId =>
-            (sinkOpId, workflow.logicalPlan.getUpstreamOps(sinkOpId).head.operatorIdentifier)
-          )
-          .filter {
-            case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
-          }
-          .map {
-            case (sinkOpId, upstreamOpId) =>
-              (sinkOpId, resultStorage.get(upstreamOpId).getAll.toList)
-          }
-          .toMap
-        completion.setDone()
+      .registerCallback[ExecutionStateUpdate](evt => {
+        if (evt.state == COMPLETED) {
+          results = workflow.logicalPlan.getTerminalOperatorIds
+            .map(sinkOpId =>
+              (sinkOpId, workflow.logicalPlan.getUpstreamOps(sinkOpId).head.operatorIdentifier)
+            )
+            .filter {
+              case (_, upstreamOpId) => resultStorage.contains(upstreamOpId)
+            }
+            .map {
+              case (sinkOpId, upstreamOpId) =>
+                (sinkOpId, resultStorage.get(upstreamOpId).getAll.toList)
+            }
+            .toMap
+          completion.setDone()
+        }
       })
     Await.result(client.sendAsync(StartWorkflow()))
     Await.result(completion, Duration.fromMinutes(1))
@@ -176,7 +185,7 @@ class DataProcessingSpec
       assert(schema.getAttribute("flagged").getType == AttributeType.BOOLEAN)
       assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
-      assert(schema.getAttributes.size() == 9)
+      assert(schema.getAttributes.length == 9)
     }
 
   }
@@ -208,7 +217,7 @@ class DataProcessingSpec
       assert(schema.getAttribute("year").getType == AttributeType.INTEGER)
       assert(schema.getAttribute("created_at").getType == AttributeType.TIMESTAMP)
       assert(schema.getAttribute("test_object.array2.another").getType == AttributeType.INTEGER)
-      assert(schema.getAttributes.size() == 13)
+      assert(schema.getAttributes.length == 13)
     }
   }
 
@@ -235,36 +244,6 @@ class DataProcessingSpec
       resultStorage
     )
     executeWorkflow(workflow)
-  }
-
-  "Engine" should "execute headerlessCsv->word count->sink workflow normally" in {
-
-    val headerlessCsvOpDesc = TestOperators.headerlessSmallCsvScanOpDesc()
-    // Get only the highest count, for testing purposes
-    val wordCountOpDesc = TestOperators.wordCloudOpDesc("column-1", 1)
-    val sink = TestOperators.sinkOpDesc()
-    val workflow = buildWorkflow(
-      List(headerlessCsvOpDesc, wordCountOpDesc, sink),
-      List(
-        LogicalLink(
-          headerlessCsvOpDesc.operatorIdentifier,
-          PortIdentity(),
-          wordCountOpDesc.operatorIdentifier,
-          PortIdentity()
-        ),
-        LogicalLink(
-          wordCountOpDesc.operatorIdentifier,
-          PortIdentity(),
-          sink.operatorIdentifier,
-          PortIdentity()
-        )
-      ),
-      resultStorage
-    )
-    val result = executeWorkflow(workflow).values
-    // Assert that only one tuple came out successfully
-    assert(result.size == 1)
-
   }
 
   "Engine" should "execute csv->sink workflow normally" in {

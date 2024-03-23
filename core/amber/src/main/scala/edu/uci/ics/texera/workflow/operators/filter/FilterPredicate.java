@@ -4,7 +4,6 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaInject;
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaString;
-import edu.uci.ics.texera.workflow.common.WorkflowContext;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName;
 import edu.uci.ics.texera.workflow.common.metadata.annotations.HideAnnotation;
 import edu.uci.ics.texera.workflow.common.tuple.Tuple;
@@ -37,8 +36,29 @@ public class FilterPredicate {
         this.value = value;
     }
 
+    private static <T extends Comparable<T>> boolean evaluateFilter(T tupleValue, T userSuppliedValue, ComparisonType comparisonType) {
+        int compareResult = tupleValue.compareTo(userSuppliedValue);
+        switch (comparisonType) {
+            case EQUAL_TO:
+                return compareResult == 0;
+            case GREATER_THAN:
+                return compareResult > 0;
+            case GREATER_THAN_OR_EQUAL_TO:
+                return compareResult >= 0;
+            case LESS_THAN:
+                return compareResult < 0;
+            case LESS_THAN_OR_EQUAL_TO:
+                return compareResult <= 0;
+            case NOT_EQUAL_TO:
+                return compareResult != 0;
+            default:
+                throw new RuntimeException(
+                        "Unable to do comparison: unknown comparison type: " + comparisonType);
+        }
+    }
+
     @JsonIgnore
-    public boolean evaluate(Tuple tuple, WorkflowContext context) {
+    public boolean evaluate(Tuple tuple) {
         boolean isFieldNull = tuple.getField(attribute) == null;
         if (condition == ComparisonType.IS_NULL) {
             return isFieldNull;
@@ -70,25 +90,25 @@ public class FilterPredicate {
     }
 
     private boolean evaluateFilterBoolean(Tuple inputTuple) {
-        Boolean tupleValue = inputTuple.getField(attribute, Boolean.class);
+        Boolean tupleValue = inputTuple.getField(attribute);
         return evaluateFilter(tupleValue.toString().toLowerCase(), value.trim().toLowerCase(), condition);
     }
 
     private boolean evaluateFilterDouble(Tuple inputTuple) {
-        Double tupleValue = inputTuple.getField(attribute, Double.class);
+        Double tupleValue = inputTuple.getField(attribute);
         Double compareToValue = Double.parseDouble(value);
         return evaluateFilter(tupleValue, compareToValue, condition);
     }
 
     private boolean evaluateFilterInt(Tuple inputTuple) {
-        Integer tupleValueInt = inputTuple.getField(attribute, Integer.class);
+        Integer tupleValueInt = inputTuple.getField(attribute);
         Double tupleValueDouble = tupleValueInt == null ? null : (double) tupleValueInt;
         Double compareToValue = Double.parseDouble(value);
         return evaluateFilter(tupleValueDouble, compareToValue, condition);
     }
 
     private boolean evaluateFilterLong(Tuple inputTuple) {
-        Long tupleValue = inputTuple.getField(attribute, Long.class);
+        Long tupleValue = inputTuple.getField(attribute);
         Long compareToValue = Long.valueOf(value.trim());
         return evaluateFilter(tupleValue, compareToValue, condition);
     }
@@ -105,32 +125,11 @@ public class FilterPredicate {
     }
 
     private boolean evaluateFilterTimestamp(Tuple inputTuple) {
-        Long tupleValue = inputTuple.getField(attribute, Timestamp.class).getTime();
+        Timestamp ts = inputTuple.getField(attribute);
+        Long tupleValue = ts.getTime();
         Long compareToValue = AttributeTypeUtils.parseTimestamp(value.trim()).getTime();
         return evaluateFilter(tupleValue, compareToValue, condition);
 
-    }
-
-
-    private static <T extends Comparable<T>> boolean evaluateFilter(T tupleValue, T userSuppliedValue, ComparisonType comparisonType) {
-        int compareResult = tupleValue.compareTo(userSuppliedValue);
-        switch (comparisonType) {
-            case EQUAL_TO:
-                return compareResult == 0;
-            case GREATER_THAN:
-                return compareResult > 0;
-            case GREATER_THAN_OR_EQUAL_TO:
-                return compareResult >= 0;
-            case LESS_THAN:
-                return compareResult < 0;
-            case LESS_THAN_OR_EQUAL_TO:
-                return compareResult <= 0;
-            case NOT_EQUAL_TO:
-                return compareResult != 0;
-            default:
-                throw new RuntimeException(
-                        "Unable to do comparison: unknown comparison type: " + comparisonType);
-        }
     }
 
     @Override

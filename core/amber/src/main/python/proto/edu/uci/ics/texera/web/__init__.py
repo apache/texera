@@ -54,16 +54,16 @@ class ExecutionBreakpointStore(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class EvaluatedValueList(betterproto.Message):
-    values: List[
-        "__amber_engine_architecture_worker__.EvaluatedValue"
-    ] = betterproto.message_field(1)
+    values: List["__amber_engine_architecture_worker__.EvaluatedValue"] = (
+        betterproto.message_field(1)
+    )
 
 
 @dataclass(eq=False, repr=False)
 class OperatorConsole(betterproto.Message):
-    console_messages: List[
-        "__amber_engine_architecture_worker__.ConsoleMessage"
-    ] = betterproto.message_field(1)
+    console_messages: List["__amber_engine_architecture_worker__.ConsoleMessage"] = (
+        betterproto.message_field(1)
+    )
     evaluate_expr_results: Dict[str, "EvaluatedValueList"] = betterproto.map_field(
         2, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
@@ -87,6 +87,10 @@ class OperatorRuntimeStats(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
     input_count: int = betterproto.int64_field(2)
     output_count: int = betterproto.int64_field(3)
+    num_workers: int = betterproto.int32_field(4)
+    data_processing_time: int = betterproto.int64_field(5)
+    control_processing_time: int = betterproto.int64_field(6)
+    idle_time: int = betterproto.int64_field(7)
 
 
 @dataclass(eq=False, repr=False)

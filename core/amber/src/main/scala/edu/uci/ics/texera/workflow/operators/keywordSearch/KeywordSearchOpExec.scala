@@ -7,20 +7,15 @@ import org.apache.lucene.analysis.core.SimpleAnalyzer
 import org.apache.lucene.index.memory.MemoryIndex
 import org.apache.lucene.search.Query
 
-class KeywordSearchOpExec(val opDesc: KeywordSearchOpDesc) extends FilterOpExec {
-  @transient lazy val analyzer = new SimpleAnalyzer()
-  @transient lazy val query: Query =
-    new QueryParser(opDesc.attribute, analyzer).parse(opDesc.keyword)
-  @transient lazy val memoryIndex: MemoryIndex = new MemoryIndex()
+class KeywordSearchOpExec(attributeName: String, keyword: String) extends FilterOpExec {
+  @transient private lazy val analyzer = new SimpleAnalyzer()
+  @transient lazy val query: Query = new QueryParser(attributeName, analyzer).parse(keyword)
+  @transient private lazy val memoryIndex: MemoryIndex = new MemoryIndex()
 
-  this.setFilterFunc(this.findKeyword)
-
-  def findKeyword(tuple: Tuple): Boolean = {
-    if (tuple.getField(opDesc.attribute) == null) {
-      false
-    } else {
-      val fieldValue = tuple.getField(opDesc.attribute).toString
-      memoryIndex.addField(opDesc.attribute, fieldValue, analyzer)
+  this.setFilterFunc(findKeyword)
+  private def findKeyword(tuple: Tuple): Boolean = {
+    Option[Any](tuple.getField(attributeName)).map(_.toString).exists { fieldValue =>
+      memoryIndex.addField(attributeName, fieldValue, analyzer)
       val isMatch = memoryIndex.search(query) > 0.0f
       memoryIndex.reset()
       isMatch

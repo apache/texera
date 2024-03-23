@@ -16,7 +16,7 @@ import java.sql.Timestamp
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
 import javax.ws.rs.core.MediaType
-import scala.collection.convert.ImplicitConversions.`collection AsScalaIterable`
+import scala.jdk.CollectionConverters.IterableHasAsScala
 
 /**
   * This file handles various request related to workflows versions.
@@ -66,15 +66,10 @@ object WorkflowVersionResource {
     * @param patch to update latest version
     * @param wid
     */
-  def updateLatestVersion(patch: String, wid: UInteger): Unit = {
+  private def updateLatestVersion(patch: String, wid: UInteger): Unit = {
     // get the latest version to update its content
     val vid = getLatestVersion(wid)
-    var workflowVersion = workflowVersionDao.fetchOneByVid(vid)
-    // for backwards compatibility, old constructed versions would follow the old design by not saving the current
-    // version as an empty delta, so should do the check and create one once
-    if (!isPatchEmpty(workflowVersion.getContent)) {
-      workflowVersion = insertNewVersion(wid)
-    }
+    val workflowVersion = workflowVersionDao.fetchOneByVid(vid)
     workflowVersion.setContent(patch)
     workflowVersionDao.update(workflowVersion)
   }
@@ -90,6 +85,7 @@ object WorkflowVersionResource {
       .from(WORKFLOW_VERSION)
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .fetchInto(classOf[UInteger])
+      .asScala
       .toList
     // for backwards compatibility check, old constructed versions would follow the old design by not saving the current
     // version as an empty delta, so should do the check and create one once
@@ -114,24 +110,12 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function is for testing if the version is following the current design of keeping an empty delta for the
-    * last version for migrating versions that followed the old design to the new design.
-    * This function should be removed after some time (when all versions in the DB follow the new design)
-    * @param patch
-    * @return
+    * This function retrieves the content of versions from a specific workflow in a range
+    * @param lowerBound lower bound of the version search range
+    * @param UpperBound upper bound of the search range
+    * @param wid workflow id
+    * @return a list of contents as strings
     */
-  @deprecated
-  private def isPatchEmpty(patch: String): Boolean = {
-    patch == "[]"
-  }
-
-  /*
-   * This function retrieves the content of versions from a specific workflow in a range
-   * @param lowerBound lower bound of the version search range
-   * @param UpperBound upper bound of the search range
-   * @param wid workflow id
-   * @return a list of contents as strings
-   */
   def isSnapshotInRangeUnimportant(
       lowerBound: UInteger,
       UpperBound: UInteger,
@@ -146,6 +130,7 @@ object WorkflowVersionResource {
       .where(WORKFLOW_VERSION.WID.eq(wid))
       .and(WORKFLOW_VERSION.VID.between(lowerBound).and(UpperBound))
       .fetchInto(classOf[String])
+      .asScala
       .toList
     contents.forall(content => !isSnapshotImportant(content))
   }
@@ -201,7 +186,12 @@ object WorkflowVersionResource {
     // version is important even if it is positional
     var versionImportance: Boolean = true
     for (version <- versions.tail) {
-      if (isWithinTimeLimit(lastVersionTime, version.getCreationTime)) {
+      if (
+        isWithinTimeLimit(
+          lastVersionTime,
+          version.getCreationTime
+        )
+      ) {
         versionImportance = false
       } // try reducing unnecessary check of positional versions
       // because parsing the Json string is expensive
@@ -318,6 +308,7 @@ class WorkflowVersionResource {
           .from(WORKFLOW_VERSION)
           .where(WORKFLOW_VERSION.WID.eq(wid))
           .fetchInto(classOf[WorkflowVersion])
+          .asScala
           .toList
       )
     }
@@ -351,6 +342,7 @@ class WorkflowVersionResource {
         .from(WORKFLOW_VERSION)
         .where(WORKFLOW_VERSION.WID.eq(wid).and(WORKFLOW_VERSION.VID.ge(vid)))
         .fetchInto(classOf[WorkflowVersion])
+        .asScala
         .toList
       // apply patch
       val currentWorkflow = workflowDao.fetchOneByWid(wid)

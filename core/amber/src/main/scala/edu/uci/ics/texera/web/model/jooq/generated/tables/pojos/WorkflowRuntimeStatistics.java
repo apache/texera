@@ -9,6 +9,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.interfaces.IWorkflowRu
 import java.sql.Timestamp;
 
 import org.jooq.types.UInteger;
+import org.jooq.types.ULong;
 
 
 /**
@@ -17,7 +18,7 @@ import org.jooq.types.UInteger;
 @SuppressWarnings({ "all", "unchecked", "rawtypes" })
 public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
 
-    private static final long serialVersionUID = -446937835;
+    private static final long serialVersionUID = -2045109677;
 
     private UInteger  workflowId;
     private UInteger  executionId;
@@ -26,6 +27,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
     private UInteger  inputTupleCnt;
     private UInteger  outputTupleCnt;
     private Byte      status;
+    private ULong     dataProcessingTime;
+    private ULong     controlProcessingTime;
+    private ULong     idleTime;
+    private UInteger  numWorkers;
 
     public WorkflowRuntimeStatistics() {}
 
@@ -37,6 +42,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         this.inputTupleCnt = value.getInputTupleCnt();
         this.outputTupleCnt = value.getOutputTupleCnt();
         this.status = value.getStatus();
+        this.dataProcessingTime = value.getDataProcessingTime();
+        this.controlProcessingTime = value.getControlProcessingTime();
+        this.idleTime = value.getIdleTime();
+        this.numWorkers = value.getNumWorkers();
     }
 
     public WorkflowRuntimeStatistics(
@@ -46,7 +55,11 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         Timestamp time,
         UInteger  inputTupleCnt,
         UInteger  outputTupleCnt,
-        Byte      status
+        Byte      status,
+        ULong     dataProcessingTime,
+        ULong     controlProcessingTime,
+        ULong     idleTime,
+        UInteger  numWorkers
     ) {
         this.workflowId = workflowId;
         this.executionId = executionId;
@@ -55,6 +68,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         this.inputTupleCnt = inputTupleCnt;
         this.outputTupleCnt = outputTupleCnt;
         this.status = status;
+        this.dataProcessingTime = dataProcessingTime;
+        this.controlProcessingTime = controlProcessingTime;
+        this.idleTime = idleTime;
+        this.numWorkers = numWorkers;
     }
 
     @Override
@@ -128,6 +145,46 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
     }
 
     @Override
+    public ULong getDataProcessingTime() {
+        return this.dataProcessingTime;
+    }
+
+    @Override
+    public void setDataProcessingTime(ULong dataProcessingTime) {
+        this.dataProcessingTime = dataProcessingTime;
+    }
+
+    @Override
+    public ULong getControlProcessingTime() {
+        return this.controlProcessingTime;
+    }
+
+    @Override
+    public void setControlProcessingTime(ULong controlProcessingTime) {
+        this.controlProcessingTime = controlProcessingTime;
+    }
+
+    @Override
+    public ULong getIdleTime() {
+        return this.idleTime;
+    }
+
+    @Override
+    public void setIdleTime(ULong idleTime) {
+        this.idleTime = idleTime;
+    }
+
+    @Override
+    public UInteger getNumWorkers() {
+        return this.numWorkers;
+    }
+
+    @Override
+    public void setNumWorkers(UInteger numWorkers) {
+        this.numWorkers = numWorkers;
+    }
+
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder("WorkflowRuntimeStatistics (");
 
@@ -138,6 +195,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         sb.append(", ").append(inputTupleCnt);
         sb.append(", ").append(outputTupleCnt);
         sb.append(", ").append(status);
+        sb.append(", ").append(dataProcessingTime);
+        sb.append(", ").append(controlProcessingTime);
+        sb.append(", ").append(idleTime);
+        sb.append(", ").append(numWorkers);
 
         sb.append(")");
         return sb.toString();
@@ -156,6 +217,10 @@ public class WorkflowRuntimeStatistics implements IWorkflowRuntimeStatistics {
         setInputTupleCnt(from.getInputTupleCnt());
         setOutputTupleCnt(from.getOutputTupleCnt());
         setStatus(from.getStatus());
+        setDataProcessingTime(from.getDataProcessingTime());
+        setControlProcessingTime(from.getControlProcessingTime());
+        setIdleTime(from.getIdleTime());
+        setNumWorkers(from.getNumWorkers());
     }
 
     @Override

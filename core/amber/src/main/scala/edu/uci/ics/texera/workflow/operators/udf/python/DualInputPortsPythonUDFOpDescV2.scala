@@ -3,7 +3,7 @@ package edu.uci.ics.texera.workflow.operators.udf.python
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.google.common.base.Preconditions
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
-import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
+import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
@@ -13,8 +13,6 @@ import edu.uci.ics.texera.workflow.common.workflow.UnknownPartition
 import edu.uci.ics.amber.engine.common.workflow.InputPort
 import edu.uci.ics.amber.engine.common.workflow.OutputPort
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
-
-import scala.collection.JavaConverters._
 
 class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   @JsonProperty(
@@ -71,21 +69,45 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
     Preconditions.checkArgument(workers >= 1, "Need at least 1 worker.", Array())
     if (workers > 1) {
       PhysicalOp
-        .oneToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .oneToOnePhysicalOp(
+          workflowId,
+          executionId,
+          operatorIdentifier,
+          OpExecInitInfo(code, "python")
+        )
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(true)
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
+          )
+        )
         .withSuggestedWorkerNum(workers)
     } else {
       PhysicalOp
-        .manyToOnePhysicalOp(workflowId, executionId, operatorIdentifier, OpExecInitInfo(code))
+        .manyToOnePhysicalOp(
+          workflowId,
+          executionId,
+          operatorIdentifier,
+          OpExecInitInfo(code, "python")
+        )
         .withDerivePartition(_ => UnknownPartition())
         .withParallelizable(false)
-        .withInputPorts(operatorInfo.inputPorts, inputPortToSchemaMapping)
-        .withOutputPorts(operatorInfo.outputPorts, outputPortToSchemaMapping)
+        .withInputPorts(operatorInfo.inputPorts)
+        .withOutputPorts(operatorInfo.outputPorts)
         .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
+        .withPropagateSchema(
+          SchemaPropagationFunc(inputSchemas =>
+            Map(
+              operatorInfo.outputPorts.head.id -> getOutputSchema(
+                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
+              )
+            )
+          )
+        )
     }
   }
 
@@ -109,7 +131,7 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
     Preconditions.checkArgument(schemas.length == 2)
     val inputSchema = schemas(1)
-    val outputSchemaBuilder = Schema.newBuilder
+    val outputSchemaBuilder = Schema.builder()
     // keep the same schema from input
     if (retainInputColumns) outputSchemaBuilder.add(inputSchema)
     // for any pythonUDFType, it can add custom output columns (attributes).
@@ -121,8 +143,8 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
             throw new RuntimeException("Column name " + column.getName + " already exists!")
         }
       }
-      outputSchemaBuilder.add(outputColumns.asJava).build
+      outputSchemaBuilder.add(outputColumns).build()
     }
-    outputSchemaBuilder.build
+    outputSchemaBuilder.build()
   }
 }
