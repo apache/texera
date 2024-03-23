@@ -41,7 +41,6 @@
     "@types/plotly.js-basic-dist-min": "^2.12.4",
     "ajv": "8.10.0",
     "backbone": "1.4.1",
-    "bootstrap": "~5.2.3",
     "dagre": "0.8.5",
     "deep-map": "2.0.0",
     "edit-distance": "1.0.4",
