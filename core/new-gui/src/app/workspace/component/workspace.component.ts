@@ -119,6 +119,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.workflowActionService.setWorkflowMetadata(undefined);
     this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
   }
