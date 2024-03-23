@@ -3,6 +3,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import { WorkflowVersionService } from "../../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { WorkflowVersionCollapsableEntry } from "../../../../dashboard/user/type/workflow-version-entry";
+import { ActivatedRoute } from "@angular/router";
 
 @UntilDestroy()
 @Component({
@@ -16,7 +17,8 @@ export class VersionsListComponent implements OnInit {
 
   constructor(
     private workflowActionService: WorkflowActionService,
-    public workflowVersionService: WorkflowVersionService
+    public workflowVersionService: WorkflowVersionService,
+    public route: ActivatedRoute
   ) {}
 
   collapse(index: number, $event: boolean): void {
@@ -39,7 +41,7 @@ export class VersionsListComponent implements OnInit {
     const elements = this.workflowActionService.getJointGraphWrapper().getCurrentHighlights();
     this.workflowActionService.getJointGraphWrapper().unhighlightElements(elements);
     // gets the versions result and updates the workflow versions table displayed on the form
-    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+    const wid = this.route.snapshot.params.id;
     if (wid === undefined) {
       return;
     }
