@@ -140,6 +140,15 @@ class CostBasedRegionPlanGenerator(
     regionDAG
   }
 
+  /**
+    * Adds materialization links as region links within the given region DAG.
+    * This method processes each physical link in the input set, identifying the source and destination
+    * regions for each link. It then adds an edge between these regions in the DAG to represent
+    * the materialization relationship.
+    *
+    * @param linksToMaterialize The set of physical links to be materialized as region links in the DAG.
+    * @param regionDAG The DAG of regions to be modified
+    */
   private def addMaterializationsAsRegionLinks(
       linksToMaterialize: Set[PhysicalLink],
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
@@ -208,9 +217,9 @@ class CostBasedRegionPlanGenerator(
               }
             }
           } else {
-            val nextLink = candidateEdges.minBy(e =>
+            val nextLink = candidateEdges.minBy(edge =>
               tryConnectRegionDAG(
-                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState + e
+                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState + edge
               ) match {
                 case Left(regionDAG) =>
                   evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
