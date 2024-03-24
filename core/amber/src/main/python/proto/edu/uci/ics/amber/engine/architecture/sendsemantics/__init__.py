@@ -16,11 +16,11 @@ class Partitioning(betterproto.Message):
     round_robin_partitioning: "RoundRobinPartitioning" = betterproto.message_field(
         2, group="sealed_value"
     )
-    hash_based_shuffle_partitioning: "HashBasedShufflePartitioning" = betterproto.message_field(
-        3, group="sealed_value"
+    hash_based_shuffle_partitioning: "HashBasedShufflePartitioning" = (
+        betterproto.message_field(3, group="sealed_value")
     )
-    range_based_shuffle_partitioning: "RangeBasedShufflePartitioning" = betterproto.message_field(
-        4, group="sealed_value"
+    range_based_shuffle_partitioning: "RangeBasedShufflePartitioning" = (
+        betterproto.message_field(4, group="sealed_value")
     )
     broadcast_partitioning: "BroadcastPartitioning" = betterproto.message_field(
         5, group="sealed_value"
