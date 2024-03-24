@@ -22,7 +22,6 @@ const MAX_USERNAME_SIZE = 5;
   styleUrls: ["./workflow-execution-modal.component.scss"],
 })
 export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
-  //   readonly wid: number = inject(NZ_MODAL_DATA).wid;
   wid: number = 0;
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
