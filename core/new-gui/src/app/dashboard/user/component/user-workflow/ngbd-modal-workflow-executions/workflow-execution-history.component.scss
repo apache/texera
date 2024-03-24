@@ -1,13 +1,10 @@
-#search-box *,
-#exection-history-table * {
+#search-box input,
+#exection-history-table .ant-table-tbody > tr > td {
   font-size: 11px;
 }
 
-::ng-deep #exection-history-table .ant-table-tbody > tr > td {
+#exection-history-table .ant-table-tbody > tr > td {
   padding: 0px;
-}
-::ng-deep .ant-tabs-nav .ant-tabs-tab {
-  font-size: 11px;
 }
 
 nz-table th {
@@ -15,7 +12,7 @@ nz-table th {
 }
 
 .bookmark-icon {
-  font-size: 1.5rem;
+  font-size: 11px;
 }
 
 .bookmark-icon:hover {
@@ -27,7 +24,7 @@ nz-table th {
 }
 
 .status-icon {
-  font-size: 1.2rem;
+  font-size: 11px;
 }
 
 .rename-icon:hover {
@@ -51,11 +48,11 @@ nz-table th {
 }
 
 .h4 {
-  font-size: 24px;
+  font-size: 11px;
 }
 
 .ant-btn-icon-only > * {
-  font-size: 16px;
+  font-size: 11px;
 }
 
 .ant-btn-icon-only {

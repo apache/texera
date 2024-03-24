@@ -4,7 +4,7 @@ import { AdminExecutionService } from "../../service/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { WorkflowExecutionModalComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-modal.component";
+import { WorkflowExecutionHistoryComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { Workflow } from "../../../../common/type/workflow";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
@@ -237,28 +237,6 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
       return execution.executionStatus.indexOf(executionStatus) !== -1;
     });
   };
-
-  clickToViewHistory(workflowId: number) {
-    let wid!: number;
-    let name!: string;
-    for (let i = 0; i < this.workflows.length; i++) {
-      const workflow = this.workflows[i];
-      if (workflow.wid == workflowId) {
-        wid = workflow.wid;
-        name = workflow.name;
-        break;
-      }
-    }
-
-    this.modalService.create({
-      nzContent: WorkflowExecutionModalComponent,
-      nzData: { wid: wid },
-      nzTitle: "Execution results of Workflow: " + name,
-      nzFooter: null,
-      nzWidth: "80%",
-      nzCentered: true,
-    });
-  }
 
   /**
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
