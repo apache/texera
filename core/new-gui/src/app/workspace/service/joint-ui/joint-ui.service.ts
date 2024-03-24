@@ -1080,6 +1080,7 @@ export class JointUIService {
       "ref-y": 20,
       stroke: coeditor.color,
     });
+    userCursor.set("interactive", false);
     return userCursor;
   }
 
