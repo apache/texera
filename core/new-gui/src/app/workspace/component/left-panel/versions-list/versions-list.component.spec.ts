@@ -6,6 +6,7 @@ import { FormlyModule } from "@ngx-formly/core";
 import { TEXERA_FORMLY_CONFIG } from "../../../../common/formly/formly-config";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { VersionsListComponent } from "./versions-list.component";
+import { RouterTestingModule } from "@angular/router/testing";
 
 describe("VersionsListDisplayComponent", () => {
   let component: VersionsListComponent;
@@ -22,6 +23,7 @@ describe("VersionsListDisplayComponent", () => {
         FormlyModule.forRoot(TEXERA_FORMLY_CONFIG),
         ReactiveFormsModule,
         HttpClientTestingModule,
+        RouterTestingModule.withRoutes([]),
       ],
     }).compileComponents();
   }));
