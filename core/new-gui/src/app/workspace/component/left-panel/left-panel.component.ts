@@ -5,7 +5,7 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 import { environment } from "../../../../environments/environment";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
-import { WorkflowExecutionModalComponent } from "/Users/baolu/Documents/git/texera/core/new-gui/src/app/dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-modal.component";
+import { WorkflowExecutionModalComponent } from "../../../dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-modal.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
 
 @UntilDestroy()

@@ -4,7 +4,7 @@ import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
-import { WorkflowActionService } from "/Users/baolu/Documents/git/texera/core/new-gui/src/app/workspace/service/workflow-graph/model/workflow-action.service";
+import { WorkflowActionService } from "../../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import Fuse from "fuse.js";
 import { ceil } from "lodash";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
