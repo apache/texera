@@ -127,7 +127,6 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
       return;
     }
     this.wid = wid;
-    console.log("wid" + this.wid);
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
   }
