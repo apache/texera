@@ -168,20 +168,22 @@ class TexeraWebApplication
 
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
-      // do one time cleanup of collections that were not closed gracefully before restart/crash
-      // retrieve all executions that were executing before the reboot.
-      val allExecutionsBeforeRestart: List[WorkflowExecutions] =
-        WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
-      cleanExecutions(
-        allExecutionsBeforeRestart,
-        statusByte => {
-          if (statusByte != maptoStatusCode(COMPLETED)) {
-            maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
-          } else {
-            statusByte
+      if (AmberConfig.cleanupAllExecutionResults) {
+        // do one time cleanup of collections that were not closed gracefully before restart/crash
+        // retrieve all executions that were executing before the reboot.
+        val allExecutionsBeforeRestart: List[WorkflowExecutions] =
+          WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
+        cleanExecutions(
+          allExecutionsBeforeRestart,
+          statusByte => {
+            if (statusByte != maptoStatusCode(COMPLETED)) {
+              maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
+            } else {
+              statusByte
+            }
           }
-        }
-      )
+        )
+      }
       scheduleRecurringCallThroughActorSystem(
         2.seconds,
         AmberConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds
