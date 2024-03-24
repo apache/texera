@@ -1,3 +1,15 @@
+#search-box *,
+#exection-history-table * {
+  font-size: 11px;
+}
+
+::ng-deep #exection-history-table .ant-table-tbody > tr > td {
+  padding: 0px;
+}
+::ng-deep .ant-tabs-nav .ant-tabs-tab {
+  font-size: 11px;
+}
+
 nz-table th {
   text-align: center;
 }

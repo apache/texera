@@ -4,6 +4,7 @@ import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { WorkflowActionService } from "/Users/baolu/Documents/git/texera/core/new-gui/src/app/workspace/service/workflow-graph/model/workflow-action.service";
 import Fuse from "fuse.js";
 import { ceil } from "lodash";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
@@ -21,7 +22,8 @@ const MAX_USERNAME_SIZE = 5;
   styleUrls: ["./workflow-execution-modal.component.scss"],
 })
 export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
-  readonly wid: number = inject(NZ_MODAL_DATA).wid;
+  //   readonly wid: number = inject(NZ_MODAL_DATA).wid;
+  wid: number = 0;
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
@@ -115,10 +117,18 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   constructor(
     private workflowExecutionsService: WorkflowExecutionsService,
     private notificationService: NotificationService,
-    private runtimeStatisticsModal: NzModalService
+    private runtimeStatisticsModal: NzModalService,
+    private workflowActionService: WorkflowActionService
   ) {}
 
   ngOnInit(): void {
+    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
+    if (wid == undefined) {
+      console.error("Workflow ID is undefined.");
+      return;
+    }
+    this.wid = wid;
+    console.log("wid" + this.wid);
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
   }
