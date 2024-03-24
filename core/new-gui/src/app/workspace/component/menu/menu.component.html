@@ -1,6 +1,6 @@
 <div id="menu-container">
   <div id="logo">
-    <a href="/">
+    <a href="{{userSystemEnabled?'/dashboard/workflow':'/'}}">
       <img
         alt="Texera"
         height="{{userSystemEnabled?75:38}}"
@@ -43,15 +43,7 @@
           (click)="revertToVersion()">
           Restore this version
         </button>
-        <button
-          *ngIf="!displayParticularWorkflowVersion"
-          nz-button
-          nzType="link"
-          title="Open version history"
-          id="save-state"
-          (click)="onClickGetAllVersions()">
-          {{autoSaveState}}
-        </button>
+        <span *ngIf="!displayParticularWorkflowVersion"> {{autoSaveState}} </span>
       </div>
 
       <ng-container *ngFor="let user of coeditorPresenceService.coeditors">
