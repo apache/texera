@@ -4,6 +4,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
@@ -23,7 +24,7 @@ class WorkflowCompiler(
   def compileLogicalPlan(
       logicalPlanPojo: LogicalPlanPojo,
       executionStateStore: ExecutionStateStore
-  ): LogicalPlan = {
+  ): Option[LogicalPlan] = {
 
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
@@ -50,15 +51,17 @@ class WorkflowCompiler(
             COMPILATION_ERROR,
             Timestamp(Instant.now),
             err.toString,
-            err.getStackTrace.mkString("\n"),
+            getStackTraceWithAllCauses(err),
             opId.id
           )
       }
       executionStateStore.metadataStore.updateState(metadataStore =>
         updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors.toSeq: _*)
       )
+      None
+    } else {
+      Some(logicalPlan)
     }
-    logicalPlan
   }
 
   def compile(
@@ -73,10 +76,12 @@ class WorkflowCompiler(
     //  by cache.
     val originalLogicalPlan = compileLogicalPlan(logicalPlanPojo, executionStateStore)
 
+    assert(originalLogicalPlan.isDefined, "logical plan compilation failed")
+
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
       context,
-      originalLogicalPlan,
+      originalLogicalPlan.get,
       lastCompletedExecutionLogicalPlan,
       opResultStorage,
       logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
@@ -87,7 +92,7 @@ class WorkflowCompiler(
 
     Workflow(
       context,
-      originalLogicalPlan,
+      originalLogicalPlan.get,
       rewrittenLogicalPlan,
       physicalPlan
     )

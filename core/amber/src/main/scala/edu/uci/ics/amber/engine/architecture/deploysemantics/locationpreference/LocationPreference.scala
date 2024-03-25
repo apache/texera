@@ -36,6 +36,10 @@ class RoundRobinPreference extends LocationPreference {
       physicalOp: PhysicalOp,
       workerIndex: Int
   ): Address = {
+    assert(
+      addressInfo.allAddresses.nonEmpty,
+      "Execution cannot start, no available computation nodes"
+    )
     addressInfo.allAddresses(workerIndex % addressInfo.allAddresses.length)
   }
 }

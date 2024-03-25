@@ -13,6 +13,7 @@ import edu.uci.ics.amber.engine.common.virtualidentity.{
   ExecutionIdentity,
   WorkflowIdentity
 }
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.web.model.websocket.event.TexeraWebSocketEvent
 import edu.uci.ics.texera.web.model.websocket.request.WorkflowExecuteRequest
 import edu.uci.ics.texera.web.service.WorkflowService.mkWorkflowStateId
@@ -203,7 +204,7 @@ class WorkflowService(
               EXECUTION_FAILURE,
               Timestamp(Instant.now),
               t.toString,
-              t.getStackTrace.mkString("\n"),
+              getStackTraceWithAllCauses(t),
               "unknown operator"
             )
           )

@@ -60,12 +60,7 @@ class WorkflowExecutionService(
     })
   )
 
-  val workflow: Workflow = new WorkflowCompiler(workflowContext).compile(
-    request.logicalPlan,
-    resultService.opResultStorage,
-    lastCompletedLogicalPlan,
-    executionStateStore
-  )
+  var workflow: Workflow = _
 
   // Runtime starts from here:
   logger.info("Initialing an AmberClient, runtime starting...")
@@ -76,6 +71,13 @@ class WorkflowExecutionService(
   var executionConsoleService: ExecutionConsoleService = _
 
   def startWorkflow(): Unit = {
+    workflow = new WorkflowCompiler(workflowContext).compile(
+      request.logicalPlan,
+      resultService.opResultStorage,
+      lastCompletedLogicalPlan,
+      executionStateStore
+    )
+
     client = TexeraWebApplication.createAmberRuntime(
       workflowContext,
       workflow.physicalPlan,

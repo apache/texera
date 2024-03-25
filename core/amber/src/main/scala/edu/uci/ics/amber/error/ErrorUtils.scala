@@ -33,7 +33,8 @@ object ErrorUtils {
   }
 
   def getStackTraceWithAllCauses(err: Throwable): String = {
-    val message = err.toString + "\n" + err.getStackTrace.mkString("\n")
+    val message =
+      "Stack trace for developers: \n\n" + err.toString + "\n" + err.getStackTrace.mkString("\n")
     if (err.getCause != null) {
       message + "\n\nCaused by:\n" + getStackTraceWithAllCauses(err.getCause)
     } else {
