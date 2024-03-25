@@ -1,52 +1,34 @@
 <div class="file-tree-container">
-  <nz-tree-view
-    [nzTreeControl]="treeControl"
-    [nzDataSource]="dataSource"
-    [nzDirectoryTree]="true"
-    nzNoAnimation>
-    <nz-tree-node
-      *nzTreeNodeDef="let node"
-      nzTreeNodePadding>
-      <nz-tree-node-toggle nzTreeNodeNoopToggle></nz-tree-node-toggle>
-      <nz-tree-node-option
-        [nzDisabled]="node.disabled"
-        [nzSelected]="selectListSelection.isSelected(node)"
-        (nzClick)="onNodeSelected(node)">
-        <span
+  <tree-root
+    [nodes]="fileTreeNodes"
+    [options]="fileTreeDisplayOptions">
+    <ng-template
+      #treeNodeTemplate
+      let-node>
+      <span title="{{ node.data.name }}">
+        <i
+          *ngIf="node.data.children"
+          nz-icon
+          nzType="folder"
+          nzTheme="outline"></i>
+        <i
+          *ngIf="!node.data.children"
           nz-icon
           nzType="file"
-          nzTheme="outline"></span>
-        {{ node.name }}
-      </nz-tree-node-option>
-      <button
-        *ngIf="isTreeNodeDeletable"
-        nz-button
-        nzType="default"
-        nzSize="small"
-        (click)="onNodeDeleted(node)">
-        <span
-          nz-icon
-          nzType="delete"
-          nzTheme="outline"></span>
-      </button>
-    </nz-tree-node>
-
-    <nz-tree-node
-      *nzTreeNodeDef="let node; when: hasChild"
-      nzTreeNodePadding>
-      <nz-tree-node-toggle>
-        <span
-          nz-icon
-          nzType="caret-down"
-          nzTreeNodeToggleRotateIcon></span>
-      </nz-tree-node-toggle>
-      <nz-tree-node-option [nzDisabled]="node.disabled">
-        <span
-          nz-icon
-          [nzType]="treeControl.isExpanded(node) ? 'folder-open' : 'folder'"
-          nzTheme="outline"></span>
-        {{ node.name }}
-      </nz-tree-node-option>
-    </nz-tree-node>
-  </nz-tree-view>
+          nzTheme="outline"></i>
+        {{ node.data.name }}
+        <button
+          nz-button
+          nzType="link"
+          *ngIf="isTreeNodeDeletable && !node.data.children"
+          class="delete-button"
+          (click)="onNodeDeleted(node.data)">
+          <i
+            nz-icon
+            nzType="delete"
+            nzTheme="outline"></i>
+        </button>
+      </span>
+    </ng-template>
+  </tree-root>
 </div>
