@@ -60,7 +60,7 @@ class HashJoinOpDesc[K] extends LogicalOp {
   ): PhysicalPlan = {
 
     val buildInputPort = operatorInfo.inputPorts.head
-    val buildOutputPort = OutputPort(PortIdentity(0, internal = true))
+    val buildOutputPort = OutputPort(PortIdentity(0, internal = true), blocking = true)
 
     val buildPhysicalOp =
       PhysicalOp

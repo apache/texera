@@ -35,7 +35,7 @@ class IntersectOpDesc extends LogicalOp {
       "Take the intersect of two inputs",
       OperatorGroupConstants.SET_GROUP,
       inputPorts = List(InputPort(PortIdentity()), InputPort(PortIdentity(1))),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

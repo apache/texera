@@ -38,7 +38,7 @@ class DifferenceOpDesc extends LogicalOp {
         InputPort(PortIdentity(), displayName = "left"),
         InputPort(PortIdentity(1), displayName = "right")
       ),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {
