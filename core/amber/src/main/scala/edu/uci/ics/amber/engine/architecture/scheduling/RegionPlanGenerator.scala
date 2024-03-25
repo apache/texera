@@ -84,9 +84,13 @@ abstract class RegionPlanGenerator(
       .toSet
   }
 
+  /**
+    * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
+    *  so that the dependee link will be completed first.
+    */
   def populateDependeeLinks(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): DirectedAcyclicGraph[Region, RegionLink] = {
+  ): Unit = {
 
     val dependeeLinks = physicalPlan
       .topologicalIterator()
@@ -118,7 +122,6 @@ abstract class RegionPlanGenerator(
           )
           replaceVertex(regionDAG, region, newRegion)
       }
-    regionDAG
   }
 
   def replaceLinkWithMaterialization(

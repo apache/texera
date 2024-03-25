@@ -92,11 +92,9 @@ class ExpansionGreedyRegionPlanGenerator(
     *
     * This function builds a region DAG from scratch. It first adds all the regions into the DAG. Then it starts adding
     * edges on the DAG. To do so, it examines each PhysicalOp and checks its input links. The links will be problematic
-    * if they have one of the following two properties:
-    *   1. The link's toOp (this PhysicalOp) has and only has dependee links;
-    *   2. The link's toOp (this PhysicalOp) has another link that has higher priority to run than this link
-    *   (aka, it has a dependency).
-    * If such links are found, the function will terminate after this PhysicalOp and return the set of links.
+    * if the link's toOp (this PhysicalOp) has another link that has higher priority to run than this link (i.e., it has
+    * a dependency). If such links are found, the function will terminate after this PhysicalOp and return the set of
+    * links.
     *
     * If the function finds no such links for all PhysicalOps, it will return the connected Region DAG.
     *
