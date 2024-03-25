@@ -206,8 +206,6 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
     title: string,
     chart: string
   ) {
-    console.log(category);
-    console.log(dataToDisplay[0].slice(1));
     var data = [
       {
         x: category.map(c => `${c}`),

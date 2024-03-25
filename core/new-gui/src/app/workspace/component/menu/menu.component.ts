@@ -129,7 +129,6 @@ export class MenuComponent implements OnInit {
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
-        console.log("execution  ", event);
         this.executionState = event.current.state;
         this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });

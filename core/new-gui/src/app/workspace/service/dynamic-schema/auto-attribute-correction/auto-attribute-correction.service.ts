@@ -149,7 +149,6 @@ export class AutoAttributeCorrectionService {
     matchFunc: (propertyValue: CustomJSONSchema7, value: any) => boolean,
     mutationFunc: (schema: CustomJSONSchema7, value: any) => any
   ): any {
-    console.log(operatorJsonSchema);
     const updatePropertyRecurse = (value: any, jsonSchema: CustomJSONSchema7): any => {
       if (matchFunc(jsonSchema, value)) {
         return mutationFunc(jsonSchema, value);
