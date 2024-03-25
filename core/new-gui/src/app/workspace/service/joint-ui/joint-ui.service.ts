@@ -337,7 +337,6 @@ export class JointUIService {
   }
 
   public changeOperatorEditingStatus(jointPaper: joint.dia.Paper, operatorID: string, users?: User[]): void {
-    console.log(operatorID);
     if (users) {
       const statusText = users[0].name + " is editing properties...";
       const color = users[0].color;
@@ -970,8 +969,6 @@ export class JointUIService {
   }
 
   public static getOperatorCacheIcon(operator: OperatorPredicate, cacheStatus?: OperatorResultCacheStatus): string {
-    console.log("getting operator cache icon for " + operator.operatorID);
-    console.log("cache status: " + cacheStatus);
     if (!operator.markedForReuse) {
       return "";
     }

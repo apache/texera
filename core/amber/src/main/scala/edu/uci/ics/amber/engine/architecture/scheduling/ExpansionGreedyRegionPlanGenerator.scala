@@ -63,9 +63,9 @@ class ExpansionGreedyRegionPlanGenerator(
     * Create Regions based on the PhysicalPlan. The Region are to be added to regionDAG separately.
     */
   private def createRegions(physicalPlan: PhysicalPlan): Set[Region] = {
-    val nonBlockingDAG = physicalPlan.removeBlockingLinks()
+    val dependeeLinksRemovedDAG = physicalPlan.getDependeeLinksRemovedDAG
     val connectedComponents = new BiconnectivityInspector[PhysicalOpIdentity, DefaultEdge](
-      nonBlockingDAG.dag
+      dependeeLinksRemovedDAG.dag
     ).getConnectedComponents.asScala.toSet
     connectedComponents.zipWithIndex.map {
       case (connectedSubDAG, idx) =>
@@ -92,11 +92,9 @@ class ExpansionGreedyRegionPlanGenerator(
     *
     * This function builds a region DAG from scratch. It first adds all the regions into the DAG. Then it starts adding
     * edges on the DAG. To do so, it examines each PhysicalOp and checks its input links. The links will be problematic
-    * if they have one of the following two properties:
-    *   1. The link's toOp (this PhysicalOp) has and only has blocking links;
-    *   2. The link's toOp (this PhysicalOp) has another link that has higher priority to run than this link
-    *   (aka, it has a dependency).
-    * If such links are found, the function will terminate after this PhysicalOp and return the set of links.
+    * if the link's toOp (this PhysicalOp) has another link that has higher priority to run than this link (i.e., it has
+    * a dependency). If such links are found, the function will terminate after this PhysicalOp and return the set of
+    * links.
     *
     * If the function finds no such links for all PhysicalOps, it will return the connected Region DAG.
     *
@@ -115,29 +113,13 @@ class ExpansionGreedyRegionPlanGenerator(
     physicalPlan
       .topologicalIterator()
       .foreach(physicalOpId => {
-        (handleAllBlockingInput(physicalOpId) ++ handleDependentLinks(physicalOpId, regionDAG))
+        (handleDependentLinks(physicalOpId, regionDAG))
           .map(links => return Right(links))
       })
 
     // if success, a partially connected region DAG without edges between materialization operators is returned.
     // The edges between materialization are to be added later.
     Left(regionDAG)
-  }
-
-  private def handleAllBlockingInput(
-      physicalOpId: PhysicalOpIdentity
-  ): Option[Set[PhysicalLink]] = {
-    if (physicalPlan.areAllInputBlocking(physicalOpId)) {
-      // for operators that have only blocking input links return all links for materialization replacement
-      return Some(
-        physicalPlan
-          .getUpstreamPhysicalOpIds(physicalOpId)
-          .flatMap { upstreamPhysicalOpId =>
-            physicalPlan.getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-          }
-      )
-    }
-    None
   }
 
   private def handleDependentLinks(
@@ -218,7 +200,7 @@ class ExpansionGreedyRegionPlanGenerator(
     }
 
     // mark links that go to downstream regions
-    populateDownstreamLinks(regionDAG)
+    populateDependeeLinks(regionDAG)
 
     // allocate resources on regions
     allocateResource(regionDAG)
