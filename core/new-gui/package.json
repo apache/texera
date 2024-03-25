@@ -11,7 +11,7 @@
     "build:ci": "nx build --configuration=production --progress=false --source-map=false",
     "analyze": "ng build --configuration=production --stats-json && webpack-bundle-analyzer dist/stats.json",
     "test": "ng test",
-    "test:ci": "node --max_old_space_size=4096 ~/.yarn/bin/nx test --watch=false --progress=false --browsers=ChromeHeadless",
+    "test:ci": "node --max_old_space_size=4096 ./node_modules/.bin/nx test --watch=false --progress=false --browsers=ChromeHeadless",
     "prettier:fix": "prettier --write ./src",
     "lint": "ng lint",
     "eslint:fix": "yarn eslint --fix ./src",
