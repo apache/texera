@@ -21,7 +21,7 @@ import edu.uci.ics.texera.web.storage.{ExecutionStateStore, WorkflowStateStore}
 import edu.uci.ics.texera.web.workflowruntimestate.FatalErrorType.EXECUTION_FAILURE
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.{COMPLETED, FAILED}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowFatalError
-import edu.uci.ics.texera.web.{SubscriptionManager, WorkflowLifecycleManager}
+import edu.uci.ics.texera.web.{SubscriptionManager, TexeraWebApplication, WorkflowLifecycleManager}
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.LogicalPlan
@@ -30,9 +30,9 @@ import io.reactivex.rxjava3.subjects.BehaviorSubject
 import org.jooq.types.UInteger
 import play.api.libs.json.Json
 
-import java.util.concurrent.ConcurrentHashMap
 import java.net.URI
 import java.time.Instant
+import java.util.concurrent.ConcurrentHashMap
 import scala.jdk.CollectionConverters.IterableHasAsScala
 
 object WorkflowService {
@@ -165,6 +165,7 @@ class WorkflowService(
         val writeLocation = AmberConfig.faultToleranceLogRootFolder.get.resolve(
           s"${workflowContext.workflowId}/${workflowContext.executionId}/"
         )
+
         ExecutionsMetadataPersistService.tryUpdateExistingExecution(workflowContext.executionId) {
           execution => execution.setLogLocation(writeLocation.toString)
         }
@@ -210,10 +211,13 @@ class WorkflowService(
         }
       }
     }
+    val newControllerConf = controllerConf.copy(availableNodeAddresses =
+      TexeraWebApplication.getAvailableComputationNodeAddresses
+    )
 
     try {
       val execution = new WorkflowExecutionService(
-        controllerConf,
+        newControllerConf,
         workflowContext,
         resultService,
         req,

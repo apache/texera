@@ -70,7 +70,7 @@ object AmberUtils {
     createAmberSystem(workerConfig)
   }
 
-  def createAmberSystem(actorSystemConf: Config): ActorSystem = {
+  private def createAmberSystem(actorSystemConf: Config): ActorSystem = {
     val system = ActorSystem("Amber", actorSystemConf)
     system.actorOf(Props[ClusterListener](), "cluster-info")
     val deadLetterMonitorActor =

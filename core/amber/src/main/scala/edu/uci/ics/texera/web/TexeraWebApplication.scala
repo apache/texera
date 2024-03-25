@@ -1,11 +1,12 @@
 package edu.uci.ics.texera.web
 
-import akka.actor.{ActorSystem, Cancellable}
+import akka.actor.{ActorSystem, Address, Cancellable}
 import com.fasterxml.jackson.databind.module.SimpleModule
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.github.dirkraft.dropwizard.fileassets.FileAssetsBundle
 import com.github.toastshaman.dropwizard.auth.jwt.JwtAuthFilter
 import com.typesafe.scalalogging.LazyLogging
+import edu.uci.ics.amber.clustering.ClusterListener.FetchAllComputationNodeAddrs
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
@@ -71,9 +72,12 @@ import java.time.Duration
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import org.apache.commons.jcs3.access.exception.InvalidArgumentException
+import akka.pattern._
+import akka.util.Timeout
 
 import java.net.URI
 import scala.annotation.tailrec
+import scala.concurrent.Await
 
 object TexeraWebApplication {
 
@@ -90,10 +94,17 @@ object TexeraWebApplication {
       workflowContext: WorkflowContext,
       physicalPlan: PhysicalPlan,
       opResultStorage: OpResultStorage,
-      conf: ControllerConfig,
+      controllerConfig: ControllerConfig,
       errorHandler: Throwable => Unit
   ): AmberClient = {
-    new AmberClient(actorSystem, workflowContext, physicalPlan, opResultStorage, conf, errorHandler)
+    new AmberClient(
+      actorSystem,
+      workflowContext,
+      physicalPlan,
+      opResultStorage,
+      controllerConfig,
+      errorHandler
+    )
   }
 
   def scheduleCallThroughActorSystem(delay: FiniteDuration)(call: => Unit): Cancellable = {
@@ -107,6 +118,17 @@ object TexeraWebApplication {
   }
 
   private var actorSystem: ActorSystem = _
+
+  def getAvailableComputationNodeAddresses: Array[Address] = {
+
+    implicit val timeout: Timeout = 5.seconds
+    Await
+      .result(
+        actorSystem.actorSelection("/user/cluster-info") ? FetchAllComputationNodeAddrs(),
+        5.seconds
+      )
+      .asInstanceOf[Array[Address]]
+  }
 
   type OptionMap = Map[Symbol, Any]
   def parseArgs(args: Array[String]): OptionMap = {

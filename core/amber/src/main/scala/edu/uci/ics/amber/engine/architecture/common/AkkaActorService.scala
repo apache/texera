@@ -17,10 +17,11 @@ class AkkaActorService(val id: ActorVirtualIdentity, actorContext: ActorContext)
 
   def parent: ActorRef = actorContext.parent
 
-  var getAvailableNodeAddressesFunc: () => Array[Address] = () => Array.empty
+  private var addresses: Array[Address] = Array()
 
+  def setAvailableNodeAddresses(addresses: Array[Address]): Unit = this.addresses = addresses
   def getClusterNodeAddresses: Array[Address] = {
-    getAvailableNodeAddressesFunc()
+    addresses
   }
 
   def actorOf(props: Props): ActorRef = {

@@ -76,6 +76,7 @@ class WorkflowExecutionService(
   var executionConsoleService: ExecutionConsoleService = _
 
   def startWorkflow(): Unit = {
+
     client = TexeraWebApplication.createAmberRuntime(
       workflowContext,
       workflow.physicalPlan,

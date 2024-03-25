@@ -120,12 +120,13 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
   }
 
   "Workflow " should "take global checkpoint, reload and continue" in {
+    var controllerConfig = ControllerConfig.default
     val client1 = new AmberClient(
       system,
       workflow.context,
       workflow.physicalPlan,
       resultStorage,
-      ControllerConfig.default,
+      controllerConfig,
       error => {}
     )
     Await.result(client1.sendAsync(StartWorkflow()))
@@ -139,7 +140,7 @@ class CheckpointSpec extends AnyFlatSpecLike with BeforeAndAfterAll {
     )
     client1.shutdown()
     Thread.sleep(100)
-    var controllerConfig = ControllerConfig.default
+
     controllerConfig =
       controllerConfig.copy(stateRestoreConfOpt = Some(StateRestoreConfig(uri, checkpointId)))
     val completableFuture = new CompletableFuture[Unit]()

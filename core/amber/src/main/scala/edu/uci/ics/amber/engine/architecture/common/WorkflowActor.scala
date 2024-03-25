@@ -1,18 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.common
 
-import akka.actor.{Actor, ActorRef, Address, Stash}
-import akka.pattern.ask
-import akka.util.Timeout
-import edu.uci.ics.amber.clustering.ClusterListener.GetAvailableNodeAddresses
-import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.{
-  CreditRequest,
-  CreditResponse,
-  GetActorRef,
-  MessageBecomesDeadLetter,
-  NetworkAck,
-  NetworkMessage,
-  RegisterActorRef
-}
+import akka.actor.{Actor, ActorRef, Stash}
+import edu.uci.ics.amber.engine.architecture.common.WorkflowActor._
 import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayLogGenerator,
   ReplayLogManager,
@@ -20,17 +9,16 @@ import edu.uci.ics.amber.engine.architecture.logreplay.{
   ReplayOrderEnforcer
 }
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
-  MainThreadDelegateMessage,
-  TriggerSend,
   FaultToleranceConfig,
-  StateRestoreConfig
+  MainThreadDelegateMessage,
+  StateRestoreConfig,
+  TriggerSend
 }
 import edu.uci.ics.amber.engine.common.{AmberLogging, CheckpointState}
 import edu.uci.ics.amber.engine.common.ambermessage.WorkflowFIFOMessage
 import edu.uci.ics.amber.engine.common.storage.SequentialRecordStorage
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 
-import scala.concurrent.Await
 import scala.concurrent.duration.DurationInt
 
 object WorkflowActor {
@@ -75,15 +63,7 @@ abstract class WorkflowActor(
   // Akka related components:
   //
   val actorService: AkkaActorService = new AkkaActorService(actorId, this.context)
-  actorService.getAvailableNodeAddressesFunc = () => {
-    implicit val timeout: Timeout = 5.seconds
-    Await
-      .result(
-        context.actorSelection("/user/cluster-info") ? GetAvailableNodeAddresses(),
-        5.seconds
-      )
-      .asInstanceOf[Array[Address]]
-  }
+
   val actorRefMappingService: AkkaActorRefMappingService = new AkkaActorRefMappingService(
     actorService
   )

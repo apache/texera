@@ -1,13 +1,14 @@
 package edu.uci.ics.amber.engine.architecture.controller
 
 import akka.actor.SupervisorStrategy.Stop
-import akka.actor.{AllForOneStrategy, Props, SupervisorStrategy}
+import akka.actor.{Address, AllForOneStrategy, Props, SupervisorStrategy}
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor
 import edu.uci.ics.amber.engine.architecture.common.WorkflowActor.NetworkAck
 import edu.uci.ics.amber.engine.architecture.controller.Controller.{
   ReplayStatusUpdate,
   WorkflowRecoveryStatus
 }
+import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.architecture.controller.execution.OperatorExecution
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.architecture.worker.WorkflowWorker.{
@@ -20,11 +21,11 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   ControlPayload,
   WorkflowFIFOMessage
 }
-import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
+import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
-import edu.uci.ics.amber.engine.common.virtualidentity.util.{CLIENT, CONTROLLER, SELF}
+import edu.uci.ics.texera.web.TexeraWebApplication
 import edu.uci.ics.texera.workflow.common.WorkflowContext
 import edu.uci.ics.texera.workflow.common.storage.OpResultStorage
 import edu.uci.ics.texera.workflow.common.workflow.PhysicalPlan
@@ -34,6 +35,7 @@ import scala.concurrent.duration.DurationInt
 object ControllerConfig {
   def default: ControllerConfig =
     ControllerConfig(
+      availableNodeAddresses = TexeraWebApplication.getAvailableComputationNodeAddresses,
       statusUpdateIntervalMs = Option(AmberConfig.getStatusUpdateIntervalInMs),
       stateRestoreConfOpt = None,
       faultToleranceConfOpt = None
@@ -41,6 +43,7 @@ object ControllerConfig {
 }
 
 final case class ControllerConfig(
+    availableNodeAddresses: Array[Address],
     statusUpdateIntervalMs: Option[Long],
     stateRestoreConfOpt: Option[StateRestoreConfig],
     faultToleranceConfOpt: Option[FaultToleranceConfig]
@@ -76,7 +79,7 @@ class Controller(
       controllerConfig.faultToleranceConfOpt,
       CONTROLLER
     ) {
-
+  actorService.setAvailableNodeAddresses(controllerConfig.availableNodeAddresses)
   actorRefMappingService.registerActorRef(CLIENT, context.parent)
   val controllerTimerService = new ControllerTimerService(controllerConfig, actorService)
   var cp = new ControllerProcessor(
