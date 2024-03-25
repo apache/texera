@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, inject, OnInit } from "@angular/core";
+import { AfterViewInit, Component, Inject, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
@@ -119,11 +119,12 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     private notificationService: NotificationService,
     private runtimeStatisticsModal: NzModalService,
     private workflowActionService: WorkflowActionService,
-    private route: ActivatedRoute
+    private route: ActivatedRoute,
+    @Optional() @Inject(NZ_MODAL_DATA) private modalData: any
   ) {}
 
   ngOnInit(): void {
-    this.wid = this.route.snapshot.params.id;
+    this.wid = this.modalData?.wid || this.route.snapshot.params['id'] || 0;
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
   }
