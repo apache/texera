@@ -70,7 +70,7 @@ class WorkflowExecutionService(
   var executionRuntimeService: ExecutionRuntimeService = _
   var executionConsoleService: ExecutionConsoleService = _
 
-  def startWorkflow(): Unit = {
+  def executeWorkflow(): Unit = {
     workflow = new WorkflowCompiler(workflowContext).compile(
       request.logicalPlan,
       resultService.opResultStorage,

@@ -99,21 +99,23 @@ class WorkflowWebsocketResource extends LazyLogging {
             uidOpt,
             sessionState.getCurrentWorkflowState.get.workflowId
           )
-
-          val workflowCompiler =
-            new WorkflowCompiler(workflowContext)
-          val newPlan = workflowCompiler.compileLogicalPlan(
-            editingTimeCompilationRequest.toLogicalPlanPojo,
-            stateStore
-          )
-          if (newPlan.isDefined) {
+          try {
+            val workflowCompiler =
+              new WorkflowCompiler(workflowContext)
+            val newPlan = workflowCompiler.compileLogicalPlan(
+              editingTimeCompilationRequest.toLogicalPlanPojo,
+              stateStore
+            )
             val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
               workflowStateOpt.get.lastCompletedLogicalPlan,
-              newPlan.get,
+              newPlan,
               editingTimeCompilationRequest
             )
             sessionState.send(CacheStatusUpdateEvent(validateResult))
-            if (executionStateOpt.isEmpty) {
+          } catch {
+            case t: Throwable => // skip, rethrow this exception will overwrite the compilation errors reported below.
+          } finally {
+            if (stateStore.metadataStore.getState.fatalErrors.nonEmpty) {
               sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
             }
           }

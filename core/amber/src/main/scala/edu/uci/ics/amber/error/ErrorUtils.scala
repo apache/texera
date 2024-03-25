@@ -32,11 +32,15 @@ object ErrorUtils {
     ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
   }
 
-  def getStackTraceWithAllCauses(err: Throwable): String = {
-    val message =
-      "Stack trace for developers: \n\n" + err.toString + "\n" + err.getStackTrace.mkString("\n")
+  def getStackTraceWithAllCauses(err: Throwable, topLevel: Boolean = true): String = {
+    val header = if (topLevel) {
+      "Stack trace for developers: \n\n"
+    } else {
+      "\n\nCaused by:\n"
+    }
+    val message = header + err.toString + "\n" + err.getStackTrace.mkString("\n")
     if (err.getCause != null) {
-      message + "\n\nCaused by:\n" + getStackTraceWithAllCauses(err.getCause)
+      message + getStackTraceWithAllCauses(err.getCause, topLevel = false)
     } else {
       message
     }

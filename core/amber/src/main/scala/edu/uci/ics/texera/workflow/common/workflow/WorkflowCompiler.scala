@@ -24,7 +24,7 @@ class WorkflowCompiler(
   def compileLogicalPlan(
       logicalPlanPojo: LogicalPlanPojo,
       executionStateStore: ExecutionStateStore
-  ): Option[LogicalPlan] = {
+  ): LogicalPlan = {
 
     val errorList = new ArrayBuffer[(OperatorIdentity, Throwable)]()
     // remove previous error state
@@ -58,10 +58,9 @@ class WorkflowCompiler(
       executionStateStore.metadataStore.updateState(metadataStore =>
         updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors.toSeq: _*)
       )
-      None
-    } else {
-      Some(logicalPlan)
+      throw new RuntimeException("workflow failed to compile")
     }
+    logicalPlan
   }
 
   def compile(
@@ -76,12 +75,10 @@ class WorkflowCompiler(
     //  by cache.
     val originalLogicalPlan = compileLogicalPlan(logicalPlanPojo, executionStateStore)
 
-    assert(originalLogicalPlan.isDefined, "logical plan compilation failed")
-
     // the cache-rewritten LogicalPlan. It is considered to be equivalent with the original plan.
     val rewrittenLogicalPlan = WorkflowCacheRewriter.transform(
       context,
-      originalLogicalPlan.get,
+      originalLogicalPlan,
       lastCompletedExecutionLogicalPlan,
       opResultStorage,
       logicalPlanPojo.opsToReuseResult.map(idString => OperatorIdentity(idString)).toSet
@@ -92,7 +89,7 @@ class WorkflowCompiler(
 
     Workflow(
       context,
-      originalLogicalPlan.get,
+      originalLogicalPlan,
       rewrittenLogicalPlan,
       physicalPlan
     )

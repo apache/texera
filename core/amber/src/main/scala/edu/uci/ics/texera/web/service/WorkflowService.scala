@@ -224,7 +224,7 @@ class WorkflowService(
       )
       lifeCycleManager.registerCleanUpOnStateChange(executionStateStore)
       executionService.onNext(execution)
-      execution.startWorkflow()
+      execution.executeWorkflow()
     } catch {
       case e: Throwable => errorHandler(e)
     }
