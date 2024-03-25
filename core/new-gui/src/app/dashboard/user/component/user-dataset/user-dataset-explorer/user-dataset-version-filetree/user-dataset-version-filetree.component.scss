@@ -1,22 +1,28 @@
+.file-display-padding {
+  width: 20px;
+}
+
+/* Styles for the delete button */
+.delete-button {
+  width: 15px;
+  margin-left: 5px;
+}
+
+/* Styles for the file tree container */
 .file-tree-container {
-  max-height: 250px; /* Adjust the max-height as needed */
+  max-height: 500px; /* Adjust the max-height as needed */
   overflow-y: auto; /* Enables vertical scrolling when content exceeds max-height */
   overflow-x: auto; /* Prevents horizontal scrolling */
 }
-nz-tree {
-  overflow: hidden;
-  margin: 0 -24px;
-  padding: 0 24px;
-}
 
-.custom-node {
-  cursor: pointer;
-  line-height: 24px;
-  margin-left: 10px;
-  display: inline-block;
-}
-
-.file-name,
-.folder-name {
-  margin-left: 10px;
-}
+//tree-root .fa-file {
+//  //padding-left: 4%; /* Adjust the value as needed */
+//}
+//
+//tree-root span {
+//  display: inline-block;
+//  max-width: 100%; /* Adjust the width as needed */
+//  text-overflow: ellipsis;
+//  white-space: nowrap;
+//  overflow: hidden;
+//}
