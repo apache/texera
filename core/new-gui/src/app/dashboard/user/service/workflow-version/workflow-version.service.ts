@@ -112,7 +112,6 @@ export class WorkflowVersionService {
   }
 
   public highlightOpBracket(id: string, color: string, position: string) {
-    console.log(id);
     this.workflowActionService
       .getJointGraphWrapper()
       .getMainJointPaper()
