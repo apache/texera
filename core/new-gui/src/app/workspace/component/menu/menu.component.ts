@@ -53,6 +53,7 @@ export class MenuComponent implements OnInit {
   public executionState: ExecutionState; // set this to true when the workflow is started
   public ExecutionState = ExecutionState; // make Angular HTML access enum definition
   public isWorkflowValid: boolean = true; // this will check whether the workflow error or not
+  public isWorkflowEmpty: boolean = false;
   public isSaving: boolean = false;
   public isWorkflowModifiable: boolean = false;
   public workflowId?: number;
@@ -113,7 +114,7 @@ export class MenuComponent implements OnInit {
     this.executionState = executeWorkflowService.getExecutionState().state;
     // return the run button after the execution is finished, either
     //  when the value is valid or invalid
-    const initBehavior = this.getRunButtonBehavior(this.executionState, this.isWorkflowValid);
+    const initBehavior = this.getRunButtonBehavior();
     this.runButtonText = initBehavior.text;
     this.runIcon = initBehavior.icon;
     this.runDisable = initBehavior.disable;
@@ -128,8 +129,9 @@ export class MenuComponent implements OnInit {
       .getExecutionStateStream()
       .pipe(untilDestroyed(this))
       .subscribe(event => {
+        console.log("execution  ", event);
         this.executionState = event.current.state;
-        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
     // set the map of operatorStatusMap
@@ -137,8 +139,9 @@ export class MenuComponent implements OnInit {
       .getWorkflowValidationErrorStream()
       .pipe(untilDestroyed(this))
       .subscribe(value => {
+        this.isWorkflowEmpty = value.workflowEmpty;
         this.isWorkflowValid = Object.keys(value.errors).length === 0;
-        this.applyRunButtonBehavior(this.getRunButtonBehavior(this.executionState, this.isWorkflowValid));
+        this.applyRunButtonBehavior(this.getRunButtonBehavior());
       });
 
     this.registerWorkflowMetadataDisplayRefresh();
@@ -153,16 +156,20 @@ export class MenuComponent implements OnInit {
     this.onClickRunHandler = behavior.onClick;
   }
 
-  public getRunButtonBehavior(
-    executionState: ExecutionState,
-    isWorkflowValid: boolean
-  ): {
+  public getRunButtonBehavior(): {
     text: string;
     icon: string;
     disable: boolean;
     onClick: () => void;
   } {
-    if (!isWorkflowValid) {
+    if (this.isWorkflowEmpty) {
+      return {
+        text: "Empty",
+        icon: "exclamation-circle",
+        disable: true,
+        onClick: () => {},
+      };
+    } else if (!this.isWorkflowValid) {
       return {
         text: "Error",
         icon: "exclamation-circle",
@@ -170,7 +177,7 @@ export class MenuComponent implements OnInit {
         onClick: () => {},
       };
     }
-    switch (executionState) {
+    switch (this.executionState) {
       case ExecutionState.Uninitialized:
       case ExecutionState.Completed:
       case ExecutionState.Killed:
