@@ -4,18 +4,7 @@ import {
   DatasetVersionFileTreeNode,
   getFullPathFromFileTreeNode,
 } from "../../../../../../common/type/datasetVersionFileTree";
-import { NzContextMenuService } from "ng-zorro-antd/dropdown";
-import { SelectionModel } from "@angular/cdk/collections";
-import { NzTreeFlatDataSource, NzTreeFlattener } from "ng-zorro-antd/tree-view";
-import { FlatTreeControl, TreeControl } from "@angular/cdk/tree";
-
-interface TreeFlatNode {
-  expandable: boolean;
-  name: string;
-  level: number;
-  disabled: boolean;
-  key: string;
-}
+import { ITreeOptions, TREE_ACTIONS } from "@ali-hm/angular-tree-component";
 
 @UntilDestroy()
 @Component({
@@ -23,12 +12,28 @@ interface TreeFlatNode {
   templateUrl: "./user-dataset-version-filetree.component.html",
   styleUrls: ["./user-dataset-version-filetree.component.scss"],
 })
-export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges {
+export class UserDatasetVersionFiletreeComponent {
   @Input()
   public isTreeNodeDeletable: boolean = false;
 
   @Input()
   public fileTreeNodes: DatasetVersionFileTreeNode[] = [];
+
+  public fileTreeDisplayOptions: ITreeOptions = {
+    displayField: "name",
+    hasChildrenField: "children",
+    actionMapping: {
+      mouse: {
+        click: (tree: any, node: any, $event: any) => {
+          if (node.hasChildren) {
+            TREE_ACTIONS.TOGGLE_EXPANDED(tree, node, $event);
+          } else {
+            this.selectedTreeNode.emit(node.data);
+          }
+        },
+      },
+    },
+  };
 
   @Output()
   public selectedTreeNode = new EventEmitter<DatasetVersionFileTreeNode>();
@@ -36,67 +41,10 @@ export class UserDatasetVersionFiletreeComponent implements OnInit, OnChanges {
   @Output()
   public deletedTreeNode = new EventEmitter<DatasetVersionFileTreeNode>();
 
-  nodeLookup: { [key: string]: DatasetVersionFileTreeNode } = {};
+  constructor() {}
 
-  treeNodeTransformer = (node: DatasetVersionFileTreeNode, level: number): TreeFlatNode => {
-    const uniqueKey = getFullPathFromFileTreeNode(node); // Or any other unique identifier logic
-    this.nodeLookup[uniqueKey] = node; // Store the node in the lookup table
-    return {
-      expandable: !!node.children && node.children.length > 0 && node.type == "directory",
-      name: node.name,
-      level,
-      disabled: false,
-      key: uniqueKey,
-    };
-  };
-
-  selectListSelection = new SelectionModel<TreeFlatNode>();
-  treeControl = new FlatTreeControl<TreeFlatNode>(
-    node => node.level,
-    node => node.expandable
-  );
-  treeFlattener = new NzTreeFlattener(
-    this.treeNodeTransformer,
-    node => node.level,
-    node => node.expandable,
-    node => node.children
-  );
-
-  dataSource = new NzTreeFlatDataSource(this.treeControl, this.treeFlattener);
-  constructor(private nzContextMenuService: NzContextMenuService) {}
-
-  hasChild = (_: number, node: TreeFlatNode): boolean => node.expandable;
-  ngOnInit(): void {
-    this.nodeLookup = {};
-    this.dataSource.setData(this.fileTreeNodes);
-    // this delay is used to make user not be able to see the shuffling tree
-  }
-
-  ngOnChanges(changes: SimpleChanges): void {
-    // Track expanded nodes
-    const expandedKeys = this.treeControl.dataNodes
-      .filter(node => this.treeControl.isExpanded(node))
-      .map(node => node.key);
-
-    // Update nodeLookup and data source
-    this.nodeLookup = {};
-
-    this.dataSource.setData(this.fileTreeNodes);
-
-    // Re-expand previously expanded nodes
-    this.treeControl.dataNodes.forEach(node => {
-      if (expandedKeys.includes(node.key)) {
-        this.treeControl.expand(node);
-      }
-    });
-  }
-
-  onNodeSelected(node: TreeFlatNode): void {
+  onNodeDeleted(node: DatasetVersionFileTreeNode): void {
     // look up for the DatasetVersionFileTreeNode
-    this.selectedTreeNode.emit(this.nodeLookup[node.key]);
-  }
-  onNodeDeleted(node: TreeFlatNode): void {
-    // look up for the DatasetVersionFileTreeNode
-    this.deletedTreeNode.emit(this.nodeLookup[node.key]);
+    this.deletedTreeNode.emit(node);
   }
 }
