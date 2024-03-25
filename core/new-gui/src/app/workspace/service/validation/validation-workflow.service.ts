@@ -13,6 +13,11 @@ export type ValidationError = {
 };
 export type Validation = { isValid: true } | ValidationError;
 
+export type ValidationOutput = {
+  errors: Record<string, ValidationError>;
+  workflowEmpty: boolean;
+};
+
 /**
  *  ValidationWorkflowService handles the logic to check whether the operator is valid
  *    1. When the user add/delete operators/links
@@ -41,13 +46,15 @@ export class ValidationWorkflowService {
     validation: Validation;
   }>();
   // stream of global validation error status is updated, only errors will be reported
-  private readonly workflowValidationErrorStream = new BehaviorSubject<{
-    errors: Record<string, ValidationError>;
-  }>({ errors: {} });
+  private readonly workflowValidationErrorStream = new BehaviorSubject<ValidationOutput>({
+    errors: {},
+    workflowEmpty: false,
+  });
   private ajv = new Ajv({ allErrors: true, strict: false });
 
   // this map record --> <operatorID, error string>
   private workflowErrors: Record<string, ValidationError> = {};
+  private workflowEmpty: boolean = false;
 
   /**
    * subcribe the add opertor event, delete operator event, add link event, delete link event
@@ -78,9 +85,7 @@ export class ValidationWorkflowService {
    *
    * map: a Map<operatorID, [operatorType, error_string]
    */
-  public getWorkflowValidationErrorStream(): Observable<{
-    errors: Record<string, ValidationError>;
-  }> {
+  public getWorkflowValidationErrorStream(): Observable<ValidationOutput> {
     return this.workflowValidationErrorStream.asObservable();
   }
 
@@ -112,14 +117,20 @@ export class ValidationWorkflowService {
       this.workflowErrors[operatorID] = validation;
     } else {
       delete this.workflowErrors[operatorID];
-      this.workflowValidationErrorStream.next({ errors: this.workflowErrors });
+      this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
     }
-    this.workflowValidationErrorStream.next({ errors: this.workflowErrors });
+    this.checkIfWorkflowEmpty();
+    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
+  }
+
+  private checkIfWorkflowEmpty() {
+    this.workflowEmpty = this.workflowActionService.getTexeraGraph().getAllOperators().length === 0;
   }
 
   private updateValidationStateOnDelete(operatorID: string) {
+    this.checkIfWorkflowEmpty();
     delete this.workflowErrors[operatorID];
-    this.workflowValidationErrorStream.next({ errors: this.workflowErrors });
+    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
   }
 
   /**
@@ -134,6 +145,10 @@ export class ValidationWorkflowService {
       .forEach(operator => {
         this.updateValidationState(operator.operatorID, this.validateOperator(operator.operatorID));
       });
+
+    // push an validation result after checking if the workflow is empty.
+    this.checkIfWorkflowEmpty();
+    this.workflowValidationErrorStream.next({ errors: this.workflowErrors, workflowEmpty: this.workflowEmpty });
 
     // Capture operator dynamic schema changed event
     // dynamic schema changed event is also triggered when an operator is newly added
