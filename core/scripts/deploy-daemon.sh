@@ -22,7 +22,7 @@ then
   echo
 
   echo "${green}Compiling GUI...${reset}"
-  cd ../new-gui && yarn install && ng build --prod  --deploy-url=/ --base-href=/
+  cd ../gui && yarn install && ng build --prod  --deploy-url=/ --base-href=/
   echo "${green}GUI compiled.${reset}"
   echo
   cd ..

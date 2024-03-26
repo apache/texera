@@ -1,7 +1,7 @@
 <h1 align="center">Texera - Collaborative Data Analytics Using Workflows.</h1>
 
 <p align="center">
-  <img src="core/new-gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/>
+  <img src="core/gui/src/assets/logos/full_logo_small.png" alt="texera-logo" width="192px" height="109px"/>
   <br>
   <i>Texera supports scalable computation and enables advanced AI/ML techniques.</i>
   <br>

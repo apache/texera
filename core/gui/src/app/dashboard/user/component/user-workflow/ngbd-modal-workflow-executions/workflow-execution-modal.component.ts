@@ -246,7 +246,7 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   /**
    * display icons corresponding to workflow execution status
    *
-   * NOTES: Colors match with new-gui/src/app/workspace/service/joint-ui/joint-ui.service.ts line 347
+   * NOTES: Colors match with gui/src/app/workspace/service/joint-ui/joint-ui.service.ts line 347
    * TODO: Move colors to a config file for changing them once for many files
    */
   getExecutionStatus(statusCode: number): string[] {

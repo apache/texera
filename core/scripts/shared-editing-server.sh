@@ -1,2 +1,2 @@
-cd new-gui
+cd gui
 npx y-websocket
