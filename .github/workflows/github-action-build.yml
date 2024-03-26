@@ -36,19 +36,19 @@ jobs:
       - uses: actions/cache@v2
         with:
           path: |
-            core/new-gui/node_modules
-            core/new-gui/multi-target/node_modules
-          key: ${{ runner.os }}-yarn-cache-v5-${{ hashFiles('**/yarn.lock') }}
+            core/gui/node_modules
+            core/gui/multi-target/node_modules
+          key: ${{ runner.os }}-yarn-cache-v6-${{ hashFiles('**/yarn.lock') }}
           restore-keys: |
-            ${{ runner.os }}-yarn-cache-v5-
+            ${{ runner.os }}-yarn-cache-v6-
       - name: Install dependency
-        run: yarn --cwd core/new-gui install --frozen-lockfile --progress=false --network-timeout=100000
+        run: yarn --cwd core/gui install --frozen-lockfile --progress=false --network-timeout=100000
       - name: Lint with Prettier & ESLint
-        run: yarn --cwd core/new-gui format:ci
+        run: yarn --cwd core/gui format:ci
       - name: Run frontend unit tests
-        run: yarn --cwd core/new-gui run test:ci
+        run: yarn --cwd core/gui run test:ci
       - name: Prod build
-        run: yarn --cwd core/new-gui run build
+        run: yarn --cwd core/gui run build:ci
 
   amber:
     strategy:
