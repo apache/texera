@@ -66,13 +66,18 @@ abstract class ScanSourceOpDesc extends SourceOperatorDescriptor {
       //    ownerName/fileName
       // resolve fileName to be the actual file path.
       val splitNames = fileName.get.split("/")
-      filePath = UserFileAccessResource
-        .getFilePath(
-          email = splitNames.apply(0),
-          fileName = splitNames.apply(1),
-          getContext.userId.get,
-          UInteger.valueOf(getContext.workflowId.id)
-        )
+      try {
+        filePath = UserFileAccessResource
+          .getFilePath(
+            email = splitNames.apply(0),
+            fileName = splitNames.apply(1),
+            getContext.userId.get,
+            UInteger.valueOf(getContext.workflowId.id)
+          )
+      } catch {
+        case t: Throwable =>
+          throw new RuntimeException(s"failed to extract path from ${fileName.get}", t)
+      }
 
     } else {
       // otherwise, the fileName will be inputted by user, which is the filePath.

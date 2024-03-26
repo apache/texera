@@ -8,6 +8,7 @@ import com.twitter.util.{Await, Future}
 import edu.uci.ics.amber.clustering.ClusterListener.numWorkerNodesInCluster
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.{AmberConfig, AmberLogging}
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.web.SessionState
 import edu.uci.ics.texera.web.model.websocket.response.ClusterStatusUpdateEvent
 import edu.uci.ics.texera.web.service.{WorkflowExecutionService, WorkflowService}
@@ -70,7 +71,7 @@ class ClusterListener extends Actor with AmberLogging {
           EXECUTION_FAILURE,
           Timestamp(Instant.now),
           cause.toString,
-          cause.getStackTrace.mkString("\n"),
+          getStackTraceWithAllCauses(cause),
           "unknown operator"
         )
       )

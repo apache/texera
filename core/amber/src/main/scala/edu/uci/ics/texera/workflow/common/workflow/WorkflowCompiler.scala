@@ -4,6 +4,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Workflow
 import edu.uci.ics.amber.engine.common.virtualidentity.OperatorIdentity
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.web.model.websocket.request.LogicalPlanPojo
 import edu.uci.ics.texera.web.storage.ExecutionStateStore
 import edu.uci.ics.texera.web.storage.ExecutionStateStore.updateWorkflowState
@@ -50,13 +51,14 @@ class WorkflowCompiler(
             COMPILATION_ERROR,
             Timestamp(Instant.now),
             err.toString,
-            err.getStackTrace.mkString("\n"),
+            getStackTraceWithAllCauses(err),
             opId.id
           )
       }
       executionStateStore.metadataStore.updateState(metadataStore =>
         updateWorkflowState(FAILED, metadataStore).addFatalErrors(executionErrors.toSeq: _*)
       )
+      throw new RuntimeException("workflow failed to compile")
     }
     logicalPlan
   }
