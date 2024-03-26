@@ -35,6 +35,8 @@ class AggregateOpDesc extends LogicalOp {
       throw new UnsupportedOperationException("Aggregation Functions Cannot be Empty")
     }
 
+    // TODO: this is supposed to be blocking but due to limitations of materialization naming on the logical operator
+    // we are keeping it not annotated as blocking.
     val outputPort = OutputPort(PortIdentity(internal = true))
     val partialPhysicalOp =
       PhysicalOp
@@ -59,6 +61,8 @@ class AggregateOpDesc extends LogicalOp {
 
     val inputPort = InputPort(PortIdentity(0, internal = true))
 
+    val finalOutputPort = OutputPort(PortIdentity(0), blocking = true)
+
     val finalPhysicalOp = PhysicalOp
       .oneToOnePhysicalOp(
         PhysicalOpIdentity(operatorIdentifier, "globalAgg"),
@@ -71,7 +75,7 @@ class AggregateOpDesc extends LogicalOp {
       .withParallelizable(false)
       .withIsOneToManyOp(true)
       .withInputPorts(List(inputPort))
-      .withOutputPorts(List(OutputPort(PortIdentity(0))))
+      .withOutputPorts(List(finalOutputPort))
       .withPropagateSchema(
         SchemaPropagationFunc(inputSchemas =>
           Map(operatorInfo.outputPorts.head.id -> {

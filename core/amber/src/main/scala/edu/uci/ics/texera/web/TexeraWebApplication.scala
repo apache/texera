@@ -154,7 +154,7 @@ class TexeraWebApplication
 
   override def initialize(bootstrap: Bootstrap[TexeraWebConfiguration]): Unit = {
     // serve static frontend GUI files
-    bootstrap.addBundle(new FileAssetsBundle("../new-gui/dist", "/", "index.html"))
+    bootstrap.addBundle(new FileAssetsBundle("../gui/dist", "/", "index.html"))
     // add websocket bundle
     bootstrap.addBundle(new WebsocketBundle(classOf[WorkflowWebsocketResource]))
     bootstrap.addBundle(new WebsocketBundle(classOf[CollaborationResource]))
@@ -168,20 +168,22 @@ class TexeraWebApplication
 
     if (AmberConfig.isUserSystemEnabled) {
       val timeToLive: Int = AmberConfig.sinkStorageTTLInSecs
-      // do one time cleanup of collections that were not closed gracefully before restart/crash
-      // retrieve all executions that were executing before the reboot.
-      val allExecutionsBeforeRestart: List[WorkflowExecutions] =
-        WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
-      cleanExecutions(
-        allExecutionsBeforeRestart,
-        statusByte => {
-          if (statusByte != maptoStatusCode(COMPLETED)) {
-            maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
-          } else {
-            statusByte
+      if (AmberConfig.cleanupAllExecutionResults) {
+        // do one time cleanup of collections that were not closed gracefully before restart/crash
+        // retrieve all executions that were executing before the reboot.
+        val allExecutionsBeforeRestart: List[WorkflowExecutions] =
+          WorkflowExecutionsResource.getExpiredExecutionsWithResultOrLog(-1)
+        cleanExecutions(
+          allExecutionsBeforeRestart,
+          statusByte => {
+            if (statusByte != maptoStatusCode(COMPLETED)) {
+              maptoStatusCode(FAILED) // for incomplete executions, mark them as failed.
+            } else {
+              statusByte
+            }
           }
-        }
-      )
+        )
+      }
       scheduleRecurringCallThroughActorSystem(
         2.seconds,
         AmberConfig.sinkStorageCleanUpCheckIntervalInSecs.seconds

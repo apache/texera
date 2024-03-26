@@ -64,6 +64,7 @@ class InputPort(betterproto.Message):
 class OutputPort(betterproto.Message):
     id: "PortIdentity" = betterproto.message_field(1)
     display_name: str = betterproto.string_field(2)
+    blocking: bool = betterproto.bool_field(3)
 
 
 @dataclass(eq=False, repr=False)
