@@ -26,7 +26,12 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     { component: null, title: "", icon: "", enabled: true },
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
     { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
-    { component: WorkflowExecutionHistoryComponent, title: "Execution History", icon: "history", enabled: environment.workflowExecutionsTrackingEnabled },
+    {
+      component: WorkflowExecutionHistoryComponent,
+      title: "Execution History",
+      icon: "history",
+      enabled: environment.workflowExecutionsTrackingEnabled,
+    },
     {
       component: TimeTravelComponent,
       title: "Time Travel",

@@ -124,7 +124,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   ) {}
 
   ngOnInit(): void {
-    this.wid = this.modalData?.wid || this.route.snapshot.params['id'] || 0;
+    this.wid = this.modalData?.wid || this.route.snapshot.params["id"] || 0;
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
   }

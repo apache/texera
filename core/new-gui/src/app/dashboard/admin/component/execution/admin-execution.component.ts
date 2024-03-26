@@ -238,6 +238,28 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     });
   };
 
+  clickToViewHistory(workflowId: number) {
+    let wid!: number;
+    let name!: string;
+    for (let i = 0; i < this.workflows.length; i++) {
+      const workflow = this.workflows[i];
+      if (workflow.wid == workflowId) {
+        wid = workflow.wid;
+        name = workflow.name;
+        break;
+      }
+    }
+
+    this.modalService.create({
+      nzContent: WorkflowExecutionHistoryComponent,
+      nzData: { wid: wid },
+      nzTitle: "Execution results of Workflow: " + name,
+      nzFooter: null,
+      nzWidth: "80%",
+      nzCentered: true,
+    });
+  }
+
   /**
    Due to the Async nature when setting up the websocket, the socket would be closed before the connection is established.
    Therefore, commenting the code to ensure the connections is established and request has been sent.

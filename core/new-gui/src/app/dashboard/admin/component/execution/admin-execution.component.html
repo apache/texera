@@ -121,6 +121,18 @@
             nzTheme="outline"
             nzType="redo"></i>
         </button>
+        <button
+          (click)="clickToViewHistory(execution.workflowId)"
+          nz-button
+          nz-tooltip="previous execution of the workflow: {{
+                      execution.workflowName
+                    }}"
+          type="button">
+          <i
+            nz-icon
+            nzTheme="outline"
+            nzType="history"></i>
+        </button>
       </td>
     </tr>
   </tbody>
