@@ -104,20 +104,6 @@ public class DatasetDao extends DAOImpl<DatasetRecord, edu.uci.ics.texera.web.mo
     }
 
     /**
-     * Fetch records that have <code>storage_path BETWEEN lowerInclusive AND upperInclusive</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset> fetchRangeOfStoragePath(String lowerInclusive, String upperInclusive) {
-        return fetchRange(Dataset.DATASET.STORAGE_PATH, lowerInclusive, upperInclusive);
-    }
-
-    /**
-     * Fetch records that have <code>storage_path IN (values)</code>
-     */
-    public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset> fetchByStoragePath(String... values) {
-        return fetch(Dataset.DATASET.STORAGE_PATH, values);
-    }
-
-    /**
      * Fetch records that have <code>description BETWEEN lowerInclusive AND upperInclusive</code>
      */
     public List<edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset> fetchRangeOfDescription(String lowerInclusive, String upperInclusive) {
