@@ -4,7 +4,7 @@ import { AdminExecutionService } from "../../service/admin-execution.service";
 import { Execution } from "../../../../common/type/execution";
 import { NzTableFilterFn, NzTableSortFn } from "ng-zorro-antd/table";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { WorkflowExecutionModalComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-modal.component";
+import { WorkflowExecutionHistoryComponent } from "../../../user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { Workflow } from "../../../../common/type/workflow";
 import { WorkflowWebsocketService } from "../../../../workspace/service/workflow-websocket/workflow-websocket.service";
 
@@ -251,7 +251,7 @@ export class AdminExecutionComponent implements OnInit, OnDestroy {
     }
 
     this.modalService.create({
-      nzContent: WorkflowExecutionModalComponent,
+      nzContent: WorkflowExecutionHistoryComponent,
       nzData: { wid: wid },
       nzTitle: "Execution results of Workflow: " + name,
       nzFooter: null,
