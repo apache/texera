@@ -3,16 +3,48 @@ package edu.uci.ics.texera.web.resource.dashboard.user.environment
 import edu.uci.ics.texera.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetOfEnvironment, DatasetVersion, Environment}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
+  Dataset,
+  DatasetOfEnvironment,
+  DatasetVersion,
+  Environment
+}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment.ENVIRONMENT
 import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetOfEnvironmentDao, DatasetVersionDao, EnvironmentDao, EnvironmentOfWorkflowDao}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
+  DatasetDao,
+  DatasetOfEnvironmentDao,
+  DatasetVersionDao,
+  EnvironmentDao,
+  EnvironmentOfWorkflowDao
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.retrieveDatasetVersionFilePaths
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{DatasetAccessResource, DatasetResource}
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{DashboardEnvironment, DatasetID, DatasetOfEnvironmentAlreadyExistsMessage, DatasetOfEnvironmentDetails, DatasetOfEnvironmentDoseNotExistMessage, DatasetVersionID, EnvironmentIDs, UserNoPermissionExceptionMessage, WorkflowLink, context, doesDatasetExistInEnvironment, doesUserOwnEnvironment, getEnvironmentByEid, retrieveDatasetsAndVersions, retrieveDatasetsOfEnvironmentFileList, userHasReadAccessToEnvironment, userHasWriteAccessToEnvironment}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
+  DatasetAccessResource,
+  DatasetResource
+}
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
+  DashboardEnvironment,
+  DatasetID,
+  DatasetOfEnvironmentAlreadyExistsMessage,
+  DatasetOfEnvironmentDetails,
+  DatasetOfEnvironmentDoseNotExistMessage,
+  DatasetVersionID,
+  EnvironmentIDs,
+  UserNoPermissionExceptionMessage,
+  WorkflowLink,
+  context,
+  doesDatasetExistInEnvironment,
+  doesUserOwnEnvironment,
+  getEnvironmentByEid,
+  retrieveDatasetsAndVersions,
+  retrieveDatasetsOfEnvironmentFileList,
+  userHasReadAccessToEnvironment,
+  userHasWriteAccessToEnvironment
+}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
