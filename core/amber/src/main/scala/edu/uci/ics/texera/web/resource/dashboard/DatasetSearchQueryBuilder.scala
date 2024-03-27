@@ -25,7 +25,6 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     did = DATASET.DID,
     ownerId = DATASET.OWNER_UID,
     isDatasetPublic = DATASET.IS_PUBLIC,
-    datasetStoragePath = DATASET.STORAGE_PATH,
     datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE
   )
 

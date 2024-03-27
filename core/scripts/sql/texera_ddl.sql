@@ -241,7 +241,6 @@ CREATE TABLE IF NOT EXISTS dataset
     `owner_uid`       INT UNSIGNED NOT NULL,
     `name`            VARCHAR(128) NOT NULL,
     `is_public`       TINYINT NOT NULL DEFAULT 1,
-    `storage_path`    VARCHAR(512) NOT NULL,
     `description`     VARCHAR(512) NOT NULL,
     `creation_time`   TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY(`did`),
