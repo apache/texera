@@ -21,9 +21,10 @@
       <ng-template #extraTpl>
         <span
           class="goto-operator-icon"
-          *ngIf="error.operatorId !== 'unknown operator'"
+          *ngIf="error.operatorId !== 'unknown operator' && operatorId !== error.operatorId"
           nz-icon
-          nzType="right-square"
+          nzType="aim"
+          title="focus operator"
           (click)="$event.stopPropagation(); onClickGotoButton(error.operatorId)"></span>
       </ng-template>
       <p class="error-message">{{ error.details }}</p>
