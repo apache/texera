@@ -6,12 +6,13 @@ import edu.uci.ics.texera.workflow.common.scanner.BufferedBlockReader
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeTypeUtils, Schema}
 import org.tukaani.xz.SeekableFileInputStream
 
+import java.io.File
 import java.util
 import java.util.stream.{IntStream, Stream}
 import scala.collection.compat.immutable.ArraySeq
 
 class ParallelCSVScanSourceOpExec private[csv] (
-    filePath: String,
+    file: File,
     customDelimiter: Option[String],
     hasHeader: Boolean,
     startOffset: Long,
@@ -68,8 +69,8 @@ class ParallelCSVScanSourceOpExec private[csv] (
     }.filter(tuple => tuple != null)
 
   override def open(): Unit = {
+    val stream = new SeekableFileInputStream(file)
     schema = schemaFunc()
-    val stream = new SeekableFileInputStream(filePath)
     stream.seek(startOffset)
     reader = new BufferedBlockReader(
       stream,

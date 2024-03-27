@@ -159,14 +159,11 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
               case MIME_TYPES.MP4:
                 this.displayMP4 = true;
                 this.loadSafeURL(blob);
-                this.notificationService.info("Video display might not be supported by some browsers.");
                 break;
 
               case MIME_TYPES.MP3:
                 this.displayMP3 = true;
                 this.loadSafeURL(blob);
-                this.notificationService.info("Audio display might not be supported by some browsers.");
-
                 break;
 
               case MIME_TYPES.MSEXCEL:
