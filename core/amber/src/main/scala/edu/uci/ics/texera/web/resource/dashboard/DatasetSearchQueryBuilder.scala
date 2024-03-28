@@ -1,4 +1,5 @@
 package edu.uci.ics.texera.web.resource.dashboard
+
 import org.jooq.impl.DSL
 import org.jooq.{Condition, GroupField, Record, TableLike}
 import org.jooq.types.UInteger
@@ -6,7 +7,6 @@ import edu.uci.ics.texera.web.model.jooq.generated.Tables.{DATASET, DATASET_USER
 import edu.uci.ics.texera.web.model.jooq.generated.enums.DatasetUserAccessPrivilege
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.Dataset
 import edu.uci.ics.texera.web.resource.dashboard.DashboardResource.DashboardClickableFileEntry
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource
 import edu.uci.ics.texera.web.resource.dashboard.FulltextSearchQueryUtils.{
   getContainsFilter,
   getDateFilter,
@@ -28,6 +28,8 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
     datasetUserAccess = DATASET_USER_ACCESS.PRIVILEGE
   )
 
+  // Notice that this only select those datasets that users have access record.
+  // For those public datasets, need external union to merge them
   override protected def constructFromClause(
       uid: UInteger,
       params: DashboardResource.SearchQueryParams
@@ -36,9 +38,7 @@ object DatasetSearchQueryBuilder extends SearchQueryBuilder {
       .leftJoin(DATASET_USER_ACCESS)
       .on(DATASET_USER_ACCESS.DID.eq(DATASET.DID))
       .where(
-        DATASET.IS_PUBLIC
-          .eq(DatasetResource.DATASET_IS_PUBLIC)
-          .or(DATASET_USER_ACCESS.UID.eq(uid))
+        DATASET_USER_ACCESS.UID.eq(uid)
       )
   }
 

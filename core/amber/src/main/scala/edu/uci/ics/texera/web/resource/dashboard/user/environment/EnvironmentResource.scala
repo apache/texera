@@ -20,6 +20,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   EnvironmentOfWorkflowDao
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.retrieveDatasetVersionFilePaths
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
   DatasetAccessResource,
   DatasetResource
@@ -30,6 +32,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentRes
   DatasetOfEnvironmentAlreadyExistsMessage,
   DatasetOfEnvironmentDetails,
   DatasetOfEnvironmentDoseNotExistMessage,
+  DatasetVersionID,
   EnvironmentIDs,
   UserNoPermissionExceptionMessage,
   WorkflowLink,
@@ -48,11 +51,13 @@ import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
 import java.net.URLDecoder
+import java.nio.file.Paths
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs.core.{MediaType, Response}
 import javax.ws.rs.{GET, POST, Path, PathParam, Produces}
 import scala.collection.mutable.{ArrayBuffer, ListBuffer}
 import scala.jdk.CollectionConverters.CollectionHasAsScala
+import scala.util.matching.Regex
 
 object EnvironmentResource {
   private val context = SqlServer.createDSLContext()
@@ -94,6 +99,57 @@ object EnvironmentResource {
       .into(classOf[Environment])
   }
 
+  // return the descriptor of the target file.
+  // The filename is passed from the frontend, the did is contained in the filename in the format of /{dataset-name}/{filepath}
+  def getEnvironmentDatasetFilePathAndVersion(
+      uid: UInteger,
+      eid: UInteger,
+      fileName: String
+  ): DatasetFileDesc = {
+    withTransaction(context) { ctx =>
+      {
+        // Adjust the pattern to match the new fileName format
+        val datasetNamePattern: Regex = """([^/]+).*""".r
+
+        // Extract 'datasetName' using the pattern
+        val datasetName = datasetNamePattern.findFirstMatchIn(fileName) match {
+          case Some(matched) => matched.group(1) // Extract the first group which is 'datasetName'
+          case None =>
+            throw new RuntimeException(
+              "The fileName format is not correct"
+            ) // Handle error
+        }
+
+        // Extract the file path
+        val filePath = Paths.get(
+          fileName.substring(fileName.indexOf(s"$datasetName/") + s"$datasetName/".length)
+        )
+        val datasetsOfEnvironment = retrieveDatasetsAndVersions(ctx, uid, eid)
+
+        // Initialize datasetFileDesc as None
+        var datasetFileDesc: Option[DatasetFileDesc] = None
+
+        // Iterate over datasetsOfEnvironment to find a match based on datasetName
+        datasetsOfEnvironment.foreach { datasetAndVersion =>
+          if (datasetAndVersion.dataset.getName == datasetName) {
+            datasetFileDesc = Some(
+              new DatasetFileDesc(
+                filePath,
+                PathUtils.getDatasetPath(datasetAndVersion.dataset.getDid),
+                datasetAndVersion.version.getVersionHash
+              )
+            )
+          }
+        }
+
+        // Check if datasetFileDesc is set, if not, throw an exception
+        if (datasetFileDesc.isEmpty) {
+          throw new RuntimeException("Given file is not found in the environment")
+        }
+        datasetFileDesc.get
+      }
+    }
+  }
   private def getEnvironmentByEid(ctx: DSLContext, eid: UInteger): Environment = {
     val environmentDao: EnvironmentDao = new EnvironmentDao(ctx.configuration())
     val env = environmentDao.fetchOneByEid(eid)
@@ -191,28 +247,31 @@ object EnvironmentResource {
     val datasetOfEnvironmentDao = new DatasetOfEnvironmentDao(ctx.configuration())
     val datasetsOfEnvironment = datasetOfEnvironmentDao.fetchByEid(eid).asScala
 
-    datasetsOfEnvironment.map { datasetOfEnvironment =>
-      val did = datasetOfEnvironment.getDid
-      val dvid = datasetOfEnvironment.getDvid
+    datasetsOfEnvironment
+      .map { datasetOfEnvironment =>
+        val did = datasetOfEnvironment.getDid
+        val dvid = datasetOfEnvironment.getDvid
 
-      // Check for read access to the dataset
-      if (!DatasetAccessResource.userHasReadAccess(ctx, did, uid)) {
-        throw new Exception(UserNoPermissionExceptionMessage)
+        // Check for read access to the dataset
+        if (!DatasetAccessResource.userHasReadAccess(ctx, did, uid)) {
+          throw new Exception(UserNoPermissionExceptionMessage)
+        }
+
+        val datasetDao = new DatasetDao(ctx.configuration())
+        val datasetVersionDao = new DatasetVersionDao(ctx.configuration())
+
+        // Retrieve the Dataset and DatasetVersion
+        val dataset = datasetDao.fetchOneByDid(did)
+        val datasetVersion = datasetVersionDao.fetchOneByDvid(dvid)
+
+        if (dataset == null || datasetVersion == null) {
+          throw new Exception(EnvironmentNotFoundMessage) // Dataset or its version not found
+        }
+
+        DatasetOfEnvironmentDetails(dataset, datasetVersion)
       }
-
-      val datasetDao = new DatasetDao(ctx.configuration())
-      val datasetVersionDao = new DatasetVersionDao(ctx.configuration())
-
-      // Retrieve the Dataset and DatasetVersion
-      val dataset = datasetDao.fetchOneByDid(did)
-      val datasetVersion = datasetVersionDao.fetchOneByDvid(dvid)
-
-      if (dataset == null || datasetVersion == null) {
-        throw new Exception(EnvironmentNotFoundMessage) // Dataset or its version not found
-      }
-
-      DatasetOfEnvironmentDetails(dataset, datasetVersion)
-    }.toList
+      .toList
+      .sortBy(_.dataset.getName)
   }
 
   private def retrieveDatasetsOfEnvironmentFileList(
@@ -226,7 +285,7 @@ object EnvironmentResource {
       val datasetName = entry.dataset.getName
       val fileList = retrieveDatasetVersionFilePaths(ctx, uid, did, dvid)
       val resList: ListBuffer[String] = new ListBuffer[String]
-      fileList.forEach(file => resList.append(s"/$datasetName-$did/$file"))
+      fileList.forEach(file => resList.append(s"$datasetName/$file"))
       resList.toList
     })
   }
@@ -244,6 +303,8 @@ object EnvironmentResource {
   case class EnvironmentIDs(eids: List[UInteger])
 
   case class DatasetID(did: UInteger)
+
+  case class DatasetVersionID(dvid: UInteger)
   case class WorkflowLink(wid: UInteger)
 
   // error handling
@@ -401,6 +462,58 @@ class EnvironmentResource {
   }
 
   @POST
+  @Path("/{eid}/dataset/{did}/updateVersion")
+  def updateDatasetVersionInEnvironment(
+      @PathParam("eid") eid: UInteger,
+      @PathParam("did") did: UInteger,
+      @Auth user: SessionUser,
+      datasetVersion: DatasetVersionID
+  ): Response = {
+    val uid = user.getUid
+    withTransaction(context)(ctx => {
+      if (!userHasWriteAccessToEnvironment(ctx, eid, uid)) {
+        return Response
+          .status(Response.Status.FORBIDDEN)
+          .entity(UserNoPermissionExceptionMessage)
+          .build()
+      }
+      // Lookup the DATASET_OF_ENVIRONMENT table for the given eid and did
+      val exists = Option(
+        ctx
+          .selectFrom(DATASET_OF_ENVIRONMENT)
+          .where(
+            DATASET_OF_ENVIRONMENT.EID
+              .eq(eid)
+              .and(DATASET_OF_ENVIRONMENT.DID.eq(did))
+          )
+          .fetchOne()
+      ) // fetchOne returns null if the record does not exist, Option converts it safely to None
+
+      exists match {
+        case Some(record) =>
+          // Update the dvid of the existing record
+          ctx
+            .update(DATASET_OF_ENVIRONMENT)
+            .set(DATASET_OF_ENVIRONMENT.DVID, datasetVersion.dvid)
+            .where(
+              DATASET_OF_ENVIRONMENT.EID
+                .eq(eid)
+                .and(DATASET_OF_ENVIRONMENT.DID.eq(did))
+            )
+            .execute()
+          Response.ok().build() // Return HTTP OK response
+
+        case None =>
+          // Throw an error if the eid and did combination does not exist
+          Response
+            .status(Response.Status.BAD_REQUEST)
+            .entity("No such dataset and environment combination exists")
+            .build()
+      }
+    })
+  }
+
+  @POST
   @Path("/{eid}/dataset/remove")
   def removeDatasetForEnvironment(
       @PathParam("eid") eid: UInteger,
@@ -438,8 +551,8 @@ class EnvironmentResource {
     })
   }
   @POST
-  @Path("/{eid}/linkWorkflow")
-  def linkWorkflowToEnvironment(
+  @Path("/{eid}/bindWorkflow")
+  def bindWorkflowToEnvironment(
       @PathParam("eid") eid: UInteger,
       @Auth user: SessionUser,
       workflowLink: WorkflowLink
