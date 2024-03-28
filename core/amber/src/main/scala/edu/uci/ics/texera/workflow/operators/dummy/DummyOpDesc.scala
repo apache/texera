@@ -40,7 +40,7 @@ class DummyOpDesc extends LogicalOp with PortDescriptor {
     OperatorInfo(
       "Dummy",
       "A dummy operator used as a placeholder.",
-      OperatorGroupConstants.UTILITY_GROUP,
+      null,
       inputPortInfo,
       outputPortInfo,
       dynamicInputPorts = true,
