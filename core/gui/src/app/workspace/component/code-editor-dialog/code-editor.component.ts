@@ -17,6 +17,7 @@ import { isUndefined } from "lodash";
 import { CloseAction, ErrorAction } from "vscode-languageclient/lib/common/client.js";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api.js";
 import { FormControl } from "@angular/forms";
+import { initServices } from "monaco-languageclient/vscode/services";
 
 /**
  * CodeEditorComponent is the content of the dialogue invoked by CodeareaCustomTemplateComponent.
@@ -138,7 +139,13 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
    */
-  private initMonaco() {
+  private async initMonaco() {
+    await initServices({
+      userServices: {},
+      debugLogging: true,
+    });
+
+
     const editor = monaco.editor.create(this.editorElement.nativeElement, {
       language: this.language,
       fontSize: 11,
