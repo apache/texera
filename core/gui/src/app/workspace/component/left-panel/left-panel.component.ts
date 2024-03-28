@@ -5,6 +5,7 @@ import { CdkDragDrop, moveItemInArray } from "@angular/cdk/drag-drop";
 import { environment } from "../../../../environments/environment";
 import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
+import { WorkflowExecutionHistoryComponent } from "../../../dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
 import { EnvironmentComponent } from "./environment/environment.component";
 @UntilDestroy()
@@ -25,6 +26,12 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
     { component: null, title: "", icon: "", enabled: true },
     { component: OperatorMenuComponent, title: "Operators", icon: "appstore", enabled: true },
     { component: VersionsListComponent, title: "Versions", icon: "schedule", enabled: environment.userSystemEnabled },
+    {
+      component: WorkflowExecutionHistoryComponent,
+      title: "Execution History",
+      icon: "history",
+      enabled: environment.workflowExecutionsTrackingEnabled,
+    },
     {
       component: TimeTravelComponent,
       title: "Time Travel",
