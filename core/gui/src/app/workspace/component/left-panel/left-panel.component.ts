@@ -45,7 +45,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       enabled: environment.userSystemEnabled,
     },
   ];
-  order = [1, 2, 3, 4];
+  order = [1, 2, 3, 4, 5];
 
   constructor() {
     this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
