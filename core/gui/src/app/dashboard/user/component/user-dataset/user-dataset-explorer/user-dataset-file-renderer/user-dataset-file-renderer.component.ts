@@ -109,7 +109,7 @@ export class UserDatasetFileRendererComponent implements OnInit, OnChanges, OnDe
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes.did || changes.dvid || changes.filePath) {
+    if ((changes.did && changes.dvid) || changes.filePath) {
       this.reloadFileContent();
     }
   }
