@@ -7,6 +7,14 @@
     <nz-card-meta
       style="padding-top: 20px"
       nzDescription="{{datasetDescription}}"></nz-card-meta>
+    <div style="padding-top: 30px">
+      <nz-switch
+        [ngModel]="datasetIsPublic"
+        (ngModelChange)="onPublicStatusChange($event)"
+        [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+        nzCheckedChildren="public"
+        nzUnCheckedChildren="private"></nz-switch>
+    </div>
   </nz-card>
 </div>
 <nz-layout>
@@ -77,7 +85,6 @@
       </div>
     </nz-card>
     <texera-user-dataset-file-renderer
-      *ngIf="!isCreatingDataset"
       [isMaximized]="isMaximized"
       [did]="did"
       [dvid]="selectedVersion?.dvid"

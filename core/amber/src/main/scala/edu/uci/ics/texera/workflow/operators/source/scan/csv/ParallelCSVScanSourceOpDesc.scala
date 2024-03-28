@@ -37,42 +37,44 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    filePath match {
-      case Some(path) =>
-        val totalBytes: Long = new File(path).length()
+    // here, the stream requires to be seekable, so datasetFileDesc creates a temp file here
+    // TODO: consider a better way
+    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val file =
+      if (filepath == null) {
+        fileDesc.tempFilePath().toFile
+      } else {
+        new File(filepath)
+      }
+    val totalBytes: Long = file.length()
 
-        PhysicalOp
-          .sourcePhysicalOp(
-            workflowId,
-            executionId,
-            operatorIdentifier,
-            OpExecInitInfo((idx, workerCount) => {
-              // TODO: add support for limit
-              // TODO: add support for offset
-              val startOffset: Long = totalBytes / workerCount * idx
-              val endOffset: Long =
-                if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
-              new ParallelCSVScanSourceOpExec(
-                path,
-                customDelimiter,
-                hasHeader,
-                startOffset,
-                endOffset,
-                schemaFunc = () => sourceSchema()
-              )
-            })
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((idx, workerCount) => {
+          // TODO: add support for limit
+          // TODO: add support for offset
+          val startOffset: Long = totalBytes / workerCount * idx
+          val endOffset: Long =
+            if (idx != workerCount - 1) totalBytes / workerCount * (idx + 1) else totalBytes
+          new ParallelCSVScanSourceOpExec(
+            file,
+            customDelimiter,
+            hasHeader,
+            startOffset,
+            endOffset,
+            schemaFunc = () => sourceSchema()
           )
-          .withInputPorts(operatorInfo.inputPorts)
-          .withOutputPorts(operatorInfo.outputPorts)
-          .withParallelizable(true)
-          .withPropagateSchema(
-            SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
-          )
-
-      case None =>
-        throw new RuntimeException("File path is not provided.")
-    }
-
+        })
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withParallelizable(true)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+      )
   }
 
   /**
@@ -84,14 +86,18 @@ class ParallelCSVScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty) {
       return null
     }
-    if (filePath.isEmpty) {
-      return null
-    }
+    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val file =
+      if (filepath == null) {
+        fileDesc.tempFilePath().toFile
+      } else {
+        new File(filepath)
+      }
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
 
     }
-    var reader: CSVReader = CSVReader.open(filePath.get)(CustomFormat)
+    var reader: CSVReader = CSVReader.open(file)(CustomFormat)
     val firstRow: Array[String] = reader.iterator.next().toArray
     reader.close()
 

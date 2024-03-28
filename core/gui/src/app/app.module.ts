@@ -39,7 +39,7 @@ import { UserService } from "./common/service/user/user.service";
 import { DashboardComponent } from "./dashboard/user/component/dashboard.component";
 import { UserWorkflowComponent } from "./dashboard/user/component/user-workflow/user-workflow.component";
 import { ShareAccessComponent } from "./dashboard/user/component/share-access/share-access.component";
-import { WorkflowExecutionModalComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-modal.component";
+import { WorkflowExecutionHistoryComponent } from "./dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { NgbdModalFileAddComponent } from "./dashboard/user/component/user-file/ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileComponent } from "./dashboard/user/component/user-file/user-file.component";
 import { UserQuotaComponent } from "./dashboard/user/component/user-quota/user-quota.component";
@@ -134,6 +134,7 @@ import { NzTreeModule } from "ng-zorro-antd/tree";
 import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
+import { EnvironmentComponent } from "./workspace/component/left-panel/environment/environment.component";
 
 registerLocaleData(en);
 
@@ -176,7 +177,7 @@ registerLocaleData(en);
     CodeEditorComponent,
     TypeCastingDisplayComponent,
     ShareAccessComponent,
-    WorkflowExecutionModalComponent,
+    WorkflowExecutionHistoryComponent,
     ConsoleFrameComponent,
     ErrorFrameComponent,
     ResultTableFrameComponent,
@@ -197,6 +198,7 @@ registerLocaleData(en);
     UserDatasetListItemComponent,
     UserDatasetFileRendererComponent,
     NzModalCommentBoxComponent,
+    EnvironmentComponent,
     LeftPanelComponent,
     LocalLoginComponent,
     ContextMenuComponent,

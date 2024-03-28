@@ -79,7 +79,7 @@ public class Indexes {
     public static final Index USER_FILE_ACCESS_PRIMARY = Indexes0.USER_FILE_ACCESS_PRIMARY;
     public static final Index WORKFLOW_IDX_WORKFLOW_NAME_DESCRIPTION_CONTENT = Indexes0.WORKFLOW_IDX_WORKFLOW_NAME_DESCRIPTION_CONTENT;
     public static final Index WORKFLOW_PRIMARY = Indexes0.WORKFLOW_PRIMARY;
-    public static final Index WORKFLOW_EXECUTIONS_ENVIRONMENT_EID = Indexes0.WORKFLOW_EXECUTIONS_ENVIRONMENT_EID;
+    public static final Index WORKFLOW_EXECUTIONS_FK_ENVIRONMENT_EID = Indexes0.WORKFLOW_EXECUTIONS_FK_ENVIRONMENT_EID;
     public static final Index WORKFLOW_EXECUTIONS_PRIMARY = Indexes0.WORKFLOW_EXECUTIONS_PRIMARY;
     public static final Index WORKFLOW_EXECUTIONS_UID = Indexes0.WORKFLOW_EXECUTIONS_UID;
     public static final Index WORKFLOW_EXECUTIONS_VID = Indexes0.WORKFLOW_EXECUTIONS_VID;
@@ -136,7 +136,7 @@ public class Indexes {
         public static Index USER_FILE_ACCESS_PRIMARY = Internal.createIndex("PRIMARY", UserFileAccess.USER_FILE_ACCESS, new OrderField[] { UserFileAccess.USER_FILE_ACCESS.UID, UserFileAccess.USER_FILE_ACCESS.FID }, true);
         public static Index WORKFLOW_IDX_WORKFLOW_NAME_DESCRIPTION_CONTENT = Internal.createIndex("idx_workflow_name_description_content", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.NAME, Workflow.WORKFLOW.DESCRIPTION, Workflow.WORKFLOW.CONTENT }, false);
         public static Index WORKFLOW_PRIMARY = Internal.createIndex("PRIMARY", Workflow.WORKFLOW, new OrderField[] { Workflow.WORKFLOW.WID }, true);
-        public static Index WORKFLOW_EXECUTIONS_ENVIRONMENT_EID = Internal.createIndex("environment_eid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_EID }, false);
+        public static Index WORKFLOW_EXECUTIONS_FK_ENVIRONMENT_EID = Internal.createIndex("fk_environment_eid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.ENVIRONMENT_EID }, false);
         public static Index WORKFLOW_EXECUTIONS_PRIMARY = Internal.createIndex("PRIMARY", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.EID }, true);
         public static Index WORKFLOW_EXECUTIONS_UID = Internal.createIndex("uid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.UID }, false);
         public static Index WORKFLOW_EXECUTIONS_VID = Internal.createIndex("vid", WorkflowExecutions.WORKFLOW_EXECUTIONS, new OrderField[] { WorkflowExecutions.WORKFLOW_EXECUTIONS.VID }, false);
