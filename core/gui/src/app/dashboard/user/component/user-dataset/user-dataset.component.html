@@ -45,10 +45,36 @@
   </div>
 
   <nz-card class="section-list-container">
-    <!-- itemSize: the height (px) of each list item,
-      this MUST be approximately the same as list item size set in CSS,
-      .dataset-list-item sets the item size to be 70px, with additional paddings/margins it's approximately 80px
-    -->
+    <ul
+      nz-menu
+      nzMode="horizontal"
+      class="dataset-menu-bar">
+      <li
+        nz-menu-item
+        (click)="selectedMenu='All Datasets'"
+        [nzSelected]="selectedMenu === 'All Datasets'">
+        All Datasets
+      </li>
+      <li
+        nz-menu-item
+        (click)="selectedMenu='Your Datasets'"
+        [nzSelected]="selectedMenu === 'Your Datasets'">
+        Your Datasets
+      </li>
+      <li
+        nz-menu-item
+        (click)="selectedMenu='Public Datasets'"
+        [nzSelected]="selectedMenu === 'Public Datasets'">
+        Public Datasets
+      </li>
+      <li
+        nz-menu-item
+        (click)="selectedMenu='Shared with you'"
+        [nzSelected]="selectedMenu === 'Shared with you'">
+        Shared with you
+      </li>
+    </ul>
+
     <cdk-virtual-scroll-viewport
       class="virtual-scroll-container"
       itemSize="80">
@@ -56,7 +82,7 @@
         <texera-user-dataset-list-item
           *cdkVirtualFor="let entry of getDatasetArray()"
           [entry]="entry"
-          (deleted)="deleteDataset(entry.dataset.did)"
+          (deleted)="deleteDataset(entry)"
           (refresh)="ngOnInit()"
           [editable]="true"></texera-user-dataset-list-item>
       </nz-list>
