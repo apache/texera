@@ -23,7 +23,7 @@ export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
-export const WORKFLOW_ENVIRONMENT = "/environment";
+export const WORKFLOW_ENVIRONMENT = "environment";
 @Injectable({
   providedIn: "root",
 })
@@ -194,7 +194,6 @@ export class WorkflowPersistService {
 
   public retrieveWorkflowEnvironment(wid: number): Observable<Environment> {
     return this.http
-      .get<Environment>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/${WORKFLOW_ENVIRONMENT}`)
-      .pipe();
+      .get<Environment>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/${WORKFLOW_ENVIRONMENT}`);
   }
 }
