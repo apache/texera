@@ -39,7 +39,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       enabled: environment.userSystemEnabled && environment.timetravelEnabled,
     },
   ];
-  order = [1, 2, 3];
+  order = Array.from({ length: this.items.length - 1 }, (_, index) => index + 1);
 
   constructor() {
     this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;
