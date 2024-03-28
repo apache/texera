@@ -4,6 +4,7 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.clustering.ClusterListener
 import edu.uci.ics.amber.engine.common.virtualidentity.WorkflowIdentity
+import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
 import edu.uci.ics.texera.Utils.objectMapper
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.User
 import edu.uci.ics.texera.web.model.websocket.event.{
@@ -98,22 +99,25 @@ class WorkflowWebsocketResource extends LazyLogging {
             uidOpt,
             sessionState.getCurrentWorkflowState.get.workflowId
           )
-
-          val workflowCompiler =
-            new WorkflowCompiler(workflowContext)
-          val newPlan = workflowCompiler.compileLogicalPlan(
-            editingTimeCompilationRequest.toLogicalPlanPojo,
-            stateStore
-          )
-
-          val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
-            workflowStateOpt.get.lastCompletedLogicalPlan,
-            newPlan,
-            editingTimeCompilationRequest
-          )
-          sessionState.send(CacheStatusUpdateEvent(validateResult))
-          if (executionStateOpt.isEmpty) {
-            sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
+          try {
+            val workflowCompiler =
+              new WorkflowCompiler(workflowContext)
+            val newPlan = workflowCompiler.compileLogicalPlan(
+              editingTimeCompilationRequest.toLogicalPlanPojo,
+              stateStore
+            )
+            val validateResult = WorkflowCacheChecker.handleCacheStatusUpdate(
+              workflowStateOpt.get.lastCompletedLogicalPlan,
+              newPlan,
+              editingTimeCompilationRequest
+            )
+            sessionState.send(CacheStatusUpdateEvent(validateResult))
+          } catch {
+            case t: Throwable => // skip, rethrow this exception will overwrite the compilation errors reported below.
+          } finally {
+            if (stateStore.metadataStore.getState.fatalErrors.nonEmpty) {
+              sessionState.send(WorkflowErrorEvent(stateStore.metadataStore.getState.fatalErrors))
+            }
           }
         case workflowExecuteRequest: WorkflowExecuteRequest =>
           workflowStateOpt match {
@@ -133,7 +137,7 @@ class WorkflowWebsocketResource extends LazyLogging {
           COMPILATION_ERROR,
           Timestamp(Instant.now),
           err.toString,
-          err.getStackTrace.mkString("\n"),
+          getStackTraceWithAllCauses(err),
           "unknown operator"
         )
         if (executionStateOpt.isDefined) {

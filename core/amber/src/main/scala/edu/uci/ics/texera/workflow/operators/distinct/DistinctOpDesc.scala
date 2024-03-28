@@ -35,7 +35,7 @@ class DistinctOpDesc extends LogicalOp {
       "Remove duplicate tuples",
       OperatorGroupConstants.CLEANING_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = {

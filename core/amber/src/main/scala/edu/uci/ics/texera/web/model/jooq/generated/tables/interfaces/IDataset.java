@@ -57,16 +57,6 @@ public interface IDataset extends Serializable {
     public Byte getIsPublic();
 
     /**
-     * Setter for <code>texera_db.dataset.storage_path</code>.
-     */
-    public void setStoragePath(String value);
-
-    /**
-     * Getter for <code>texera_db.dataset.storage_path</code>.
-     */
-    public String getStoragePath();
-
-    /**
      * Setter for <code>texera_db.dataset.description</code>.
      */
     public void setDescription(String value);

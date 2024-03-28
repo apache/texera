@@ -181,8 +181,6 @@ case class PhysicalOp(
       Map.empty,
     outputPorts: Map[PortIdentity, (OutputPort, List[PhysicalLink], Either[Throwable, Schema])] =
       Map.empty,
-    // input ports that are blocking
-    blockingInputs: List[PortIdentity] = List(),
     // schema propagation function
     propagateSchema: SchemaPropagationFunc = SchemaPropagationFunc(schemas => schemas),
     isOneToManyOp: Boolean = false,
@@ -190,11 +188,14 @@ case class PhysicalOp(
     suggestedWorkerNum: Option[Int] = None
 ) extends LazyLogging {
 
-  // all the "dependee" links are also blocking inputs
-  private lazy val realBlockingInputs: List[PortIdentity] =
-    (blockingInputs ++ inputPorts.values.flatMap({
-      case (port, _, _) => port.dependencies
-    })).distinct
+  // all the "dependee" links are also blocking
+  private lazy val dependeeInputs: List[PortIdentity] =
+    inputPorts.values
+      .flatMap({
+        case (port, _, _) => port.dependencies
+      })
+      .toList
+      .distinct
 
   private lazy val isInitWithCode: Boolean = opExecInitInfo.isInstanceOf[OpExecInitInfoWithCode]
 
@@ -204,6 +205,13 @@ case class PhysicalOp(
 
   def isSourceOperator: Boolean = {
     inputPorts.isEmpty
+  }
+
+  /**
+    * Helper function used to determine whether the input link is a materialized link.
+    */
+  def isSinkOperator: Boolean = {
+    outputPorts.forall(port => port._2._2.isEmpty)
   }
 
   def isPythonOperator: Boolean = {
@@ -298,13 +306,6 @@ case class PhysicalOp(
     */
   def withIsOneToManyOp(isOneToManyOp: Boolean): PhysicalOp =
     this.copy(isOneToManyOp = isOneToManyOp)
-
-  /**
-    * creates a copy with the blocking input port indices
-    */
-  def withBlockingInputs(blockingInputs: List[PortIdentity]): PhysicalOp = {
-    this.copy(blockingInputs = blockingInputs)
-  }
 
   /**
     * Creates a copy of the PhysicalOp with the schema of a specified input port updated.
@@ -465,12 +466,18 @@ case class PhysicalOp(
   }
 
   /**
-    * Tells whether the input on this link is blocking i.e. the operator doesn't output anything till this link
-    * outputs all its tuples
+    * Tells whether the input port the link connects to is depended by another input .
     */
-  def isInputLinkBlocking(link: PhysicalLink): Boolean = {
-    val blockingLinks = realBlockingInputs.flatMap(portId => getInputLinks(Some(portId)))
-    blockingLinks.contains(link)
+  def isInputLinkDependee(link: PhysicalLink): Boolean = {
+    dependeeInputs.contains(link.toPortId)
+  }
+
+  /**
+    * Tells whether the output on this link is blocking i.e. the operator doesn't output anything till this link
+    * outputs all its tuples.
+    */
+  def isOutputLinkBlocking(link: PhysicalLink): Boolean = {
+    this.outputPorts(link.fromPortId)._1.blocking
   }
 
   /**

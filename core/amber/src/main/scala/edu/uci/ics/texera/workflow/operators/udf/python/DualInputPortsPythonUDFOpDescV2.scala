@@ -79,7 +79,6 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withParallelizable(true)
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
-        .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
             Map(operatorInfo.outputPorts.head.id -> getOutputSchema(inputSchemas.values.toArray))
@@ -98,7 +97,6 @@ class DualInputPortsPythonUDFOpDescV2 extends LogicalOp {
         .withParallelizable(false)
         .withInputPorts(operatorInfo.inputPorts)
         .withOutputPorts(operatorInfo.outputPorts)
-        .withBlockingInputs(List(operatorInfo.inputPorts.head.id))
         .withPropagateSchema(
           SchemaPropagationFunc(inputSchemas =>
             Map(

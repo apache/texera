@@ -84,23 +84,31 @@ abstract class RegionPlanGenerator(
       .toSet
   }
 
-  def populateDownstreamLinks(
+  /**
+    * For a dependee input link, although it connects two regions A->B, we include this link and its toOp in region A
+    *  so that the dependee link will be completed first.
+    */
+  def populateDependeeLinks(
       regionDAG: DirectedAcyclicGraph[Region, RegionLink]
-  ): DirectedAcyclicGraph[Region, RegionLink] = {
+  ): Unit = {
 
-    val blockingLinks = physicalPlan
+    val dependeeLinks = physicalPlan
       .topologicalIterator()
       .flatMap { physicalOpId =>
         val upstreamPhysicalOpIds = physicalPlan.getUpstreamPhysicalOpIds(physicalOpId)
         upstreamPhysicalOpIds.flatMap { upstreamPhysicalOpId =>
           physicalPlan
             .getLinksBetween(upstreamPhysicalOpId, physicalOpId)
-            .filter(link => physicalPlan.getOperator(physicalOpId).isInputLinkBlocking(link))
+            .filter(link =>
+              !physicalPlan.getOperator(physicalOpId).isSinkOperator && (physicalPlan
+                .getOperator(physicalOpId)
+                .isInputLinkDependee(link))
+            )
         }
       }
       .toSet
 
-    blockingLinks
+    dependeeLinks
       .flatMap { link => getRegions(link.fromOpId, regionDAG).map(region => region -> link) }
       .groupBy(_._1)
       .view
@@ -114,7 +122,6 @@ abstract class RegionPlanGenerator(
           )
           replaceVertex(regionDAG, region, newRegion)
       }
-    regionDAG
   }
 
   def replaceLinkWithMaterialization(
@@ -130,7 +137,6 @@ abstract class RegionPlanGenerator(
 
     var newPhysicalPlan = physicalPlan
       .removeLink(physicalLink)
-      .setOperatorUnblockPort(toOp.id, toPortId)
 
     // create cache writer and link
     val matWriterPhysicalOp: PhysicalOp =

@@ -117,7 +117,12 @@ class CostBasedRegionPlanGenerator(
     */
   private def createRegionDAG(): DirectedAcyclicGraph[Region, RegionLink] = {
     val searchResult = bottomUpSearch()
-    val linksToMaterialize = searchResult.state
+    // Only a non-dependee blocking link that has not already been materialized should be replaced
+    // with a materialization write op + materialization read op.
+    val linksToMaterialize =
+      searchResult.state ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks.diff(
+        physicalPlan.getDependeeLinks
+      )
     if (linksToMaterialize.nonEmpty) {
       val matReaderWriterPairs = new mutable.HashMap[PhysicalOpIdentity, PhysicalOpIdentity]()
       linksToMaterialize.foreach(link =>
@@ -129,9 +134,34 @@ class CostBasedRegionPlanGenerator(
     }
     // Since the plan is now schedulable, calling the search directly returns a region DAG.
     val regionDAG = bottomUpSearch().regionDAG
-    populateDownstreamLinks(regionDAG)
+    addMaterializationsAsRegionLinks(linksToMaterialize, regionDAG)
+    populateDependeeLinks(regionDAG)
     allocateResource(regionDAG)
     regionDAG
+  }
+
+  /**
+    * Adds materialization links as region links within the given region DAG.
+    * This method processes each physical link in the input set, identifying the source and destination
+    * regions for each link. It then adds an edge between these regions in the DAG to represent
+    * the materialization relationship.
+    *
+    * @param linksToMaterialize The set of physical links to be materialized as region links in the DAG.
+    * @param regionDAG The DAG of regions to be modified
+    */
+  private def addMaterializationsAsRegionLinks(
+      linksToMaterialize: Set[PhysicalLink],
+      regionDAG: DirectedAcyclicGraph[Region, RegionLink]
+  ): Unit = {
+    linksToMaterialize.foreach(link => {
+      val fromOpRegions = getRegions(link.fromOpId, regionDAG)
+      val toOpRegions = getRegions(link.toOpId, regionDAG)
+      fromOpRegions.foreach(fromRegion => {
+        toOpRegions.foreach(toRegion => {
+          regionDAG.addEdge(fromRegion, toRegion, RegionLink(fromRegion.id, toRegion.id))
+        })
+      })
+    })
   }
 
   /**
@@ -139,6 +169,7 @@ class CostBasedRegionPlanGenerator(
     * Otherwise, depending on the configuration, either a global search or a greedy search will be performed to find
     * an optimal plan. The search starts from a plan where all non-blocking edges are pipelined, and leads to a low-cost
     * schedulable plan. Optimizations based on chains and bridges are included in the search.
+    *
     * @return A SearchResult containing the plan, the region DAG (without materializations added yet) and the cost.
     */
   private def bottomUpSearch(): SearchResult = {
@@ -157,7 +188,9 @@ class CostBasedRegionPlanGenerator(
     while (queue.nonEmpty) {
       val currentState = queue.dequeue()
       visited.add(currentState)
-      tryConnectRegionDAG(physicalPlan.getOriginalBlockingLinks ++ currentState) match {
+      tryConnectRegionDAG(
+        physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState
+      ) match {
         case Left(regionDAG) =>
           // Calculate the current state's cost and update the bestResult if it's lower
           val cost =
@@ -167,7 +200,8 @@ class CostBasedRegionPlanGenerator(
           }
         // No need to explore further
         case Right(_) =>
-          val allBlockingEdges = currentState ++ physicalPlan.getOriginalBlockingLinks
+          val allBlockingEdges =
+            currentState ++ physicalPlan.getNonMaterializedBlockingAndDependeeLinks
           // Generate and enqueue all neighbour states that haven't been visited
           val edgesInChainWithBlockingEdge = physicalPlan.maxChains
             .filter(chain => chain.intersect(allBlockingEdges).nonEmpty)
@@ -183,8 +217,10 @@ class CostBasedRegionPlanGenerator(
               }
             }
           } else {
-            val nextLink = candidateEdges.minBy(e =>
-              tryConnectRegionDAG(physicalPlan.getOriginalBlockingLinks ++ currentState + e) match {
+            val nextLink = candidateEdges.minBy(edge =>
+              tryConnectRegionDAG(
+                physicalPlan.getNonMaterializedBlockingAndDependeeLinks ++ currentState + edge
+              ) match {
                 case Left(regionDAG) =>
                   evaluate(regionDAG.vertexSet().asScala.toSet, regionDAG.edgeSet().asScala.toSet)
                 case Right(regionGraph) =>
