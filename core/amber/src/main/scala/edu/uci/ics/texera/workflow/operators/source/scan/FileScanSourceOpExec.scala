@@ -2,6 +2,7 @@ package edu.uci.ics.texera.workflow.operators.source.scan
 
 import edu.uci.ics.amber.engine.common.SourceOperatorExecutor
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
 import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.parseField
 import org.apache.commons.compress.archivers.{ArchiveInputStream, ArchiveStreamFactory}
 import org.apache.commons.io.IOUtils.toByteArray
@@ -12,6 +13,7 @@ import scala.jdk.CollectionConverters.IteratorHasAsScala
 
 class FileScanSourceOpExec private[scan] (
     filePath: String,
+    datasetFileDesc: DatasetFileDesc,
     fileAttributeType: FileAttributeType,
     fileEncoding: FileDecodingMethod,
     extract: Boolean,
@@ -23,10 +25,11 @@ class FileScanSourceOpExec private[scan] (
   @throws[IOException]
   override def produceTuple(): Iterator[TupleLike] = {
     var filenameIt: Iterator[String] = Iterator.empty
-    val fileEntries: Iterator[InputStream] =
+    val fileEntries: Iterator[InputStream] = {
+      val is = createInputStream(filePath, datasetFileDesc)
       if (extract) {
         val inputStream: ArchiveInputStream = new ArchiveStreamFactory().createArchiveInputStream(
-          new BufferedInputStream(new FileInputStream(filePath))
+          new BufferedInputStream(is)
         )
         val (it1, it2) = Iterator
           .continually(inputStream.getNextEntry)
@@ -36,8 +39,9 @@ class FileScanSourceOpExec private[scan] (
         filenameIt = it1.map(entry => entry.getName)
         it2.map(_ => inputStream)
       } else {
-        Iterator(new FileInputStream(filePath))
+        Iterator(is)
       }
+    }
 
     if (fileAttributeType.isSingle) {
       fileEntries.zipAll(filenameIt, null, null).map {

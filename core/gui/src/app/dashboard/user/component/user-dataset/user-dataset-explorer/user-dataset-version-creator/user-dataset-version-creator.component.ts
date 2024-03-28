@@ -6,6 +6,7 @@ import { FileUploadItem } from "../../../../type/dashboard-file.interface";
 import { Dataset, DatasetVersion } from "../../../../../../common/type/dataset";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { NotificationService } from "../../../../../../common/service/notification/notification.service";
+import sanitize from "sanitize-filename";
 
 @UntilDestroy()
 @Component({
@@ -33,7 +34,13 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   public form: FormGroup = new FormGroup({});
   model: any = {};
   fields: FormlyFieldConfig[] = [];
-  isDatasetPublic: boolean = true;
+  isDatasetPublic: boolean = false;
+
+  // used when creating the dataset
+  isDatasetNameSanitized: boolean = false;
+
+  // boolean to control if is uploading
+  isUploading: boolean = false;
 
   constructor(
     private datasetService: DatasetService,
@@ -43,6 +50,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
 
   ngOnInit() {
     this.setFormFields();
+    this.isDatasetNameSanitized = false;
   }
 
   private setFormFields() {
@@ -71,6 +79,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           {
             key: "description",
             type: "input",
+            defaultValue: "",
             templateOptions: {
               label: "Description",
             },
@@ -78,6 +87,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           {
             key: "versionName",
             type: "input",
+            defaultValue: "v1",
             templateOptions: {
               label: "Initial Version Name",
               required: true,
@@ -87,6 +97,14 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
   }
   get formControlNames(): string[] {
     return Object.keys(this.form.controls);
+  }
+
+  datasetNameSanitization(datasetName: string): string {
+    const sanitizedDatasetName = sanitize(datasetName);
+    if (sanitizedDatasetName != datasetName) {
+      this.isDatasetNameSanitized = true;
+    }
+    return sanitizedDatasetName;
   }
 
   private triggerValidation() {
@@ -115,6 +133,7 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
       return;
     }
 
+    this.isUploading = true;
     if (this.isCreatingVersion && this.baseVersion) {
       const versionName = this.form.get("name")?.value;
       this.datasetService
@@ -124,14 +143,16 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
           next: res => {
             this.notificationService.success(`Version '${versionName}' Created`);
             this.datasetOrVersionCreationID.emit(res.dvid);
+            this.isUploading = false;
           },
           error: (res: unknown) => {
             this.notificationService.error("Version creation failed");
+            this.isUploading = false;
           },
         });
     } else {
       const ds: Dataset = {
-        name: this.form.get("name")?.value,
+        name: this.datasetNameSanitization(this.form.get("name")?.value),
         description: this.form.get("description")?.value,
         isPublic: this.isDatasetPublic ? 1 : 0,
         did: undefined,
@@ -140,16 +161,23 @@ export class UserDatasetVersionCreatorComponent implements OnInit {
         versionHierarchy: undefined,
       };
       const initialVersionName = this.form.get("versionName")?.value;
+
+      // do the name sanitization
+
       this.datasetService
         .createDataset(ds, initialVersionName, this.newUploadFiles)
         .pipe(untilDestroyed(this))
         .subscribe({
           next: res => {
-            this.notificationService.success(`Dataset '${ds.name}' Created`);
+            this.notificationService.success(
+              `Dataset '${ds.name}' Created. ${this.isDatasetNameSanitized ? "We have sanitized your provided dataset name for the compatibility reason" : ""}`
+            );
             this.datasetOrVersionCreationID.emit(res.dataset.did);
+            this.isUploading = false;
           },
           error: (res: unknown) => {
             this.notificationService.error(`Dataset ${ds.name} creation failed`);
+            this.isUploading = false;
           },
         });
     }

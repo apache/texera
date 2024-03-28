@@ -1,0 +1,99 @@
+.link-dataset-btn {
+  margin-top: 10px;
+  margin-left: 10px;
+  margin-bottom: 10px;
+}
+
+.environment-layout {
+  background-color: white;
+}
+
+.environment-info {
+  background-color: white;
+  width: 20px;
+  margin-left: 20px;
+}
+
+.ant-tooltip-inner {
+  max-width: 500px;
+}
+
+.datasets-container {
+  background-color: white;
+  /* Add other styling as needed, such as padding or margins */
+}
+
+.dataset-id-container {
+  background-color: grey;
+  color: white; /* Assuming you want the text to be white */
+  width: 35px; /* You can adjust the size as needed */
+  height: 35px; /* Make sure height and width are the same to create a circle */
+  border-radius: 50%; /* This makes the div circular */
+  display: flex; /* Using flexbox to center content */
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  font-size: 14px; /* Adjust the font size as needed */
+  margin-left: 5px; /* If you want to center the circle in its container */
+  /* Additional styles for better appearance */
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Optional: Adds subtle shadow */
+  overflow: hidden; /* Ensures content doesn't spill outside the circle */
+}
+
+.auto-option-content {
+  width: 100%;
+  height: 50%;
+  display: flex;
+  //align-items: center; /* Aligns items vertically in the center */
+  justify-content: space-between;
+}
+
+.dataset-name {
+  //flex-shrink: 0; /* Prevents the name from shrinking */
+  //margin-left: 8px; /* Adds some space if needed */
+  margin-left: 10px;
+  flex-grow: 1; /* This will make the name take up the remaining space */
+}
+
+.dataset-option-link-btn {
+  margin-right: 5px;
+  //width: 20%;
+  //height: 90%;
+  //text-align: center;
+}
+
+.custom-table {
+  width: 100%; /* Make the table take the full width of its container */
+  border-collapse: collapse; /* Collapse borders */
+}
+
+.custom-table td {
+  padding: 8px; /* Add some padding to table cells */
+  border-bottom: 1px solid #e8e8e8; /* Add a subtle line between rows */
+}
+
+.table-label {
+  font-weight: bold; /* Make label text bold */
+  width: 30%; /* Allocate 30% of the width to labels */
+  background-color: #f0f0f0; /* A light grey background for the labels */
+}
+
+.table-value {
+  width: 70%; /* Allocate 70% of the width to values */
+}
+
+.file-renderer {
+  min-width: 300px; /* Adjust minimum width as needed */
+  max-width: 600px; /* Adjust maximum width as needed */
+  min-height: 200px; /* Adjust minimum height as needed */
+  max-height: 400px; /* Adjust maximum height as needed */
+  /* Ensure the component content respects these bounds */
+  overflow: auto; /* Add scrollbars within the component if content overflows */
+}
+
+.file-display-modal .ant-modal-body {
+  min-width: 300px; /* Adjust minimum width as needed */
+  max-width: 600px; /* Adjust maximum width as needed */
+  min-height: 200px; /* Adjust minimum height as needed */
+  max-height: 400px; /* Adjust maximum height as needed */
+  overflow: auto; /* Add scrollbars within the modal if content overflows */
+}

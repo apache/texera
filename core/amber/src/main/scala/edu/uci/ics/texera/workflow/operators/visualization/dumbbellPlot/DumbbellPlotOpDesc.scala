@@ -129,8 +129,6 @@ class DumbbellPlotOpDesc extends VisualizationOperator with PythonOperatorDescri
 
     s"""
        |        dotColumnNames = [${dotColumnNames}]
-       |        print("dot column: ", filtered_table)
-       |        print("column names: ", dotColumnNames)
        |        if len(dotColumnNames) > 0:
        |          for dotColumn in dotColumnNames:
        |              # Extract dot data for each entity

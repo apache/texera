@@ -16,6 +16,7 @@ import org.eclipse.jgit.treewalk.TreeWalk;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -47,7 +48,35 @@ public class JGitVersionControl {
     }
   }
 
-  public static void readFileContentOfCommit(Path repoPath, String commitHash, Path filePath, OutputStream outputStream) throws IOException {
+  public static InputStream readFileContentOfCommitAsInputStream(Path repoPath, String commitHash, Path filePath) throws IOException {
+    if (!filePath.startsWith(repoPath)) {
+      throw new IllegalArgumentException("File path must be under the repository path.");
+    }
+
+    if (Files.isDirectory(filePath)) {
+      throw new IllegalArgumentException("File path points to a directory, not a file.");
+    }
+
+    try (Repository repository = new FileRepositoryBuilder()
+        .setGitDir(repoPath.resolve(".git").toFile())
+        .build();
+         RevWalk revWalk = new RevWalk(repository)) {
+
+      RevCommit commit = revWalk.parseCommit(repository.resolve(commitHash));
+      TreeWalk treeWalk =
+          TreeWalk.forPath(repository, repoPath.relativize(filePath).toString(), commit.getTree());
+      if (treeWalk == null) {
+        throw new IOException("File not found in commit: " + filePath);
+      }
+      ObjectId objectId = treeWalk.getObjectId(0);
+      ObjectLoader loader = repository.open(objectId);
+
+      // Return the InputStream for caller to manage
+      return loader.openStream();
+    }
+  }
+
+  public static void readFileContentOfCommitAsOutputStream(Path repoPath, String commitHash, Path filePath, OutputStream outputStream) throws IOException {
     if (!filePath.startsWith(repoPath)) {
       throw new IllegalArgumentException("File path must be under the repository path.");
     }

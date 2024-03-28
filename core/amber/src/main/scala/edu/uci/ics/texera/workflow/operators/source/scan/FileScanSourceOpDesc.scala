@@ -46,7 +46,8 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
   override def getPhysicalOp(
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
-  ): PhysicalOp =
+  ): PhysicalOp = {
+    val (filepath, fileDesc) = determineFilePathOrDesc()
     PhysicalOp
       .sourcePhysicalOp(
         workflowId,
@@ -54,7 +55,8 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
         operatorIdentifier,
         OpExecInitInfo((_, _) =>
           new FileScanSourceOpExec(
-            filePath.get,
+            filepath,
+            fileDesc,
             attributeType,
             encoding,
             extract,
@@ -69,6 +71,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       .withPropagateSchema(
         SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
       )
+  }
 
   override def inferSchema(): Schema = {
     val builder = Schema.builder()

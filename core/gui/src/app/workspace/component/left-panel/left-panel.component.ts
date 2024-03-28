@@ -7,7 +7,7 @@ import { OperatorMenuComponent } from "./operator-menu/operator-menu.component";
 import { VersionsListComponent } from "./versions-list/versions-list.component";
 import { WorkflowExecutionHistoryComponent } from "../../../dashboard/user/component/user-workflow/ngbd-modal-workflow-executions/workflow-execution-history.component";
 import { TimeTravelComponent } from "./time-travel/time-travel.component";
-
+import { EnvironmentComponent } from "./environment/environment.component";
 @UntilDestroy()
 @Component({
   selector: "texera-left-panel",
@@ -38,8 +38,14 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
       icon: "clock-circle",
       enabled: environment.userSystemEnabled && environment.timetravelEnabled,
     },
+    {
+      component: EnvironmentComponent,
+      title: "Environment",
+      icon: "dashboard",
+      enabled: environment.userSystemEnabled,
+    },
   ];
-  order = [1, 2, 3];
+  order = [1, 2, 3, 4, 5];
 
   constructor() {
     this.order = localStorage.getItem("left-panel-order")?.split(",").map(Number) || this.order;

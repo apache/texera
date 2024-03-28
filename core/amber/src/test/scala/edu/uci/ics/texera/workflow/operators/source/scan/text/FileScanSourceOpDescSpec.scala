@@ -63,6 +63,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
         fileScanSourceOpDesc.filePath.get,
+        null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -93,6 +94,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
         fileScanSourceOpDesc.filePath.get,
+        null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -121,6 +123,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
         fileScanSourceOpDesc.filePath.get,
+        null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,
@@ -151,6 +154,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     fileScanSourceOpDesc.fileScanLimit = Option(5)
     val FileScanSourceOpExec = new FileScanSourceOpExec(
       fileScanSourceOpDesc.filePath.get,
+      null,
       fileScanSourceOpDesc.attributeType,
       fileScanSourceOpDesc.fileEncoding,
       fileScanSourceOpDesc.extract,
@@ -182,6 +186,7 @@ class FileScanSourceOpDescSpec extends AnyFlatSpec with BeforeAndAfter {
     val FileScanSourceOpExec =
       new FileScanSourceOpExec(
         fileScanSourceOpDesc.filePath.get,
+        null,
         fileScanSourceOpDesc.attributeType,
         fileScanSourceOpDesc.fileEncoding,
         fileScanSourceOpDesc.extract,

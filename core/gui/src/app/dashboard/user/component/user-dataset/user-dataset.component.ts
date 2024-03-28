@@ -28,8 +28,8 @@ export class UserDatasetComponent implements OnInit {
     minMatchCharLength: 1,
     keys: ["dataset.name"],
   });
-  public sortMethod = SortMethod.CreateTimeDesc;
-  lastSortMethod: SortMethod | null = null;
+
+  selectedMenu: "All Datasets" | "Your Datasets" | "Shared with you" | "Public Datasets" = "All Datasets";
 
   constructor(
     private userService: UserService,
@@ -68,23 +68,38 @@ export class UserDatasetComponent implements OnInit {
 
   public getDatasetArray(): ReadonlyArray<DashboardDataset> {
     const datasetArray = this.dashboardUserDatasetEntries;
+    let resultDatasetArray: DashboardDataset[] = [];
     if (!datasetArray) {
       return [];
     } else if (this.userDatasetSearchValue !== "" && !this.isTyping) {
       this.fuse.setCollection(datasetArray);
-      return this.fuse.search(this.userDatasetSearchValue).map(item => {
+      resultDatasetArray = this.fuse.search(this.userDatasetSearchValue).map(item => {
         return item.item;
       });
     } else if (!this.isTyping) {
-      return datasetArray.slice();
+      resultDatasetArray = datasetArray.slice();
     }
-    return datasetArray;
+    // apply the filter condition
+    if (this.selectedMenu === "Your Datasets") {
+      resultDatasetArray = resultDatasetArray.filter(dataset => {
+        return dataset.isOwner;
+      });
+    } else if (this.selectedMenu === "Shared with you") {
+      resultDatasetArray = resultDatasetArray.filter(dataset => {
+        return !dataset.isOwner && !dataset.dataset.isPublic;
+      });
+    } else if (this.selectedMenu === "Public Datasets") {
+      resultDatasetArray = resultDatasetArray.filter(dataset => {
+        return dataset.dataset.isPublic;
+      });
+    }
+    return resultDatasetArray;
   }
 
-  public deleteDataset(entry: DashboardEntry) {
-    if (entry.dataset.dataset.did) {
+  public deleteDataset(entry: DashboardDataset) {
+    if (entry.dataset.did) {
       this.datasetService
-        .deleteDatasets([entry.dataset.dataset.did])
+        .deleteDatasets([entry.dataset.did])
         .pipe(untilDestroyed(this))
         .subscribe(_ => {
           this.reloadDashboardDatasetEntries();

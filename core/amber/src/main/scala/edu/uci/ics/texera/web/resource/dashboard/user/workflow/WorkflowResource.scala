@@ -82,6 +82,10 @@ object WorkflowResource {
     )
   }
 
+  def getEnvironmentEidOfWorkflow(wid: UInteger): UInteger = {
+    val environmentOfWorkflow = environmentOfWorkflowDao.fetchByWid(wid)
+    environmentOfWorkflow.get(0).getEid
+  }
   case class DashboardWorkflow(
       isOwner: Boolean,
       accessLevel: String,

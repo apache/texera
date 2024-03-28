@@ -11,7 +11,7 @@ import edu.uci.ics.texera.workflow.common.tuple.schema.AttributeTypeUtils.inferS
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
 import edu.uci.ics.texera.workflow.operators.source.scan.ScanSourceOpDesc
 
-import java.io.IOException
+import java.io.{File, IOException}
 
 class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
 
@@ -37,34 +37,38 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.get.isEmpty)
       customDelimiter = Option(",")
 
-    filePath match {
-      case Some(path) =>
-        PhysicalOp
-          .sourcePhysicalOp(
-            workflowId,
-            executionId,
-            operatorIdentifier,
-            OpExecInitInfo((_, _) =>
-              new CSVOldScanSourceOpExec(
-                path,
-                fileEncoding,
-                limit,
-                offset,
-                customDelimiter,
-                hasHeader,
-                schemaFunc = () => sourceSchema()
-              )
-            )
-          )
-          .withInputPorts(operatorInfo.inputPorts)
-          .withOutputPorts(operatorInfo.outputPorts)
-          .withPropagateSchema(
-            SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
-          )
-      case None =>
-        throw new RuntimeException("File path is not provided.")
-    }
+    val (filepath, fileDesc) = determineFilePathOrDesc()
+    // for CSVOldScanSourceOpDesc, it requires the full File presence when execute, so use temp file here
+    // TODO: figure out a better way
+    val path =
+      if (filepath == null) {
+        fileDesc.tempFilePath().toString
+      } else {
+        filepath
+      }
 
+    PhysicalOp
+      .sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        OpExecInitInfo((_, _) =>
+          new CSVOldScanSourceOpExec(
+            path,
+            fileEncoding,
+            limit,
+            offset,
+            customDelimiter,
+            hasHeader,
+            schemaFunc = () => sourceSchema()
+          )
+        )
+      )
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withPropagateSchema(
+        SchemaPropagationFunc(_ => Map(operatorInfo.outputPorts.head.id -> inferSchema()))
+      )
   }
 
   /**
@@ -77,19 +81,23 @@ class CSVOldScanSourceOpDesc extends ScanSourceOpDesc {
     if (customDelimiter.isEmpty) {
       return null
     }
-    if (filePath.isEmpty) {
-      return null
-    }
+    val (filepath, fileDesc) = determineFilePathOrDesc()
+    val file =
+      if (filepath != null) {
+        new File(filepath)
+      } else {
+        fileDesc.tempFilePath().toFile
+      }
     implicit object CustomFormat extends DefaultCSVFormat {
       override val delimiter: Char = customDelimiter.get.charAt(0)
     }
     var reader: CSVReader =
-      CSVReader.open(filePath.get, fileEncoding.getCharset.name())(CustomFormat)
+      CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
     val firstRow: Array[String] = reader.iterator.next().toArray
     reader.close()
 
     // reopen the file to read from the beginning
-    reader = CSVReader.open(filePath.get, fileEncoding.getCharset.name())(CustomFormat)
+    reader = CSVReader.open(file, fileEncoding.getCharset.name())(CustomFormat)
 
     val startOffset = offset.getOrElse(0) + (if (hasHeader) 1 else 0)
     val endOffset =

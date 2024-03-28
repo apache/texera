@@ -1,4 +1,5 @@
 package edu.uci.ics.texera.workflow.operators.source.scan.json
+
 import com.fasterxml.jackson.databind.JsonNode
 
 import scala.jdk.CollectionConverters.IteratorHasAsScala
