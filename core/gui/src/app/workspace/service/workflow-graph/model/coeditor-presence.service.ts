@@ -201,6 +201,7 @@ export class CoeditorPresenceService {
               userColor
             );
             this.jointGraph.addCell(newPoint);
+            this.jointGraphWrapper.getMainJointPaper().findViewByModel(newPoint.id).setInteractivity(false);
           }
         }
       } else existingPointer.remove();
@@ -213,6 +214,7 @@ export class CoeditorPresenceService {
           userColor
         );
         this.jointGraph.addCell(newPoint);
+        this.jointGraphWrapper.getMainJointPaper().findViewByModel(newPoint.id).setInteractivity(false);
       }
     }
   }
