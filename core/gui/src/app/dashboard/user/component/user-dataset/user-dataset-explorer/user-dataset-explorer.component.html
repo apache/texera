@@ -21,7 +21,7 @@
   <nz-content
     [ngClass]="{'grayed-out': !isDisplayingDataset(), 'disabled-click': !isDisplayingDataset()}"
     style="background-color: white">
-    <nz-card *ngIf="!isCreatingDataset">
+    <nz-card *ngIf="isDisplayingDataset()">
       <div style="display: flex; justify-content: space-between; align-items: center">
         <div>
           <h3 class="file-title"><b>{{currentDisplayedFileName}}</b></h3>
@@ -85,6 +85,7 @@
       </div>
     </nz-card>
     <texera-user-dataset-file-renderer
+      *ngIf="isDisplayingDataset()"
       [isMaximized]="isMaximized"
       [did]="did"
       [dvid]="selectedVersion?.dvid"
