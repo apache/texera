@@ -4,8 +4,8 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  ExecutionStatsUpdate
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
@@ -38,6 +38,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jooq.types.{UInteger, ULong}
 
 import java.util
+import java.util.concurrent.Executors
 
 class ExecutionStatsService(
     client: AmberClient,
@@ -47,47 +48,12 @@ class ExecutionStatsService(
     with LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
   private val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(context.configuration)
-
+  private val statsPersistThread = Executors.newSingleThreadExecutor()
+  private var lastPersistedStats: Map[String, OperatorRuntimeStats] = Map()
   registerCallbacks()
 
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
-      if (AmberConfig.isUserSystemEnabled) {
-        val defaultStats =
-          OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
-
-        var oldStateInfo = oldState.operatorInfo
-        var newStateInfo = newState.operatorInfo
-
-        // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
-        val newKeys = newState.operatorInfo.keys.toSet diff oldState.operatorInfo.keys.toSet
-        for (key <- newKeys) {
-          oldStateInfo = oldStateInfo + (key -> defaultStats)
-        }
-
-        // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
-        val oldKeys = oldState.operatorInfo.keys.toSet diff newState.operatorInfo.keys.toSet
-        for (key <- oldKeys) {
-          newStateInfo = newStateInfo + (key -> oldState.operatorInfo(key))
-        }
-
-        val result = newStateInfo.keys.map { key =>
-          val newStats = newStateInfo(key)
-          val oldStats = oldStateInfo(key)
-          val res = OperatorRuntimeStats(
-            newStats.state,
-            newStats.inputCount - oldStats.inputCount,
-            newStats.outputCount - oldStats.outputCount,
-            newStats.numWorkers,
-            newStats.dataProcessingTime - oldStats.dataProcessingTime,
-            newStats.controlProcessingTime - oldStats.controlProcessingTime,
-            newStats.idleTime - oldStats.idleTime
-          )
-          (key, res)
-        }.toMap
-
-        storeRuntimeStatistics(result)
-      }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
@@ -165,8 +131,49 @@ class ExecutionStatsService(
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorStatistics)
           }
+          if (AmberConfig.isUserSystemEnabled) {
+            statsPersistThread.execute(() => {
+              storeRuntimeStatistics(computeStatsDiff(evt.operatorStatistics))
+            })
+          }
         })
     )
+  }
+
+  private def computeStatsDiff(
+      newStats: Map[String, OperatorRuntimeStats]
+  ): Map[String, OperatorRuntimeStats] = {
+    val defaultStats =
+      OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
+
+    var statsMap = newStats
+
+    // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
+    val newKeys = newStats.keys.toSet diff lastPersistedStats.keys.toSet
+    for (key <- newKeys) {
+      lastPersistedStats = lastPersistedStats + (key -> defaultStats)
+    }
+
+    // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
+    val oldKeys = lastPersistedStats.keys.toSet diff newStats.keys.toSet
+    for (key <- oldKeys) {
+      statsMap = statsMap + (key -> lastPersistedStats(key))
+    }
+
+    statsMap.keys.map { key =>
+      val newStats = statsMap(key)
+      val oldStats = lastPersistedStats(key)
+      val res = OperatorRuntimeStats(
+        newStats.state,
+        newStats.inputCount - oldStats.inputCount,
+        newStats.outputCount - oldStats.outputCount,
+        newStats.numWorkers,
+        newStats.dataProcessingTime - oldStats.dataProcessingTime,
+        newStats.controlProcessingTime - oldStats.controlProcessingTime,
+        newStats.idleTime - oldStats.idleTime
+      )
+      (key, res)
+    }.toMap
   }
 
   private def storeRuntimeStatistics(
