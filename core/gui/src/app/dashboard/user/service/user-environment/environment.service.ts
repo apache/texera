@@ -12,14 +12,14 @@ import { DATASET_BASE_URL } from "../user-dataset/dataset.service";
 export const ENVIRONMENT_BASE_URL = "environment";
 export const ENVIRONMENT_CREATE_URL = ENVIRONMENT_BASE_URL + "/create";
 export const ENVIRONMENT_DELETE_URL = ENVIRONMENT_BASE_URL + "/delete";
-export const ENVIRONMENT_GET_DATASETS_FILELIST = "/files";
+export const ENVIRONMENT_GET_DATASETS_FILELIST = "files";
 export const ENVIRONMENT_DATASET_RETRIEVAL_URL = "dataset";
 export const ENVIRONMENT_DATASET_DETAILS_RETRIEVAL_URL = ENVIRONMENT_DATASET_RETRIEVAL_URL + "/details";
 
 export const ENVIRONMENT_DATASET_ADD_URL = ENVIRONMENT_DATASET_RETRIEVAL_URL + "/add";
 
 export const ENVIRONMENT_DATASET_REMOVE_URL = ENVIRONMENT_DATASET_RETRIEVAL_URL + "/remove";
-export const ENVIRONMENT_DATASET_VERSION_UPDATE = "/updateVersion";
+export const ENVIRONMENT_DATASET_VERSION_UPDATE = "updateVersion";
 
 @Injectable({
   providedIn: "root",
