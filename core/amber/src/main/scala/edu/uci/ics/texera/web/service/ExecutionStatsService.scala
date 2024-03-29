@@ -146,7 +146,7 @@ class ExecutionStatsService(
     val defaultStats =
       OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
 
-    var newStateInfo = newStats
+    var statsMap = newStats
 
     // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
     val newKeys = newStats.keys.toSet diff lastPersistedStats.keys.toSet
@@ -157,11 +157,11 @@ class ExecutionStatsService(
     // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
     val oldKeys = lastPersistedStats.keys.toSet diff newStats.keys.toSet
     for (key <- oldKeys) {
-      newStateInfo = newStateInfo + (key -> lastPersistedStats(key))
+      statsMap = statsMap + (key -> lastPersistedStats(key))
     }
 
-    newStateInfo.keys.map { key =>
-      val newStats = newStateInfo(key)
+    statsMap.keys.map { key =>
+      val newStats = statsMap(key)
       val oldStats = lastPersistedStats(key)
       val res = OperatorRuntimeStats(
         newStats.state,
