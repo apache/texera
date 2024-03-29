@@ -90,7 +90,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
         if (displayParticularVersion) {
           this.initDiffEditor();
         } else {
-          this.initMonaco();
+          initServices().then(r => this.initMonaco());
           this.formControl.statusChanges.pipe(untilDestroyed(this)).subscribe(_ => {
             this.editor.updateOptions({
               readOnly: this.formControl.disabled,
@@ -139,13 +139,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
    * Create a Monaco editor and connect it to MonacoBinding.
    * @private
    */
-  private async initMonaco() {
-    await initServices({
-      userServices: {},
-      debugLogging: true,
-    });
-
-
+  private initMonaco() {
     const editor = monaco.editor.create(this.editorElement.nativeElement, {
       language: this.language,
       fontSize: 11,
