@@ -13,7 +13,7 @@ export const ENVIRONMENT_BASE_URL = "environment";
 export const ENVIRONMENT_CREATE_URL = ENVIRONMENT_BASE_URL + "/create";
 export const ENVIRONMENT_DELETE_URL = ENVIRONMENT_BASE_URL + "/delete";
 export const ENVIRONMENT_GET_DATASETS_FILELIST = "/files";
-export const ENVIRONMENT_DATASET_RETRIEVAL_URL = "/dataset";
+export const ENVIRONMENT_DATASET_RETRIEVAL_URL = "dataset";
 export const ENVIRONMENT_DATASET_DETAILS_RETRIEVAL_URL = ENVIRONMENT_DATASET_RETRIEVAL_URL + "/details";
 
 export const ENVIRONMENT_DATASET_ADD_URL = ENVIRONMENT_DATASET_RETRIEVAL_URL + "/add";
@@ -47,7 +47,7 @@ export class EnvironmentService {
 
   updateDatasetVersionInEnvironment(eid: number, did: number, dvid: number): Observable<Response> {
     return this.http.post<Response>(
-      `${AppSettings.getApiEndpoint()}/${ENVIRONMENT_BASE_URL}/${eid}/dataset/${did}${ENVIRONMENT_DATASET_VERSION_UPDATE}`,
+      `${AppSettings.getApiEndpoint()}/${ENVIRONMENT_BASE_URL}/${eid}/dataset/${did}/${ENVIRONMENT_DATASET_VERSION_UPDATE}`,
       {
         dvid: dvid,
       }
