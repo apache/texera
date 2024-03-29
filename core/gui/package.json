@@ -78,7 +78,7 @@
     "tinyqueue": "2.0.3",
     "tslib": "2.3.1",
     "uuid": "8.3.2",
-    "vscode": "npm:@codingame/monaco-vscode-api@3.2.2",
+    "vscode": "npm:@codingame/monaco-vscode-api@3.2.1",
     "vscode-ws-jsonrpc": "3.1.0",
     "y-monaco": "0.1.5",
     "y-protocols": "1.0.5",
