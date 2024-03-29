@@ -42,15 +42,6 @@ export class UserFileComponent implements OnInit {
     this.refreshDashboardFileEntries();
   }
 
-  public openFileAddComponent() {
-    const modalRef = this.modalService.create({
-      nzContent: NgbdModalFileAddComponent,
-      nzFooter: null,
-      nzTitle: "Add Files",
-    });
-    modalRef.afterClose.pipe(untilDestroyed(this)).subscribe(() => this.refreshDashboardFileEntries());
-  }
-
   public searchInputOnChange(value: string): void {
     this.isTyping = true;
     this.filteredFilenames = [];
