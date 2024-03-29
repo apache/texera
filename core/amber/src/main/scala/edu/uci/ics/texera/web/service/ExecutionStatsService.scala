@@ -49,46 +49,11 @@ class ExecutionStatsService(
   final private lazy val context = SqlServer.createDSLContext()
   private val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(context.configuration)
   private val statsPersistThread = Executors.newSingleThreadExecutor()
+  private var lastPersistedStats: Map[String, OperatorRuntimeStats] = Map()
   registerCallbacks()
 
   addSubscription(
     stateStore.statsStore.registerDiffHandler((oldState, newState) => {
-      if (AmberConfig.isUserSystemEnabled) {
-        val defaultStats =
-          OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
-
-        var oldStateInfo = oldState.operatorInfo
-        var newStateInfo = newState.operatorInfo
-
-        // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
-        val newKeys = newState.operatorInfo.keys.toSet diff oldState.operatorInfo.keys.toSet
-        for (key <- newKeys) {
-          oldStateInfo = oldStateInfo + (key -> defaultStats)
-        }
-
-        // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
-        val oldKeys = oldState.operatorInfo.keys.toSet diff newState.operatorInfo.keys.toSet
-        for (key <- oldKeys) {
-          newStateInfo = newStateInfo + (key -> oldState.operatorInfo(key))
-        }
-
-        val result = newStateInfo.keys.map { key =>
-          val newStats = newStateInfo(key)
-          val oldStats = oldStateInfo(key)
-          val res = OperatorRuntimeStats(
-            newStats.state,
-            newStats.inputCount - oldStats.inputCount,
-            newStats.outputCount - oldStats.outputCount,
-            newStats.numWorkers,
-            newStats.dataProcessingTime - oldStats.dataProcessingTime,
-            newStats.controlProcessingTime - oldStats.controlProcessingTime,
-            newStats.idleTime - oldStats.idleTime
-          )
-          (key, res)
-        }.toMap
-
-        storeRuntimeStatistics(result)
-      }
       // Update operator stats if any operator updates its stat
       if (newState.operatorInfo.toSet != oldState.operatorInfo.toSet) {
         Iterable(
@@ -166,37 +131,76 @@ class ExecutionStatsService(
           stateStore.statsStore.updateState { statsStore =>
             statsStore.withOperatorInfo(evt.operatorStatistics)
           }
+          if (AmberConfig.isUserSystemEnabled) {
+            statsPersistThread.execute(() => {
+              storeRuntimeStatistics(computeStatsDiff(evt.operatorStatistics))
+            })
+          }
         })
     )
+  }
+
+  private def computeStatsDiff(
+      newStats: Map[String, OperatorRuntimeStats]
+  ): Map[String, OperatorRuntimeStats] = {
+    val defaultStats =
+      OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
+
+    var newStateInfo = newStats
+
+    // Find keys present in newState.operatorInfo but not in oldState.operatorInfo
+    val newKeys = newStats.keys.toSet diff lastPersistedStats.keys.toSet
+    for (key <- newKeys) {
+      lastPersistedStats = lastPersistedStats + (key -> defaultStats)
+    }
+
+    // Find keys present in oldState.operatorInfo but not in newState.operatorInfo
+    val oldKeys = lastPersistedStats.keys.toSet diff newStats.keys.toSet
+    for (key <- oldKeys) {
+      newStateInfo = newStateInfo + (key -> lastPersistedStats(key))
+    }
+
+    newStateInfo.keys.map { key =>
+      val newStats = newStateInfo(key)
+      val oldStats = lastPersistedStats(key)
+      val res = OperatorRuntimeStats(
+        newStats.state,
+        newStats.inputCount - oldStats.inputCount,
+        newStats.outputCount - oldStats.outputCount,
+        newStats.numWorkers,
+        newStats.dataProcessingTime - oldStats.dataProcessingTime,
+        newStats.controlProcessingTime - oldStats.controlProcessingTime,
+        newStats.idleTime - oldStats.idleTime
+      )
+      (key, res)
+    }.toMap
   }
 
   private def storeRuntimeStatistics(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
   ): Unit = {
     // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
-    statsPersistThread.execute(() => {
-      try {
-        val list: util.ArrayList[WorkflowRuntimeStatistics] =
-          new util.ArrayList[WorkflowRuntimeStatistics]()
-        for ((operatorId, stat) <- operatorStatistics) {
-          val execution = new WorkflowRuntimeStatistics()
-          execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
-          execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
-          execution.setOperatorId(operatorId)
-          execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
-          execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
-          execution.setStatus(maptoStatusCode(stat.state))
-          execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
-          execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
-          execution.setIdleTime(ULong.valueOf(stat.idleTime))
-          execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
-          list.add(execution)
-        }
-        workflowRuntimeStatisticsDao.insert(list)
-      } catch {
-        case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
+    try {
+      val list: util.ArrayList[WorkflowRuntimeStatistics] =
+        new util.ArrayList[WorkflowRuntimeStatistics]()
+      for ((operatorId, stat) <- operatorStatistics) {
+        val execution = new WorkflowRuntimeStatistics()
+        execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
+        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
+        execution.setOperatorId(operatorId)
+        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
+        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
+        execution.setStatus(maptoStatusCode(stat.state))
+        execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
+        execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
+        execution.setIdleTime(ULong.valueOf(stat.idleTime))
+        execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
+        list.add(execution)
       }
-    })
+      workflowRuntimeStatisticsDao.insert(list)
+    } catch {
+      case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
+    }
   }
 
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {
