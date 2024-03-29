@@ -4,8 +4,8 @@ import com.google.protobuf.timestamp.Timestamp
 import com.typesafe.scalalogging.LazyLogging
 import edu.uci.ics.amber.engine.architecture.controller.Controller.WorkflowRecoveryStatus
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  ExecutionStatsUpdate
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
@@ -38,6 +38,7 @@ import edu.uci.ics.texera.workflow.common.WorkflowContext
 import org.jooq.types.{UInteger, ULong}
 
 import java.util
+import java.util.concurrent.Executors
 
 class ExecutionStatsService(
     client: AmberClient,
@@ -47,7 +48,7 @@ class ExecutionStatsService(
     with LazyLogging {
   final private lazy val context = SqlServer.createDSLContext()
   private val workflowRuntimeStatisticsDao = new WorkflowRuntimeStatisticsDao(context.configuration)
-
+  private val statsPersistThread = Executors.newSingleThreadExecutor()
   registerCallbacks()
 
   addSubscription(
@@ -173,27 +174,29 @@ class ExecutionStatsService(
       operatorStatistics: scala.collection.immutable.Map[String, OperatorRuntimeStats]
   ): Unit = {
     // Add a try-catch to not produce an error when "workflow_runtime_statistics" table does not exist in MySQL
-    try {
-      val list: util.ArrayList[WorkflowRuntimeStatistics] =
-        new util.ArrayList[WorkflowRuntimeStatistics]()
-      for ((operatorId, stat) <- operatorStatistics) {
-        val execution = new WorkflowRuntimeStatistics()
-        execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
-        execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
-        execution.setOperatorId(operatorId)
-        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
-        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
-        execution.setStatus(maptoStatusCode(stat.state))
-        execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
-        execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
-        execution.setIdleTime(ULong.valueOf(stat.idleTime))
-        execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
-        list.add(execution)
+    statsPersistThread.execute(() => {
+      try {
+        val list: util.ArrayList[WorkflowRuntimeStatistics] =
+          new util.ArrayList[WorkflowRuntimeStatistics]()
+        for ((operatorId, stat) <- operatorStatistics) {
+          val execution = new WorkflowRuntimeStatistics()
+          execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
+          execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
+          execution.setOperatorId(operatorId)
+          execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
+          execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
+          execution.setStatus(maptoStatusCode(stat.state))
+          execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
+          execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
+          execution.setIdleTime(ULong.valueOf(stat.idleTime))
+          execution.setNumWorkers(UInteger.valueOf(stat.numWorkers))
+          list.add(execution)
+        }
+        workflowRuntimeStatisticsDao.insert(list)
+      } catch {
+        case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
       }
-      workflowRuntimeStatisticsDao.insert(list)
-    } catch {
-      case err: Throwable => logger.error("error occurred when storing runtime statistics", err)
-    }
+    })
   }
 
   private[this] def registerCallbackOnWorkerAssignedUpdate(): Unit = {
