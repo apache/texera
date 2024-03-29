@@ -67,7 +67,9 @@ export class ShareAccessComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(() => {
           this.ngOnInit();
-          this.notificationService.success(this.type + " shared with " + this.validateForm.value.email + " successfully");
+          this.notificationService.success(
+            this.type + " shared with " + this.validateForm.value.email + " successfully"
+          );
           this.gmailService.sendEmail(
             "Texera: " + this.owner + " shared a " + this.type + " with you",
             this.owner +
