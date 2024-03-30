@@ -8953,12 +8953,6 @@ ng-zorro-antd@16.2.2:
     date-fns "^2.16.1"
     tslib "^2.3.0"
 
-ng2-file-upload@5.0.0:
-  version "5.0.0"
-  resolved "https://registry.yarnpkg.com/ng2-file-upload/-/ng2-file-upload-5.0.0.tgz#8d52062bca192e4fb2774c230c4fb051ae176403"
-  integrity sha512-M2JaX0unB/30GmQUScfXko2vseaPlU1R5jnhL5cfvOLNw8BBSVJAdOSmcavJzicgTZWCYz7y7Fvpr939bd4eCA==
-  dependencies:
-    tslib "^2.3.0"
 
 ng2-pdf-viewer@9.1.5:
   version "9.1.5"
