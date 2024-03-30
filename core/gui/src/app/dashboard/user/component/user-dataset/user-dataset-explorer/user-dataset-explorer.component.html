@@ -7,13 +7,21 @@
     <nz-card-meta
       style="padding-top: 20px"
       nzDescription="{{datasetDescription}}"></nz-card-meta>
+    <div style="padding-top: 30px">
+      <nz-switch
+        [ngModel]="datasetIsPublic"
+        (ngModelChange)="onPublicStatusChange($event)"
+        [nzDisabled]="userDatasetAccessLevel !== 'WRITE'"
+        nzCheckedChildren="public"
+        nzUnCheckedChildren="private"></nz-switch>
+    </div>
   </nz-card>
 </div>
 <nz-layout>
   <nz-content
     [ngClass]="{'grayed-out': !isDisplayingDataset(), 'disabled-click': !isDisplayingDataset()}"
     style="background-color: white">
-    <nz-card *ngIf="!isCreatingDataset">
+    <nz-card *ngIf="isDisplayingDataset()">
       <div style="display: flex; justify-content: space-between; align-items: center">
         <div>
           <h3 class="file-title"><b>{{currentDisplayedFileName}}</b></h3>
@@ -77,7 +85,7 @@
       </div>
     </nz-card>
     <texera-user-dataset-file-renderer
-      *ngIf="!isCreatingDataset"
+      *ngIf="isDisplayingDataset()"
       [isMaximized]="isMaximized"
       [did]="did"
       [dvid]="selectedVersion?.dvid"

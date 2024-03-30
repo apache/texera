@@ -1,6 +1,6 @@
 <div class="section-container subsection-grid-container">
   <nz-card class="section-title">
-    <h2 class="page-title">Files</h2>
+    <h2 class="page-title">Results</h2>
     <div class="d-inline-block">
       <a
         [nzDropdownMenu]="menu"
@@ -45,17 +45,6 @@
           </li>
         </ul>
       </nz-dropdown-menu>
-      <button
-        (click)="openFileAddComponent()"
-        nz-button
-        nz-tooltip="Upload file"
-        title="Upload file"
-        nzTooltipPlacement="bottom">
-        <i
-          nz-icon
-          nzTheme="outline"
-          nzType="upload"></i>
-      </button>
     </div>
   </nz-card>
 
@@ -70,7 +59,7 @@
         [nzAutocomplete]="auto"
         nz-input
         nzBackdrop="false"
-        placeholder="Search User Files..."
+        placeholder="Search Workflow Result Files..."
         type="text" />
       <ng-template #suffixIconSearch>
         <i

@@ -8,6 +8,7 @@ import { DashboardWorkflow } from "../../../dashboard/user/type/dashboard-workfl
 import { WorkflowUtilService } from "../../../workspace/service/workflow-graph/util/workflow-util.service";
 import { NotificationService } from "../notification/notification.service";
 import { SearchFilterParameters, toQueryStrings } from "src/app/dashboard/user/type/search-filter-parameters";
+import { Environment } from "../../type/environment";
 
 export const WORKFLOW_BASE_URL = "workflow";
 export const WORKFLOW_PERSIST_URL = WORKFLOW_BASE_URL + "/persist";
@@ -22,7 +23,7 @@ export const WORKFLOW_OWNER_URL = WORKFLOW_BASE_URL + "/user-workflow-owners";
 export const WORKFLOW_ID_URL = WORKFLOW_BASE_URL + "/user-workflow-ids";
 
 export const DEFAULT_WORKFLOW_NAME = "Untitled workflow";
-
+export const WORKFLOW_ENVIRONMENT = "environment";
 @Injectable({
   providedIn: "root",
 })
@@ -189,5 +190,11 @@ export class WorkflowPersistService {
    */
   public retrieveWorkflowIDs(): Observable<number[]> {
     return this.http.get<number[]>(`${AppSettings.getApiEndpoint()}/${WORKFLOW_ID_URL}`);
+  }
+
+  public retrieveWorkflowEnvironment(wid: number): Observable<Environment> {
+    return this.http.get<Environment>(
+      `${AppSettings.getApiEndpoint()}/${WORKFLOW_BASE_URL}/${wid}/${WORKFLOW_ENVIRONMENT}`
+    );
   }
 }

@@ -1,14 +1,16 @@
-import { AfterViewInit, Component, inject, OnInit } from "@angular/core";
+import { AfterViewInit, Component, Inject, OnInit, Optional } from "@angular/core";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { WorkflowExecutionsEntry } from "../../../type/workflow-executions-entry";
 import { WorkflowExecutionsService } from "../../../service/workflow-executions/workflow-executions.service";
 import { ExecutionState } from "../../../../../workspace/types/execute-workflow.interface";
 import { NotificationService } from "../../../../../common/service/notification/notification.service";
+import { WorkflowActionService } from "../../../../../workspace/service/workflow-graph/model/workflow-action.service";
 import Fuse from "fuse.js";
 import { ceil } from "lodash";
 import { NZ_MODAL_DATA, NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { WorkflowRuntimeStatisticsComponent } from "./workflow-runtime-statistics/workflow-runtime-statistics.component";
 import * as Plotly from "plotly.js-basic-dist-min";
+import { ActivatedRoute } from "@angular/router";
 
 const MAX_TEXT_SIZE = 20;
 const MAX_RGB = 255;
@@ -17,11 +19,11 @@ const MAX_USERNAME_SIZE = 5;
 @UntilDestroy()
 @Component({
   selector: "texera-ngbd-modal-workflow-executions",
-  templateUrl: "./workflow-execution-modal.component.html",
-  styleUrls: ["./workflow-execution-modal.component.scss"],
+  templateUrl: "./workflow-execution-history.component.html",
+  styleUrls: ["./workflow-execution-history.component.scss"],
 })
-export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
-  readonly wid: number = inject(NZ_MODAL_DATA).wid;
+export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit {
+  wid: number = 0;
   public static readonly USERNAME_PIE_CHART_ID = "#execution-userName-pie-chart";
   public static readonly STATUS_PIE_CHART_ID = "#execution-status-pie-chart";
   public static readonly PROCESS_TIME_BAR_CHART = "#execution-average-process-time-bar-chart";
@@ -30,9 +32,9 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   public static readonly BARCHARTSIZE = 600;
 
   // Instance properties referencing the static ones
-  public usernamePieChartId = WorkflowExecutionModalComponent.USERNAME_PIE_CHART_ID;
-  public statusPieChartId = WorkflowExecutionModalComponent.STATUS_PIE_CHART_ID;
-  public processTimeBarChart = WorkflowExecutionModalComponent.PROCESS_TIME_BAR_CHART;
+  public usernamePieChartId = WorkflowExecutionHistoryComponent.USERNAME_PIE_CHART_ID;
+  public statusPieChartId = WorkflowExecutionHistoryComponent.STATUS_PIE_CHART_ID;
+  public processTimeBarChart = WorkflowExecutionHistoryComponent.PROCESS_TIME_BAR_CHART;
   public workflowExecutionsDisplayedList: WorkflowExecutionsEntry[] | undefined;
   public workflowExecutionsIsEditingName: number[] = [];
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
@@ -115,10 +117,14 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
   constructor(
     private workflowExecutionsService: WorkflowExecutionsService,
     private notificationService: NotificationService,
-    private runtimeStatisticsModal: NzModalService
+    private runtimeStatisticsModal: NzModalService,
+    private workflowActionService: WorkflowActionService,
+    private route: ActivatedRoute,
+    @Optional() @Inject(NZ_MODAL_DATA) private modalData: any
   ) {}
 
   ngOnInit(): void {
+    this.wid = this.modalData?.wid || this.route.snapshot.params["id"] || 0;
     // gets the workflow executions and display the runs in the table on the form
     this.displayWorkflowExecutions();
   }
@@ -154,13 +160,13 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
         this.generatePieChart(
           Object.values(userNameData),
           "Users who ran the execution",
-          WorkflowExecutionModalComponent.USERNAME_PIE_CHART_ID
+          WorkflowExecutionHistoryComponent.USERNAME_PIE_CHART_ID
         );
 
         this.generatePieChart(
           Object.values(statusData),
           "Executions status",
-          WorkflowExecutionModalComponent.STATUS_PIE_CHART_ID
+          WorkflowExecutionHistoryComponent.STATUS_PIE_CHART_ID
         );
         // generate an average processing time bar chart
         const processTimeData: Array<[string, ...number[]]> = [["processing time"]];
@@ -175,7 +181,7 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
           "Execution Numbers",
           "Average Processing Time (m)",
           "Execution performance",
-          WorkflowExecutionModalComponent.PROCESS_TIME_BAR_CHART
+          WorkflowExecutionHistoryComponent.PROCESS_TIME_BAR_CHART
         );
       });
   }
@@ -189,8 +195,8 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
       },
     ];
     var layout = {
-      height: WorkflowExecutionModalComponent.HEIGHT,
-      width: WorkflowExecutionModalComponent.WIDTH,
+      height: WorkflowExecutionHistoryComponent.HEIGHT,
+      width: WorkflowExecutionHistoryComponent.WIDTH,
       title: {
         text: title,
       },
@@ -223,8 +229,8 @@ export class WorkflowExecutionModalComponent implements OnInit, AfterViewInit {
         title: y_label,
       },
       autosize: false,
-      width: WorkflowExecutionModalComponent.BARCHARTSIZE,
-      height: WorkflowExecutionModalComponent.BARCHARTSIZE,
+      width: WorkflowExecutionHistoryComponent.BARCHARTSIZE,
+      height: WorkflowExecutionHistoryComponent.BARCHARTSIZE,
     };
 
     Plotly.newPlot(chart, data, layout);

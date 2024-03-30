@@ -36,18 +36,18 @@ export class MiniMapComponent implements AfterViewInit, OnDestroy {
       .getMainJointPaperAttachedStream()
       .pipe(untilDestroyed(this))
       .subscribe(mainPaper => {
-        this.hidden = Boolean(localStorage.getItem("mini-map")) || false;
         this.paper = mainPaper;
         this.updateNavigator();
         mainPaper.on("translate", () => this.updateNavigator());
         mainPaper.on("scale", () => this.updateNavigator());
         mainPaper.on("resize", () => this.updateNavigator());
       });
+    this.hidden = JSON.parse(localStorage.getItem("mini-map") as string) || false;
   }
 
   @HostListener("window:beforeunload")
   ngOnDestroy(): void {
-    localStorage.setItem("mini-map", String(this.hidden));
+    localStorage.setItem("mini-map", JSON.stringify(this.hidden));
   }
 
   onDrag(event: any) {
