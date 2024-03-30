@@ -1,7 +1,7 @@
 import { AfterViewInit, Component, Input, ViewChild } from "@angular/core";
 import { Router } from "@angular/router";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { firstValueFrom } from "rxjs";
+import {firstValueFrom, of} from "rxjs";
 import {
   DEFAULT_WORKFLOW_NAME,
   WorkflowPersistService,
@@ -22,7 +22,7 @@ import { SearchService } from "../../service/search.service";
 import { SortMethod } from "../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import {UserProjectService} from "../../service/user-project/user-project.service";
-import {filter} from "rxjs/operators";
+import {filter, map, mergeMap, tap} from "rxjs/operators";
 
 export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
 /**
@@ -191,30 +191,36 @@ export class UserWorkflowComponent implements AfterViewInit {
    */
   public onClickCreateNewWorkflowFromDashboard(): void {
     const emptyWorkflowContent = {operators: [], commentBoxes: [], groups: [], links: [], operatorPositions: {}};
-    this.workflowPersistService
-      .createWorkflow(emptyWorkflowContent, DEFAULT_WORKFLOW_NAME)
-      .pipe(untilDestroyed(this))
+    let localPid = this.pid;
+    this.workflowPersistService.createWorkflow(emptyWorkflowContent, DEFAULT_WORKFLOW_NAME)
+      .pipe(
+        tap(createdWorkflow => {
+          if (!createdWorkflow.workflow.wid) {
+            throw new Error('Workflow creation failed.');
+          }
+        }),
+        mergeMap(createdWorkflow => {
+          // Check if localPid is defined; if so, add the workflow to the project
+          if (localPid) {
+            return this.userProjectService.addWorkflowToProject(localPid, createdWorkflow.workflow.wid!)
+              .pipe(
+                // Regardless of the project addition outcome, pass the wid downstream
+                map(() => createdWorkflow.workflow.wid)
+              );
+          } else {
+            // If there's no localPid, skip adding to the project and directly pass the wid downstream
+            return of(createdWorkflow.workflow.wid);
+          }
+        }),
+        untilDestroyed(this)
+      )
       .subscribe({
-        next: (createdWorkflow) => {
-          // workflow creation succeed, check if we need to add it to the project
-          const wid = createdWorkflow.workflow.wid;
-          // wid must be defined
-          if (!wid) {
-            this.notificationService.error(`Workflow creation failed.`)
-            return;
-          }
-          if (this.pid) {
-            // then add it to the project
-            this.userProjectService.addWorkflowToProject(this.pid, wid)
-              .pipe(untilDestroyed(this))
-              .subscribe();
-          }
+        next: (wid) => {
+          // Use the wid here for navigation
           this.router.navigate([this.ROUTER_WORKFLOW_BASE_URL, wid]).then(null);
         },
-        error: err => {
-          this.notificationService.error(`Workflow creation failed`);
-        }
-      })
+        error: err => this.notificationService.error(`Workflow creation failed: ${err.message}`),
+      });
   }
 
   /**
