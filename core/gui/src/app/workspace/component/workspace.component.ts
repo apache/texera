@@ -24,7 +24,7 @@ import { WorkflowConsoleService } from "../service/workflow-console/workflow-con
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
 import { CodeEditorService } from "../service/code-editor/code-editor.service";
 
-export const SAVE_DEBOUNCE_TIME_IN_MS = 300;
+export const SAVE_DEBOUNCE_TIME_IN_MS = 5000;
 
 @UntilDestroy()
 @Component({
@@ -119,6 +119,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   }
 
   ngOnDestroy() {
+    this.saveLatestWorkflow();
     this.workflowActionService.setWorkflowMetadata(undefined);
     this.workflowActionService.destroySharedModel();
     this.workflowWebsocketService.closeWebsocket();
@@ -126,7 +127,15 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   @HostListener("window:beforeunload")
   unloadHandler() {
+    this.saveLatestWorkflow();
     this.vc.clear();
+  }
+
+  saveLatestWorkflow() {
+    if (this.workflowPersistService.isWorkflowPersistEnabled()) {
+      const workflow = this.workflowActionService.getWorkflow();
+      this.workflowPersistService.persistWorkflow(workflow).subscribe();
+    }
   }
 
   registerResultPanelToggleHandler() {
