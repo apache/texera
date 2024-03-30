@@ -12,9 +12,9 @@ import { WorkflowCacheService } from "../service/workflow-cache/workflow-cache.s
 import { WorkflowActionService } from "../service/workflow-graph/model/workflow-action.service";
 import { WorkflowWebsocketService } from "../service/workflow-websocket/workflow-websocket.service";
 import { NzMessageService } from "ng-zorro-antd/message";
-import { debounceTime, distinctUntilChanged, filter, switchMap } from "rxjs/operators";
+import { debounceTime, distinctUntilChanged, filter, switchMap, takeUntil } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
-import { of } from "rxjs";
+import { of, Subject } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { Version } from "../../../environments/version";
@@ -40,6 +40,7 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   public pid?: number = undefined;
   public gitCommitHash: string = Version.raw;
   public showResultPanel: boolean = false;
+  private _onSavingWorkflowObservable: Subject<void> = new Subject();
   userSystemEnabled = environment.userSystemEnabled;
   @ViewChild("codeEditor", { read: ViewContainerRef }) vc!: ViewContainerRef;
   constructor(
@@ -134,7 +135,10 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
   saveLatestWorkflow() {
     if (this.workflowPersistService.isWorkflowPersistEnabled()) {
       const workflow = this.workflowActionService.getWorkflow();
-      this.workflowPersistService.persistWorkflow(workflow).subscribe();
+      this.workflowPersistService
+        .persistWorkflow(workflow)
+        .pipe(takeUntil(this._onSavingWorkflowObservable))
+        .subscribe();
     }
   }
 
