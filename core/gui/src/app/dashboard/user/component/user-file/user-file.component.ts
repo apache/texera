@@ -1,6 +1,5 @@
 import { Component, OnInit } from "@angular/core";
 import { NzModalService } from "ng-zorro-antd/modal";
-import { NgbdModalFileAddComponent } from "./ngbd-modal-file-add/ngbd-modal-file-add.component";
 import { UserFileService } from "../../service/user-file/user-file.service";
 import { DashboardFile, SortMethod } from "../../type/dashboard-file.interface";
 import { UserService } from "../../../../common/service/user/user.service";
