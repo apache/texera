@@ -46,11 +46,12 @@ export class OperatorReuseCacheStatusService {
             evt => evt.previous.state !== ExecutionState.Completed && evt.current.state == ExecutionState.Completed
           )
         )
-    ).pipe(debounceTime(EDIT_TIME_COMPILATION_DEBOUNCE_TIME_IN_MS))
+    )
+      .pipe(debounceTime(EDIT_TIME_COMPILATION_DEBOUNCE_TIME_IN_MS))
       .subscribe(() => {
-      const workflow = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
-      this.workflowWebsocketService.send("EditingTimeCompilationRequest", workflow);
-    });
+        const workflow = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+        this.workflowWebsocketService.send("EditingTimeCompilationRequest", workflow);
+      });
   }
 
   /**
