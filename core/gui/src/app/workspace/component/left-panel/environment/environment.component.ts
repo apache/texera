@@ -117,6 +117,7 @@ export class EnvironmentComponent implements OnInit {
                   .pipe(untilDestroyed(this))
                   .subscribe({
                     next: datasetFileTree => {
+                      console.log(datasetFileTree)
                       this.datasetsOfEnvironment.set(did, [entry, datasetFileTree]);
                       this.datasetFileTrees.push([did, entry.dataset.name, datasetFileTree]);
                     },

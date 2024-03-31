@@ -3,48 +3,17 @@ package edu.uci.ics.texera.web.resource.dashboard.user.environment
 import edu.uci.ics.texera.Utils.withTransaction
 import edu.uci.ics.texera.web.SqlServer
 import edu.uci.ics.texera.web.auth.SessionUser
-import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{
-  Dataset,
-  DatasetOfEnvironment,
-  DatasetVersion,
-  Environment
-}
+import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.{Dataset, DatasetOfEnvironment, DatasetVersion, Environment}
 import edu.uci.ics.texera.web.model.jooq.generated.tables.Environment.ENVIRONMENT
 import edu.uci.ics.texera.web.model.jooq.generated.tables.EnvironmentOfWorkflow.ENVIRONMENT_OF_WORKFLOW
 import edu.uci.ics.texera.web.model.jooq.generated.tables.DatasetOfEnvironment.DATASET_OF_ENVIRONMENT
-import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
-  DatasetDao,
-  DatasetOfEnvironmentDao,
-  DatasetVersionDao,
-  EnvironmentDao,
-  EnvironmentOfWorkflowDao
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.retrieveDatasetVersionFilePaths
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
+import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{DatasetDao, DatasetOfEnvironmentDao, DatasetVersionDao, EnvironmentDao, EnvironmentOfWorkflowDao}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.{DatasetVersionRootFileNodes, retrieveDatasetVersionFilePaths}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileDesc, FileNode}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
-  DatasetAccessResource,
-  DatasetResource
-}
-import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
-  DashboardEnvironment,
-  DatasetID,
-  DatasetOfEnvironmentAlreadyExistsMessage,
-  DatasetOfEnvironmentDetails,
-  DatasetOfEnvironmentDoseNotExistMessage,
-  DatasetVersionID,
-  EnvironmentIDs,
-  UserNoPermissionExceptionMessage,
-  WorkflowLink,
-  context,
-  doesDatasetExistInEnvironment,
-  doesUserOwnEnvironment,
-  getEnvironmentByEid,
-  retrieveDatasetsAndVersions,
-  retrieveDatasetsOfEnvironmentFileList,
-  userHasReadAccessToEnvironment,
-  userHasWriteAccessToEnvironment
-}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{DatasetAccessResource, DatasetResource}
+import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{DashboardEnvironment, DatasetFileNodes, DatasetID, DatasetOfEnvironmentAlreadyExistsMessage, DatasetOfEnvironmentDetails, DatasetOfEnvironmentDoseNotExistMessage, DatasetVersionID, EnvironmentIDs, UserNoPermissionExceptionMessage, WorkflowLink, context, doesDatasetExistInEnvironment, doesUserOwnEnvironment, getEnvironmentByEid, retrieveDatasetsAndVersions, retrieveDatasetsOfEnvironmentFileList, userHasReadAccessToEnvironment, userHasWriteAccessToEnvironment}
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
@@ -52,6 +21,7 @@ import org.jooq.types.UInteger
 
 import java.net.URLDecoder
 import java.nio.file.Paths
+import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs.core.{MediaType, Response}
 import javax.ws.rs.{GET, POST, Path, PathParam, Produces}
@@ -305,6 +275,7 @@ object EnvironmentResource {
   case class DatasetID(did: UInteger)
 
   case class DatasetVersionID(dvid: UInteger)
+  case class DatasetFileNodes(datasetName: String, fileNodes: List[FileNode])
   case class WorkflowLink(wid: UInteger)
 
   // error handling
@@ -592,6 +563,37 @@ class EnvironmentResource {
       }
 
       Response.ok().build()
+    })
+  }
+
+  @GET
+  @Path("/{eid}/fileNodes")
+  def getDatasetsFileNodeList(
+                               @Auth user: SessionUser,
+                               @PathParam("eid") eid: UInteger,
+                             ): List[DatasetFileNodes] = {
+    val uid = user.getUid
+
+    withTransaction(context)(ctx => {
+      if (!userHasReadAccessToEnvironment(ctx, eid, uid)) {
+        throw new Exception(UserNoPermissionExceptionMessage)
+      }
+      val datasetsOfEnv = retrieveDatasetsAndVersions(ctx, uid, eid)
+      val result = ListBuffer[DatasetFileNodes]()
+
+      datasetsOfEnv.foreach(entry => {
+        val did = entry.dataset.getDid
+        val datasetVersionHash = entry.version.getVersionHash
+        val fileTree = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+          PathUtils.getDatasetPath(did),
+          datasetVersionHash
+        )
+        val datasetName = entry.dataset.getName
+        fileTree.forEach(node => node.setRelativeFilePathParent(datasetName))
+        result += DatasetFileNodes(datasetName, fileTree.asScala.toList)
+      })
+
+      result.toList
     })
   }
 

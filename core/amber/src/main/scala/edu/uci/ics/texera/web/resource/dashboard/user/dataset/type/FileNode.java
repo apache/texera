@@ -11,7 +11,7 @@ import java.util.Set;
 public class FileNode {
   private final Path absoluteFilePath;
 
-  private final Path relativeFilePath;
+  private Path relativeFilePath;
   private final Set<FileNode> children;
 
   public FileNode(Path repoPath, Path path) {
@@ -35,6 +35,16 @@ public class FileNode {
   public Path getRelativePath() {
     return relativeFilePath;
   }
+
+  public void setRelativeFilePathParent(String parentDirName) {
+    // Create a new Path object for the parent directory name
+    Path parentDirPath = Path.of(parentDirName);
+
+    // Resolve the current relativeFilePath against the new parent directory
+    // This effectively adds the parentDirName as the new parent of the relativeFilePath
+    this.relativeFilePath = parentDirPath.resolve(this.relativeFilePath);
+  }
+
 
   public void addChildNode(FileNode child) {
     if (!child.getAbsolutePath().getParent().equals(this.absoluteFilePath)) {

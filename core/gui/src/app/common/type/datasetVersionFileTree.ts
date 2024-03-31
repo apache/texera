@@ -12,6 +12,10 @@ export interface DatasetVersionFileTreeNode {
   parentDir: string;
 }
 
+export interface EnvironmentDatasetFileNodes {
+  datasetName: string;
+  fileNodes: DatasetVersionFileTreeNode[];
+}
 export function getFullPathFromFileTreeNode(node: DatasetVersionFileTreeNode): string {
   if (node.parentDir == "/") {
     // make sure the files/directory located at the root layer has '/' as the prefix
