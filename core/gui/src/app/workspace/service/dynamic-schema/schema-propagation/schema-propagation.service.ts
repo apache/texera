@@ -49,12 +49,10 @@ export class SchemaPropagationService {
     merge(
       this.workflowActionService.getTexeraGraph().getLinkAddStream(),
       this.workflowActionService.getTexeraGraph().getLinkDeleteStream(),
-      this.workflowActionService
-        .getTexeraGraph()
-        .getOperatorPropertyChangeStream()
-        .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS)),
+      this.workflowActionService.getTexeraGraph().getOperatorPropertyChangeStream(),
       this.workflowActionService.getTexeraGraph().getDisabledOperatorsChangedStream()
     )
+      .pipe(debounceTime(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS))
       .pipe(
         mergeMap(() => this.invokeSchemaPropagationAPI()),
         filter(response => response.code === 0)
