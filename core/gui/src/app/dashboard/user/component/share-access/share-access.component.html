@@ -68,10 +68,9 @@
 <ul
   class="current-share"
   id="current-share">
-  <li>{{ owner }} <span class="badge badge-primary">Owner</span></li>
+  <li><nz-tag nzColor="green">OWNER</nz-tag> {{ owner }}</li>
   <li *ngFor="let entry of accessList">
-    {{ entry.email }} ({{ entry.name }})
-    <span class="badge badge-primary">{{ entry.privilege }}</span>
+    <nz-tag nzColor="blue">{{ entry.privilege }}</nz-tag> {{ entry.email }} ({{ entry.name }})
     <button
       [disabled]="!writeAccess && entry.email !== currentEmail"
       (click)="revokeAccess(entry.email)"
