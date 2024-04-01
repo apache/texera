@@ -62,8 +62,8 @@ class ExecutionStatsService(
               val stats = x._2
               val res = OperatorStatistics(
                 Utils.aggregatedStateToString(stats.state),
-                stats.inputCount,
-                stats.outputCount,
+                stats.inputCount.values.sum,
+                stats.outputCount.values.sum,
                 stats.numWorkers,
                 stats.dataProcessingTime,
                 stats.controlProcessingTime,
@@ -145,7 +145,7 @@ class ExecutionStatsService(
       newStats: Map[String, OperatorRuntimeStats]
   ): Map[String, OperatorRuntimeStats] = {
     val defaultStats =
-      OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, 0, 0, 0, 0, 0, 0)
+      OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, Map(), Map(), 0, 0, 0, 0)
 
     var statsMap = newStats
 
@@ -166,8 +166,12 @@ class ExecutionStatsService(
       val oldStats = lastPersistedStats(key)
       val res = OperatorRuntimeStats(
         newStats.state,
-        newStats.inputCount - oldStats.inputCount,
-        newStats.outputCount - oldStats.outputCount,
+        newStats.inputCount.map { case (k, v) =>
+          k -> (v - oldStats.inputCount.getOrElse(k, 0: Long))
+        },
+        newStats.outputCount.map { case (k, v) =>
+          k -> (v - oldStats.outputCount.getOrElse(k, 0: Long))
+        },
         newStats.numWorkers,
         newStats.dataProcessingTime - oldStats.dataProcessingTime,
         newStats.controlProcessingTime - oldStats.controlProcessingTime,
@@ -189,8 +193,8 @@ class ExecutionStatsService(
         execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
         execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
         execution.setOperatorId(operatorId)
-        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount))
-        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount))
+        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount.values.sum))
+        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount.values.sum))
         execution.setStatus(maptoStatusCode(stat.state))
         execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
         execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))
