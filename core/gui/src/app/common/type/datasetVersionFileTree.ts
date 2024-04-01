@@ -47,6 +47,7 @@ export function getPathsFromTreeNode(node: DatasetVersionFileTreeNode): string[]
   return gatherPaths(node, node.parentDir === "/" ? "/" + node.name : node.parentDir + "/" + node.name);
 }
 
+// This class convert a list of DatasetVersionTreeNode into a hash map, recursively containing all the paths
 export class DatasetVersionFileTreeManager {
   private root: DatasetVersionFileTreeNode = { name: "/", type: "directory", children: [], parentDir: "" };
   private treeNodesMap: Map<string, DatasetVersionFileTreeNode> = new Map<string, DatasetVersionFileTreeNode>();

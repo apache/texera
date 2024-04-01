@@ -1,7 +1,7 @@
 import {Component, inject, Input} from '@angular/core';
 import {NZ_MODAL_DATA, NzModalRef} from 'ng-zorro-antd/modal';
 import { UntilDestroy } from "@ngneat/until-destroy";
-import {DatasetVersionFileTreeNode, EnvironmentDatasetFileNodes, getFullPathFromFileTreeNode} from "../../../common/type/datasetVersionFileTree";
+import {DatasetVersionFileTreeManager, DatasetVersionFileTreeNode, EnvironmentDatasetFileNodes, getFullPathFromFileTreeNode} from "../../../common/type/datasetVersionFileTree";
 
 @UntilDestroy()
 @Component({
@@ -21,16 +21,42 @@ export class FileSelectionComponent {
   }
 
   filterFileTreeNodes() {
-    if (!this.filterText) {
+    const filterText = this.filterText.toLowerCase();
+
+    if (!filterText) {
       this.suggestedFileTreeNodes = [...this.fileTreeNodes];
     } else {
-      const lowerCaseFilterText = this.filterText.toLowerCase();
-      this.suggestedFileTreeNodes = this.fileTreeNodes.filter(node =>
-        getFullPathFromFileTreeNode(node).toLowerCase().includes(lowerCaseFilterText));
+      // Recursive function to filter nodes
+      const filterNodes = (node: DatasetVersionFileTreeNode): DatasetVersionFileTreeNode | null => {
+        // Check if the current node matches the filter text
+        const fullPath = getFullPathFromFileTreeNode(node).toLowerCase();
+        if (fullPath.includes(filterText)) {
+          // If the node matches, return it as-is, including all its children
+          return node;
+        }
+
+        // If the node is a directory, check its children
+        if (node.type === 'directory' && node.children) {
+          const filteredChildren = node.children.map(child => filterNodes(child)).filter(child => child !== null) as DatasetVersionFileTreeNode[];
+
+          if (filteredChildren.length > 0) {
+            // If any children match, return the current node with filtered children
+            return { ...node, children: filteredChildren };
+          }
+        }
+
+        // If no match and no matching children, return null to indicate pruning
+        return null;
+      };
+
+      // Apply filter to each root node and remove any that are null after filtering
+      this.suggestedFileTreeNodes = this.fileTreeNodes.map(node => filterNodes(node)).filter(node => node !== null) as DatasetVersionFileTreeNode[];
     }
   }
 
+
   onFileTreeNodeSelected(node: DatasetVersionFileTreeNode) {
-    this.modalRef.close(getFullPathFromFileTreeNode(node));
+    const selectedNodePath = getFullPathFromFileTreeNode(node).replace(/^\/+/, "");
+    this.modalRef.close(selectedNodePath);
   }
 }
