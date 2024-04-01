@@ -8,6 +8,7 @@ import { merge } from "rxjs";
 import { JointUIService } from "../joint-ui/joint-ui.service";
 import { ExecutionState } from "../../types/execute-workflow.interface";
 
+export const EDIT_TIME_COMPILATION_DEBOUNCE_TIME_IN_MS = 500;
 @Injectable({
   providedIn: "root",
 })
@@ -45,10 +46,12 @@ export class OperatorReuseCacheStatusService {
             evt => evt.previous.state !== ExecutionState.Completed && evt.current.state == ExecutionState.Completed
           )
         )
-    ).subscribe(() => {
-      const workflow = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
-      this.workflowWebsocketService.send("EditingTimeCompilationRequest", workflow);
-    });
+    )
+      .pipe(debounceTime(EDIT_TIME_COMPILATION_DEBOUNCE_TIME_IN_MS))
+      .subscribe(() => {
+        const workflow = ExecuteWorkflowService.getLogicalPlanRequest(this.workflowActionService.getTexeraGraph());
+        this.workflowWebsocketService.send("EditingTimeCompilationRequest", workflow);
+      });
   }
 
   /**
