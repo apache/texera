@@ -134,6 +134,7 @@ class ExecutionStatsService(
           if (AmberConfig.isUserSystemEnabled) {
             statsPersistThread.execute(() => {
               storeRuntimeStatistics(computeStatsDiff(evt.operatorStatistics))
+              lastPersistedStats = evt.operatorStatistics
             })
           }
         })
