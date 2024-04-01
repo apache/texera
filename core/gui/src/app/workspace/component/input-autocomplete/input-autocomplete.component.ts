@@ -52,7 +52,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
                   },
                 });
                 // Handle the selection from the modal
-                modal.afterClose.subscribe(result => {
+                modal.afterClose.pipe(untilDestroyed(this)).subscribe(result => {
                   if (result) {
                     this.formControl.setValue(result); // Assuming 'result' is the selected value
                   }
