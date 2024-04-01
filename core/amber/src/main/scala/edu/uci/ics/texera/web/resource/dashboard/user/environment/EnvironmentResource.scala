@@ -621,7 +621,6 @@ class EnvironmentResource {
           datasetVersionHash
         )
         val datasetName = entry.dataset.getName
-        fileTree.forEach(node => node.setRelativeFilePathParent(datasetName))
         result += DatasetFileNodes(datasetName, fileTree.asScala.toList)
       })
 

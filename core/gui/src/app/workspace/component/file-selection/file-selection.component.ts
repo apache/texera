@@ -22,6 +22,7 @@ export class FileSelectionComponent {
   constructor(private modalRef: NzModalRef) {}
 
   ngOnInit() {
+    console.log(this.fileTreeNodes);
     this.suggestedFileTreeNodes = [...this.fileTreeNodes]; // Initially, suggested nodes are all nodes
   }
 
@@ -64,7 +65,8 @@ export class FileSelectionComponent {
   }
 
   onFileTreeNodeSelected(node: DatasetVersionFileTreeNode) {
-    const selectedNodePath = getFullPathFromFileTreeNode(node).replace(/^\/+/, "");
+    const selectedNodePath = getFullPathFromFileTreeNode(node);
+    console.log("before pruning: ", selectedNodePath)
     this.modalRef.close(selectedNodePath);
   }
 }

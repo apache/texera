@@ -36,15 +36,6 @@ public class FileNode {
     return relativeFilePath;
   }
 
-  public void setRelativeFilePathParent(String parentDirName) {
-    // Create a new Path object for the parent directory name
-    Path parentDirPath = Path.of(parentDirName);
-
-    // Resolve the current relativeFilePath against the new parent directory
-    // This effectively adds the parentDirName as the new parent of the relativeFilePath
-    this.relativeFilePath = parentDirPath.resolve(this.relativeFilePath);
-  }
-
 
   public void addChildNode(FileNode child) {
     if (!child.getAbsolutePath().getParent().equals(this.absoluteFilePath)) {

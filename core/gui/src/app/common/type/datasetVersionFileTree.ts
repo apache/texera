@@ -213,14 +213,16 @@ export function parseFileUploadItemToTreeNodes(fileUploadItems: FileUploadItem[]
   return root.children ?? []; // Return the top-level nodes (excluding the root)
 }
 
+// parse the file nodes passed by the backend to tree nodes that are displayable in frontend
+// datasetName is an optional parameter, when given, the datasetName should be the prefix of every parentDir
 export function parseFileNodesToTreeNodes(
   fileNodes: FileNode[],
-  parentPath: string = ""
+  datasetName: string = ""
 ): DatasetVersionFileTreeNode[] {
   return fileNodes.map(fileNode => {
     const splitPath = fileNode.path.split("/");
     const name = splitPath.pop() || ""; // Get the last segment as name
-    const parentDir = splitPath.length > 0 ? "/" + splitPath.join("/") : "/"; // Join the rest as parent directory
+    const parentDir = splitPath.length > 0 ? "/" + datasetName + "/" + splitPath.join("/") : "/" + datasetName; // Join the rest as parent directory
 
     const treeNode: DatasetVersionFileTreeNode = {
       name: name,
@@ -229,7 +231,7 @@ export function parseFileNodesToTreeNodes(
     };
 
     if (!fileNode.isFile && fileNode.children) {
-      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, fileNode.path);
+      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, datasetName);
     }
 
     return treeNode;

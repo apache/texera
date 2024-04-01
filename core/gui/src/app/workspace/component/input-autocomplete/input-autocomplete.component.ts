@@ -29,42 +29,6 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
     super();
   }
 
-  autocomplete(): void {
-    // currently it's a hard-code DatasetFile autocomplete
-    // TODO: generalize this callback function with a formly hook.
-    const value = this.field.formControl.value.trim();
-    const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
-    if (wid) {
-      // fetch the wid first
-      this.workflowPersistService
-        .retrieveWorkflowEnvironment(wid)
-        .pipe(untilDestroyed(this))
-        .subscribe({
-          next: env => {
-            // then we fetch the file list inorder to do the autocomplete, perform auto-complete based on the current input
-            const eid = env.eid;
-            if (eid) {
-              let query = value;
-              if (value.length == 0) {
-                query = "";
-              }
-              this.environmentService
-                .getDatasetsFileList(eid, query)
-                .pipe(debounceTime(300))
-                .pipe(untilDestroyed(this))
-                .subscribe(suggestedFiles => {
-                  // check if there is a difference between new and previous suggestion
-                  const updated =
-                    this.suggestions.length != suggestedFiles.length ||
-                    this.suggestions.some((e, i) => e !== suggestedFiles[i]);
-                  if (updated) this.suggestions = [...suggestedFiles];
-                });
-            }
-          },
-        });
-    }
-  }
-
   onClickOpenFileSelectionModal(): void {
     const wid = this.workflowActionService.getWorkflowMetadata()?.wid;
     if (wid) {
@@ -80,7 +44,6 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
                 .getDatasetsFileNodeList(eid)
                 .pipe(untilDestroyed(this))
                 .subscribe(fileNodes => {
-                  console.log("fileNodes: ", fileNodes);
                   const modal = this.modalService.create({
                     nzTitle: "Please select one file from datasets",
                     nzContent: FileSelectionComponent,

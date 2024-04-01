@@ -96,9 +96,10 @@ export class EnvironmentService {
               name: entry.datasetName,
               type: "directory",
               parentDir: "/",
-              children: parseFileNodesToTreeNodes(entry.fileNodes),
+              children: parseFileNodesToTreeNodes(entry.fileNodes, entry.datasetName),
             };
             nodes.push(datasetDirectoryNode);
+            console.log(nodes)
           });
           return nodes;
         })
