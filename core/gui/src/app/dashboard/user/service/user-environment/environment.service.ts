@@ -7,9 +7,13 @@ import { catchError, filter, map } from "rxjs/operators";
 import { AppSettings } from "../../../../common/app-setting";
 import { DatasetOfEnvironment, DatasetOfEnvironmentDetails, Environment } from "../../../../common/type/environment";
 import { DashboardDataset } from "../../type/dashboard-dataset.interface";
-import {DATASET_BASE_URL, DATASET_VERSION_BASE_URL} from "../user-dataset/dataset.service";
-import {DatasetVersionFileTreeNode, EnvironmentDatasetFileNodes, parseFileNodesToTreeNodes} from "../../../../common/type/datasetVersionFileTree";
-import {FileNode} from "../../../../common/type/fileNode";
+import { DATASET_BASE_URL, DATASET_VERSION_BASE_URL } from "../user-dataset/dataset.service";
+import {
+  DatasetVersionFileTreeNode,
+  EnvironmentDatasetFileNodes,
+  parseFileNodesToTreeNodes,
+} from "../../../../common/type/datasetVersionFileTree";
+import { FileNode } from "../../../../common/type/fileNode";
 
 export const ENVIRONMENT_BASE_URL = "environment";
 export const ENVIRONMENT_CREATE_URL = ENVIRONMENT_BASE_URL + "/create";
@@ -78,23 +82,27 @@ export class EnvironmentService {
 
   public getDatasetsFileNodeList(eid: number): Observable<DatasetVersionFileTreeNode[]> {
     return this.http
-        .get<{
-          datasetName: string,
+      .get<
+        {
+          datasetName: string;
           fileNodes: FileNode[];
-        }[]>(`${AppSettings.getApiEndpoint()}/${ENVIRONMENT_BASE_URL}/${eid}/${ENVIRONMENT_GET_DATASETS_FILENODE_LIST}`)
-        .pipe(map(response => {
+        }[]
+      >(`${AppSettings.getApiEndpoint()}/${ENVIRONMENT_BASE_URL}/${eid}/${ENVIRONMENT_GET_DATASETS_FILENODE_LIST}`)
+      .pipe(
+        map(response => {
           let nodes: DatasetVersionFileTreeNode[] = [];
           response.forEach(entry => {
             const datasetDirectoryNode: DatasetVersionFileTreeNode = {
               name: entry.datasetName,
-              type: 'directory',
-              parentDir: '/',
-              children: parseFileNodesToTreeNodes(entry.fileNodes)
+              type: "directory",
+              parentDir: "/",
+              children: parseFileNodesToTreeNodes(entry.fileNodes),
             };
             nodes.push(datasetDirectoryNode);
           });
           return nodes;
-        }));
+        })
+      );
   }
 
   public getDatasetsFileList(eid: number, query: String): Observable<ReadonlyArray<string>> {

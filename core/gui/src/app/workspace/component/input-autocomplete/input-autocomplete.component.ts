@@ -6,9 +6,9 @@ import { map } from "rxjs";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { EnvironmentService } from "../../../dashboard/user/service/user-environment/environment.service";
 import { WorkflowPersistService } from "../../../common/service/workflow-persist/workflow-persist.service";
-import {NzModalService} from "ng-zorro-antd/modal";
-import {FileSelectionComponent} from "../file-selection/file-selection.component";
-import {environment} from "../../../../environments/environment";
+import { NzModalService } from "ng-zorro-antd/modal";
+import { FileSelectionComponent } from "../file-selection/file-selection.component";
+import { environment } from "../../../../environments/environment";
 
 @UntilDestroy()
 @Component({
@@ -19,8 +19,6 @@ import {environment} from "../../../../environments/environment";
 export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
   // the autocomplete selection list
   public suggestions: string[] = [];
-
-
 
   constructor(
     private modalService: NzModalService,
@@ -82,15 +80,14 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
                 .getDatasetsFileNodeList(eid)
                 .pipe(untilDestroyed(this))
                 .subscribe(fileNodes => {
-
                   console.log("fileNodes: ", fileNodes);
                   const modal = this.modalService.create({
-                    nzTitle: `Please select one file from datasets`,
+                    nzTitle: "Please select one file from datasets",
                     nzContent: FileSelectionComponent,
                     nzFooter: null,
                     nzData: {
-                      fileTreeNodes: fileNodes
-                    }
+                      fileTreeNodes: fileNodes,
+                    },
                   });
                   // Handle the selection from the modal
                   modal.afterClose.subscribe(result => {
@@ -98,7 +95,7 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
                       this.formControl.setValue(result); // Assuming 'result' is the selected value
                     }
                   });
-                })
+                });
             }
           },
         });

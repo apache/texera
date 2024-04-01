@@ -1,18 +1,23 @@
-import {Component, inject, Input} from '@angular/core';
-import {NZ_MODAL_DATA, NzModalRef} from 'ng-zorro-antd/modal';
+import { Component, inject, Input } from "@angular/core";
+import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy } from "@ngneat/until-destroy";
-import {DatasetVersionFileTreeManager, DatasetVersionFileTreeNode, EnvironmentDatasetFileNodes, getFullPathFromFileTreeNode} from "../../../common/type/datasetVersionFileTree";
+import {
+  DatasetVersionFileTreeManager,
+  DatasetVersionFileTreeNode,
+  EnvironmentDatasetFileNodes,
+  getFullPathFromFileTreeNode,
+} from "../../../common/type/datasetVersionFileTree";
 
 @UntilDestroy()
 @Component({
-  selector: 'texera-file-selection-model',
+  selector: "texera-file-selection-model",
   templateUrl: "file-selection.component.html",
-  styleUrls: ["file-selection.component.scss"]
+  styleUrls: ["file-selection.component.scss"],
 })
 export class FileSelectionComponent {
   readonly fileTreeNodes: ReadonlyArray<DatasetVersionFileTreeNode> = inject(NZ_MODAL_DATA).fileTreeNodes;
   suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = [];
-  filterText: string = '';
+  filterText: string = "";
 
   constructor(private modalRef: NzModalRef) {}
 
@@ -36,8 +41,10 @@ export class FileSelectionComponent {
         }
 
         // If the node is a directory, check its children
-        if (node.type === 'directory' && node.children) {
-          const filteredChildren = node.children.map(child => filterNodes(child)).filter(child => child !== null) as DatasetVersionFileTreeNode[];
+        if (node.type === "directory" && node.children) {
+          const filteredChildren = node.children
+            .map(child => filterNodes(child))
+            .filter(child => child !== null) as DatasetVersionFileTreeNode[];
 
           if (filteredChildren.length > 0) {
             // If any children match, return the current node with filtered children
@@ -50,10 +57,11 @@ export class FileSelectionComponent {
       };
 
       // Apply filter to each root node and remove any that are null after filtering
-      this.suggestedFileTreeNodes = this.fileTreeNodes.map(node => filterNodes(node)).filter(node => node !== null) as DatasetVersionFileTreeNode[];
+      this.suggestedFileTreeNodes = this.fileTreeNodes
+        .map(node => filterNodes(node))
+        .filter(node => node !== null) as DatasetVersionFileTreeNode[];
     }
   }
-
 
   onFileTreeNodeSelected(node: DatasetVersionFileTreeNode) {
     const selectedNodePath = getFullPathFromFileTreeNode(node).replace(/^\/+/, "");

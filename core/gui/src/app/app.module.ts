@@ -133,7 +133,7 @@ import { NzTreeViewModule } from "ng-zorro-antd/tree-view";
 import { NzNoAnimationModule } from "ng-zorro-antd/core/no-animation";
 import { TreeModule } from "@ali-hm/angular-tree-component";
 import { EnvironmentComponent } from "./workspace/component/left-panel/environment/environment.component";
-import {FileSelectionComponent} from "./workspace/component/file-selection/file-selection.component";
+import { FileSelectionComponent } from "./workspace/component/file-selection/file-selection.component";
 
 registerLocaleData(en);
 

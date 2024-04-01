@@ -1,11 +1,10 @@
 <input
   nz-input
   [(ngModel)]="filterText"
-  (ngModelChange)="filterFileTreeNodes()"
-/>
+  (ngModelChange)="filterFileTreeNodes()" />
 
 <texera-user-dataset-version-filetree
+  [isExpandAllAfterViewInit]="true"
   [fileTreeNodes]="suggestedFileTreeNodes"
-  (selectedTreeNode)="onFileTreeNodeSelected($event)"
->
+  (selectedTreeNode)="onFileTreeNodeSelected($event)">
 </texera-user-dataset-version-filetree>
