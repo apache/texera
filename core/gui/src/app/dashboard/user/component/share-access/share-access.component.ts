@@ -6,6 +6,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 import { UserService } from "../../../../common/service/user/user.service";
 import { GmailService } from "../../../admin/service/gmail.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 @UntilDestroy()
 @Component({
@@ -28,7 +29,8 @@ export class ShareAccessComponent implements OnInit {
     private accessService: ShareAccessService,
     private formBuilder: FormBuilder,
     private userService: UserService,
-    private gmailService: GmailService
+    private gmailService: GmailService,
+    private notificationService: NotificationService
   ) {
     this.validateForm = this.formBuilder.group({
       email: [null, [Validators.email, Validators.required]],
@@ -65,6 +67,9 @@ export class ShareAccessComponent implements OnInit {
         .pipe(untilDestroyed(this))
         .subscribe(() => {
           this.ngOnInit();
+          this.notificationService.success(
+            this.type + " shared with " + this.validateForm.value.email + " successfully."
+          );
           this.gmailService.sendEmail(
             "Texera: " + this.owner + " shared a " + this.type + " with you",
             this.owner +
