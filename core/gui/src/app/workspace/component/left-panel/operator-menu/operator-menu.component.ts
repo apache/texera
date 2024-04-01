@@ -126,7 +126,9 @@ export class OperatorMenuComponent implements OnInit {
   private processOperatorMetadata(operatorMetadata: OperatorMetadata): void {
     operatorMetadata = {
       ...operatorMetadata,
-      operators: operatorMetadata.operators.filter(operatorSchema => operatorSchema.operatorType != "PythonUDF"),
+      operators: operatorMetadata.operators
+        .filter(operatorSchema => operatorSchema.operatorType != "PythonUDF")
+        .filter(operatorSchema => operatorSchema.operatorType != "Dummy"),
     };
     this.operatorSchemaList = operatorMetadata.operators;
     this.groupNamesOrdered = getGroupNamesSorted(operatorMetadata.groups);
