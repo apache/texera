@@ -69,10 +69,8 @@ case class OperatorExecution() {
   def getStats: OperatorRuntimeStats =
     OperatorRuntimeStats(
       getState,
-      inputCount = workerExecutions.values.asScala.map(_.getStats)
-        .flatMap(_.inputTupleCount.values).sum,
-      outputCount = workerExecutions.values.asScala.map(_.getStats)
-        .flatMap(_.outputTupleCount.values).sum,
+      inputCount = workerExecutions.values.asScala.flatMap(_.getStats.inputTupleCount).groupBy(_._1).view.mapValues(_.map(_._2).sum).toMap,
+      outputCount = workerExecutions.values.asScala.flatMap(_.getStats.outputTupleCount).groupBy(_._1).view.mapValues(_.map(_._2).sum).toMap,
       getWorkerIds.size,
       dataProcessingTime =
         workerExecutions.values.asScala.map(_.getStats).map(_.dataProcessingTime).sum,
