@@ -35,32 +35,30 @@ export class InputAutoCompleteComponent extends FieldType<FieldTypeConfig> {
       this.workflowPersistService
         .retrieveWorkflowEnvironment(wid)
         .pipe(untilDestroyed(this))
-        .subscribe({
-          next: env => {
-            // then we fetch the file list inorder to do the autocomplete, perform auto-complete based on the current input
-            const eid = env.eid;
-            if (eid) {
-              this.environmentService
-                .getDatasetsFileNodeList(eid)
-                .pipe(untilDestroyed(this))
-                .subscribe(fileNodes => {
-                  const modal = this.modalService.create({
-                    nzTitle: "Please select one file from datasets",
-                    nzContent: FileSelectionComponent,
-                    nzFooter: null,
-                    nzData: {
-                      fileTreeNodes: fileNodes,
-                    },
-                  });
-                  // Handle the selection from the modal
-                  modal.afterClose.subscribe(result => {
-                    if (result) {
-                      this.formControl.setValue(result); // Assuming 'result' is the selected value
-                    }
-                  });
+        .subscribe(env => {
+          // then we fetch the file list inorder to do the autocomplete, perform auto-complete based on the current input
+          const eid = env.eid;
+          if (eid) {
+            this.environmentService
+              .getDatasetsFileNodeList(eid)
+              .pipe(untilDestroyed(this))
+              .subscribe(fileNodes => {
+                const modal = this.modalService.create({
+                  nzTitle: "Please select one file from datasets",
+                  nzContent: FileSelectionComponent,
+                  nzFooter: null,
+                  nzData: {
+                    fileTreeNodes: fileNodes,
+                  },
                 });
-            }
-          },
+                // Handle the selection from the modal
+                modal.afterClose.subscribe(result => {
+                  if (result) {
+                    this.formControl.setValue(result); // Assuming 'result' is the selected value
+                  }
+                });
+              });
+          }
         });
     }
   }
