@@ -99,7 +99,6 @@ export class EnvironmentService {
               children: parseFileNodesToTreeNodes(entry.fileNodes, entry.datasetName),
             };
             nodes.push(datasetDirectoryNode);
-            console.log(nodes)
           });
           return nodes;
         })
