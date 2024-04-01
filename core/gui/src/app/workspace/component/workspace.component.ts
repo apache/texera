@@ -120,18 +120,14 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
 
   @HostListener("window:beforeunload")
   ngOnDestroy() {
-    this.saveLatestWorkflow();
-    this.workflowActionService.setWorkflowMetadata(undefined);
-    this.workflowActionService.destroySharedModel();
-    this.workflowWebsocketService.closeWebsocket();
-    this.vc.clear();
-  }
-
-  saveLatestWorkflow() {
     if (this.workflowPersistService.isWorkflowPersistEnabled()) {
       const workflow = this.workflowActionService.getWorkflow();
       this.workflowPersistService.persistWorkflow(workflow).pipe(untilDestroyed(this)).subscribe();
     }
+    this.workflowActionService.setWorkflowMetadata(undefined);
+    this.workflowActionService.destroySharedModel();
+    this.workflowWebsocketService.closeWebsocket();
+    this.vc.clear();
   }
 
   registerResultPanelToggleHandler() {
