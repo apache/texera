@@ -22,20 +22,7 @@ export class GmailComponent implements OnInit {
       subject: [null, [Validators.required]],
       content: [null, [Validators.required]],
     });
-    this.gmailAuthService.authSender();
     this.getSenderEmail();
-  }
-
-  public auth() {
-    this.gmailAuthService.client.requestCode();
-    this.gmailAuthService.googleCredentialResponse.pipe(untilDestroyed(this)).subscribe(() => this.getSenderEmail());
-  }
-
-  public revokeAuth() {
-    this.gmailAuthService
-      .revokeAuth()
-      .pipe(untilDestroyed(this))
-      .subscribe(() => this.getSenderEmail());
   }
 
   getSenderEmail() {
