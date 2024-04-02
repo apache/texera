@@ -5,12 +5,8 @@ import { UserFileUploadService } from "../../service/user-file/user-file-upload.
 import {
   DatasetVersionFileTreeManager,
   DatasetVersionFileTreeNode,
-  getFullPathFromFileTreeNode,
   getPathsFromTreeNode,
-  parseFileUploadItemToTreeNodes,
 } from "../../../../common/type/datasetVersionFileTree";
-import { NzUploadChangeParam, NzUploadFile } from "ng-zorro-antd/upload";
-import { environments } from "eslint-plugin-prettier";
 import { environment } from "../../../../../environments/environment";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
 
@@ -63,10 +59,10 @@ export class FilesUploaderComponent {
           const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
           fileEntry.file(file => {
             // Check the file size here
-            if (file.size > environment.singleFileUploadSizeLimitMB * 1024 * 1024) {
+            if (file.size > environment.singleFileUploadMaximumSizeMB * 1024 * 1024) {
               // If the file is too large, reject the promise
               this.notificationService.error(
-                `File ${file.name}'s size exceeds the maximum limit of ${environment.singleFileUploadSizeLimitMB}MB.`
+                `File ${file.name}'s size exceeds the maximum limit of ${environment.singleFileUploadMaximumSizeMB}MB.`
               );
               reject(null);
             } else {

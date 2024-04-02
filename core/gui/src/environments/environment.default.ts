@@ -94,7 +94,7 @@ export const defaultEnvironment = {
 
   /**
    */
-  singleFileUploadSizeLimitMB: 20,
+  singleFileUploadMaximumSizeMB: 20,
 };
 
 export type AppEnv = typeof defaultEnvironment;
