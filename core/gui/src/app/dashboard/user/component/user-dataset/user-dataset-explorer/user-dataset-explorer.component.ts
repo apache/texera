@@ -181,6 +181,7 @@ export class UserDatasetExplorerComponent implements OnInit {
   }
 
   loadFileContent(node: DatasetVersionFileTreeNode) {
+    console.log(node);
     this.currentDisplayedFileName = getFullPathFromFileTreeNode(node);
   }
 

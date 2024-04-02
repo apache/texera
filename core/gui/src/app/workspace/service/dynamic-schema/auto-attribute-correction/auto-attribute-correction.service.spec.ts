@@ -28,7 +28,6 @@ import {
 } from "../schema-propagation/schema-propagation.service";
 
 describe("AutoAttributeCorrectionService", () => {
-  let httpClient: HttpClient;
   let httpTestingController: HttpTestingController;
 
   beforeEach(() => {
@@ -46,7 +45,6 @@ describe("AutoAttributeCorrectionService", () => {
       ],
     });
 
-    httpClient = TestBed.inject(HttpClient);
     httpTestingController = TestBed.inject(HttpTestingController);
     environment.schemaPropagationEnabled = true;
   });
@@ -62,7 +60,7 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
     workflowActionService.addLink(mockLinkAtoB);
-
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     const req1 = httpTestingController.expectOne(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
@@ -75,7 +73,7 @@ describe("AutoAttributeCorrectionService", () => {
 
     // trigger inputSchemaChangeStream
     workflowActionService.setOperatorProperty(mockSentimentOperatorA.operatorID, { testAttr: "test" });
-    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     const req2 = httpTestingController.expectOne(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
@@ -100,7 +98,7 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.addOperator(mockSentimentOperatorA, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
     workflowActionService.addLink(mockLinkAtoB);
-
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     const req1 = httpTestingController.expectOne(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
@@ -140,11 +138,13 @@ describe("AutoAttributeCorrectionService", () => {
     workflowActionService.addOperator(mockSentimentOperatorB, mockPoint);
     workflowActionService.addOperator(mockSentimentOperatorC, mockPoint);
     workflowActionService.addLink(mockLinkAtoB);
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     httpTestingController.expectOne(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
     workflowActionService.addLink(mockLinkBtoC);
 
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     const req1 = httpTestingController.expectOne(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );
@@ -157,7 +157,7 @@ describe("AutoAttributeCorrectionService", () => {
 
     // trigger inputSchemaChangeStream
     workflowActionService.setOperatorProperty(mockSentimentOperatorA.operatorID, { testAttr: "test" });
-    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS);
+    tick(SCHEMA_PROPAGATION_DEBOUNCE_TIME_MS + 1);
     const req2 = httpTestingController.expectOne(
       `${AppSettings.getApiEndpoint()}/${SCHEMA_PROPAGATION_ENDPOINT}/${DEFAULT_WORKFLOW.wid}`
     );

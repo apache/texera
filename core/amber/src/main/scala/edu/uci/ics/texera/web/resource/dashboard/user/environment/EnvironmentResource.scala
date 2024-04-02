@@ -20,7 +20,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
   EnvironmentOfWorkflowDao
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.DatasetResource.retrieveDatasetVersionFilePaths
-import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.DatasetFileDesc
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.`type`.{DatasetFileDesc, FileNode}
+import edu.uci.ics.texera.web.resource.dashboard.user.dataset.service.GitVersionControlLocalFileStorage
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.utils.PathUtils
 import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
   DatasetAccessResource,
@@ -28,6 +29,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.dataset.{
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
   DashboardEnvironment,
+  DatasetFileNodes,
   DatasetID,
   DatasetOfEnvironmentAlreadyExistsMessage,
   DatasetOfEnvironmentDetails,
@@ -305,6 +307,7 @@ object EnvironmentResource {
   case class DatasetID(did: UInteger)
 
   case class DatasetVersionID(dvid: UInteger)
+  case class DatasetFileNodes(datasetName: String, fileNodes: List[FileNode])
   case class WorkflowLink(wid: UInteger)
 
   // error handling
@@ -592,6 +595,36 @@ class EnvironmentResource {
       }
 
       Response.ok().build()
+    })
+  }
+
+  @GET
+  @Path("/{eid}/fileNodes")
+  def getDatasetsFileNodeList(
+      @Auth user: SessionUser,
+      @PathParam("eid") eid: UInteger
+  ): List[DatasetFileNodes] = {
+    val uid = user.getUid
+
+    withTransaction(context)(ctx => {
+      if (!userHasReadAccessToEnvironment(ctx, eid, uid)) {
+        throw new Exception(UserNoPermissionExceptionMessage)
+      }
+      val datasetsOfEnv = retrieveDatasetsAndVersions(ctx, uid, eid)
+      val result = ListBuffer[DatasetFileNodes]()
+
+      datasetsOfEnv.foreach(entry => {
+        val did = entry.dataset.getDid
+        val datasetVersionHash = entry.version.getVersionHash
+        val fileTree = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(
+          PathUtils.getDatasetPath(did),
+          datasetVersionHash
+        )
+        val datasetName = entry.dataset.getName
+        result += DatasetFileNodes(datasetName, fileTree.asScala.toList)
+      })
+
+      result.toList
     })
   }
 
