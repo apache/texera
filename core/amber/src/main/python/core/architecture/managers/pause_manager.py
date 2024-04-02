@@ -31,9 +31,9 @@ class PauseManager:
     ):
         self._input_queue: InternalQueue = input_queue
         self._global_pauses: Set[PauseType] = set()
-        self._specific_input_pauses: Dict[PauseType, Set[ActorVirtualIdentity]] = (
-            defaultdict(set)
-        )
+        self._specific_input_pauses: Dict[
+            PauseType, Set[ActorVirtualIdentity]
+        ] = defaultdict(set)
         self._state_manager = state_manager
 
     def pause(self, pause_type: PauseType, change_state=True) -> None:

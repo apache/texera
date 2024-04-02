@@ -73,7 +73,7 @@ class DataProcessor(
     * provide API for actor to get stats of this operator
     */
   def collectStatistics(): WorkerStatistics =
-    statisticsManager.getStatistics(stateManager.getCurrentState, executor)
+    statisticsManager.getStatistics(executor)
 
   /**
     * process currentInputTuple through executor logic.
@@ -81,7 +81,8 @@ class DataProcessor(
     */
   private[this] def processInputTuple(tuple: Tuple): Unit = {
     try {
-      val portIdentity: PortIdentity = this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
+      val portIdentity: PortIdentity =
+        this.inputGateway.getChannel(inputManager.currentChannelId).getPortId
       outputManager.outputIterator.setTupleOutput(
         executor.processTupleMultiPort(
           tuple,

@@ -1,6 +1,7 @@
 import typing
 
 from proto.edu.uci.ics.amber.engine.common import PortIdentity
+from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerStatistics
 
 
 class StatisticsManager:
@@ -13,7 +14,7 @@ class StatisticsManager:
         self._worker_start_time = 0
 
     def get_statistics(self):
-        return (
+        return WorkerStatistics(
             self._input_tuple_count,
             self._output_tuple_count,
             self._data_processing_time,

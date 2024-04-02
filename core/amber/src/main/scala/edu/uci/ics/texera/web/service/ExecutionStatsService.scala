@@ -166,11 +166,13 @@ class ExecutionStatsService(
       val oldStats = lastPersistedStats(key)
       val res = OperatorRuntimeStats(
         newStats.state,
-        newStats.inputCount.map { case (k, v) =>
-          k -> (v - oldStats.inputCount.getOrElse(k, 0: Long))
+        newStats.inputCount.map {
+          case (k, v) =>
+            k -> (v - oldStats.inputCount.getOrElse(k, 0: Long))
         },
-        newStats.outputCount.map { case (k, v) =>
-          k -> (v - oldStats.outputCount.getOrElse(k, 0: Long))
+        newStats.outputCount.map {
+          case (k, v) =>
+            k -> (v - oldStats.outputCount.getOrElse(k, 0: Long))
         },
         newStats.numWorkers,
         newStats.dataProcessingTime - oldStats.dataProcessingTime,
