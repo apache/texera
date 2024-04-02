@@ -5,8 +5,8 @@ import com.fasterxml.jackson.annotation.{
   JsonIgnore,
   JsonProperty,
   JsonSubTypes,
-  JsonPropertyDescription,
-  JsonTypeInfo
+  JsonTypeInfo,
+  JsonPropertyDescription
 }
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
 import edu.uci.ics.amber.engine.architecture.deploysemantics.PhysicalOp
