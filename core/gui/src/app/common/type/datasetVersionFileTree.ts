@@ -12,6 +12,10 @@ export interface DatasetVersionFileTreeNode {
   parentDir: string;
 }
 
+export interface EnvironmentDatasetFileNodes {
+  datasetName: string;
+  fileNodes: DatasetVersionFileTreeNode[];
+}
 export function getFullPathFromFileTreeNode(node: DatasetVersionFileTreeNode): string {
   if (node.parentDir == "/") {
     // make sure the files/directory located at the root layer has '/' as the prefix
@@ -43,6 +47,7 @@ export function getPathsFromTreeNode(node: DatasetVersionFileTreeNode): string[]
   return gatherPaths(node, node.parentDir === "/" ? "/" + node.name : node.parentDir + "/" + node.name);
 }
 
+// This class convert a list of DatasetVersionTreeNode into a hash map, recursively containing all the paths
 export class DatasetVersionFileTreeManager {
   private root: DatasetVersionFileTreeNode = { name: "/", type: "directory", children: [], parentDir: "" };
   private treeNodesMap: Map<string, DatasetVersionFileTreeNode> = new Map<string, DatasetVersionFileTreeNode>();
@@ -208,23 +213,35 @@ export function parseFileUploadItemToTreeNodes(fileUploadItems: FileUploadItem[]
   return root.children ?? []; // Return the top-level nodes (excluding the root)
 }
 
+// parse the file nodes passed by the backend to tree nodes that are displayable in frontend
+// datasetName is an optional parameter, when given, the datasetName should be the prefix of every parentDir
 export function parseFileNodesToTreeNodes(
   fileNodes: FileNode[],
-  parentPath: string = ""
+  datasetName: string = ""
 ): DatasetVersionFileTreeNode[] {
-  return fileNodes.map(fileNode => {
-    const splitPath = fileNode.path.split("/");
-    const name = splitPath.pop() || ""; // Get the last segment as name
-    const parentDir = splitPath.length > 0 ? "/" + splitPath.join("/") : "/"; // Join the rest as parent directory
+  // Ensure datasetName is formatted correctly as a path prefix
+  const datasetPrefix = datasetName ? `/${datasetName}` : "";
 
+  return fileNodes.map(fileNode => {
+    // Split the path to work with its segments
+    const splitPath = fileNode.path.split("/");
+    const name = splitPath.pop() || ""; // Get the last segment as the name
+
+    // Construct the parentDir
+    // If there are remaining segments, join them as the path, prefixed by the datasetPrefix
+    // Otherwise, use the datasetPrefix directly (or just "/" if datasetName is empty)
+    const parentDir = splitPath.length > 0 ? `${datasetPrefix}/${splitPath.join("/")}` : datasetPrefix || "/";
+
+    // Define the new tree node
     const treeNode: DatasetVersionFileTreeNode = {
-      name: name,
+      name,
       type: fileNode.isFile ? "file" : "directory",
-      parentDir: parentDir,
+      parentDir,
     };
 
+    // Recursively process children if it's a directory
     if (!fileNode.isFile && fileNode.children) {
-      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, fileNode.path);
+      treeNode.children = parseFileNodesToTreeNodes(fileNode.children, datasetName);
     }
 
     return treeNode;

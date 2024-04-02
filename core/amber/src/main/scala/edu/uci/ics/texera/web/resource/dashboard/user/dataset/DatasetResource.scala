@@ -265,7 +265,6 @@ object DatasetResource {
       did: UInteger,
       dvid: UInteger
   ): util.List[String] = {
-    val dataset = getDatasetByID(ctx, did, uid)
     val versionHash = getDatasetVersionHashByID(ctx, did, dvid, uid)
 
     val fileNodes = GitVersionControlLocalFileStorage.retrieveRootFileNodesOfVersion(

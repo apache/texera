@@ -1,11 +1,10 @@
 <input
-  (input)="autocomplete()"
-  (focus)="autocomplete()"
   nz-input
+  [readOnly]="isFileSelectionEnabled"
   required
-  [nzAutocomplete]="auto"
   [formControl]="formControl"
-  [formlyAttributes]="field" />
+  [formlyAttributes]="field"
+  (click)="isFileSelectionEnabled && onClickOpenFileSelectionModal()" />
 <div
   class="alert alert-danger"
   role="alert"

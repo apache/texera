@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed, waitForAsync } from "@angular/core/testing";
 import { FormControl, ReactiveFormsModule } from "@angular/forms";
 import { InputAutoCompleteComponent } from "./input-autocomplete.component";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
+import { NzModalService } from "ng-zorro-antd/modal";
 
 describe("InputAutoCompleteComponent", () => {
   let component: InputAutoCompleteComponent;
@@ -11,6 +12,7 @@ describe("InputAutoCompleteComponent", () => {
     TestBed.configureTestingModule({
       declarations: [InputAutoCompleteComponent],
       imports: [ReactiveFormsModule, HttpClientTestingModule],
+      providers: [NzModalService],
     }).compileComponents();
   }));
 
