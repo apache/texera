@@ -40,6 +40,7 @@ import edu.uci.ics.texera.workflow.operators.regex.RegexOpDesc
 import edu.uci.ics.texera.workflow.operators.reservoirsampling.ReservoirSamplingOpDesc
 import edu.uci.ics.texera.workflow.operators.sentiment.SentimentAnalysisOpDesc
 import edu.uci.ics.texera.workflow.operators.sink.managed.ProgressiveSinkOpDesc
+import edu.uci.ics.texera.workflow.operators.sort.SortOpDesc
 import edu.uci.ics.texera.workflow.operators.sortPartitions.SortPartitionsOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.reddit.RedditSearchSourceOpDesc
 import edu.uci.ics.texera.workflow.operators.source.apis.twitter.v2.{
@@ -178,7 +179,8 @@ trait StateTransferFunc
     new Type(value = classOf[Scatter3dChartOpDesc], name = "Scatter3DChart"),
     new Type(value = classOf[FunnelPlotOpDesc], name = "FunnelPlot"),
     new Type(value = classOf[TablesPlotOpDesc], name = "TablesPlot"),
-    new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF")
+    new Type(value = classOf[JavaUDFOpDesc], name = "JavaUDF"),
+    new Type(value = classOf[SortOpDesc], name = "Sort")
   )
 )
 abstract class LogicalOp extends PortDescriptor with Serializable {
