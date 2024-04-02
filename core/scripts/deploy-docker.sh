@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 
-if [ ! -f /.dockerenv ] && [ "$1" != -f ] ; then
-    >&2 echo 'This script should only be run inside Docker.'
-    exit 1
-fi
+# if [ ! -f /.dockerenv ] && [ "$1" != -f ] ; then
+#     >&2 echo 'This script should only be run inside Docker.'
+#     exit 1
+# fi
 
 # Start server.sh in the background
 bash scripts/server.sh &

@@ -1,12 +1,12 @@
-FROM node:18-alpine AS gui
+FROM node:18-alpine AS nodegui
 
-WORKDIR /new-gui
-COPY core/new-gui/package.json core/new-gui/yarn.lock core/new-gui/decorate-angular-cli.js ./
+WORKDIR /gui
+COPY core/gui/package.json core/gui/yarn.lock ./
 # Fake git-version.js during yarn install to prevent git from causing cache
 # invalidation of dependencies
 RUN touch git-version.js && yarn install
 
-COPY core/new-gui .
+COPY core/gui .
 # Position of .git doesn't matter since it's only there for the revision hash
 COPY .git ./.git
 RUN apk add --no-cache git && \
@@ -23,14 +23,15 @@ RUN apt-get update
 RUN apt-get install -y netcat unzip python3-pip
 RUN pip3 install python-lsp-server python-lsp-server[websockets]
 RUN pip3 install -r requirements.txt
+RUN pip3 install -r operator-requirements.txt
 
 WORKDIR /core
 COPY core/scripts ./scripts
 # Add .git for runtime calls to jgit from OPversion
 COPY .git ../.git
-COPY --from=gui /new-gui/dist ./new-gui/dist
+COPY --from=nodegui /gui/dist ./gui/dist
 
-RUN scripts/build.sh
+RUN scripts/build-docker.sh
 
 CMD ["scripts/deploy-docker.sh"]
 
