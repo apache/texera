@@ -26,39 +26,39 @@ export class FileSelectionComponent {
   }
 
   filterFileTreeNodes() {
-    const filterText = this.filterText.toLowerCase();
+    const filterText = this.filterText.trim().toLowerCase();
 
     if (!filterText) {
       this.suggestedFileTreeNodes = [...this.fileTreeNodes];
     } else {
-      // Recursive function to filter nodes
       const filterNodes = (node: DatasetVersionFileTreeNode): DatasetVersionFileTreeNode | null => {
-        // Check if the current node matches the filter text
-        const fullPath = getFullPathFromFileTreeNode(node).toLowerCase();
-        if (fullPath.includes(filterText)) {
-          // If the node matches, return it as-is, including all its children
-          return node;
+        // For 'file' type nodes, check if the node's name matches the filter text.
+        // Directories are not filtered out by name, but their children are filtered recursively.
+        if (node.type === "file" && !node.name.toLowerCase().includes(filterText)) {
+          return null; // Exclude files that don't match the filter.
         }
 
-        // If the node is a directory, check its children
+        // If the node is a directory, recurse into its children, if any.
         if (node.type === "directory" && node.children) {
           const filteredChildren = node.children
-            .map(child => filterNodes(child))
+            .map(filterNodes)
             .filter(child => child !== null) as DatasetVersionFileTreeNode[];
 
           if (filteredChildren.length > 0) {
-            // If any children match, return the current node with filtered children
+            // If any children match, return the current directory node with filtered children.
             return { ...node, children: filteredChildren };
+          } else {
+            // If no children match, exclude the directory node.
+            return null;
           }
         }
 
-        // If no match and no matching children, return null to indicate pruning
-        return null;
+        // Return the node if it's a file that matches or a directory with matching descendants.
+        return node;
       };
 
-      // Apply filter to each root node and remove any that are null after filtering
       this.suggestedFileTreeNodes = this.fileTreeNodes
-        .map(node => filterNodes(node))
+        .map(filterNodes)
         .filter(node => node !== null) as DatasetVersionFileTreeNode[];
     }
   }

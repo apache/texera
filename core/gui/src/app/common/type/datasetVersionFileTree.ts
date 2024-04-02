@@ -219,17 +219,27 @@ export function parseFileNodesToTreeNodes(
   fileNodes: FileNode[],
   datasetName: string = ""
 ): DatasetVersionFileTreeNode[] {
-  return fileNodes.map(fileNode => {
-    const splitPath = fileNode.path.split("/");
-    const name = splitPath.pop() || ""; // Get the last segment as name
-    const parentDir = splitPath.length > 0 ? "/" + datasetName + "/" + splitPath.join("/") : "/" + datasetName; // Join the rest as parent directory
+  // Ensure datasetName is formatted correctly as a path prefix
+  const datasetPrefix = datasetName ? `/${datasetName}` : "";
 
+  return fileNodes.map(fileNode => {
+    // Split the path to work with its segments
+    const splitPath = fileNode.path.split("/");
+    const name = splitPath.pop() || ""; // Get the last segment as the name
+
+    // Construct the parentDir
+    // If there are remaining segments, join them as the path, prefixed by the datasetPrefix
+    // Otherwise, use the datasetPrefix directly (or just "/" if datasetName is empty)
+    const parentDir = splitPath.length > 0 ? `${datasetPrefix}/${splitPath.join("/")}` : datasetPrefix || "/";
+
+    // Define the new tree node
     const treeNode: DatasetVersionFileTreeNode = {
-      name: name,
+      name,
       type: fileNode.isFile ? "file" : "directory",
-      parentDir: parentDir,
+      parentDir,
     };
 
+    // Recursively process children if it's a directory
     if (!fileNode.isFile && fileNode.children) {
       treeNode.children = parseFileNodesToTreeNodes(fileNode.children, datasetName);
     }
