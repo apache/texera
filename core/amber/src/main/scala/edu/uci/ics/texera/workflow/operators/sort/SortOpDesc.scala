@@ -12,12 +12,17 @@ class SortOpDesc extends PythonOperatorDescriptor {
   var attributes: List[SortCriteriaUnit] = _
 
   override def generatePythonCode(): String = {
-    val criteriaString: String = "[" + attributes
+    val attributeName = "[" + attributes
       .map { criteria =>
-        s"""("${criteria.attributeName}", ${criteria.sortPreference match {
-          case SortPreference.ASC  => "\"ASC\""
-          case SortPreference.DESC => "\"DESC\""
-        }})"""
+        s""""${criteria.attributeName}""""
+      }
+      .mkString(", ") + "]"
+    val sortOrders: String = "[" + attributes
+      .map { criteria =>
+        criteria.sortPreference match {
+          case SortPreference.ASC  => "True"
+          case SortPreference.DESC => "False"
+        }
       }
       .mkString(", ") + "]"
 
@@ -29,12 +34,10 @@ class SortOpDesc extends PythonOperatorDescriptor {
        |
        |    @overrides
        |    def process_table(self, table: Table, port: int) -> Iterator[Optional[TableLike]]:
-       |        sort_criteria = $criteriaString
-       |        df = pd.DataFrame(table)
-       |        sort_columns = [attribute for attribute, order in sort_criteria]
-       |        ascending_orders = [order == 'ASC' for _, order in sort_criteria]
+       |        sort_columns = $attributeName
+       |        ascending_orders = $sortOrders
        |
-       |        sorted_df = df.sort_values(by=sort_columns, ascending=ascending_orders)
+       |        sorted_df = table.sort_values(by=sort_columns, ascending=ascending_orders)
        |        yield sorted_df""".stripMargin
   }
 
@@ -44,7 +47,7 @@ class SortOpDesc extends PythonOperatorDescriptor {
       "Sort based on the columns and sorting methods",
       OperatorGroupConstants.SORT_GROUP,
       inputPorts = List(InputPort()),
-      outputPorts = List(OutputPort())
+      outputPorts = List(OutputPort(blocking = true))
     )
 
   override def getOutputSchema(schemas: Array[Schema]): Schema = schemas(0)
