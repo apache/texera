@@ -4,8 +4,8 @@ import com.fasterxml.jackson.annotation.JsonSubTypes.Type
 import com.fasterxml.jackson.annotation.{
   JsonIgnore,
   JsonProperty,
-  JsonPropertyDescription,
   JsonSubTypes,
+  JsonPropertyDescription,
   JsonTypeInfo
 }
 import com.kjetland.jackson.jsonSchema.annotations.JsonSchemaTitle
