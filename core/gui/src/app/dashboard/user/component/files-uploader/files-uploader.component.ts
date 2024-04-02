@@ -10,6 +10,9 @@ import {
   parseFileUploadItemToTreeNodes,
 } from "../../../../common/type/datasetVersionFileTree";
 import { NzUploadChangeParam, NzUploadFile } from "ng-zorro-antd/upload";
+import { environments } from "eslint-plugin-prettier";
+import { environment } from "../../../../../environments/environment";
+import { NotificationService } from "../../../../common/service/notification/notification.service";
 
 @Component({
   selector: "texera-user-files-uploader",
@@ -39,6 +42,8 @@ export class FilesUploaderComponent {
   fileUploadBannerType: "error" | "success" | "info" | "warning" = "success";
   fileUploadBannerMessage: string = "";
 
+  constructor(private notificationService: NotificationService) {}
+
   hideBanner() {
     this.fileUploadingFinished = false;
   }
@@ -50,14 +55,25 @@ export class FilesUploaderComponent {
   }
 
   public fileDropped(files: NgxFileDropEntry[]) {
-    // here I use promise to ensure the atomicity of files uploading
+    // this promise create the FileEntry from each of the NgxFileDropEntry
+    // this filePromises is used to ensure the atomicity of file upload
     const filePromises = files.map(droppedFile => {
       return new Promise<FileUploadItem | null>((resolve, reject) => {
         if (droppedFile.fileEntry.isFile) {
           const fileEntry = droppedFile.fileEntry as FileSystemFileEntry;
           fileEntry.file(file => {
-            const fileUploadItem = UserFileUploadService.createFileUploadItemWithPath(file, droppedFile.relativePath);
-            resolve(fileUploadItem);
+            // Check the file size here
+            if (file.size > environment.singleFileUploadSizeLimitMB * 1024 * 1024) {
+              // If the file is too large, reject the promise
+              this.notificationService.error(
+                `File ${file.name}'s size exceeds the maximum limit of ${environment.singleFileUploadSizeLimitMB}MB.`
+              );
+              reject(null);
+            } else {
+              // If the file size is within the limit, proceed
+              const fileUploadItem = UserFileUploadService.createFileUploadItemWithPath(file, droppedFile.relativePath);
+              resolve(fileUploadItem);
+            }
           }, reject);
         } else {
           resolve(null);
@@ -67,6 +83,7 @@ export class FilesUploaderComponent {
 
     Promise.allSettled(filePromises)
       .then(results => {
+        // once all FileUploadItems are created/some of them are rejected, enter this block
         const successfulUploads = results
           .filter((result): result is PromiseFulfilledResult<FileUploadItem | null> => result.status === "fulfilled")
           .map(result => result.value)
