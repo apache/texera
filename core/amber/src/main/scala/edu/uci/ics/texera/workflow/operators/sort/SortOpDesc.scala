@@ -12,14 +12,14 @@ class SortOpDesc extends PythonOperatorDescriptor {
   var attributes: List[SortCriteriaUnit] = _
 
   override def generatePythonCode(): String = {
-    val criteriaString: String = "[" + attributes.map { criteria =>
-      s"(\"${criteria.attributeName}\", ${
-        criteria.sortPreference match {
-          case SortPreference.ASC => "\"ASC\""
-          case SortPreference.DESC=> "\"DESC\""
-        }
-      })"
-    }.mkString(", ") + "]"
+    val criteriaString: String = "[" + attributes
+      .map { criteria =>
+        s"""("${criteria.attributeName}", ${criteria.sortPreference match {
+          case SortPreference.ASC  => "\"ASC\""
+          case SortPreference.DESC => "\"DESC\""
+        }})"""
+      }
+      .mkString(", ") + "]"
 
     s"""from pytexera import *
        |import pandas as pd
