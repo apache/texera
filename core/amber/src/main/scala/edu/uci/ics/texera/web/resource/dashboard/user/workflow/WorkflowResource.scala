@@ -312,16 +312,16 @@ class WorkflowResource extends LazyLogging {
     val uid = user.getUid
 
     if (workflowOfUserExists(workflow.getWid, user.getUid)) {
-      WorkflowVersionResource.insertVersion(workflow, insertNewFlag = false)
+      WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
       // current user reading
       workflowDao.update(workflow)
     } else {
       if (!WorkflowAccessResource.hasReadAccess(workflow.getWid, user.getUid)) {
         // not owner and not access record --> new record
         insertWorkflow(workflow, user)
-        WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
+        WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       } else if (WorkflowAccessResource.hasWriteAccess(workflow.getWid, user.getUid)) {
-        WorkflowVersionResource.insertVersion(workflow, insertNewFlag = false)
+        WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = false)
         // not owner but has write access
         workflowDao.update(workflow)
       } else {
@@ -422,7 +422,7 @@ class WorkflowResource extends LazyLogging {
       throw new BadRequestException("Cannot create a new workflow with a provided id.")
     } else {
       insertWorkflow(workflow, user)
-      WorkflowVersionResource.insertVersion(workflow, insertNewFlag = true)
+      WorkflowVersionResource.insertVersion(workflow, insertingNewWorkflow = true)
       // create an environment, and associate this environment to this workflow
       createEnvironmentForWorkflow(user.getUid, workflow.getWid, workflow.getName)
       DashboardWorkflow(
