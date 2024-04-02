@@ -91,6 +91,10 @@ export const defaultEnvironment = {
    * reverse proxy set up for y-websocket.
    */
   productionSharedEditingServer: false,
+
+  /**
+   */
+  singleFileUploadMaximumSizeMB: 20,
 };
 
 export type AppEnv = typeof defaultEnvironment;
