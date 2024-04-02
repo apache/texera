@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.worker.managers
 
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.SinkOperatorExecutor
 import edu.uci.ics.texera.workflow.common.operators.OperatorExecutor
 
@@ -17,7 +17,7 @@ class StatisticsManager {
   // AmberProcessor
   private var controlProcessingTime: Long = 0
 
-  def getStatistics(state: WorkerState, operator: OperatorExecutor): WorkerStatistics = {
+  def getStatistics(operator: OperatorExecutor): WorkerStatistics = {
     // sink operator doesn't output to downstream so internal count is 0
     // but for user-friendliness we show its input count as output count
     val displayOut = operator match {
@@ -27,7 +27,6 @@ class StatisticsManager {
         outputTupleCount
     }
     WorkerStatistics(
-      state,
       inputTupleCount.toMap,
       displayOut.toMap,
       dataProcessingTime,

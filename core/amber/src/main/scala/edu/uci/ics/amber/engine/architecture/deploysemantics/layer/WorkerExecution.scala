@@ -15,7 +15,7 @@ case class WorkerExecution() extends Serializable {
     mutable.HashMap()
 
   private var state: WorkerState = UNINITIALIZED
-  private var stats: WorkerStatistics = WorkerStatistics(UNINITIALIZED, Map(), Map(), 0, 0, 0)
+  private var stats: WorkerStatistics = WorkerStatistics(Map(), Map(), 0, 0, 0)
 
   def getState: WorkerState = state
 

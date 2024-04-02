@@ -202,16 +202,21 @@ class ControlCommandV2(betterproto.Message):
 
 @dataclass(eq=False, repr=False)
 class WorkerStatistics(betterproto.Message):
-    worker_state: "WorkerState" = betterproto.enum_field(1)
     input_tuple_count: Dict[int, int] = betterproto.map_field(
-        2, betterproto.TYPE_INT32, betterproto.TYPE_INT64
+        1, betterproto.TYPE_INT32, betterproto.TYPE_INT64
     )
     output_tuple_count: Dict[int, int] = betterproto.map_field(
-        3, betterproto.TYPE_INT32, betterproto.TYPE_INT64
+        2, betterproto.TYPE_INT32, betterproto.TYPE_INT64
     )
-    data_processing_time: int = betterproto.int64_field(4)
-    control_processing_time: int = betterproto.int64_field(5)
-    idle_time: int = betterproto.int64_field(6)
+    data_processing_time: int = betterproto.int64_field(3)
+    control_processing_time: int = betterproto.int64_field(4)
+    idle_time: int = betterproto.int64_field(5)
+
+
+@dataclass(eq=False, repr=False)
+class WorkerInfo(betterproto.Message):
+    worker_state: "WorkerState" = betterproto.enum_field(1)
+    worker_statistics: "WorkerStatistics" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
@@ -242,9 +247,8 @@ class EvaluatedValue(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ControlReturnV2(betterproto.Message):
     control_exception: "ControlException" = betterproto.message_field(1, group="value")
-    worker_statistics: "WorkerStatistics" = betterproto.message_field(2, group="value")
-    worker_state: "WorkerState" = betterproto.enum_field(3, group="value")
+    worker_info: "WorkerInfo" = betterproto.message_field(2, group="value")
     current_input_tuple_info: "CurrentInputTupleInfo" = betterproto.message_field(
-        4, group="value"
+        3, group="value"
     )
-    evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")
+    evaluated_value: "EvaluatedValue" = betterproto.message_field(4, group="value")
