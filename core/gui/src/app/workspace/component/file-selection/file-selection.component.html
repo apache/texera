@@ -1,0 +1,11 @@
+<input
+  nz-input
+  placeholder="Search for files from datasets..."
+  [(ngModel)]="filterText"
+  (ngModelChange)="filterFileTreeNodes()" />
+
+<texera-user-dataset-version-filetree
+  [isExpandAllAfterViewInit]="true"
+  [fileTreeNodes]="suggestedFileTreeNodes"
+  (selectedTreeNode)="onFileTreeNodeSelected($event)">
+</texera-user-dataset-version-filetree>
