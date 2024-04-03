@@ -16,14 +16,10 @@ import {
 })
 export class FileSelectionComponent {
   readonly fileTreeNodes: ReadonlyArray<DatasetVersionFileTreeNode> = inject(NZ_MODAL_DATA).fileTreeNodes;
-  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = [];
+  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = inject(NZ_MODAL_DATA).fileTreeNodes;
   filterText: string = "";
 
   constructor(private modalRef: NzModalRef) {}
-
-  ngOnInit() {
-    this.suggestedFileTreeNodes = [...this.fileTreeNodes]; // Initially, suggested nodes are all nodes
-  }
 
   filterFileTreeNodes() {
     const filterText = this.filterText.trim().toLowerCase();
