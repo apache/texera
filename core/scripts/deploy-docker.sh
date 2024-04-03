@@ -15,5 +15,5 @@ fi
 # Start worker.sh in the background
 bash scripts/worker.sh &
 
-# Wait for both server.sh and worker.sh to complete
-wait
+# Wait for one of server.sh and worker.sh to complete
+wait -n
