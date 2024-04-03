@@ -49,7 +49,7 @@ import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentRes
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource
 import io.dropwizard.auth.Auth
-import org.jooq.DSLContext
+import org.jooq.{Configuration, DSLContext}
 import org.jooq.types.UInteger
 
 import java.net.URLDecoder
@@ -152,6 +152,27 @@ object EnvironmentResource {
       }
     }
   }
+
+  // duplicate the environment specified by eid
+  // - environment entry will be physically duplicated
+  // - pointers containing in this environment, including the pointers to dataset, will be physically duplicated as well.
+  // - actual resources, including dataset, WILL NOT BE PHYSICALLY COPIED
+  def copyEnvironment(txConfig: Configuration, srcEid: UInteger, dstEid: UInteger): Unit = {
+    val datasetOfEnvironmentDao = new DatasetOfEnvironmentDao(txConfig)
+
+    // retrieve the environment specified by eid, datasets of environment
+    val datasetsOfEnvironment = datasetOfEnvironmentDao.fetchByEid(srcEid).asScala
+
+    datasetsOfEnvironment.foreach(dOfEnv => {
+      val newDatasetOfEnv = new DatasetOfEnvironment()
+      newDatasetOfEnv.setEid(dstEid)
+      newDatasetOfEnv.setDvid(dOfEnv.getDvid)
+      newDatasetOfEnv.setDid(dOfEnv.getDid)
+
+      datasetOfEnvironmentDao.insert(newDatasetOfEnv)
+    })
+  }
+
   private def getEnvironmentByEid(ctx: DSLContext, eid: UInteger): Environment = {
     val environmentDao: EnvironmentDao = new EnvironmentDao(ctx.configuration())
     val env = environmentDao.fetchOneByEid(eid)
