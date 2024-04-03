@@ -25,13 +25,15 @@ class LimitOpDesc extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
-    val limitPerWorker = equallyPartitionGoal(limit, AmberConfig.numWorkerPerOperatorByDefault)
     PhysicalOp
       .oneToOnePhysicalOp(
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, _) => new LimitOpExec(limitPerWorker(idx)))
+        OpExecInitInfo((idx, numWorkers) => {
+          val limitPerWorker = equallyPartitionGoal(limit, numWorkers)
+          new LimitOpExec(limitPerWorker(idx))
+        })
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
