@@ -192,6 +192,10 @@ class WorkflowService(
     }
 
     val executionStateStore = new ExecutionStateStore()
+    // assign execution id to find the execution from DB in case the constructor fails.
+    executionStateStore.metadataStore.updateState(state =>
+      state.withExecutionId(workflowContext.executionId)
+    )
     val errorHandler: Throwable => Unit = { t =>
       {
         logger.error("error during execution", t)
