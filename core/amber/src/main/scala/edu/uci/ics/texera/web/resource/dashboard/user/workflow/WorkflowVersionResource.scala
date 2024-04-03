@@ -94,11 +94,10 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function inserts a new version for a new workflow
+    * This function inserts a new version for a workflow
     * @param wid
     */
   def insertNewVersion(wid: UInteger, content: String = "[]"): WorkflowVersion = {
-    // write the new version with empty diff
     val workflowVersion = new WorkflowVersion()
     workflowVersion.setContent(content)
     workflowVersion.setWid(wid)
