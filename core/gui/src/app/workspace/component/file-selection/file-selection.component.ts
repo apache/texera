@@ -1,12 +1,7 @@
-import { Component, inject, Input } from "@angular/core";
+import { Component, inject, OnInit } from "@angular/core";
 import { NZ_MODAL_DATA, NzModalRef } from "ng-zorro-antd/modal";
 import { UntilDestroy } from "@ngneat/until-destroy";
-import {
-  DatasetVersionFileTreeManager,
-  DatasetVersionFileTreeNode,
-  EnvironmentDatasetFileNodes,
-  getFullPathFromFileTreeNode,
-} from "../../../common/type/datasetVersionFileTree";
+import { DatasetVersionFileTreeNode, getFullPathFromFileTreeNode } from "../../../common/type/datasetVersionFileTree";
 
 @UntilDestroy()
 @Component({
@@ -14,12 +9,16 @@ import {
   templateUrl: "file-selection.component.html",
   styleUrls: ["file-selection.component.scss"],
 })
-export class FileSelectionComponent {
+export class FileSelectionComponent implements OnInit {
   readonly fileTreeNodes: ReadonlyArray<DatasetVersionFileTreeNode> = inject(NZ_MODAL_DATA).fileTreeNodes;
-  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = inject(NZ_MODAL_DATA).fileTreeNodes;
+  suggestedFileTreeNodes: DatasetVersionFileTreeNode[] = [];
   filterText: string = "";
 
   constructor(private modalRef: NzModalRef) {}
+
+  ngOnInit(): void {
+    this.suggestedFileTreeNodes = [...this.fileTreeNodes];
+  }
 
   filterFileTreeNodes() {
     const filterText = this.filterText.trim().toLowerCase();
