@@ -1,7 +1,8 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
+import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState._
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
@@ -44,26 +45,15 @@ case class OperatorExecution() {
   def getWorkerIds: Set[ActorVirtualIdentity] = workerExecutions.keys.asScala.toSet
 
   def getState: WorkflowAggregatedState = {
-    val workerStates = workerExecutions.values.asScala.map(_.getState)
-    if (workerStates.isEmpty) {
-      return WorkflowAggregatedState.UNINITIALIZED
-    }
-    if (workerStates.forall(_ == COMPLETED)) {
-      return WorkflowAggregatedState.COMPLETED
-    }
-    if (workerStates.exists(_ == RUNNING)) {
-      return WorkflowAggregatedState.RUNNING
-    }
-    val unCompletedWorkerStates = workerStates.filter(_ != COMPLETED)
-    if (unCompletedWorkerStates.forall(_ == UNINITIALIZED)) {
-      WorkflowAggregatedState.UNINITIALIZED
-    } else if (unCompletedWorkerStates.forall(_ == PAUSED)) {
-      WorkflowAggregatedState.PAUSED
-    } else if (unCompletedWorkerStates.forall(_ == READY)) {
-      WorkflowAggregatedState.READY
-    } else {
-      WorkflowAggregatedState.UNKNOWN
-    }
+    val workerStates = workerExecutions.values.asScala.map(_.getState).toList
+    aggregateStates(
+      workerStates,
+      WorkerState.COMPLETED,
+      WorkerState.RUNNING,
+      WorkerState.UNINITIALIZED,
+      WorkerState.PAUSED,
+      WorkerState.READY
+    )
   }
 
   def getStats: OperatorRuntimeStats =
