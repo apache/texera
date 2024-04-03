@@ -16,8 +16,8 @@ export class FileSelectionComponent implements OnInit {
 
   constructor(private modalRef: NzModalRef) {}
 
-  ngOnInit(): void {
-    this.suggestedFileTreeNodes = [...this.fileTreeNodes];
+  ngOnInit() {
+    this.suggestedFileTreeNodes = [...this.fileTreeNodes]; // Initially, suggested nodes are all nodes
   }
 
   filterFileTreeNodes() {
