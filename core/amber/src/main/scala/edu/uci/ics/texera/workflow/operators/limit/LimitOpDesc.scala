@@ -30,9 +30,8 @@ class LimitOpDesc extends LogicalOp {
         workflowId,
         executionId,
         operatorIdentifier,
-        OpExecInitInfo((idx, numWorkers) => {
-          val limitPerWorker = equallyPartitionGoal(limit, numWorkers)
-          new LimitOpExec(limitPerWorker(idx))
+        OpExecInitInfo((_, _) => {
+          new LimitOpExec(limit)
         })
       )
       .withInputPorts(operatorInfo.inputPorts)
