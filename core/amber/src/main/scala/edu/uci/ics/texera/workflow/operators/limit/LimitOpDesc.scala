@@ -35,6 +35,7 @@ class LimitOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
+      .withParallelizable(false)
   }
 
   override def operatorInfo: OperatorInfo =
