@@ -396,9 +396,12 @@ export class OperatorPropertyEditFrameComponent implements OnInit, OnChanges, On
         };
       }
 
-      // Disable dummy property list for all operators
+      // Disable dummy property list for all operators, except for dummy operator.
       if (mappedField.key === "dummyPropertyList") {
         mappedField.hide = true;
+        if (this.currentOperatorSchema?.operatorType === "Dummy") {
+          mappedField.hide = false;
+        }
         mappedField.expressionProperties = {
           "templateOptions.disabled": () => true,
           "templateOptions.readonly": () => true,
