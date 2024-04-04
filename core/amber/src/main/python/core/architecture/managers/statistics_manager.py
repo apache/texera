@@ -1,5 +1,3 @@
-import typing
-
 from proto.edu.uci.ics.amber.engine.common import PortIdentity
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerStatistics
 
