@@ -1,7 +1,7 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import com.rits.cloning.Cloner
-import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
+import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStats
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
@@ -86,43 +86,6 @@ case class RegionExecution(region: Region) {
     * Retrieves all `LinkExecutions` stored.
     */
   def getAllLinkExecutions: Iterable[(PhysicalLink, LinkExecution)] = linkExecutions
-
-  /**
-    * Handle the case when a logical operator has two physical operators within a region (e.g., Aggregate)
-    */
-  private def aggregateStats(stats: List[OperatorRuntimeStats]): OperatorRuntimeStats = {
-    val aggregatedState = aggregateStates(
-      stats.map(_.state),
-      WorkflowAggregatedState.COMPLETED,
-      WorkflowAggregatedState.RUNNING,
-      WorkflowAggregatedState.UNINITIALIZED,
-      WorkflowAggregatedState.PAUSED,
-      WorkflowAggregatedState.READY
-    )
-
-    val inputCountSum = stats.flatMap(_.inputCount).groupBy(_._1).map {
-      case (k, v) =>
-        k -> v.map(_._2).sum
-    }
-    val outputCountSum = stats.flatMap(_.outputCount).groupBy(_._1).map {
-      case (k, v) =>
-        k -> v.map(_._2).sum
-    }
-    val numWorkersSum = stats.map(_.numWorkers).sum
-    val dataProcessingTimeSum = stats.map(_.dataProcessingTime).sum
-    val controlProcessingTimeSum = stats.map(_.controlProcessingTime).sum
-    val idleTimeSum = stats.map(_.idleTime).sum
-
-    OperatorRuntimeStats(
-      aggregatedState,
-      inputCountSum,
-      outputCountSum,
-      numWorkersSum,
-      dataProcessingTimeSum,
-      controlProcessingTimeSum,
-      idleTimeSum
-    )
-  }
 
   def getStats: Map[String, OperatorRuntimeStats] = {
     operatorExecutions.groupBy(_._1.logicalOpId.id).map {

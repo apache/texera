@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.architecture.messaginglayer
 
 import com.softwaremill.macwire.wire
 import edu.uci.ics.amber.engine.architecture.sendsemantics.partitionings.OneToOnePartitioning
-import edu.uci.ics.amber.engine.architecture.worker.managers.StatisticsManager
 import edu.uci.ics.amber.engine.common.ambermessage._
 import edu.uci.ics.amber.engine.common.tuple.amber.TupleLike
 import edu.uci.ics.amber.engine.common.virtualidentity.{
@@ -50,7 +49,6 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
   "OutputManager" should "aggregate tuples and output" in {
     val outputManager = wire[OutputManager]
     val mockPortId = PortIdentity()
-    val mockStatisticsManager: StatisticsManager = new StatisticsManager()
     outputManager.addPort(mockPortId, schema)
 
     val tuples = Array.fill(21)(
@@ -77,7 +75,7 @@ class OutputManagerSpec extends AnyFlatSpec with MockFactory {
       OneToOnePartitioning(10, fakeReceiver.toSeq)
     )
     tuples.foreach { t =>
-      outputManager.passTupleToDownstream(TupleLike(t.getFields), mockStatisticsManager, None)
+      outputManager.passTupleToDownstream(TupleLike(t.getFields), None)
     }
     outputManager.emitEndOfUpstream()
   }
