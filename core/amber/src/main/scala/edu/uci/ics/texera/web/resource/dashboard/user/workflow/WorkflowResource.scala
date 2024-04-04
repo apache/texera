@@ -16,7 +16,8 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos._
 import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource
 import edu.uci.ics.texera.web.resource.dashboard.user.environment.EnvironmentResource.{
   createEnvironment,
-  doesWorkflowHaveEnvironment
+  doesWorkflowHaveEnvironment,
+  copyEnvironment
 }
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.hasReadAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowResource._
@@ -365,7 +366,7 @@ class WorkflowResource extends LazyLogging {
     val addToProject = workflowIDs.pid.nonEmpty
     // then start a transaction and do the duplication
     try {
-      context.transaction { _ =>
+      context.transaction { txConfig =>
         for (wid <- workflowIDs.wids) {
           val workflow: Workflow = workflowDao.fetchOneByWid(wid)
           workflow.getContent
@@ -394,7 +395,10 @@ class WorkflowResource extends LazyLogging {
               throw new BadRequestException("Workflow already exists in the project")
             }
           }
-
+          // also duplicate the environment
+          val eid = getEnvironmentEidOfWorkflow(wid)
+          val newEid = getEnvironmentEidOfWorkflow(newWorkflow.workflow.getWid)
+          copyEnvironment(txConfig, eid, newEid)
           resultWorkflows += newWorkflow
         }
       }
