@@ -423,7 +423,7 @@ class TestMainLoop:
         input_queue.put(mock_query_statistics)
         elem = output_queue.get()
         stats_invocation = elem.payload.return_invocation
-        stats = stats_invocation.control_return.worker_statistics
+        stats = stats_invocation.control_return.worker_info.worker_statistics
         assert elem == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
@@ -681,9 +681,7 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(
-                        worker_info=WorkerInfo(worker_state=WorkerState.PAUSED)
-                    ),
+                    control_return=ControlReturnV2(),
                 )
             ),
         )
@@ -698,7 +696,7 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(worker_state=WorkerState.RUNNING),
+                    control_return=ControlReturnV2(),
                 )
             ),
         )
