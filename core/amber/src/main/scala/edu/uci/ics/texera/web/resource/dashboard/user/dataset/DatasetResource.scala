@@ -526,7 +526,6 @@ class DatasetResource {
 
     publicDatasets.forEach { publicDataset =>
       if (!accessibleDatasets.exists(_.dataset.getDid == publicDataset.getDid)) {
-        // Assuming DashboardDataset has a property did for comparison
         val dashboardDataset = DashboardDataset(
           isOwner = false,
           dataset = publicDataset,
