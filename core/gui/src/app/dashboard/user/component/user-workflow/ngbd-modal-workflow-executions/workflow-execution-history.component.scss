@@ -1,9 +1,12 @@
-#search-box input,
-#exection-history-table .ant-table-tbody > tr > td {
+/* Search Box Styling */
+#search-box input {
+  width: 100%;
   font-size: 11px;
+  padding: 0px;
+  margin: 0;
 }
 
-#exection-history-table .ant-table-tbody > tr > td {
+.ant-table-thead > tr > th {
   padding: 0px;
 }
 
@@ -11,61 +14,14 @@ nz-table th {
   text-align: center;
 }
 
-.bookmark-icon {
-  font-size: 11px;
-}
-
-.bookmark-icon:hover {
-  cursor: pointer;
-}
-
-.modal-xl .modal-lg {
-  max-width: 90%;
-}
-
-.status-icon {
-  font-size: 11px;
-}
-
-.rename-icon:hover {
-  color: #007bff;
-}
-
-::ng-deep .cdk-overlay-container {
-  z-index: 1100;
-}
-
-.subsection-grid-container {
-  min-width: 100%;
-  width: 100%;
-  min-height: 100%;
-  height: 100%;
+.version-sample {
+  flex-grow: 2;
+  text-align: center;
 }
 
 .ant-btn {
   border: 0;
   background-color: transparent;
-}
-
-.h4 {
-  font-size: 11px;
-}
-
-.ant-btn-icon-only > * {
-  font-size: 11px;
-}
-
-.ant-btn-icon-only {
-  margin-right: 0;
-
-  &.ant-btn-sm {
-    transform: translateY(-5px);
-  }
-}
-
-.version-sample {
-  flex-grow: 2;
-  text-align: center;
 }
 
 .workflow-snapshot {
@@ -75,3 +31,53 @@ nz-table th {
   width: 170px;
   height: 95px;
 }
+
+#exection-history-table {
+  width: 100%;
+  font-size: 11px;
+  padding: 0px;
+  margin: 0;
+}
+
+
+.bookmark-icon:hover {
+  cursor: pointer;
+}
+
+.rename-icon:hover {
+  color: #007bff;
+}
+
+
+@media (max-width: 600px) {
+  .ant-table-cell {
+    padding: 0px;
+    font-size: 11px;
+  }
+
+  .ant-table-column-hide {
+    display: none;
+  }
+}
+
+.ant-table-cell {
+  font-size: 11px;
+  padding: 0px;
+  min-width: 50px;
+  box-sizing: border-box;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Optional, for text clipping with an ellipsis */
+  max-width: 0; /* Allows the cell to shrink, forcing text to wrap */
+}
+
+.ant-table {
+  width: 100%;
+  table-layout: fixed; /* Allows table to adapt based on content and container width */
+}
+
+// .ant-table-cell {
+//   flex: 1;
+//   min-width: 50px;
+// }

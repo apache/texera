@@ -80,6 +80,7 @@
   <nz-tabset nzCentered>
     <nz-tab nzTitle="Executions Details">
       <nz-table
+        nzTableLayout="auto"
         (nzPageIndexChange)="onPageIndexChange($event)"
         (nzPageSizeChange)="onPageSizeChange($event)"
         *ngIf="workflowExecutionsDisplayedList"
