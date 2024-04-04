@@ -44,8 +44,8 @@ class SchemaPropagationResource extends LazyLogging {
     val physicalInputSchemas = physicalPlan.operators.map { physicalOp =>
       physicalOp.id -> physicalOp.inputPorts.values
         .filterNot(_._1.id.internal)
-        .map{
-          case (port, _, schema )=> port.id-> schema.toOption
+        .map {
+          case (port, _, schema) => port.id -> schema.toOption
         }
     }
 
