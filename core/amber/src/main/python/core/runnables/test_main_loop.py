@@ -26,6 +26,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     QueryStatisticsV2,
     AddInputChannelV2,
     WorkerExecutionCompletedV2,
+    WorkerInfo,
     WorkerState,
     WorkerStatistics,
     PortCompletedV2,
@@ -429,13 +430,15 @@ class TestMainLoop:
                 return_invocation=ReturnInvocationV2(
                     original_command_id=1,
                     control_return=ControlReturnV2(
-                        worker_statistics=WorkerStatistics(
+                        worker_info=WorkerInfo(
                             worker_state=WorkerState.RUNNING,
-                            input_tuple_count=1,
-                            output_tuple_count=1,
-                            data_processing_time=stats.data_processing_time,
-                            control_processing_time=stats.control_processing_time,
-                            idle_time=stats.idle_time,
+                            worker_statistics=WorkerStatistics(
+                                input_tuple_count={0: 1},
+                                output_tuple_count={0: 1},
+                                data_processing_time=stats.data_processing_time,
+                                control_processing_time=stats.control_processing_time,
+                                idle_time=stats.idle_time,
+                            ),
                         )
                     ),
                 )
@@ -678,7 +681,9 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(worker_state=WorkerState.PAUSED),
+                    control_return=ControlReturnV2(
+                        worker_info=WorkerInfo(worker_state=WorkerState.PAUSED)
+                    ),
                 )
             ),
         )
