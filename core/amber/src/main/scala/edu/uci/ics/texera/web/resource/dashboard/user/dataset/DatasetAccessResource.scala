@@ -37,6 +37,7 @@ object DatasetAccessResource {
   def userHasReadAccess(ctx: DSLContext, did: UInteger, uid: UInteger): Boolean = {
     userHasWriteAccess(ctx, did, uid) ||
     datasetIsPublic(ctx, did) ||
+    getDatasetUserAccessPrivilege(ctx, did, uid) == DatasetUserAccessPrivilege.READ ||
     userHasWorkflowReadAccessThroughEnvironment(ctx, did, uid)
   }
 
