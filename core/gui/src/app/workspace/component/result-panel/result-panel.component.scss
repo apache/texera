@@ -33,3 +33,45 @@ $type-colors: (
   "null": #fff,
   undefined: #fff,
 );
+
+#content {
+  height: 100%;
+  overflow-y: auto;
+  padding-top: 38px;
+}
+
+#result-buttons {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 4;
+}
+
+.ant-menu-item {
+  margin: 0 !important;
+  height: 32px;
+  line-height: 32px;
+  padding: 0 9px;
+}
+
+#divider {
+  margin: 0;
+}
+
+.shadow {
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
+}
+
+#line {
+  padding: 16px 9px;
+  border-bottom: 1px solid #e0e0e0;
+  position: absolute;
+  top: 0;
+  background: white;
+  width: 100%;
+  z-index: 2;
+}
