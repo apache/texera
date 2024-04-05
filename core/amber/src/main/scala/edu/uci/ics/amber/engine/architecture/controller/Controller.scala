@@ -21,7 +21,6 @@ import edu.uci.ics.amber.engine.common.ambermessage.{
   WorkflowFIFOMessage
 }
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.ExecutionStatsUpdate
-import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStats
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCClient.ControlInvocation
 import edu.uci.ics.amber.engine.common.virtualidentity.{ActorVirtualIdentity, ChannelIdentity}
 import edu.uci.ics.amber.engine.common.{AmberConfig, CheckpointState, SerializedState}
@@ -218,13 +217,7 @@ class Controller(
     outputMessages.foreach(transferService.send)
     cp.asyncRPCClient.sendToClient(
       ExecutionStatsUpdate(
-        cp.workflowExecution.getRunningRegionExecutions
-          .flatMap(_.getStats)
-          .groupBy(_._1)
-          .map {
-            case (key, values) =>
-              key -> aggregateStats(values.map(_._2).toList)
-          }
+        cp.workflowExecution.getRunningRegionExecutionsRuntimeStats
       )
     )
     globalReplayManager.markRecoveryStatus(CONTROLLER, isRecovering = false)
