@@ -49,7 +49,7 @@ class SchemaPropagationResource extends LazyLogging {
         }
     }
 
-    // Group the physical input schemas by their logical operation ID and consolidate the schemas
+    // Group the physical input schemas by their logical operator ID and consolidate the schemas
     val logicalInputSchemas = physicalInputSchemas
       .groupBy(_._1.logicalOpId)
       .view
