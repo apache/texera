@@ -139,7 +139,7 @@ class WorkflowAccessResource() {
   def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String,
+      @PathParam("privilege") privilege: String
   ): Unit = {
     try {
       workflowUserAccessDao.merge(
