@@ -53,7 +53,7 @@ class SchemaPropagationResource extends LazyLogging {
     val logicalInputSchemas = physicalInputSchemas
       .groupBy(_._1.logicalOpId)
       .view
-      .mapValues(_.flatMap(_._2.toList).toList.sortBy(_._1.id).map(_._2))
+      .mapValues(_.flatMap(_._2).toList.sortBy(_._1.id).map(_._2))
       .toMap
 
     // Prepare the response content by extracting attributes from the schemas,
