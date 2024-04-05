@@ -1,7 +1,6 @@
 import { ChangeDetectorRef, Component, OnInit, Type } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
 import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
 import { ResultTableFrameComponent } from "./result-table-frame/result-table-frame.component";
@@ -31,12 +30,10 @@ export class ResultPanelComponent implements OnInit {
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
 
-  showResultPanel: boolean = false;
   previewWorkflowVersion: boolean = false;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
-    private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
@@ -67,10 +64,7 @@ export class ResultPanelComponent implements OnInit {
         const currentlyHighlighted = this.workflowActionService
           .getJointGraphWrapper()
           .getCurrentHighlightedOperatorIDs();
-        // display panel on abort (to show possible error messages)
-        if (event.current.state === ExecutionState.Failed) {
-          this.resultPanelToggleService.openResultPanel();
-        }
+
         // display panel when execution is completed and highlight sink to show results
         // condition must be (Running -> Completed) to prevent cases like
         //   (Uninitialized -> Completed) (a completed workflow is reloaded)
@@ -87,7 +81,6 @@ export class ResultPanelComponent implements OnInit {
               this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
               this.workflowActionService.getJointGraphWrapper().highlightOperators(activeSinkOperators[0]);
             }
-            this.resultPanelToggleService.openResultPanel();
           }
         }
 
@@ -105,7 +98,6 @@ export class ResultPanelComponent implements OnInit {
               this.workflowActionService.getJointGraphWrapper().unhighlightOperators(...currentlyHighlighted);
               this.workflowActionService.getJointGraphWrapper().highlightOperators(activePythonUDFOperators[0]);
             }
-            this.resultPanelToggleService.openResultPanel();
           }
         }
       });
@@ -118,7 +110,6 @@ export class ResultPanelComponent implements OnInit {
         .pipe(filter(event => ResultPanelComponent.needRerenderOnStateChange(event))),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorHighlightStream(),
       this.workflowActionService.getJointGraphWrapper().getJointOperatorUnhighlightStream(),
-      this.resultPanelToggleService.getToggleChangeStream(),
       this.workflowResultService.getResultInitiateStream()
     )
       .pipe(untilDestroyed(this))
@@ -156,12 +147,6 @@ export class ResultPanelComponent implements OnInit {
       }
     } else {
       this.frameComponentConfigs.delete("Static Error");
-    }
-
-    // current result panel is closed or there is no operator highlighted, do nothing
-    this.showResultPanel = this.resultPanelToggleService.isResultPanelOpen();
-    if (!this.showResultPanel || !this.currentOperatorId) {
-      return;
     }
 
     if (this.currentOperatorId) {
