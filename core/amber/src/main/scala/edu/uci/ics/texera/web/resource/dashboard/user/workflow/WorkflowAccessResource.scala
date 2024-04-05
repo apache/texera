@@ -1,6 +1,7 @@
 package edu.uci.ics.texera.web.resource.dashboard.user.workflow
 
 import edu.uci.ics.texera.web.SqlServer
+import edu.uci.ics.texera.web.auth.SessionUser
 import edu.uci.ics.texera.web.model.common.AccessEntry
 import edu.uci.ics.texera.web.model.jooq.generated.Tables.{
   PROJECT_USER_ACCESS,
@@ -16,6 +17,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.daos.{
 }
 import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAccess
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
+import io.dropwizard.auth.Auth
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
 
@@ -137,8 +139,12 @@ class WorkflowAccessResource() {
   def grantAccess(
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
-      @PathParam("privilege") privilege: String
+      @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (email.equals(user.getEmail)) {
+      throw new BadRequestException("You cannot grant access to yourself!")
+    }
     try {
       workflowUserAccessDao.merge(
         new WorkflowUserAccess(
