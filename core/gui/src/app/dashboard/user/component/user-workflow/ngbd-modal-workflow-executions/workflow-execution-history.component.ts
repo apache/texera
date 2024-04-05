@@ -63,7 +63,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   /*custom column width*/
   public customColumnWidth: Record<string, string> = {
     "": "1.5%",
-    "Name (ID)": "9%",
+    "Name (ID)": "7%",
     "Workflow Version Sample": "10%",
     Username: "6%",
     "Starting Time": "8%",
