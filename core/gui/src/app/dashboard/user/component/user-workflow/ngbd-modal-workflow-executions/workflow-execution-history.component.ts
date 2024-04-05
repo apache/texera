@@ -40,7 +40,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   public currentlyHoveredExecution: WorkflowExecutionsEntry | undefined;
   public executionsTableHeaders: string[] = [
     "",
-    "Username",
+    "Avatar",
     "Name (ID)",
     "Starting Time",
     "Last Status Updated Time",
@@ -62,10 +62,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
 
   /*custom column width*/
   public customColumnWidth: Record<string, string> = {
-    "": "1.5%",
+    "": "0%",
     "Name (ID)": "7%",
     "Workflow Version Sample": "10%",
-    Username: "6%",
+    Avatar: "6%",
     "Starting Time": "8%",
     "Last Status Updated Time": "10.5%",
     Status: "3%",
