@@ -7,6 +7,7 @@ import { UserService } from "../../../../common/service/user/user.service";
 import { GmailService } from "../../../admin/service/gmail.service";
 import { NZ_MODAL_DATA } from "ng-zorro-antd/modal";
 import { NotificationService } from "../../../../common/service/notification/notification.service";
+import { HttpErrorResponse } from "@angular/common/http";
 
 @UntilDestroy()
 @Component({
@@ -65,22 +66,29 @@ export class ShareAccessComponent implements OnInit {
       this.accessService
         .grantAccess(this.type, this.id, this.validateForm.value.email, this.validateForm.value.accessLevel)
         .pipe(untilDestroyed(this))
-        .subscribe(() => {
-          this.ngOnInit();
-          this.notificationService.success(
-            this.type + " shared with " + this.validateForm.value.email + " successfully."
-          );
-          this.gmailService.sendEmail(
-            "Texera: " + this.owner + " shared a " + this.type + " with you",
-            this.owner +
-              " shared a " +
-              this.type +
-              " with you, access the workflow at " +
-              location.origin +
-              "/workflow/" +
-              this.id,
-            this.validateForm.value.email
-          );
+        .subscribe({
+          next: () => {
+            this.ngOnInit();
+            this.notificationService.success(
+              this.type + " shared with " + this.validateForm.value.email + " successfully."
+            );
+            this.gmailService.sendEmail(
+              "Texera: " + this.owner + " shared a " + this.type + " with you",
+              this.owner +
+                " shared a " +
+                this.type +
+                " with you, access the workflow at " +
+                location.origin +
+                "/workflow/" +
+                this.id,
+              this.validateForm.value.email
+            );
+          },
+          error: (error: unknown) => {
+            if (error instanceof HttpErrorResponse) {
+              this.notificationService.error(error.error.message);
+            }
+          },
         });
     }
   }
