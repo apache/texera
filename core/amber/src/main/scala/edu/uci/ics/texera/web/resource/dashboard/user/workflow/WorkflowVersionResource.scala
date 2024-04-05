@@ -37,27 +37,24 @@ object WorkflowVersionResource {
   /**
     * This function does the check of the difference between the current workflow and its previous version if it exists and inserts a new version
     * @param workflow
-    * @param insertNewFlag indicates if the workflow didn't exist before
+    * @param insertingNewWorkflow indicates if the workflow didn't exist before
     */
-  def insertVersion(workflow: Workflow, insertNewFlag: Boolean): Unit = {
+  def insertVersion(workflow: Workflow, insertingNewWorkflow: Boolean): Unit = {
     val wid = workflow.getWid
     // retrieve current workflow from DB
     val currentWorkflow = workflowDao.fetchOneByWid(wid)
     // if the workflow is new then previous workflow is empty
-    val content = if (insertNewFlag) "{}" else currentWorkflow.getContent
+    val existingWorkflowContent = if (insertingNewWorkflow) "{}" else currentWorkflow.getContent
     // compute diff
     val patch = JsonDiff.asJson(
       objectMapper.readTree(workflow.getContent),
-      objectMapper.readTree(content)
+      objectMapper.readTree(existingWorkflowContent)
     )
-    if (insertNewFlag) {
-      insertNewVersion(wid)
-    }
-    // if there is difference then write delta in DB
-    if (!patch.isEmpty) {
-      updateLatestVersion(patch.toString, wid)
-      // write current version as an empty diff
-      insertNewVersion(wid)
+
+    // if we are creating a new workflow, even if it is empty, create a new version
+    // otherwise, only when there is a diff we would create a new version
+    if (insertingNewWorkflow || !patch.isEmpty) {
+      insertNewVersion(wid, patch.toString)
     }
   }
 
@@ -97,13 +94,12 @@ object WorkflowVersionResource {
   }
 
   /**
-    * This function inserts a new version for a new workflow
+    * This function inserts a new version for a workflow
     * @param wid
     */
-  def insertNewVersion(wid: UInteger): WorkflowVersion = {
-    // write the new version with empty diff
+  def insertNewVersion(wid: UInteger, content: String = "[]"): WorkflowVersion = {
     val workflowVersion = new WorkflowVersion()
-    workflowVersion.setContent("[]")
+    workflowVersion.setContent(content)
     workflowVersion.setWid(wid)
     workflowVersionDao.insert(workflowVersion)
     workflowVersion
@@ -162,20 +158,15 @@ object WorkflowVersionResource {
     * insertion to DB because of computing the version's importance especially because the request is
     * async, the versions can quickly become inconsistent if there is delay.
     * * 3. The rules can be changed in the future so we want this logic to be changed flexibly.
-    * @param versions
+    * @param versions the version from DB sorted from latest to earliest
     * @return
     */
   private def encodeVersionImportance(
       currentVersions: List[WorkflowVersion]
   ): List[VersionEntry] = {
     var impEncodedVersions: List[VersionEntry] = List()
-    if (currentVersions.size <= 2) {
-      return impEncodedVersions
-    }
-    val versions =
-      currentVersions.init.reverse.init // remove the last empty patch and remove the first version because current
-    // frontend can't display an empty workflow on paper TODO fix reload in `workflow-action-service.ts`
-    val lastVersion = versions.head
+
+    val lastVersion = currentVersions.head
     var lastVersionTime = lastVersion.getCreationTime
     impEncodedVersions = impEncodedVersions :+ VersionEntry(
       lastVersion.getVid,
@@ -185,7 +176,7 @@ object WorkflowVersionResource {
     ) // the first (latest)
     // version is important even if it is positional
     var versionImportance: Boolean = true
-    for (version <- versions.tail) {
+    for (version <- currentVersions.tail) {
       if (
         isWithinTimeLimit(
           lastVersionTime,
@@ -307,6 +298,7 @@ class WorkflowVersionResource {
           .select(WORKFLOW_VERSION.VID, WORKFLOW_VERSION.CREATION_TIME, WORKFLOW_VERSION.CONTENT)
           .from(WORKFLOW_VERSION)
           .where(WORKFLOW_VERSION.WID.eq(wid))
+          .orderBy(WORKFLOW_VERSION.CREATION_TIME.desc())
           .fetchInto(classOf[WorkflowVersion])
           .asScala
           .toList

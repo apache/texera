@@ -100,7 +100,7 @@ class WorkflowExecutionService(
     logger.info("Starting the workflow execution.")
     resultService.attachToExecution(executionStateStore, workflow.originalLogicalPlan, client)
     executionStateStore.metadataStore.updateState(metadataStore =>
-      updateWorkflowState(READY, metadataStore.withExecutionId(workflowContext.executionId))
+      updateWorkflowState(READY, metadataStore)
         .withFatalErrors(Seq.empty)
     )
     executionStateStore.statsStore.updateState(stats =>
