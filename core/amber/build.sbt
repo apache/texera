@@ -142,10 +142,10 @@ val arrowDependencies = Seq(
 /////////////////////////////////////////////////////////////////////////////
 // MongoDB related
 val mongoDbDependencies = Seq(
-  // https://mvnrepository.com/artifact/org.mongodb/mongo-java-driver
-  "org.mongodb" % "mongo-java-driver" % "3.12.12",
-  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core/3.0
-  "org.apache.commons" % "commons-jcs3-core" % "3.1"
+  // https://mvnrepository.com/artifact/org.mongodb/mongodb-driver-sync
+  "org.mongodb" % "mongodb-driver-sync" % "5.0.0",
+  // https://mvnrepository.com/artifact/org.apache.commons/commons-jcs3-core
+  "org.apache.commons" % "commons-jcs3-core" % "3.2"
 )
 
 libraryDependencies ++= akkaDependencies
