@@ -140,7 +140,11 @@ class WorkflowAccessResource() {
       @PathParam("wid") wid: UInteger,
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: String,
+      @Auth user: SessionUser
   ): Unit = {
+    if (email.equals(user.getEmail)) {
+      throw new BadRequestException("You cannot grant access to yourself!")
+    }
     try {
       workflowUserAccessDao.merge(
         new WorkflowUserAccess(
