@@ -47,17 +47,6 @@ nz-table th {
   color: #007bff;
 }
 
-@media (max-width: 600px) {
-  .ant-table-cell {
-    padding: 0px;
-    font-size: 11px;
-  }
-
-  .ant-table-column-hide {
-    display: none;
-  }
-}
-
 .ant-table-cell {
   font-size: 11px;
   padding: 0px;
