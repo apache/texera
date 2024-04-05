@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, Type } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, Type, HostListener } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -13,6 +13,7 @@ import { isPythonUdf, isSink } from "../../service/workflow-graph/model/workflow
 import { WorkflowVersionService } from "../../../dashboard/user/service/workflow-version/workflow-version.service";
 import { ErrorFrameComponent } from "./error-frame/error-frame.component";
 import { WorkflowConsoleService } from "../../service/workflow-console/workflow-console.service";
+import { NzResizeEvent } from "ng-zorro-antd/resizable";
 
 /**
  * ResultPanelComponent is the bottom level area that displays the
@@ -26,7 +27,21 @@ import { WorkflowConsoleService } from "../../service/workflow-console/workflow-
 })
 export class ResultPanelComponent implements OnInit {
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
+  protected readonly window = window;
+  id = -1;
+  width = 800; 
+  height = 300;
+  maxWidth = window.innerWidth;
+  maxHeight = window.innerHeight * 0.85;
 
+  onResize({ width, height }: NzResizeEvent) {
+    cancelAnimationFrame(this.id);
+    this.id = requestAnimationFrame(() => {
+      this.width = width!;
+      this.height = height!;
+    });
+  }
+ 
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
 
