@@ -18,6 +18,7 @@ import edu.uci.ics.texera.web.model.jooq.generated.tables.pojos.WorkflowUserAcce
 import edu.uci.ics.texera.web.resource.dashboard.user.workflow.WorkflowAccessResource.context
 import org.jooq.DSLContext
 import org.jooq.types.UInteger
+
 import java.util
 import javax.annotation.security.RolesAllowed
 import javax.ws.rs._
@@ -138,13 +139,19 @@ class WorkflowAccessResource() {
       @PathParam("email") email: String,
       @PathParam("privilege") privilege: String
   ): Unit = {
-    workflowUserAccessDao.merge(
-      new WorkflowUserAccess(
-        userDao.fetchOneByEmail(email).getUid,
-        wid,
-        WorkflowUserAccessPrivilege.valueOf(privilege)
+    try {
+      workflowUserAccessDao.merge(
+        new WorkflowUserAccess(
+          userDao.fetchOneByEmail(email).getUid,
+          wid,
+          WorkflowUserAccessPrivilege.valueOf(privilege)
+        )
       )
-    )
+    } catch {
+      case _: NullPointerException =>
+        throw new BadRequestException("User Not Found!")
+    }
+
   }
 
   /**
