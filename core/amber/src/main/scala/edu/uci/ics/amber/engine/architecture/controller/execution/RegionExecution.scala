@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import com.rits.cloning.Cloner
-import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStats
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
