@@ -53,11 +53,11 @@ case class WorkflowExecution() {
   }
 
   /**
-    * Retrieve the runtime stats of all `RegionExecutions` that are currently in running state
+    * Retrieve the runtime stats of all `RegionExecutions`
     *
     * @return A `Map` with key being `Logical Operator ID` and the value being operator runtime statistics
     */
-  def getRunningRegionExecutionsRuntimeStats: Map[String, OperatorRuntimeStats] = {
+  def getAllRegionExecutionsStats: Map[String, OperatorRuntimeStats] = {
     val allRegionExecutions: Iterable[RegionExecution] = getAllRegionExecutions
 
     val statsMap: Map[PhysicalOpIdentity, OperatorRuntimeStats] = allRegionExecutions.flatMap {
