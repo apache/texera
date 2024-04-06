@@ -1,7 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import com.rits.cloning.Cloner
-import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStats
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
@@ -87,11 +86,11 @@ case class RegionExecution(region: Region) {
     */
   def getAllLinkExecutions: Iterable[(PhysicalLink, LinkExecution)] = linkExecutions
 
-  def getStats: Map[String, OperatorRuntimeStats] = {
-    operatorExecutions.groupBy(_._1.logicalOpId.id).map {
-      case (logicalOpId, ops) =>
-        logicalOpId -> aggregateStats(ops.map(_._2.getStats).toList)
-    }
+  def getStats: Map[PhysicalOpIdentity, OperatorRuntimeStats] = {
+    operatorExecutions.map {
+      case (physicalOpId, operatorExecution) =>
+        physicalOpId -> operatorExecution.getStats
+    }.toMap
   }
 
   def isCompleted: Boolean = getState == WorkflowAggregatedState.COMPLETED

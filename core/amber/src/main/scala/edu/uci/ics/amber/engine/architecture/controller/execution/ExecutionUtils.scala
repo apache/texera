@@ -7,14 +7,14 @@ object ExecutionUtils {
   /**
     * Handle the case when a logical operator has two physical operators within a same region (e.g., Aggregate operator)
     */
-  def aggregateStats(stats: List[OperatorRuntimeStats]): OperatorRuntimeStats = {
+  def aggregateStats(stats: Iterable[OperatorRuntimeStats]): OperatorRuntimeStats = {
     val aggregatedState = aggregateStates(
-      stats.map(_.state),
-      WorkflowAggregatedState.COMPLETED,
-      WorkflowAggregatedState.RUNNING,
-      WorkflowAggregatedState.UNINITIALIZED,
-      WorkflowAggregatedState.PAUSED,
-      WorkflowAggregatedState.READY
+      stats.map(_.state.value),
+      WorkflowAggregatedState.COMPLETED.value,
+      WorkflowAggregatedState.RUNNING.value,
+      WorkflowAggregatedState.UNINITIALIZED.value,
+      WorkflowAggregatedState.PAUSED.value,
+      WorkflowAggregatedState.READY.value
     )
 
     val inputCountSum = stats.flatMap(_.inputCount).groupBy(_._1).map {
@@ -40,13 +40,13 @@ object ExecutionUtils {
       idleTimeSum
     )
   }
-  def aggregateStates[T](
-      states: List[T],
-      completedState: T,
-      runningState: T,
-      uninitializedState: T,
-      pausedState: T,
-      readyState: T
+  def aggregateStates(
+      states: Iterable[Int],
+      completedState: Int,
+      runningState: Int,
+      uninitializedState: Int,
+      pausedState: Int,
+      readyState: Int
   ): WorkflowAggregatedState = {
     if (states.isEmpty) {
       WorkflowAggregatedState.UNINITIALIZED

@@ -58,13 +58,22 @@ case class WorkflowExecution() {
     * @return A `Map` with key being `Logical Operator ID` and the value being operator runtime statistics
     */
   def getRunningRegionExecutionsRuntimeStats: Map[String, OperatorRuntimeStats] = {
-    getRunningRegionExecutions
-      .flatMap(_.getStats)
-      .groupBy(_._1)
-      .map {
-        case (key, values) =>
-          key -> aggregateStats(values.map(_._2).toList)
+    val allRegionExecutions: Iterable[RegionExecution] = getAllRegionExecutions
+
+    val statsMap: Map[PhysicalOpIdentity, OperatorRuntimeStats] = allRegionExecutions.flatMap {
+      regionExecution =>
+        regionExecution.getStats.map {
+          case (physicalOpIdentity, operatorRuntimeStats) =>
+            (physicalOpIdentity, operatorRuntimeStats)
+        }
+    }.toMap
+
+    val aggregatedStats: Map[String, OperatorRuntimeStats] =
+      statsMap.groupBy(_._1.logicalOpId.id).map {
+        case (logicalOpId, stats) =>
+          (logicalOpId, aggregateStats(stats.values))
       }
+    aggregatedStats
   }
 
   /**
