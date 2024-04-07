@@ -26,7 +26,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     QueryStatisticsV2,
     AddInputChannelV2,
     WorkerExecutionCompletedV2,
-    WorkerInfo,
+    WorkerMetrics,
     WorkerState,
     WorkerStatistics,
     PortCompletedV2,
@@ -430,7 +430,7 @@ class TestMainLoop:
                 return_invocation=ReturnInvocationV2(
                     original_command_id=1,
                     control_return=ControlReturnV2(
-                        worker_info=WorkerInfo(
+                        worker_info=WorkerMetrics(
                             worker_state=WorkerState.RUNNING,
                             worker_statistics=WorkerStatistics(
                                 input_tuple_count={0: 1},

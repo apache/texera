@@ -214,7 +214,7 @@ class WorkerStatistics(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class WorkerInfo(betterproto.Message):
+class WorkerMetrics(betterproto.Message):
     worker_state: "WorkerState" = betterproto.enum_field(1)
     worker_statistics: "WorkerStatistics" = betterproto.message_field(2)
 
@@ -247,7 +247,7 @@ class EvaluatedValue(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ControlReturnV2(betterproto.Message):
     control_exception: "ControlException" = betterproto.message_field(1, group="value")
-    worker_info: "WorkerInfo" = betterproto.message_field(2, group="value")
+    worker_metrics: "WorkerMetrics" = betterproto.message_field(2, group="value")
     current_input_tuple_info: "CurrentInputTupleInfo" = betterproto.message_field(
         3, group="value"
     )
