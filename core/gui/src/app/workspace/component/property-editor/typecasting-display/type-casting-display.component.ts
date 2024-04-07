@@ -63,7 +63,9 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
   }
 
   private registerInputSchemaChangeHandler() {
-    this.schemaPropagationService.getOperatorInputSchemaChangedStream()      .pipe(untilDestroyed(this))
+    this.schemaPropagationService
+      .getOperatorInputSchemaChangedStream()
+      .pipe(untilDestroyed(this))
       .subscribe(_ => {
         this.rerender();
       });
@@ -78,12 +80,13 @@ export class TypeCastingDisplayComponent implements OnInit, OnChanges {
 
     const operatorPredicate = this.workflowActionService.getTexeraGraph().getOperator(this.currentOperatorId);
 
-    const castUnits: ReadonlyArray<{attribute :string, resultType: AttributeType}> =operatorPredicate.operatorProperties["typeCastingUnits"] ??[]
+    const castUnits: ReadonlyArray<{ attribute: string; resultType: AttributeType }> =
+      operatorPredicate.operatorProperties["typeCastingUnits"] ?? [];
 
-    const castTypeMap : Map<string, AttributeType> = new Map(castUnits.map((unit) => [unit.attribute, unit.resultType]));
+    const castTypeMap: Map<string, AttributeType> = new Map(castUnits.map(unit => [unit.attribute, unit.resultType]));
     inputSchema?.forEach(schema =>
       schema?.forEach(attr => {
-        if (castTypeMap.has(attr.attributeName) ) {
+        if (castTypeMap.has(attr.attributeName)) {
           const castedAttr: Partial<SchemaAttribute> = {
             attributeName: attr.attributeName,
             attributeType: castTypeMap.get(attr.attributeName),
