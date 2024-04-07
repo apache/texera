@@ -1,11 +1,13 @@
+from typing import Dict
+
 from proto.edu.uci.ics.amber.engine.common import PortIdentity
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerStatistics
 
 
 class StatisticsManager:
     def __init__(self):
-        self._input_tuple_count = {}
-        self._output_tuple_count = {}
+        self._input_tuple_count: Dict[int, long] = dict()
+        self._output_tuple_count: Dict[int, long] = dict()
         self._data_processing_time = 0
         self._control_processing_time = 0
         self._total_execution_time = 0
