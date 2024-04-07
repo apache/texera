@@ -7,5 +7,10 @@ class InitializeExecutorHandler(ControlHandler):
     cmd = InitializeExecutorV2
 
     def __call__(self, context: Context, command: cmd, *args, **kwargs):
-        context.executor_manager.initialize_executor(command.code, command.is_source)
+        if command.language == "r":
+            context.executor_manager.initialize_r_executor(command.code, command.is_source)
+        else:
+
+            context.executor_manager.initialize_executor(command.code, command.is_source)
+
         return None

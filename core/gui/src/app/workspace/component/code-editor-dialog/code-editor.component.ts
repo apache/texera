@@ -66,6 +66,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
   ) {
     const currentOperatorId = this.workflowActionService.getJointGraphWrapper().getCurrentHighlightedOperatorIDs()[0];
     const operatorType = this.workflowActionService.getTexeraGraph().getOperator(currentOperatorId).operatorType;
+
     this.changeLanguage(operatorType === "JavaUDF" ? "java" : "python");
   }
 
@@ -155,7 +156,7 @@ export class CodeEditorComponent implements AfterViewInit, SafeStyle, OnDestroy 
       );
     }
     this.editor = editor;
-    this.connectLanguageServer();
+    // this.connectLanguageServer();
   }
 
   private connectLanguageServer() {
