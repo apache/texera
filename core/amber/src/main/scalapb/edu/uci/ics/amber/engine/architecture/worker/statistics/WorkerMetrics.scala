@@ -6,10 +6,10 @@
 package edu.uci.ics.amber.engine.architecture.worker.statistics
 
 @SerialVersionUID(0L)
-final case class WorkerInfo(
+final case class WorkerMetrics(
     workerState: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState,
     workerStatistics: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[WorkerInfo] {
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[WorkerMetrics] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
@@ -54,8 +54,8 @@ final case class WorkerInfo(
         }
       };
     }
-    def withWorkerState(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState): WorkerInfo = copy(workerState = __v)
-    def withWorkerStatistics(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics): WorkerInfo = copy(workerStatistics = __v)
+    def withWorkerState(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState): WorkerMetrics = copy(workerState = __v)
+    def withWorkerStatistics(__v: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics): WorkerMetrics = copy(workerStatistics = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
         case 1 => {
@@ -76,13 +76,13 @@ final case class WorkerInfo(
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.WorkerInfo])
+    def companion = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.amber.engine.architecture.worker.WorkerMetrics])
 }
 
-object WorkerInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo = {
+object WorkerMetrics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics = {
     var __workerState: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED
     var __workerStatistics: _root_.scala.Option[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics] = _root_.scala.None
     var _done__ = false
@@ -97,15 +97,15 @@ object WorkerInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo(
+    edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics(
         workerState = __workerState,
         workerStatistics = __workerStatistics.getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics.defaultInstance)
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo(
+      edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics(
         workerState = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED.scalaValueDescriptor).number),
         workerStatistics = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics]).getOrElse(edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics.defaultInstance)
       )
@@ -126,11 +126,11 @@ object WorkerInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
       case 1 => edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
     }
   }
-  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo(
+  lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics(
     workerState = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState.UNINITIALIZED,
     workerStatistics = edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics.defaultInstance
   )
-  implicit class WorkerInfoLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo](_l) {
+  implicit class WorkerMetricsLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics](_l) {
     def workerState: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState] = field(_.workerState)((c_, f_) => c_.copy(workerState = f_))
     def workerStatistics: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics] = field(_.workerStatistics)((c_, f_) => c_.copy(workerStatistics = f_))
   }
@@ -139,9 +139,9 @@ object WorkerInfo extends scalapb.GeneratedMessageCompanion[edu.uci.ics.amber.en
   def of(
     workerState: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState,
     workerStatistics: edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
-  ): _root_.edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo = _root_.edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerInfo(
+  ): _root_.edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics = _root_.edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics(
     workerState,
     workerStatistics
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.WorkerInfo])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.amber.engine.architecture.worker.WorkerMetrics])
 }

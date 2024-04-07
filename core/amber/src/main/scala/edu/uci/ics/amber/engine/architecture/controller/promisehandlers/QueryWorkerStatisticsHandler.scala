@@ -36,13 +36,13 @@ trait QueryWorkerStatisticsHandler {
     val requests = workers
       .map(workerId =>
         // must immediately update worker state and stats after reply
-        send(QueryStatistics(), workerId).map(info => {
+        send(QueryStatistics(), workerId).map(metrics => {
           val workerExecution =
             cp.workflowExecution
               .getLatestOperatorExecution(VirtualIdentityUtils.getPhysicalOpId(workerId))
               .getWorkerExecution(workerId)
-          workerExecution.setState(info.workerState)
-          workerExecution.setStats(info.workerStatistics)
+          workerExecution.setState(metrics.workerState)
+          workerExecution.setStats(metrics.workerStatistics)
         })
       )
       .toSeq
