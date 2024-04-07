@@ -92,11 +92,11 @@ class OperatorWorkerMapping(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class OperatorRuntimeStats(betterproto.Message):
     state: "WorkflowAggregatedState" = betterproto.enum_field(1)
-    input_count: Dict[int, int] = betterproto.map_field(
-        2, betterproto.TYPE_INT32, betterproto.TYPE_INT64
+    input_count: List["__amber_engine_architecture_worker__.PortTupleCountMapping"] = (
+        betterproto.message_field(2)
     )
-    output_count: Dict[int, int] = betterproto.map_field(
-        3, betterproto.TYPE_INT32, betterproto.TYPE_INT64
+    output_count: List["__amber_engine_architecture_worker__.PortTupleCountMapping"] = (
+        betterproto.message_field(3)
     )
     num_workers: int = betterproto.int32_field(4)
     data_processing_time: int = betterproto.int64_field(5)

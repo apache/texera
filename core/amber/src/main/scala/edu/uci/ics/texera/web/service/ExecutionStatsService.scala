@@ -8,6 +8,7 @@ import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
   WorkerAssignmentUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.promisehandlers.FatalErrorHandler.FatalError
+import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
 import edu.uci.ics.amber.engine.common.{AmberConfig, VirtualIdentityUtils}
 import edu.uci.ics.amber.engine.common.client.AmberClient
 import edu.uci.ics.amber.error.ErrorUtils.getStackTraceWithAllCauses
@@ -62,8 +63,8 @@ class ExecutionStatsService(
               val stats = x._2
               val res = OperatorStatistics(
                 Utils.aggregatedStateToString(stats.state),
-                stats.inputCount.values.sum,
-                stats.outputCount.values.sum,
+                stats.inputCount.map(_.tupleCount).sum,
+                stats.outputCount.map(_.tupleCount).sum,
                 stats.numWorkers,
                 stats.dataProcessingTime,
                 stats.controlProcessingTime,
@@ -145,7 +146,7 @@ class ExecutionStatsService(
       newStats: Map[String, OperatorRuntimeStats]
   ): Map[String, OperatorRuntimeStats] = {
     val defaultStats =
-      OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, Map(), Map(), 0, 0, 0, 0)
+      OperatorRuntimeStats(WorkflowAggregatedState.UNINITIALIZED, Seq(), Seq(), 0, 0, 0, 0)
 
     var statsMap = newStats
 
@@ -167,12 +168,18 @@ class ExecutionStatsService(
       val res = OperatorRuntimeStats(
         newStats.state,
         newStats.inputCount.map {
-          case (k, v) =>
-            k -> (v - oldStats.inputCount.getOrElse(k, 0: Long))
+          case PortTupleCountMapping(k, v) =>
+            PortTupleCountMapping(
+              k,
+              v - oldStats.inputCount.find(_.portId == k).map(_.tupleCount).getOrElse(0L)
+            )
         },
         newStats.outputCount.map {
-          case (k, v) =>
-            k -> (v - oldStats.outputCount.getOrElse(k, 0: Long))
+          case PortTupleCountMapping(k, v) =>
+            PortTupleCountMapping(
+              k,
+              v - oldStats.outputCount.find(_.portId == k).map(_.tupleCount).getOrElse(0L)
+            )
         },
         newStats.numWorkers,
         newStats.dataProcessingTime - oldStats.dataProcessingTime,
@@ -195,8 +202,8 @@ class ExecutionStatsService(
         execution.setWorkflowId(UInteger.valueOf(workflowContext.workflowId.id))
         execution.setExecutionId(UInteger.valueOf(workflowContext.executionId.id))
         execution.setOperatorId(operatorId)
-        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount.values.sum))
-        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount.values.sum))
+        execution.setInputTupleCnt(UInteger.valueOf(stat.inputCount.map(_.tupleCount).sum))
+        execution.setOutputTupleCnt(UInteger.valueOf(stat.outputCount.map(_.tupleCount).sum))
         execution.setStatus(maptoStatusCode(stat.state))
         execution.setDataProcessingTime(ULong.valueOf(stat.dataProcessingTime))
         execution.setControlProcessingTime(ULong.valueOf(stat.controlProcessingTime))

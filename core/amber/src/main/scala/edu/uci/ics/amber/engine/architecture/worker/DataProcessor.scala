@@ -91,7 +91,7 @@ class DataProcessor(
       )
 
       if (!portIdentity.internal) {
-        statisticsManager.increaseInputTupleCount(portIdentity.id)
+        statisticsManager.increaseInputTupleCount(portIdentity)
       }
 
     } catch safely {
@@ -159,9 +159,9 @@ class DataProcessor(
         asyncRPCClient.send(PortCompleted(portId, input), CONTROLLER)
       case schemaEnforceable: SchemaEnforceable =>
         if (outputPortOpt.isEmpty && !outputManager.getSingleOutputPortIdentity.internal) {
-          statisticsManager.increaseOutputTupleCount(0)
+          statisticsManager.increaseOutputTupleCount(outputManager.getSingleOutputPortIdentity)
         } else if (outputPortOpt.isDefined && !outputPortOpt.get.internal) {
-          statisticsManager.increaseOutputTupleCount(outputPortOpt.get.id)
+          statisticsManager.increaseOutputTupleCount(outputPortOpt.get)
         }
         outputManager.passTupleToDownstream(schemaEnforceable, outputPortOpt)
 

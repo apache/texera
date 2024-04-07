@@ -2,7 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateStates
 import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.WorkerExecution
-import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerState
+import edu.uci.ics.amber.engine.architecture.worker.statistics.{PortTupleCountMapping, WorkerState}
 import edu.uci.ics.amber.engine.common.virtualidentity.ActorVirtualIdentity
 import edu.uci.ics.amber.engine.common.workflow.PortIdentity
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
@@ -61,16 +61,18 @@ case class OperatorExecution() {
       getState,
       inputCount = workerExecutions.values.asScala
         .flatMap(_.getStats.inputTupleCount)
-        .groupBy(_._1)
+        .groupBy(_.portId)
         .view
-        .mapValues(_.map(_._2).sum)
-        .toMap,
+        .mapValues(_.map(_.tupleCount).sum)
+        .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
+        .toSeq,
       outputCount = workerExecutions.values.asScala
         .flatMap(_.getStats.outputTupleCount)
-        .groupBy(_._1)
+        .groupBy(_.portId)
         .view
-        .mapValues(_.map(_._2).sum)
-        .toMap,
+        .mapValues(_.map(_.tupleCount).sum)
+        .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
+        .toSeq,
       getWorkerIds.size,
       dataProcessingTime =
         workerExecutions.values.asScala.map(_.getStats).map(_.dataProcessingTime).sum,

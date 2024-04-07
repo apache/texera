@@ -201,13 +201,15 @@ class ControlCommandV2(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
+class PortTupleCountMapping(betterproto.Message):
+    port_id: "__common__.PortIdentity" = betterproto.message_field(1)
+    tuple_count: int = betterproto.int64_field(2)
+
+
+@dataclass(eq=False, repr=False)
 class WorkerStatistics(betterproto.Message):
-    input_tuple_count: Dict[int, int] = betterproto.map_field(
-        1, betterproto.TYPE_INT32, betterproto.TYPE_INT64
-    )
-    output_tuple_count: Dict[int, int] = betterproto.map_field(
-        2, betterproto.TYPE_INT32, betterproto.TYPE_INT64
-    )
+    input_tuple_count: List["PortTupleCountMapping"] = betterproto.message_field(1)
+    output_tuple_count: List["PortTupleCountMapping"] = betterproto.message_field(2)
     data_processing_time: int = betterproto.int64_field(3)
     control_processing_time: int = betterproto.int64_field(4)
     idle_time: int = betterproto.int64_field(5)

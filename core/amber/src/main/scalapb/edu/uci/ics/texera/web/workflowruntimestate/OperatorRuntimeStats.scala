@@ -8,8 +8,8 @@ package edu.uci.ics.texera.web.workflowruntimestate
 @SerialVersionUID(0L)
 final case class OperatorRuntimeStats(
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
-    inputCount: _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long] = _root_.scala.collection.immutable.Map.empty,
-    outputCount: _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long] = _root_.scala.collection.immutable.Map.empty,
+    inputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = _root_.scala.Seq.empty,
+    outputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = _root_.scala.Seq.empty,
     numWorkers: _root_.scala.Int = 0,
     dataProcessingTime: _root_.scala.Long = 0L,
     controlProcessingTime: _root_.scala.Long = 0L,
@@ -27,11 +27,11 @@ final case class OperatorRuntimeStats(
         }
       };
       inputCount.foreach { __item =>
-        val __value = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_inputCount.toBase(__item)
+        val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
       outputCount.foreach { __item =>
-        val __value = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_outputCount.toBase(__item)
+        val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
       }
       
@@ -80,13 +80,13 @@ final case class OperatorRuntimeStats(
         }
       };
       inputCount.foreach { __v =>
-        val __m = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_inputCount.toBase(__v)
+        val __m = __v
         _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
       outputCount.foreach { __v =>
-        val __m = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_outputCount.toBase(__v)
+        val __m = __v
         _output__.writeTag(3, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
@@ -117,14 +117,14 @@ final case class OperatorRuntimeStats(
       };
     }
     def withState(__v: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState): OperatorRuntimeStats = copy(state = __v)
-    def clearInputCount = copy(inputCount = _root_.scala.collection.immutable.Map.empty)
-    def addInputCount(__vs: (_root_.scala.Int, _root_.scala.Long)*): OperatorRuntimeStats = addAllInputCount(__vs)
-    def addAllInputCount(__vs: Iterable[(_root_.scala.Int, _root_.scala.Long)]): OperatorRuntimeStats = copy(inputCount = inputCount ++ __vs)
-    def withInputCount(__v: _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long]): OperatorRuntimeStats = copy(inputCount = __v)
-    def clearOutputCount = copy(outputCount = _root_.scala.collection.immutable.Map.empty)
-    def addOutputCount(__vs: (_root_.scala.Int, _root_.scala.Long)*): OperatorRuntimeStats = addAllOutputCount(__vs)
-    def addAllOutputCount(__vs: Iterable[(_root_.scala.Int, _root_.scala.Long)]): OperatorRuntimeStats = copy(outputCount = outputCount ++ __vs)
-    def withOutputCount(__v: _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long]): OperatorRuntimeStats = copy(outputCount = __v)
+    def clearInputCount = copy(inputCount = _root_.scala.Seq.empty)
+    def addInputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorRuntimeStats = addAllInputCount(__vs)
+    def addAllInputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(inputCount = inputCount ++ __vs)
+    def withInputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(inputCount = __v)
+    def clearOutputCount = copy(outputCount = _root_.scala.Seq.empty)
+    def addOutputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorRuntimeStats = addAllOutputCount(__vs)
+    def addAllOutputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(outputCount = outputCount ++ __vs)
+    def withOutputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(outputCount = __v)
     def withNumWorkers(__v: _root_.scala.Int): OperatorRuntimeStats = copy(numWorkers = __v)
     def withDataProcessingTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(dataProcessingTime = __v)
     def withControlProcessingTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(controlProcessingTime = __v)
@@ -135,8 +135,8 @@ final case class OperatorRuntimeStats(
           val __t = state.javaValueDescriptor
           if (__t.getNumber() != 0) __t else null
         }
-        case 2 => inputCount.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_inputCount.toBase(_)).toSeq
-        case 3 => outputCount.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_outputCount.toBase(_)).toSeq
+        case 2 => inputCount
+        case 3 => outputCount
         case 4 => {
           val __t = numWorkers
           if (__t != 0) __t else null
@@ -159,8 +159,8 @@ final case class OperatorRuntimeStats(
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
         case 1 => _root_.scalapb.descriptors.PEnum(state.scalaValueDescriptor)
-        case 2 => _root_.scalapb.descriptors.PRepeated(inputCount.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_inputCount.toBase(_).toPMessage).toVector)
-        case 3 => _root_.scalapb.descriptors.PRepeated(outputCount.iterator.map(edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_outputCount.toBase(_).toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(inputCount.iterator.map(_.toPMessage).toVector)
+        case 3 => _root_.scalapb.descriptors.PRepeated(outputCount.iterator.map(_.toPMessage).toVector)
         case 4 => _root_.scalapb.descriptors.PInt(numWorkers)
         case 5 => _root_.scalapb.descriptors.PLong(dataProcessingTime)
         case 6 => _root_.scalapb.descriptors.PLong(controlProcessingTime)
@@ -176,8 +176,8 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats] = this
   def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats = {
     var __state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED
-    val __inputCount: _root_.scala.collection.mutable.Builder[(_root_.scala.Int, _root_.scala.Long), _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long]] = _root_.scala.collection.immutable.Map.newBuilder[_root_.scala.Int, _root_.scala.Long]
-    val __outputCount: _root_.scala.collection.mutable.Builder[(_root_.scala.Int, _root_.scala.Long), _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long]] = _root_.scala.collection.immutable.Map.newBuilder[_root_.scala.Int, _root_.scala.Long]
+    val __inputCount: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]
+    val __outputCount: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]
     var __numWorkers: _root_.scala.Int = 0
     var __dataProcessingTime: _root_.scala.Long = 0L
     var __controlProcessingTime: _root_.scala.Long = 0L
@@ -190,9 +190,9 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
         case 8 =>
           __state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(_input__.readEnum())
         case 18 =>
-          __inputCount += edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_inputCount.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry](_input__))
+          __inputCount += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping](_input__)
         case 26 =>
-          __outputCount += edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_outputCount.toCustom(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry](_input__))
+          __outputCount += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping](_input__)
         case 32 =>
           __numWorkers = _input__.readInt32()
         case 40 =>
@@ -219,8 +219,8 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
         state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
-        inputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_inputCount.toCustom(_)).toMap,
-        outputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry]]).getOrElse(_root_.scala.Seq.empty).iterator.map(edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats._typemapper_outputCount.toCustom(_)).toMap,
+        inputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]]).getOrElse(_root_.scala.Seq.empty),
+        outputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]]).getOrElse(_root_.scala.Seq.empty),
         numWorkers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Int]).getOrElse(0),
         dataProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
         controlProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
@@ -233,16 +233,12 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
-      case 2 => __out = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry
-      case 3 => __out = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry
+      case 2 => __out = edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
+      case 3 => __out = edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
     }
     __out
   }
-  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] =
-    Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]](
-      _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry,
-      _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry
-    )
+  lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
     (__fieldNumber: @_root_.scala.unchecked) match {
       case 1 => edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
@@ -250,281 +246,17 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   }
   lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
     state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
-    inputCount = _root_.scala.collection.immutable.Map.empty,
-    outputCount = _root_.scala.collection.immutable.Map.empty,
+    inputCount = _root_.scala.Seq.empty,
+    outputCount = _root_.scala.Seq.empty,
     numWorkers = 0,
     dataProcessingTime = 0L,
     controlProcessingTime = 0L,
     idleTime = 0L
   )
-  @SerialVersionUID(0L)
-  final case class InputCountEntry(
-      key: _root_.scala.Int = 0,
-      value: _root_.scala.Long = 0L
-      ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[InputCountEntry] {
-      @transient
-      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-      private[this] def __computeSerializedValue(): _root_.scala.Int = {
-        var __size = 0
-        
-        {
-          val __value = key
-          if (__value != 0) {
-            __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
-          }
-        };
-        
-        {
-          val __value = value
-          if (__value != 0L) {
-            __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(2, __value)
-          }
-        };
-        __size
-      }
-      override def serializedSize: _root_.scala.Int = {
-        var read = __serializedSizeCachedValue
-        if (read == 0) {
-          read = __computeSerializedValue()
-          __serializedSizeCachedValue = read
-        }
-        read
-      }
-      def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-        {
-          val __v = key
-          if (__v != 0) {
-            _output__.writeInt32(1, __v)
-          }
-        };
-        {
-          val __v = value
-          if (__v != 0L) {
-            _output__.writeInt64(2, __v)
-          }
-        };
-      }
-      def withKey(__v: _root_.scala.Int): InputCountEntry = copy(key = __v)
-      def withValue(__v: _root_.scala.Long): InputCountEntry = copy(value = __v)
-      def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-        (__fieldNumber: @_root_.scala.unchecked) match {
-          case 1 => {
-            val __t = key
-            if (__t != 0) __t else null
-          }
-          case 2 => {
-            val __t = value
-            if (__t != 0L) __t else null
-          }
-        }
-      }
-      def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-        _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-        (__field.number: @_root_.scala.unchecked) match {
-          case 1 => _root_.scalapb.descriptors.PInt(key)
-          case 2 => _root_.scalapb.descriptors.PLong(value)
-        }
-      }
-      def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry
-      // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.OperatorRuntimeStats.InputCountEntry])
-  }
-  
-  object InputCountEntry extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry] {
-    implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry] = this
-    def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry = {
-      var __key: _root_.scala.Int = 0
-      var __value: _root_.scala.Long = 0L
-      var _done__ = false
-      while (!_done__) {
-        val _tag__ = _input__.readTag()
-        _tag__ match {
-          case 0 => _done__ = true
-          case 8 =>
-            __key = _input__.readInt32()
-          case 16 =>
-            __value = _input__.readInt64()
-          case tag => _input__.skipField(tag)
-        }
-      }
-      edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry(
-          key = __key,
-          value = __value
-      )
-    }
-    implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry] = _root_.scalapb.descriptors.Reads{
-      case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-        _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-        edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry(
-          key = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-          value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
-        )
-      case _ => throw new RuntimeException("Expected PMessage")
-    }
-    def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.javaDescriptor.getNestedTypes().get(0)
-    def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.scalaDescriptor.nestedMessages(0)
-    def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-    lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-    def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-    lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry(
-      key = 0,
-      value = 0L
-    )
-    implicit class InputCountEntryLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry](_l) {
-      def key: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.key)((c_, f_) => c_.copy(key = f_))
-      def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.value)((c_, f_) => c_.copy(value = f_))
-    }
-    final val KEY_FIELD_NUMBER = 1
-    final val VALUE_FIELD_NUMBER = 2
-    @transient
-    implicit val keyValueMapper: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry, (_root_.scala.Int, _root_.scala.Long)] =
-      _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry, (_root_.scala.Int, _root_.scala.Long)](__m => (__m.key, __m.value))(__p => edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry(__p._1, __p._2))
-    def of(
-      key: _root_.scala.Int,
-      value: _root_.scala.Long
-    ): _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry = _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry(
-      key,
-      value
-    )
-    // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.OperatorRuntimeStats.InputCountEntry])
-  }
-  
-  @SerialVersionUID(0L)
-  final case class OutputCountEntry(
-      key: _root_.scala.Int = 0,
-      value: _root_.scala.Long = 0L
-      ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OutputCountEntry] {
-      @transient
-      private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
-      private[this] def __computeSerializedValue(): _root_.scala.Int = {
-        var __size = 0
-        
-        {
-          val __value = key
-          if (__value != 0) {
-            __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(1, __value)
-          }
-        };
-        
-        {
-          val __value = value
-          if (__value != 0L) {
-            __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(2, __value)
-          }
-        };
-        __size
-      }
-      override def serializedSize: _root_.scala.Int = {
-        var read = __serializedSizeCachedValue
-        if (read == 0) {
-          read = __computeSerializedValue()
-          __serializedSizeCachedValue = read
-        }
-        read
-      }
-      def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-        {
-          val __v = key
-          if (__v != 0) {
-            _output__.writeInt32(1, __v)
-          }
-        };
-        {
-          val __v = value
-          if (__v != 0L) {
-            _output__.writeInt64(2, __v)
-          }
-        };
-      }
-      def withKey(__v: _root_.scala.Int): OutputCountEntry = copy(key = __v)
-      def withValue(__v: _root_.scala.Long): OutputCountEntry = copy(value = __v)
-      def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
-        (__fieldNumber: @_root_.scala.unchecked) match {
-          case 1 => {
-            val __t = key
-            if (__t != 0) __t else null
-          }
-          case 2 => {
-            val __t = value
-            if (__t != 0L) __t else null
-          }
-        }
-      }
-      def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
-        _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
-        (__field.number: @_root_.scala.unchecked) match {
-          case 1 => _root_.scalapb.descriptors.PInt(key)
-          case 2 => _root_.scalapb.descriptors.PLong(value)
-        }
-      }
-      def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-      def companion = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry
-      // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.OperatorRuntimeStats.OutputCountEntry])
-  }
-  
-  object OutputCountEntry extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry] {
-    implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry] = this
-    def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry = {
-      var __key: _root_.scala.Int = 0
-      var __value: _root_.scala.Long = 0L
-      var _done__ = false
-      while (!_done__) {
-        val _tag__ = _input__.readTag()
-        _tag__ match {
-          case 0 => _done__ = true
-          case 8 =>
-            __key = _input__.readInt32()
-          case 16 =>
-            __value = _input__.readInt64()
-          case tag => _input__.skipField(tag)
-        }
-      }
-      edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry(
-          key = __key,
-          value = __value
-      )
-    }
-    implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry] = _root_.scalapb.descriptors.Reads{
-      case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
-        _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-        edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry(
-          key = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-          value = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
-        )
-      case _ => throw new RuntimeException("Expected PMessage")
-    }
-    def javaDescriptor: _root_.com.google.protobuf.Descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.javaDescriptor.getNestedTypes().get(1)
-    def scalaDescriptor: _root_.scalapb.descriptors.Descriptor = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.scalaDescriptor.nestedMessages(1)
-    def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = throw new MatchError(__number)
-    lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-    def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
-    lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry(
-      key = 0,
-      value = 0L
-    )
-    implicit class OutputCountEntryLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry](_l) {
-      def key: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.key)((c_, f_) => c_.copy(key = f_))
-      def value: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.value)((c_, f_) => c_.copy(value = f_))
-    }
-    final val KEY_FIELD_NUMBER = 1
-    final val VALUE_FIELD_NUMBER = 2
-    @transient
-    implicit val keyValueMapper: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry, (_root_.scala.Int, _root_.scala.Long)] =
-      _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry, (_root_.scala.Int, _root_.scala.Long)](__m => (__m.key, __m.value))(__p => edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry(__p._1, __p._2))
-    def of(
-      key: _root_.scala.Int,
-      value: _root_.scala.Long
-    ): _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry = _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry(
-      key,
-      value
-    )
-    // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.OperatorRuntimeStats.OutputCountEntry])
-  }
-  
   implicit class OperatorRuntimeStatsLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats](_l) {
     def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
-    def inputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long]] = field(_.inputCount)((c_, f_) => c_.copy(inputCount = f_))
-    def outputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long]] = field(_.outputCount)((c_, f_) => c_.copy(outputCount = f_))
+    def inputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]] = field(_.inputCount)((c_, f_) => c_.copy(inputCount = f_))
+    def outputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]] = field(_.outputCount)((c_, f_) => c_.copy(outputCount = f_))
     def numWorkers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.numWorkers)((c_, f_) => c_.copy(numWorkers = f_))
     def dataProcessingTime: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.dataProcessingTime)((c_, f_) => c_.copy(dataProcessingTime = f_))
     def controlProcessingTime: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.controlProcessingTime)((c_, f_) => c_.copy(controlProcessingTime = f_))
@@ -537,14 +269,10 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   final val DATA_PROCESSING_TIME_FIELD_NUMBER = 5
   final val CONTROL_PROCESSING_TIME_FIELD_NUMBER = 6
   final val IDLE_TIME_FIELD_NUMBER = 7
-  @transient
-  private[workflowruntimestate] val _typemapper_inputCount: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry, (_root_.scala.Int, _root_.scala.Long)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.InputCountEntry, (_root_.scala.Int, _root_.scala.Long)]]
-  @transient
-  private[workflowruntimestate] val _typemapper_outputCount: _root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry, (_root_.scala.Int, _root_.scala.Long)] = implicitly[_root_.scalapb.TypeMapper[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats.OutputCountEntry, (_root_.scala.Int, _root_.scala.Long)]]
   def of(
     state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState,
-    inputCount: _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long],
-    outputCount: _root_.scala.collection.immutable.Map[_root_.scala.Int, _root_.scala.Long],
+    inputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping],
+    outputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping],
     numWorkers: _root_.scala.Int,
     dataProcessingTime: _root_.scala.Long,
     controlProcessingTime: _root_.scala.Long,

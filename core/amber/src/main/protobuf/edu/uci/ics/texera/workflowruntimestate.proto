@@ -4,6 +4,7 @@ package edu.uci.ics.texera.web;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
@@ -72,8 +73,8 @@ message OperatorWorkerMapping{
 
 message OperatorRuntimeStats{
   WorkflowAggregatedState state = 1;
-  map<int32, int64> input_count = 2;
-  map<int32, int64> output_count = 3;
+  repeated amber.engine.architecture.worker.PortTupleCountMapping input_count = 2;
+  repeated amber.engine.architecture.worker.PortTupleCountMapping output_count = 3;
   int32 num_workers = 4;
   int64 data_processing_time = 5;
   int64 control_processing_time = 6;

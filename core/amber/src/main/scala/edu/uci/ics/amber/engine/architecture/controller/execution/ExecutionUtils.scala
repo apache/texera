@@ -1,5 +1,6 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
+import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
 
 object ExecutionUtils {
@@ -17,14 +18,24 @@ object ExecutionUtils {
       WorkflowAggregatedState.READY.value
     )
 
-    val inputCountSum = stats.flatMap(_.inputCount).groupBy(_._1).map {
-      case (k, v) =>
-        k -> v.map(_._2).sum
-    }
-    val outputCountSum = stats.flatMap(_.outputCount).groupBy(_._1).map {
-      case (k, v) =>
-        k -> v.map(_._2).sum
-    }
+    val inputCountSum = stats
+      .flatMap(_.inputCount)
+      .groupBy(_.portId)
+      .map {
+        case (k, v) =>
+          k -> v.map(_.tupleCount).sum
+      }
+      .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
+      .toSeq
+    val outputCountSum = stats
+      .flatMap(_.outputCount)
+      .groupBy(_.portId)
+      .map {
+        case (k, v) =>
+          k -> v.map(_.tupleCount).sum
+      }
+      .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
+      .toSeq
     val numWorkersSum = stats.map(_.numWorkers).sum
     val dataProcessingTimeSum = stats.map(_.dataProcessingTime).sum
     val controlProcessingTimeSum = stats.map(_.controlProcessingTime).sum
