@@ -1,4 +1,5 @@
 from typing import Dict
+from collections import defaultdict
 
 from proto.edu.uci.ics.amber.engine.common import PortIdentity
 from proto.edu.uci.ics.amber.engine.architecture.worker import WorkerStatistics
@@ -25,24 +26,15 @@ class StatisticsManager:
         )
 
     def increase_input_tuple_count(self, port_id: PortIdentity) -> None:
-        if port_id is None:
-            port = 0
-        else:
-            port = port_id.id
+        port = port_id.id
 
-        if port not in self._input_tuple_count:
-            self._input_tuple_count[port] = 0
+        self._input_tuple_count = defaultdict(int, self._input_tuple_count)
         self._input_tuple_count[port] += 1
 
-    def increase_output_tuple_count(self, port_id: PortIdentity = None) -> None:
-        # Currently, the number of output ports is fixed to 1
-        if port_id is None:
-            port = 0
-        else:
-            port = port_id.id
+    def increase_output_tuple_count(self, port_id: PortIdentity) -> None:
+        port = port_id.id
 
-        if port not in self._output_tuple_count:
-            self._output_tuple_count[port] = 0
+        self._output_tuple_count = defaultdict(int, self._output_tuple_count)
         self._output_tuple_count[port] += 1
 
     def increase_data_processing_time(self, time) -> None:
