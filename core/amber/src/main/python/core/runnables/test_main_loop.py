@@ -423,14 +423,14 @@ class TestMainLoop:
         input_queue.put(mock_query_statistics)
         elem = output_queue.get()
         stats_invocation = elem.payload.return_invocation
-        stats = stats_invocation.control_return.worker_info.worker_statistics
+        stats = stats_invocation.control_return.worker_metrics.worker_statistics
         assert elem == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=1,
                     control_return=ControlReturnV2(
-                        worker_info=WorkerMetrics(
+                        worker_metrics=WorkerMetrics(
                             worker_state=WorkerState.RUNNING,
                             worker_statistics=WorkerStatistics(
                                 input_tuple_count={0: 1},
