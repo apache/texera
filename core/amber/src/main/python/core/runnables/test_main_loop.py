@@ -34,6 +34,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     PauseWorkerV2,
     ResumeWorkerV2,
     AssignPortV2,
+    PortTupleCountMapping,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -433,8 +434,12 @@ class TestMainLoop:
                         worker_metrics=WorkerMetrics(
                             worker_state=WorkerState.RUNNING,
                             worker_statistics=WorkerStatistics(
-                                input_tuple_count={0: 1},
-                                output_tuple_count={0: 1},
+                                input_tuple_count=[
+                                    PortTupleCountMapping(PortIdentity(0), 1)
+                                ],
+                                output_tuple_count=[
+                                    PortTupleCountMapping(PortIdentity(0), 1)
+                                ],
                                 data_processing_time=stats.data_processing_time,
                                 control_processing_time=stats.control_processing_time,
                                 idle_time=stats.idle_time,
