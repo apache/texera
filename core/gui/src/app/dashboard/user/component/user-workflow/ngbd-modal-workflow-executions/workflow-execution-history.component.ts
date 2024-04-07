@@ -42,7 +42,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "",
     "Avatar",
     "Name (ID)",
-    "Starting Time",
+    "Workflow Start Time",
     "Last Status Updated Time",
     "Status",
     "Runtime Statistics",
@@ -52,7 +52,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
   public executionTooltip: Record<string, string> = {
     "Name (ID)": "Execution Name",
     Username: "The User Who Ran This Execution",
-    "Starting Time": "Starting Time of Workflow Execution",
+    "Workflow Start Time": "Start Time of Workflow Execution",
     "Last Status Updated Time": "Latest Status Updated Time of Workflow Execution",
     Status: "Current Status of Workflow Execution",
     "Runtime Statistics": "Runtime Statistics of Workflow Execution",
@@ -65,10 +65,10 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
     "": "0%",
     "Name (ID)": "7%",
     "Workflow Version Sample": "10%",
-    Avatar: "6%",
-    "Starting Time": "8%",
+    Avatar: "5.5%",
+    "Workflow Start Time": "9%",
     "Last Status Updated Time": "10.5%",
-    Status: "3%",
+    Status: "2.5%",
     "Runtime Statistics": "6%",
   };
 
@@ -245,6 +245,8 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       .pipe(untilDestroyed(this))
       .subscribe(workflowExecutions => {
         this.allExecutionEntries = workflowExecutions;
+        this.dscSort("Workflow Start Time");
+        this.showORhide[3] = true;
         this.updatePaginatedExecutions();
       });
   }
@@ -380,7 +382,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe1.userName.toLowerCase().localeCompare(exe2.userName.toLowerCase()));
-    } else if (type === "Starting Time") {
+    } else if (type === "Workflow Start Time") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
@@ -407,7 +409,7 @@ export class WorkflowExecutionHistoryComponent implements OnInit, AfterViewInit 
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) => exe2.userName.toLowerCase().localeCompare(exe1.userName.toLowerCase()));
-    } else if (type === "Starting Time") {
+    } else if (type === "Workflow Start Time") {
       this.workflowExecutionsDisplayedList = this.workflowExecutionsDisplayedList
         ?.slice()
         .sort((exe1, exe2) =>
