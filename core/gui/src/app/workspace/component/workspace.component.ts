@@ -18,7 +18,6 @@ import { of } from "rxjs";
 import { isDefined } from "../../common/util/predicate";
 import { NotificationService } from "src/app/common/service/notification/notification.service";
 import { Version } from "../../../environments/version";
-import { AutoAttributeCorrectionService } from "../service/dynamic-schema/auto-attribute-correction/auto-attribute-correction.service";
 import { SchemaPropagationService } from "../service/dynamic-schema/schema-propagation/schema-propagation.service";
 import { WorkflowConsoleService } from "../service/workflow-console/workflow-console.service";
 import { OperatorReuseCacheStatusService } from "../service/workflow-status/operator-reuse-cache-status.service";
@@ -47,7 +46,6 @@ export class WorkspaceComponent implements AfterViewInit, OnInit, OnDestroy {
     private resultPanelToggleService: ResultPanelToggleService,
     // list additional services in constructor so they are initialized even if no one use them directly
     private schemaPropagationService: SchemaPropagationService,
-    private autoAttributeCorrectionService: AutoAttributeCorrectionService,
     private operatorReuseCacheStatus: OperatorReuseCacheStatusService,
     private workflowConsoleService: WorkflowConsoleService,
     private undoRedoService: UndoRedoService,
