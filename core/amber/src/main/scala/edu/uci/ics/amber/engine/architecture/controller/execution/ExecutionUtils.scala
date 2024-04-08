@@ -14,12 +14,12 @@ object ExecutionUtils {
     */
   def aggregateMetrics(metrics: Iterable[OperatorMetrics]): OperatorMetrics = {
     val aggregatedState = aggregateStates(
-      metrics.map(_.operatorState.value),
-      WorkflowAggregatedState.COMPLETED.value,
-      WorkflowAggregatedState.RUNNING.value,
-      WorkflowAggregatedState.UNINITIALIZED.value,
-      WorkflowAggregatedState.PAUSED.value,
-      WorkflowAggregatedState.READY.value
+      metrics.map(_.operatorState),
+      WorkflowAggregatedState.COMPLETED,
+      WorkflowAggregatedState.RUNNING,
+      WorkflowAggregatedState.UNINITIALIZED,
+      WorkflowAggregatedState.PAUSED,
+      WorkflowAggregatedState.READY
     )
 
     val inputCountSum = metrics
@@ -57,13 +57,13 @@ object ExecutionUtils {
       )
     )
   }
-  def aggregateStates(
-      states: Iterable[Int],
-      completedState: Int,
-      runningState: Int,
-      uninitializedState: Int,
-      pausedState: Int,
-      readyState: Int
+  def aggregateStates[T](
+      states: Iterable[T],
+      completedState: T,
+      runningState: T,
+      uninitializedState: T,
+      pausedState: T,
+      readyState: T
   ): WorkflowAggregatedState = {
     if (states.isEmpty) {
       WorkflowAggregatedState.UNINITIALIZED
