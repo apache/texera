@@ -1,8 +1,9 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
+import edu.uci.ics.amber.engine.architecture.controller.execution.ExecutionUtils.aggregateMetrics
 import edu.uci.ics.amber.engine.architecture.scheduling.{Region, RegionIdentity}
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
-import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
+import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, WorkflowAggregatedState}
 import edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState._
 
 import scala.collection.mutable
@@ -49,6 +50,30 @@ case class WorkflowExecution() {
     */
   def getRunningRegionExecutions: Iterable[RegionExecution] = {
     regionExecutions.values.filterNot(_.isCompleted)
+  }
+
+  /**
+    * Retrieve the runtime stats of all `RegionExecutions`
+    *
+    * @return A `Map` with key being `Logical Operator ID` and the value being operator runtime statistics
+    */
+  def getAllRegionExecutionsStats: Map[String, OperatorMetrics] = {
+    val allRegionExecutions: Iterable[RegionExecution] = getAllRegionExecutions
+
+    val statsMap: Map[PhysicalOpIdentity, OperatorMetrics] = allRegionExecutions.flatMap {
+      regionExecution =>
+        regionExecution.getStats.map {
+          case (physicalOpIdentity, operatorMetrics) =>
+            (physicalOpIdentity, operatorMetrics)
+        }
+    }.toMap
+
+    val aggregatedStats: Map[String, OperatorMetrics] =
+      statsMap.groupBy(_._1.logicalOpId.id).map {
+        case (logicalOpId, stats) =>
+          (logicalOpId, aggregateMetrics(stats.values))
+      }
+    aggregatedStats
   }
 
   /**

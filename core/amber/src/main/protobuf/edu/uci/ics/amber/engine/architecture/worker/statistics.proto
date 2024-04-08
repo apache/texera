@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package edu.uci.ics.amber.engine.architecture.worker;
 
+import "edu/uci/ics/amber/engine/common/workflow.proto";
 import "scalapb/scalapb.proto";
 
 option (scalapb.options) = {
@@ -20,11 +21,20 @@ enum WorkerState {
 
 }
 
+message PortTupleCountMapping {
+    common.PortIdentity port_id = 1;
+    int64 tuple_count = 2;
+}
+
 message WorkerStatistics {
+    repeated PortTupleCountMapping input_tuple_count = 1;
+    repeated PortTupleCountMapping output_tuple_count = 2;
+    int64 data_processing_time = 3;
+    int64 control_processing_time = 4;
+    int64 idle_time = 5;
+}
+
+message WorkerMetrics {
     WorkerState worker_state = 1 [(scalapb.field).no_box = true];
-    int64 input_tuple_count = 2;
-    int64 output_tuple_count = 3;
-    int64 data_processing_time = 4;
-    int64 control_processing_time = 5;
-    int64 idle_time = 6;
+    WorkerStatistics worker_statistics = 2 [(scalapb.field).no_box = true];
 }
