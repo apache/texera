@@ -6,26 +6,18 @@
 package edu.uci.ics.texera.web.workflowruntimestate
 
 @SerialVersionUID(0L)
-final case class OperatorRuntimeStats(
-    state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
+final case class OperatorStatistics(
     inputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = _root_.scala.Seq.empty,
     outputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = _root_.scala.Seq.empty,
     numWorkers: _root_.scala.Int = 0,
     dataProcessingTime: _root_.scala.Long = 0L,
     controlProcessingTime: _root_.scala.Long = 0L,
     idleTime: _root_.scala.Long = 0L
-    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorRuntimeStats] {
+    ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[OperatorStatistics] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      
-      {
-        val __value = state.value
-        if (__value != 0) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeEnumSize(1, __value)
-        }
-      };
       inputCount.foreach { __item =>
         val __value = __item
         __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
@@ -38,28 +30,28 @@ final case class OperatorRuntimeStats(
       {
         val __value = numWorkers
         if (__value != 0) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(4, __value)
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt32Size(3, __value)
         }
       };
       
       {
         val __value = dataProcessingTime
         if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(5, __value)
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(4, __value)
         }
       };
       
       {
         val __value = controlProcessingTime
         if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(6, __value)
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(5, __value)
         }
       };
       
       {
         val __value = idleTime
         if (__value != 0L) {
-          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(7, __value)
+          __size += _root_.com.google.protobuf.CodedOutputStream.computeInt64Size(6, __value)
         }
       };
       __size
@@ -73,83 +65,72 @@ final case class OperatorRuntimeStats(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      {
-        val __v = state.value
-        if (__v != 0) {
-          _output__.writeEnum(1, __v)
-        }
-      };
       inputCount.foreach { __v =>
         val __m = __v
-        _output__.writeTag(2, 2)
+        _output__.writeTag(1, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
       outputCount.foreach { __v =>
         val __m = __v
-        _output__.writeTag(3, 2)
+        _output__.writeTag(2, 2)
         _output__.writeUInt32NoTag(__m.serializedSize)
         __m.writeTo(_output__)
       };
       {
         val __v = numWorkers
         if (__v != 0) {
-          _output__.writeInt32(4, __v)
+          _output__.writeInt32(3, __v)
         }
       };
       {
         val __v = dataProcessingTime
         if (__v != 0L) {
-          _output__.writeInt64(5, __v)
+          _output__.writeInt64(4, __v)
         }
       };
       {
         val __v = controlProcessingTime
         if (__v != 0L) {
-          _output__.writeInt64(6, __v)
+          _output__.writeInt64(5, __v)
         }
       };
       {
         val __v = idleTime
         if (__v != 0L) {
-          _output__.writeInt64(7, __v)
+          _output__.writeInt64(6, __v)
         }
       };
     }
-    def withState(__v: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState): OperatorRuntimeStats = copy(state = __v)
     def clearInputCount = copy(inputCount = _root_.scala.Seq.empty)
-    def addInputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorRuntimeStats = addAllInputCount(__vs)
-    def addAllInputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(inputCount = inputCount ++ __vs)
-    def withInputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(inputCount = __v)
+    def addInputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorStatistics = addAllInputCount(__vs)
+    def addAllInputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(inputCount = inputCount ++ __vs)
+    def withInputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(inputCount = __v)
     def clearOutputCount = copy(outputCount = _root_.scala.Seq.empty)
-    def addOutputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorRuntimeStats = addAllOutputCount(__vs)
-    def addAllOutputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(outputCount = outputCount ++ __vs)
-    def withOutputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorRuntimeStats = copy(outputCount = __v)
-    def withNumWorkers(__v: _root_.scala.Int): OperatorRuntimeStats = copy(numWorkers = __v)
-    def withDataProcessingTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(dataProcessingTime = __v)
-    def withControlProcessingTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(controlProcessingTime = __v)
-    def withIdleTime(__v: _root_.scala.Long): OperatorRuntimeStats = copy(idleTime = __v)
+    def addOutputCount(__vs: edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping*): OperatorStatistics = addAllOutputCount(__vs)
+    def addAllOutputCount(__vs: Iterable[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(outputCount = outputCount ++ __vs)
+    def withOutputCount(__v: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]): OperatorStatistics = copy(outputCount = __v)
+    def withNumWorkers(__v: _root_.scala.Int): OperatorStatistics = copy(numWorkers = __v)
+    def withDataProcessingTime(__v: _root_.scala.Long): OperatorStatistics = copy(dataProcessingTime = __v)
+    def withControlProcessingTime(__v: _root_.scala.Long): OperatorStatistics = copy(controlProcessingTime = __v)
+    def withIdleTime(__v: _root_.scala.Long): OperatorStatistics = copy(idleTime = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => {
-          val __t = state.javaValueDescriptor
-          if (__t.getNumber() != 0) __t else null
-        }
-        case 2 => inputCount
-        case 3 => outputCount
-        case 4 => {
+        case 1 => inputCount
+        case 2 => outputCount
+        case 3 => {
           val __t = numWorkers
           if (__t != 0) __t else null
         }
-        case 5 => {
+        case 4 => {
           val __t = dataProcessingTime
           if (__t != 0L) __t else null
         }
-        case 6 => {
+        case 5 => {
           val __t = controlProcessingTime
           if (__t != 0L) __t else null
         }
-        case 7 => {
+        case 6 => {
           val __t = idleTime
           if (__t != 0L) __t else null
         }
@@ -158,24 +139,22 @@ final case class OperatorRuntimeStats(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => _root_.scalapb.descriptors.PEnum(state.scalaValueDescriptor)
-        case 2 => _root_.scalapb.descriptors.PRepeated(inputCount.iterator.map(_.toPMessage).toVector)
-        case 3 => _root_.scalapb.descriptors.PRepeated(outputCount.iterator.map(_.toPMessage).toVector)
-        case 4 => _root_.scalapb.descriptors.PInt(numWorkers)
-        case 5 => _root_.scalapb.descriptors.PLong(dataProcessingTime)
-        case 6 => _root_.scalapb.descriptors.PLong(controlProcessingTime)
-        case 7 => _root_.scalapb.descriptors.PLong(idleTime)
+        case 1 => _root_.scalapb.descriptors.PRepeated(inputCount.iterator.map(_.toPMessage).toVector)
+        case 2 => _root_.scalapb.descriptors.PRepeated(outputCount.iterator.map(_.toPMessage).toVector)
+        case 3 => _root_.scalapb.descriptors.PInt(numWorkers)
+        case 4 => _root_.scalapb.descriptors.PLong(dataProcessingTime)
+        case 5 => _root_.scalapb.descriptors.PLong(controlProcessingTime)
+        case 6 => _root_.scalapb.descriptors.PLong(idleTime)
       }
     }
     def toProtoString: _root_.scala.Predef.String = _root_.scalapb.TextFormat.printToSingleLineUnicodeString(this)
-    def companion = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats
-    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.OperatorRuntimeStats])
+    def companion = edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics
+    // @@protoc_insertion_point(GeneratedMessage[edu.uci.ics.texera.web.OperatorStatistics])
 }
 
-object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats] {
-  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats] = this
-  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats = {
-    var __state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED
+object OperatorStatistics extends scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics] {
+  implicit def messageCompanion: scalapb.GeneratedMessageCompanion[edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics] = this
+  def parseFrom(`_input__`: _root_.com.google.protobuf.CodedInputStream): edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics = {
     val __inputCount: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]
     val __outputCount: _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping] = new _root_.scala.collection.immutable.VectorBuilder[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]
     var __numWorkers: _root_.scala.Int = 0
@@ -187,25 +166,22 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
       val _tag__ = _input__.readTag()
       _tag__ match {
         case 0 => _done__ = true
-        case 8 =>
-          __state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(_input__.readEnum())
-        case 18 =>
+        case 10 =>
           __inputCount += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping](_input__)
-        case 26 =>
+        case 18 =>
           __outputCount += _root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping](_input__)
-        case 32 =>
+        case 24 =>
           __numWorkers = _input__.readInt32()
-        case 40 =>
+        case 32 =>
           __dataProcessingTime = _input__.readInt64()
-        case 48 =>
+        case 40 =>
           __controlProcessingTime = _input__.readInt64()
-        case 56 =>
+        case 48 =>
           __idleTime = _input__.readInt64()
         case tag => _input__.skipField(tag)
       }
     }
-    edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
-        state = __state,
+    edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics(
         inputCount = __inputCount.result(),
         outputCount = __outputCount.result(),
         numWorkers = __numWorkers,
@@ -214,17 +190,16 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
         idleTime = __idleTime
     )
   }
-  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats] = _root_.scalapb.descriptors.Reads{
+  implicit def messageReads: _root_.scalapb.descriptors.Reads[edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics] = _root_.scalapb.descriptors.Reads{
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
-      edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
-        state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.fromValue(__fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scalapb.descriptors.EnumValueDescriptor]).getOrElse(edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED.scalaValueDescriptor).number),
-        inputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]]).getOrElse(_root_.scala.Seq.empty),
-        outputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]]).getOrElse(_root_.scala.Seq.empty),
-        numWorkers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Int]).getOrElse(0),
-        dataProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        controlProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
-        idleTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(7).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
+      edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics(
+        inputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]]).getOrElse(_root_.scala.Seq.empty),
+        outputCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]]).getOrElse(_root_.scala.Seq.empty),
+        numWorkers = __fieldsMap.get(scalaDescriptor.findFieldByNumber(3).get).map(_.as[_root_.scala.Int]).getOrElse(0),
+        dataProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(4).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        controlProcessingTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(5).get).map(_.as[_root_.scala.Long]).getOrElse(0L),
+        idleTime = __fieldsMap.get(scalaDescriptor.findFieldByNumber(6).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
       )
     case _ => throw new RuntimeException("Expected PMessage")
   }
@@ -233,19 +208,14 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
   def messageCompanionForFieldNumber(__number: _root_.scala.Int): _root_.scalapb.GeneratedMessageCompanion[_] = {
     var __out: _root_.scalapb.GeneratedMessageCompanion[_] = null
     (__number: @_root_.scala.unchecked) match {
+      case 1 => __out = edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
       case 2 => __out = edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
-      case 3 => __out = edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
     }
     __out
   }
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
-  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = {
-    (__fieldNumber: @_root_.scala.unchecked) match {
-      case 1 => edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState
-    }
-  }
-  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
-    state = edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState.UNINITIALIZED,
+  def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
+  lazy val defaultInstance = edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics(
     inputCount = _root_.scala.Seq.empty,
     outputCount = _root_.scala.Seq.empty,
     numWorkers = 0,
@@ -253,8 +223,7 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     controlProcessingTime = 0L,
     idleTime = 0L
   )
-  implicit class OperatorRuntimeStatsLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats](_l) {
-    def state: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState] = field(_.state)((c_, f_) => c_.copy(state = f_))
+  implicit class OperatorStatisticsLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics](_l) {
     def inputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]] = field(_.inputCount)((c_, f_) => c_.copy(inputCount = f_))
     def outputCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]] = field(_.outputCount)((c_, f_) => c_.copy(outputCount = f_))
     def numWorkers: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Int] = field(_.numWorkers)((c_, f_) => c_.copy(numWorkers = f_))
@@ -262,23 +231,20 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     def controlProcessingTime: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.controlProcessingTime)((c_, f_) => c_.copy(controlProcessingTime = f_))
     def idleTime: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.idleTime)((c_, f_) => c_.copy(idleTime = f_))
   }
-  final val STATE_FIELD_NUMBER = 1
-  final val INPUT_COUNT_FIELD_NUMBER = 2
-  final val OUTPUT_COUNT_FIELD_NUMBER = 3
-  final val NUM_WORKERS_FIELD_NUMBER = 4
-  final val DATA_PROCESSING_TIME_FIELD_NUMBER = 5
-  final val CONTROL_PROCESSING_TIME_FIELD_NUMBER = 6
-  final val IDLE_TIME_FIELD_NUMBER = 7
+  final val INPUT_COUNT_FIELD_NUMBER = 1
+  final val OUTPUT_COUNT_FIELD_NUMBER = 2
+  final val NUM_WORKERS_FIELD_NUMBER = 3
+  final val DATA_PROCESSING_TIME_FIELD_NUMBER = 4
+  final val CONTROL_PROCESSING_TIME_FIELD_NUMBER = 5
+  final val IDLE_TIME_FIELD_NUMBER = 6
   def of(
-    state: edu.uci.ics.texera.web.workflowruntimestate.WorkflowAggregatedState,
     inputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping],
     outputCount: _root_.scala.Seq[edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping],
     numWorkers: _root_.scala.Int,
     dataProcessingTime: _root_.scala.Long,
     controlProcessingTime: _root_.scala.Long,
     idleTime: _root_.scala.Long
-  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats = _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorRuntimeStats(
-    state,
+  ): _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics = _root_.edu.uci.ics.texera.web.workflowruntimestate.OperatorStatistics(
     inputCount,
     outputCount,
     numWorkers,
@@ -286,5 +252,5 @@ object OperatorRuntimeStats extends scalapb.GeneratedMessageCompanion[edu.uci.ic
     controlProcessingTime,
     idleTime
   )
-  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.OperatorRuntimeStats])
+  // @@protoc_insertion_point(GeneratedMessageCompanion[edu.uci.ics.texera.web.OperatorStatistics])
 }

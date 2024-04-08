@@ -90,25 +90,30 @@ class OperatorWorkerMapping(betterproto.Message):
 
 
 @dataclass(eq=False, repr=False)
-class OperatorRuntimeStats(betterproto.Message):
-    state: "WorkflowAggregatedState" = betterproto.enum_field(1)
+class OperatorStatistics(betterproto.Message):
     input_count: List["__amber_engine_architecture_worker__.PortTupleCountMapping"] = (
-        betterproto.message_field(2)
+        betterproto.message_field(1)
     )
     output_count: List["__amber_engine_architecture_worker__.PortTupleCountMapping"] = (
-        betterproto.message_field(3)
+        betterproto.message_field(2)
     )
-    num_workers: int = betterproto.int32_field(4)
-    data_processing_time: int = betterproto.int64_field(5)
-    control_processing_time: int = betterproto.int64_field(6)
-    idle_time: int = betterproto.int64_field(7)
+    num_workers: int = betterproto.int32_field(3)
+    data_processing_time: int = betterproto.int64_field(4)
+    control_processing_time: int = betterproto.int64_field(5)
+    idle_time: int = betterproto.int64_field(6)
+
+
+@dataclass(eq=False, repr=False)
+class OperatorMetrics(betterproto.Message):
+    operator_state: "WorkflowAggregatedState" = betterproto.enum_field(1)
+    operator_statistics: "OperatorStatistics" = betterproto.message_field(2)
 
 
 @dataclass(eq=False, repr=False)
 class ExecutionStatsStore(betterproto.Message):
     start_time_stamp: int = betterproto.int64_field(1)
     end_time_stamp: int = betterproto.int64_field(2)
-    operator_info: Dict[str, "OperatorRuntimeStats"] = betterproto.map_field(
+    operator_info: Dict[str, "OperatorMetrics"] = betterproto.map_field(
         3, betterproto.TYPE_STRING, betterproto.TYPE_MESSAGE
     )
     operator_worker_mapping: List["OperatorWorkerMapping"] = betterproto.message_field(

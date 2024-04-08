@@ -1,16 +1,20 @@
 package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping
-import edu.uci.ics.texera.web.workflowruntimestate.{OperatorRuntimeStats, WorkflowAggregatedState}
+import edu.uci.ics.texera.web.workflowruntimestate.{
+  OperatorMetrics,
+  OperatorStatistics,
+  WorkflowAggregatedState
+}
 
 object ExecutionUtils {
 
   /**
     * Handle the case when a logical operator has two physical operators within a same region (e.g., Aggregate operator)
     */
-  def aggregateStats(stats: Iterable[OperatorRuntimeStats]): OperatorRuntimeStats = {
+  def aggregateMetrics(metrics: Iterable[OperatorMetrics]): OperatorMetrics = {
     val aggregatedState = aggregateStates(
-      stats.map(_.state.value),
+      metrics.map(_.operatorState.value),
       WorkflowAggregatedState.COMPLETED.value,
       WorkflowAggregatedState.RUNNING.value,
       WorkflowAggregatedState.UNINITIALIZED.value,
@@ -18,8 +22,8 @@ object ExecutionUtils {
       WorkflowAggregatedState.READY.value
     )
 
-    val inputCountSum = stats
-      .flatMap(_.inputCount)
+    val inputCountSum = metrics
+      .flatMap(_.operatorStatistics.inputCount)
       .groupBy(_.portId)
       .map {
         case (k, v) =>
@@ -27,8 +31,8 @@ object ExecutionUtils {
       }
       .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
       .toSeq
-    val outputCountSum = stats
-      .flatMap(_.outputCount)
+    val outputCountSum = metrics
+      .flatMap(_.operatorStatistics.outputCount)
       .groupBy(_.portId)
       .map {
         case (k, v) =>
@@ -36,19 +40,21 @@ object ExecutionUtils {
       }
       .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
       .toSeq
-    val numWorkersSum = stats.map(_.numWorkers).sum
-    val dataProcessingTimeSum = stats.map(_.dataProcessingTime).sum
-    val controlProcessingTimeSum = stats.map(_.controlProcessingTime).sum
-    val idleTimeSum = stats.map(_.idleTime).sum
+    val numWorkersSum = metrics.map(_.operatorStatistics.numWorkers).sum
+    val dataProcessingTimeSum = metrics.map(_.operatorStatistics.dataProcessingTime).sum
+    val controlProcessingTimeSum = metrics.map(_.operatorStatistics.controlProcessingTime).sum
+    val idleTimeSum = metrics.map(_.operatorStatistics.idleTime).sum
 
-    OperatorRuntimeStats(
+    OperatorMetrics(
       aggregatedState,
-      inputCountSum,
-      outputCountSum,
-      numWorkersSum,
-      dataProcessingTimeSum,
-      controlProcessingTimeSum,
-      idleTimeSum
+      OperatorStatistics(
+        inputCountSum,
+        outputCountSum,
+        numWorkersSum,
+        dataProcessingTimeSum,
+        controlProcessingTimeSum,
+        idleTimeSum
+      )
     )
   }
   def aggregateStates(
