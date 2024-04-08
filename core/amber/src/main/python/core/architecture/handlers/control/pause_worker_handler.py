@@ -2,7 +2,10 @@ from core.architecture.handlers.control.control_handler_base import ControlHandl
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import PauseWorkerV2
+from proto.edu.uci.ics.amber.engine.architecture.worker import (
+    PauseWorkerV2,
+    WorkerMetrics,
+)
 
 
 class PauseWorkerHandler(ControlHandler):
@@ -11,4 +14,4 @@ class PauseWorkerHandler(ControlHandler):
     def __call__(self, context: Context, command: PauseWorkerV2, *args, **kwargs):
         context.pause_manager.pause(PauseType.USER_PAUSE)
         state = context.state_manager.get_current_state()
-        return state
+        return WorkerMetrics(worker_state=state)
