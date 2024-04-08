@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, OnInit, Type, HostListener } from "@angular/core";
+import { ChangeDetectorRef, Component, OnInit, Type, HostListener, OnDestroy } from "@angular/core";
 import { merge } from "rxjs";
 import { ExecuteWorkflowService } from "../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../service/workflow-graph/model/workflow-action.service";
@@ -25,12 +25,14 @@ import { NzResizeEvent } from "ng-zorro-antd/resizable";
   templateUrl: "./result-panel.component.html",
   styleUrls: ["./result-panel.component.scss"],
 })
-export class ResultPanelComponent implements OnInit {
+export class ResultPanelComponent implements OnInit, OnDestroy {
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
   id = -1;
   width = 800; 
   height = 300;
+  prevWidth = 800;
+  prevHeight = 300;
   maxWidth = window.innerWidth;
   maxHeight = window.innerHeight;
 
@@ -54,12 +56,26 @@ export class ResultPanelComponent implements OnInit {
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
     private workflowConsoleService: WorkflowConsoleService
-  ) {}
+  ) {
+    const width = localStorage.getItem("result-panel-width");
+    if (width) this.width = Number(width);
+    this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
+  }
 
   ngOnInit(): void {
+    const style = localStorage.getItem("result-panel-style");
+    if (style) document.getElementById("result-container")!.style.cssText = style;
+
     this.registerAutoRerenderResultPanel();
     this.registerAutoOpenResultPanel();
     this.handleResultPanelForVersionPreview();
+  }
+
+  @HostListener("window:beforeunload")
+  ngOnDestroy(): void {
+    localStorage.setItem("result-panel-width", String(this.width));
+    localStorage.setItem("result-panel-height", String(this.height));
+    localStorage.setItem("result-panel-style", document.getElementById("result-container")!.style.cssText);
   }
 
   handleResultPanelForVersionPreview() {
@@ -228,11 +244,13 @@ export class ResultPanelComponent implements OnInit {
   }
 
   openPanel() {
-    this.height = 300;
-    this.width = 800;
+    this.height = this.prevHeight;
+    this.width = this.prevWidth;
   }
 
   closePanel() {
+    this.prevHeight = this.height;
+    this.prevWidth = this.width;
     this.height = 0;
     this.width = 0;
   }
