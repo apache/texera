@@ -32,7 +32,7 @@ export class ResultPanelComponent implements OnInit {
   width = 800; 
   height = 300;
   maxWidth = window.innerWidth;
-  maxHeight = window.innerHeight * 0.85;
+  maxHeight = window.innerHeight;
 
   onResize({ width, height }: NzResizeEvent) {
     cancelAnimationFrame(this.id);

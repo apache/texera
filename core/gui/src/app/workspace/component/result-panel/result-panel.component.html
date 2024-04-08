@@ -5,8 +5,14 @@
   id="result-container"
   cdkDrag
   cdkDragBoundary="body"
+  nz-resizable
+  [nzMinWidth]="300"
+  [nzMinHeight]="200"
+  [nzMaxWidth]="window.innerWidth"
+  [nzMaxHeight]="window.innerHeight"
   [style.width.px]="width"
-  [style.height.px]="height">
+  [style.height.px]="height"
+  (nzResize)="onResize($event)">
   <ul
     nz-menu
     id="result-buttons"
@@ -67,4 +73,7 @@
       </div>
     </nz-tabset>
   </div>
+  <nz-resize-handles
+    *ngIf="width"
+    [nzDirections]="['right', 'bottom', 'bottomRight']"></nz-resize-handles>
 </div>
