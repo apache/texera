@@ -60,33 +60,30 @@ case class OperatorExecution() {
     )
   }
 
+  private[this] def computeOperatorPortStats(
+      workerPortStats: Iterable[PortTupleCountMapping]
+  ): Seq[PortTupleCountMapping] = {
+    workerPortStats
+      .map(_.portId)
+      .toSet
+      .map { portId =>
+        PortTupleCountMapping(
+          portId,
+          workerPortStats.filter(_.portId == portId).map(_.tupleCount).sum
+        )
+      }
+      .toSeq
+  }
+
   def getStats: OperatorMetrics = {
     val workerRawStats = workerExecutions.values.asScala.map(_.getStats)
-    val inputPorts = workerRawStats.flatMap(_.inputTupleCount)
-    val outputPorts = workerRawStats.flatMap(_.outputTupleCount)
+    val inputPortStats = workerRawStats.flatMap(_.inputTupleCount)
+    val outputPortStats = workerRawStats.flatMap(_.outputTupleCount)
     OperatorMetrics(
       getState,
       OperatorStatistics(
-        inputCount = inputPorts
-          .map(_.portId)
-          .toSet
-          .map { portId =>
-            PortTupleCountMapping(
-              portId,
-              inputPorts.filter(_.portId == portId).map(_.tupleCount).sum
-            )
-          }
-          .toSeq,
-        outputCount = outputPorts
-          .map(_.portId)
-          .toSet
-          .map { portId =>
-            PortTupleCountMapping(
-              portId,
-              outputPorts.filter(_.portId == portId).map(_.tupleCount).sum
-            )
-          }
-          .toSeq,
+        inputCount = computeOperatorPortStats(inputPortStats),
+        outputCount = computeOperatorPortStats(outputPortStats),
         getWorkerIds.size,
         dataProcessingTime = workerRawStats.map(_.dataProcessingTime).sum,
         controlProcessingTime = workerRawStats.map(_.controlProcessingTime).sum,
