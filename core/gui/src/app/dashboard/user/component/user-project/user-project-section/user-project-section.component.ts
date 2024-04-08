@@ -26,6 +26,7 @@ export class UserProjectSectionComponent implements OnInit {
   public description: string = "";
   public ownerID: number = 0;
   public creationTime: number = 0;
+  public accessLevel: string = "READ";
   public color: string | null = null;
 
   // information for modifying project color
@@ -259,6 +260,7 @@ export class UserProjectSectionComponent implements OnInit {
               this.description = userProject.description;
               this.ownerID = userProject.ownerID;
               this.creationTime = userProject.creationTime;
+              this.accessLevel = userProject.accessLevel;
               if (userProject.color != null) {
                 this.color = userProject.color;
                 this.inputColor = "#" + userProject.color;
