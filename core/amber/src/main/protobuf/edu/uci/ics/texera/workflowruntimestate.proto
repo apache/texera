@@ -4,6 +4,7 @@ package edu.uci.ics.texera.web;
 
 import "edu/uci/ics/amber/engine/architecture/worker/controlcommands.proto";
 import "edu/uci/ics/amber/engine/architecture/worker/controlreturns.proto";
+import "edu/uci/ics/amber/engine/architecture/worker/statistics.proto";
 import "edu/uci/ics/amber/engine/common/virtualidentity.proto";
 import "google/protobuf/timestamp.proto";
 import "scalapb/scalapb.proto";
@@ -70,20 +71,24 @@ message OperatorWorkerMapping{
   repeated string workerIds = 2;
 }
 
-message OperatorRuntimeStats{
-  WorkflowAggregatedState state = 1;
-  int64 input_count = 2;
-  int64 output_count = 3;
-  int32 num_workers = 4;
-  int64 data_processing_time = 5;
-  int64 control_processing_time = 6;
-  int64 idle_time = 7;
+message OperatorStatistics{
+  repeated amber.engine.architecture.worker.PortTupleCountMapping input_count = 1;
+  repeated amber.engine.architecture.worker.PortTupleCountMapping output_count = 2;
+  int32 num_workers = 3;
+  int64 data_processing_time = 4;
+  int64 control_processing_time = 5;
+  int64 idle_time = 6;
+}
+
+message OperatorMetrics{
+  WorkflowAggregatedState operator_state = 1 [(scalapb.field).no_box = true];
+  OperatorStatistics operator_statistics = 2 [(scalapb.field).no_box = true];
 }
 
 message ExecutionStatsStore {
   int64 startTimeStamp = 1;
   int64 endTimeStamp = 2;
-  map<string, OperatorRuntimeStats> operator_info = 3;
+  map<string, OperatorMetrics> operator_info = 3;
   repeated OperatorWorkerMapping operator_worker_mapping = 4;
 }
 

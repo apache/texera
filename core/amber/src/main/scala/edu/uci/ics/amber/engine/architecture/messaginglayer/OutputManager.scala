@@ -193,4 +193,9 @@ class OutputManager(
     outputIterator.appendSpecialTupleToEnd(FinalizeExecutor())
   }
 
+  def getSingleOutputPortIdentity: PortIdentity = {
+    assert(ports.size == 1)
+    ports.head._1
+  }
+
 }

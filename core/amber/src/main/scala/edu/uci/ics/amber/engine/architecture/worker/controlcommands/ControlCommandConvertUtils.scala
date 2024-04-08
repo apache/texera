@@ -24,7 +24,7 @@ import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryCurrent
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.QueryStatisticsHandler.QueryStatistics
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.ResumeHandler.ResumeWorker
 import edu.uci.ics.amber.engine.architecture.worker.promisehandlers.StartHandler.StartWorker
-import edu.uci.ics.amber.engine.architecture.worker.statistics.{WorkerState, WorkerStatistics}
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerMetrics
 import edu.uci.ics.amber.engine.common.rpc.AsyncRPCServer.ControlCommand
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 
@@ -103,13 +103,9 @@ object ControlCommandConvertUtils {
     controlReturn match {
       case _: Unit =>
         ControlReturnV2(Empty)
-      case workerState: WorkerState =>
+      case workerMetrics: WorkerMetrics =>
         ControlReturnV2(
-          ControlReturnV2.Value.WorkerState(workerState)
-        )
-      case workerStatistics: WorkerStatistics =>
-        ControlReturnV2(
-          ControlReturnV2.Value.WorkerStatistics(workerStatistics)
+          ControlReturnV2.Value.WorkerMetrics(workerMetrics)
         )
       case _ =>
         throw new UnsupportedOperationException(

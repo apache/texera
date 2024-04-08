@@ -26,6 +26,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     QueryStatisticsV2,
     AddInputChannelV2,
     WorkerExecutionCompletedV2,
+    WorkerMetrics,
     WorkerState,
     WorkerStatistics,
     PortCompletedV2,
@@ -33,6 +34,7 @@ from proto.edu.uci.ics.amber.engine.architecture.worker import (
     PauseWorkerV2,
     ResumeWorkerV2,
     AssignPortV2,
+    PortTupleCountMapping,
 )
 from proto.edu.uci.ics.amber.engine.common import (
     ActorVirtualIdentity,
@@ -422,20 +424,26 @@ class TestMainLoop:
         input_queue.put(mock_query_statistics)
         elem = output_queue.get()
         stats_invocation = elem.payload.return_invocation
-        stats = stats_invocation.control_return.worker_statistics
+        stats = stats_invocation.control_return.worker_metrics.worker_statistics
         assert elem == ControlElement(
             tag=mock_controller,
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=1,
                     control_return=ControlReturnV2(
-                        worker_statistics=WorkerStatistics(
+                        worker_metrics=WorkerMetrics(
                             worker_state=WorkerState.RUNNING,
-                            input_tuple_count=1,
-                            output_tuple_count=1,
-                            data_processing_time=stats.data_processing_time,
-                            control_processing_time=stats.control_processing_time,
-                            idle_time=stats.idle_time,
+                            worker_statistics=WorkerStatistics(
+                                input_tuple_count=[
+                                    PortTupleCountMapping(PortIdentity(0), 1)
+                                ],
+                                output_tuple_count=[
+                                    PortTupleCountMapping(PortIdentity(0), 1)
+                                ],
+                                data_processing_time=stats.data_processing_time,
+                                control_processing_time=stats.control_processing_time,
+                                idle_time=stats.idle_time,
+                            ),
                         )
                     ),
                 )
@@ -678,7 +686,7 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(worker_state=WorkerState.PAUSED),
+                    control_return=ControlReturnV2(),
                 )
             ),
         )
@@ -693,7 +701,7 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(worker_state=WorkerState.RUNNING),
+                    control_return=ControlReturnV2(),
                 )
             ),
         )

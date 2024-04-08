@@ -4,8 +4,8 @@ import com.twitter.util.Future
 import edu.uci.ics.amber.engine.architecture.common.AkkaActorService
 import edu.uci.ics.amber.engine.architecture.controller.ControllerConfig
 import edu.uci.ics.amber.engine.architecture.controller.ControllerEvent.{
-  WorkerAssignmentUpdate,
-  ExecutionStatsUpdate
+  ExecutionStatsUpdate,
+  WorkerAssignmentUpdate
 }
 import edu.uci.ics.amber.engine.architecture.controller.execution.{
   OperatorExecution,
@@ -62,7 +62,11 @@ class RegionExecutionCoordinator(
     })
 
     // update UI
-    asyncRPCClient.sendToClient(ExecutionStatsUpdate(regionExecution.getStats))
+    asyncRPCClient.sendToClient(
+      ExecutionStatsUpdate(
+        workflowExecution.getAllRegionExecutionsStats
+      )
+    )
     asyncRPCClient.sendToClient(
       WorkerAssignmentUpdate(
         region.getOperators
@@ -194,7 +198,9 @@ class RegionExecutionCoordinator(
 
   private def sendStarts(region: Region): Future[Seq[Unit]] = {
     asyncRPCClient.sendToClient(
-      ExecutionStatsUpdate(workflowExecution.getRegionExecution(region.id).getStats)
+      ExecutionStatsUpdate(
+        workflowExecution.getAllRegionExecutionsStats
+      )
     )
     Future.collect(
       region.getSourceOperators

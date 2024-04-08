@@ -43,7 +43,7 @@ trait ResumeHandler {
           // update frontend status
           sendToClient(
             ExecutionStatsUpdate(
-              cp.workflowExecution.getRunningRegionExecutions.flatMap(_.getStats).toMap
+              cp.workflowExecution.getAllRegionExecutionsStats
             )
           )
           cp.controllerTimerService
