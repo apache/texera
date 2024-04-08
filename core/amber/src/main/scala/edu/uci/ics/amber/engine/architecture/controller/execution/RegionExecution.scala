@@ -2,6 +2,7 @@ package edu.uci.ics.amber.engine.architecture.controller.execution
 
 import com.rits.cloning.Cloner
 import edu.uci.ics.amber.engine.architecture.scheduling.Region
+import edu.uci.ics.amber.engine.architecture.worker.statistics.WorkerStatistics
 import edu.uci.ics.amber.engine.common.virtualidentity.PhysicalOpIdentity
 import edu.uci.ics.amber.engine.common.workflow.PhysicalLink
 import edu.uci.ics.texera.web.workflowruntimestate.{OperatorMetrics, WorkflowAggregatedState}
@@ -10,6 +11,8 @@ import scala.collection.mutable
 
 object Cloning {
   val cloner = new Cloner()
+  // prevent cloner from cloning scala Nil, which it cannot handle properly
+  cloner.dontClone(classOf[WorkerStatistics])
 }
 case class RegionExecution(region: Region) {
 
