@@ -13,7 +13,7 @@
     [ngClass]="{'shadow':  !width}">
     <li
       nz-menu-item
-      (click)="width = 0;"
+      (click)="closePanel()"
       *ngIf="width">
       <span
         nz-icon
@@ -33,7 +33,7 @@
       id="divider"></li>
     <li
       nz-menu-item
-      (click)="width = 800;"
+      (click)="openPanel()"
       *ngIf="!width">
       <span
         nz-icon
@@ -43,9 +43,10 @@
   <div
     id = "content">
     <h4
-      id="line"
+      id="title"
       cdkDragHandle
       *ngIf="width">
+      Result Panel
     </h4>
     <nz-tabset
       [nzSize]="'small'"

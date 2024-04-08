@@ -1,6 +1,14 @@
+:host {
+  display: block;
+  height: 100%;
+  width: 100%;
+  position: fixed;
+  z-index: 3;
+}
+
 #result-container {
   position: fixed;
-  bottom: 0px;
+  top: calc(100vh - 300px);
   left: 0px;
   z-index: 4;
   user-select: none;
@@ -45,6 +53,7 @@ $type-colors: (
   top: 0;
   left: 0;
   z-index: 4;
+  display: flex;
 }
 
 .ant-menu-item {
@@ -66,8 +75,8 @@ $type-colors: (
     0 1px 5px #0000001f;
 }
 
-#line {
-  padding: 16px 9px;
+#title {
+  padding: 5px 41px;
   border-bottom: 1px solid #e0e0e0;
   position: absolute;
   top: 0;

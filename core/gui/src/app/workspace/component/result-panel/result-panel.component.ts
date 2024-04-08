@@ -226,4 +226,14 @@ export class ResultPanelComponent implements OnInit {
     // transition from uninitialized / completed to anything else indicates a new execution of the workflow
     return event.previous.state === ExecutionState.Uninitialized || event.previous.state === ExecutionState.Completed;
   }
+
+  openPanel() {
+    this.height = 300;
+    this.width = 800;
+  }
+
+  closePanel() {
+    this.height = 0;
+    this.width = 0;
+  }
 }
