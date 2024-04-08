@@ -22,11 +22,7 @@ import { SearchService } from "../../service/search.service";
 import { SortMethod } from "../../type/sort-method";
 import { isDefined } from "../../../../common/util/predicate";
 import { UserProjectService } from "../../service/user-project/user-project.service";
-import { filter, map, mergeMap, tap } from "rxjs/operators";
-import { DashboardDataset } from "../../type/dashboard-dataset.interface";
-import { DashboardWorkflow } from "../../type/dashboard-workflow.interface";
-
-export const ROUTER_WORKFLOW_CREATE_NEW_URL = "/";
+import { map, mergeMap, tap } from "rxjs/operators";
 /**
  * Saved-workflow-section component contains information and functionality
  * of the saved workflows section and is re-used in the user projects section when a project is clicked
@@ -86,6 +82,7 @@ export class UserWorkflowComponent implements AfterViewInit {
 
   // receive input from parent components (UserProjectSection), if any
   @Input() public pid?: number = undefined;
+  @Input() public accessLevel?: string = undefined;
   public sortMethod = SortMethod.EditTimeDesc;
   lastSortMethod: SortMethod | null = null;
 
