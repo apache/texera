@@ -25,9 +25,8 @@ class DifferenceOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withPartitionRequirement(List(Option(HashPartition())))
+      .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
       .withDerivePartition(_ => HashPartition())
-      .withParallelizable(false)
   }
 
   override def operatorInfo: OperatorInfo =
