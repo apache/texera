@@ -26,9 +26,8 @@ class SymmetricDifferenceOpDesc extends LogicalOp {
       )
       .withInputPorts(operatorInfo.inputPorts)
       .withOutputPorts(operatorInfo.outputPorts)
-      .withPartitionRequirement(List(Option(HashPartition(List()))))
+      .withPartitionRequirement(List(Option(HashPartition()), Option(HashPartition())))
       .withDerivePartition(_ => HashPartition(List()))
-      .withParallelizable(false)
   }
 
   override def operatorInfo: OperatorInfo =
