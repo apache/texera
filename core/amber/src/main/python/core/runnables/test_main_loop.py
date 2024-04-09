@@ -686,7 +686,7 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(),
+                    control_return=ControlReturnV2(worker_state=WorkerState.PAUSED),
                 )
             ),
         )
@@ -701,7 +701,7 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(),
+                    control_return=ControlReturnV2(worker_state=WorkerState.RUNNING),
                 )
             ),
         )
