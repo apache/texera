@@ -14,4 +14,4 @@ class PauseWorkerHandler(ControlHandler):
     def __call__(self, context: Context, command: PauseWorkerV2, *args, **kwargs):
         context.pause_manager.pause(PauseType.USER_PAUSE)
         state = context.state_manager.get_current_state()
-        return WorkerMetrics(worker_state=state)
+        return state
