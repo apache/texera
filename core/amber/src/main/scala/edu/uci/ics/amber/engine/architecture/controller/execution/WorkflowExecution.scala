@@ -116,6 +116,7 @@ case class WorkflowExecution() {
       return WorkflowAggregatedState.COMPLETED
     }
     val unCompletedOpStates = regionExecutions.values
+      .filter(_.getState != COMPLETED)
       .flatMap(_.getAllOperatorExecutions.map(_._2.getState))
       .filter(_ != COMPLETED)
     if (unCompletedOpStates.forall(_ == UNINITIALIZED)) {
