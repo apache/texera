@@ -701,9 +701,7 @@ class TestMainLoop:
             payload=ControlPayloadV2(
                 return_invocation=ReturnInvocationV2(
                     original_command_id=command_sequence,
-                    control_return=ControlReturnV2(
-                        worker_metrics=WorkerMetrics(worker_state=WorkerState.RUNNING)
-                    ),
+                    control_return=ControlReturnV2(worker_state=WorkerState.RUNNING),
                 )
             ),
         )

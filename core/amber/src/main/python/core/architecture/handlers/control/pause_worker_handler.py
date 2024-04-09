@@ -2,10 +2,7 @@ from core.architecture.handlers.control.control_handler_base import ControlHandl
 from core.architecture.managers.context import Context
 from core.architecture.managers.pause_manager import PauseType
 
-from proto.edu.uci.ics.amber.engine.architecture.worker import (
-    PauseWorkerV2,
-    WorkerMetrics,
-)
+from proto.edu.uci.ics.amber.engine.architecture.worker import PauseWorkerV2
 
 
 class PauseWorkerHandler(ControlHandler):
