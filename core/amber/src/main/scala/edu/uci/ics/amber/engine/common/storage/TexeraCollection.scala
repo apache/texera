@@ -2,7 +2,6 @@ package edu.uci.ics.amber.engine.common.storage
 
 /**
   * TexeraCollection provides the abstraction of managing a collection of children TexeraDocument
-  * - TexeraCollection is identified uniquely by the URI
   */
 abstract class TexeraCollection {
   def getURI: TexeraURI
