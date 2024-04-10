@@ -47,15 +47,14 @@ class FileScanSourceOpExec private[scan] (
       fileEntries.zipAll(filenameIt, null, null).map {
         case (entry, fileName) =>
           val fields: mutable.ListBuffer[Any] = mutable.ListBuffer()
+          if (outputFileName) {
+            fields.addOne(fileName)
+          }
           fields.addOne(fileAttributeType match {
             case FileAttributeType.SINGLE_STRING =>
               new String(toByteArray(entry), fileEncoding.getCharset)
             case _ => parseField(toByteArray(entry), fileAttributeType.getType)
           })
-          if (outputFileName) {
-            fields.addOne(fileName)
-          }
-
           TupleLike(fields.toSeq: _*)
       }
     } else {
