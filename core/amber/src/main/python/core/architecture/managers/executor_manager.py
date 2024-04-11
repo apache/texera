@@ -1,15 +1,17 @@
 import importlib
 import inspect
 import sys
+
+import typing
 from cached_property import cached_property
 
 import fs
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Optional
 
 from fs.base import FS
 from loguru import logger
-from core.models import Operator, SourceOperator
+from core.models import Operator, SourceOperator, ArrowTableTupleProvider, Tuple
 
 
 class ExecutorManager:
@@ -42,7 +44,7 @@ class ExecutorManager:
         sys.path.append(str(root))
         return temp_fs
 
-    def gen_module_file_name(self) -> Tuple[str, str]:
+    def gen_module_file_name(self) -> typing.Tuple[str, str]:
         """
         Generate a UUID to be used as udf source code file.
         :return Tuple[str, str]: the pair of module_name and file_name.
@@ -114,14 +116,20 @@ class ExecutorManager:
         from rpy2.robjects.conversion import localconverter
         import pyarrow as pa
         import pandas as pd
-        class RExecutor:
+        from core.models.operator import TableOperator
+        class RExecutor(TableOperator):
             _func = robjects.r(code)
             is_source = False
+            def process_table(self, table, port):
 
-            def process_tuple(self, t, p):
-                yield self._func(t, p)
-            def on_finish(self, p):
-                yield
+                py_arrow_table = pa.Table.from_pandas(table)
+
+                with localconverter(arrowconverter):
+                    result_table = rarrow_to_py_table(self._func(py_arrow_table))
+                for field_accessor in ArrowTableTupleProvider(result_table):
+                    yield Tuple(
+                        {name: field_accessor for name in result_table.column_names}
+                    )
 
         self.executor = RExecutor()
         logger.info("successfully initialized R executor")
