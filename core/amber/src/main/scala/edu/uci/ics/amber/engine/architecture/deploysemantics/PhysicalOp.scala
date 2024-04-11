@@ -218,7 +218,7 @@ case class PhysicalOp(
     opExecInitInfo match {
       case opExecInfo: OpExecInitInfoWithCode =>
         val (_, language) = opExecInfo.codeGen(0, 0)
-        language == "python"
+        language == "python" || language == "r"
       case _ => false
     }
   }

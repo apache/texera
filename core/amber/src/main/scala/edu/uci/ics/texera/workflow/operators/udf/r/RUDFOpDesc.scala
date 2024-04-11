@@ -17,7 +17,7 @@ import scala.util.{Success, Try}
 class RUDFOpDesc extends LogicalOp {
   @JsonProperty(
     required = true,
-    defaultValue = ""
+    defaultValue = "some code"
   )
   @JsonSchemaTitle("R UDF script")
   @JsonPropertyDescription("Input your code here")
