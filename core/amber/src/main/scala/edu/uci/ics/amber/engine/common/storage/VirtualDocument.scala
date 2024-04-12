@@ -1,16 +1,17 @@
 package edu.uci.ics.amber.engine.common.storage
 
 import java.io.{InputStream, OutputStream}
+import java.net.URI
 
 /**
-  * TexeraDocument provides the abstraction of doing read/write/copy/delete operations over a single resource in Texera system.
+  * VirtualDocument provides the abstraction of doing read/write/copy/delete operations over a single resource in Texera system.
   * Note that all methods have a default implementation. This is because one document implementation may not be able to reasonably support all methods.
   * e.g. for dataset file, supports for read/write using file stream are essential, whereas read & write using index are hard to support and are semantically meaningless
   * @tparam T the type of data that can use index to read and write.
   */
-abstract class TexeraDocument[T >: Null <: AnyRef] {
+abstract class VirtualDocument[T >: Null <: AnyRef] {
 
-  def getURI: TexeraURI
+  def getURI: URI
 
   /**
     * read ith item and return
@@ -68,7 +69,7 @@ abstract class TexeraDocument[T >: Null <: AnyRef] {
     * - if to is given, the duplicated document will be there
     * @return the uri identifying the duplicated document
     */
-  def copy(to: Option[TexeraURI] = None): TexeraURI =
+  def copy(to: Option[URI] = None): URI =
     throw new UnsupportedOperationException("copy is not supported")
 
   /**

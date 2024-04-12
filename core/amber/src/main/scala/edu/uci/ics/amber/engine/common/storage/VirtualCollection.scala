@@ -1,23 +1,25 @@
 package edu.uci.ics.amber.engine.common.storage
 
+import java.net.URI
+
 /**
-  * TexeraCollection provides the abstraction of managing a collection of children TexeraDocument
+  * VirtualCollection provides the abstraction of managing a collection of children VirtualDocument
   */
-abstract class TexeraCollection {
-  def getURI: TexeraURI
+abstract class VirtualCollection {
+  def getURI: URI
 
   /**
-    * get children documents that are directly underneath the current TexeraCollection
+    * get children documents that are directly underneath the current collection
     * @return the children documents
     */
-  def getDocuments: List[TexeraDocument[_]]
+  def getDocuments: List[VirtualDocument[_]]
 
   /**
     * get a child document with certain name under this collection and return
     * @param name the child document's name
     * @return the document
     */
-  def getDocument(name: String): TexeraDocument[_]
+  def getDocument(name: String): VirtualDocument[_]
 
   /**
     * physically remove current collection from the system. All children documents underneath will be removed
