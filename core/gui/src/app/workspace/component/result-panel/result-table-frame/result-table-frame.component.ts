@@ -4,7 +4,7 @@ import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
+import { DEFAULT_PAGE_SIZE, WorkflowResultService, PanelResizeService } from "../../../service/workflow-result/workflow-result.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -46,14 +46,16 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   // this starts from **ONE**, not zero
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
-  pageSize = DEFAULT_PAGE_SIZE;
+  // pageSize = DEFAULT_PAGE_SIZE;
+  pageSize = 5;
 
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
     private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
-    private workflowResultService: WorkflowResultService
+    private workflowResultService: WorkflowResultService,
+    private resizeService: PanelResizeService
   ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -94,7 +96,20 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           this.changePaginatedResultData();
         }
       });
+      this.resizeService.currentSize.subscribe(size => {
+        this.adjustPageSizeBasedOnPanelSize(size.height);
+      });
   }
+  private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
+    let height: number | undefined = document.getElementById("content")?.clientHeight
+    const rowHeight = 45; // Suppose each row's height is 50px
+    if (height){
+      this.pageSize = Math.ceil((height - 70) / rowHeight);
+    }
+      
+    console.log(height, "____", this.pageSize)
+    // You might need to refresh the data table here
+}
 
   /**
    * Callback function for table query params changed event
@@ -181,7 +196,8 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     this.isLoadingResult = true;
     paginatedResultService
-      .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
+      // .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
+      .selectPage(this.currentPageIndex, this.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {
         if (this.currentPageIndex === pageData.pageIndex) {

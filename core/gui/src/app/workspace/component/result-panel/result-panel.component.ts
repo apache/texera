@@ -5,7 +5,7 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow.interface";
 import { ResultTableFrameComponent } from "./result-table-frame/result-table-frame.component";
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
-import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
+import { WorkflowResultService, PanelResizeService } from "../../service/workflow-result/workflow-result.service";
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
@@ -29,7 +29,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   frameComponentConfigs: Map<string, { component: Type<any>; componentInputs: {} }> = new Map();
   protected readonly window = window;
   id = -1;
-  width = 800; 
+  width = 800;
   height = 300;
   prevWidth = 800;
   prevHeight = 300;
@@ -41,9 +41,10 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     this.id = requestAnimationFrame(() => {
       this.width = width!;
       this.height = height!;
+      this.resizeService.changePanelSize(this.width, this.height);
     });
   }
- 
+
   // the highlighted operator ID for display result table / visualization / breakpoint
   currentOperatorId?: string | undefined;
 
@@ -55,7 +56,8 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     private workflowResultService: WorkflowResultService,
     private workflowVersionService: WorkflowVersionService,
     private changeDetectorRef: ChangeDetectorRef,
-    private workflowConsoleService: WorkflowConsoleService
+    private workflowConsoleService: WorkflowConsoleService,
+    private resizeService: PanelResizeService
   ) {
     const width = localStorage.getItem("result-panel-width");
     if (width) this.width = Number(width);

@@ -13,8 +13,22 @@ import { map, Observable, of, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
+import { BehaviorSubject } from 'rxjs';
 
 export const DEFAULT_PAGE_SIZE = 5;
+
+
+@Injectable({
+  providedIn: 'root'
+})
+export class PanelResizeService {
+    private panelSizeSource = new BehaviorSubject<{width: number, height: number}>({width: 800, height: 300});
+    currentSize = this.panelSizeSource.asObservable();
+
+    changePanelSize(width: number, height: number) {
+        this.panelSizeSource.next({width, height});
+    }
+}
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
@@ -193,9 +207,11 @@ class OperatorPaginationResultService {
   }
 
   public selectTuple(tupleIndex: number, pageSize: number): Observable<IndexableObject> {
-    if (pageSize !== DEFAULT_PAGE_SIZE) {
-      throw new Error("only support fixed page size right now");
-    }
+    // if (pageSize !== DEFAULT_PAGE_SIZE) {
+    //   throw new Error("only support fixed page size right now");
+    // }
+    //改
+    
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
@@ -203,9 +219,11 @@ class OperatorPaginationResultService {
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
-    if (pageSize !== DEFAULT_PAGE_SIZE) {
-      throw new Error("only support fixed page size right now");
-    }
+    // if (pageSize !== DEFAULT_PAGE_SIZE) {
+    //   throw new Error("only support fixed page size right now");
+    // }
+    //改
+    
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache
