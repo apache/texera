@@ -62,6 +62,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
     const width = localStorage.getItem("result-panel-width");
     if (width) this.width = Number(width);
     this.height = Number(localStorage.getItem("result-panel-height")) || this.height;
+    this.resizeService.changePanelSize(this.width, this.height);
   }
 
   ngOnInit(): void {
