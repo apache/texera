@@ -24,6 +24,7 @@ object ExecutionUtils {
 
     val inputCountSum = metrics
       .flatMap(_.operatorStatistics.inputCount)
+      .filter(!_.portId.internal)
       .groupBy(_.portId)
       .map {
         case (k, v) =>
@@ -33,6 +34,7 @@ object ExecutionUtils {
       .toSeq
     val outputCountSum = metrics
       .flatMap(_.operatorStatistics.outputCount)
+      .filter(!_.portId.internal)
       .groupBy(_.portId)
       .map {
         case (k, v) =>

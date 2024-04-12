@@ -7,16 +7,19 @@ package edu.uci.ics.amber.engine.architecture.worker.statistics
 
 @SerialVersionUID(0L)
 final case class PortTupleCountMapping(
-    portId: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity],
+    portId: edu.uci.ics.amber.engine.common.workflow.PortIdentity,
     tupleCount: _root_.scala.Long
     ) extends scalapb.GeneratedMessage with scalapb.lenses.Updatable[PortTupleCountMapping] {
     @transient
     private[this] var __serializedSizeCachedValue: _root_.scala.Int = 0
     private[this] def __computeSerializedValue(): _root_.scala.Int = {
       var __size = 0
-      if (portId.isDefined) {
-        val __value = portId.get
-        __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+      
+      {
+        val __value = portId
+        if (__value != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+          __size += 1 + _root_.com.google.protobuf.CodedOutputStream.computeUInt32SizeNoTag(__value.serializedSize) + __value.serializedSize
+        }
       };
       
       {
@@ -36,11 +39,13 @@ final case class PortTupleCountMapping(
       read
     }
     def writeTo(`_output__`: _root_.com.google.protobuf.CodedOutputStream): _root_.scala.Unit = {
-      portId.foreach { __v =>
-        val __m = __v
-        _output__.writeTag(1, 2)
-        _output__.writeUInt32NoTag(__m.serializedSize)
-        __m.writeTo(_output__)
+      {
+        val __v = portId
+        if (__v != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) {
+          _output__.writeTag(1, 2)
+          _output__.writeUInt32NoTag(__v.serializedSize)
+          __v.writeTo(_output__)
+        }
       };
       {
         val __v = tupleCount
@@ -49,13 +54,14 @@ final case class PortTupleCountMapping(
         }
       };
     }
-    def getPortId: edu.uci.ics.amber.engine.common.workflow.PortIdentity = portId.getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance)
-    def clearPortId: PortTupleCountMapping = copy(portId = _root_.scala.None)
-    def withPortId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): PortTupleCountMapping = copy(portId = Option(__v))
+    def withPortId(__v: edu.uci.ics.amber.engine.common.workflow.PortIdentity): PortTupleCountMapping = copy(portId = __v)
     def withTupleCount(__v: _root_.scala.Long): PortTupleCountMapping = copy(tupleCount = __v)
     def getFieldByNumber(__fieldNumber: _root_.scala.Int): _root_.scala.Any = {
       (__fieldNumber: @_root_.scala.unchecked) match {
-        case 1 => portId.orNull
+        case 1 => {
+          val __t = portId
+          if (__t != edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance) __t else null
+        }
         case 2 => {
           val __t = tupleCount
           if (__t != 0L) __t else null
@@ -65,7 +71,7 @@ final case class PortTupleCountMapping(
     def getField(__field: _root_.scalapb.descriptors.FieldDescriptor): _root_.scalapb.descriptors.PValue = {
       _root_.scala.Predef.require(__field.containingMessage eq companion.scalaDescriptor)
       (__field.number: @_root_.scala.unchecked) match {
-        case 1 => portId.map(_.toPMessage).getOrElse(_root_.scalapb.descriptors.PEmpty)
+        case 1 => portId.toPMessage
         case 2 => _root_.scalapb.descriptors.PLong(tupleCount)
       }
     }
@@ -85,14 +91,14 @@ object PortTupleCountMapping extends scalapb.GeneratedMessageCompanion[edu.uci.i
       _tag__ match {
         case 0 => _done__ = true
         case 10 =>
-          __portId = Option(__portId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PortIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
+          __portId = _root_.scala.Some(__portId.fold(_root_.scalapb.LiteParser.readMessage[edu.uci.ics.amber.engine.common.workflow.PortIdentity](_input__))(_root_.scalapb.LiteParser.readMessage(_input__, _)))
         case 16 =>
           __tupleCount = _input__.readInt64()
         case tag => _input__.skipField(tag)
       }
     }
     edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping(
-        portId = __portId,
+        portId = __portId.getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
         tupleCount = __tupleCount
     )
   }
@@ -100,7 +106,7 @@ object PortTupleCountMapping extends scalapb.GeneratedMessageCompanion[edu.uci.i
     case _root_.scalapb.descriptors.PMessage(__fieldsMap) =>
       _root_.scala.Predef.require(__fieldsMap.keys.forall(_.containingMessage eq scalaDescriptor), "FieldDescriptor does not match message type.")
       edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping(
-        portId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).flatMap(_.as[_root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity]]),
+        portId = __fieldsMap.get(scalaDescriptor.findFieldByNumber(1).get).map(_.as[edu.uci.ics.amber.engine.common.workflow.PortIdentity]).getOrElse(edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance),
         tupleCount = __fieldsMap.get(scalaDescriptor.findFieldByNumber(2).get).map(_.as[_root_.scala.Long]).getOrElse(0L)
       )
     case _ => throw new RuntimeException("Expected PMessage")
@@ -117,18 +123,17 @@ object PortTupleCountMapping extends scalapb.GeneratedMessageCompanion[edu.uci.i
   lazy val nestedMessagesCompanions: Seq[_root_.scalapb.GeneratedMessageCompanion[_ <: _root_.scalapb.GeneratedMessage]] = Seq.empty
   def enumCompanionForFieldNumber(__fieldNumber: _root_.scala.Int): _root_.scalapb.GeneratedEnumCompanion[_] = throw new MatchError(__fieldNumber)
   lazy val defaultInstance = edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping(
-    portId = _root_.scala.None,
+    portId = edu.uci.ics.amber.engine.common.workflow.PortIdentity.defaultInstance,
     tupleCount = 0L
   )
   implicit class PortTupleCountMappingLens[UpperPB](_l: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping]) extends _root_.scalapb.lenses.ObjectLens[UpperPB, edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping](_l) {
-    def portId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PortIdentity] = field(_.getPortId)((c_, f_) => c_.copy(portId = Option(f_)))
-    def optionalPortId: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity]] = field(_.portId)((c_, f_) => c_.copy(portId = f_))
+    def portId: _root_.scalapb.lenses.Lens[UpperPB, edu.uci.ics.amber.engine.common.workflow.PortIdentity] = field(_.portId)((c_, f_) => c_.copy(portId = f_))
     def tupleCount: _root_.scalapb.lenses.Lens[UpperPB, _root_.scala.Long] = field(_.tupleCount)((c_, f_) => c_.copy(tupleCount = f_))
   }
   final val PORT_ID_FIELD_NUMBER = 1
   final val TUPLE_COUNT_FIELD_NUMBER = 2
   def of(
-    portId: _root_.scala.Option[edu.uci.ics.amber.engine.common.workflow.PortIdentity],
+    portId: edu.uci.ics.amber.engine.common.workflow.PortIdentity,
     tupleCount: _root_.scala.Long
   ): _root_.edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping = _root_.edu.uci.ics.amber.engine.architecture.worker.statistics.PortTupleCountMapping(
     portId,
