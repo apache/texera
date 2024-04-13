@@ -24,5 +24,5 @@ abstract class VirtualCollection {
   /**
     * physically remove current collection from the system. All children documents underneath will be removed
     */
-  def rm(): Unit
+  def remove(): Unit
 }

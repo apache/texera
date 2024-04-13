@@ -1,6 +1,6 @@
 package edu.uci.ics.amber.engine.common.storage
 
-import java.io.{InputStream, OutputStream}
+import java.io.{File, InputStream}
 import java.net.URI
 
 /**
@@ -28,20 +28,6 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
   def read(): Iterator[T] = throw new UnsupportedOperationException("read method is not supported")
 
   /**
-    * make the document red by an opened outputStream
-    * @param outputStream stream to put the document in
-    */
-  def readAsOutputStream(outputStream: OutputStream): Unit =
-    throw new UnsupportedOperationException("readAsOutputStream method is not supported")
-
-  /**
-    * read the document as an input stream
-    * @return the input stream
-    */
-  def readAsInputStream(): InputStream =
-    throw new UnsupportedOperationException("readAsInputStream method is not supported")
-
-  /**
     * append one data item to the document
     * @param item the data item
     */
@@ -63,17 +49,17 @@ abstract class VirtualDocument[T >: Null <: AnyRef] {
     throw new UnsupportedOperationException("writeWithStream method is not supported")
 
   /**
-    * copy the document to another location specified by URI.
-    * @param to
-    * - if to is None, the implementation will decide a location to stored the duplicated document
-    * - if to is given, the duplicated document will be there
-    * @return the uri identifying the duplicated document
+    * read the document as an input stream
+    *
+    * @return the input stream
     */
-  def copy(to: Option[URI] = None): URI =
-    throw new UnsupportedOperationException("copy is not supported")
+  def asInputStream(): InputStream =
+    throw new UnsupportedOperationException("asInputStream method is not supported")
+
+  def asFile(): File = throw new UnsupportedOperationException("asFile method is not supported")
 
   /**
     * physically remove current document
     */
-  def rm(): Unit
+  def remove(): Unit
 }
