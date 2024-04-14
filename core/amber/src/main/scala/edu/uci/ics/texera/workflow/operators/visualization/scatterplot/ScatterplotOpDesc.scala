@@ -3,6 +3,7 @@ package edu.uci.ics.texera.workflow.operators.visualization.scatterplot
 import com.fasterxml.jackson.annotation.{JsonProperty, JsonPropertyDescription}
 import com.kjetland.jackson.jsonSchema.annotations.{JsonSchemaInject, JsonSchemaTitle}
 import edu.uci.ics.amber.engine.common.workflow.{InputPort, OutputPort}
+import edu.uci.ics.texera.workflow.common.metadata.annotations.AutofillAttributeName
 import edu.uci.ics.texera.workflow.common.metadata.{OperatorGroupConstants, OperatorInfo}
 import edu.uci.ics.texera.workflow.common.operators.PythonOperatorDescriptor
 import edu.uci.ics.texera.workflow.common.tuple.schema.{Attribute, AttributeType, Schema}
@@ -29,12 +30,14 @@ class ScatterplotOpDesc extends VisualizationOperator with PythonOperatorDescrip
   @JsonProperty(required = true)
   @JsonSchemaTitle("X-Column")
   @JsonPropertyDescription("X Column")
-  var xColumn: String = ""
+  @AutofillAttributeName
+  private val xColumn: String = ""
 
   @JsonProperty(required = true)
   @JsonSchemaTitle("Y-Column")
   @JsonPropertyDescription("Y Column")
-  var yColumn: String = ""
+  @AutofillAttributeName
+  private val yColumn: String = ""
 
   override def chartType: String = VisualizationConstants.HTML_VIZ
 
