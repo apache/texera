@@ -1,7 +1,7 @@
 package edu.uci.ics.texera.workflow.common.operators
 
+import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfoWithCode
 import edu.uci.ics.amber.engine.architecture.deploysemantics.{PhysicalOp, SchemaPropagationFunc}
-import edu.uci.ics.amber.engine.architecture.deploysemantics.layer.OpExecInitInfo
 import edu.uci.ics.amber.engine.common.virtualidentity.{ExecutionIdentity, WorkflowIdentity}
 
 trait PythonOperatorDescriptor extends LogicalOp {
@@ -9,52 +9,41 @@ trait PythonOperatorDescriptor extends LogicalOp {
       workflowId: WorkflowIdentity,
       executionId: ExecutionIdentity
   ): PhysicalOp = {
+    val opExecInitInfo = OpExecInitInfoWithCode((_, _) => (generatePythonCode(), "python"))
 
-    val generatedCode = generatePythonCode()
-    if (asSource()) {
-      PhysicalOp
-        .sourcePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecInitInfo(generatedCode, "python")
-        )
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withParallelizable(parallelizable())
-        .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>
-            Map(
-              operatorInfo.outputPorts.head.id -> getOutputSchema(
-                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
-              )
-            )
-          )
-        )
+    val physicalOp = if (asSource()) {
+      PhysicalOp.sourcePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        opExecInitInfo
+      )
     } else {
-      PhysicalOp
-        .oneToOnePhysicalOp(
-          workflowId,
-          executionId,
-          operatorIdentifier,
-          OpExecInitInfo(generatedCode, "python")
-        )
-        .withInputPorts(operatorInfo.inputPorts)
-        .withOutputPorts(operatorInfo.outputPorts)
-        .withParallelizable(parallelizable())
-        .withPropagateSchema(
-          SchemaPropagationFunc(inputSchemas =>
-            Map(
-              operatorInfo.outputPorts.head.id -> getOutputSchema(
-                operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
-              )
+      PhysicalOp.oneToOnePhysicalOp(
+        workflowId,
+        executionId,
+        operatorIdentifier,
+        opExecInitInfo
+      )
+    }
+
+    physicalOp
+      .withInputPorts(operatorInfo.inputPorts)
+      .withOutputPorts(operatorInfo.outputPorts)
+      .withParallelizable(parallelizable())
+      .withPropagateSchema(
+        SchemaPropagationFunc(inputSchemas =>
+          Map(
+            operatorInfo.outputPorts.head.id -> getOutputSchema(
+              operatorInfo.inputPorts.map(_.id).map(inputSchemas(_)).toArray
             )
           )
         )
-    }
+      )
   }
 
   def parallelizable(): Boolean = false
+
   def asSource(): Boolean = false
 
   /**
