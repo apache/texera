@@ -25,8 +25,11 @@ object ErrorUtils {
   }
 
   def mkConsoleMessage(actorId: ActorVirtualIdentity, err: Throwable): ConsoleMessage = {
-    val source =
+    val source = if (err.getStackTrace.nonEmpty) {
       "(" + err.getStackTrace.head.getFileName + ":" + err.getStackTrace.head.getLineNumber + ")"
+    } else {
+      "(Unknown Source)"
+    }
     val title = err.toString
     val message = err.getStackTrace.mkString("\n")
     ConsoleMessage(actorId.name, Timestamp(Instant.now), ERROR, source, title, message)
