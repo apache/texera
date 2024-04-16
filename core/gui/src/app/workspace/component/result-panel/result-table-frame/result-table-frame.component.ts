@@ -96,12 +96,17 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           this.changePaginatedResultData();
         }
       });
-      this.resizeService.currentSize.subscribe(size => {
+    this.resizeService.currentSize.subscribe(size => {
         this.adjustPageSizeBasedOnPanelSize(size.height);
+        let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
+        while (this.currentPageIndex > currentPageNum) {
+          this.currentPageIndex -= 1;
+        }
       });
   }
+
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const rowHeight = 34; // Suppose each row's height is 50px
+    const rowHeight = 34;
     let extra: number = Math.floor((panelHeight - 200) / rowHeight);
     this.pageSize = 2 + extra;
     // You might need to refresh the data table here
