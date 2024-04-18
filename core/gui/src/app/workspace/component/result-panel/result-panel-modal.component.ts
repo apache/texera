@@ -22,7 +22,7 @@ import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
 @Component({
   selector: "texera-row-modal-content",
   templateUrl: "./result-panel-modal.component.html",
-  styleUrls: ["./result-panel.component.scss"],
+  styleUrls: ["./result-panel-model.component.scss"],
 })
 export class RowModalComponent implements OnChanges {
   // Index of current displayed row in currentResult
