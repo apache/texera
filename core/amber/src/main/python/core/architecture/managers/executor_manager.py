@@ -103,9 +103,9 @@ class ExecutorManager:
         """
 
         return (
-                inspect.isclass(cls)
-                and issubclass(cls, Operator)
-                and not inspect.isabstract(cls)
+            inspect.isclass(cls)
+            and issubclass(cls, Operator)
+            and not inspect.isabstract(cls)
         )
 
     def initialize_r_executor(self, code, is_source: bool):
@@ -127,7 +127,7 @@ class ExecutorManager:
         self.executor = executor()
         self.executor.is_source = is_source
         assert (
-                isinstance(self.executor, SourceOperator) == self.executor.is_source
+            isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
 
     def update_executor(self, code: str, is_source: bool) -> None:
@@ -145,7 +145,7 @@ class ExecutorManager:
         self.executor = executor()
         self.executor.is_source = is_source
         assert (
-                isinstance(self.executor, SourceOperator) == self.executor.is_source
+            isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
