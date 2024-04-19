@@ -16,11 +16,11 @@
 }
 
 .texera-workspace-result-panel-body {
-  height: 35vh;
-  overflow-y: auto;
-  .result-table {
-    padding: 1px;
-  }
+  border-radius: 5px;
+  box-shadow:
+    0 3px 1px -2px #0003,
+    0 2px 2px #00000024,
+    0 1px 5px #0000001f;
 }
 
 // make modal body scrollable and modal size fixed
