@@ -109,23 +109,33 @@ class ExecutorManager:
 
     def initialize_r_executor(self, code, is_source: bool):
         import rpy2.robjects as robjects
-        # import rpy2.rinterface
-        # import rpy2_arrow.arrow as pyra
-        from rpy2_arrow.arrow import (rarrow_to_py_array, rarrow_to_py_table,
-                                               converter as arrowconverter)
+        from rpy2_arrow.arrow import ( rarrow_to_py_table, converter as arrowconverter)
         from rpy2.robjects.conversion import localconverter
         import pyarrow as pa
-        # import pandas as pd
         from core.models.operator import TableOperator
         class RExecutor(TableOperator):
-            _func = robjects.r(code)
-            is_source = False
-            def process_table(self, table, port):
+            _func : typing.Callable[[pa.Table], pa.Table] = robjects.r(code)
 
-                py_arrow_table = pa.Table.from_pandas(table)
+            def _decorated(self, py_arrow_table: pa.Table):
 
                 with localconverter(arrowconverter):
-                    result_table = rarrow_to_py_table(self._func(py_arrow_table))
+                    _arrow_to_dplyr = robjects.r("""
+                    arrow_to_dplyr <- function(table) {
+                        return (table %>% collect()) 
+                    }  
+                    """)
+
+                    result_table = rarrow_to_py_table(self._func(_arrow_to_dplyr(py_arrow_table)
+                        ))
+                return result_table
+
+
+
+            is_source = False
+            def process_table(self, table, port):
+                py_arrow_table = pa.Table.from_pandas(table)
+                result_table = self._decorated(py_arrow_table)
+
                 for field_accessor in ArrowTableTupleProvider(result_table):
                     yield Tuple(
                         {name: field_accessor for name in result_table.column_names}
