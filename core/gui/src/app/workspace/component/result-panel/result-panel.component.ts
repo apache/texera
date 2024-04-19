@@ -254,7 +254,7 @@ export class ResultPanelComponent implements OnInit, OnDestroy {
   closePanel() {
     this.prevHeight = this.height;
     this.prevWidth = this.width;
-    this.height = 0;
+    this.height = 32.5;
     this.width = 0;
   }
 }

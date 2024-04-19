@@ -72,7 +72,7 @@ export class LeftPanelComponent implements OnDestroy, OnInit {
   openFrame(i: number) {
     if (!i) {
       this.width = 0;
-      this.height = 0;
+      this.height = 65;
     }
     else if (!this.width) {
       this.width = 230;
