@@ -4,7 +4,11 @@ import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { DEFAULT_PAGE_SIZE, WorkflowResultService, PanelResizeService } from "../../../service/workflow-result/workflow-result.service";
+import {
+  DEFAULT_PAGE_SIZE,
+  WorkflowResultService,
+  PanelResizeService,
+} from "../../../service/workflow-result/workflow-result.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";
@@ -97,12 +101,12 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
         }
       });
     this.resizeService.currentSize.subscribe(size => {
-        this.adjustPageSizeBasedOnPanelSize(size.height);
-        let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
-        while (this.currentPageIndex > currentPageNum) {
-          this.currentPageIndex -= 1;
-        }
-      });
+      this.adjustPageSizeBasedOnPanelSize(size.height);
+      let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
+      while (this.currentPageIndex > currentPageNum) {
+        this.currentPageIndex -= 1;
+      }
+    });
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
@@ -110,7 +114,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     let extra: number = Math.floor((panelHeight - 200) / rowHeight);
     this.pageSize = 1 + extra;
     // You might need to refresh the data table here
-}
+  }
 
   /**
    * Callback function for table query params changed event
