@@ -109,13 +109,13 @@ class ExecutorManager:
 
     def initialize_r_executor(self, code, is_source: bool):
         import rpy2.robjects as robjects
-        import rpy2.rinterface
-        import rpy2_arrow.arrow as pyra
+        # import rpy2.rinterface
+        # import rpy2_arrow.arrow as pyra
         from rpy2_arrow.arrow import (rarrow_to_py_array, rarrow_to_py_table,
                                                converter as arrowconverter)
         from rpy2.robjects.conversion import localconverter
         import pyarrow as pa
-        import pandas as pd
+        # import pandas as pd
         from core.models.operator import TableOperator
         class RExecutor(TableOperator):
             _func = robjects.r(code)
