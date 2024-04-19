@@ -11,19 +11,11 @@ from core.models.operator import TableOperator
 class RDplyrExecutor(TableOperator):
     is_source = False
     _arrow_to_dplyr = robjects.r(
-        """
-                    arrow_to_dplyr <- function(table) {
-                        return (table %>% collect()) 
-                    }  
-                    """
+        "arrow_to_dplyr <- function(table) { return (table %>% collect()) }"
     )
     _dplyr_to_arrow = robjects.r(
-        """
-                    library(arrow)
-                    dplyr_to_arrow <- function(table) {
-                        return (arrow::arrow_table(table)) 
-                    }  
-                    """
+        "library(arrow)"
+        "dplyr_to_arrow <- function(table) { return (arrow::arrow_table(table)) } "
     )
 
     def __init__(self, r_code: str):
@@ -31,13 +23,14 @@ class RDplyrExecutor(TableOperator):
         self._func: typing.Callable[[pa.Table], pa.Table] = robjects.r(r_code)
 
     def process_table(self, table, port):
-        py_arrow_table = pa.Table.from_pandas(table)
+        input_pyarrow_table = pa.Table.from_pandas(table)
         with localconverter(arrowconverter):
-            result_table = rarrow_to_py_table(
-                RDplyrExecutor._dplyr_to_arrow(
-                    self._func(RDplyrExecutor._arrow_to_dplyr(py_arrow_table))
-                )
-            )
+            input_dplyr_table = RDplyrExecutor._arrow_to_dplyr(input_pyarrow_table)
+            output_dplyr_table = self._func(input_dplyr_table)
+            output_rarrow_table = RDplyrExecutor._dplyr_to_arrow(output_dplyr_table)
+            output_pyarrow_table = rarrow_to_py_table(output_rarrow_table)
 
-        for field_accessor in ArrowTableTupleProvider(result_table):
-            yield Tuple({name: field_accessor for name in result_table.column_names})
+        for field_accessor in ArrowTableTupleProvider(output_pyarrow_table):
+            yield Tuple(
+                {name: field_accessor for name in output_pyarrow_table.column_names}
+            )
