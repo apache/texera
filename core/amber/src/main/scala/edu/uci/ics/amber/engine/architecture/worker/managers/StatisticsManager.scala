@@ -32,10 +32,10 @@ class StatisticsManager {
     }
     WorkerStatistics(
       inputTupleCount.map {
-        case (portId, tupleCount) => new PortTupleCountMapping(Option(portId), tupleCount)
+        case (portId, tupleCount) => new PortTupleCountMapping(portId, tupleCount)
       }.toSeq,
       displayOut.map {
-        case (portId, tupleCount) => new PortTupleCountMapping(Option(portId), tupleCount)
+        case (portId, tupleCount) => new PortTupleCountMapping(portId, tupleCount)
       }.toSeq,
       dataProcessingTime,
       controlProcessingTime,

@@ -249,8 +249,9 @@ class EvaluatedValue(betterproto.Message):
 @dataclass(eq=False, repr=False)
 class ControlReturnV2(betterproto.Message):
     control_exception: "ControlException" = betterproto.message_field(1, group="value")
-    worker_metrics: "WorkerMetrics" = betterproto.message_field(2, group="value")
+    worker_state: "WorkerState" = betterproto.enum_field(2, group="value")
+    worker_metrics: "WorkerMetrics" = betterproto.message_field(3, group="value")
     current_input_tuple_info: "CurrentInputTupleInfo" = betterproto.message_field(
-        3, group="value"
+        4, group="value"
     )
-    evaluated_value: "EvaluatedValue" = betterproto.message_field(4, group="value")
+    evaluated_value: "EvaluatedValue" = betterproto.message_field(5, group="value")

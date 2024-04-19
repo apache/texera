@@ -60,32 +60,37 @@ case class OperatorExecution() {
     )
   }
 
-  def getStats: OperatorMetrics =
+  private[this] def computeOperatorPortStats(
+      workerPortStats: Iterable[PortTupleCountMapping]
+  ): Seq[PortTupleCountMapping] = {
+    workerPortStats
+      .map(_.portId)
+      .toSet
+      .map { portId =>
+        PortTupleCountMapping(
+          portId,
+          workerPortStats.filter(_.portId == portId).map(_.tupleCount).sum
+        )
+      }
+      .toSeq
+  }
+
+  def getStats: OperatorMetrics = {
+    val workerRawStats = workerExecutions.values.asScala.map(_.getStats)
+    val inputPortStats = workerRawStats.flatMap(_.inputTupleCount)
+    val outputPortStats = workerRawStats.flatMap(_.outputTupleCount)
     OperatorMetrics(
       getState,
       OperatorStatistics(
-        inputCount = workerExecutions.values.asScala
-          .flatMap(_.getStats.inputTupleCount)
-          .groupBy(_.portId)
-          .view
-          .mapValues(_.map(_.tupleCount).sum)
-          .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
-          .toSeq,
-        outputCount = workerExecutions.values.asScala
-          .flatMap(_.getStats.outputTupleCount)
-          .groupBy(_.portId)
-          .view
-          .mapValues(_.map(_.tupleCount).sum)
-          .map { case (portId, tuple_count) => new PortTupleCountMapping(portId, tuple_count) }
-          .toSeq,
+        inputCount = computeOperatorPortStats(inputPortStats),
+        outputCount = computeOperatorPortStats(outputPortStats),
         getWorkerIds.size,
-        dataProcessingTime =
-          workerExecutions.values.asScala.map(_.getStats).map(_.dataProcessingTime).sum,
-        controlProcessingTime =
-          workerExecutions.values.asScala.map(_.getStats).map(_.controlProcessingTime).sum,
-        idleTime = workerExecutions.values.asScala.map(_.getStats).map(_.idleTime).sum
+        dataProcessingTime = workerRawStats.map(_.dataProcessingTime).sum,
+        controlProcessingTime = workerRawStats.map(_.controlProcessingTime).sum,
+        idleTime = workerRawStats.map(_.idleTime).sum
       )
     )
+  }
 
   def isInputPortCompleted(portId: PortIdentity): Boolean = {
     workerExecutions
