@@ -106,9 +106,9 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   }
 
   private adjustPageSizeBasedOnPanelSize(panelHeight: number) {
-    const rowHeight = 34;
+    const rowHeight = 35;
     let extra: number = Math.floor((panelHeight - 200) / rowHeight);
-    this.pageSize = 2 + extra;
+    this.pageSize = 1 + extra;
     // You might need to refresh the data table here
 }
 
