@@ -380,9 +380,7 @@ export class WorkflowEditorComponent implements AfterViewInit, OnDestroy {
    */
   private handleWindowResize(): void {
     // when the window is resized (limit to at most one event every 30ms).
-    merge(
-      fromEvent(window, "resize").pipe(auditTime(30))
-    )
+    merge(fromEvent(window, "resize").pipe(auditTime(30)))
       .pipe(untilDestroyed(this))
       .subscribe(() => this.paper.setDimensions(this.editorWrapper.offsetWidth, this.editorWrapper.offsetHeight));
   }
