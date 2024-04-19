@@ -6,7 +6,6 @@ import { WorkflowActionService } from "../../service/workflow-graph/model/workfl
 import { OperatorMetadataService } from "../../service/operator-metadata/operator-metadata.service";
 import { StubOperatorMetadataService } from "../../service/operator-metadata/stub-operator-metadata.service";
 import { By } from "@angular/platform-browser";
-import { ResultPanelToggleService } from "../../service/result-panel-toggle/result-panel-toggle.service";
 import { HttpClientTestingModule } from "@angular/common/http/testing";
 import { NzModalModule } from "ng-zorro-antd/modal";
 import { ExecutionState } from "../../types/execute-workflow.interface";
@@ -17,7 +16,6 @@ describe("ResultPanelComponent", () => {
   let fixture: ComponentFixture<ResultPanelComponent>;
   let executeWorkflowService: ExecuteWorkflowService;
   let workflowActionService: WorkflowActionService;
-  let resultPanelToggleService: ResultPanelToggleService;
 
   beforeEach(async(() => {
     TestBed.configureTestingModule({
@@ -26,7 +24,6 @@ describe("ResultPanelComponent", () => {
       providers: [
         WorkflowActionService,
         ExecuteWorkflowService,
-        ResultPanelToggleService,
         {
           provide: OperatorMetadataService,
           useClass: StubOperatorMetadataService,
@@ -39,7 +36,6 @@ describe("ResultPanelComponent", () => {
     fixture = TestBed.createComponent(ResultPanelComponent);
     component = fixture.componentInstance;
     executeWorkflowService = TestBed.inject(ExecuteWorkflowService);
-    resultPanelToggleService = TestBed.inject(ResultPanelToggleService);
     workflowActionService = TestBed.inject(WorkflowActionService);
     fixture.detectChanges();
   });

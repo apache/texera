@@ -2,7 +2,6 @@ import { Component, Input, OnChanges, OnInit, SimpleChanges } from "@angular/cor
 import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
-import { ResultPanelToggleService } from "../../../service/result-panel-toggle/result-panel-toggle.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
 import {
   DEFAULT_PAGE_SIZE,
@@ -56,7 +55,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   constructor(
     private executeWorkflowService: ExecuteWorkflowService,
     private modalService: NzModalService,
-    private resultPanelToggleService: ResultPanelToggleService,
     private workflowActionService: WorkflowActionService,
     private workflowResultService: WorkflowResultService,
     private resizeService: PanelResizeService
