@@ -11,7 +11,8 @@ from typing import Optional
 
 from fs.base import FS
 from loguru import logger
-from core.models import Operator, SourceOperator, ArrowTableTupleProvider, Tuple
+from core.models import Operator, SourceOperator
+from core.models.r_executor import RDplyrExecutor
 
 
 class ExecutorManager:
@@ -102,54 +103,13 @@ class ExecutorManager:
         """
 
         return (
-            inspect.isclass(cls)
-            and issubclass(cls, Operator)
-            and not inspect.isabstract(cls)
+                inspect.isclass(cls)
+                and issubclass(cls, Operator)
+                and not inspect.isabstract(cls)
         )
 
     def initialize_r_executor(self, code, is_source: bool):
-        import rpy2.robjects as robjects
-        from rpy2_arrow.arrow import ( rarrow_to_py_table, converter as arrowconverter)
-        from rpy2.robjects.conversion import localconverter
-        import pyarrow as pa
-        from core.models.operator import TableOperator
-        class RExecutor(TableOperator):
-            _func : typing.Callable[[pa.Table], pa.Table] = robjects.r(code)
-
-            def _decorated(self, py_arrow_table: pa.Table):
-
-                with localconverter(arrowconverter):
-                    _arrow_to_dplyr = robjects.r("""
-                    arrow_to_dplyr <- function(table) {
-                        return (table %>% collect()) 
-                    }  
-                    """)
-
-                    _dplyr_to_arrow = robjects.r("""
-                    library(arrow)
-                    dplyr_to_arrow <- function(table) {
-                        return (arrow::arrow_table(table)) 
-                    }  
-                    """)
-
-                    result_table = rarrow_to_py_table(_dplyr_to_arrow(self._func(
-                        _arrow_to_dplyr(py_arrow_table)
-                        )))
-                return result_table
-
-
-
-            is_source = False
-            def process_table(self, table, port):
-                py_arrow_table = pa.Table.from_pandas(table)
-                result_table = self._decorated(py_arrow_table)
-
-                for field_accessor in ArrowTableTupleProvider(result_table):
-                    yield Tuple(
-                        {name: field_accessor for name in result_table.column_names}
-                    )
-
-        self.executor = RExecutor()
+        self.executor = RDplyrExecutor(code)
         logger.info("successfully initialized R executor")
 
     def initialize_executor(self, code: str, is_source: bool) -> None:
@@ -167,7 +127,7 @@ class ExecutorManager:
         self.executor = executor()
         self.executor.is_source = is_source
         assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
+                isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
 
     def update_executor(self, code: str, is_source: bool) -> None:
@@ -185,7 +145,7 @@ class ExecutorManager:
         self.executor = executor()
         self.executor.is_source = is_source
         assert (
-            isinstance(self.executor, SourceOperator) == self.executor.is_source
+                isinstance(self.executor, SourceOperator) == self.executor.is_source
         ), "Please use SourceOperator API for source operators."
         # overwrite the internal state
         self.executor.__dict__ = original_internal_state
