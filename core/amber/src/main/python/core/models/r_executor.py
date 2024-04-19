@@ -15,7 +15,7 @@ class RDplyrExecutor(TableOperator):
     )
     _dplyr_to_arrow = robjects.r(
         "library(arrow)"
-        "dplyr_to_arrow <- function(table) { return (arrow::arrow_table(table)) } "
+        "dplyr_to_arrow <- function(table) { return (arrow::arrow_table(table)) }"
     )
 
     def __init__(self, r_code: str):
