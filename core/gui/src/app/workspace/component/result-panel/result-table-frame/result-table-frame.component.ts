@@ -98,7 +98,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
           this.changePaginatedResultData();
         }
       });
-    this.resizeService.currentSize.subscribe(size => {
+    this.resizeService.currentSize.pipe(untilDestroyed(this)).subscribe(size => {
       this.adjustPageSizeBasedOnPanelSize(size.height);
       let currentPageNum: number = Math.ceil(this.totalNumTuples / this.pageSize);
       while (this.currentPageIndex > currentPageNum) {
