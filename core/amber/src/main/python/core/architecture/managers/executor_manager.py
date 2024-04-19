@@ -125,8 +125,16 @@ class ExecutorManager:
                     }  
                     """)
 
-                    result_table = rarrow_to_py_table(self._func(_arrow_to_dplyr(py_arrow_table)
-                        ))
+                    _dplyr_to_arrow = robjects.r("""
+                    library(arrow)
+                    dplyr_to_arrow <- function(table) {
+                        return (arrow::arrow_table(table)) 
+                    }  
+                    """)
+
+                    result_table = rarrow_to_py_table(_dplyr_to_arrow(self._func(
+                        _arrow_to_dplyr(py_arrow_table)
+                        )))
                 return result_table
 
 
