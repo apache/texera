@@ -28,11 +28,15 @@ object OperatorGroupConstants {
     GroupInfo(DATABASE_GROUP, 1, null),
     GroupInfo(SEARCH_GROUP, 2, null),
     GroupInfo(CLEANING_GROUP, 3, null),
-    GroupInfo(MACHINE_LEARNING_GROUP, 4, List(
-      GroupInfo(MODELTRAINING_GROUP, 101, null),
-      GroupInfo(MODELEAPPLY_GROUP, 102, null),
-      GroupInfo(MODELEVALUATION_GROUP, 103, null),
-    )),
+    GroupInfo(
+      MACHINE_LEARNING_GROUP,
+      4,
+      List(
+        GroupInfo(MODELTRAINING_GROUP, 101, null),
+        GroupInfo(MODELEAPPLY_GROUP, 102, null),
+        GroupInfo(MODELEVALUATION_GROUP, 103, null)
+      )
+    ),
     GroupInfo(JOIN_GROUP, 5, null),
     GroupInfo(SET_GROUP, 6, null),
     GroupInfo(AGGREGATE_GROUP, 7, null),
@@ -43,5 +47,3 @@ object OperatorGroupConstants {
     GroupInfo(VISUALIZATION_GROUP, 12, null)
   )
 }
-
-
