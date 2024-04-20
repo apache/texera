@@ -1,6 +1,7 @@
 import rpy2.robjects as robjects
 import typing
 from rpy2_arrow.arrow import rarrow_to_py_table, converter as arrowconverter
+from rpy2.robjects import default_converter
 from rpy2.robjects.conversion import localconverter
 import pyarrow as pa
 
@@ -14,13 +15,16 @@ class RDplyrExecutor(TableOperator):
         "arrow_to_dplyr <- function(table) { return (table %>% collect()) }"
     )
     _dplyr_to_arrow = robjects.r(
-        "library(arrow)"
-        "dplyr_to_arrow <- function(table) { return (arrow::arrow_table(table)) }"
+        """
+        library(arrow)
+        dplyr_to_arrow <- function(table) { return (arrow::arrow_table(table)) }
+        """
     )
 
     def __init__(self, r_code: str):
         super().__init__()
-        self._func: typing.Callable[[pa.Table], pa.Table] = robjects.r(r_code)
+        with localconverter(default_converter):
+            self._func: typing.Callable[[pa.Table], pa.Table] = robjects.r(r_code)
 
     def process_table(self, table, port):
         input_pyarrow_table = pa.Table.from_pandas(table)
