@@ -154,7 +154,6 @@ export function getGroupNamesSorted(groupInfoList: ReadonlyArray<GroupInfo>): st
 export function getOperatorGroupMap(
   operatorMetadata: OperatorMetadata
 ): Map<string, ReadonlyArray<OperatorSchema> | { name: string; operator: ReadonlyArray<OperatorSchema> }[]> {
-  console.log(operatorMetadata);
   const groupInfo = operatorMetadata.groups.map(groupInfo => groupInfo);
   const operatorGroupMap = new Map<
     string,
@@ -177,6 +176,5 @@ export function getOperatorGroupMap(
       operatorGroupMap.set(item.groupName, operators);
     }
   });
-  console.log(operatorGroupMap);
   return operatorGroupMap;
 }
