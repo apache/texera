@@ -13,21 +13,8 @@ import { map, Observable, of, Subject } from "rxjs";
 import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
-import { BehaviorSubject } from "rxjs";
 
 export const DEFAULT_PAGE_SIZE = 5;
-
-@Injectable({
-  providedIn: "root",
-})
-export class PanelResizeService {
-  private panelSizeSource = new BehaviorSubject<{ width: number; height: number }>({ width: 800, height: 300 });
-  currentSize = this.panelSizeSource.asObservable();
-
-  changePanelSize(width: number, height: number) {
-    this.panelSizeSource.next({ width, height });
-  }
-}
 
 /**
  * WorkflowResultService manages the result data of a workflow execution.
