@@ -3,11 +3,8 @@ import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import {
-  DEFAULT_PAGE_SIZE,
-  WorkflowResultService,
-} from "../../../service/workflow-result/workflow-result.service";
-import {PanelResizeService} from "../../../service/workflow-result/panel-resize/panel-resize.service";
+import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
+import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
 import { RowModalComponent } from "../result-panel-modal.component";

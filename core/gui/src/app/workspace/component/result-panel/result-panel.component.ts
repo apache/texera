@@ -6,7 +6,7 @@ import { ExecutionState, ExecutionStateInfo } from "../../types/execute-workflow
 import { ResultTableFrameComponent } from "./result-table-frame/result-table-frame.component";
 import { ConsoleFrameComponent } from "./console-frame/console-frame.component";
 import { WorkflowResultService } from "../../service/workflow-result/workflow-result.service";
-import {PanelResizeService} from "../../service/workflow-result/panel-resize/panel-resize.service";
+import { PanelResizeService } from "../../service/workflow-result/panel-resize/panel-resize.service";
 import { VisualizationFrameComponent } from "./visualization-frame/visualization-frame.component";
 import { filter } from "rxjs/operators";
 import { UntilDestroy, untilDestroyed } from "@ngneat/until-destroy";
