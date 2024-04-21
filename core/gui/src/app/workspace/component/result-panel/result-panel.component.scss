@@ -3,13 +3,13 @@
   height: 100%;
   width: 100%;
   position: fixed;
-  z-index: 3;
+  z-index: 4;
 }
 
 #result-container {
   position: fixed;
-  bottom: 15px;
-  left: 15px;
+  top: calc(100vh - 300px);
+  left: 0;
   user-select: none;
   background: white;
 }
