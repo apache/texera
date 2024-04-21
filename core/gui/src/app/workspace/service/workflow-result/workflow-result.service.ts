@@ -193,11 +193,6 @@ class OperatorPaginationResultService {
   }
 
   public selectTuple(tupleIndex: number, pageSize: number): Observable<IndexableObject> {
-    // if (pageSize !== DEFAULT_PAGE_SIZE) {
-    //   throw new Error("only support fixed page size right now");
-    // }
-    //改
-
     // calculate the page index
     // remember that page index starts from 1
     const pageIndex = Math.floor(tupleIndex / pageSize) + 1;
@@ -205,11 +200,6 @@ class OperatorPaginationResultService {
   }
 
   public selectPage(pageIndex: number, pageSize: number): Observable<PaginatedResultEvent> {
-    // if (pageSize !== DEFAULT_PAGE_SIZE) {
-    //   throw new Error("only support fixed page size right now");
-    // }
-    //改
-
     // update currently selected page
     this.currentPageIndex = pageIndex;
     // first fetch from frontend result cache

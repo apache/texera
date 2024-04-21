@@ -3,7 +3,7 @@ import { NzModalRef, NzModalService } from "ng-zorro-antd/modal";
 import { NzTableQueryParams } from "ng-zorro-antd/table";
 import { ExecuteWorkflowService } from "../../../service/execute-workflow/execute-workflow.service";
 import { WorkflowActionService } from "../../../service/workflow-graph/model/workflow-action.service";
-import { DEFAULT_PAGE_SIZE, WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
+import { WorkflowResultService } from "../../../service/workflow-result/workflow-result.service";
 import { PanelResizeService } from "../../../service/workflow-result/panel-resize/panel-resize.service";
 import { isWebPaginationUpdate } from "../../../types/execute-workflow.interface";
 import { IndexableObject, TableColumn } from "../../../types/result-table.interface";
@@ -46,7 +46,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
   // this starts from **ONE**, not zero
   currentPageIndex: number = 1;
   totalNumTuples: number = 0;
-  // pageSize = DEFAULT_PAGE_SIZE;
   pageSize = 5;
 
   constructor(
@@ -108,7 +107,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     const rowHeight = 35;
     let extra: number = Math.floor((panelHeight - 200) / rowHeight);
     this.pageSize = 1 + extra;
-    // You might need to refresh the data table here
   }
 
   /**
