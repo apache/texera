@@ -32,23 +32,22 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
        |
        |class ProcessTupleOperator(UDFOperatorV2):
        |
+       |    def open(self):
+       |        model_name = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+       |        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+       |        self.config = AutoConfig.from_pretrained(model_name)
+       |        self.model = AutoModelForSequenceClassification.from_pretrained(model_name)
+       |
        |    @overrides
        |    def process_tuple(self, tuple_: Tuple, port: int) -> Iterator[Optional[TupleLike]]:
-       |        MODEL = f"cardiffnlp/twitter-roberta-base-sentiment-latest"
-       |        tokenizer = AutoTokenizer.from_pretrained(MODEL)
-       |        config = AutoConfig.from_pretrained(MODEL)
-       |        model = AutoModelForSequenceClassification.from_pretrained(MODEL)
-       |        text = preprocess(tuple_["$attribute"])
-       |        encoded_input = tokenizer(text, return_tensors='pt')
-       |        output = model(**encoded_input)
-       |        scores = output[0][0].detach().numpy()
-       |        scores = softmax(scores)
-       |        ranking = np.argsort(scores)
-       |        ranking = ranking[::-1]
+       |        encoded_input = self.tokenizer(tuple_["text"], return_tensors='pt')
+       |        output = self.model(**encoded_input)
+       |        scores = softmax(output[0][0].detach().numpy())
+       |        ranking = np.argsort(scores)[::-1]
        |        for i in range(scores.shape[0]):
-       |            l = config.id2label[ranking[i]]
-       |            s = scores[ranking[i]]
-       |            tuple_[l] = np.round(float(s), 4)
+       |            label = f"huggingface_sentiment_{self.config.id2label[ranking[i]]}"
+       |            score = scores[ranking[i]]
+       |            tuple_[label] = np.round(float(score), 4)
        |        yield tuple_""".stripMargin
   }
 
@@ -65,9 +64,9 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
     Schema
       .builder()
       .add(schemas(0))
-      .add("positive", AttributeType.DOUBLE)
-      .add("neutral", AttributeType.DOUBLE)
-      .add("negative", AttributeType.DOUBLE)
+      .add("huggingface_sentiment_positive", AttributeType.DOUBLE)
+      .add("huggingface_sentiment_neutral", AttributeType.DOUBLE)
+      .add("huggingface_sentiment_negative", AttributeType.DOUBLE)
       .build()
   }
 }
