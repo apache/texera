@@ -46,7 +46,7 @@ class HuggingFaceSentimentAnalysisOpDesc extends PythonOperatorDescriptor {
   override def operatorInfo: OperatorInfo =
     OperatorInfo(
       "Hugging Face Sentiment Analysis",
-      "Loading Twitter-Based Sentiment Analysis Model from Hugging Face",
+      "Analyzing Sentiments with a Twitter-Based Model from Hugging Face",
       OperatorGroupConstants.MACHINE_LEARNING_GROUP,
       inputPorts = List(InputPort()),
       outputPorts = List(OutputPort())
