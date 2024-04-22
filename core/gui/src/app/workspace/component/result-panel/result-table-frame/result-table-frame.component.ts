@@ -107,6 +107,7 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     const rowHeight = 35;
     let extra: number = Math.floor((panelHeight - 200) / rowHeight);
     this.pageSize = 1 + extra;
+    this.resizeService.pageSize = this.pageSize;
   }
 
   /**
@@ -194,7 +195,6 @@ export class ResultTableFrameComponent implements OnInit, OnChanges {
     }
     this.isLoadingResult = true;
     paginatedResultService
-      // .selectPage(this.currentPageIndex, DEFAULT_PAGE_SIZE)
       .selectPage(this.currentPageIndex, this.pageSize)
       .pipe(untilDestroyed(this))
       .subscribe(pageData => {

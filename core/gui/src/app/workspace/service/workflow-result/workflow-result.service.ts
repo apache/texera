@@ -14,8 +14,6 @@ import { v4 as uuid } from "uuid";
 import { IndexableObject } from "../../types/result-table.interface";
 import { isDefined } from "../../../common/util/predicate";
 
-export const DEFAULT_PAGE_SIZE = 5;
-
 /**
  * WorkflowResultService manages the result data of a workflow execution.
  */
