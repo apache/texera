@@ -88,10 +88,16 @@ class MongoDBSinkStorage(id: String) extends SinkStorageReader {
     mkTupleIterable(cursor)
   }
 
-  override def getSchema: Schema = schema
+  override def getSchema: Schema = {
+    synchronized {
+      schema
+    }
+  }
 
   override def setSchema(schema: Schema): Unit = {
     // Now we require mongodb version > 5 to support "." in field names
-    this.schema = schema
+    synchronized {
+      this.schema = schema
+    }
   }
 }
