@@ -24,11 +24,11 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "binary")
     )
   )
-  var encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
+  private val encoding: FileDecodingMethod = FileDecodingMethod.UTF_8
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Extract")
-  var extract: Boolean = false
+  val extract: Boolean = false
 
   @JsonProperty(defaultValue = "false")
   @JsonSchemaTitle("Include Filename")
@@ -39,7 +39,7 @@ class FileScanSourceOpDesc extends ScanSourceOpDesc with TextSourceOpDesc {
       new JsonSchemaString(path = HideAnnotation.hideExpectedValue, value = "false")
     )
   )
-  var outputFileName: Boolean = false
+  val outputFileName: Boolean = false
 
   fileTypeName = Option("")
 
